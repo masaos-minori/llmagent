@@ -39,6 +39,62 @@ Apply the base rules from `rules/ai-execution.md` (Sequential Target Processing)
 - **Read ONLY the current target file.** Do not read ahead into files for later cycles.
 - After finishing all steps for the current file, load the NEXT target file.
 
+## Implementation Target Files Validation (Plan Freeze)
+
+Applies to a Plan's `Implementation Target Files` and `Reference Files` sections
+(`templates/plan.md`).
+
+### Initial validation (issue-to-plan, Step 8)
+
+Before a Plan's `Implementation Target Files` section may be marked `Frozen`, confirm
+for every row:
+- **Exists**: the file path exists in the repository, confirmed via Read or an
+  equivalent repository tool — or, for a file not yet created, its Reason for
+  Modification explicitly states "New file" and its containing directory exists.
+- **Requires modification**: Reason for Modification states a concrete change to this
+  file's content — a file that is only read, not changed, belongs in `Reference Files`
+  instead, not here.
+- **Has supporting evidence**: Repository Evidence cites a concrete, checkable location
+  (file:line, symbol name, or command output) — not left blank or stated as assumed.
+- **Linked to a Plan requirement**: Related Requirement / Acceptance Criterion cites a
+  Requirement ID or Acceptance criterion already defined elsewhere in the same Plan —
+  not a placeholder, and not an ID absent from the Plan.
+
+A row's `Validation Status` is `Verified` only when all four checks above pass;
+otherwise `Needs confirmation`. A `Needs confirmation` row MUST be resolved
+(re-verified, corrected, or routed to `Unknowns` if genuinely blocking) before the
+section may be marked `Frozen` — do not freeze a section with any `Needs confirmation`
+row.
+
+Additionally, before freezing: no file path may appear in both `Implementation Target
+Files` and `Reference Files`; no row in either section may be a directory, glob
+pattern, component/module name, file group, or vague phrase (e.g. "related files", "as
+necessary").
+
+Once every row is `Verified` and the above additional checks pass, set the section's
+`Freeze status` to `Frozen`. This makes the table the sole authoritative source of
+implementation scope for the Plan — `Implementation steps`, `Acceptance criteria`, and
+every downstream `plan-to-implementation-procedure` document MUST reference only file
+paths listed here.
+
+### Revalidation (plan-to-implementation-procedure, Step 2)
+
+Before generating any implementation procedure document from a Plan, re-run the four
+checks above against the current repository state — the Plan may have been frozen
+earlier in the same session or in a prior session, and repository state can have
+changed since. If a row that was `Verified` no longer passes:
+- Correct the Plan document (per the workflow's own adversarial-verification
+  correction procedure) and re-run this validation for the corrected row(s) before
+  proceeding.
+- Do not silently proceed on a row that fails revalidation.
+
+If, during per-target-file work, a file not listed in `Implementation Target Files` is
+found to require modification, this is an **additional target file discovery** — stop
+immediately, report `Blocked`, and do not generate any further implementation
+procedure document until the Plan has been amended (the new row added, with evidence
+and a requirement link) and this validation has been re-run and the section re-marked
+`Frozen`.
+
 ## Output Validation
 
 - Determine timestamp by running: `date +%Y%m%d-%H%M%S`

@@ -41,7 +41,7 @@ code files or `docs/*.md`.
 | 5 | Create the Plan | Apply Path B's broader analysis if applicable, then generate `plans/{timestamp}_plan.md` with stable Requirement IDs. |
 | 6 | Analyze Unknowns and Risks | Resolve what evidence allows; file unresolved blocking items as issues. |
 | 7 | Add Traceability | Fill the canonical Traceability fields and the per-Requirement Requirement Traceability table. |
-| 8 | Validate information completeness | Confirm no Issue information was dropped and every Requirement ID is traceable. |
+| 8 | Validate information completeness | Confirm no Issue information was dropped, every Requirement ID is traceable, and the `Implementation Target Files` section passes validation and is marked `Frozen`. |
 | 9 | Final validation | Confirm all Step 8 checks pass; report the outcome. |
 | 10 | Move the Issue | `git mv` only, once Step 9 passes; no human approval required; no fallback. |
 
@@ -92,14 +92,19 @@ validation quality analysis. Do not skip any analysis.
 
 - **No Guesswork**: Verify the Issue's factual claims (affected files, whether the
   described problem still reproduces) against current source before writing anything.
-  Every file listed in "Affected Areas" MUST be verified to exist via environment
-  tools — do not guess filenames or directory structures.
+  Every file listed in `Implementation Target Files` or `Reference Files` MUST be
+  verified via environment tools per `rules/workflow-lifecycle.md` Implementation
+  Target Files Validation (Plan Freeze) — do not guess filenames or directory
+  structures.
 - **Isolate Unknowns**: If you lack context or code access to answer a question, mark it
   as `BLOCKING: True` in Step 6 and ask the user for clarification before generating the
   final implementation steps.
 - **Incrementalism**: Design the implementation steps in small, reviewable increments.
   Each step MUST leave the codebase in a testable state.
 - **One Issue at a time**: see `workflow.md` Multi-file processing.
+- **Frozen scope**: the Plan's `Implementation Target Files` section is the canonical,
+  frozen source of implementation scope once Step 8 validates it — see
+  `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze).
 - **No approval gate on the archival move**: this skill's move to `issues/done/`
   does not require human approval — it is gated on Step 9's validation passing
   instead, per `rules/workflow-lifecycle.md` Validation Reporting.

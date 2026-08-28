@@ -3,12 +3,14 @@
 Use this exact Markdown structure when generating
 `implementations/{timestamp}_{seq}_{target_file_slug}.md` in the
 `plan-to-implementation-procedure` workflow (see
-`skills/plan-to-implementation-procedure/workflow.md` Step 3). `seq` is the item's
-1-indexed, zero-padded position within the plan's `Implementation steps` list, so that
-sorting the generated filenames lexicographically reproduces the plan's
-implementation order. Do not omit any section. Write every section's body text in
-English, regardless of the chat language (see
-`skills/plan-to-implementation-procedure/SKILL.md` Core Execution Rules).
+`skills/plan-to-implementation-procedure/workflow.md` Step 3). `seq` is the row's
+1-indexed, zero-padded position within the plan's `Implementation Target Files` table
+(`templates/plan.md`), so that sorting the generated filenames lexicographically
+reproduces the plan's implementation order. Exactly one document per
+`Implementation Target Files` row — see Notes on filling sections below. Do not omit
+any section. Write every section's body text in English, regardless of the chat
+language (see `skills/plan-to-implementation-procedure/SKILL.md` Core Execution
+Rules).
 
 Keep each section concise and file-level (a few bullets each) — this is not a broad
 architecture document. Use `N/A: {short reason}` for any section that does not apply
@@ -65,7 +67,7 @@ to the item.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: {the Requirement ID(s) from the Plan's Implementation steps item this document implements, e.g. `REQ-003`}
+- **Requirement ID**: {the Requirement ID(s) from the Plan's Implementation Target Files row this document implements, e.g. `REQ-003`}
 - **Source issue**: {inherited from the target plan file's own Traceability section}
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: {exact repository-relative path of the target plan file}
@@ -76,6 +78,13 @@ to the item.
 
 ## Notes on filling sections
 
+- "Target file" (singular) names exactly the one `File Path` this document modifies —
+  the one `Implementation Target Files` row (`templates/plan.md`) this document was
+  generated from. Any other file mentioned in Procedure/Method/Details is a reference
+  or verification dependency only — this document MUST NOT contain modification
+  instructions for more than one file. If implementing this item turns out to require
+  modifying a second file, that is an additional-target-file discovery, not something
+  to add here — see `skills/plan-to-implementation-procedure/workflow.md` Step 3.
 - For "Design decisions" / "Alternatives considered" / "Compatibility considerations" /
   "Security considerations" / "Rollback considerations", apply
   `skills/python-design/SKILL.md` + `skills/python-design/workflow.md` for how to

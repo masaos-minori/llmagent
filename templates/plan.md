@@ -32,6 +32,40 @@ High / Medium / Low
 - `REQ-001`: [...]
 - `REQ-002`: [...]
 
+## Implementation Target Files
+**Freeze status**: Draft (set to `Frozen` only once `issue-to-plan` Step 8's
+Implementation Target Files Validation passes — see `rules/workflow-lifecycle.md`
+Implementation Target Files Validation (Plan Freeze)).
+
+This table is the canonical, frozen source of implementation scope for this Plan. Once
+`Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
+`plan-to-implementation-procedure` document MUST reference file paths only from this
+table — no other file may be treated as a modification target.
+
+| File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
+|---|---|---|---|---|---|---|
+| | | | | | | |
+
+Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
+Freeze) for the full validation procedure):
+- One row per file. A directory, glob pattern (`*`, `**`), component/module name, file
+  group, or a vague phrase (e.g. "related files", "as necessary", "etc.") MUST NOT
+  appear as a row — list each file individually by its exact repository-relative path.
+- Record a test, configuration, schema, migration, deployment, or documentation file as
+  its own row when it requires modification — do not fold it into the row for the
+  source file it accompanies.
+- `Validation Status` is `Verified` or `Needs confirmation` per row; every row must be
+  `Verified` before this section may be marked `Frozen`.
+
+## Reference Files
+Files that must be read to implement the targets above, but MUST NOT be modified. Same
+one-file-per-row discipline as `Implementation Target Files` above — no directories,
+glob patterns, components, file groups, or vague phrases.
+
+| File Path | Why It Must Be Read | Related Target File or Requirement |
+|---|---|---|
+| | | |
+
 ## Acceptance criteria
 [Verifiable completion criteria, each referencing a Requirement ID]
 
@@ -55,7 +89,9 @@ requires updating.]
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
-columns:
+columns. The `File` column here MUST be a subset of `Implementation Target Files`'
+rows — this table analyzes change-impact risk for those same files; it is not a
+separate scope-of-record.
 
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
 |---|---|---|---|---|---|
@@ -65,12 +101,17 @@ columns:
 [Architecture/design decisions, grounded in Step 5 analysis]
 
 ## Implementation steps
+Each step description MUST cite the exact file path(s) it touches by referencing rows
+of `Implementation Target Files` above — do not restate file-level detail
+independently of that frozen table.
+
 1. **Phase 1: Preparation / Refactoring (if needed)**
-   - [ ] Step description (Requirement ID)
+   - [ ] Step description (Requirement ID; File Path from Implementation Target Files)
 2. **Phase 2: Core Logic Implementation**
-   - [ ] Step description (Requirement ID)
+   - [ ] Step description (Requirement ID; File Path from Implementation Target Files)
 3. **Phase 3: Deployment & Verification**
-   - [ ] Step description (Mandatory: include deployment validation/scripts check)
+   - [ ] Step description (Mandatory: include deployment validation/scripts check;
+     Requirement ID; File Path from Implementation Target Files)
 
 ## Validation plan
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
@@ -108,11 +149,22 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: {timestamp}
-- **Related target files**: {paths}
+- **Related target files**: {paths} — the full list of `File Path` values from
+  `Implementation Target Files` above, once `Frozen`
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
 ```
+
+## Notes on filling "Implementation Target Files" and "Reference Files"
+
+See `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze)
+for the full validation procedure (what "exists", "requires modification", "has
+supporting evidence", and "linked to a Plan requirement" mean per row, and how the
+section is marked `Frozen`). Populate these two sections from `issue-to-plan`
+`workflow.md` Step 3's inspection findings — a file inspected only to confirm current
+behavior or a dependency belongs in `Reference Files`, not `Implementation Target
+Files`.
 
 ## Notes on filling "Affected areas"
 

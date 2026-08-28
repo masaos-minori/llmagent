@@ -13,9 +13,9 @@ issue file (issues/)
 - Output: `implementations/{timestamp}_{seq}_{target_file_slug}.md`, where
   `target_file_slug` is `target_file_path` with `/` and any non-alphanumeric/`_`/`-`/
   `.` character replaced by `_`, `timestamp` is shared across every document
-  generated in one Step 3 pass, and `seq` is the item's 1-indexed, zero-padded
-  position within the plan's `Implementation steps` list — sorting filenames
-  reproduces the implementation order.
+  generated in one Step 3 pass, and `seq` is the row's 1-indexed, zero-padded
+  position within the plan's `Implementation Target Files` table
+  (`templates/plan.md`) — sorting filenames reproduces the implementation order.
 - Archive destination: `plans/done/`
 - Workflow phase: `plan-to-implementation-procedure`
 
@@ -86,7 +86,16 @@ Only the current file MUST be read; multiple target files MUST NOT be read
 simultaneously.
 
 - Read the target plan file in full. It follows `templates/plan.md`'s structure.
-- Identify the target feature and the related source files to modify.
+- Identify the target feature. The files to modify are exactly the Plan's
+  `Implementation Target Files` rows — do not re-derive the file list independently
+  from `Implementation steps` or prose.
+- Confirm the `Implementation Target Files` section's `Freeze status` is `Frozen`. If
+  it is not `Frozen`, stop and report `Blocked` — freezing is `issue-to-plan` Step 8's
+  responsibility, not this workflow's; do not freeze it here.
+- Revalidate the frozen inventory per `rules/workflow-lifecycle.md` Implementation
+  Target Files Validation (Plan Freeze) — Revalidation, before proceeding to Step 3.
+  If revalidation finds a discrepancy, correct the Plan per that section's rules
+  before continuing.
 - Extract this plan's Traceability section's `Source issue` value for reuse in this
   cycle's generated documents (Step 3) — the Plan already carries it forward from the
   Issue that produced it; do not re-derive it from scratch.
@@ -111,7 +120,7 @@ its full architecture output here.
 
 Treat the Plan's descriptions of current source-code behavior as claims, not
 confirmed present-tense fact — it may have gone stale since approval. Before writing
-Procedure/Method/Details for an item, perform **adversarial verification**: don't
+Procedure/Method/Details for a row, perform **adversarial verification**: don't
 merely confirm the Plan's claims — look for reasons they might be wrong (shifted line
 numbers, an already renamed/removed symbol, a dependency the Plan did not account
 for, a Requirement duplicating/contradicting another Plan, or a code path the Plan's
@@ -127,83 +136,96 @@ via Edit) in the same cycle — update whichever sections apply (Background,
 Requirements, Acceptance criteria, Assumptions, Risks, Requirement Traceability,
 Execution Status) rather than silently working around the discrepancy — and reflect
 the corrected understanding in the generated document(s). Record what was found and
-corrected in the progress report; do not report an item `Completed` while a
+corrected in the progress report; do not report a row `Completed` while a
 Plan-level inconsistency it surfaced remains unresolved.
 
-Files read only to confirm current behavior or dependencies are not automatically
-additional target files — list a file under Target file only if the Plan's
-Implementation steps designates it as a file to modify.
+Files read only to confirm current behavior or dependencies are not additional target
+files — a file belongs under `Target file` only if it is a row in the Plan's
+`Implementation Target Files` table (revalidated in Step 2). A file in `Reference
+Files`, or any other file read only for context, MUST be mentioned only as a reference
+or verification dependency in the generated document, never as a second modification
+target — see `templates/implementation-procedure.md` Notes on filling sections.
 
 Before iterating, set one shared timestamp for this Step 3 pass: run
 `date +%Y%m%d-%H%M%S` once and reuse that exact value for every document created in
-this pass. Do not re-run `date` per item — creation order must be recoverable from
-`seq` below, not from timestamp drift between items.
+this pass. Do not re-run `date` per row — creation order must be recoverable from
+`seq` below, not from timestamp drift between rows.
 
-For each item in `Implementation steps`, in the order they appear in that list:
+For each row in `Implementation Target Files`, in the order they appear in that table
+— **one target file = one implementation procedure document** (see `SKILL.md` Core
+Execution Rules):
 
-- `target_file_path` is the repository-relative path of the file that item implements
-  and tests (e.g. `scripts/agent/foo.py`); `target_file_name` is its base name only.
-  Use `target_file_path` for traceability matching and output naming —
-  `target_file_name` alone is ambiguous when the same base name exists under multiple
-  directories.
-- `seq` is this item's 1-indexed position within the plan's `Implementation steps`
-  list, zero-padded to 2 digits (`01`, `02`, ...) — fixed by the item's position in
-  the Plan, not by generation order or how many items were skipped as already
-  implemented, so re-running an interrupted cycle assigns the same `seq` to the same
-  item every time.
-- If the same `target_file_path` appears in multiple `Implementation steps` items with
-  no intervening dependency on a different target file's completion, merge them into a
-  single document (using the first item's `seq`) instead of one per item. If an
-  intervening dependency exists, keep them separate to preserve implementation order.
-- Classify the item's implementation state:
+- `target_file_path` is the row's `File Path` (e.g. `scripts/agent/foo.py`);
+  `target_file_name` is its base name only. Use `target_file_path` for traceability
+  matching and output naming — `target_file_name` alone is ambiguous when the same
+  base name exists under multiple directories.
+- `seq` is this row's 1-indexed position within the Plan's `Implementation Target
+  Files` table, zero-padded to 2 digits (`01`, `02`, ...) — fixed by the row's
+  position in the table, not by generation order or how many rows were skipped as
+  already implemented, so re-running an interrupted cycle assigns the same `seq` to
+  the same row every time.
+- `Implementation Target Files` disallows duplicate `File Path` rows once `Frozen`
+  (see `rules/workflow-lifecycle.md`), so each row maps to exactly one document — no
+  merging is needed. If a duplicate `File Path` is found across rows, this means the
+  Plan was not correctly frozen; stop and report `Blocked`.
+- Classify the row's implementation state:
   - `Already implemented`: an existing document under `implementations/` or
     `implementations/done/` has both `Source plan` equal to the current
     repository-relative plan path and `Related target files` equal to the current
     repository-relative target path (matched via `target_file_path`, not only
     `target_file_name`), AND — confirmed against current source, not just the matched
-    document's text — its stated scope covers the current item's full scope. The
+    document's text — its stated scope covers the current row's full scope. The
     target source file merely existing is not sufficient evidence; read the matched
     document's content and confirm.
   - `Partially implemented`: a matching document exists, but its scope is outdated,
-    narrower than, or only overlaps the current item.
+    narrower than, or only overlaps the current row.
   - `Not implemented`: no matching document exists, or none of the above applies.
-- If `Already implemented`, skip this item.
+- If `Already implemented`, skip this row.
 - If `Partially implemented`, create a document scoped to only the not-yet-implemented
   remainder — reference the matched existing document for the already-covered portion
   instead of repeating it, and note the discrepancy in the progress report.
-- If traceability is missing or ambiguous, do not skip the item. Report
+- If traceability is missing or ambiguous, do not skip the row. Report
   `Needs confirmation`.
 - If `Not implemented`, create the document only (do not implement anything):
-  - Create a file-level implementation and test procedure document.
+  - Create a file-level implementation and test procedure document containing
+    modification instructions for exactly this row's `File Path` — no other file.
   - Save the document as `implementations/{timestamp}_{seq}_{target_file_slug}.md`
     (naming per Workflow position above), using this pass's shared `timestamp` and
-    this item's `seq`.
+    this row's `seq`.
   - If the resulting path already exists, this can only mean an interrupted cycle is
-    being resumed and the classification above did not treat it as covering this item
+    being resumed and the classification above did not treat it as covering this row
     (e.g. stale or partial-scope content) — it MUST NOT be overwritten. Stop and
-    report `Needs confirmation` for this item instead.
-- Classify each evidence gap encountered while investigating an item as Blocking or
+    report `Needs confirmation` for this row instead.
+- Classify each evidence gap encountered while investigating a row as Blocking or
   Non-blocking:
   - Blocking: a safe, concrete procedure cannot be written without this evidence. Stop
-    and report `Blocked: {specific item}`.
+    and report `Blocked: {specific row}`.
   - Non-blocking: a procedure can still be written with a noted caveat. Report
-    `Needs confirmation` and proceed — do not skip the item.
-- If investigation reveals a change is necessary that the Plan's `Implementation
-  steps` does not describe, do not add it to the generated document. Report it as
-  `Plan Gap: {description}` — the scope decision belongs to a Plan revision, not this
-  workflow.
+    `Needs confirmation` and proceed — do not skip the row.
+- If investigation reveals that implementing this row requires modifying a file not
+  listed in `Implementation Target Files`, this is an **additional target file
+  discovery** — stop immediately and report `Blocked: additional target file
+  discovered — {path}`. Do not generate a procedure document for this or any further
+  row until the Plan has been amended (the new file added as its own `Implementation
+  Target Files` row, with evidence and a Requirement link) and revalidated/re-frozen
+  per `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
+  Freeze).
+- If investigation instead reveals that this row's approach needs to change but no
+  additional file is involved, do not add the change to the generated document.
+  Report it as `Plan Gap: {description}` — the scope decision belongs to a Plan
+  revision, not this workflow.
 - Reference the source Requirement by ID and a short (one-clause) purpose in the
   generated document (see `templates/implementation-procedure.md`) — do not paste the
   Plan's full Requirement description text.
 
 ### Progress recording during Step 3
 
-Report an interim update only when an item's outcome is Blocked, Partially
-implemented, fails verification, or produces a Plan Gap — do not report for an item
-that completes as Already implemented or Not implemented→newly created without
-incident:
+Report an interim update only when a row's outcome is Blocked, Partially implemented,
+fails verification, produces a Plan Gap, or is an additional target file discovery —
+do not report for a row that completes as Already implemented or Not
+implemented→newly created without incident:
 - Note which target file you are working on
-- Record the current status (In Progress / Blocked / Completed) for each item
+- Record the current status (In Progress / Blocked / Completed) for each row
 - If blocked, describe the blocker and whether it requires user intervention
 - Update the Execution Status table in the output document
 
@@ -219,18 +241,32 @@ completes and the checks below pass, without stopping to ask the user for
 approval.
 
 Before proceeding, verify that:
-- every `Implementation steps` item in the Plan has been accounted for (`Already
-  implemented`, `Partially implemented`, newly created this cycle, or explicitly
-  reported as `Needs confirmation` / `Blocked` / `Plan Gap`);
+- every `Implementation Target Files` row in the Plan has been accounted for
+  (`Already implemented`, `Partially implemented`, newly created this cycle, or
+  explicitly reported as `Needs confirmation` / `Blocked` / `Plan Gap`);
+- the number of `Implementation Target Files` rows equals the number of
+  implementation procedure documents generated or confirmed for this Plan (counting
+  `Already implemented` matches);
+- every row maps to exactly one procedure document, and every procedure document maps
+  back to exactly one row — no row is missing a document, and no row has more than
+  one;
+- no procedure document modifies more than one file (its `Implementation > Target
+  file` names exactly one path);
+- no file outside `Implementation Target Files` was added as a modification target
+  during this cycle (an additional target file discovery must already have been
+  reported `Blocked` and resolved per Step 3, not silently included here);
 - the Execution Status section in each document created or confirmed this cycle
-  accurately reflects the actual work performed (all completed items show Completed
-  status, any blocked items have blocker descriptions filled in, Work Items Created
+  accurately reflects the actual work performed (all completed rows show Completed
+  status, any blocked rows have blocker descriptions filled in, Work Items Created
   includes all artifacts produced).
 
+If any of the above does not hold, do not proceed to the move — report `Blocked` and
+resolve the discrepancy first.
+
 This workflow MAY update the Plan's own `## Execution Status` section (in
-`plans/{filename}_plan.md`) via Edit before the move: mark an `Implementation steps`
-item `In Progress` once its procedure document is generated, or `Completed` if matched
-as `Already implemented`. This is separate from each generated document's own
+`plans/{filename}_plan.md`) via Edit before the move: mark an `Implementation Target
+Files` row `In Progress` once its procedure document is generated, or `Completed` if
+matched as `Already implemented`. This is separate from each generated document's own
 Execution Status section.
 
 Apply `rules/workflow-lifecycle.md` Archival Move (`plan-to-impl-procedure` row) and
@@ -244,9 +280,9 @@ Completion Criteria in full. This workflow's move: `plans/{filename}_plan.md` to
 - In Step 3, check "already implemented" status by first matching `target_file_slug`
   against file names under `implementations/` and `implementations/done/` as a cheap
   filter; only when a name matches, read that matched file's content (not the full
-  target source file) to confirm its stated scope actually covers the current item
+  target source file) to confirm its stated scope actually covers the current row
   before deciding to skip.
-- In Step 3, perform the per-item investigation (reading the related source file to
+- In Step 3, perform the per-row investigation (reading the related source file to
   write Method/Details) sequentially; read only the relevant sections of the target
   source file (locate them with grep first, then read a limited range) rather than the
   full file. Retain only what is needed for the procedure document, not full file

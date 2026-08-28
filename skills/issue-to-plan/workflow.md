@@ -150,8 +150,9 @@ Read only relevant sections unless the full file is required for an accurate
 conclusion. Record the Path A/B decision for reuse in Step 5.
 
 Track files inspected only for evidence separately from files planned for
-modification. Only modification-target files belong in the Plan's Affected areas table
-(Step 5) — cite evidence-only files by path in Problem/Design prose instead.
+modification. Only modification-target files belong in the Plan's `Implementation
+Target Files` table (Step 5); evidence-only files belong in `Reference Files` (also
+Step 5) — do not merely cite them in prose.
 
 ---
 
@@ -163,7 +164,7 @@ Create an explicit mapping before writing the Plan:
 |---|---|
 | Title | Goal |
 | Priority | Priority |
-| Target files | Affected areas, Related target files |
+| Target files | Implementation Target Files, Reference Files (Affected areas and Traceability's Related target files are derived from Implementation Target Files, not mapped independently) |
 | Background | Background |
 | Problem | Problem |
 | Reason for change | Reason for change |
@@ -223,6 +224,13 @@ raising it to ≥ 90%.
 - Use the section order and structure from `SKILL.md` Output format.
 - Assign every requirement a stable ID (`REQ-001`, `REQ-002`, ...). Each Acceptance
   criterion, Test, and Implementation step must reference its related Requirement ID.
+- Populate `Implementation Target Files` and `Reference Files` per `templates/plan.md`:
+  one explicit repository-relative file path per row — never a directory, glob
+  pattern, component/module name, file group, or a vague phrase such as "related
+  files" or "as necessary". Give a test, configuration, schema, migration, deployment,
+  or documentation file its own row when it requires modification, rather than folding
+  it into the row for the source file it accompanies. Every `Repository Evidence`
+  entry must cite what Step 3's inspection actually found — do not infer it.
 - Every claim must be backed by evidence gathered above (or, for Path A, by Step 3's
   direct verification).
 - Implementation steps must be small enough to be independently revertable.
@@ -290,14 +298,23 @@ change, implementation intent, implementation instructions, acceptance criteria,
 documentation impact, constraints/out-of-scope items, dependencies, assumptions,
 unknowns, risks/mitigations, and Source Issue traceability.
 
-Verify the Requirement Traceability subsection has one row per Requirement ID with all
-columns filled, including a Status entry from Step 2.
+Verify the Requirement Traceability subsection has at least one row per Requirement ID
+(one per target file it affects) with all columns filled, including a Status entry
+from Step 2.
 
 Verify every Requirement ID is traceable to its Issue source/evidence, an implementation
 step, an acceptance criterion, and a test/validation item.
 
+Apply `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
+Freeze) — Initial validation, to every row of `Implementation Target Files`. Mark the
+section `Frozen` only when every row is `Verified` and the section's additional checks
+(no directory/glob/component/group/vague-phrase row, no file listed in both
+`Implementation Target Files` and `Reference Files`) pass. Do not report `Pass` while
+any row remains `Needs confirmation` or the section is not `Frozen`.
+
 Report one of: `Pass` / `Fail` / `Partial` / `Blocked`. If any requirement information
-is unmapped or untraceable, do not report `Pass` or `Completed`.
+is unmapped or untraceable, or `Implementation Target Files` is not `Frozen`, do not
+report `Pass` or `Completed`.
 
 Before delivering, cross-check (do not re-derive): goal is one sentence and verifiable;
 scope has explicit in/out boundaries; assumptions are falsifiable; no blocking Unknowns
@@ -310,11 +327,12 @@ has a full table; risks are stated with mitigations.
 ## Step 9: Final Validation
 
 Report: generated Plan path; generated Unknown/Risk files (or `None`); number of
-Requirements; Path A/B classification (one word; rationale is in the Plan's Design
-section, do not restate); information-completeness result; traceability result;
-unresolved items count; and the Issue pending move. Do not restate the Requirement
-Traceability evidence-classification breakdown — it is already in the Plan's
-Requirement Traceability table.
+Requirements; number of `Implementation Target Files` rows; Path A/B classification
+(one word; rationale is in the Plan's Design section, do not restate);
+information-completeness result; traceability result; `Implementation Target Files`
+freeze status (`Frozen` / not `Frozen` with reason); unresolved items count; and the
+Issue pending move. Do not restate the Requirement Traceability evidence-classification
+breakdown — it is already in the Plan's Requirement Traceability table.
 
 No human approval is required for the move to `issues/done/`, per
 `rules/workflow-lifecycle.md` Validation Reporting — proceed to Step 10 once Step 8 is
