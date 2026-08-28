@@ -18,6 +18,17 @@ implementation surfaced the mismatch. `ADR-012`'s Known Deviations section also 
 and `GIT-002` (and, separately, the fuller original scope of `MCP-003`) as open gaps, so it likely
 needs the same correction.
 
+Likely root cause: `issues/done/20260823_git_dirty_worktree_detached_head_issue.md` and
+`issues/done/20260823_git_postcondition_verification_issue.md` (both already archived to
+`issues/done/`, dated 2026-08-23) appear to be the implementation work that closed `GIT-001` and
+`GIT-002` respectively — their filenames match the gap each Known Issue describes. The
+implementation and archival evidently did not include updating
+`docs/04_mcp_90_inconsistencies_and_known_issues.md`'s `Status` field, which is how this
+documentation fell out of sync with the code it describes. This suggests the project's
+issue-closure procedure should include a docs-sync step for `Status`/`Resolution Notes` when an
+implementation issue closes a tracked Known Issue — worth raising separately if this pattern
+recurs.
+
 ## Problem
 - `GIT-001`'s `Observed Implementation` states: "`git_checkout` calls `git reset --hard`
   unconditionally; `git_pull` calls `git pull` without checking for uncommitted changes first."
@@ -44,7 +55,18 @@ a source of truth for what is actually still open (per this doc's own purpose).
 ## Implementation Intent
 Documentation-only change. Update `GIT-001` and `GIT-002`'s `Status` to `resolved` and rewrite
 their `Observed Implementation`/`Resolution Notes` fields to describe the current, confirmed
-behavior with a reference to the responsible functions. Check `ADR-012`'s Known Deviations section
+behavior with a reference to the responsible functions. As of this issue's drafting, the
+following tests exist and pass (confirmed by running
+`pytest tests/mcp_servers/git/test_git_security_compliance.py tests/mcp_servers/git/test_format_output.py`,
+56 passed) and can be cited directly in `Resolution Notes` instead of a vague "covered by tests"
+claim: `test_git_checkout_dirty_worktree_denied`, `test_git_pull_dirty_worktree_denied`,
+`test_git_checkout_detached_head_denied`, `test_git_pull_detached_head_denied` (all in
+`test_git_security_compliance.py`, GIT-001) and `test_checkout_postcondition_failure_wrong_branch`,
+`test_checkout_postcondition_failure_detached_head`,
+`test_pull_postcondition_failure_unresolved_conflicts`,
+`test_push_postcondition_failure_rejection_marker_in_output` (all in `test_format_output.py`,
+GIT-002). Re-confirm these still exist and pass at implementation time rather than trusting this
+list indefinitely — the repo has other sessions actively modifying it concurrently. Check `ADR-012`'s Known Deviations section
 and Verification/Completion-Criteria language for the same staleness and correct it if found —
 `ADR-012`'s Status may also need reassessment (still `Proposed`) now that a meaningful portion of
 its scope (`GIT-001`, `GIT-002`, and per `MCP-003`'s own Resolution Notes, protected-branch and

@@ -64,10 +64,26 @@ Confirmed by reading `config/agent.toml`, `scripts/agent/tool_policy.py`,
   naming the repository path and target branch/remote the way, e.g., `move_file`'s
   `"{source} → {destination}"` preview does.
 
-**Not yet investigated (see Unresolved Questions):**
-- Whether `args` used at approval time can differ from `args` actually executed (argument
-  immutability between approval and execution).
-- Whether any approval decision is ever reused across multiple tool calls without a fresh prompt.
+**Investigated and resolved (previously listed as Unresolved Questions):**
+- **Argument immutability between approval and execution: confirmed safe, though not enforced.**
+  Traced `PreparedToolCall.args` (`scripts/agent/tool_preparation.py`) from creation through
+  `run_approval_checks()` (`tool_approval.py`) to `execute_one_tool_call()`
+  (`scripts/agent/tool_runner.py`) and `RepositoryGateway.execute()`
+  (`repository_gateway.py`) — the identical dict object/reference is read at every step; no
+  mutation (`args[...] =`, `.update(`, `.pop(`, `del`) was found anywhere in that path. The only
+  new dict built along the way is `_build_preview_with_dry_run()`'s `{**args, "dry_run": True}`
+  for the dry-run preview call, which is a copy, not a mutation of the approved `args`. Caveat:
+  `PreparedToolCall` is `frozen=True`, which prevents reassigning its `.args` attribute, but does
+  not prevent in-place mutation of the dict's contents — nothing currently does so, but nothing
+  structurally forbids a future change from introducing it either.
+- **Approval reuse across multiple tool calls: confirmed not to happen.**
+  `run_approval_checks()` (`tool_approval.py`) loops over `prepared_calls` and calls
+  `check_approval()` independently for each — no caching or memoization keyed by tool name or
+  args. Each `git_checkout`/`git_pull`/`git_push` call gets its own prompt. (A separate,
+  unrelated approval concept exists — the workflow engine's task-level human-approval gate,
+  `scripts/agent/workflow/workflow_engine.py`'s `require_approval`/`WorkflowPendingApprovalError`
+  — but its own docstring states it is explicitly distinct from this per-tool-call approval, and
+  it blocks all new tool-call generation while pending rather than reusing any per-tool decision.)
 
 ## Reason for Change
 The core, actively-exploitable mismatch this Known Issue originally reported — Git write tools
@@ -83,29 +99,32 @@ approval behavior in production.
 Address the three confirmed-open items independently; each is small and does not depend on the
 others:
 
-1. **Config floor.** Add a check (in `shared/production_config_validator.py` or the config
-   loader) that rejects — or at minimum warns loudly at startup on — an `approval_risk_rules`
-   value for `git_checkout`/`git_pull`/`git_push` that resolves below `HIGH`, or their absence
-   combined with a `tool_safety_tiers` entry lower than `WRITE_DANGEROUS`. Decide fail-fast vs.
-   fail-open per this project's existing Environment Profile failure policy (`ADR-004`) rather
-   than inventing new behavior here.
+1. **Config floor.** Add a check in `scripts/shared/production_config_validator.py::ProductionConfigValidator.validate()`
+   that rejects — or at minimum warns loudly at startup on — a *resolved* effective risk below
+   `HIGH` for `git_checkout`/`git_pull`/`git_push` (resolved means: the actual `_TIER_TO_RISK`-mapped
+   risk after applying any `approval_risk_rules` override — an *absent* override falling back to
+   the `WRITE_DANGEROUS` tier's `MEDIUM` default must be caught too, not just an explicit
+   `"medium"`/`"low"` override). Follow the existing helper pattern already used in this
+   validator — `_check_missing_tool_safety_tiers()`/`_check_unknown_tool_safety_tiers()`, each
+   feeding into `self._record(errors, warnings, msg, is_production)`, which already implements
+   the ADR-004 fail-fast(production)/warn(local-dev) split via the `is_production` flag — add a
+   `_check_approval_risk_floor(...)`-style helper called the same way, rather than inventing a new
+   validation mechanism.
 2. **Real-config verification test.** Add a test that loads the actual `config/agent.toml` (not a
    synthetic `cfg`) and asserts `classify_risk()` resolves `git_checkout`/`git_pull`/`git_push` to
    `HIGH`, and/or an integration-level test exercising `check_approval()`'s full-word-`"yes"` path
    for these three tools against the real config.
-3. **Git-specific approval preview.** Add a `git_*` case to `build_preview()` naming the
-   repository path and, where present, the target branch/remote — following the existing
-   per-category pattern (`move_file`'s `"{source} → {destination}"`, `_preview_file_path()`, etc.)
-   rather than introducing a new preview mechanism.
-
-Investigate, but do not assume the answer to, the two Unresolved Questions below before deciding
-whether items 6/7 from the original proposal require any code change.
+3. **Git-specific approval preview.** Add a `git_*` case to `build_preview()`
+   (`scripts/agent/tool_result_formatter.py`), modeled directly on the existing `move_file` branch
+   (`"{source} → {destination}"`, lines ~73-74) as the pattern to copy. This cannot reuse
+   `_preview_file_path()` unmodified — git tool args use `repo_path` (not `path`/`file_path`), so
+   the new case needs its own small extractor reading `repo_path`/`branch`/`remote`.
 
 ## Target Files or Areas
 - `config/agent.toml` (`[approval_risk_rules]`, `[tool_safety_tiers]` — reference only; already
   correct)
-- `shared/production_config_validator.py` (or wherever config validation runs — target for the
-  new floor check)
+- `scripts/shared/production_config_validator.py` (`ProductionConfigValidator.validate()` — target
+  for the new floor check; see Implementation Intent for the existing helper pattern to follow)
 - `scripts/agent/tool_policy.py` (`classify_risk()`, `_TIER_TO_RISK` — reference for how the floor
   check should reason about resolved risk)
 - `scripts/agent/tool_approval.py` (`check_approval()`, `_prompt_user_approval()` — reference;
@@ -124,8 +143,6 @@ whether items 6/7 from the original proposal require any code change.
 - Add a git-specific case to `build_preview()` (item 3 above).
 - Update `ADR-012`'s Known Deviations entry for `MCP-004` to reflect the resolved core behavior
   and the narrower remaining scope this issue tracks.
-- Investigate and record findings for the two Unresolved Questions (argument immutability,
-  approval reuse) before deciding whether they require further code changes.
 
 ## Constraints
 - Do not change the currently-correct `config/agent.toml` values for
@@ -144,8 +161,6 @@ whether items 6/7 from the original proposal require any code change.
   applicable) for `git_*` tools instead of falling through to the generic JSON-dump case.
 - `ADR-012`'s Known Deviations `MCP-004` entry and `docs/04_mcp_90_inconsistencies_and_known_issues.md`'s
   `MCP-004` Resolution Notes reflect the corrected, narrower scope.
-- The two Unresolved Questions have recorded findings (confirmed safe, or a follow-up issue filed
-  if a gap is found).
 
 ## Testing Expectations
 Unit test for the new config floor check (accepts `"high"`, rejects/warns on `"medium"`/`"low"`/
@@ -174,23 +189,21 @@ silently left as-is once this issue's items are addressed.
   check should follow).
 
 ## Unresolved Questions
-- Whether `args` used at approval time (`check_approval(ctx, tool_name, args)`) can differ from
-  the `args` actually passed to git command execution afterward — i.e., whether there is any
-  window for argument mutation between approval and execution. Needs tracing through
-  `tool_preparation.py`/`tool_runner.py`'s `PreparedToolCall` handling before concluding whether
-  this is already safe or needs an explicit immutability guarantee.
-- Whether any approval decision is reused across multiple tool calls without a fresh prompt (the
-  original proposal's "承認の使い回しを制限"). No caching/reuse mechanism was found in
-  `tool_approval.py`/`tool_policy.py` during this issue's investigation, which suggests each call
-  already gets an independent prompt — but this should be confirmed by tracing
-  `run_approval_checks()`'s call pattern rather than assumed from an absence of matching grep
-  results.
+N/A: none — both original questions (argument immutability, approval reuse) were investigated by
+tracing the actual call path and are recorded as resolved findings in Problem, above. The one
+residual, non-blocking observation: `PreparedToolCall.args`'s immutability is currently incidental
+(no code happens to mutate it) rather than structurally enforced (the dict itself is still
+mutable). Treat this as background context, not an open question requiring a decision before this
+issue's three Required Changes can proceed.
 
 ## AI Implementation Instruction
 Do not re-implement the `HIGH`-tier override, the full-word-`"yes"` prompt, or approval-outcome
 audit recording — all three are already correct; re-confirm this by reading
 `config/agent.toml` lines ~200-203/280-283, `tool_approval.py::_prompt_user_approval()`, and
 `check_approval()`'s `audit_approval()` calls before starting, since re-implementing already-working
-behavior risks introducing a regression. Investigate the two Unresolved Questions by tracing code
-rather than assuming an answer either way. Implement the three Required Changes independently and
-update `ADR-012`'s `MCP-004` Known Deviations entry as part of the same change.
+behavior risks introducing a regression. The two originally-open questions (argument immutability,
+approval reuse) are already answered in Problem above — do not re-investigate them from scratch,
+but do re-confirm the specific call path (`tool_preparation.py` → `tool_approval.py` →
+`tool_runner.py`) is unchanged before relying on that finding, since other sessions are actively
+modifying this repo. Implement the three Required Changes independently and update `ADR-012`'s
+`MCP-004` Known Deviations entry as part of the same change.
