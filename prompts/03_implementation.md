@@ -50,8 +50,7 @@ Multi-file processing (progress-report cadence, context hygiene): see
 
 Follow `skills/code-implementation/workflow.md` Step 0 in full.
 
-If a required file is missing, unreadable, or contradictory (see Instruction
-Precedence above), stop and report `Blocked`. Do not infer missing instructions.
+Apply `rules/ai-execution.md`, section "Required File Validation".
 
 #### Step 1: Identify the target implementation procedure file(s)
 

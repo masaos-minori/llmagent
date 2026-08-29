@@ -194,6 +194,13 @@ values" rule above.
 reading, editing, or analysis — do not touch or count them toward any task unless the task
 explicitly targets them.
 
+### No secrets in output
+
+Do not include secrets, credentials, private tokens, API keys, or other sensitive
+values in generated output (design docs, documentation, generated issues, quoted
+logs). When a log or config snippet is needed as evidence, quote only the relevant
+portion and redact the sensitive value rather than omitting the whole snippet.
+
 ### Pythonic safety constraints
 
 Applies to any skill that writes or transforms production Python code

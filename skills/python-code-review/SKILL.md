@@ -59,7 +59,7 @@ See `workflow.md` for detailed phase content and tooling.
 
 ## Core Review Rules (Strictly Enforced for AI)
 
-- Separate fact, interpretation, suspected issue, and open question.
+- Classify findings using the Evidence labels and Confidence levels in `skills/DESIGN.md` Shared Vocabulary; do not introduce a separate fact/interpretation/issue/question system.
 - Do not trust README or old docs without implementation verification.
 - Do not over-report style-only issues.
 - Respect project conventions and explain trade-offs.

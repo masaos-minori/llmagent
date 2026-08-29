@@ -127,7 +127,6 @@ Do not introduce a new pattern unless the existing pattern is demonstrably insuf
 Applies `skills/DESIGN.md` Pythonic safety constraints (specific exceptions, no bare
 `except Exception` without re-raising, fail-fast) to this phase:
 
-- raise specific exceptions with descriptive messages
 - add context to errors when it improves diagnosis:
   ```python
   raise ValueError(f"floats_to_blob: expected list[float], got {type(v).__name__}")
@@ -137,8 +136,7 @@ Applies `skills/DESIGN.md` Pythonic safety constraints (specific exceptions, no 
 
 #### File editing rules
 
-- change only files relevant to the task (see `AGENTS.md` Global Rule 5 for the
-  unrelated-cleanup prohibition)
+- Scope discipline: see `AGENTS.md` Global Rule 5.
 - keep diffs small and intentional
 - when adding/removing a module: `deploy/deploy.sh` does not need a change for this — `scripts/` is rsynced wholesale (see `rules/env.md` Architecture); only a new `config/*.toml` file needs a `cp` line added there
 - when renaming a symbol: update all call sites confirmed by `rg` or `ast-grep`

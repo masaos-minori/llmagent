@@ -8,6 +8,14 @@
 - Do not omit necessary evidence to save context.
 - Reuse a verified fact only while its source file is unchanged. Store the source path and evidence location with each cached fact, and recheck it after the source changes.
 
+## Required File Validation
+
+Applies at Step 0 of any workflow that loads required files (prompts, skills, rules, or
+target files) before acting.
+
+- If a required file is missing, unreadable, or its content contradicts another
+  required file, stop and report `Blocked`. Do not infer missing instructions.
+
 ## Instruction Precedence
 
 Applies when two or more instructions conflict, whether file-based (layer order

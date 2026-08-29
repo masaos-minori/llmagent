@@ -17,7 +17,7 @@ stabilization work plan, not staged through `issues/` -> `plans/` -> `implementa
 
 - Read-only across the repository by default: source code, tests, configuration, CI
   definitions, and docs.
-- Do not edit production code unless the user explicitly requests it.
+- Production code: see `SKILL.md` Phase Boundaries.
 - Writing is limited to the final Markdown report, saved per `report-template.md`
   Report Content Rules' destination logic — do not create a new report directory
   without an existing repository rule.
@@ -97,7 +97,8 @@ Important:
 - If tests need to be run in a specific order, infer and follow that order.
 
 For each executed command, record: exact command, purpose, and its Result
-Classification (`evidence.md`). For a `Fail` or `Partial` result, also record the
+Classification (`evidence.md`), per `rules/ai-execution.md` Repository Tool Usage
+rule 10. For a `Fail` or `Partial` result, also record the
 failing test names — defer determinism/root-cause analysis to Step 4; do not classify
 flaky-vs-deterministic or root cause here.
 
@@ -161,7 +162,8 @@ the user explicitly requests it.
 These rules MUST be followed, in addition to `evidence.md`'s classification procedures:
 - Do not silently ignore skipped or blocked tests.
 - If CI and local commands differ, report that explicitly.
-- Repository-defined commands SHOULD be preferred over invented commands.
+- Prefer repository-defined commands over invented ones, per `rules/ai-execution.md`
+  Repository Tool Usage rule 5.
 - If a service dependency is missing, explain exactly what blocked execution.
 - For missing tests, tie each proposal to concrete code paths or documented behavior,
   and to a Finding ID.
@@ -180,10 +182,8 @@ These rules MUST be followed, in addition to `evidence.md`'s classification proc
   `FAIL`/`ERROR` lines via `grep`, rather than reading the full raw stream.
 - Perform Step 1 discovery sequentially; return only the identified commands and
   structure, not full file contents.
-- Perform Step 5 gap analysis sequentially by layer (`discovery.md` Gap Analysis).
-  Return only each layer's findings, not the source read, so one layer's
-  investigation does not accumulate into the next.
-- Read shared files in Step 0 only once per session.
+- Perform Step 5 gap analysis sequentially by layer: see `discovery.md` Gap Analysis.
+- Shared-file re-reading: see `rules/ai-execution.md` Context Reading.
 - In Steps 6-7, reference findings by Finding ID rather than re-quoting evidence or
   source excerpts already recorded in Step 3/4/5.
 - Include all failures, blocking issues, and important validation results even in

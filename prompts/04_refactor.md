@@ -16,10 +16,8 @@ workflow's allowed and forbidden file operations.
 - Execution rules: see `rules/ai-execution.md` (context reading, tool usage,
   reasoning, output, progress reporting, command results, sequential target
   processing).
-- Global safety restrictions: see `rules/ai-execution.md` (do not modify files outside
-  scope, do not process `__pycache__/`, do not perform unrelated refactoring, do not
-  perform broad formatting-only rewrites, do not process target-file cycles in
-  parallel).
+- Global safety restrictions: apply `AGENTS.md` Global Rule 5; `rules/ai-execution.md`
+  Global Safety Restrictions (Base); `skills/DESIGN.md` Out-of-scope paths.
 - Core principles, applicability conditions (Path A/B/C routing), and the Step 0-10
   phase overview: see `skills/python-refactoring/SKILL.md`.
 - Detailed step-by-step procedure, multi-file processing, and the toolchain reference:
@@ -49,7 +47,7 @@ See `skills/python-refactoring/workflow.md` Out of Scope for the full list.
 
 ### Tasks
 
-Report progress at the start and end of each step. Multi-file processing (one file, or
+Apply `rules/ai-execution.md` Progress Reporting (Base). Multi-file processing (one file, or
 one approved atomic migration group, per cycle): see `skills/python-refactoring/workflow.md`
 Multi-file processing.
 
@@ -57,8 +55,7 @@ Multi-file processing.
 
 Follow `skills/python-refactoring/workflow.md` Step 0 in full.
 
-If a required file is missing, unreadable, or contradictory (see Instruction
-Precedence above), stop and report `Blocked`. Do not infer missing instructions.
+Apply `rules/ai-execution.md`, section "Required File Validation".
 
 #### Step 1: Identify target files
 

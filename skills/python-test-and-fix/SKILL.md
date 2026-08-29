@@ -66,7 +66,7 @@ Analyze your task in **Step 1** and strictly follow the assigned execution path.
 | 8 | Observability validation | Capture logging output using pytest's `caplog` fixture. Skip OTel unless project-wide patterns exist. |
 | 9 | Resource leak detection | Audit `pytest-asyncio` lifecycles and use `pytest-timeout` to catch unclosed resources or hanging loops. |
 | 10 | Impact-based execution | Leverage `pytest-testmon` if available for rapid, incremental test execution during local feedback loops. |
-| 11 | Regression quality analysis | Verify `diff-cover >= 90%` and check that the specific bug-fix or new path achieves complete logical coverage. |
+| 11 | Regression quality analysis | Per `rules/toolchain.md` §7 (Diff-scoped coverage) and check that the specific bug-fix or new path achieves complete logical coverage. |
 | 12 | Fix strategy | **Audit step**: Formulate the smallest possible fix. If implementation behavior is correct, fix the test; otherwise, fix the implementation. |
 | 13 | Repository test policy compression | Update shared test utilities in `conftest.py`; record new patterns in `routing.md` or the skill's `workflow.md`. |
 

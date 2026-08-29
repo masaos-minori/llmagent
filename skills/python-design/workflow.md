@@ -139,15 +139,13 @@ Check:
 - [ ] every functional requirement has a corresponding module or interface
 - [ ] every non-functional requirement is addressed (latency, security, etc.)
 - [ ] external inputs are validated before reaching domain logic
-- [ ] logs are useful without exposing secrets
+- [ ] logs comply with `skills/DESIGN.md` No secrets in output
 - [ ] tests are feasible without real external services
 - [ ] abstractions are justified and the design is no larger than the problem requires
 - [ ] no assumption is untested or contradictory
 - [ ] the implementation plan covers all modules and is small enough for independent phases
 - [ ] open questions and implementation-verification items are listed
-- [ ] design complies with `skills/DESIGN.md` Import layer contract and Pythonic safety
-      constraints (dependency direction, `Any`/untyped-dict avoidance, sync/async isolation,
-      resource lifecycle, retries/error classification)
+- [ ] design complies with `skills/DESIGN.md` Import layer contract and Pythonic safety constraints
 
 If a section is not relevant, omit it instead of filling it with generic text.
 

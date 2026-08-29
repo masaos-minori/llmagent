@@ -36,12 +36,8 @@ Result Classification) and record the specific missing environment requirement.
 
 ### Prohibited test execution
 
-Classify a command `Prohibited` (do not run it in `workflow.md` Step 3/4) if it may:
-- connect to production,
-- modify real data,
-- create charges,
-- require unverified credentials,
-- require an unverified external service.
+Classify a command `Prohibited` (do not run it in `workflow.md` Step 3/4) per the
+conditions in `rules/ai-execution.md` Repository Tool Usage rule 7.
 
 If a safe isolated test environment is unavailable, or starting one would require a
 change forbidden above:

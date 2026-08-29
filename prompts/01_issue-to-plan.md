@@ -58,8 +58,7 @@ see `skills/issue-to-plan/workflow.md` Multi-file processing.
 
 Follow `skills/issue-to-plan/workflow.md` Step 0 in full.
 
-If a required file is missing, unreadable, or contradictory (see Instruction
-Precedence above), stop and report `Blocked`. Do not infer missing instructions.
+Apply `rules/ai-execution.md`, section "Required File Validation".
 
 #### Step 1: Identify the target Issue file(s)
 

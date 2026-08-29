@@ -21,7 +21,7 @@ Resolve Python code quality issues; fix root causes rather than suppressing warn
 
 - **Fix the Root Cause, Do Not Ignore**: Resolving a type/lint error by blindly adding `# type: ignore` or `# noqa` is considered a failure. You must attempt to fix the underlying type signature or code structure first.
 - **No Tool Hallucination**: applies to `ast-grep`, `LibCST`, `lint-imports` — see `skills/DESIGN.md` Tool availability guard.
-- **Strict Diff Isolation**: When running automated formatters or fixers (`ruff check --fix`), ensure you only stage and commit changes strictly relevant to the target issue (see `AGENTS.md` Global Rule 5 for the broader unrelated-reformat prohibition).
+- **Strict Diff Isolation**: When running automated formatters or fixers (`ruff check --fix`), keep changes scoped to the target issue — see `AGENTS.md` Global Rule 5.
 
 ---
 
@@ -49,8 +49,8 @@ Before running the full sequence, look at the error log and check if the failure
 | 4 | Suppression governance | **Audit step**: If any `# noqa`, `# type: ignore`, or `# nosec` is absolutely necessary, you must provide a rigorous, comments-based justification directly above the line. |
 | 5 | Semantic refactor safety | Use `LibCST` or structural modifiers when performing comment/formatting-preserving transformations. |
 | 6 | Type flow analysis | Run `mypy` and `pyright` to ensure zero type errors. Ensure strict type flow in public interfaces. |
-| 7 | Static security validation | Run `bandit`. Address high/medium severity issues (especially B105/B608) before proceeding. |
-| 8 | Diff scope enforcement | Check your changes against git diff. Ensure `diff-cover ≥ 90%` on newly changed or added lines. |
+| 7 | Static security validation | Run `bandit`. Address high/medium severity issues (see `rules/coding.md` Bandit priority findings) before proceeding. |
+| 8 | Diff scope enforcement | Check your changes against git diff. Per `rules/toolchain.md` §7 (Diff-scoped coverage). |
 | 9 | CI consistency validation | Run `tox` or execution environment tests across all target Python environments. |
 | 10 | Minimal change principle | Stage changes individually (unrelated-reformat prohibition: `AGENTS.md` Global Rule 5). |
 | 11 | Repository knowledge compression | If configuration patterns or rule exclusions were updated, update `CLAUDE.md`, `pyproject.toml`, or `.pre-commit-config.yaml`. |
@@ -59,13 +59,7 @@ Before running the full sequence, look at the error log and check if the failure
 
 ## Mandatory Audit Log Template for Step 4 (Suppression Governance)
 
-If you must suppress a lint, type, or security warning because a proper fix is technically impossible or introduces a breaking change, you must document it in your final response using the following format:
-
-### Suppression Audit Record
-- **File Path**: `path/to/file.py`
-- **Line Number / Code Snippet**: `...  # type: ignore[attr-defined]`
-- **Tool & Rule ID**: (e.g., Mypy `attr-defined` / Ruff `F401`)
-- **Technical Justification**: [Explain exactly why this cannot be fixed safely using native type structures or architectural adjustments]
+If you must suppress a lint, type, or security warning because a proper fix is technically impossible or introduces a breaking change, you must document it in your final response using the required audit record format defined in `rules/coding.md` Suppression governance.
 
 ---
 

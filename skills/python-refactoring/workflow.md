@@ -17,8 +17,8 @@ follow-up work (see `SKILL.md` Composes with / Called by).
 
 ## Allowed file operations
 
-- Modify only the target file(s) — do not modify files outside the scope of the target
-  files.
+- Modify only the target file(s) — see `AGENTS.md` Global Rule 5, the canonical
+  statement of this scope-discipline restriction.
 - Do not change external behavior, public APIs, or visible output.
 - Do not edit documentation unless explicitly instructed (see `path-c.md` ADR
   Requirement for the one scoped exception: Step 10 MUST draft ADR content inline in
@@ -78,8 +78,7 @@ one matching the Path classification decided there.
   missing. Do not start processing any file until all specified paths are confirmed to
   exist.
 - Files MUST be refactored one at a time, in the order given (see Multi-file
-  processing above for the atomic-migration-group exception). Do not read or inspect
-  files that will be processed in a later cycle.
+  processing above for the atomic-migration-group exception).
 
 ---
 

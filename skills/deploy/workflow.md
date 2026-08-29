@@ -8,7 +8,7 @@
 python3 -m compileall -q scripts/
 ```
 
-If any file reports `SyntaxError`: fix the error before proceeding. Do not deploy with syntax errors.
+If any file reports `SyntaxError`: fix the error before proceeding (see `SKILL.md` Prohibited behavior).
 
 Confirm `deploy/deploy.sh` copy list is up to date if any script or config file was added or removed:
 
@@ -108,7 +108,7 @@ tail -20 /opt/llm/logs/<service>.log     # see rules/env.md for log locations
 ```
 
 If the agent was restarted, verify basic operation: start the agent REPL per `rules/env.md`
-(do not activate the venv directly — run via `uv run`), then in the REPL run `/mcp` and
+(see `rules/toolchain.md`, section 'Environment setup'), then in the REPL run `/mcp` and
 confirm all MCP servers show healthy.
 
 ---

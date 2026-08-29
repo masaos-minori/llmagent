@@ -74,9 +74,9 @@ Confirm:
 
 ## Step 2: Update deploy.sh
 
-`deploy/deploy.sh` rsyncs `scripts/` wholesale (see `rules/env.md` Architecture), so the new
-server's Python files under `scripts/mcp_servers/<name>/` need no `deploy.sh` change. Only
-`config/*.toml` files are copied individually — add a `cp` line for the new server's config:
+The new server's Python files under `scripts/mcp_servers/<name>/` need no `deploy.sh` change
+(see `rules/env.md` Architecture). Only `config/*.toml` files are copied individually — add a
+`cp` line for the new server's config:
 
 ```bash
 # In deploy/deploy.sh, add alongside the other MCP server config cp lines:

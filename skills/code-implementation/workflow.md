@@ -2,12 +2,7 @@
 
 ## Workflow position
 
-```text
-issue file (issues/)
-  -> work plan document (plans/)
-  -> file-level implementation procedure document (implementations/)
-  -> implementation, tests, and documentation updates   <- this skill
-```
+See `routing.md`, section 'Document workflow directories'.
 
 - Input: `implementations/{filename}.md`
 - Output: code changes, tests, and `docs/*.md` updates; the input file moved to `implementations/done/`
@@ -84,9 +79,7 @@ Do not load these two eagerly — load each only at the step that actually needs
 Apply `rules/ai-execution.md` Context Reading for reuse of previously loaded shared
 files across cycles in this session.
 
-If a required file is missing, unreadable, or contradictory, apply
-`rules/ai-execution.md` Instruction Precedence; if unresolvable, stop and report
-`Blocked`. Do not infer missing instructions.
+Apply `rules/ai-execution.md`, section 'Required File Validation'.
 
 ## Step 1: Identify the Target Implementation Procedure File(s)
 

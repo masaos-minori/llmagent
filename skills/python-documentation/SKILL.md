@@ -62,7 +62,7 @@ See `workflow.md` for per-phase tool guidance, lint tools, evidence rules, bound
 - **Remove or compress implementation-derived details**: see `skills/DESIGN.md` Avoid implementation-reference duplication.
 - **No line numbers, no config values, no counts**: see `skills/DESIGN.md` No source-code line numbers, No concrete configuration values, No implementation counts.
 - **Minimal diff**: fix errors, fill gaps, reduce duplication; documents MUST NOT be rewritten or reorganized unless the task explicitly asks for it.
-- **Respect boundaries**: MUST NOT expand scope, expose secrets, paste long code blocks, infer behavior from `requirements.txt` alone, trust README claims unverified, or document private members as public API.
+- **Respect boundaries**: MUST NOT expand scope, expose secrets (see `skills/DESIGN.md` No secrets in output), paste long code blocks, infer behavior from `requirements.txt` alone, trust README claims unverified, or document private members as public API.
 
 See `workflow.md` for the full rule set and evidence-tracking fields.
 

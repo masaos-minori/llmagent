@@ -114,9 +114,7 @@ validation quality analysis. Do not skip any analysis.
   instead, per `rules/workflow-lifecycle.md` Validation Reporting.
 - **Move is required**: see `workflow.md` Step 10. The move MUST NOT be skipped.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
-- Exception to `skills/DESIGN.md` Output language: write the Plan and any Unknown/Risk
-  issue files in clear and concise English (this skill's output feeds directly into
-  `python-implementation` / `python-refactoring` for AI consumption).
+- Output language: see `skills/DESIGN.md` §Output language.
 
 ---
 

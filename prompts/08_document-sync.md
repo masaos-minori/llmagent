@@ -37,7 +37,7 @@ Read the source code and the existing design documents, then update the design d
 ## Shared Rules
 
 - Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, sequential target processing).
-- Global safety restrictions: see `rules/ai-execution.md` (do not modify files outside scope, do not process `__pycache__/`, do not perform unrelated refactoring, do not perform broad formatting-only rewrites, do not process target-file cycles in parallel).
+- Global safety restrictions: apply `AGENTS.md` Global Rule 5; `rules/ai-execution.md` Global Safety Restrictions (Base); `skills/DESIGN.md` Out-of-scope paths.
 
 ## Repository Tool Usage
 
@@ -70,7 +70,7 @@ incomplete plans, or insufficient validation.
 
 ### Tasks
 
-Report progress at the start and end of each step.
+Apply `rules/ai-execution.md` Progress Reporting (Base).
 
 #### Step 0: Discover tools and load required files
 
@@ -179,7 +179,7 @@ Use English headings only:
 - Why This Exists
 - Non-Responsibilities
 
-Do not mix Japanese and English headings. Classify inferred intent with an evidence classification.
+Classify inferred intent with an evidence classification.
 
 Content to avoid:
 - generic textbook explanations,
@@ -200,7 +200,7 @@ Separate document content from synchronization history:
 - `docs/99_documentation_sync_report.md` contains changes made during the run, mismatches, removed or moved content, evidence classifications, and human review items.
 
 Style:
-- Write in English.
+- Output language: see `skills/DESIGN.md` §Output language.
 - Use concise, professional Markdown. Do not bloat the documents.
 
 #### Step 5: Validate the updated document
@@ -230,7 +230,7 @@ Style:
 
 For every meaningful addition:
 - Identify the code evidence.
-- Classify it as: Explicit in code / Strongly implied by code / Needs confirmation.
+- Classify per `skills/DESIGN.md`, section 'Evidence labels'.
 - If something is only implied, phrase it carefully. Do not present uncertain intent as confirmed fact.
 
 #### Step 7: Report results

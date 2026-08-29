@@ -86,6 +86,6 @@ You are executing an already-approved implementation procedure into real code, t
 and (where mapped) documentation — not writing a design document or a plan — one
 procedure document per cycle, validated before it is archived.
 
-When in doubt, this SHOULD be prioritized: correctness over speed, minimal scope (no
-unrelated refactoring), complete validation before the archival move, and
+When in doubt, this SHOULD be prioritized: correctness over speed, minimal scope (see
+`AGENTS.md` Global Rule 5), complete validation before the archival move, and
 traceability back to the Plan and Issue.

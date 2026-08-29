@@ -307,8 +307,7 @@ Do not change both the test and the implementation in the same commit.
 
 Smallest effective change rules:
 
-- change only the lines that are incorrect (see `AGENTS.md` Global Rule 5 for the
-  broader unrelated-refactoring prohibition)
+- see `AGENTS.md` Global Rule 5 for the broader unrelated-refactoring prohibition
 - add or adjust exactly one test per bug
 - if the fix requires a larger structural change, use the python-refactoring skill
 
@@ -346,7 +345,7 @@ Cross-check against each Step's stated criteria above — do not re-derive them,
 - Step 6: mock only at true I/O boundaries, no `mocker.patch` on internal helpers
 - Step 3: no flakiness introduced (`pytest --reruns 5` passes)
 - Step 11 target met: 0 surviving mutants on bug-fix path
-- `diff-cover coverage.xml --compare-branch=master --fail-under=90` passes
+- Per `rules/toolchain.md` §7 (Diff-scoped coverage).
 - Step 10 / 13: `.testmondata` not committed
 
 ---

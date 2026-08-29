@@ -10,7 +10,7 @@ Enforced by ruff, mypy, and ast-grep. Do not violate.
 | Comments and log output | English only |
 | String formatting | f-strings preferred; plain literals when no variables |
 | Import order | enforced by ruff `I` rules (isort-compatible) |
-| Module addition | update copy list in `deploy/deploy.sh` |
+| Module addition | update copy list in `deploy/deploy.sh` (see `rules/env.md` Architecture) |
 | MCP server addition | create `config/<key>_mcp_server.toml` with app config and `[mcp_servers.<key>]` transport section |
 
 ## Deprecation policy

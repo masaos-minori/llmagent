@@ -2,12 +2,8 @@
 
 ## Workflow position
 
-```text
-issue file (issues/)
-  -> work plan document (plans/)
-  -> file-level implementation procedure document (implementations/)   <- this skill
-  -> implementation, tests, and documentation updates
-```
+See `routing.md`, section 'Document workflow directories' for this pipeline; this
+skill produces the `implementations/` step.
 
 - Input: `plans/{filename}_plan.md`
 - Output: `implementations/{timestamp}_{seq}_{target_file_slug}.md`, where
@@ -34,7 +30,8 @@ This is a document-only phase. Allowed operations:
   Plan document under active revision.
 - Do not modify source code files.
 - Do not update documentation (`docs/*.md`) — this phase does not allow it.
-- Do not modify files outside `implementations/` and the plan file being moved.
+- Do not modify files outside `implementations/` and the plan file being moved — the
+  general prohibition is `AGENTS.md` Global Rule 5.
 
 ## Out of Scope
 
@@ -66,9 +63,7 @@ Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
 Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of shared files
 across cycles.
 
-If a required file is missing, unreadable, or contradictory, apply
-`rules/ai-execution.md` Instruction Precedence; if unresolvable, stop and report
-`Blocked`. Do not infer missing instructions.
+Apply `rules/ai-execution.md`, section 'Required File Validation'.
 
 ---
 

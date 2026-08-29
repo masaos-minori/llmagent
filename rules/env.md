@@ -5,7 +5,7 @@
 ## Target environment
 
 - **Python:** 3.13 (`pyproject.toml` `requires-python = ">=3.13"`)
-- **Package manager:** uv 一本化。ローカル・本番とも仮想環境を直接 activate せず `uv run python -m ...` 経由で実行する（venv パスを決め打ちしない）
+- **Package manager:** uv 一本化。venv の直接 activate 禁止・実行方法は `rules/toolchain.md` の「Environment setup」を参照。
 - **DB:** SQLite + `sqlite-vec` 拡張
 
 導入手順・依存パッケージ・llama.cpp ビルド: `docs/02_deployment-part1.md`

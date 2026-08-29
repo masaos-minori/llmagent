@@ -378,7 +378,7 @@ Before committing:
 
 - observations stated separately from hypotheses
 - failure classified (reproducibility / execution model / domain)
-- most likely root cause stated with confidence level
+- most likely root cause stated with confidence level (see `skills/DESIGN.md` Confidence levels)
 - fix applied or proposed with justification
 - failing test added or adjusted to cover the defect
 - full pytest suite passes

@@ -40,16 +40,15 @@ See `skills/test-audit/workflow.md` Out of Scope for the full list.
 
 ### Tasks
 
-Follow `skills/test-audit/workflow.md` Steps 0-8 in full. Report progress at the start
-and end of each step, including its Phase Boundaries type (Discovery / Execution /
+Follow `skills/test-audit/workflow.md` Steps 0-8 in full. Apply `rules/ai-execution.md`
+Progress Reporting (Base), including its Phase Boundaries type (Discovery / Execution /
 Analysis).
 
 #### Step 0: Load required files
 
 Follow `skills/test-audit/workflow.md` Step 0 in full.
 
-If a required file is missing, unreadable, or contradictory (see Instruction
-Precedence above), stop and report `Blocked`. Do not infer missing instructions.
+Apply `rules/ai-execution.md`, section "Required File Validation".
 
 #### Step 1: Discover test entry points
 

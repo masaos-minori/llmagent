@@ -33,7 +33,7 @@ truth and is kept in sync with `tools/`.
 - Evidence before summary
 - Inventory before interpretation
 - Keep unknowns visible
-- Minimal edits SHOULD be preferred over full rewrites
+- Minimal diff: see `SKILL.md` "Minimal diff" and `AGENTS.md` Global Rule 5.
 - Separate facts from assumptions
 
 ---
@@ -228,7 +228,8 @@ Convert analysis into maintainable documentation.
 ### Rules
 - use evidence-based wording; keep docs concise and maintainable; avoid duplication
 - do not hide uncertainty; keep changes minimal if docs already exist
-- preserve useful existing context; write in English (see `skills/DESIGN.md` Output language)
+- preserve useful existing context
+- Output language: see `skills/DESIGN.md` §Output language.
 - avoid implementation-reference duplication — no source-code line numbers, no concrete
   config values, no implementation counts (see `skills/DESIGN.md` Avoid implementation-reference
   duplication, No source-code line numbers, No concrete configuration values, No implementation
@@ -356,15 +357,9 @@ evidence label, open questions, and target document.
 
 ## Boundaries
 
-- Do not expand scope beyond the requested target.
-- Do not expose secrets.
-- Do not paste long code blocks unless essential.
-- Do not infer runtime behavior from `requirements.txt` alone.
-- Do not trust README claims without verification.
-- Do not document private methods, functions, attributes, or classes as supported public APIs.
-  Private names starting with `_` are out of scope unless necessary to explain lifecycle,
-  safety, failure behavior, or an invariant — in that case, describe the behavior at
-  component level instead of exposing the private API as public.
+See `SKILL.md` "Respect boundaries" for scope, secrets, long code blocks, `requirements.txt`
+inference, README trust, and private-API documentation boundaries.
+
 - Do not require `requirements.txt` when another verified dependency-management workflow is
   used.
 - Do not edit generated dependency exports (e.g. a generated `requirements.txt`) directly.

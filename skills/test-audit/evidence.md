@@ -9,20 +9,21 @@ Steps 6-7 use for traceability.
 ## Result Classification
 
 Classify every executed or attempted command using exactly one of these five results —
-used consistently in Steps 2-4 and in `report-template.md`'s Report Template Section 2:
+the vocabulary defined in `rules/ai-execution.md` Repository Tool Usage rule 11, used
+consistently in Steps 2-4 and in `report-template.md`'s Report Template Section 2:
 
 - **Pass** — ran to completion with no failures.
 - **Fail** — ran to completion with one or more failures.
 - **Partial** — ran, but some sub-cases were skipped, xfail, or otherwise incomplete;
   state exactly what was skipped and why.
-- **Not runnable** — cannot run in this environment as designed (e.g. requires a
+- **Not available** — cannot run in this environment as designed (e.g. requires a
   production-only resource with no safe local/emulated equivalent). A structural
   limitation, not a fixable blocker.
 - **Blocked** — could run in principle, but a specific missing or unavailable
   environment, service, or credential currently prevents it. Record exactly what is
   missing.
 
-`Not runnable` or `Blocked` MUST NOT be reported as `Pass`. An unexecuted or partially
+`Not available` or `Blocked` MUST NOT be reported as `Pass`. An unexecuted or partially
 executed check has no result other than one of the five above — do not infer `Pass`
 from a similar command's success, from the absence of an error, or from partial output.
 

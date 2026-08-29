@@ -23,10 +23,9 @@ description: |
 Refactor existing Python source files without changing external behavior: lock current
 behavior with tests, classify the change's blast radius (Path A/B/C), transform with
 AST-safe tools, validate that behavior/API/side effects are unchanged, then report the
-evidence. This workflow intentionally prioritizes safety, evidence, and correctness
-over speed — a step MUST NOT be skipped because it seems slow. This is a reactive
-workflow: code MUST NOT be refactored unless explicitly instructed via a target file
-or issue.
+evidence. See `workflow.md`'s opening for this workflow's safety-over-speed priority
+statement. This is a reactive workflow: code MUST NOT be refactored unless explicitly
+instructed via a target file or issue.
 
 ---
 

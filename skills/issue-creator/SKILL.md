@@ -71,7 +71,7 @@ rules, markdown safety rules, and the final checklist.
 - Out-of-scope items must be explicit.
 - Testing expectations must be included when code behavior may change.
 - Documentation-related issues must follow `skills/DESIGN.md` Avoid implementation-reference duplication.
-- Do not include secrets, credentials, private tokens, or sensitive data.
+- Follow `skills/DESIGN.md` No secrets in output.
 
 ## Issue Filename Generation
 

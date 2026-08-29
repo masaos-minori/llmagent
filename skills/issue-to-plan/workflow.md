@@ -2,12 +2,7 @@
 
 ## Workflow position
 
-```text
-issue file (issues/)
-  -> work plan document (plans/)   <- this skill
-  -> file-level implementation procedure document (implementations/)
-  -> implementation, tests, and documentation updates
-```
+See `routing.md`, section 'Document workflow directories', for the full pipeline.
 
 - Input: `issues/{filename}.md`
 - Output: `plans/{timestamp}_plan.md`
@@ -29,7 +24,7 @@ This is a document-only phase. Allowed operations:
 - Do not modify source code files.
 - Do not update documentation (`docs/*.md`).
 - Do not modify files outside `plans/`, `issues/`, and the Issue file being moved
-  (`issues/` -> `issues/done/`).
+  (`issues/` -> `issues/done/`) — see `AGENTS.md` Global Rule 5.
 
 ## Toolchain
 
@@ -79,8 +74,7 @@ Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of previously 
 shared files across cycles in this session.
 
 If a required file is missing, unreadable, or contradictory, apply
-`rules/ai-execution.md` Instruction Precedence; if unresolvable, stop and report
-`Blocked`. Do not infer missing instructions.
+`rules/ai-execution.md`, section 'Required File Validation'.
 
 ---
 
@@ -240,8 +234,7 @@ raising it to ≥ 90%.
 
 #### Generate the Plan
 
-- Write the entire Plan in English (see `SKILL.md` Core Execution Rules) — every
-  section's body text, not only headings, regardless of the chat language.
+- Output language: see `skills/DESIGN.md` §Output language.
 - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`.
 - Save as `plans/{timestamp}_plan.md`. If that path already exists, use the lowest
   available zero-padded sequence (`plans/{timestamp}_01_plan.md`,

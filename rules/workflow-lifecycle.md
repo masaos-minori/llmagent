@@ -31,13 +31,8 @@ Each workflow file must explicitly define:
 
 ## Sequential Processing
 
-Apply the base rules from `rules/ai-execution.md` (Sequential Target Processing).
-
-## Current-Target Loading
-
-- **Do NOT read all target files upfront.** Read each file individually when its turn comes.
-- **Read ONLY the current target file.** Do not read ahead into files for later cycles.
-- After finishing all steps for the current file, load the NEXT target file.
+Apply the base rules from `rules/ai-execution.md` (Sequential Target Processing). In
+addition, do not read files under the archive directory (see Target Validation above).
 
 ## Implementation Target Files Validation (Plan Freeze)
 

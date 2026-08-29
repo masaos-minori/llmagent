@@ -97,9 +97,9 @@ Task List MUST show both fields separately; neither MAY stand in for the other.
 
 ## Core Execution Rules
 
-- MUST NOT stop after the first failure within the Full-Suite Execution Scope (`safety.md`).
+- Full-Suite Execution Scope: see `safety.md` Full-Suite Execution Scope and Abort Conditions.
 - MUST NOT assume test coverage from file names alone.
-- MUST NOT edit production code unless explicitly requested.
+- Production code: see Phase Boundaries above.
 - MUST NOT stop at high-level commentary — run the tests and produce a concrete,
   execution-ready plan.
 - **No unrelated changes**: see `AGENTS.md` Global Rule 5.

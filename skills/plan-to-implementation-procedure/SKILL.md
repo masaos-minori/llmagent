@@ -70,9 +70,7 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
   pre-move checklist passing instead, per `rules/workflow-lifecycle.md` Validation
   Reporting.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
-- Exception to `skills/DESIGN.md` Output language: write the generated implementation
-  procedure documents in clear and concise English (this skill's output feeds
-  directly into `python-implementation` / `code-implementation` for AI consumption).
+- Output language: see `skills/DESIGN.md` §Output language.
 
 ---
 
@@ -120,4 +118,5 @@ into small, file-level, independently reviewable implementation and test procedu
 one per target file, ready for `python-implementation` to execute.
 
 When in doubt, this SHOULD be prioritized: no duplicate work, collision-safe naming,
-traceability back to the Plan and Issue, and minimal but complete per-file procedures.
+traceability back to the Plan and Issue, and the scope discipline of `AGENTS.md`
+Global Rule 5.

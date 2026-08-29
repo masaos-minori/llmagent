@@ -169,9 +169,9 @@ Priority findings — must resolve before merge: see `rules/coding.md` Bandit pr
 
 ## Step 8: Diff Scope Enforcement
 
-See `rules/toolchain.md` section 7.
+Per `rules/toolchain.md` §7 (Diff-scoped coverage).
 
-If coverage on changed lines is below 90%:
+If coverage on changed lines is below the threshold defined there:
 
 1. Identify which changed lines are uncovered
 2. Add targeted tests for those lines

@@ -39,7 +39,7 @@ Use this skill by default for production Python work.
 | 7 | Observability Injection | structured logging (using `logging` framework) / tracing (skip unless project pattern exists) |
 | 8 | Security Validation | Apply `skills/DESIGN.md` Pythonic safety constraints (dynamic execution); also check SQL injection, unvalidated serialization |
 | 9 | Validation Orchestration | Run validation tools: `pytest`, `ruff check`, `mypy`/`pyright`; run `python tools/check_compat_shims.py` to detect backward compatibility leftovers; separate task-caused from pre-existing failures |
-| 10 | Scope Control | diff proportional to task; diff-cover ≥ 90%; benchmark only on hot paths |
+| 10 | Scope Control | diff proportional to task; Per `rules/toolchain.md` §7 (Diff-scoped coverage); benchmark only on hot paths |
 | 11 | Production Readiness | Apply `skills/DESIGN.md` Pythonic safety constraints (no placeholders, no debug artifacts); strict typing; docstrings updated for non-obvious or public-facing APIs only (PEP 257) |
 | 12 | Knowledge Compression | routing.md, docs/, deploy.sh updated |
 
@@ -67,8 +67,7 @@ Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benc
 - Prefer existing repository patterns over new local inventions
 - Prefer typed, explicit, maintainable code
 - Prefer small, reviewable diffs
-- Do not widen scope without clear necessity (see `AGENTS.md` Global Rule 5 for the
-  broader unrelated-change prohibition)
+- Scope discipline: see `AGENTS.md` Global Rule 5.
 - Do not treat uncertainty as approval; inspect the repository first
 - Do not assume conventions; extract them from nearby code
 - Do not consider the task complete until validation (`pytest`, `ruff`, `mypy`) is finished

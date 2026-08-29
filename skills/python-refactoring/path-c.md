@@ -1,14 +1,9 @@
 # Python Refactoring — Path C (Architectural Refactoring)
 
 Load this file only after `workflow.md` Step 2 classifies the current change as Path C
-(see `SKILL.md` Routing for the full classification criteria). Path C requires at least
-Path B's Step 3/4 tool depth (see `path-b.md`) in addition to everything below.
-
-If a change satisfies any Path C criterion, classify it as Path C even if it also
-satisfies a Path B criterion (e.g. an import-boundary change that is a byproduct of a
-relocation, merge, split, ownership transfer, or boundary change is Path C, not Path B);
-a narrower import-direction fix that is not part of such a structural change remains
-Path B.
+(see `SKILL.md` Routing for the full classification criteria, including the Path C/Path B
+tie-break rule). Path C requires at least Path B's Step 3/4 tool depth (see `path-b.md`)
+in addition to everything below.
 
 ---
 
@@ -26,12 +21,9 @@ A Path C change requires all of the following before implementation begins:
    requirement does not define the ADR template or process itself (see ADR Requirement
    below)
 
-An unapproved Path C idea is a Proposal only, per the Proposal state defined in
-`discovery.md` Discovery Vocabulary (added per
-`implementations/20260826-155803_01_prompts_04_refactor.md.md` `REQ-001`); it MUST NOT
-be transformed in `workflow.md` Step 6 until it becomes an Approved Change per that same
-section's rule that only an Approved Change may be transformed in Step 6, with all seven
-items above satisfied and explicit approval given.
+See `discovery.md` Discovery Vocabulary for why an unapproved Path C idea is a Proposal
+only and MUST NOT be transformed in `workflow.md` Step 6; here, it becomes an Approved
+Change only with all seven items above satisfied and explicit approval given.
 
 **Atomic migration group**: the explicit, enumerated set of files whose changes MUST be
 applied and validated together, because no proper subset of them can independently pass
@@ -40,9 +32,9 @@ updating every one of its callers). Group membership MUST be declared and includ
 approval above (item 2, affected-file scope) before `workflow.md` Step 3 begins for any
 member of the group.
 
-The one-file-at-a-time rule (`workflow.md` Step 1) remains the default for Path A and
-Path B, and for ordering independent Path C target files that do not belong to the same
-atomic migration group. For an approved atomic migration group, the rule applies to the
+See `workflow.md` Multi-file processing for the one-file-at-a-time default that continues
+to apply to Path A/B and to independent Path C target files outside this group. For an
+approved atomic migration group, the rule applies to the
 group as a single logical unit rather than to each member file individually — one Path
 classification, one Step 3-7 preparation/validation/gating pass, and one Completion gate
 (`report-template.md`) cover the whole group — while member files are still read and
@@ -132,11 +124,10 @@ recorded before transformation:
   remain" rule and Step 9's equivalent check beyond the target file or migration group
   to the whole repository.
 
-Report each item as one of `Pass`, `Fail`, `Not run`, or `Blocked`, reusing
-`validation.md` Conditional Validation's reporting rule verbatim in spirit: report why
-an item was not run, use a repository-defined alternative when available, do not
-report a skipped item as passed, report `Blocked` only if the missing check is
-required to prove behavior preservation, and otherwise record it as `Not run`.
+Report each item as one of `Pass`, `Fail`, `Not run`, or `Blocked`, applying
+`validation.md` Conditional Validation's reporting rule (why an item was not run, use of
+an alternative, never reporting a skip as passed, and when `Blocked` versus `Not run`
+applies) to these four states.
 
 ---
 

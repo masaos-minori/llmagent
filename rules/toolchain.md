@@ -89,6 +89,8 @@ git diff --staged         # confirm what will be committed
 
 ## Environment setup
 
+- Do not activate the venv directly — run via `uv run python -m ...` (do not hardcode the venv path).
+
 ```bash
 uv sync --dev --system-certs   # create .venv/ and install all deps (first time)
 ```
