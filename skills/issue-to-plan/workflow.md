@@ -92,6 +92,31 @@ archive directory `issues/done/`.
 
 ---
 
+## Step 1.5: Check for Existing Plans
+
+Before creating a new Plan, verify whether one already exists for this Issue. This prevents
+duplicate plans when multiple agents process the same Issue concurrently.
+
+- **If the Issue filename contains an ID** (format: `{timestamp}_{id}_{slug}.md`, e.g.
+  `20260828-155804_nc019_git_mcp_command_specific_guards.md`): extract the ID portion
+  (`nc019`), then glob `plans/*{issue_id}*plan.md` (case-insensitive match on the ID).
+- **If the Issue filename does NOT contain an ID but has a timestamp prefix** (e.g.
+  `20260717-171259_nuitka_onefile_packaging_proposal.md`): extract the timestamp portion
+  (`20260717-171259`), then glob both `plans/*{timestamp}*plan.md` and
+  `plans/done/*{timestamp}*plan.md` (case-insensitive match on the timestamp). A plan
+  may exist in `plans/` (active) or `plans/done/` (archived after implementation).
+- **If the Issue filename does NOT contain an ID or timestamp** (plain descriptive name,
+  e.g. `multi-agent-orchestration-design-plan.md`): this case is outside the scope of
+  the issue-creator skill. Do not attempt dedup; proceed to Step 2 normally.
+- **If a matching plan exists**: record the existing plan's path in the Traceability section,
+  note that this Issue has been addressed elsewhere, and proceed to Step 9/10 to move the
+  Issue to `issues/done/` without creating a duplicate Plan.
+- **If no matching plan exists**: proceed to Step 2 normally.
+- Only check `plans/` and `plans/done/` — do not check `issues/done/` for archived plans
+  (those are already completed and irrelevant to duplicate detection).
+
+---
+
 ## Step 2: Assess the Current Issue
 
 - Read the current Issue file in full.
