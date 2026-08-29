@@ -7,16 +7,15 @@ Load this file only after `workflow.md` Step 2 classifies the current change as 
 
 ## Step 3 depth: Preparation
 
-- Use `rg` to find symbol usages (MUST run every time, not conditional — see
-  `workflow.md` Step 3).
-- Check whether the target files are referenced in `deploy.sh` (MUST run every time).
+- `rg` and the `deploy.sh` reference check MUST run every time — see `workflow.md`
+  Refactoring-Specific Guidance.
 - Run `pydeps` to inspect the import graph, `import-linter` to verify module
   boundaries, and `ast-grep` for structural usage search — each subject to the
   Conditional Validation handling defined in `validation.md` (report why unavailable,
   use an alternative if one exists; a skipped check MUST NOT be reported as passed).
 
 `discovery.md`'s Technical Debt Discovery, Responsibility Analysis, and Documentation
-Drift Detection all still apply — they are not Path-gated.
+Drift Detection all still apply — they are not Path-gated (see `workflow.md` Step 3).
 
 ---
 

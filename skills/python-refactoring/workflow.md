@@ -304,10 +304,10 @@ C Completion Requirements.
 
 ## Refactoring-Specific Guidance
 
-- Perform Step 3 (preparation/investigation) sequentially; `rg` MUST run every time,
-  and `pydeps`/`import-linter`/`ast-grep` only when Path B or C applies (see `path-a.md`/
-  `path-b.md`), retaining only the resulting impact scope table, not the raw tool
-  output.
+- Perform Step 3 (preparation/investigation) sequentially; `rg` and the `deploy.sh`
+  reference check MUST run every time regardless of Path, and `pydeps`/`import-linter`/
+  `ast-grep` only when Path B or C applies (see `path-a.md`/`path-b.md`), retaining only
+  the resulting impact scope table, not the raw tool output.
 - Capture only error/summary lines from `mypy`, `pyright`, `ruff`, and test runs (e.g.
   via `grep` for failures) rather than full successful-run output.
 - Scope `mypy`, `pyright`, `ruff`, and test runs to the target file or module wherever
