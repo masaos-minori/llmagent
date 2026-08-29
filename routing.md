@@ -13,6 +13,7 @@ Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `
 | Debug / root cause | debug, error, exception, crash, trace, log, slow, hang | `skills/python-debug-root-cause/SKILL.md` + `skills/python-debug-root-cause/workflow.md` |
 | Lint / type errors / CI fix | lint, ruff, mypy, pyright, type error, CI, pre-commit | `skills/python-lint-typecheck/SKILL.md` + `skills/python-lint-typecheck/workflow.md` |
 | Test / pytest / flaky | test, pytest, flaky, coverage, assertion, regression | `skills/python-test-and-fix/SKILL.md` + `skills/python-test-and-fix/workflow.md` |
+| Test suite audit (whole-suite, not a single failing test) | test audit, test suite audit, coverage gap, test debt, stabilization plan, QA review | `skills/test-audit/SKILL.md` + `skills/test-audit/workflow.md` |
 | Refactor / rename / CST | refactor, rename, restructure, split, move, import cycle | `skills/python-refactoring/SKILL.md` + `skills/python-refactoring/workflow.md` |
 | Code review / PR review | review, code review, PR review, findings | `skills/python-code-review/SKILL.md` + `skills/python-code-review/workflow.md` |
 | Issue -> plan | issue, raw issue, plan, design, analyze, assess, spec, ticket | `skills/issue-to-plan/SKILL.md` + `skills/issue-to-plan/workflow.md` |

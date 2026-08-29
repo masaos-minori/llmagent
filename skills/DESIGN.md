@@ -245,3 +245,4 @@ Applies to any skill that writes or transforms production Python code
 | `mcp-server-add` | `skills/mcp-server-add/` | Add a new MCP server to the project |
 | `deploy` | `skills/deploy/` | Deploy changes to the production environment |
 | `git-commit-and-sync` | `skills/git-commit-and-sync/` | Safe Git commit, pull, conflict resolution, and push |
+| `test-audit` | `skills/test-audit/` | Whole-suite test audit: discovery, safety-gated execution, gap analysis, stabilization work plan |
