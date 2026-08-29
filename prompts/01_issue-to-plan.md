@@ -21,9 +21,6 @@ Read the target Issue file, then create a concrete work plan per the rules below
   Skipping this step is a failure condition.
 - Do not implement anything — this workflow creates plan documents only.
 - Do not modify source files.
-- **Write all output documents (`plans/`, `issues/`) in clear and concise English for
-  AI consumption** — this applies to every section's body text, not only headings,
-  regardless of the chat language.
 Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
 referenced files.
 
@@ -39,6 +36,7 @@ referenced files.
 - Plan-creation approach (Path A/B classification, architecture/dependency/historical
   analysis, uncertainty tracking): see `skills/issue-to-plan/SKILL.md` +
   `skills/issue-to-plan/workflow.md`.
+- Output language: see `skills/DESIGN.md` §Output language.
 
 ## Repository Tool Usage
 

@@ -18,9 +18,6 @@ per the rules below.
   step is a failure condition.
 - Do not implement anything — this workflow creates documents only.
 - Do not modify source files.
-- **Write all output documents (implementations/) in clear and concise English for AI
-  consumption** — this applies to every section's body text, not only headings,
-  regardless of the chat language.
 Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
 referenced files.
 
@@ -34,6 +31,7 @@ referenced files.
 - Procedure (Steps 0-4, toolchain, multi-file processing): see
   `skills/plan-to-implementation-procedure/SKILL.md` +
   `skills/plan-to-implementation-procedure/workflow.md`.
+- Output language: see `skills/DESIGN.md` §Output language.
 
 ## Repository Tool Usage
 
