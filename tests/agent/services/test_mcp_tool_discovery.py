@@ -28,6 +28,7 @@ from shared.mcp_config import (
     SecurityProfile,
     TransportType,
 )
+from shared.runtime_tool import RuntimeTool
 from shared.tool_registry import (
     ToolDefinition,
     _reset_registry_for_testing,
@@ -970,8 +971,8 @@ class TestToolsEndpointToolShape:
 
 
 @pytest.mark.asyncio
-async def test_legacy_resource_scope_rejected() -> None:
-    """resource_scope is no longer a valid field; entries containing it must be rejected."""
+async def test_resource_scope_field_ignored_after_removal_synthetic() -> None:
+    """resource_scope is no longer a valid field; entries containing it should pass."""
     http = AsyncMock(spec=httpx.AsyncClient)
     http.get = _async_result(
         _resp(
@@ -997,10 +998,61 @@ async def test_legacy_resource_scope_rejected() -> None:
 
     result = await McpToolDiscoveryService(ctx).discover_all()
 
-    assert result.registry.all_tools() == []
-    assert len(result.findings) == 1
-    assert result.findings[0].status == StartupCheckStatus.WARNING
-    assert "resource_scope" in result.findings[0].message
+    assert result.registry.all_tools() == [
+        RuntimeTool(
+            name="test_tool",
+            server_key="srv",
+            server_url="http://127.0.0.1:9000",
+            description="desc",
+            input_schema={"type": "object", "properties": {}},
+            raw_definition={
+                "name": "test_tool",
+                "description": "desc",
+                "inputSchema": {"type": "object", "properties": {}},
+                "resource_scope": 123,
+                "is_write": False,
+                "requires_serial": False,
+                "resource_scope_kind": "",
+                "resource_scope_keys": [],
+            },
+            status="active",
+            is_write=False,
+            requires_serial=False,
+            resource_scope_kind="",
+            resource_scope_keys=(),
+            agent_safety_tier="WRITE_DANGEROUS",
+            enabled_for_llm=True,
+            capabilities=(),
+            allow_extra_fields=False,
+        ),
+    ]
+
+    http2 = AsyncMock(spec=httpx.AsyncClient)
+    http2.get = _async_result(
+        _resp(
+            200,
+            {
+                "tools": [
+                    {
+                        "name": "test_tool_ok",
+                        "description": "desc",
+                        "inputSchema": {"type": "object", "properties": {}},
+                        "resource_scope": "filesystem",
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
+                    }
+                ]
+            },
+        )
+    )
+    ctx2 = _make_ctx({"srv": _server()}, http2)
+
+    result2 = await McpToolDiscoveryService(ctx2).discover_all()
+
+    assert result2.registry.get("test_tool_ok") is not None
+    assert not any("resource_scope" in f.message for f in result2.findings)
 
 
 @pytest.mark.asyncio

@@ -280,14 +280,14 @@ def _apply_rag_tool_params(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Preparation / Refactoring | Completed | 2026-08-25 | 2026-08-25 | Dict-based approach implemented |
-| 2 | Core Logic Implementation | Completed | 2026-08-25 | 2026-08-25 | dataclasses.replace() + validators applied |
-| 3 | Deployment & Verification | Completed | 2026-08-25 | 2026-08-25 | All 41 tests pass |
+| 1 | Preparation / Refactoring | Done | 2026-08-27 | 2026-08-27 | Superseded — `web_search_url` written to `rag_changes` via sibling plan; added filter before `dataclasses.replace()` at lines 177-193 and 363-380 |
+| 2 | Core Logic Implementation | Done | 2026-08-27 | 2026-08-27 | Superseded — `web_search_url` written to `rag_changes` via sibling plan; added filter before `dataclasses.replace()` at lines 177-193 and 363-380 |
+| 3 | Deployment & Verification | Done | 2026-08-27 | 2026-08-27 | Superseded — `web_search_url` written to `rag_changes` via sibling plan; added filter before `dataclasses.replace()` at lines 177-193 and 363-380 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| Phase 1 | Stale blocker claim — _sync_services does not contain cache_ttl references; verification confirmed no such issue | Yes | 2026-08-27 |
+| Phase 1 | tool_cache_ttl reference still present in _apply_tool_params() and tools.apply_config(cache_ttl=...) still present in _sync_services() — completion criteria not met | No | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
