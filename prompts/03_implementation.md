@@ -20,8 +20,6 @@ rules and skills below.
   updated and validated.
 - Do not modify files outside the scope specified in the plan.
 - Do not edit documentation before Step 5.
-- Use Markdown for all progress reports. Be concrete and implementation-oriented.
-
 Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict
 across referenced files.
 

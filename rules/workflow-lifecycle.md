@@ -100,8 +100,6 @@ and a requirement link) and this validation has been re-run and the section re-m
 - Determine timestamp by running: `date +%Y%m%d-%H%M%S`
 - Save output document to the defined output path.
 - Use the workflow's required section structure.
-- Write all output documents in clear and concise English for AI consumption.
-- Use Markdown for all progress reports.
 
 ## Validation Reporting
 

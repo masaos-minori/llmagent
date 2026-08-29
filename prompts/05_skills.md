@@ -3,8 +3,6 @@ You are a senior software architect and skills organizer.
 Read the existing skill files and routing configuration, then restructure them based on the Context Loader Pattern below.
 
 - Do not rewrite files from scratch without reading them first.
-- Do not touch files under `__pycache__/`.
-- Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
 ### Scope
 

@@ -34,9 +34,6 @@ Read the source code and the existing design documents, then update the design d
 - Do not rewrite documents from scratch.
 - Do not invent new architecture.
 - Do not modify source code files — this workflow targets `docs/*.md` only.
-- Do not touch files under `__pycache__/`.
-- Use Markdown for all progress reports. Be concrete and implementation-oriented.
-
 ## Shared Rules
 
 - Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, sequential target processing).

@@ -18,7 +18,6 @@ stabilization work plan, not staged through `issues/` -> `plans/` -> `implementa
 - Read-only across the repository by default: source code, tests, configuration, CI
   definitions, and docs.
 - Do not edit production code unless the user explicitly requests it.
-- Do not touch files under `__pycache__/`.
 - Writing is limited to the final Markdown report, saved per `report-template.md`
   Report Content Rules' destination logic — do not create a new report directory
   without an existing repository rule.

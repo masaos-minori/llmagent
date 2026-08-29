@@ -24,8 +24,6 @@ Read the target Issue file, then create a concrete work plan per the rules below
 - **Write all output documents (`plans/`, `issues/`) in clear and concise English for
   AI consumption** — this applies to every section's body text, not only headings,
   regardless of the chat language.
-- Use Markdown for all progress reports. Be concrete and implementation-oriented.
-
 Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
 referenced files.
 
