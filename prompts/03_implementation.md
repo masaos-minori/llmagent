@@ -20,16 +20,19 @@ rules and skills below.
   updated and validated.
 - Do not modify files outside the scope specified in the plan.
 - Do not edit documentation before Step 5.
-Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict
-across referenced files.
 
 ## Shared Rules
 
 - Execution rules: see `rules/ai-execution.md` (context reading, instruction
   precedence, tool usage, reasoning, output, progress reporting, command results,
   sequential target processing).
+- Global safety restrictions: apply `AGENTS.md` Global Rule 5; `rules/ai-execution.md`
+  Global Safety Restrictions (Base); `skills/DESIGN.md` Out-of-scope paths.
 - Procedure (Steps 0-7, toolchain, multi-file processing): see
   `skills/code-implementation/SKILL.md` + `skills/code-implementation/workflow.md`.
+
+Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict
+across referenced files.
 
 ## Repository Tool Usage
 
@@ -43,8 +46,9 @@ See `skills/code-implementation/workflow.md` Out of Scope for the full list.
 
 ### Tasks
 
-Multi-file processing (progress-report cadence, context hygiene): see
-`skills/code-implementation/workflow.md` Multi-file processing.
+Apply `rules/ai-execution.md` Progress Reporting (Base). Multi-file processing
+(context hygiene): see `skills/code-implementation/workflow.md` Multi-file
+processing.
 
 #### Step 0: Load required files
 

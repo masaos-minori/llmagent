@@ -18,8 +18,6 @@ per the rules below.
   step is a failure condition.
 - Do not implement anything — this workflow creates documents only.
 - Do not modify source files.
-Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
-referenced files.
 
 ## Shared Rules
 
@@ -32,6 +30,9 @@ referenced files.
   `skills/plan-to-implementation-procedure/SKILL.md` +
   `skills/plan-to-implementation-procedure/workflow.md`.
 - Output language: see `skills/DESIGN.md` §Output language.
+
+Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
+referenced files.
 
 ## Repository Tool Usage
 
@@ -46,8 +47,9 @@ list.
 
 ### Tasks
 
-Multi-file processing (progress-report cadence and format, context hygiene): see
-`skills/plan-to-implementation-procedure/workflow.md` Multi-file processing.
+Apply `rules/ai-execution.md` Progress Reporting (Base). Multi-file processing
+(context hygiene): see `skills/plan-to-implementation-procedure/workflow.md`
+Multi-file processing.
 
 #### Step 0: Load required files
 

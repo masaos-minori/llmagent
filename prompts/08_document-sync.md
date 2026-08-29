@@ -34,10 +34,14 @@ Read the source code and the existing design documents, then update the design d
 - Do not rewrite documents from scratch.
 - Do not invent new architecture.
 - Do not modify source code files — this workflow targets `docs/*.md` only.
+
 ## Shared Rules
 
 - Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, sequential target processing).
 - Global safety restrictions: apply `AGENTS.md` Global Rule 5; `rules/ai-execution.md` Global Safety Restrictions (Base); `skills/DESIGN.md` Out-of-scope paths.
+
+Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
+referenced files.
 
 ## Repository Tool Usage
 
@@ -93,6 +97,8 @@ If not already loaded, read the following before starting:
 - `skills/python-documentation/SKILL.md`
 - `skills/python-documentation/workflow.md`
 - `rules/ai-execution.md`
+
+Apply `rules/ai-execution.md`, section "Required File Validation".
 
 #### Step 1: Identify target design documents
 

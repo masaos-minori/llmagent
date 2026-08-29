@@ -21,8 +21,6 @@ Read the target Issue file, then create a concrete work plan per the rules below
   Skipping this step is a failure condition.
 - Do not implement anything — this workflow creates plan documents only.
 - Do not modify source files.
-Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
-referenced files.
 
 ## Shared Rules
 
@@ -38,6 +36,9 @@ referenced files.
   `skills/issue-to-plan/workflow.md`.
 - Output language: see `skills/DESIGN.md` §Output language.
 
+Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
+referenced files.
+
 ## Repository Tool Usage
 
 Apply `rules/ai-execution.md`, section "Repository Tool Usage". For this workflow,
@@ -51,8 +52,9 @@ See `skills/issue-to-plan/workflow.md` Out of Scope for the full list.
 
 ### Tasks
 
-Multi-file processing (progress-report cadence, sequential cycles, context hygiene):
-see `skills/issue-to-plan/workflow.md` Multi-file processing.
+Apply `rules/ai-execution.md` Progress Reporting (Base). Multi-file processing
+(sequential cycles, context hygiene): see `skills/issue-to-plan/workflow.md`
+Multi-file processing.
 
 #### Step 0: Load required files
 
