@@ -27,6 +27,10 @@ Analysis-only phase constraint; this skill's only writes are the plan document i
 files, and moving the processed issue file to `issues/done/`. It must not modify source
 code files or `docs/*.md`.
 
+Issue filenames follow the convention `{timestamp}_{id}_{slug}.md` (defined in
+`skills/issue-creator` Issue Filename Generation). This enables automatic duplicate
+detection via Step 1.5.
+
 ---
 
 ## Phase overview

@@ -73,6 +73,29 @@ rules, markdown safety rules, and the final checklist.
 - Documentation-related issues must follow `skills/DESIGN.md` Avoid implementation-reference duplication.
 - Do not include secrets, credentials, private tokens, or sensitive data.
 
+## Issue Filename Generation
+
+Every issue file must follow the naming convention below. This enables automatic duplicate
+detection in `skills/issue-to-plan` Step 1.5.
+
+### Naming convention
+
+Format: `{timestamp}_{id}_{slug}.md`
+
+- **`{timestamp}`** — ISO-like timestamp in format `YYYYMMDD-HHmmss`, generated at issue
+  creation time (e.g., `20260828-155804`).
+- **`{id}`** — Short alphanumeric identifier derived from the issue's domain or component.
+  Examples: `nc019` (NC-019), `mcp003` (MCP-003), `doc005` (DOC-005), `refactor_001`.
+  Must be unique within the project.
+- **`{slug}`** — Lowercase-with-dashes slug derived from the issue title. Keep it concise
+  but readable.
+
+Example: `20260828-155804_nc019_git_mcp_command_specific_guards.md`
+
+If no meaningful `{id}` exists for the issue, use a generic prefix such as `todo` or
+`misc` followed by a short sequence number (e.g., `todo_001`). Never omit the `{id}`
+portion — it is required for cross-skill deduplication.
+
 ---
 
 ## Issue Structure

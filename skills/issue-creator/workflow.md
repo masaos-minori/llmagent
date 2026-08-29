@@ -170,3 +170,20 @@ Before finalizing issues, verify:
 - [ ] Markdown safety follows Phase 9
 - [ ] no secrets or sensitive data are included (see `SKILL.md` Core Principles)
 - [ ] the issue follows `templates/issue.md`'s field order and names exactly
+
+---
+
+## Phase 10: Generate Issue Filename
+
+After the issue body is finalized, generate the filename using the convention defined in
+`SKILL.md` Issue Filename Generation.
+
+1. Extract or assign an `{id}` from the issue content (e.g., `NC-019` → `nc019`).
+   If no meaningful ID exists, use a generic prefix + sequence number (e.g., `todo_001`).
+2. Generate `{timestamp}` as `YYYYMMDD-HHmmss` at creation time.
+3. Derive `{slug}` from the issue title: lowercase, replace spaces with dashes, remove
+   non-alphanumeric characters except dashes.
+4. Assemble: `{timestamp}_{id}_{slug}.md`
+5. Verify uniqueness against existing files in `issues/` before writing.
+
+Do NOT create issues without following this naming convention.
