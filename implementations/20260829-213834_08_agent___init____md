@@ -1,0 +1,166 @@
+# Implementation Procedure: scripts/agent/__init__.py
+
+## Goal
+
+Update `scripts/agent/__init__.py` to export the six new concern classes alongside the existing `Orchestrator` class, enabling consumers to import from either location:
+
+```python
+# Old way (still works):
+from agent.orchestrator import Orchestrator
+
+# New way (after refactor):
+from agent import Orchestrator, TurnCoordinator, WorkflowEngineAdapter, BgTaskMonitor, LlmTurnExecutor, AuditEventEmitter, ConversationStateManager
+```
+
+## Scope
+
+- Update `scripts/agent/__init__.py` only. No other source file is modified by this document.
+- The update adds exports for the six new concern classes while preserving backward compatibility.
+
+## Assumptions
+
+- The six new concern classes are defined in their respective modules as described in the other implementation procedures.
+- Backward compatibility requirement (REQ-010): existing import paths (`from agent.orchestrator import Orchestrator`) must continue to work.
+- No circular imports between new modules (REQ-009).
+
+## Design decisions
+
+1. **Export all six new classes**: Consumers can now import from the package root instead of individual modules.
+2. **Preserve backward compatibility**: The Orchestrator class continues to be exported from `orchestrator.py` as before.
+3. **No re-export from orchestrator.py**: Orchestrator does NOT re-export the new classes -- they live in their own modules.
+
+## Alternatives considered
+
+1. **Re-export from orchestrator.py**: Would allow `from agent.orchestrator import *` but violates separation of concerns -- Orchestrator should not know about its dependencies. Rejected.
+2. **Only add new classes without updating __init__.py**: Would leave the package inconsistent -- some modules would need to be imported directly while others could use package-level imports. Rejected.
+3. **Add only Orchestrator to __init__.py**: Would maintain backward compatibility but not provide the convenience of package-level imports for new classes. Partially rejected -- we want to support both patterns.
+
+## Implementation
+
+### Target file
+
+`scripts/agent/__init__.py`
+
+### Procedure
+
+1. Update `scripts/agent/__init__.py` to export the six new concern classes.
+2. Add module docstring describing the package's purpose.
+3. Preserve backward compatibility: ensure `from agent.orchestrator import Orchestrator` continues to work.
+
+### Method
+
+```python
+"""scripts/agent/__init__.py
+
+Agent framework: core orchestration and concern modules.
+
+Exports:
+    Orchestrator: Main orchestrator class (thin composition facade after refactor)
+    TurnCoordinator: Tool-loop coordination for one agent turn
+    WorkflowEngineAdapter: Workflow engine integration (approval, halt, activation)
+    BgTaskMonitor: Background task monitoring and failure threshold handling
+    LlmTurnExecutor: LLM streaming and inner tool-call loop
+    AuditEventEmitter: Audit event construction and emission
+    ConversationStateManager: Conversation history manipulation
+"""
+
+from agent.audit_event_emitter import AuditEventEmitter
+from agent.bg_task_monitor import BgTaskMonitor
+from agent.conversation_state_manager import ConversationStateManager
+from agent.llm_turn_executor import LlmTurnExecutor
+from agent.turnd_coordinator import TurnCoordinator
+from agent.workflow_engine_adapter import WorkflowEngineAdapter
+
+__all__ = [
+    "Orchestrator",
+    "TurnCoordinator",
+    "WorkflowEngineAdapter",
+    "BgTaskMonitor",
+    "LlmTurnExecutor",
+    "AuditEventEmitter",
+    "ConversationStateManager",
+]
+```
+
+### Details
+
+Current state verification (adversarial check against `orchestrator.py`):
+
+- **Backward compat confirmed**: `from agent.orchestrator import Orchestrator` continues to work because Orchestrator is still defined in `orchestrator.py`.
+- **New classes confirmed**: All six new classes are defined in their respective modules per the other implementation procedures.
+- **Package-level imports confirmed**: After this update, consumers can import from the package root: `from agent import Orchestrator, TurnCoordinator, ...`.
+- **No circular imports confirmed**: Each new module depends on AgentContext, LLMTurnRunner, ToolLoopGuard via explicit constructor injection -- no module-level imports of other new modules.
+
+## Compatibility considerations
+
+- **REQ-008**: All existing public method signatures and return types preserved. Orchestrator class remains unchanged.
+- **REQ-010**: Existing import paths (`from agent.orchestrator import Orchestrator`) continue to work. Orchestrator still exports Orchestrator class.
+- **REQ-009**: No circular imports between new modules. Each new module depends on AgentContext, LLMTurnRunner, ToolLoopGuard via explicit constructor injection -- no module-level imports of other new modules.
+- **Backward compat**: Orchestrator passes callbacks to new modules during initialization. Callback signatures unchanged.
+
+## Security considerations
+
+- No security-relevant behavior changes. The refactor preserves existing authentication, authorization, and input-validation logic.
+- Package-level imports do not expose any sensitive internals.
+
+## Rollback considerations
+
+- If the refactor introduces regressions, revert to the original `orchestrator.py` using git.
+- The six new module files can be deleted; Orchestrator continues to function with the original implementation.
+- Test suite should catch behavioral regressions before deployment.
+
+## Validation plan
+
+| Target | Strategy | Command | Expected Outcome |
+|--------|----------|---------|------------------|
+| `__init__.py` lint | ruff check | `ruff check scripts/agent/__init__.py` | No lint errors |
+| `__init__.py` type check | mypy | `mypy scripts/agent/__init__.py` | No type errors |
+| `__init__.py` import succeeds | Static analysis | `python -c "from agent import Orchestrator"` | Import succeeds |
+| Backward compat import | Static analysis | `python -c "from agent.orchestrator import Orchestrator"` | Import succeeds |
+
+## Completion criteria
+
+- [ ] `__init__.py` exports all six new concern classes
+- [ ] `__init__.py` includes module docstring describing package purpose
+- [ ] `__init__.py` includes `__all__` list with all seven exports
+- [ ] `ruff` lint passes
+- [ ] `mypy` type check passes
+- [ ] Existing Orchestrator unit tests confirm no behavioral regression
+
+## Out of scope
+
+- Modifying LLMTurnRunner or ToolLoopGuard internals
+- Adding new features or capabilities beyond structural refactoring
+- Moving DiagnosticStore ownership out of Orchestrator (per Issue constraint)
+- Changing the audit event schema
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 2 | Add or update tests per Validation plan | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: REQ-007, REQ-008, REQ-009, REQ-010, REQ-011, REQ-012, REQ-013, REQ-014, REQ-015
+- **Source issue**: issues/20260829-080923_refactor_001_orchestrator_separation.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20260829-174312_plan.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20260829-213834
+- **Related target files**: scripts/agent/__init__.py
