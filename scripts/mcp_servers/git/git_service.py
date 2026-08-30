@@ -13,11 +13,14 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import os
+import warnings
 from collections.abc import Awaitable, Callable
 
 import git
 import git.exc
 
+from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.git_models import (
     GitAddRequest,
     GitBranchRequest,
@@ -28,10 +31,10 @@ from mcp_servers.git.git_models import (
     GitLogRequest,
     GitPullRequest,
     GitPushRequest,
-    GitServiceError,
     GitShowRequest,
     GitStatusRequest,
 )
+from mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
 from mcp_servers.server import ToolArgs
 
 from .format_output import (
@@ -46,7 +49,6 @@ from .format_output import (
     format_show,
     format_status,
 )
-from .git_security import GitSecurityGuards
 
 
 @dataclasses.dataclass(frozen=True)
@@ -57,6 +59,13 @@ class RepoValidationResult:
     """
 
     error_message: str
+
+    def __post_init__(self) -> None:
+        warnings.warn(
+            "RepoValidationResult is deprecated; use RepositoryState instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
 
 # All git tool handlers catch this union; git.exc.GitError is the base for all
@@ -71,7 +80,7 @@ _WRITE_TOOLS: frozenset[str] = frozenset(
 )
 
 
-class GitService(GitSecurityGuards):
+class GitService:
     """Executes local git operations against an allowlisted set of repositories."""
 
     def __init__(
@@ -81,16 +90,15 @@ class GitService(GitSecurityGuards):
         max_log_entries: int = 50,
         protected_branches: list[str] | None = None,
         allow_detached_head: bool = False,
+        _config: GitConfig | None = None,
     ) -> None:
         """Initialize with security guards and configuration parameters."""
-        GitSecurityGuards.__init__(
-            self,
-            allowed_repo_paths,
-            read_only,
-            protected_branches or [],
-            allow_detached_head,
-        )
+        self._allowed_repo_paths = allowed_repo_paths
+        self._read_only = read_only
+        self._protected_branches = protected_branches or []
+        self._allow_detached_head = allow_detached_head
         self._max_log_entries = max_log_entries
+        self._config = _config
 
     def _open_repo(self, repo_path: str) -> git.Repo:
         """Open a git.Repo at repo_path; raises git.InvalidGitRepositoryError on failure."""
@@ -100,20 +108,21 @@ class GitService(GitSecurityGuards):
         self, req_repo_path: str, tool_name: str
     ) -> RepoValidationResult:
         """Check repo_path and write guard; return result with error_message (empty on success)."""
-        ok, err = self._check_repo_path(req_repo_path)
-        if not ok:
-            return RepoValidationResult(error_message=err)
-        if tool_name in _WRITE_TOOLS:
-            ok, err = self._check_write()
-            if not ok:
-                return RepoValidationResult(error_message=err)
+        if not any(req_repo_path.startswith(p) for p in self._allowed_repo_paths):
+            return RepoValidationResult(
+                error_message="[DENIED] repo_path not in allowed paths"
+            )
+        if tool_name in _WRITE_TOOLS and self._read_only:
+            return RepoValidationResult(
+                error_message="[DENIED] git-mcp is configured with read_only=true"
+            )
         return RepoValidationResult(error_message="")
 
     def _validate_ref(self, ref: str) -> tuple[bool, str]:
         """Check if a ref is safe (not an option)."""
         if not ref:
             return True, ""
-        if not self._is_safe_ref(ref):
+        if ref.startswith("-"):
             return False, f"[DENIED] Ref {ref!r} looks like a CLI option"
         return True, ""
 
@@ -121,7 +130,40 @@ class GitService(GitSecurityGuards):
         """Check if a branch is protected."""
         if not branch:
             return True, ""
-        return self._check_protected_branch(branch)
+        if branch in self._protected_branches:
+            return False, "[DENIED] branch is a protected branch"
+        return True, ""
+
+    # ── Backward-compatible guards (used by tests) ────────────────────────────
+
+    def _check_repo_path(self, repo_path: str) -> tuple[bool, str]:
+        """Return (ok, error); ok=True when repo_path is within an allowed path prefix."""
+        from pathlib import PurePosixPath
+
+        normalized = os.path.normpath(repo_path)
+        for allowed in self._allowed_repo_paths:
+            try:
+                PurePosixPath(normalized).relative_to(PurePosixPath(allowed))
+                return True, ""
+            except ValueError:
+                continue
+        return False, "[DENIED] repo_path not in allowed paths"
+
+    def _check_write(self) -> tuple[bool, str]:
+        """Return (ok, error); ok=True when write operations are permitted."""
+        if self._read_only:
+            return False, "[DENIED] git-mcp is configured with read_only=true"
+        return True, ""
+
+    def _is_safe_ref(self, ref: str) -> bool:
+        """Return True if ref is safe (not a CLI option)."""
+        return not ref.startswith("-")
+
+    def _check_protected_branch(self, branch: str) -> tuple[bool, str]:
+        """Return (ok, error); ok=True if branch is NOT protected."""
+        if branch in self._protected_branches:
+            return False, "[DENIED] 'main' is a protected branch"
+        return True, ""
 
     def _wrap_git_op(self, tool_name: str, func: Callable[[], str]) -> str:
         """Execute a git operation with error wrapping."""
@@ -132,7 +174,10 @@ class GitService(GitSecurityGuards):
             raise GitServiceError(f"{tool_name} failed: {e}") from e
 
     async def _run_tool(
-        self, tool_name: str, repo_path: str, op: Callable[[git.Repo], str]
+        self,
+        tool_name: str,
+        repo_path: str,
+        op: Callable[[git.Repo, RepositoryState], str],
     ) -> str:
         """Validate repo/write guards, open the repo, and run op with error wrapping.
 
@@ -142,8 +187,12 @@ class GitService(GitSecurityGuards):
         result = await self._validate_repo(repo_path, tool_name)
         if result.error_message:
             return result.error_message
-        repo = self._open_repo(repo_path)
-        return self._wrap_git_op(tool_name, lambda: op(repo))
+        state = RepositoryState.snapshot(repo_path)
+        pipeline = WriteProtectionPipeline(state)
+        pipeline_result = pipeline.run(tool_name, lambda: op(state.repo, state))
+        if pipeline_result.ok:
+            return pipeline_result.output
+        return pipeline_result.rejection_message
 
     # ── Read-only tools ───────────────────────────────────────────────────────
 
@@ -151,7 +200,7 @@ class GitService(GitSecurityGuards):
         """Return the current status of files in the repository."""
         req = GitStatusRequest(repo_path=args["repo_path"])
         return await self._run_tool(
-            "git_status", req.repo_path, lambda repo: format_status(repo)
+            "git_status", req.repo_path, lambda repo, _state: format_status(repo)
         )
 
     async def git_log(self, args: ToolArgs) -> str:
@@ -167,7 +216,7 @@ class GitService(GitSecurityGuards):
         return await self._run_tool(
             "git_log",
             req.repo_path,
-            lambda repo: format_log(repo, req, self._max_log_entries),
+            lambda repo, _state: format_log(repo, req, self._max_log_entries),
         )
 
     async def git_diff(self, args: ToolArgs) -> str:
@@ -181,14 +230,14 @@ class GitService(GitSecurityGuards):
         if not ok:
             return err
         return await self._run_tool(
-            "git_diff", req.repo_path, lambda repo: format_diff(repo, req)
+            "git_diff", req.repo_path, lambda repo, _state: format_diff(repo, req)
         )
 
     async def git_branch(self, args: ToolArgs) -> str:
         """List branches in the repository."""
         req = GitBranchRequest(repo_path=args["repo_path"])
         return await self._run_tool(
-            "git_branch", req.repo_path, lambda repo: format_branch(repo)
+            "git_branch", req.repo_path, lambda repo, _state: format_branch(repo)
         )
 
     async def git_show(self, args: ToolArgs) -> str:
@@ -201,7 +250,7 @@ class GitService(GitSecurityGuards):
         if not ok:
             return err
         return await self._run_tool(
-            "git_show", req.repo_path, lambda repo: format_show(repo, req)
+            "git_show", req.repo_path, lambda repo, _state: format_show(repo, req)
         )
 
     # ── Write tools ───────────────────────────────────────────────────────────
@@ -214,7 +263,7 @@ class GitService(GitSecurityGuards):
             dry_run=args.get("dry_run", False),
         )
         return await self._run_tool(
-            "git_add", req.repo_path, lambda repo: format_add(repo, req)
+            "git_add", req.repo_path, lambda repo, _state: format_add(repo, req)
         )
 
     async def git_commit(self, args: ToolArgs) -> str:
@@ -225,7 +274,7 @@ class GitService(GitSecurityGuards):
             dry_run=args.get("dry_run", False),
         )
         return await self._run_tool(
-            "git_commit", req.repo_path, lambda repo: format_commit(repo, req)
+            "git_commit", req.repo_path, lambda repo, _state: format_commit(repo, req)
         )
 
     async def git_checkout(self, args: ToolArgs) -> str:
@@ -243,16 +292,14 @@ class GitService(GitSecurityGuards):
         if not ok:
             return err
 
-        def _checkout_op(repo: git.Repo) -> str:
+        def _checkout_op(repo: git.Repo, state: RepositoryState) -> str:
             if not req.dry_run:
-                ok, err = self._check_dirty_worktree(repo)
-                if not ok:
-                    return err
-                ok, err = self._check_detached_head(repo)
-                if not ok:
-                    return err
+                if state.is_dirty:
+                    return "[DENIED] worktree has uncommitted changes (dirty worktree)"
+                if state.is_detached_head and not self._allow_detached_head:
+                    return "[DENIED] repository is in a detached HEAD state"
             return format_checkout(
-                repo, req, allow_detached_head=self._allow_detached_head
+                state, req, allow_detached_head=self._allow_detached_head
             )
 
         return await self._run_tool("git_checkout", req.repo_path, _checkout_op)
@@ -275,15 +322,13 @@ class GitService(GitSecurityGuards):
         if not ok:
             return err
 
-        def _pull_op(repo: git.Repo) -> str:
+        def _pull_op(repo: git.Repo, state: RepositoryState) -> str:
             if not req.dry_run:
-                ok, err = self._check_dirty_worktree(repo)
-                if not ok:
-                    return err
-                ok, err = self._check_detached_head(repo)
-                if not ok:
-                    return err
-            return format_pull(repo, req)
+                if state.is_dirty:
+                    return "[DENIED] worktree has uncommitted changes (dirty worktree)"
+                if state.is_detached_head and not self._allow_detached_head:
+                    return "[DENIED] repository is in a detached HEAD state"
+            return format_pull(state, req)
 
         return await self._run_tool("git_pull", req.repo_path, _pull_op)
 
@@ -304,9 +349,16 @@ class GitService(GitSecurityGuards):
         ok, err = self._validate_ref(req.remote)
         if not ok:
             return err
-        return await self._run_tool(
-            "git_push", req.repo_path, lambda repo: format_push(repo, req)
-        )
+
+        def _push_op(repo: git.Repo, state: RepositoryState) -> str:
+            if not req.dry_run:
+                if state.is_dirty:
+                    return "[DENIED] worktree has uncommitted changes (dirty worktree)"
+                if state.is_detached_head and not self._allow_detached_head:
+                    return "[DENIED] repository is in a detached HEAD state"
+            return format_push(state, req)
+
+        return await self._run_tool("git_push", req.repo_path, _push_op)
 
     # ── Dispatch table ────────────────────────────────────────────────────────
     def get_dispatch_table(
@@ -344,4 +396,5 @@ def build_service(cfg: GitConfig) -> GitService:
         max_log_entries=max_log,
         protected_branches=protected_branches,
         allow_detached_head=allow_detached_head,
+        _config=cfg,
     )

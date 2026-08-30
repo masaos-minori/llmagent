@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import git
 
+from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.git_models import (
     GitAddRequest,
     GitCheckoutRequest,
@@ -19,9 +20,9 @@ from mcp_servers.git.git_models import (
     GitLogRequest,
     GitPullRequest,
     GitPushRequest,
-    GitServiceError,
     GitShowRequest,
 )
+from mcp_servers.git.repository_state import RepositoryState
 
 GIT_SHOW_OUTPUT_MAX_CHARS = 8000
 
@@ -116,7 +117,10 @@ def format_commit(repo: git.Repo, req: GitCommitRequest) -> str:
 
 
 def format_checkout(
-    repo: git.Repo, req: GitCheckoutRequest, *, allow_detached_head: bool = False
+    state: RepositoryState,
+    req: GitCheckoutRequest,
+    *,
+    allow_detached_head: bool = False,
 ) -> str:
     """Format output for switching branches."""
     if req.dry_run:
@@ -127,45 +131,51 @@ def format_checkout(
         )
         return f"[DRY RUN] Would {action}"
     if req.create:
-        new_branch = repo.create_head(req.branch)
+        assert state._repo is not None
+        new_branch = state._repo.create_head(req.branch)
         new_branch.checkout()
     else:
         # Use '--' to prevent argument injection if req.branch starts with '-'
-        repo.git.checkout("--", req.branch)
-    if repo.active_branch.name != req.branch or (
-        not allow_detached_head and repo.head.is_detached
+        assert state._repo is not None
+        state._repo.git.checkout("--", req.branch)
+    if state.active_branch != req.branch or (
+        not allow_detached_head and state.head_type == "detached"
     ):
         raise GitServiceError(
             f"checkout postcondition failed: expected branch {req.branch!r}, "
-            f"got {'<detached HEAD>' if repo.head.is_detached else repo.active_branch.name!r}"
+            f"got {'<detached HEAD>' if state.head_type == 'detached' else state.active_branch!r}"
         )
     return f"Switched to branch '{req.branch}'"
 
 
-def format_pull(repo: git.Repo, req: GitPullRequest) -> str:
+def format_pull(state: RepositoryState, req: GitPullRequest) -> str:
     """Format output for fetching and merging remote changes."""
     if req.dry_run:
-        fetch_info = repo.git.fetch("--dry-run", req.remote)
+        assert state._repo is not None
+        fetch_info = state._repo.git.fetch("--dry-run", req.remote)
         return (
             f"[DRY RUN] fetch --dry-run result:\n{fetch_info or '(nothing to commit)'}"
         )
     pull_args = [req.remote]
     if req.branch:
         pull_args.extend(["--", req.branch])
-    result = repo.git.pull(*pull_args)
-    if repo.index.unmerged_blobs():
+    assert state._repo is not None
+    result = state._repo.git.pull(*pull_args)
+    assert state._repo is not None
+    if state._repo.index.unmerged_blobs():
         raise GitServiceError(
             "pull postcondition failed: unresolved merge conflicts remain"
         )
     return result or "Already up to date."
 
 
-def format_push(repo: git.Repo, req: GitPushRequest) -> str:
+def format_push(state: RepositoryState, req: GitPushRequest) -> str:
     """Format output for pushing local commits to a remote."""
-    branch = req.branch or repo.active_branch.name
+    branch = req.branch or state.active_branch
     if req.dry_run:
         return f"[DRY RUN] Would push branch '{branch}' to '{req.remote}'"
-    result = repo.git.push(req.remote, "--", branch)
+    assert state._repo is not None
+    result = state._repo.git.push(req.remote, "--", branch)
     _rejection_markers = ("[rejected]", "non-fast-forward", "failed to push")
     if result and any(m in result for m in _rejection_markers):
         raise GitServiceError(

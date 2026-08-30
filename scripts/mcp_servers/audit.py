@@ -29,6 +29,8 @@ class AuditRecord(TypedDict):
     server_key: str
     error_type: str
     detail: NotRequired[str]
+    pre_condition: NotRequired[dict[str, object]]
+    post_condition: NotRequired[dict[str, object]]
 
 
 def _build_audit_record(
@@ -40,6 +42,8 @@ def _build_audit_record(
     detail: str = "",
     server_key: str = "",
     error_type: str = "",
+    pre_condition: dict[str, object] | None = None,
+    post_condition: dict[str, object] | None = None,
 ) -> AuditRecord:
     """Build the structured record for one MCP tool execution audit event."""
     record: AuditRecord = {
@@ -56,6 +60,18 @@ def _build_audit_record(
     }
     if detail:
         record["detail"] = detail
+    if pre_condition is not None:
+        record["pre_condition"] = {
+            k: v
+            for k, v in pre_condition.items()
+            if isinstance(v, (str, int, float, bool, type(None)))
+        }
+    if post_condition is not None:
+        record["post_condition"] = {
+            k: v
+            for k, v in post_condition.items()
+            if isinstance(v, (str, int, float, bool, type(None)))
+        }
     return record
 
 
@@ -69,6 +85,8 @@ def _audit_log(
     detail: str = "",
     server_key: str = "",
     error_type: str = "",
+    pre_condition: dict[str, object] | None = None,
+    post_condition: dict[str, object] | None = None,
 ) -> None:
     """Emit one JSON-lines audit record for an MCP tool execution."""
     record = _build_audit_record(
@@ -80,5 +98,7 @@ def _audit_log(
         detail=detail,
         server_key=server_key,
         error_type=error_type,
+        pre_condition=pre_condition,
+        post_condition=post_condition,
     )
     server_logger.info(orjson.dumps(record, option=orjson.OPT_SORT_KEYS).decode())

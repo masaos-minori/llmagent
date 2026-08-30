@@ -234,6 +234,15 @@ class TestClassifyOperationType:
         for name in ("git_checkout", "git_pull", "git_push"):
             assert classify_risk(cfg, name, {"repo_path": "/tmp/repo"}) == "high"
 
+    def test_real_config_resolves_git_tools_to_high_risk(self) -> None:
+        """REQ-002: The shipped config/agent.toml resolves git_checkout/git_pull/git_push
+        to HIGH through the actual risk-classification pipeline."""
+        from agent.config_builders import build_agent_config
+
+        cfg = build_agent_config()
+        for name in ("git_checkout", "git_pull", "git_push"):
+            assert classify_risk(cfg, name, {"repo_path": "/tmp/repo"}) == "high"
+
     def test_delete_tools(self) -> None:
         assert classify_operation_type("delete_file") == "delete"
         assert classify_operation_type("delete_directory") == "delete"

@@ -47,6 +47,9 @@ Git MCP's `git_checkout`/`git_pull`/`git_push` currently enforce only two checks
 5. `git_checkout`/`git_pull` MUST reject execution against a Dirty Worktree unless a documented safe exception applies; Detached HEAD MUST be rejected unless explicitly permitted by policy.
 6. Postcondition verification MUST confirm the resulting branch/HEAD and detect unresolved conflicts before reporting success; a `git` command that exits non-zero already fails today, but a low-level "did we actually end up where we intended" check is not the same guarantee.
 7. Audit records for Git MCP write operations MUST include the correct repository identity; the current `target` field is suspected to always be empty due to a key-name mismatch (`"repo"` vs. the schema's `repo_path`) and MUST be fixed as part of closing this gap.
+8. `RepositoryState` frozen dataclass MUST capture full repository state from a single `git.Repo` query and provide immutable access to all fields.
+9. Write-protection pipeline MUST enforce stage ordering: Stage 4 (state snapshot) → Stage 5 (preconditions) → Stage 6 (execution) → Stage 7 (postcondition verification).
+10. Audit records for Git MCP write operations MUST include both pre-condition and post-condition snapshots captured by `RepositoryState`.
 
 ### Scope
 
@@ -107,12 +110,41 @@ The immediate, low-cost mitigation (reject option-shaped `branch`/`remote` value
 - Adds validation code and (for protected branches) configuration surface to a previously minimal server.
 - May reject legitimate ref names that happen to resemble options; needs a clear, documented safe-ref pattern to avoid false rejections.
 
+### New Risks
+- Frozen dataclass immutability must hold under all code paths.
+- `RepositoryState._repo` weak reference must not prevent garbage collection.
+- Pipeline early-exit must not skip required audit entries.
+- Option-injection prevention via `_is_safe_ref()` must be enforced before any `git.Repo` query.
+
+### Mitigations
+- Unit tests for `RepositoryState.snapshot()` capturing all fields.
+- Integration tests for pipeline ordering (Stage 4 → 5 → 6 → 7).
+- Guard integration tests (dirty, detached, protected).
+- Audit log verification tests.
+
 ### Operational Consequences
 - Operators configuring Git MCP will need to define a protected-branch list, analogous to GitHub MCP's existing configuration.
 
 ### Security Consequences
 - Closes the option-injection vector confirmed during investigation (MCP-003).
 - Requires fixing the audit `target` field (MCP-005) so this tool category's audit trail is actually usable.
+
+## Traceability
+
+### Implementation Procedures
+- `implementations/20260829-134950_01_scripts_mcp_servers_git_repository_state.py.md`: Create RepositoryState module
+- `implementations/20260829-134950_02_scripts_mcp_servers_git_git_service.py.md`: Modify git_service.py
+- `implementations/20260829-134950_03_scripts_mcp_servers_git_git_security.py.md`: Modify git_security.py
+- `implementations/20260829-134950_04_scripts_mcp_servers_git_format_output.py.md`: Modify format_output.py
+- `implementations/20260829-134950_05_scripts_mcp_servers_git_git_models.py.md`: Modify git_models.py
+- `implementations/20260829-134950_06_scripts_mcp_servers_git_git_server.py.md`: Modify git_server.py
+- `implementations/20260829-134950_07_scripts_mcp_servers_dispatch.py.md`: Skipped — procedure did not match actual architecture (generic async dispatcher vs git-specific sync dispatcher); git_server.py already handles RepositoryState via call_tool endpoint
+- `implementations/20260829-134950_08_scripts_mcp_servers_audit.py.md`: Modify audit.py
+- `implementations/20260829-134950_09_tests_mcp_servers_git_test_repository_state.py.md`: Create tests
+
+### Source Documents
+- Source issue: issues/20260828-162303_mcp003_git_write_protection_pipeline.md
+- Source plan: plans/20260829-134950_plan.md
 
 ## Invariants
 
@@ -176,7 +208,7 @@ This ADR moves to Accepted once INV-01 through INV-04 are implemented and covere
 ## Known Deviations
 
 - **Known Issue**: MCP-003 — no protected-branch/Force-Push guard; confirmed option-injection exploit via `branch`/`remote`.
-- **Known Issue**: MCP-004 — approval tier for these tools falls back to `MEDIUM` (`y/N`) rather than the documented `HIGH` (full-word `yes`).
+- **Known Issue**: MCP-004 — effective risk below HIGH for git tools can occur if config is downgraded (no floor check); approval-screen preview for git tools falls through to generic JSON dump; no end-to-end test exercises the shipped config through the actual approval flow.
 - **Known Issue**: MCP-005 — audit `target` field likely always empty due to a key-name mismatch.
 - **Known Issue**: GIT-001 — `git_checkout`/`git_pull` do not reject dirty worktree or detached HEAD before write operations.
 - **Known Issue**: GIT-002 — postcondition verification (branch/HEAD confirmation, conflict detection) missing after write operations.

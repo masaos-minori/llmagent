@@ -68,6 +68,37 @@ def _check_unknown_tool_safety_tiers(
     return [f"'{k}' not a registered tool name" for k in unknown]
 
 
+def _check_approval_risk_floor(
+    approval_risk_rules: Mapping[str, object],
+    tool_safety_tiers: Mapping[str, object],
+    known_tools: set[str] | None = None,
+) -> list[str]:
+    """Return tool names whose resolved effective risk is below HIGH."""
+    from agent.tool_policy import _TIER_TO_RISK, RiskLevel
+
+    GIT_WRITE_TOOLS = frozenset(("git_checkout", "git_pull", "git_push"))
+    resolved_tools = _resolve_known_tools(known_tools)
+    if resolved_tools is None:
+        return []
+    targets = GIT_WRITE_TOOLS & resolved_tools
+    below_high: list[str] = []
+    for tool_name in sorted(targets):
+        raw_rule = approval_risk_rules.get(tool_name)
+        if raw_rule is not None:
+            try:
+                base = RiskLevel(str(raw_rule))
+            except ValueError:
+                continue
+        elif tool_name in tool_safety_tiers:
+            tier = str(tool_safety_tiers[tool_name])
+            base = _TIER_TO_RISK.get(tier, RiskLevel.MEDIUM)
+        else:
+            continue
+        if base != RiskLevel.HIGH:
+            below_high.append(f"'{tool_name}' effective risk={base}")
+    return below_high
+
+
 class ProductionConfigValidator:
     """Validate configuration against production security requirements.
 
@@ -125,6 +156,17 @@ class ProductionConfigValidator:
                     f"Unknown safety tier keys: {tier_msg}",
                     is_production,
                 )
+
+        # Approval risk floor check for git write tools
+        approval_risk_rules = config.get("approval_risk_rules")
+        if isinstance(approval_risk_rules, Mapping):
+            low_risk_tools = _check_approval_risk_floor(
+                approval_risk_rules, tool_safety_tiers, known_tools=known_tools
+            )
+            if low_risk_tools:
+                tool_list = "; ".join(low_risk_tools)
+                msg = f"Effective risk below HIGH for git tools: {tool_list}"
+                self._record(errors, warnings, msg, is_production)
 
         # allowed_tools visibility
         allowed_tools = config.get("allowed_tools")

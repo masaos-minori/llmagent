@@ -143,6 +143,39 @@ class TestBuildPreview:
         preview = build_preview("github_push_files", {})
         assert "?" in preview
 
+    def test_git_checkout_with_repo_and_branch(self) -> None:
+        preview = build_preview(
+            "git_checkout",
+            {"repo_path": "https://github.com/example/repo", "branch": "main"},
+        )
+        assert "git@" in preview
+        assert "https://github.com/example/repo" in preview
+        assert "branch=main" in preview
+        assert "json" not in preview.lower() or '"repo_path"' not in preview
+
+    def test_git_push_with_repo_and_remote(self) -> None:
+        preview = build_preview(
+            "git_push",
+            {"repo_path": "https://github.com/example/repo", "remote": "origin"},
+        )
+        assert "git@" in preview
+        assert "https://github.com/example/repo" in preview
+        assert "remote=origin" in preview
+
+    def test_git_log_with_repo_only(self) -> None:
+        preview = build_preview(
+            "git_log",
+            {"repo_path": "https://github.com/example/repo"},
+        )
+        assert "git@" in preview
+        assert "https://github.com/example/repo" in preview
+        assert "branch=" not in preview
+        assert "remote=" not in preview
+
+    def test_git_tool_missing_repo_path_shows_placeholder(self) -> None:
+        preview = build_preview("git_checkout", {})
+        assert "?" in preview
+
 
 class TestTurnLimitHint:
     def test_turn_limit_hint_multi_line_reports_chars_and_lines(self) -> None:

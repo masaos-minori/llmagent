@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from mcp_servers.git.git_models import GitConfig
 from mcp_servers.git.git_service import GitService
+from mcp_servers.git.repository_state import RepositoryState
 
 
 class TestGitSecurityCompliance:
@@ -139,67 +140,81 @@ class TestGitSecurityCompliance:
 
     @pytest.mark.asyncio
     async def test_git_checkout_dirty_worktree_denied(self, svc: GitService) -> None:
-        mock_repo = MagicMock()
-        mock_repo.is_dirty.return_value = True
-        mock_repo.head.is_detached = False
-        svc._open_repo = MagicMock(return_value=mock_repo)
-        args = {
-            "repo_path": "/tmp/repo",
-            "branch": "develop",
-            "create": False,
-            "dry_run": False,
-        }
-        result = await svc.git_checkout(args)
+        snap = MagicMock(spec=RepositoryState)
+        snap.is_dirty = True
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (
+            False,
+            "[DENIED] worktree has uncommitted changes",
+        )
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            args = {
+                "repo_path": "/tmp/repo",
+                "branch": "develop",
+                "create": False,
+                "dry_run": False,
+            }
+            result = await svc.git_checkout(args)
         assert "[DENIED]" in result
-        assert "dirty worktree" in result
+        assert "worktree has uncommitted changes" in result
 
     @pytest.mark.asyncio
     async def test_git_pull_dirty_worktree_denied(self, svc: GitService) -> None:
-        mock_repo = MagicMock()
-        mock_repo.is_dirty.return_value = True
-        mock_repo.head.is_detached = False
-        mock_repo.index.unmerged_blobs.return_value = []
-        svc._open_repo = MagicMock(return_value=mock_repo)
-        args = {
-            "repo_path": "/tmp/repo",
-            "remote": "origin",
-            "branch": "develop",
-            "dry_run": False,
-        }
-        result = await svc.git_pull(args)
+        snap = MagicMock(spec=RepositoryState)
+        snap.is_dirty = True
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (
+            False,
+            "[DENIED] worktree has uncommitted changes",
+        )
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            args = {
+                "repo_path": "/tmp/repo",
+                "remote": "origin",
+                "branch": "develop",
+                "dry_run": False,
+            }
+            result = await svc.git_pull(args)
         assert "[DENIED]" in result
-        assert "dirty worktree" in result
+        assert "worktree has uncommitted changes" in result
 
     @pytest.mark.asyncio
     async def test_git_checkout_detached_head_denied(self, svc: GitService) -> None:
-        mock_repo = MagicMock()
-        mock_repo.is_dirty.return_value = False
-        mock_repo.head.is_detached = True
-        svc._open_repo = MagicMock(return_value=mock_repo)
-        args = {
-            "repo_path": "/tmp/repo",
-            "branch": "develop",
-            "create": False,
-            "dry_run": False,
-        }
-        result = await svc.git_checkout(args)
+        snap = MagicMock(spec=RepositoryState)
+        snap.is_dirty = False
+        snap.is_detached_head = True
+        snap.verify_preconditions.return_value = (
+            False,
+            "[DENIED] repository is in a detached HEAD state",
+        )
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            args = {
+                "repo_path": "/tmp/repo",
+                "branch": "develop",
+                "create": False,
+                "dry_run": False,
+            }
+            result = await svc.git_checkout(args)
         assert "[DENIED]" in result
         assert "detached HEAD" in result
 
     @pytest.mark.asyncio
     async def test_git_pull_detached_head_denied(self, svc: GitService) -> None:
-        mock_repo = MagicMock()
-        mock_repo.is_dirty.return_value = False
-        mock_repo.head.is_detached = True
-        mock_repo.index.unmerged_blobs.return_value = []
-        svc._open_repo = MagicMock(return_value=mock_repo)
-        args = {
-            "repo_path": "/tmp/repo",
-            "remote": "origin",
-            "branch": "develop",
-            "dry_run": False,
-        }
-        result = await svc.git_pull(args)
+        snap = MagicMock(spec=RepositoryState)
+        snap.is_dirty = False
+        snap.is_detached_head = True
+        snap.verify_preconditions.return_value = (
+            False,
+            "[DENIED] repository is in a detached HEAD state",
+        )
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            args = {
+                "repo_path": "/tmp/repo",
+                "remote": "origin",
+                "branch": "develop",
+                "dry_run": False,
+            }
+            result = await svc.git_pull(args)
         assert "[DENIED]" in result
         assert "detached HEAD" in result
 
@@ -207,18 +222,21 @@ class TestGitSecurityCompliance:
     async def test_git_checkout_detached_head_allowed(
         self, svc_allow_detached: GitService
     ) -> None:
-        mock_repo = MagicMock()
-        mock_repo.is_dirty.return_value = False
-        mock_repo.head.is_detached = True
-        mock_repo.active_branch.name = "develop"
-        svc_allow_detached._open_repo = MagicMock(return_value=mock_repo)
-        args = {
-            "repo_path": "/tmp/repo",
-            "branch": "develop",
-            "create": False,
-            "dry_run": False,
-        }
-        result = await svc_allow_detached.git_checkout(args)
+        snap = MagicMock(spec=RepositoryState)
+        snap.is_dirty = False
+        snap.is_detached_head = True
+        snap.active_branch = "develop"
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            args = {
+                "repo_path": "/tmp/repo",
+                "branch": "develop",
+                "create": False,
+                "dry_run": False,
+            }
+            result = await svc_allow_detached.git_checkout(args)
         assert "[DRY RUN]" not in result
         assert "[DENIED]" not in result
 
@@ -226,18 +244,23 @@ class TestGitSecurityCompliance:
     async def test_git_pull_detached_head_allowed(
         self, svc_allow_detached: GitService
     ) -> None:
-        mock_repo = MagicMock()
-        mock_repo.is_dirty.return_value = False
-        mock_repo.head.is_detached = True
-        mock_repo.index.unmerged_blobs.return_value = []
-        svc_allow_detached._open_repo = MagicMock(return_value=mock_repo)
-        args = {
-            "repo_path": "/tmp/repo",
-            "remote": "origin",
-            "branch": "develop",
-            "dry_run": False,
-        }
-        result = await svc_allow_detached.git_pull(args)
+        snap = MagicMock(spec=RepositoryState)
+        snap.is_dirty = False
+        snap.is_detached_head = True
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        snap._repo = MagicMock()
+        snap._repo.index.unmerged_blobs.return_value = []
+        snap._repo.git.pull.return_value = "Already up to date."
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            args = {
+                "repo_path": "/tmp/repo",
+                "remote": "origin",
+                "branch": "develop",
+                "dry_run": False,
+            }
+            result = await svc_allow_detached.git_pull(args)
         assert "[DRY RUN]" not in result
         assert "[DENIED]" not in result
 
@@ -245,17 +268,21 @@ class TestGitSecurityCompliance:
     async def test_git_checkout_dry_run_skips_dirty_and_detached_checks(
         self, svc: GitService
     ) -> None:
-        mock_repo = MagicMock()
-        mock_repo.is_dirty.return_value = True
-        mock_repo.head.is_detached = True
-        svc._open_repo = MagicMock(return_value=mock_repo)
-        args = {
-            "repo_path": "/tmp/repo",
-            "branch": "develop",
-            "create": False,
-            "dry_run": True,
-        }
-        result = await svc.git_checkout(args)
+        snap = MagicMock(spec=RepositoryState)
+        snap.is_dirty = True
+        snap.is_detached_head = True
+        snap.active_branch = "develop"
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            args = {
+                "repo_path": "/tmp/repo",
+                "branch": "develop",
+                "create": False,
+                "dry_run": True,
+            }
+            result = await svc.git_checkout(args)
         assert "[DRY RUN]" in result
         assert "[DENIED]" not in result
 
@@ -263,17 +290,19 @@ class TestGitSecurityCompliance:
     async def test_git_pull_dry_run_skips_dirty_and_detached_checks(
         self, svc: GitService
     ) -> None:
-        mock_repo = MagicMock()
-        mock_repo.is_dirty.return_value = True
-        mock_repo.head.is_detached = True
-        mock_repo.index.unmerged_blobs.return_value = []
-        svc._open_repo = MagicMock(return_value=mock_repo)
-        args = {
-            "repo_path": "/tmp/repo",
-            "remote": "origin",
-            "branch": "develop",
-            "dry_run": True,
-        }
-        result = await svc.git_pull(args)
+        snap = MagicMock(spec=RepositoryState)
+        snap.is_dirty = True
+        snap.is_detached_head = True
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            args = {
+                "repo_path": "/tmp/repo",
+                "remote": "origin",
+                "branch": "develop",
+                "dry_run": True,
+            }
+            result = await svc.git_pull(args)
         assert "[DRY RUN]" in result
         assert "[DENIED]" not in result

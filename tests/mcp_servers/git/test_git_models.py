@@ -10,7 +10,8 @@ later refactor of this module can be verified not to change behavior.
 from __future__ import annotations
 
 import pytest
-from mcp_servers.git.git_models import GitConfig, GitServiceError
+from mcp_servers.git.errors import GitServiceError
+from mcp_servers.git.git_models import GitConfig
 
 
 class TestGitConfigFromDict:

@@ -11,6 +11,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from mcp_servers.git.git_service import GitService
+from mcp_servers.git.repository_state import RepositoryState
 
 
 def _svc(
@@ -116,7 +117,14 @@ class TestGitStatus:
         mock_repo = MagicMock()
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
-        with patch.object(svc, "_open_repo", return_value=mock_repo):
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_status({"repo_path": "/opt/repos/proj"})
         assert "main" in result
         assert "clean" in result
@@ -138,7 +146,14 @@ class TestGitAdd:
         mock_repo = MagicMock()
         mock_repo.untracked_files = ["a.py"]
         mock_repo.index.diff.return_value = []
-        with patch.object(svc, "_open_repo", return_value=mock_repo):
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_add(
                 {"repo_path": "/opt/repos/proj", "paths": ["a.py"], "dry_run": True}
             )
@@ -163,7 +178,14 @@ class TestGitCommit:
         staged.a_path = "main.py"
         mock_repo = MagicMock()
         mock_repo.index.diff.return_value = [staged]
-        with patch.object(svc, "_open_repo", return_value=mock_repo):
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_commit(
                 {
                     "repo_path": "/opt/repos/proj",
@@ -192,7 +214,14 @@ class TestGitCheckout:
     async def test_dry_run_checkout(self) -> None:
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
-        with patch.object(svc, "_open_repo", return_value=mock_repo):
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_checkout(
                 {"repo_path": "/opt/repos/proj", "branch": "feature/x", "dry_run": True}
             )
@@ -203,7 +232,14 @@ class TestGitCheckout:
     async def test_dry_run_create_branch(self) -> None:
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
-        with patch.object(svc, "_open_repo", return_value=mock_repo):
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_checkout(
                 {
                     "repo_path": "/opt/repos/proj",
@@ -225,7 +261,15 @@ class TestGitPush:
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
         mock_repo.active_branch.name = "main"
-        with patch.object(svc, "_open_repo", return_value=mock_repo):
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.active_branch = "main"
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_push(
                 {"repo_path": "/opt/repos/proj", "dry_run": True}
             )

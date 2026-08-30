@@ -12,6 +12,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.format_output import (
     GIT_SHOW_OUTPUT_MAX_CHARS,
     format_add,
@@ -33,11 +34,36 @@ from mcp_servers.git.git_models import (
     GitLogRequest,
     GitPullRequest,
     GitPushRequest,
-    GitServiceError,
     GitShowRequest,
 )
+from mcp_servers.git.repository_state import RepositoryState
 
 REPO_PATH = "/tmp/repo"
+
+
+def _make_state(
+    active_branch: str | None = "main",
+    head_type: str = "branch",
+    is_dirty: bool = False,
+    protected_branch: bool = False,
+    untracked_file_count: int = 0,
+    ref_valid: bool = True,
+    _repo: MagicMock | None = None,
+) -> RepositoryState:
+    if _repo is None:
+        _repo = MagicMock()
+        _repo.active_branch.name = active_branch or "main"
+        _repo.head.is_detached = head_type == "detached"
+    return RepositoryState(
+        path=REPO_PATH,
+        is_dirty=is_dirty,
+        head_type=head_type,
+        active_branch=active_branch,
+        untracked_file_count=untracked_file_count,
+        protected_branch=protected_branch,
+        ref_valid=ref_valid,
+        _repo=_repo,
+    )
 
 
 # ── format_status ──────────────────────────────────────────────────────────
@@ -280,64 +306,74 @@ class TestFormatCommit:
 
 class TestFormatCheckout:
     def test_dry_run_checkout_existing_branch(self) -> None:
-        repo = MagicMock()
+        state = _make_state(active_branch="feature/x")
         req = GitCheckoutRequest(
             repo_path=REPO_PATH, branch="feature/x", create=False, dry_run=True
         )
-        result = format_checkout(repo, req)
+        result = format_checkout(state, req)
         assert result == "[DRY RUN] Would checkout 'feature/x'"
 
     def test_dry_run_create_branch(self) -> None:
-        repo = MagicMock()
+        state = _make_state(active_branch="new-feat")
         req = GitCheckoutRequest(
             repo_path=REPO_PATH, branch="new-feat", create=True, dry_run=True
         )
-        result = format_checkout(repo, req)
+        result = format_checkout(state, req)
         assert result == "[DRY RUN] Would create and checkout 'new-feat'"
 
     def test_create_branch_checks_out_new_head(self) -> None:
-        repo = MagicMock()
-        repo.active_branch.name = "new-feat"
-        repo.head.is_detached = False
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "new-feat"
+        mock_repo.head.is_detached = False
         new_branch = MagicMock()
-        repo.create_head.return_value = new_branch
+        mock_repo.create_head.return_value = new_branch
+        state = _make_state(
+            active_branch="new-feat", head_type="branch", _repo=mock_repo
+        )
         req = GitCheckoutRequest(
             repo_path=REPO_PATH, branch="new-feat", create=True, dry_run=False
         )
-        result = format_checkout(repo, req)
-        repo.create_head.assert_called_once_with("new-feat")
+        result = format_checkout(state, req)
+        mock_repo.create_head.assert_called_once_with("new-feat")
         new_branch.checkout.assert_called_once_with()
         assert result == "Switched to branch 'new-feat'"
 
     def test_existing_branch_uses_git_checkout(self) -> None:
-        repo = MagicMock()
-        repo.active_branch.name = "main"
-        repo.head.is_detached = False
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "main"
+        mock_repo.head.is_detached = False
+        state = _make_state(active_branch="main", head_type="branch", _repo=mock_repo)
         req = GitCheckoutRequest(
             repo_path=REPO_PATH, branch="main", create=False, dry_run=False
         )
-        result = format_checkout(repo, req)
-        repo.git.checkout.assert_called_once_with("--", "main")
+        result = format_checkout(state, req)
+        mock_repo.git.checkout.assert_called_once_with("--", "main")
         assert result == "Switched to branch 'main'"
 
     def test_detached_head_denied_by_default(self) -> None:
-        repo = MagicMock()
-        repo.active_branch.name = "<detached HEAD>"
-        repo.head.is_detached = True
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "<detached HEAD>"
+        mock_repo.head.is_detached = True
+        state = _make_state(
+            active_branch="<detached HEAD>", head_type="detached", _repo=mock_repo
+        )
         req = GitCheckoutRequest(
             repo_path=REPO_PATH, branch="develop", create=False, dry_run=False
         )
         with pytest.raises(GitServiceError, match="checkout postcondition failed"):
-            format_checkout(repo, req)
+            format_checkout(state, req)
 
     def test_detached_head_allowed_when_flag_set(self) -> None:
-        repo = MagicMock()
-        repo.active_branch.name = "develop"
-        repo.head.is_detached = True
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "develop"
+        mock_repo.head.is_detached = True
+        state = _make_state(
+            active_branch="develop", head_type="detached", _repo=mock_repo
+        )
         req = GitCheckoutRequest(
             repo_path=REPO_PATH, branch="develop", create=False, dry_run=False
         )
-        result = format_checkout(repo, req, allow_detached_head=True)
+        result = format_checkout(state, req, allow_detached_head=True)
         assert result == "Switched to branch 'develop'"
 
 
@@ -346,61 +382,69 @@ class TestFormatCheckout:
 
 class TestFormatPull:
     def test_dry_run_with_no_fetch_output(self) -> None:
-        repo = MagicMock()
-        repo.git.fetch.return_value = ""
+        mock_repo = MagicMock()
+        mock_repo.git.fetch.return_value = ""
+        state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=True
         )
-        result = format_pull(repo, req)
+        result = format_pull(state, req)
         assert result == "[DRY RUN] fetch --dry-run result:\n(nothing to commit)"
-        repo.git.fetch.assert_called_once_with("--dry-run", "origin")
+        mock_repo.git.fetch.assert_called_once_with("--dry-run", "origin")
 
     def test_dry_run_with_fetch_output(self) -> None:
-        repo = MagicMock()
-        repo.git.fetch.return_value = "some fetch info"
+        mock_repo = MagicMock()
+        mock_repo.git.fetch.return_value = "some fetch info"
+        state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="upstream", branch="", dry_run=True
         )
-        result = format_pull(repo, req)
+        result = format_pull(state, req)
         assert result == "[DRY RUN] fetch --dry-run result:\nsome fetch info"
 
     def test_real_pull_without_branch(self) -> None:
-        repo = MagicMock()
-        repo.index.unmerged_blobs.return_value = []
-        repo.git.pull.return_value = "pull output"
+        mock_repo = MagicMock()
+        mock_repo.index.unmerged_blobs.return_value = []
+        mock_repo.git.pull.return_value = "pull output"
+        state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
-        result = format_pull(repo, req)
-        repo.git.pull.assert_called_once_with("origin")
+        result = format_pull(state, req)
+        mock_repo.git.pull.assert_called_once_with("origin")
         assert result == "pull output"
 
     def test_real_pull_with_branch(self) -> None:
-        repo = MagicMock()
-        repo.index.unmerged_blobs.return_value = []
-        repo.git.pull.return_value = "pull output"
+        mock_repo = MagicMock()
+        mock_repo.index.unmerged_blobs.return_value = []
+        mock_repo.git.pull.return_value = "pull output"
+        state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="develop", dry_run=False
         )
-        format_pull(repo, req)
-        repo.git.pull.assert_called_once_with("origin", "--", "develop")
+        format_pull(state, req)
+        mock_repo.git.pull.assert_called_once_with("origin", "--", "develop")
 
     def test_empty_pull_result_reports_up_to_date(self) -> None:
-        repo = MagicMock()
-        repo.index.unmerged_blobs.return_value = []
-        repo.git.pull.return_value = ""
+        mock_repo = MagicMock()
+        mock_repo.index.unmerged_blobs.return_value = []
+        mock_repo.git.pull.return_value = ""
+        state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
-        result = format_pull(repo, req)
+        result = format_pull(state, req)
         assert result == "Already up to date."
 
 
 class TestFormatPostconditionFailures:
     def test_checkout_postcondition_failure_wrong_branch(self) -> None:
-        repo = MagicMock()
-        repo.active_branch.name = "other-branch"
-        repo.head.is_detached = False
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "other-branch"
+        mock_repo.head.is_detached = False
+        state = _make_state(
+            active_branch="other-branch", head_type="branch", _repo=mock_repo
+        )
         req = GitCheckoutRequest(
             repo_path=REPO_PATH, branch="main", create=False, dry_run=False
         )
@@ -408,12 +452,13 @@ class TestFormatPostconditionFailures:
             GitServiceError,
             match=r"checkout postcondition failed.*expected branch 'main'.*got 'other-branch'",
         ):
-            format_checkout(repo, req)
+            format_checkout(state, req)
 
     def test_checkout_postcondition_failure_detached_head(self) -> None:
-        repo = MagicMock()
-        repo.active_branch.name = "main"
-        repo.head.is_detached = True
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "main"
+        mock_repo.head.is_detached = True
+        state = _make_state(active_branch="main", head_type="detached", _repo=mock_repo)
         req = GitCheckoutRequest(
             repo_path=REPO_PATH, branch="main", create=False, dry_run=False
         )
@@ -421,12 +466,13 @@ class TestFormatPostconditionFailures:
             GitServiceError,
             match=r"checkout postcondition failed.*expected branch 'main'.*detached HEAD",
         ):
-            format_checkout(repo, req)
+            format_checkout(state, req)
 
     def test_pull_postcondition_failure_unresolved_conflicts(self) -> None:
-        repo = MagicMock()
-        repo.index.unmerged_blobs.return_value = ["conflicted_file.py"]
-        repo.git.pull.return_value = "pull output"
+        mock_repo = MagicMock()
+        mock_repo.index.unmerged_blobs.return_value = ["conflicted_file.py"]
+        mock_repo.git.pull.return_value = "pull output"
+        state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
@@ -434,11 +480,12 @@ class TestFormatPostconditionFailures:
             GitServiceError,
             match=r"pull postcondition failed: unresolved merge conflicts remain",
         ):
-            format_pull(repo, req)
+            format_pull(state, req)
 
     def test_push_postcondition_failure_rejection_marker_in_output(self) -> None:
-        repo = MagicMock()
-        repo.git.push.return_value = "! [rejected] main -> main (non-fast-forward)"
+        mock_repo = MagicMock()
+        mock_repo.git.push.return_value = "! [rejected] main -> main (non-fast-forward)"
+        state = _make_state(_repo=mock_repo)
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
         )
@@ -446,7 +493,7 @@ class TestFormatPostconditionFailures:
             GitServiceError,
             match=r"push postcondition failed: rejection marker detected in output",
         ):
-            format_push(repo, req)
+            format_push(state, req)
 
 
 # ── format_push ────────────────────────────────────────────────────────────────
@@ -454,38 +501,39 @@ class TestFormatPostconditionFailures:
 
 class TestFormatPush:
     def test_dry_run_uses_explicit_branch(self) -> None:
-        repo = MagicMock()
+        state = _make_state(active_branch="feature/x")
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="feature/x", dry_run=True
         )
-        result = format_push(repo, req)
+        result = format_push(state, req)
         assert result == "[DRY RUN] Would push branch 'feature/x' to 'origin'"
 
     def test_dry_run_defaults_to_active_branch(self) -> None:
-        repo = MagicMock()
-        repo.active_branch.name = "main"
+        state = _make_state(active_branch="main")
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=True
         )
-        result = format_push(repo, req)
+        result = format_push(state, req)
         assert result == "[DRY RUN] Would push branch 'main' to 'origin'"
 
     def test_real_push_with_result(self) -> None:
-        repo = MagicMock()
-        repo.git.push.return_value = "push output"
+        mock_repo = MagicMock()
+        mock_repo.git.push.return_value = "push output"
+        state = _make_state(_repo=mock_repo)
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
         )
-        result = format_push(repo, req)
-        repo.git.push.assert_called_once_with("origin", "--", "main")
+        result = format_push(state, req)
+        mock_repo.git.push.assert_called_once_with("origin", "--", "main")
         assert result == "push output"
 
     def test_empty_push_result_reports_default_message(self) -> None:
-        repo = MagicMock()
-        repo.active_branch.name = "main"
-        repo.git.push.return_value = ""
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "main"
+        mock_repo.git.push.return_value = ""
+        state = _make_state(active_branch="main", _repo=mock_repo)
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
-        result = format_push(repo, req)
+        result = format_push(state, req)
         assert result == "Pushed 'main' to 'origin'"

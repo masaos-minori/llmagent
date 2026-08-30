@@ -76,4 +76,14 @@ def build_preview(tool_name: str, args: dict[str, Any]) -> str:
         return _preview_shell_cmd(args)
     if tool_name.startswith("github_"):
         return build_github_preview(args)
+    if tool_name.startswith("git_"):
+        repo = args.get("repo_path", "?")
+        branch = args.get("branch")
+        remote = args.get("remote")
+        parts = [f"git@{repo}"]
+        if branch:
+            parts.append(f"branch={branch}")
+        if remote:
+            parts.append(f"remote={remote}")
+        return " ".join(parts)
     return _json_dumps(args)[:300]
