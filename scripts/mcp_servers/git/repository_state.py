@@ -18,6 +18,8 @@ from typing import Any, Literal
 
 import git
 import git.exc
+from pydantic import GetCoreSchemaHandler
+from pydantic_core.core_schema import is_instance_schema
 
 from mcp_servers.dispatch import DispatchResult
 from mcp_servers.git.errors import GitServiceError
@@ -65,6 +67,18 @@ class RepositoryState:
     protected_branch: bool
     ref_valid: bool
     _repo: git.Repo | None = field(default=None, repr=False, compare=False)
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source: type[Any], handler: GetCoreSchemaHandler
+    ) -> Any:
+        """Tell Pydantic to treat RepositoryState as an opaque type.
+
+        RepositoryState contains a git.Repo field which cannot be serialized by
+        pydantic-core. This method returns an 'is-instance' schema so Pydantic
+        skips validation of the type during schema generation.
+        """
+        return is_instance_schema(cls)
 
     @classmethod
     def snapshot(cls, repo_path: str | os.PathLike[str]) -> RepositoryState:

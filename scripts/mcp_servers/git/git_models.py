@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
 from shared.config_utils import get_str, get_typed
 
+from mcp_servers.git.repository_state import RepositoryState
+
 logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -83,6 +85,14 @@ class RepoPathMixin(BaseModel):
     """Mixin providing the common repo_path field."""
 
     repo_path: str = Field(..., description=_REPO_PATH_DESC)
+
+
+class RepositoryStateMixin(BaseModel):
+    """Mixin providing the common repository_state field."""
+
+    repository_state: RepositoryState | None = Field(
+        default=None, description="Repository state snapshot for write operations"
+    )
 
 
 # ── Read-only tool request models ────────────────────────────────────────────
