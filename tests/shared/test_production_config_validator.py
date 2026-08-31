@@ -223,6 +223,112 @@ class TestProductionConfigValidatorSecurityProfileEnum:
         assert any("tool_definitions_strict" in warn for warn in result.warnings)
 
 
+class TestProductionConfigValidatorApprovalRiskFloor:
+    """Tests for the git write-tool approval risk floor check (REQ-001)."""
+
+    GIT_TOOLS = {"git_checkout", "git_pull", "git_push"}
+
+    def test_all_git_tools_high_no_issue(self) -> None:
+        config = {
+            "approval_risk_rules": {
+                "git_checkout": "high",
+                "git_pull": "high",
+                "git_push": "high",
+            },
+        }
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production", known_tools=self.GIT_TOOLS
+        )
+        assert not any("Effective risk below HIGH" in err for err in result.errors)
+
+    def test_one_git_tool_medium_produces_error_in_production(self) -> None:
+        config = {
+            "approval_risk_rules": {
+                "git_checkout": "medium",
+                "git_pull": "high",
+                "git_push": "high",
+            },
+        }
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production", known_tools=self.GIT_TOOLS
+        )
+        assert any(
+            "Effective risk below HIGH" in err and "git_checkout" in err
+            for err in result.errors
+        )
+
+    def test_one_git_tool_medium_produces_warning_in_local(self) -> None:
+        config = {
+            "approval_risk_rules": {
+                "git_checkout": "medium",
+                "git_pull": "high",
+                "git_push": "high",
+            },
+        }
+        result = ProductionConfigValidator().validate(
+            config, security_profile="local", known_tools=self.GIT_TOOLS
+        )
+        assert any(
+            "Effective risk below HIGH" in warn and "git_checkout" in warn
+            for warn in result.warnings
+        )
+
+    def test_one_git_tool_invalid_value_produces_error_in_production(self) -> None:
+        """'low' is not a valid RiskLevel — classify_risk() would raise ValueError
+        at call time in production, so the floor check must flag it rather than
+        silently skip it."""
+        config = {
+            "approval_risk_rules": {
+                "git_checkout": "low",
+                "git_pull": "high",
+                "git_push": "high",
+            },
+        }
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production", known_tools=self.GIT_TOOLS
+        )
+        assert any(
+            "Effective risk below HIGH" in err and "git_checkout" in err
+            for err in result.errors
+        )
+
+    def test_git_tool_absent_from_rules_falls_back_to_tier_default(self) -> None:
+        """No approval_risk_rules entry but tool_safety_tiers=WRITE_DANGEROUS
+        implicitly resolves to MEDIUM and must still be flagged."""
+        config = {
+            "approval_risk_rules": {"git_pull": "high", "git_push": "high"},
+            "tool_safety_tiers": {"git_checkout": "WRITE_DANGEROUS"},
+        }
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production", known_tools=self.GIT_TOOLS
+        )
+        assert any(
+            "Effective risk below HIGH" in err and "git_checkout" in err
+            for err in result.errors
+        )
+
+    def test_git_tools_absent_from_both_no_issue(self) -> None:
+        """No override anywhere: classify_risk()'s UNKNOWN path treats this as
+        HIGH, so the floor check must not flag it."""
+        config: dict[str, object] = {}
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production", known_tools=self.GIT_TOOLS
+        )
+        assert not any("Effective risk below HIGH" in err for err in result.errors)
+
+    def test_approval_risk_rules_absent_still_checks_tier_fallback(self) -> None:
+        """The floor check must run even when approval_risk_rules is entirely
+        absent from config, not only when it is an empty/partial Mapping."""
+        config = {"tool_safety_tiers": {"git_checkout": "WRITE_DANGEROUS"}}
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production", known_tools=self.GIT_TOOLS
+        )
+        assert any(
+            "Effective risk below HIGH" in err and "git_checkout" in err
+            for err in result.errors
+        )
+
+
 class TestProductionConfigValidatorValidateUnknownToolSafetyTiers:
     """Tests for standalone validate_unknown_tool_safety_tiers method."""
 

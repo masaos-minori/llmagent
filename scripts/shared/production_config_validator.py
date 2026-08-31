@@ -88,6 +88,12 @@ def _check_approval_risk_floor(
             try:
                 base = RiskLevel(str(raw_rule))
             except ValueError:
+                # classify_risk() does not guard this conversion, so an invalid
+                # override would crash risk classification at call time in
+                # production — flag it here instead of silently skipping it.
+                below_high.append(
+                    f"'{tool_name}' has invalid approval_risk_rules value {raw_rule!r}"
+                )
                 continue
         elif tool_name in tool_safety_tiers:
             tier = str(tool_safety_tiers[tool_name])
@@ -157,16 +163,20 @@ class ProductionConfigValidator:
                     is_production,
                 )
 
-        # Approval risk floor check for git write tools
-        approval_risk_rules = config.get("approval_risk_rules")
-        if isinstance(approval_risk_rules, Mapping):
-            low_risk_tools = _check_approval_risk_floor(
-                approval_risk_rules, tool_safety_tiers, known_tools=known_tools
-            )
-            if low_risk_tools:
-                tool_list = "; ".join(low_risk_tools)
-                msg = f"Effective risk below HIGH for git tools: {tool_list}"
-                self._record(errors, warnings, msg, is_production)
+        # Approval risk floor check for git write tools. Runs even when
+        # approval_risk_rules is absent so the tool_safety_tiers fallback
+        # (e.g. an implicit WRITE_DANGEROUS -> MEDIUM default) is still caught.
+        raw_risk_rules = config.get("approval_risk_rules")
+        approval_risk_rules: Mapping[str, object] = (
+            raw_risk_rules if isinstance(raw_risk_rules, Mapping) else {}
+        )
+        low_risk_tools = _check_approval_risk_floor(
+            approval_risk_rules, tool_safety_tiers, known_tools=known_tools
+        )
+        if low_risk_tools:
+            tool_list = "; ".join(low_risk_tools)
+            msg = f"Effective risk below HIGH for git tools: {tool_list}"
+            self._record(errors, warnings, msg, is_production)
 
         # allowed_tools visibility
         allowed_tools = config.get("allowed_tools")

@@ -43,7 +43,7 @@ class SignalHandler:
 
         def _sigterm_handler() -> None:
             """Handle SIGTERM by cancelling input and setting shutdown flag."""
-            self._ctx.conv.shutdown_requested = True  # type: ignore[attr-defined]
+            self._ctx.conv.shutdown_requested = True  # type: ignore[attr-defined]  # — shutdown_requested is a dynamic flag not declared on ConversationState's dataclass fields
             if self._shutdown_event is not None:
                 self._shutdown_event.set()
             if (
@@ -62,12 +62,12 @@ class SignalHandler:
                 loop.add_signal_handler(sig, _sigterm_handler)
             except NotImplementedError:
                 try:
-                    import sys  # noqa: PLC0414
+                    import sys  # noqa: PLC0414 — deferred import: only needed on the NotImplementedError (non-POSIX) fallback path, not at module load time
 
                     if hasattr(sys, "frozen"):
                         try:
-                            import win32api  # noqa: PLC0414
-                            import win32con  # noqa: PLC0414
+                            import win32api  # noqa: PLC0414 — Windows-only dependency; a top-level import would break non-Windows platforms
+                            import win32con  # noqa: PLC0414 — Windows-only dependency; a top-level import would break non-Windows platforms
 
                             def _console_ctrl_handler(ctrl_type: int) -> bool:
                                 if ctrl_type == win32con.CTRL_CLOSE_EVENT:
@@ -84,7 +84,7 @@ class SignalHandler:
                                 "pywin32 not available; signal handling disabled on Windows. "
                                 "Install pywin32 for Ctrl+C/Ctrl+Break support."
                             )
-                        except Exception as e:  # noqa: BLE001
+                        except Exception as e:  # noqa: BLE001 — best-effort Windows fallback registration must not crash startup
                             logger.error(
                                 "Failed to set Windows console control handler: %s", e
                             )
@@ -93,7 +93,7 @@ class SignalHandler:
                             "Signal handling not available on Windows outside console; "
                             "use Ctrl+C or close the terminal to shut down"
                         )
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001 — best-effort non-POSIX signal fallback must not crash startup even on unexpected failures
                     pass
 
     def set_shutdown_event(self, event: asyncio.Event | None) -> None:

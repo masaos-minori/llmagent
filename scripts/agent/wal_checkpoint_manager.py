@@ -165,7 +165,7 @@ class WalCheckpointManager:
                     )
                     shutil.copy2(wal_file, wal_backup_path)
                     logger.warning("WAL file backed up to %s", wal_backup_path)
-        except Exception as backup_err:  # noqa: BLE001
+        except Exception as backup_err:  # noqa: BLE001 — backup is best-effort during shutdown; failure must be recorded, not propagated
             logger.error("Failed to backup WAL file: %s", backup_err)
             errors.append(("wal_backup", f"{type(backup_err).__name__}: {backup_err}"))
         return wal_backup_path, errors

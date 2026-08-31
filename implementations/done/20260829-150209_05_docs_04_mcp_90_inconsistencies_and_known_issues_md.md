@@ -88,7 +88,7 @@ The updated Resolution Notes add three clauses separated by semicolons:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update MCP-004 Resolution Notes in docs/04_mcp_90_inconsistencies_and_known_issues.md | Pending | — | — | |
+| 1 | Update MCP-004 Resolution Notes in docs/04_mcp_90_inconsistencies_and_known_issues.md | Completed | 20260831-150523 | 20260831-150523 | Already updated on disk (commit `e8f0086bf`, prior session) — line 110's Resolution Notes match this document's "Updated Resolution Notes" text verbatim, mentioning all three remaining open items (config floor, real-config test, preview quality). `uv run python tools/check_docs_quality.py` clean; no other stale MCP-004 status references found in the doc. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -103,8 +103,8 @@ assert classify_risk(cfg, name, {"repo_path": "/tmp/repo"}) == "high"
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add test_real_config_resolves_git_tools_to_high_risk to tests/agent/test_tool_policy_comprehensive.py | Pending | — | — | |
-| 2 | Verify test passes against current config/agent.toml | Pending | — | — | |
+| 1 | Add test_real_config_resolves_git_tools_to_high_risk to tests/agent/test_tool_policy_comprehensive.py | Completed | 20260831-150523 | 20260831-150523 | Already implemented on disk (commit `e8f0086bf`, prior session), in `TestClassifyOperationType` rather than `TestClassifyRisk` as this document's Design decisions specified — a cosmetic placement difference, not a behavioral gap; the test's assertions and config-loading approach match this document's Method/Details. |
+| 2 | Verify test passes against current config/agent.toml | Completed | 20260831-150523 | 20260831-150523 | `uv run pytest tests/agent/test_tool_policy_comprehensive.py::TestClassifyOperationType::test_real_config_resolves_git_tools_to_high_risk` — 1 passed. Full regression: `uv run pytest tests/agent/test_tool_policy_comprehensive.py` — all passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

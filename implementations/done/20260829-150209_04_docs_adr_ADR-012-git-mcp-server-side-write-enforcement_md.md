@@ -94,7 +94,7 @@ The updated entry captures three remaining concerns:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update MCP-004 entry in ADR-012 Known Deviations section | Pending | — | — | |
+| 1 | Update MCP-004 entry in ADR-012 Known Deviations section | Completed | 20260831-150523 | 20260831-150523 | Already updated on disk (commit `e8f0086bf`, prior session) — `docs/adr/ADR-012-git-mcp-server-side-write-enforcement.md` line 211's Known Issue entry matches this document's "After" text verbatim, mentioning all three remaining items (config floor, preview quality, real-config test). `uv run python tools/check_docs_quality.py` clean; no other MCP-004 references found in the ADR needing correction. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -126,8 +126,8 @@ Example outputs:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add git_* case to build_preview() in scripts/agent/tool_result_formatter.py | Pending | — | — | |
-| 2 | Write unit test for the new build_preview() git case | Pending | — | — | |
+| 1 | Add git_* case to build_preview() in scripts/agent/tool_result_formatter.py | Completed | 20260831-150523 | 20260831-150523 | Already implemented on disk (commit `e8f0086bf`, prior session), matching this document's Method/Details exactly — `git_*` branch inserted before the final fallback, producing `git@{repo_path}` plus optional `branch=`/`remote=` parts. |
+| 2 | Write unit test for the new build_preview() git case | Completed | 20260831-150523 | 20260831-150523 | Already present in `tests/agent/test_tool_result_formatter.py::TestBuildPreview` (`test_git_checkout_with_repo_and_branch`, `test_git_push_with_repo_and_remote`, `test_git_log_with_repo_only`, `test_git_tool_missing_repo_path_shows_placeholder`), covering all four Validation-plan scenarios. `uv run pytest tests/agent/test_tool_result_formatter.py -k git` — 9 passed. `ruff check`/`mypy` clean on the file. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

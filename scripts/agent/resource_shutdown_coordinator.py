@@ -85,7 +85,7 @@ class ResourceShutdownCoordinator:
                 )
             )
             logger.error("WAL checkpoint timed out after 30.0s on shutdown")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001 — shutdown path must record and continue past any checkpoint failure, not propagate
             errors.append(("wal_checkpoint_error", f"{type(e).__name__}: {e}"))
             logger.error("Unexpected error during WAL checkpoint: %s", e)
 
@@ -104,7 +104,7 @@ class ResourceShutdownCoordinator:
                     )
                 )
                 logger.error("WAL backup timed out after 10.0s on shutdown")
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001 — shutdown path must record and continue past any backup failure, not propagate
                 errors.append(("wal_backup_error", f"{type(e).__name__}: {e}"))
                 logger.error("Unexpected error during WAL backup: %s", e)
 
