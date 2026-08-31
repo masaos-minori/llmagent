@@ -102,10 +102,10 @@ Edit `scripts/mcp_servers/git/git_service.py` line 123:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by separate procedure document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: internal security guard fix |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Replaced `return True, ""` with `return False, "[DENIED] branch must not be empty"` at line 131-132 |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Added `"branch": "main"` to failing tests in test_mcp_git.py and test_git_service_dispatch.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | All 164 tests pass, ruff/mypy/bandit clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: internal security guard fix |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

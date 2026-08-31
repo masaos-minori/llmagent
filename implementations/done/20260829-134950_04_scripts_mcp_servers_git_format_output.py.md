@@ -232,15 +232,14 @@ return result or f"Pushed '{branch}' to '{req.remote}'"
 - Redesign of Agent-side approval risk-tier mapping (tracked separately as Known Issue MCP-004)
 - Any capability to allow Force Push, even as an administrative feature
 
-## execution_status
+## Execution Status
 
-### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Complete | 2026-08-30 | 2026-08-30 | Import `GitServiceError` moved from `git_models.py` to `errors.py` |
-| 2 | Add or update tests per Validation plan | Complete | 2026-08-30 | 2026-08-30 | Updated `test_format_output.py` to import `GitServiceError` from `errors.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-08-30 | 2026-08-30 | ruff check ✓, mypy ✓, compileall ✓, pytest 155 passed |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-08-30 | 2026-08-30 | N/A — no docs changed |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Target file already existed |
+| 2 | Add or update tests per Validation plan | Completed | — | — | All 164 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy/pass; bandit: 6 Low (assert used, intentional type-narrowing) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No docs changes needed per Out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

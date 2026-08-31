@@ -271,7 +271,7 @@ class TestGitPush:
         snap.audit.return_value = {}
         with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_push(
-                {"repo_path": "/opt/repos/proj", "dry_run": True}
+                {"repo_path": "/opt/repos/proj", "branch": "main", "dry_run": True}
             )
         assert "[DRY RUN]" in result
         assert "main" in result
@@ -280,5 +280,5 @@ class TestGitPush:
     @pytest.mark.asyncio
     async def test_denied_by_read_only(self) -> None:
         svc = _svc(allowed=["/opt/repos"], read_only=True)
-        result = await svc.git_push({"repo_path": "/opt/repos/proj"})
+        result = await svc.git_push({"repo_path": "/opt/repos/proj", "branch": "main"})
         assert "read_only" in result

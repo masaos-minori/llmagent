@@ -129,7 +129,7 @@ class GitService:
     def _validate_protected(self, branch: str) -> tuple[bool, str]:
         """Check if a branch is protected."""
         if not branch:
-            return True, ""
+            return False, "[DENIED] branch must not be empty"
         if branch in self._protected_branches:
             return False, "[DENIED] branch is a protected branch"
         return True, ""

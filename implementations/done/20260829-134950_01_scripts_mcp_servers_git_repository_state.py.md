@@ -188,13 +188,12 @@ class WriteProtectionPipeline:
 
 ## Execution Status
 
-### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Target file already existed |
+| 2 | Add or update tests per Validation plan | Completed | — | — | All 46 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy/bandit/pass; lint-imports has pre-existing shared→agent violation |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No docs changes needed per Out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

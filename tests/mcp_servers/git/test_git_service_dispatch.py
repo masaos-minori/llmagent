@@ -150,7 +150,7 @@ class TestGitPull:
     @pytest.mark.asyncio
     async def test_denied_by_read_only(self) -> None:
         svc = _svc(allowed=["/opt/repos"], read_only=True)
-        result = await svc.git_pull({"repo_path": "/opt/repos/proj"})
+        result = await svc.git_pull({"repo_path": "/opt/repos/proj", "branch": "main"})
         assert "read_only" in result
 
     @pytest.mark.asyncio
@@ -167,7 +167,7 @@ class TestGitPull:
         snap.audit.return_value = {}
         with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_pull(
-                {"repo_path": "/opt/repos/proj", "dry_run": True}
+                {"repo_path": "/opt/repos/proj", "dry_run": True, "branch": "main"}
             )
         assert "[DRY RUN]" in result
         assert "up to date" in result
@@ -188,7 +188,7 @@ class TestGitPull:
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
         with patch.object(RepositoryState, "snapshot", return_value=snap):
-            result = await svc.git_pull({"repo_path": "/opt/repos/proj"})
+            result = await svc.git_pull({"repo_path": "/opt/repos/proj", "branch": "main"})
         assert result == "Already up to date."
 
 

@@ -172,15 +172,14 @@ Remove these methods entirely:
 - Redesign of Agent-side approval risk-tier mapping (tracked separately as Known Issue MCP-004)
 - Any capability to allow Force Push, even as an administrative feature
 
-## execution_status
+## Execution Status
 
-### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Complete | 2026-08-30 | 2026-08-30 | Removed dead-code methods `_check_dirty_worktree`/`_check_detached_head`; cleaned unused imports |
-| 2 | Add or update tests per Validation plan | Complete | 2026-08-30 | 2026-08-30 | Fixed `test_git_security_compliance.py`: assertion `'dirty worktree'` → `'worktree has uncommitted changes'`; added `snap._repo` mock for pull operations |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-08-30 | 2026-08-30 | ruff check ✓, mypy ✓, compileall ✓, pytest 155 passed |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-08-30 | 2026-08-30 | N/A — no docs changed |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Target file already existed |
+| 2 | Add or update tests per Validation plan | Completed | — | — | All 164 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy/bandit/pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No docs changes needed per Out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
