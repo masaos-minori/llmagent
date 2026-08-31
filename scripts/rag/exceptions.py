@@ -5,6 +5,8 @@ Exception hierarchy for the RAG and ingestion layer.
 
 from __future__ import annotations
 
+from enum import StrEnum
+
 
 class RagLayerError(Exception):
     """Base for all rag/ exceptions."""
@@ -32,3 +34,14 @@ class TokenizationError(RagLayerError, RuntimeError):
 
 class UnknownMetadataError(RagLayerError, ValueError):
     """Raised when metadata field has an unexpected value."""
+
+
+class IngestionFailureReason(StrEnum):
+    """Reason why a chunk ingestion failed."""
+
+    PARSE_FAILED = "parse_failed"
+    VALIDATION_FAILED = "validation_failed"
+    EMBEDDING_FAILED = "embedding_failed"
+    STORAGE_FAILED = "storage_failed"
+    UNEXPECTED_FAILURE = "unexpected_failure"
+    GROUP_VALIDATION_FAILED = "group_validation_failed"
