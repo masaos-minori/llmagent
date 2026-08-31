@@ -12,13 +12,6 @@ related: []
 
 Accepted
 
-使用可能なStatusは次のとおりとする。
-
-- `Proposed`: 提案中、レビューまたは承認前
-- `Accepted`: 採用済みであり、現行設計として有効
-
-Accepted後に現在の判断を変更する場合は、本ADR本文を直接更新する。同じ変更の中で、影響を受けるSpecification、Reference、Operations文書および検証要件を更新する。
-
 ## Summary
 
 Agentの実行状態、承認、再試行、検証、永続化、再起動後の復元を共通の状態モデルで管理するため、Workflow EngineをAgent実行の必須基盤とする。Agentによる外部状態変更、Tool実行、複数ステップ処理、承認を必要とする操作はすべてWorkflow Engineの管理下で実行する。Workflow無効化モードおよびWorkflowを迂回する直接実行経路は設けない。
@@ -37,7 +30,7 @@ Agentの実行状態、承認、再試行、検証、永続化、再起動後の
 - セキュリティ要件：すべての副作用のある操作は追跡可能でなければならない
 - データ整合性：承認状態はプロセス境界を超えて永続化する必要がある
 
-### Assumptions
+## Assumptions
 
 - 対象環境：単一Host、単一Agentプロセス
 - 想定規模：同時実行数は限定的
@@ -57,6 +50,7 @@ Agentの実行状態、承認、再試行、検証、永続化、再起動後の
 6. 基本状態を`plan -> execute -> approval -> verify -> complete/failed`として定義する。承認不要時はapprovalを省略できるが、Workflow管理自体は省略しない。
 7. 実行成功と検証成功を区別する。
 8. Health Checkや起動前検証など、Workflow Engine自身の前提確認は適用対象外とする。
+9. Workflow状態（Task、Attempt、承認、処理済みEvent、Artifact）は`workflow.sqlite`に永続化される。Taskを削除する場合は、関連するAttempt、処理済みEvent、Artifact、承認をCascade削除する。
 
 ### Scope
 
@@ -72,8 +66,9 @@ Agentの実行状態、承認、再試行、検証、永続化、再起動後の
 - 承認ポリシーのリデザイン
 - EventBus統合の導入
 - ランタイム動作の変更
-- ワークフロー定義ファイルのスキーマ設計（別ADRで扱う）
-- 監視・メトリクス設計（別ADRで扱う）
+- ワークフロー定義ファイルのスキーマ設計
+- 監視・メトリクス設計
+- Production全体の障害方針（ADR-004が扱う）
 
 ## Rationale
 
@@ -203,6 +198,7 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 - 部分タスク完了が検査可能
 - 復旧に必要な永続タスクおよび試行状態がある
 - ワークフロー失敗がプラットフォーム失敗として扱われる
+- ワークフローイベント、承認イベント、エラーイベントがログに記録される
 
 ### Negative Consequences
 
@@ -210,20 +206,7 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 - 起動時にワークフローアーティファクトが不足すると失敗
 - ワークフロースキーマがサービス起動前に初期化される必要がある
 - シンプルなチャットとツールベースのタスクが同じ実行制御プレーンを共有
-
-### Operational Consequences
-
-- 起動時にワークフロー定義ファイルが存在することを確認する必要がある
-- ワークフロー失敗はプラットフォーム失敗として扱われる
-- 障害対応時にワークフロー状態の調査が必要
-
-### Security Consequences
-
-- 信頼境界：ワークフロー管理により権限付与の一貫性が確保される
-- 認証、認可：ワークフロー状態に基づく承認判定
-- Secretの取扱い：ワークフロー状態は暗号化されて永続化される
-- Fail-Closed：ワークフロー定義欠落時は起動中止
-- Audit Log：すべてのワークフローイベントが監査ログに記録される
+- 起動時にワークフロー定義ファイルとDB Schemaの整合性確認が必要になり、障害対応時にはワークフロー状態の調査が必要になる
 
 ## Invariants
 
@@ -233,46 +216,7 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 - INV-04: 承認待ち状態は再起動後に復元される。
 - INV-05: ワークフロー定義ファイルの検証失敗時は起動を中止する。
 - INV-06: 必須DB Schema不整合時は起動を中止する。
-
-## Exceptions
-
-なし
-
-## Failure Policy
-
-### Fail-Fast Conditions
-
-- ワークフロー定義ファイルが欠落している場合
-- ワークフロー定義が不正である場合
-- 必須DB Schemaが不整合である場合
-
-### Fail-Open or Degraded Conditions
-
-- Health Checkや起動前検証など、Workflow Engine自身の前提確認は適用対象外
-
-### Retry Policy
-
-- Retry対象：ワークフローステージ実行失敗
-- Retry回数：`retry_policy.max_attempts`（デフォルト3回）
-- Backoff：固定間隔（デフォルト1秒）
-- RetryしないError：承認拒否、システムエラー
-
-### Fallback Policy
-
-- Fallback対象：なし
-- Fallback先：なし
-- Fallbackを禁止する条件：ワークフロー定義欠落時
-- Fallback理由の記録先：監査ログ
-
-## Data Ownership and Persistence
-
-- **System of Record**: `workflow.sqlite`（tasks, attempts, processed_events, artifacts, approvalsテーブル）
-- **Derived Data**: 再生成可能な派生データ（ワークフロー定義ファイルのSHA256チェックサム）
-- **Ownership**: `StateStore`（ワークフロー状態の所有）、`WorkflowEngine`（ワークフロー実行の所有）
-- **Persistence**: SQLite（`workflow.sqlite`）、ワークフロー定義ファイル（JSON）
-- **Transaction Boundary**: ワークフローステージ実行単位
-- **Recovery Source**: `StateStore.recover_stale_attempts()`（プロセス起動時の stale attempt 復旧）
-- **Deletion Rule**: タスク削除時は関連する試行、イベント、アティファクト、承認をCascade削除
+- INV-07: プロセス起動時、中断されたAttemptは`recover_stale_attempts()`により`failed`として復旧される。
 
 ## Verification
 
@@ -293,7 +237,7 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: 承認待ち状態の再起動後復元テスト
+- **Test**: 承認待ち状態の再起動後復元テスト（`test_startup_recovered_approval_can_resume`）
   - **Verifies**: INV-04
   - **Type**: Integration
   - **Blocking**: Yes
@@ -305,6 +249,11 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 
 - **Test**: `test_execute_success_verify_failure_marks_task_failed`（execute成功後にverifyが失敗した場合、タスク状態が`completed`ではなく`failed`になることを確認）
   - **Verifies**: INV-03
+  - **Type**: Unit
+  - **Blocking**: Yes
+
+- **Test**: `recover_stale_attempts()`の楽観的ロック・復旧挙動テスト（`tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`）
+  - **Verifies**: INV-07
   - **Type**: Unit
   - **Blocking**: Yes
 
@@ -326,7 +275,6 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 - Metrics：ワークフローステータス、承認状態、試行状態
 - Logs：ワークフローイベント、承認イベント、エラーイベント
 - Alert条件：ワークフロー失敗、承認タイムアウト、Schema不整合
-- Degraded条件：該当なし
 
 ### Manual Review
 
@@ -340,10 +288,10 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- 実装ファイル: `scripts/agent/orchestrator.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow/loader.py`, `scripts/db/store.py`
-- 主要ClassまたはFunction: `Orchestrator.handle_turn()`, `WorkflowEngine.run()`, `WorkflowLoader.load()`, `StateStore.request_approval()`
+- 実装ファイル: `scripts/agent/orchestrator.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow/workflow_loader.py`, `scripts/agent/workflow/state_store.py`
+- 主要ClassまたはFunction: `Orchestrator.handle_turn()`, `WorkflowEngine.run()`, `WorkflowLoader.load()`, `StateStore.request_approval()`, `StateStore.recover_stale_attempts()`
 - 設定ファイル、設定Key: `config/workflows/default.json`
-- 対応するテスト: `tests/agent/workflow/test_workflow_engine.py`
+- 対応するテスト: `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -364,7 +312,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - Security要件、監査要件が変更された場合
 - 性能目標またはResource制約が変更された場合
 - 外部Protocolまたは採用Libraryが変更、廃止された場合
-- 障害実績により前提またはFailure Policyが妥当でないと判明した場合
+- 障害実績により前提が妥当でないと判明した場合
 - 代替案の不採用理由が成立しなくなった場合
 - ワークフロー定義ファイルの形式が大幅に変更された場合
 - 承認モデルが根本的に変更された場合
@@ -386,11 +334,9 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - **Approval Date**: pending
 - **Approval Reference**: pending
 
+承認者・承認日・承認参照は未確定である。Statusを`Accepted`とする判断はADR-001改訂の承認済み方針として与えられたものであり、この判断自体を承認記録の代用として扱わない。
+
 ## Related Documents
-
-### Related ADRs
-
-- ワークフロー定義ファイルのスキーマ設計、ワークフロー監視・メトリクス設計は本文書作成時点でADR番号未割当（ADR-002/ADR-003は別決定「プロセス単位の設定所有権とConfig Isolation」「RuntimeToolRegistryを唯一のルーティング権威とする」に割当済み・Accepted — `docs/adr-index.md`参照）。起票時に`docs/adr-index.md`の採番規則に従い新規採番する。
 
 ### Specifications
 
@@ -409,8 +355,8 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - `scripts/agent/orchestrator.py` — `Orchestrator.handle_turn()`
 - `scripts/agent/workflow/workflow_engine.py` — `WorkflowEngine.run()`
-- `scripts/agent/workflow/loader.py` — `WorkflowLoader.load()`
-- `scripts/db/store.py` — `StateStore.request_approval()`
+- `scripts/agent/workflow/workflow_loader.py` — `WorkflowLoader.load()`
+- `scripts/agent/workflow/state_store.py` — `StateStore.request_approval()`, `StateStore.recover_stale_attempts()`
 - `config/workflows/default.json` — ワークフロー定義ファイル
 
 ## Completion Checklist
@@ -424,15 +370,11 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] 実質的な代替案と不採用理由が記載されている
 - [x] Positive Consequencesが記載されている
 - [x] Negative Consequencesが記載されている
-- [x] Securityへの影響が評価されている
-- [x] Operations、Monitoring、Recoveryへの影響が評価されている
 - [x] 検証可能なInvariantsが定義されている
-- [x] Exceptionsまたは適用対象外が明確である
 - [x] 各InvariantにVerificationが対応している
 - [x] 自動化可能な検証がManual Reviewだけになっていない
-- [x] 既存ADRとの関係が記載されている
 - [x] 関係するSpecificationと矛盾していない
 - [x] 現行実装との差異がKnown Issueへ登録されている
-- [ ] Ownerと必要なReviewerが定義されている（Approval Recordはpendingのまま — 承認者・承認日が未確定）
+- [ ] Ownerと必要なReviewerが定義されている（Approval Recordはpendingのまま — 承認者・承認日・承認参照が未確定）
 - [x] Review Triggersが記載されている
 - [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）

@@ -66,8 +66,7 @@ invariants (INV-016–020) may rely on Manual Review or Operational Procedure.
 
 | INV | ADR | Invariant | Type | Timing | Gate | Verification Status |
 |-----|-----|-----------|------|--------|------|---------------------|
-| INV-001 | ADR-001 | Workflow definition mandatory; missing workflow raises RuntimeError | Unit Test | CI | Blocking | Confirmed in code; no test yet |
-| INV-002 | ADR-001 | Workflow schema consistent across versions | Integration Test | CI | Blocking | Not implemented |
+| INV-001 | ADR-001 | Workflow definition mandatory; missing workflow raises RuntimeError | Unit Test | CI | Blocking | Confirmed (`tests/agent/test_startup.py::test_aborts_on_missing_workflow_definition`, passing) |
 | INV-003 | ADR-002 | Config isolation enforced between environments | Unit Test | CI | Blocking | Confirmed in code (`config_loader.py` `restrict_to()`); no test yet |
 | INV-005 | ADR-003 | RuntimeToolRegistry is the sole routing authority | Unit Test | CI | Blocking | Confirmed in code (`resolve()` never falls back to ToolRegistry); no test yet |
 | INV-006 | ADR-007 | No stdio transport usage | Unit Test | CI | Blocking | Confirmed (no stdio transport code exists); no test yet |
