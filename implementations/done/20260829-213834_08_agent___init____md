@@ -139,10 +139,10 @@ Current state verification (adversarial check against `orchestrator.py`):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260831-144218 | 20260831-144218 | **Duplicate/superseded procedure, no code change made.** Generated from `plans/20260829-174312_plan.md` for the same source issue as `implementations/done/20260829-175109_08_init.md` (from `plans/20260829-175109_plan.md`), which was already implemented and merged (commit `25eb40b56`). Unlike documents 01-07 in this batch, this one's core ask — also re-exporting `Orchestrator` from `agent/__init__.py` alongside the six concern classes, so `from agent import Orchestrator, TurnCoordinator, ...` works — is NOT already satisfied: the merged `__init__.py` exports only the six new classes, not `Orchestrator`. Verified this is safe to add (no circular import: `python -c "from agent import Orchestrator, TurnCoordinator, WorkflowEngineAdapter, BgTaskMonitor, LlmTurnExecutor, AuditEventEmitter, ConversationStateManager"` and `python -c "import agent"` both succeed with `Orchestrator` added). However, per the user's explicit direction this session — treat this whole duplicate batch (all 8 documents, generated from the same superseded plan) as superseded and move to `done/` without implementing — no code change was made here either, to stay consistent with that decision rather than partially implementing one document from an otherwise-rejected plan. Flagged to the user in the final report as the one genuinely new (non-conflicting) capability left on the table. |
+| 2 | Add or update tests per Validation plan | Completed | 20260831-144218 | 20260831-144218 | N/A: no code change was made. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260831-144218 | 20260831-144218 | N/A: no code change was made. `ruff check`/`mypy` on `scripts/agent/__init__.py` (unchanged) both pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260831-144218 | 20260831-144218 | N/A: no `docs/00_index.md` task-scope row references `scripts/agent/__init__.py`. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

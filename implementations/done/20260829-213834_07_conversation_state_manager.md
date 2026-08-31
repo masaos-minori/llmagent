@@ -268,10 +268,10 @@ Current state verification (adversarial check against `orchestrator.py`):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260831-144218 | 20260831-144218 | **Duplicate/superseded procedure, no code change made.** Generated from `plans/20260829-174312_plan.md` for the same source issue as `implementations/done/20260829-175109_07_conversation_state_manager.md` (from `plans/20260829-175109_plan.md`), which was already implemented and merged (commit `25eb40b56`) with a narrower, corrected scope. Adversarial verification found this document assigns all five methods (`clear_previous_turn_ephemeral_messages`, `sync_system_prompt`, `append_user_message`, `handle_memory_injection`, `handle_history_compression`) to `ConversationStateManager`, but the merged implementation splits them: the first three live in `TurnCoordinator` (`turnd_coordinator.py`) and only the latter two live here — the 175109-derived `07_conversation_state_manager.md` documents why (avoiding the same overlap this document reintroduces). This document's `_EPHEMERAL_KEYS` class attribute (merged: module-level `EPHEMERAL_KEYS` constant, imported by `TurnCoordinator`) and its constructor (`ctx`, `on_first_turn`, `background_tasks`, `discard_callback` — merged: only `llm_runner`) also diverge; its `append_user_message` sample references `self._background_tasks`/`self._discard_callback`, which the merged `ConversationStateManager` does not have (that wiring lives in `TurnCoordinator`, which owns `append_user_message`). The user chose to treat this set as a duplicate rather than reconcile or re-implement it. |
+| 2 | Add or update tests per Validation plan | Completed | 20260831-144218 | 20260831-144218 | N/A: no code change was made — existing tests already pass against the merged implementation. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260831-144218 | 20260831-144218 | N/A: no code change was made. `ruff check`/`mypy` on `scripts/agent/conversation_state_manager.py` (the merged file) both pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260831-144218 | 20260831-144218 | N/A: no `docs/00_index.md` task-scope row references this file's symbols by name. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

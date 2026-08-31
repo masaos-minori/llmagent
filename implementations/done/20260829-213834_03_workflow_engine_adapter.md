@@ -323,10 +323,10 @@ Current state verification (adversarial check against `orchestrator.py`):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260831-144218 | 20260831-144218 | **Duplicate/superseded procedure, no code change made.** Generated from `plans/20260829-174312_plan.md` for the same source issue as `implementations/done/20260829-175109_03_workflow_engine_adapter.md` (from `plans/20260829-175109_plan.md`), which was already implemented and merged (commit `25eb40b56`). Adversarial verification found this document's `handle_workflow_engine` sample never calls `WorkflowEngine.run()`/`plan_fn`/`execute_fn`/`verify_fn` at all — it inlines memory injection through turn-end directly — which conflicts with `docs/adr/ADR-001-workflow-engine-mandatory.md` and the merged `workflow_engine_adapter.py`, where `WorkflowEngine.run()` execution is mandatory. Its method names (`_init_workflow_task`, `_activate_workflow`, `_deactivate_workflow`, `_handle_workflow_approval_pending`, `_handle_workflow_halt`) also use the underscore-prefixed style the merged file rejected in favor of public names (`init_workflow_task`, `activate_workflow`, etc.) for cleaner cross-module delegation. The user chose to treat this set as a duplicate rather than reconcile or re-implement it. |
+| 2 | Add or update tests per Validation plan | Completed | 20260831-144218 | 20260831-144218 | N/A: no code change was made — existing tests already pass against the merged implementation. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260831-144218 | 20260831-144218 | N/A: no code change was made. `ruff check`/`mypy` on `scripts/agent/workflow_engine_adapter.py` (the merged file) both pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260831-144218 | 20260831-144218 | N/A: no `docs/00_index.md` task-scope row references this file beyond what was already updated under the 175109-derived cycle. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

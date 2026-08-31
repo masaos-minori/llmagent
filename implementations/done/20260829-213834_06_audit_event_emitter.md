@@ -203,10 +203,10 @@ Current state verification (adversarial check against `orchestrator.py`):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260831-144218 | 20260831-144218 | **Duplicate/superseded procedure, no code change made.** Generated from `plans/20260829-174312_plan.md` for the same source issue as `implementations/done/20260829-175109_06_audit_event_emitter.md` (from `plans/20260829-175109_plan.md`), which was already implemented and merged (commit `25eb40b56`). Adversarial verification found this document requires moving `_mode_hint` here as a static method, but `rg` confirmed (during the 175109-derived cycle) that `orchestrator.py`'s `_mode_hint` was dead code with zero call sites, duplicating an already-used `_mode_hint` in `agent/mode_classification.py` — it was dropped, not moved, in the merged implementation. This document also requires a constructor injecting `AgentContext`/`json_dumps` and static-method status for `format_session_id`/`build_turn_end_metadata`/`build_turn_end_llm_stats`, but the merged `AuditEventEmitter` takes no constructor arguments at all (every method receives `ctx` per-call) and only `_format_session_id` is a module-level function — `build_turn_end_metadata`/`build_turn_end_llm_stats` are plain instance methods. The user chose to treat this set as a duplicate rather than reconcile or re-implement it. |
+| 2 | Add or update tests per Validation plan | Completed | 20260831-144218 | 20260831-144218 | N/A: no code change was made — existing tests already pass against the merged implementation. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260831-144218 | 20260831-144218 | N/A: no code change was made. `ruff check`/`mypy` on `scripts/agent/audit_event_emitter.py` (the merged file) both pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260831-144218 | 20260831-144218 | N/A: no `docs/00_index.md` task-scope row references this file's symbols by name. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
