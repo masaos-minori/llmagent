@@ -173,7 +173,7 @@ Drift detection only; not used for routing. See [ADR-003](adr/ADR-003-runtime-to
 - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`
 - [ADR-003](../adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
-- [ADR-004](../adr/ADR-004-environment-profile-fail-fast-fail-open.md) — Environment Profile別障害方針 — Fail-Fast/Fail-Open
+- [ADR-004](../adr/ADR-004-production-failure-handling-policy.md) — Production Failure-Handling Policy
 
 ## Keywords
 

@@ -22,17 +22,17 @@ definitions, ID format rules, and section header conventions are defined once in
 
 | ID | Title | Status | File |
 |----|-------|--------|------|
-| ADR-001 | Workflow Engine必須化 | Proposed | `adr/ADR-001-workflow-engine-mandatory.md` |
+| ADR-001 | Workflow Engine必須化 | Accepted | `adr/ADR-001-workflow-engine-mandatory.md` |
 | ADR-002 | プロセス単位の設定所有権とConfig Isolation | Accepted | `adr/ADR-002-config-isolation.md` |
 | ADR-003 | RuntimeToolRegistryを唯一のルーティング権威とする | Accepted | `adr/ADR-003-runtime-tool-registry-routing-authority.md` |
-| ADR-004 | Environment Profile別障害方針 — Fail-Fast/Fail-Open | Proposed | `adr/ADR-004-environment-profile-fail-fast-fail-open.md` |
+| ADR-004 | Production Failure-Handling Policy | Accepted | `adr/ADR-004-production-failure-handling-policy.md` |
 | ADR-005 | RAGの正本と派生インデックスの関係 | Accepted | `adr/ADR-005-rag-source-derived-index-relationships.md` |
 | ADR-006 | EventBusのSQLite永続化とSSE配信方式 | Accepted | `adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
 | ADR-007 | HTTP MCP採用とstdio非サポート | Accepted | `adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md` |
 | ADR-008 | SQLiteを4DBへ分離する | Accepted | `adr/ADR-008-sqlite-4db-separation.md` |
 | ADR-009 | RAGのFTS5検索用テキストとLLM提示用テキスト分離 | Accepted | `adr/ADR-009-rag-ft5-text-separation.md` |
 | ADR-010 | RAGの外部実行失敗時のインプロセスフォールバック | Accepted | `adr/ADR-010-rag-fallback.md` |
-| ADR-012 | Git MCP Server-Side Write Enforcement | Proposed | `adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
+| ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | `adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
 
 ADR-011（Database Corruption Recovery Safety Boundary）はADR-008へ統合され、削除された。
 ADR-013（MCP Tool Availability Model）はADR-003へ統合され、削除された。
@@ -74,16 +74,16 @@ invariants (INV-016–020) may rely on Manual Review or Operational Procedure.
 | INV-007 | ADR-005 | `chunks_vec` deleted before `documents` | Unit Test | CI | Blocking | Confirmed in code; no test yet |
 | INV-008 | ADR-009 | `normalized_content` must not appear in LLM output | Unit Test | CI | Blocking | Confirmed (`_format_chunks()` uses `c.content`); no test yet |
 | INV-009 | ADR-009 | FTS5 rebuild rules followed | Integration Test | CI | Blocking | Not verified |
-| INV-010 | ADR-004 | Production mode fails fast on health-check failure | Startup Validation | Startup | Deployment Blocking | Confirmed (`StartupOrchestrator._check_services()`, `scripts/agent/startup.py`); no test yet |
-| INV-011 | ADR-004 | Local safety-related checks fail closed despite general fail-open | Startup Validation | Startup | Deployment Blocking | Confirmed (`repl_health.py` `check_readiness()`); no test yet |
+| INV-010 | ADR-004 | Startup fails fast when a configured component's health check fails (Production is the sole supported mode) | Startup Validation | Startup | Deployment Blocking | Confirmed (`StartupOrchestrator._check_services()`, `scripts/agent/startup.py`); no test yet |
+| INV-011 | ADR-004 | Safety-related startup checks (auth, allowlist, safety-tier, secrets, Config Isolation, approval-control establishment) fail fast; no fail-open path exists for these checks | Startup Validation | Startup | Deployment Blocking | Confirmed in code (`scripts/agent/startup.py`, ADR-004 Decision Details #2); no test yet |
 | INV-012 | ADR-006 | EventBus offsets strictly monotonic | Unit Test | CI | Blocking | Confirmed (`offsets.py` `write_offset()`, `seq > current`); no test yet |
 | INV-013 | ADR-006 | No success response before event persistence | Integration Test | CI | Blocking | Not verified |
 | INV-014 | ADR-010 | No local fallback on normal empty RAG result | Integration Test | CI | Blocking | Confirmed (`remote_empty` → `HttpResultKind.EMPTY`); no test yet |
 | INV-015 | ADR-010 | No local fallback on RAG 401/403 | Integration Test | CI | Blocking | **Potentially violated** — `http_augment.py` falls back on 4xx/parse errors (see Known Issue CI-003); no test yet |
 | INV-016 | ADR-008 | SQLite 4DB separation maintained | Operational Procedure | Pre-deploy | Deployment Blocking | Confirmed (`DbTarget` enum); needs operational procedure |
-| INV-018 | ADR-012 | Git MCP write operations enforced server-side | Operational Procedure | Operations | Warning | Not verified; needs operational procedure |
-| INV-019 | ADR-004 | Missing config fails close in all modes | Startup Validation | Startup | Deployment Blocking | **Violated** — `load_config()` omits `strict=True` on `load_all()` (see Known Issue CI-005); no test yet |
-| INV-020 | ADR-004 | Local safety checks fail close | Startup Validation | Startup | Deployment Blocking | **Unclear** — needs verification that `check_readiness()` enforces fail-close in local mode (see Known Issue CI-006); no test yet |
+| INV-018 | ADR-012 | Git MCP write operations enforced server-side | Unit/Integration Test | CI | Blocking | Confirmed (`tests/mcp_servers/git/`, 164 tests passing covering INV-01 through INV-04); one narrow gap remains (empty `branch` bypasses protected-branch check, see ADR-012 Known Deviations) |
+| INV-019 | ADR-004 | Missing or invalid required configuration fails fast at startup | Startup Validation | Startup | Deployment Blocking | **Violated** — `load_config()` omits `strict=True` on `load_all()` (see Known Issue CI-005); no test yet |
+| INV-020 | ADR-004 | Safety-related checks (e.g., permission checks) fail closed, independent of general availability-failure handling | Startup Validation | Startup | Deployment Blocking | **Unclear** — CI-006 was written against a now-removed local-mode distinction and needs re-investigation against the current Production-only model; no test yet |
 
 **Note**: Most invariants have been verified via code inspection, but lack automated
 test coverage. "Type" reflects the intended verification method, not whether a test
@@ -93,7 +93,7 @@ currently exists.
 
 | Pipeline Stage | Invariants Covered |
 |----------------|-------------------|
-| CI (pull request) | INV-001 through INV-015 |
+| CI (pull request) | INV-001 through INV-015, INV-018 |
 | Startup validation | INV-010, INV-011, INV-019, INV-020 |
 | Pre-deployment validation | INV-016 |
 | Operations (runtime monitoring) | INV-018 |

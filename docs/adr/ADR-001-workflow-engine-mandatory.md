@@ -4,29 +4,24 @@ area: adr
 decision_scope:
   - system
 related: []
-supersedes: []
-superseded_by: null
 ---
 
 # ADR-001: Workflow Engine必須化
 
 ## Status
 
-Proposed
+Accepted
 
 使用可能なStatusは次のとおりとする。
 
 - `Proposed`: 提案中、レビューまたは承認前
 - `Accepted`: 採用済みであり、現行設計として有効
-- `Rejected`: 検討したが不採用
-- `Deprecated`: 現在は推奨しないが、一部に残存
-- `Superseded`: 後継ADRによって置換済み
 
-Accepted後に判断内容を変更する場合は本文を直接変更せず、新しいADRを作成して本ADRをSupersededへ変更する。
+Accepted後に現在の判断を変更する場合は、本ADR本文を直接更新する。同じ変更の中で、影響を受けるSpecification、Reference、Operations文書および検証要件を更新する。
 
 ## Summary
 
-Agentの実行状態、承認、再試行、検証、永続化、再起動後の復元を共通の状態モデルで管理するため、Workflow EngineをAgent実行の必須基盤とする。Agentによる外部状態変更、Tool実行、複数ステップ処理、承認を必要とする操作はすべてWorkflow Engineの管理下で実行することを決定する。Workflow無効化モードおよびWorkflowを迂回する直接実行経路は設けない。
+Agentの実行状態、承認、再試行、検証、永続化、再起動後の復元を共通の状態モデルで管理するため、Workflow EngineをAgent実行の必須基盤とする。Agentによる外部状態変更、Tool実行、複数ステップ処理、承認を必要とする操作はすべてWorkflow Engineの管理下で実行する。Workflow無効化モードおよびWorkflowを迂回する直接実行経路は設けない。
 
 ## Context
 
@@ -58,7 +53,7 @@ Agentの実行状態、承認、再試行、検証、永続化、再起動後の
 2. Agentによる外部状態変更、Tool実行、複数ステップ処理、承認を必要とする操作はすべてWorkflow Engineの管理下で実行する。
 3. Workflow無効化モードを設けない。
 4. Workflowを迂回する直接実行経路を設けない。
-5. 単純な質問応答はWorkflowを無効化せず、軽量な単一ステージWorkflowとして表現可能であることを明記する。
+5. すべてのAgent処理は、単純な質問応答を含め、Workflow Engineの管理下に置かれる。処理が単純であることは、Workflow Engineを迂回する理由にはならない。
 6. 基本状態を`plan -> execute -> approval -> verify -> complete/failed`として定義する。承認不要時はapprovalを省略できるが、Workflow管理自体は省略しない。
 7. 実行成功と検証成功を区別する。
 8. Health Checkや起動前検証など、Workflow Engine自身の前提確認は適用対象外とする。
@@ -68,7 +63,7 @@ Agentの実行状態、承認、再試行、検証、永続化、再起動後の
 - **対象コンポーネント**: `Orchestrator`, `WorkflowEngine`, `WorkflowLoader`, `StateStore`
 - **対象プロセス**: Agentプロセス全体
 - **対象データ**: タスク状態、承認状態、イベント処理記録、アティファクト
-- **対象Environment Profile**: すべての環境（local/dev/production）
+- **対象Environment Profile**: production（唯一サポートされる実行モード）
 - **対象APIまたは処理経路**: `handle_turn()`, `WorkflowEngine.run()`, `request_approval()`
 
 ### Out of Scope
@@ -132,14 +127,14 @@ CorrectnessとRecoverabilityを優先し、監査可能性と回復性を確保�
 
 #### Advantages
 
-- ローカル開発の簡素化
+- 開発の簡素化
 - 柔軟なデプロイメントオプション
 
 #### Disadvantages
 
 - ワークフロー有効/無効間で振る舞いの不一致
 - オペレーターが実行パターンを予測できない
-- 監査トレイルと承認追跡がローカルモードでも必要
+- 監査トレイルと承認追跡が無効化時も必要
 
 #### Reason for Rejection
 
@@ -254,7 +249,6 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 ### Fail-Open or Degraded Conditions
 
 - Health Checkや起動前検証など、Workflow Engine自身の前提確認は適用対象外
-- ローカル開発環境では、ワークフロー定義の軽微な検証エラーは警告として記録される
 
 ### Retry Policy
 
@@ -270,8 +264,6 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 - Fallbackを禁止する条件：ワークフロー定義欠落時
 - Fallback理由の記録先：監査ログ
 
-該当しない場合は「対象外」と記載する。
-
 ## Data Ownership and Persistence
 
 - **System of Record**: `workflow.sqlite`（tasks, attempts, processed_events, artifacts, approvalsテーブル）
@@ -281,8 +273,6 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 - **Transaction Boundary**: ワークフローステージ実行単位
 - **Recovery Source**: `StateStore.recover_stale_attempts()`（プロセス起動時の stale attempt 復旧）
 - **Deletion Rule**: タスク削除時は関連する試行、イベント、アティファクト、承認をCascade削除
-
-該当しない場合は「対象外」と記載する。
 
 ## Verification
 
@@ -301,7 +291,7 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 - **Test**: 必須DB Schema不整合時の起動失敗テスト
   - **Verifies**: INV-06
   - **Type**: Integration
-  **Blocking**: Yes
+  - **Blocking**: Yes
 
 - **Test**: 承認待ち状態の再起動後復元テスト
   - **Verifies**: INV-04
@@ -311,6 +301,11 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 - **Test**: Workflow Engine迂回の外部状態変更経路不存在テスト
   - **Verifies**: INV-02
   - **Type**: Regression
+  - **Blocking**: Yes
+
+- **Test**: `test_execute_success_verify_failure_marks_task_failed`（execute成功後にverifyが失敗した場合、タスク状態が`completed`ではなく`failed`になることを確認）
+  - **Verifies**: INV-03
+  - **Type**: Unit
   - **Blocking**: Yes
 
 ### Startup Validation
@@ -331,7 +326,7 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 - Metrics：ワークフローステータス、承認状態、試行状態
 - Logs：ワークフローイベント、承認イベント、エラーイベント
 - Alert条件：ワークフロー失敗、承認タイムアウト、Schema不整合
-- Degraded条件：ワークフロー定義の軽微な検証エラー（ローカル開発環境）
+- Degraded条件：該当なし
 
 ### Manual Review
 
@@ -341,29 +336,6 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 
 Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
 
-## Migration and Rollout
-
-既存実装はDecisionに適合しており、移行作業は不要。
-
-### Compatibility
-
-- 後方互換性：既存のワークフロー定義ファイルはそのまま使用可能
-- 旧設定、旧Data、旧APIの扱い：なし
-
-### Rollback
-
-- Rollback可能な条件：ワークフロー定義の変更が問題を引き起こした場合
-- Rollback手順：旧ワークフロー定義ファイルを復元
-- Rollbackできない変更：ワークフロー状態の永続化（ロールバック不可）
-- Data復旧方法：`StateStore.recover_stale_attempts()`
-
-### Completion Criteria
-
-- 移行完了と判断する条件：既存実装がDecisionに適合していることを確認
-- 旧経路を削除する条件：既存実装がDecisionに適合していることを確認
-
-移行が不要な場合は「既存実装はDecisionに適合しており、移行作業は不要」と記載する。
-
 ## Implementation Notes
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
@@ -371,7 +343,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 - 実装ファイル: `scripts/agent/orchestrator.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow/loader.py`, `scripts/db/store.py`
 - 主要ClassまたはFunction: `Orchestrator.handle_turn()`, `WorkflowEngine.run()`, `WorkflowLoader.load()`, `StateStore.request_approval()`
 - 設定ファイル、設定Key: `config/workflows/default.json`
-- 対応するテスト: `tests/integration/test_workflow_engine.py`
+- 対応するテスト: `tests/agent/workflow/test_workflow_engine.py`
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -379,48 +351,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 ## Known Deviations
 
-ADRと現行実装、設定、テスト、文書に差異がある場合に記載する。
-
-### WF-001: INV-01とINV-05の重複
-
-- **Known Issue**: WF-001
-- **Type**: Missing Documentation
-- **Summary**: INV-01とINV-05は同一の不変条件を記述している
-- **Conflicting Source**: docs/adr/ADR-001-workflow-engine-mandatory.md:243, docs/adr/ADR-001-workflow-engine-mandatory.md:247 (deprecated: use section-based references)
-- **Expected Design**: INV-01: 「ワークフロー定義ファイルが欠落している場合、Agentの起動を中止する。」INV-05: 「ワークフロー定義ファイルの欠落または検証失敗時は起動を中止する。」
-- **Observed Implementation**: 両方とも`StartupOrchestrator._check_workflow_definition()`（`scripts/agent/startup.py`）および`Orchestrator.__init__()`のワークフロー読み込み処理（`scripts/agent/orchestrator.py`）の同一の起動前検証を参照している
-- **Impact**: ドキュメントの曖昧さ；開発者がINV-01とINV-05が異なる障害モードをカバーしていると誤解する可能性がある
-- **Recommended Action**: INV-01とINV-05を1つに統合するか、区別を明確にする（例：INV-01はファイル欠落、INV-05は検証失敗）
-- **Owner**: TBD
-- **Resolution Target**: Next ADR review cycle
-- **Resolution**: RESOLVED — distinguish, don't merge. INV-05 text changed to "ワークフロー定義ファイルの検証失敗時は起動を中止する。" (removed "欠落"). The Verification section already binds two distinct test scenarios: missing-file → INV-01, malformed/invalid → INV-05. Orchestrator distinguishes `FileNotFoundError` from `WorkflowLoadError` at the catch point even though both collapse to `RuntimeError`. No code change needed; only docstring correction.
-
-### WF-002: INV-03の明示的テスト不足
-
-- **Known Issue**: WF-002
-- **Type**: Missing Test
-- **Summary**: INV-03（実行成功と検証成功の区別）の明示的テストが存在しない
-- **Conflicting Source**: `WorkflowEngine.run()` メソッド（`scripts/agent/workflow/workflow_engine.py`）
-- **Expected Design**: INV-03: 「実行成功と検証成功は区別され、それぞれ独立して検証される」
-- **Observed Implementation**: run()メソッドはplan→execute→[approval gate]→verifyを順序通り実行するが、実行成功≠検証成功を検証するテストケースが存在しない
-- **Impact**: 回帰により実行と検証の結果が混同される可能性
-- **Recommended Action**: （1）実行成功かつ検証失敗がタスクステータス「failed」になることを検証するテストケース、（2）修正後に再実行すると成功する実行失敗がタスクステータス「completed」になることを検証するテストケースを追加
-- **Owner**: TBD
-- **Resolution Target**: Next sprint
-
-### WF-003: Decision #5 — シンプルQ&Aの単一ステージワークフロー未実装
-
-- **Known Issue**: WF-003
-- **Type**: Design Deviation
-- **Summary**: シンプルQ&Aワークフローを軽量な単一ステージWorkflowで処理する設計意図が実現されていない
-- **Conflicting Source**: docs/adr/ADR-001-workflow-engine-mandatory.md:155-157, config/workflows/default.json (deprecated: use section-based references)
-- **Expected Design**: Decision #5: 「シンプルなQ&Aワークフローは軽量な単一ステージWorkflowで処理する」
-- **Observed Implementation**: config/workflows/default.jsonのみ存在し、plan/execute/verifyの3ステージ構成。WorkflowEngine.run()は全3つのコールバック（plan_fn, execute_fn, verify_fn）を要求する。_handle_workflow_engine()の調査結果: plan_fn/verify_fnはすべてのターンタイプでno-op相当である
-- **Impact**: シンプルQ&Aシナリオが不要なplan/verifyオーバーヘッドを経由する必要がある
-- **Recommended Action**: 単一ステージ Workflow の実装は見送る。plan/verify のオーバーヘッドは DB ブックキーピングのみであり、実装コストに見合わないと判断
-- **Owner**: TBD
-- **Status**: Resolved (見送り)
-- **Resolution Target**: 見送り済み（再評価条件: Review Triggers 参照）
+確認済みの差異なし
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
@@ -435,9 +366,6 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - 外部Protocolまたは採用Libraryが変更、廃止された場合
 - 障害実績により前提またはFailure Policyが妥当でないと判明した場合
 - 代替案の不採用理由が成立しなくなった場合
-
-このADR固有の見直し条件を追加すること。
-
 - ワークフロー定義ファイルの形式が大幅に変更された場合
 - 承認モデルが根本的に変更された場合
 - 永続化ストレージがSQLite以外へ移行された場合
@@ -485,18 +413,6 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/db/store.py` — `StateStore.request_approval()`
 - `config/workflows/default.json` — ワークフロー定義ファイル
 
-## Change History
-
-- 2026-08-20: Proposedとして作成
-- 2026-08-25: WF-003 を「見送り」として確定（plan_fn/verify_fn の実装調査結果を反映）
-
-Accepted後は、Decisionの意味を変更しない軽微な修正だけを記録する。
-
-- YYYY-MM-DD: Acceptedへ変更
-- YYYY-MM-DD: Linkまたは表現を修正。Decisionの変更なし
-
-判断内容を変更する場合は、新しいADRを作成して本ADRをSupersededへ変更する。
-
 ## Completion Checklist
 
 ADRをAcceptedへ変更する前に確認する。
@@ -514,10 +430,9 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] Exceptionsまたは適用対象外が明確である
 - [x] 各InvariantにVerificationが対応している
 - [x] 自動化可能な検証がManual Reviewだけになっていない
-- [x] Migrationまたは移行不要の理由が記載されている
 - [x] 既存ADRとの関係が記載されている
 - [x] 関係するSpecificationと矛盾していない
-- [ ] 現行実装との差異がKnown Issueへ登録されている
-- [ ] Ownerと必要なReviewerが定義されている
-- [ ] Review Triggersが記載されている
-- [ ] ADR索引と関係領域のDocument Guideへ登録されている
+- [x] 現行実装との差異がKnown Issueへ登録されている
+- [ ] Ownerと必要なReviewerが定義されている（Approval Recordはpendingのまま — 承認者・承認日が未確定）
+- [x] Review Triggersが記載されている
+- [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）
