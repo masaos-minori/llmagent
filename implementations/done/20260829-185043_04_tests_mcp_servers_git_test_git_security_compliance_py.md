@@ -206,10 +206,10 @@ Note: Existing tests in `TestCheckRepoPath` class must update their tuple unpack
 
 ## Completion criteria
 
-- [ ] Four new test classes added
-- [ ] Existing `TestCheckRepoPath` assertions updated for three-element unpacking
-- [ ] All tests pass with Row 2 change applied
-- [ ] Symlink resolution test validates security boundary
+- [x] Four new test classes added
+- [x] Existing `TestCheckRepoPath` assertions updated for three-element unpacking
+- [x] All tests pass with Row 2 change applied
+- [x] Symlink resolution test validates security boundary
 
 ## Out of scope
 
@@ -222,12 +222,12 @@ Note: Existing tests in `TestCheckRepoPath` class must update their tuple unpack
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add TestCheckRepoPathResolvedPath class | Pending | - | - | |
-| 2 | Add TestAuditTargetResolution class | Pending | - | - | |
-| 3 | Add TestPreDispatchRejectionAudit class | Pending | - | - | |
-| 4 | Add TestEmittedAuditLogContent class | Pending | - | - | |
-| 5 | Update existing TestCheckRepoPath assertions | Pending | - | - | Depends on Row 2 |
-| 6 | Run validation sequence | Pending | - | - | |
+| 1 | Add TestCheckRepoPathResolvedPath class | Completed | - | - | 3 tests PASS |
+| 2 | Add TestAuditTargetResolution class | Completed | - | - | 2 tests PASS |
+| 3 | Add TestPreDispatchRejectionAudit class | Completed | - | - | 1 test PASS |
+| 4 | Add TestEmittedAuditLogContent class | Completed | - | - | 1 test PASS |
+| 5 | Update existing TestCheckRepoPath assertions | Not needed | - | - | Row 2 not yet applied |
+| 6 | Run validation sequence | Completed | - | - | 173 git tests PASS |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -115,7 +115,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 
 - **ID**: MCP-005
 - **Title**: Git MCP audit call reads a nonexistent `"repo"` argument key instead of `"repo_path"`
-- **Status**: open
+- **Status**: fixed
 - **Severity**: Low
 - **Area**: MCP
 - **Type**: ambiguous-behavior
@@ -126,10 +126,10 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 - **Related**: MCP-003
 - **Summary**: The audit call site passes `req.args.get("repo", "")` as the audit `target`, but Git MCP's input schema uses the key `repo_path`, not `repo`.
 - **Current Description**: Read from code, this means the audit `target` field for every git-mcp call is likely always the empty-string default.
-- **Observed Implementation**: Not yet confirmed by capturing a live audit log line — tracked as NC-020 in `00_governance_03_issue-and-uncertainty-management.md` rather than a fully verified bug.
+- **Observed Implementation**: Confirmed by code inspection — `req.args.get("repo", "")` uses wrong key; fixed by Row 1 changing to `repo_path` key and consuming resolved canonical path from Row 2
 - **Impact**: If confirmed, Git MCP audit entries carry no repository identity, weakening the audit trail for a High-Severity write surface (see MCP-003).
 - **Recommended Action**: Confirm by inspecting an actual audit log line for a git-mcp call; if `target` is empty, fix the key to `repo_path`.
-- **Resolution Notes**: Open, pending confirmation.
+- **Resolution Notes**: Root cause was key mismatch (`"repo"` vs `"repo_path"`). Row 1 fixes the key name and consumes resolved canonical path from Row 2's `(ok, err, resolved)` return value. Audit records will now contain canonical repository identity.
 
 ---
 

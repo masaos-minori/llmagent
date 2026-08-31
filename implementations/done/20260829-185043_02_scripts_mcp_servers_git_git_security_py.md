@@ -124,10 +124,10 @@ def _check_repo_path(self, repo_path: str) -> tuple[bool, str, str]:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Modify `_check_repo_path()` return type and all return statements | Pending | — | — | |
-| 2 | Update all callers to unpack three elements | Pending | — | — | |
-| 3 | Update tests to match new return structure | Pending | — | — | |
-| 4 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Modify `_check_repo_path()` return type and all return statements | Completed | 2026-08-31 | 2026-08-31 | |
+| 2 | Update all callers to unpack three elements | Completed | 2026-08-31 | 2026-08-31 | |
+| 3 | Update tests to match new return structure | Completed | 2026-08-31 | 2026-08-31 | |
+| 4 | Run validation sequence (`rules/toolchain.md`) | Completed | 2026-08-31 | 2026-08-31 | ruff clean; mypy clean; pytest 164 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

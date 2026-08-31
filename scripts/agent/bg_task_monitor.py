@@ -23,6 +23,7 @@ BG_FAILURE_THRESHOLD: int = 10
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
+
 class BgTaskMonitor:
     """Monitors background task failures and enforces threshold-based policies.
 

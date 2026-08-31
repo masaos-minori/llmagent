@@ -49,7 +49,9 @@ class ReplInputLoop:
     async def run(
         self,
         banner_callback: Callable[[], None],
-        persister_callback: Callable[[], None] | Callable[[], "Coroutine[Any, Any, None]"] | None = None,
+        persister_callback: Callable[[], None]
+        | Callable[[], "Coroutine[Any, Any, None]"]
+        | None = None,
     ) -> None:
         """Run the main REPL loop."""
         ctx = self._ctx
@@ -239,11 +241,17 @@ class ReplInputLoop:
                             dispatch_task,
                             timeout=self._GRACEFUL_TIMEOUT_S
                             if ctx.conv.shutdown_requested
-                            or (self._shutdown_event is not None and self._shutdown_event.is_set())
+                            or (
+                                self._shutdown_event is not None
+                                and self._shutdown_event.is_set()
+                            )
                             else None,
                         )
                     except TimeoutError:
-                        if ctx.conv.shutdown_requested or (self._shutdown_event is not None and self._shutdown_event.is_set()):
+                        if ctx.conv.shutdown_requested or (
+                            self._shutdown_event is not None
+                            and self._shutdown_event.is_set()
+                        ):
                             self._log_graceful_shutdown_timeout()
                             break
                         raise

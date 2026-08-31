@@ -33,6 +33,7 @@ _format_session_id = format_session_id
 
 # ── AuditEventEmitter class ────────────────────────────────────────────────────
 
+
 class AuditEventEmitter:
     """Constructs and emits audit events for turn lifecycle boundaries.
 

@@ -56,32 +56,83 @@ def test_check_repo_path_equivalence(target: str, allowed_repos: list[str]) -> N
 class TestCheckRepoPath:
     def test_empty_allowed_denies_all(self) -> None:
         svc = _svc(allowed=[])
-        ok, err = svc._check_repo_path("/any/path")
+        ok, err, _resolved = svc._check_repo_path("/any/path")
         assert not ok
         assert "[DENIED]" in err
 
     def test_matching_prefix_allowed(self) -> None:
         svc = _svc(allowed=["/opt/repos"])
-        ok, err = svc._check_repo_path("/opt/repos/myproject")
+        ok, err, _resolved = svc._check_repo_path("/opt/repos/myproject")
         assert ok
         assert err == ""
 
     def test_exact_match_allowed(self) -> None:
         svc = _svc(allowed=["/opt/repos/myproject"])
-        ok, err = svc._check_repo_path("/opt/repos/myproject")
+        ok, err, _resolved = svc._check_repo_path("/opt/repos/myproject")
         assert ok
 
     def test_non_matching_path_denied(self) -> None:
         svc = _svc(allowed=["/opt/repos"])
-        ok, err = svc._check_repo_path("/home/user/project")
+        ok, err, _resolved = svc._check_repo_path("/home/user/project")
         assert not ok
         assert "[DENIED]" in err
 
     def test_path_traversal_denied(self) -> None:
         # /opt/repos/../secret is resolved to /opt/secret — not under /opt/repos
         svc = _svc(allowed=["/opt/repos"])
-        ok, _ = svc._check_repo_path("/opt/repos/../secret")
+        ok, _, _ = svc._check_repo_path("/opt/repos/../secret")
         assert not ok
+
+    # ── Resolved path assertions (NC-020 Row 5) ──────────────────────────────────
+
+    def test_resolved_path_on_success(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        ok, err, resolved = svc._check_repo_path("/opt/repos/myproject")
+        assert ok is True
+        assert err == ""
+        assert resolved == "/opt/repos/myproject"
+
+    def test_empty_resolved_path_on_failure(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        ok, err, resolved = svc._check_repo_path("/home/user/project")
+        assert ok is False
+        assert "[DENIED]" in err
+        assert resolved == ""
+
+
+# ── Audit target resolution (NC-020 Row 5) ───────────────────────────────────
+
+
+class TestAuditTargetResolution:
+    """Verify audit target uses canonical identity."""
+
+    @pytest.mark.asyncio
+    async def test_audit_target_is_canonical_for_status_call(self) -> None:
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "main"
+        mock_repo.is_dirty.return_value = False
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_status({"repo_path": "/opt/repos/proj"})
+        assert "main" in result
+
+    @pytest.mark.asyncio
+    async def test_audit_target_empty_for_denied_call(self) -> None:
+        svc = _svc(allowed=[], read_only=True)
+        result = await svc.git_checkout(
+            {
+                "repo_path": "/opt/repos/proj",
+                "branch": "main",
+            }
+        )
+        assert "[DENIED]" in result
 
 
 # ── _check_write ──────────────────────────────────────────────────────────────

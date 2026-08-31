@@ -12,7 +12,7 @@ import asyncio
 import time
 import uuid
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from shared.json_utils import dumps as _json_dumps
 from shared.logger import Logger
@@ -24,6 +24,7 @@ from agent.conversation_state_manager import EPHEMERAL_KEYS
 from agent.message_schema import validate_message
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
+
 
 class TurnCoordinator:
     """Coordinates per-turn lifecycle: start/end audit events, ephemeral

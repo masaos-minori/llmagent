@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from agent.context import AgentContext
     from agent.diagnostic_store import DiagnosticStore
 
+
 class LlmTurnExecutor:
     """Executes an LLM turn: streaming + inner tool-call loop.
 

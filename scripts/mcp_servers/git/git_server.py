@@ -40,6 +40,7 @@ from mcp_servers.git.git_models import (
     GitPullRequest,
     GitPushRequest,
 )
+from mcp_servers.git.git_security import _resolve_repo_path
 from mcp_servers.git.git_service import build_service
 from mcp_servers.git.git_tools import TOOL_LIST
 from mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
@@ -152,7 +153,24 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     t0 = time.perf_counter()
     session_id, request_id = extract_request_context(request)
     repo_path = cast(str, req.args.get("repo_path", ""))
-    pre_state = RepositoryState.snapshot(repo_path)
+    ok, err, resolved = _resolve_repo_path(repo_path)
+    if not ok:
+        logger.info(
+            fmt_kvlog("call_tool", tool=req.name, ms=f"{time.perf_counter() - t0:.0f}")
+        )
+        _audit_log(
+            logger,
+            session_id=session_id,
+            request_id=request_id,
+            action=req.name,
+            target="",
+            outcome="rejected",
+            server_key="git",
+            pre_condition=_serialize_state(RepositoryState.snapshot(repo_path)),
+            post_condition=None,
+        )
+        return CallToolResponse(result=f"Validation error: {err}", is_error=True)
+    pre_state = RepositoryState.snapshot(resolved)
     handlers: dict[str, Callable[[], str]] = {
         "git_checkout": lambda: GitMCPServer._format_checkout(pre_state, req),
         "git_pull": lambda: GitMCPServer._format_pull(pre_state, req),
@@ -163,7 +181,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         return CallToolResponse(result=f"Unknown tool: {req.name}", is_error=True)
     pipeline = WriteProtectionPipeline(pre_state)
     result = pipeline.run(req.name, handler)
-    post_state = RepositoryState.snapshot(repo_path)
+    post_state = RepositoryState.snapshot(resolved)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
     _audit_log(
@@ -171,7 +189,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         session_id=session_id,
         request_id=request_id,
         action=req.name,
-        target=repo_path,
+        target=resolved,
         outcome="success" if result.ok else "rejected",
         server_key="git",
         pre_condition=_serialize_state(pre_state),

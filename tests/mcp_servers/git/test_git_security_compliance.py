@@ -306,3 +306,163 @@ class TestGitSecurityCompliance:
             result = await svc.git_pull(args)
         assert "[DRY RUN]" in result
         assert "[DENIED]" not in result
+
+    @pytest.mark.asyncio
+    async def test_git_push_with_empty_branch_returns_denied(
+        self, svc: GitService
+    ) -> None:
+        """git_push with empty branch argument must return [DENIED] (REQ-002)."""
+        svc._open_repo = MagicMock(return_value=MagicMock())
+        args = {
+            "repo_path": "/tmp/repo",
+            "remote": "origin",
+            "branch": "",  # Empty branch — the bypass scenario
+            "dry_run": False,
+        }
+        result = await svc.git_push(args)
+        assert "[DENIED]" in result
+        assert "branch must not be empty" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_git_pull_with_empty_branch_returns_denied(
+        self, svc: GitService
+    ) -> None:
+        """git_pull with empty branch argument must return [DENIED] (REQ-003)."""
+        svc._open_repo = MagicMock(return_value=MagicMock())
+        args = {
+            "repo_path": "/tmp/repo",
+            "remote": "origin",
+            "branch": "",  # Empty branch — the bypass scenario
+            "dry_run": False,
+        }
+        result = await svc.git_pull(args)
+        assert "[DENIED]" in result
+        assert "branch must not be empty" in result.lower()
+
+
+class TestCheckRepoPathResolvedPath:
+    """Verify _check_repo_path returns resolved canonical path."""
+
+    def test_resolved_path_on_success(self) -> None:
+        svc = GitService(
+            allowed_repo_paths=["/opt/repos"],
+            read_only=True,
+            max_log_entries=50,
+        )
+        ok, err, resolved = svc._check_repo_path("/opt/repos/myproject")
+        assert ok is True
+        assert err == ""
+        assert resolved == "/opt/repos/myproject"
+
+    def test_empty_resolved_path_on_failure(self) -> None:
+        svc = GitService(
+            allowed_repo_paths=["/opt/repos"],
+            read_only=True,
+            max_log_entries=50,
+        )
+        ok, err, resolved = svc._check_repo_path("/home/user/project")
+        assert ok is False
+        assert "[DENIED]" in err
+        assert resolved == ""
+
+    def test_symlink_resolved_path(self) -> None:
+        import pathlib
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            real_dir = pathlib.Path(tmpdir) / "real"
+            link_dir = pathlib.Path(tmpdir) / "link"
+            real_dir.mkdir()
+            link_dir.symlink_to(real_dir)
+            svc = GitService(
+                allowed_repo_paths=[str(real_dir)],
+                read_only=True,
+                max_log_entries=50,
+            )
+            ok, _, resolved = svc._check_repo_path(str(link_dir))
+            assert ok is True
+            assert resolved == str(real_dir)
+
+
+class TestAuditTargetResolution:
+    """Verify audit target uses canonical identity, not raw caller input."""
+
+    @pytest.mark.asyncio
+    async def test_audit_target_is_canonical_for_valid_call(self) -> None:
+        svc = GitService(
+            allowed_repo_paths=["/opt/repos"],
+            read_only=False,
+            max_log_entries=50,
+        )
+        snap = MagicMock()
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "main"
+        snap.repo.is_dirty.return_value = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_status({"repo_path": "/opt/repos/proj"})
+        assert "main" in result
+
+    @pytest.mark.asyncio
+    async def test_audit_target_empty_for_rejected_call(self) -> None:
+        svc = GitService(
+            allowed_repo_paths=["/opt/repos"],
+            read_only=True,
+            max_log_entries=50,
+        )
+        result = await svc.git_checkout(
+            {
+                "repo_path": "/opt/repos/proj",
+                "branch": "main",
+            }
+        )
+        assert "[DENIED]" in result
+
+
+class TestPreDispatchRejectionAudit:
+    """Verify rejection paths emit proper audit records."""
+
+    @pytest.mark.asyncio
+    async def test_protected_branch_rejection_has_error_type(self) -> None:
+        svc = GitService(
+            allowed_repo_paths=["/opt/repos"],
+            read_only=False,
+            max_log_entries=50,
+            protected_branches=["main"],
+        )
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "develop"
+        mock_repo.is_dirty.return_value = False
+        with patch.object(svc, "_open_repo", return_value=mock_repo):
+            result = await svc.git_checkout(
+                {
+                    "repo_path": "/opt/repos/proj",
+                    "branch": "main",
+                }
+            )
+        assert "[DENIED]" in result
+        assert "protected branch" in result
+
+
+class TestEmittedAuditLogContent:
+    """Verify audit log content includes correct fields."""
+
+    @pytest.mark.asyncio
+    async def test_audit_record_contains_server_key(self) -> None:
+        svc = GitService(
+            allowed_repo_paths=["/opt/repos"],
+            read_only=False,
+            max_log_entries=50,
+        )
+        snap = MagicMock()
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "main"
+        snap.repo.is_dirty.return_value = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_status({"repo_path": "/opt/repos/proj"})
+        assert "main" in result

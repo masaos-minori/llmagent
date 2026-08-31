@@ -1,11 +1,9 @@
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from agent.cli_view import CLIView
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
-from agent.repl_input_loop import ReplInputLoop
 from agent.session_persister import SessionPersister
 
 
@@ -61,9 +59,7 @@ async def test_repl_handles_diagnostic_save_error():
     view = MagicMock(spec=CLIView)
     diagnostic_store = MagicMock(spec=DiagnosticStore)
     # Simulate RuntimeError on save
-    diagnostic_store.save.side_effect = RuntimeError(
-        "Sensitive information detected"
-    )
+    diagnostic_store.save.side_effect = RuntimeError("Sensitive information detected")
 
     # Create persister with the mocked diagnostic store
     persister = SessionPersister(ctx, diagnostic_store, view)

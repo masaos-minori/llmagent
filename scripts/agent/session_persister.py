@@ -38,7 +38,7 @@ class SessionPersister:
 
     def __init__(
         self,
-        ctx: "AgentContext",
+        ctx: AgentContext,
         diagnostic_store: DiagnosticStore,
         view: CLIView,
     ) -> None:

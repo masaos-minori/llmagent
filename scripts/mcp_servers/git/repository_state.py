@@ -14,6 +14,7 @@ import os
 import warnings
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Literal
 
 import git
@@ -331,9 +332,20 @@ class RepositoryState:
         """Push local commits to a remote repository."""
         return ""
 
-    def _check_repo_path(self, repo_path: str) -> tuple[bool, str]:
-        """Return (ok, error); ok=True when repo_path is within an allowed path prefix."""
-        return True, ""
+    def _check_repo_path(self, repo_path: str) -> tuple[bool, str, str]:
+        """Return (ok, error, resolved_path).
+
+        ok=True when repo_path is within an allowed path prefix.
+        When ok=True, resolved_path contains the canonical (symlink-resolved) path.
+        When ok=False, resolved_path is empty string.
+        """
+        if not repo_path:
+            return False, "repo_path is empty", ""
+        try:
+            resolved = str(Path(repo_path).resolve())
+        except OSError:
+            return False, f"cannot resolve path: {repo_path}", ""
+        return True, "", resolved
 
     def _check_write(self) -> tuple[bool, str]:
         """Return (ok, error); ok=True when write operations are permitted."""
@@ -379,7 +391,7 @@ class RepositoryState:
 
     def _validate_repo(self, repo_path: str, tool_name: str):
         """Check repo_path and write guard; return result with error_message (empty on success)."""
-        ok, err = self._check_repo_path(repo_path)
+        ok, err, _resolved = self._check_repo_path(repo_path)
         if not ok:
             return RepoValidationResult(error_message=err)
         if tool_name in {
@@ -625,9 +637,20 @@ class WriteProtectionPipeline:
         """Push local commits to a remote repository."""
         return ""
 
-    def _check_repo_path(self, repo_path: str) -> tuple[bool, str]:
-        """Return (ok, error); ok=True when repo_path is within an allowed path prefix."""
-        return True, ""
+    def _check_repo_path(self, repo_path: str) -> tuple[bool, str, str]:
+        """Return (ok, error, resolved_path).
+
+        ok=True when repo_path is within an allowed path prefix.
+        When ok=True, resolved_path contains the canonical (symlink-resolved) path.
+        When ok=False, resolved_path is empty string.
+        """
+        if not repo_path:
+            return False, "repo_path is empty", ""
+        try:
+            resolved = str(Path(repo_path).resolve())
+        except OSError:
+            return False, f"cannot resolve path: {repo_path}", ""
+        return True, "", resolved
 
     def _check_write(self) -> tuple[bool, str]:
         """Return (ok, error); ok=True when write operations are permitted."""
@@ -675,7 +698,7 @@ class WriteProtectionPipeline:
 
     def _validate_repo(self, repo_path: str, tool_name: str) -> RepoValidationResult:
         """Check repo_path and write guard; return result with error_message (empty on success)."""
-        ok, err = self._check_repo_path(repo_path)
+        ok, err, _resolved = self._check_repo_path(repo_path)
         if not ok:
             return RepoValidationResult(error_message=err)
         if tool_name in {

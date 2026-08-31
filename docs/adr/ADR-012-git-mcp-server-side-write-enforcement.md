@@ -49,7 +49,7 @@ Approval and technical safety are different concerns: Agent-side approval confir
 4. A protected-branch policy MUST be enforced by Git MCP itself for `git_checkout`/`git_push`/`git_pull` against configured protected branches, independent of any Agent-side branch-name checks (which apply only to `github_*` tools, not local git).
 5. `git_checkout`/`git_pull` MUST reject execution against a Dirty Worktree unless a documented safe exception applies; Detached HEAD MUST be rejected unless explicitly permitted by policy.
 6. Postcondition verification MUST confirm the resulting branch/HEAD and detect unresolved conflicts before reporting success; a `git` command that exits non-zero already fails today, but a low-level "did we actually end up where we intended" check is not the same guarantee.
-7. Audit records for Git MCP write operations MUST include the correct repository identity.
+7. Audit records for Git MCP write operations include the correct repository identity; the key-name mismatch (`"repo"` vs. `repo_path`) was fixed as part of closing this gap.
 8. `RepositoryState` frozen dataclass MUST capture full repository state from a single `git.Repo` query and provide immutable access to all fields.
 9. Write-protection pipeline MUST enforce stage ordering: Stage 4 (state snapshot) → Stage 5 (preconditions) → Stage 6 (execution) → Stage 7 (postcondition verification).
 10. Audit records for Git MCP write operations MUST include both pre-condition and post-condition snapshots captured by `RepositoryState`.
@@ -126,6 +126,24 @@ A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the r
 ### Security Consequences
 - Closes the option-injection vector for `branch`/`remote` arguments.
 - Audit records identify the affected repository and capture pre/post-condition state.
+- Audit `target` field fix completed (MCP-005); this tool category's audit trail now includes canonical repository identity.
+
+## Traceability
+
+### Implementation Procedures
+- `implementations/20260829-134950_01_scripts_mcp_servers_git_repository_state.py.md`: Create RepositoryState module
+- `implementations/20260829-134950_02_scripts_mcp_servers_git_git_service.py.md`: Modify git_service.py
+- `implementations/20260829-134950_03_scripts_mcp_servers_git_git_security.py.md`: Modify git_security.py
+- `implementations/20260829-134950_04_scripts_mcp_servers_git_format_output.py.md`: Modify format_output.py
+- `implementations/20260829-134950_05_scripts_mcp_servers_git_git_models.py.md`: Modify git_models.py
+- `implementations/20260829-134950_06_scripts_mcp_servers_git_git_server.py.md`: Modify git_server.py
+- `implementations/20260829-134950_07_scripts_mcp_servers_dispatch.py.md`: Skipped — procedure did not match actual architecture (generic async dispatcher vs git-specific sync dispatcher); git_server.py already handles RepositoryState via call_tool endpoint
+- `implementations/20260829-134950_08_scripts_mcp_servers_audit.py.md`: Modify audit.py
+- `implementations/20260829-134950_09_tests_mcp_servers_git_test_repository_state.py.md`: Create tests
+
+### Source Documents
+- Source issue: issues/20260828-162303_mcp003_git_write_protection_pipeline.md
+- Source plan: plans/20260829-134950_plan.md
 
 ## Invariants
 
@@ -170,6 +188,20 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 ### Manual Review
 - The protected-branch check (`_validate_protected()`) short-circuits on an empty `branch` argument, skipping the check entirely for that one input shape. This is a known, narrow gap against INV-03 (see Known Deviations) that has not been fixed; review before relying on protected-branch enforcement for callers that might supply an empty `branch`.
+- Confirm the audit `target` field fix (MCP-005) via an actual captured log line — COMPLETED.
+
+## Migration and Rollout
+
+No existing callers rely on Force Push or protected-branch bypass being possible (no such capability is currently exposed as an intentional feature), so closing this gap is not expected to break existing legitimate usage.
+
+### Compatibility
+Ref values that were never valid git refs to begin with (i.e., only option-injection strings) lose the ability to reach `git` as an argument; this is the intended effect, not a compatibility break.
+
+### Rollback
+Revert the validation change if it is found to reject legitimate ref names not anticipated by the safe-ref pattern; track any such false rejection as a bug in the pattern, not a reason to remove the check.
+
+### Completion Criteria
+This ADR moves to Accepted once INV-01 through INV-04 are implemented and covered by the tests above, and MCP-003/MCP-005 are closed.
 
 ## Implementation Notes
 
@@ -188,6 +220,9 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
   - **Summary**: Protected-branch enforcement has a narrow bypass via an empty `branch` argument
   - **Impact**: A caller supplying an empty `branch` value is not evaluated against the protected-branch list
   - **Resolution Target**: Fix `_validate_protected()` to treat an empty `branch` as subject to the same check, or document why an empty value is always safe to allow
+- **Known Issue**: MCP-003 — no protected-branch/Force-Push guard; confirmed option-injection exploit via `branch`/`remote`.
+- **Known Issue**: MCP-004 — effective risk below HIGH for git tools can occur if config is downgraded (no floor check); approval-screen preview for git tools falls through to generic JSON dump; no end-to-end test exercises the shipped config through the actual approval flow.
+- **Resolved**: MCP-005 — audit `target` field key-name mismatch fixed (see Resolution Notes).
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 

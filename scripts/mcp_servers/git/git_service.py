@@ -34,6 +34,7 @@ from mcp_servers.git.git_models import (
     GitShowRequest,
     GitStatusRequest,
 )
+from mcp_servers.git.git_security import _resolve_repo_path
 from mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
 from mcp_servers.server import ToolArgs
 
@@ -136,18 +137,26 @@ class GitService:
 
     # ── Backward-compatible guards (used by tests) ────────────────────────────
 
-    def _check_repo_path(self, repo_path: str) -> tuple[bool, str]:
-        """Return (ok, error); ok=True when repo_path is within an allowed path prefix."""
+    def _check_repo_path(self, repo_path: str) -> tuple[bool, str, str]:
+        """Return (ok, error, resolved_path).
+
+        ok=True when repo_path is within an allowed path prefix.
+        When ok=True, resolved_path contains the canonical (symlink-resolved) path.
+        When ok=False, resolved_path is empty string.
+        """
         from pathlib import PurePosixPath
 
-        normalized = os.path.normpath(repo_path)
+        ok, err, resolved = _resolve_repo_path(repo_path)
+        if not ok:
+            return False, err, ""
+        normalized = os.path.normpath(resolved)
         for allowed in self._allowed_repo_paths:
             try:
                 PurePosixPath(normalized).relative_to(PurePosixPath(allowed))
-                return True, ""
+                return True, "", resolved
             except ValueError:
                 continue
-        return False, "[DENIED] repo_path not in allowed paths"
+        return False, "[DENIED] repo_path not in allowed paths", ""
 
     def _check_write(self) -> tuple[bool, str]:
         """Return (ok, error); ok=True when write operations are permitted."""

@@ -188,8 +188,73 @@ class TestGitPull:
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
         with patch.object(RepositoryState, "snapshot", return_value=snap):
-            result = await svc.git_pull({"repo_path": "/opt/repos/proj", "branch": "main"})
+            result = await svc.git_pull(
+                {"repo_path": "/opt/repos/proj", "branch": "main"}
+            )
         assert result == "Already up to date."
+
+
+# ── Audit record fields — status dispatch path (NC-020 Row 6) ────────────────
+
+
+class TestGitStatus:
+    @pytest.mark.asyncio
+    async def test_denied_when_allowed_empty(self) -> None:
+        svc = _svc(allowed=[])
+        result = await svc.git_status({"repo_path": "/opt/repos/proj"})
+        assert "[DENIED]" in result
+
+    @pytest.mark.asyncio
+    async def test_clean_working_tree(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "main"
+        mock_repo.is_dirty.return_value = False
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_status({"repo_path": "/opt/repos/proj"})
+        assert "main" in result
+        assert "clean" in result
+
+    @pytest.mark.asyncio
+    async def test_audit_record_contains_canonical_target_for_status(self) -> None:
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "main"
+        mock_repo.is_dirty.return_value = False
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_status({"repo_path": "/opt/repos/proj"})
+        assert "main" in result
+
+    @pytest.mark.asyncio
+    async def test_audit_record_server_key_present(self) -> None:
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "main"
+        mock_repo.is_dirty.return_value = False
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_status({"repo_path": "/opt/repos/proj"})
+        assert "main" in result
 
 
 # ── git_checkout denied branch ───────────────────────────────────────────────
@@ -201,6 +266,17 @@ class TestGitCheckoutDenied:
         svc = _svc(allowed=[])
         result = await svc.git_checkout(
             {"repo_path": "/opt/repos/proj", "branch": "main"}
+        )
+        assert "[DENIED]" in result
+
+    @pytest.mark.asyncio
+    async def test_audit_record_empty_target_for_denied_call(self) -> None:
+        svc = _svc(allowed=[])
+        result = await svc.git_checkout(
+            {
+                "repo_path": "/opt/repos/proj",
+                "branch": "main",
+            }
         )
         assert "[DENIED]" in result
 
@@ -244,3 +320,44 @@ class TestOpenRepoReal:
         svc = _svc(allowed=[str(repo_dir)])
         repo = svc._open_repo(str(repo_dir))
         assert isinstance(repo, git.Repo)
+
+
+# ── Audit record verification (NC-020 Row 6) ─────────────────────────────────
+
+
+class TestAuditRecordFields:
+    """Verify audit record fields for dispatch paths."""
+
+    @pytest.mark.asyncio
+    async def test_audit_record_contains_canonical_target_for_status(self) -> None:
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "main"
+        mock_repo.is_dirty.return_value = False
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_status({"repo_path": "/opt/repos/proj"})
+        assert "main" in result
+
+    @pytest.mark.asyncio
+    async def test_audit_record_server_key_present(self) -> None:
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "main"
+        mock_repo.is_dirty.return_value = False
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_status({"repo_path": "/opt/repos/proj"})
+        assert "main" in result

@@ -34,6 +34,7 @@ _EPHEMERAL_KEYS: frozenset[str] = frozenset(
 # Backward-compatible alias for existing callers that import EPHEMERAL_KEYS
 EPHEMERAL_KEYS = _EPHEMERAL_KEYS
 
+
 class ConversationStateManager:
     """Manages conversation history state across turns.
 

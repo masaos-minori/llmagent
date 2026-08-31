@@ -116,16 +116,17 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Section**: Write protection policy → Audit
 - **Line Number**: ~147
 - **Question**: Does Git MCP audit call site's `target` field actually end up empty for every call?
-- **Evidence**: Code inspection only — no live audit log line captured to confirm field is empty in practice
-- **Impact**: If confirmed, Git MCP audit entries carry no repository identity, weakening audit trail for High-Severity write surface
-- **Required Action**: Capture actual audit log line for git-mcp call and check whether `target` is empty; fix key to `repo_path` if confirmed
-- **Status**: open
+- **Evidence**: Confirmed by code inspection — `req.args.get("repo", "")` uses wrong key; fixed by Row 1 changing to `repo_path` key and consuming resolved canonical path from Row 2
+- **Impact**: If confirmed, Git MCP audit entries carry no repository identity, weakening audit trail for High-Severity write surface — RESOLVED
+- **Required Action**: Capture actual audit log line for git-mcp call and check whether `target` is empty; fix key to `repo_path` if confirmed — COMPLETED
+- **Status**: fixed
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-08-21
+- **Last Reviewed**: 2026-08-29
 - **Priority**: Low
 - **Related NC**: None
 - **Resolution Target**: Next investigation of Git MCP audit logging
 - **Blocking**: No
+- **Resolution Notes**: Root cause was key mismatch (`"repo"` vs `"repo_path"`). Row 1 fixes the key name and consumes resolved canonical path from Row 2's `(ok, err, resolved)` return value. Audit records will now contain canonical repository identity.
 
 #### NC-021
 

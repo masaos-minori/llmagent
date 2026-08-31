@@ -16,8 +16,6 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from db.helper import SQLiteHelper
-
 from agent.repl import AgentREPL
 from agent.startup_banner import StartupBanner
 
@@ -61,12 +59,12 @@ def _make_bare_repl() -> AgentREPL:
     ds = MagicMock()
     ds.fetch.return_value = []
     repl._diagnostic_store = ds
-    from agent.signal_handler import SignalHandler
-    from agent.startup_banner import StartupBanner
-    from agent.session_persister import SessionPersister
     from agent.repl_input_loop import ReplInputLoop
     from agent.resource_shutdown_coordinator import ResourceShutdownCoordinator
+    from agent.session_persister import SessionPersister
+    from agent.signal_handler import SignalHandler
     from agent.wal_checkpoint_manager import WalCheckpointManager
+
     view = MagicMock()
     view.read_multiline = AsyncMock(return_value="")
     repl._view = view
@@ -239,7 +237,9 @@ class TestReplLoop:
         repl._input_loop._cmds = None  # type: ignore[assignment]
         mock_banner = MagicMock()
         mock_persister = AsyncMock()
-        with patch.object(repl._input_loop, "_read_input", new=AsyncMock(return_value="/exit")):
+        with patch.object(
+            repl._input_loop, "_read_input", new=AsyncMock(return_value="/exit")
+        ):
             with pytest.raises((AssertionError, RuntimeError)):
                 await repl._input_loop.run(mock_banner, mock_persister)
 
@@ -251,7 +251,9 @@ class TestReplLoop:
         repl._input_loop._orchestrator = None  # type: ignore[assignment]
         mock_banner = MagicMock()
         mock_persister = AsyncMock()
-        with patch.object(repl._input_loop, "_read_input", new=AsyncMock(return_value="/exit")):
+        with patch.object(
+            repl._input_loop, "_read_input", new=AsyncMock(return_value="/exit")
+        ):
             with pytest.raises((AssertionError, RuntimeError)):
                 await repl._input_loop.run(mock_banner, mock_persister)
 
@@ -327,7 +329,9 @@ class TestReplLoop:
             repl._input_loop, "_read_input", new=AsyncMock(return_value="test input")
         ):
             try:
-                await asyncio.wait_for(repl._input_loop.run(mock_banner, mock_persister), timeout=5.0)
+                await asyncio.wait_for(
+                    repl._input_loop.run(mock_banner, mock_persister), timeout=5.0
+                )
             except TimeoutError:
                 pass  # Should not happen if graceful shutdown works
 
@@ -361,7 +365,9 @@ class TestReplLoop:
             repl._input_loop, "_read_input", new=AsyncMock(return_value="first line")
         ):
             try:
-                await asyncio.wait_for(repl._input_loop.run(mock_banner, mock_persister), timeout=5.0)
+                await asyncio.wait_for(
+                    repl._input_loop.run(mock_banner, mock_persister), timeout=5.0
+                )
             except TimeoutError:
                 pass
 
@@ -421,6 +427,7 @@ class TestPersistSessionDiagnostics:
         view.read_multiline = AsyncMock(return_value="")
         repl._view = view
         from agent.session_persister import SessionPersister
+
         repl._persister = SessionPersister(ctx, repl._diagnostic_store, view)
         return repl
 
@@ -446,7 +453,9 @@ class TestPersistSessionDiagnostics:
         mock_helper = MagicMock()
         mock_helper.open = MagicMock(return_value=mock_ctx_mgr)
 
-        with patch("agent.wal_checkpoint_manager.SQLiteHelper", return_value=mock_helper):
+        with patch(
+            "agent.wal_checkpoint_manager.SQLiteHelper", return_value=mock_helper
+        ):
             await repl._persister.persist_session_diagnostics()
 
     @pytest.mark.asyncio
@@ -555,6 +564,7 @@ def _make_repl_for_shutdown() -> AgentREPL:
     shutdown_event = asyncio.Event()
     repl._shutdown_event = shutdown_event
     from agent.repl_input_loop import ReplInputLoop
+
     repl._input_loop = ReplInputLoop(ctx, view, shutdown_event)
     return repl
 
@@ -579,7 +589,9 @@ class TestReadInputShutdownRace:
 
         asyncio.ensure_future(set_event_soon())
         with patch("builtins.input", side_effect=lambda p: (time.sleep(5), "never")[1]):
-            result = await asyncio.wait_for(repl._input_loop._read_input(loop), timeout=1.0)
+            result = await asyncio.wait_for(
+                repl._input_loop._read_input(loop), timeout=1.0
+            )
         assert result is None
 
     @pytest.mark.asyncio
@@ -839,7 +851,9 @@ class TestWalBackupPathSecurity:
         assert any(name == "wal_backup_path_rejected" for name, _ in errors)
 
     @pytest.mark.asyncio
-    async def test_rejects_symlink_that_resolves_outside_allowed_root(self, tmp_path) -> None:
+    async def test_rejects_symlink_that_resolves_outside_allowed_root(
+        self, tmp_path
+    ) -> None:
         """A db_path inside allowed_root that is actually a symlink pointing
         outside allowed_root must be rejected after resolving the symlink."""
         repl = _make_bare_repl()
@@ -863,7 +877,9 @@ class TestWalBackupPathSecurity:
         assert any(name == "wal_backup_path_rejected" for name, _ in errors)
 
     @pytest.mark.asyncio
-    async def test_allows_symlink_that_resolves_inside_allowed_root(self, tmp_path) -> None:
+    async def test_allows_symlink_that_resolves_inside_allowed_root(
+        self, tmp_path
+    ) -> None:
         """A symlinked db_path whose resolved target stays inside allowed_root
         continues to back up normally, and the filename embeds the session id."""
         repl = _make_bare_repl()
@@ -927,7 +943,9 @@ class TestWalBackupPathSecurity:
         assert backup_path is not None
 
     @pytest.mark.asyncio
-    async def test_filename_falls_back_to_uuid_when_session_id_none(self, tmp_path) -> None:
+    async def test_filename_falls_back_to_uuid_when_session_id_none(
+        self, tmp_path
+    ) -> None:
         """When session_id is unset (e.g. init failed before a session was
         created), the filename falls back to a short uuid instead of raising."""
         repl = _make_bare_repl()
