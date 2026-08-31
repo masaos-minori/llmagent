@@ -36,15 +36,9 @@ If a task instruction elsewhere in the session conflicts with this Scope, apply
 These MUST be followed throughout all steps:
 
 - **routing**: All task-to-skill mappings MUST go through `routing.md`; it MUST NOT be bypassed by loading skills or docs directly.
-- **dependency direction**: Apply this direction: `agent -> rag/mcp -> db -> shared`. The arrow means "may depend on or reference".
-  - `agent` may reference `rag`, `mcp`, `db`, and `shared`.
-  - `rag` and `mcp` may reference `db` and `shared`.
-  - `db` may reference `shared`.
-  - `shared` must not reference higher layers.
-  - A lower layer must not reference a higher layer.
-  - `rag` and `mcp` are sibling layers.
-  - `rag` and `mcp` must not reference each other unless an approved rule explicitly allows it.
-  - Do not confuse layer display order with dependency direction.
+- **dependency direction**: A lower layer must not reference a higher layer. See
+  `rules/env.md`, section "Architecture", for the canonical layer diagram (includes
+  the current `eventbus` isolation rule and `agent`'s actual scope).
 - **minimal loading**: Load only the minimum skill files required for the current task. Do not load entire skill directories unless specifically needed. Prefer loading individual rule files over entire skill workflows. See Context Loader Pattern Validation below for how this is measured, not just asserted.
 - **shared normalization**: Rules and conventions shared across multiple skills must be defined once — in `skills/DESIGN.md` for design/architecture rules, or in `rules/*.md` for shared AI-execution/lifecycle rules (see Canonical Ownership Model) — and referenced, not duplicated.
 
@@ -141,33 +135,18 @@ Rules' scope/requirements/conditions/exceptions/effects equivalence test below.
 - Preserve all requirements, prohibitions, conditions, exceptions, and acceptance
   criteria when relocating a rule.
 
-Decide a duplicate's canonical destination by content type, then replace every other
-occurrence with a short cross-reference to that destination (see Canonical
-References) — the rule's normative text MUST NOT be left repeated in more than one
-place:
-
-| Content type | Canonical destination |
-|---|---|
-| Task-to-skill or source-to-document mapping | `routing.md` |
-| Repository-wide AI-execution or lifecycle rule used by 2+ workflows, not universal, not skill-specific | `rules/*.md` (e.g. `rules/ai-execution.md`, `rules/workflow-lifecycle.md`) |
-| Shared design/architecture rule used by 2+ skills | `skills/DESIGN.md` |
-| Task-specific procedure or checklist | The owning `skills/<task>/SKILL.md` (or its `workflow.md`) |
-| Repository-wide AI execution constraint that every task needs (not task-specific, not a mapping) | `AGENTS.md` |
-
-Use the `AGENTS.md` vs. `rules/*.md` boundary test above to choose between the last two
-rows when a candidate could plausibly fit either.
+Decide a duplicate's canonical destination using Canonical Ownership Model above (it
+already maps each candidate's content type to the file that owns it), then replace
+every other occurrence with a short cross-reference to that destination (see
+Canonical References) — the rule's normative text MUST NOT be left repeated in more
+than one place. Use the `AGENTS.md` vs. `rules/*.md` boundary test above when a
+candidate could plausibly fit either of those two destinations.
 
 Acceptance criteria:
 - No normative rule appears in more than one file.
 - Each piece of normative content has exactly one canonical location.
 - All references to relocated content use the Canonical References format.
-- `AGENTS.md` contains only execution constraints every task needs, plus the
-  instruction to consult `routing.md` — no task-specific procedures, no task-to-skill
-  mapping entries, and no rule that is only needed by some workflows (that belongs in
-  `rules/*.md` instead).
-- `skills/DESIGN.md` and `rules/*.md` contain only shared rules; no task-specific
-  procedures.
-- Each `skills/<task>/SKILL.md` contains only procedures specific to that task.
+- Every file's content matches its assigned scope in Canonical Ownership Model above.
 - Default context load (`AGENTS.md` + `routing.md`) does not pull in task-specific
   skill files or any `rules/*.md` file.
 
@@ -227,9 +206,8 @@ separately as `Deferred` with the reason, per Deduplication Rules.
 - Verify that no normative meaning was lost during relocation.
 - Verify all file paths, headings, Rule IDs, and Markdown references after editing.
 - Verify that routing behavior still maps each task to the intended skill.
-- Verify that `AGENTS.md`, `routing.md`, `skills/DESIGN.md`, `rules/*.md`, and
-  task-specific skill files contain only content within their assigned
-  responsibility.
+- Verify that every file's content matches its assigned scope in Canonical Ownership
+  Model above.
 - Report intentional routing changes separately with reasons.
 - Report ambiguous or unsafe changes as `Deferred`.
 
@@ -270,27 +248,20 @@ concrete, repeatable checks — do not report Step 4 `Pass` without running both
 
 ### Step Responsibilities
 
-- **Step 1 (Inventory)**: build the compact rule inventory and flag duplicate
-  *candidates* only — record each candidate's scope, type, current owner(s), and
-  evidence location. Apply the Normative vs. Descriptive test to decide what qualifies
-  as a candidate. Do not decide canonical ownership and do not edit any file in this
-  step.
-- **Step 2 (Relocation Plan)**: for each candidate from Step 1, decide canonical
-  ownership (Canonical Ownership Model + the `AGENTS.md`/`rules/*.md` boundary test),
-  the exact destination file and heading, every source location to be replaced with a
-  reference, and whether it requires a new file (New File Creation Policy). Produce the
-  Relocation Plan table, then stop and report it — do not proceed to Step 3 in the same
-  response. Resume at Step 3 only after explicit user approval of the plan; an approval
-  given for a different task does not count. Do not edit any file in this step.
-- **Step 3 (Edit)**: apply only the rows the user approved in Step 2, exactly as
-  planned, per Editing Constraints. If executing a row reveals the plan does not match
-  current file content (e.g. the target heading does not exist, or the source text
-  differs from what Step 1 recorded), stop that row, mark it `Blocked: plan mismatch`,
-  and do not improvise a different edit — report it for a new Step 1-2 pass rather than
-  fixing it ad hoc.
-- **Step 4 (Validate)**: apply Validation and Context Loader Pattern Validation above.
-  Do not redo Step 1's detection or Step 2's planning here.
-- **Step 5 (Report)**: report per Context Efficiency's format below.
+- **Step 1 (Inventory)**: builds the rule inventory and flags duplicate candidates
+  without deciding canonical ownership or editing any file. See Step 1 under Tasks
+  below for the full procedure.
+- **Step 2 (Relocation Plan)**: decides canonical ownership and destination for each
+  Step 1 candidate, then stops and reports the plan for explicit user approval before
+  any edit. See Step 2 under Tasks below for the full procedure.
+- **Step 3 (Edit)**: applies only the Relocation Plan rows the user approved,
+  escalating rather than improvising when a row no longer matches current file
+  content. See Step 3 under Tasks below for the full procedure.
+- **Step 4 (Validate)**: checks the reorganization against Validation and Context
+  Loader Pattern Validation, without redoing earlier steps' work. See Step 4 under
+  Tasks below for the full procedure.
+- **Step 5 (Report)**: reports the outcome per Context Efficiency's format. See
+  Step 5 under Tasks below for the full procedure.
 
 Do not merge or skip any of these five steps, and do not perform a later step's work
 while still inside an earlier one (e.g. do not edit a file while still building the
@@ -344,7 +315,8 @@ Do not load every skill file in full at the same time. List all files in Scope a
 
 #### Step 1: Inventory
 
-Apply Step Responsibilities' Step 1 definition above. For each file in Scope:
+Build the compact rule inventory and flag duplicate *candidates* only — do not decide
+canonical ownership and do not edit any file in this step. For each file in Scope:
 1. Extract headings and a compact rule inventory: scope, type (normative/descriptive,
    per the Normative vs. Descriptive test), current owner, evidence location.
 2. Read a full section only when needed to confirm whether a candidate is truly
@@ -356,45 +328,35 @@ normative Y/N) before proceeding to Step 2.
 
 #### Step 2: Relocation Plan
 
-Apply Step Responsibilities' Step 2 definition above and the Relocation Plan format.
 For every inventory candidate marked normative in Step 1, decide its canonical
-destination using the Canonical Ownership Model and the `AGENTS.md`/`rules/*.md`
-boundary test; apply the New File Creation Policy when no existing file fits.
+destination — the exact destination file and heading, and every source location to be
+replaced with a reference — using the Canonical Ownership Model and the
+`AGENTS.md`/`rules/*.md` boundary test; apply the New File Creation Policy when no
+existing file fits. Do not edit any file in this step.
 
-**Report the Relocation Plan and stop. Do not proceed to Step 3 in the same
-response.** Wait for explicit user approval of the plan before continuing.
+**Report the Relocation Plan, using the Relocation Plan format above, and stop. Do not
+proceed to Step 3 in the same response.** Resume at Step 3 only after explicit user
+approval of this plan; an approval given for a different task does not count.
 
 #### Step 3: Edit
 
-**Execute only the rows of the Relocation Plan the user approved.** Apply Editing
-Constraints above. Report each row's outcome (`Applied` / `Blocked: plan mismatch`) as
+**Execute only the rows of the Relocation Plan the user approved**, exactly as
+planned, per Editing Constraints above. If executing a row reveals the plan does not
+match current file content (e.g. the target heading does not exist, or the source text
+differs from what Step 1 recorded), stop that row, mark it `Blocked: plan mismatch`,
+and do not improvise a different edit — report it for a new Step 1-2 pass rather than
+fixing it ad hoc. Report each row's outcome (`Applied` / `Blocked: plan mismatch`) as
 it completes.
 
 #### Step 4: Validate the reorganization
 
-Apply Validation and Context Loader Pattern Validation above. Additionally confirm the
-Context Loader Pattern still holds:
+Apply Validation and Context Loader Pattern Validation above.
 
-- `AGENTS.md` instructs the AI to consult `routing.md`, and defines no task-to-skill
-  mapping entries and no rule that only some workflows need.
-- `routing.md` is the only canonical source for task-to-skill mappings.
-- `skills/DESIGN.md` and `rules/*.md` contain only shared rules, no task-specific
-  procedures.
-- Each `skills/<task>/SKILL.md` contains only procedures specific to that task.
-- Default context load (`AGENTS.md` + `routing.md`) does not pull in task-specific
-  skill files or any `rules/*.md` file.
-
-Per Step Responsibilities: validate only here — do not redo Step 1's inventory or
-Step 2's planning or Step 3's edits.
+Validate only here — do not redo Step 1's inventory, Step 2's planning, or Step 3's
+edits.
 
 #### Step 5: Report results
 
-Apply Context Efficiency above for the report format. Report:
-- which files were modified and what changed,
-- which content was moved and where it now lives (canonical destination, in the
-  Canonical References format),
-- any items marked `Deferred` and the reason,
-- any new file created, per the New File Creation Policy,
-- the two Context Loader Pattern Validation measurements (per-skill default load size
-  before/after, and the circular-reference check result),
-- the Step 4 validation result.
+Apply Context Efficiency above for the report format, per its final-report bullet,
+plus one item that bullet does not cover: any new file created, per the New File
+Creation Policy.
