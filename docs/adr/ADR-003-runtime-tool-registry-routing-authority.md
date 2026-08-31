@@ -6,8 +6,6 @@ decision_scope:
 related:
   - ADR-001
   - ADR-002
-supersedes: []
-superseded_by: null
 ---
 
 # ADR-003: RuntimeToolRegistryを唯一のルーティング権威とする
@@ -20,15 +18,14 @@ Accepted
 
 - `Proposed`: 提案中、レビューまたは承認前
 - `Accepted`: 採用済みであり、現行設計として有効
-- `Rejected`: 検討したが不採用
-- `Deprecated`: 現在は推奨しないが、一部に残存
-- `Superseded`: 後継ADRによって置換済み
 
-Accepted後に判断内容を変更する場合は本文を直接変更せず、新しいADRを作成して本ADRをSupersededへ変更する。
+Accepted後に現在の判断を変更する場合は、本ADR本文を直接更新する。同じ変更の中で、影響を受けるSpecification、Reference、Operations文書および検証要件を更新する。
 
 ## Summary
 
 Tool名から実行先MCPサーバーを決定する権威を`RuntimeToolRegistry`へ一本化し、静的定義、設定、Discovery結果によるルーティングの二重化を防止する。起動時に各MCPサーバーから取得したTool定義を正規化し`RuntimeTool`として登録し、`ToolRouteResolver`は`RuntimeToolRegistry`だけを参照する。静的`ToolRegistry`、設定上のTool名一覧、LLM Prompt内のTool定義を実行時Routingに使用しない。
+
+`RuntimeToolRegistry`はさらに、Tool所有権とRoutingだけでなく、LLM可視性、静的可用性、Dynamic Health、承認状態、実行適格性という関連する概念群についても唯一の権威である。これらは互いに異なる概念であり、単一の「有効/無効」フラグへ統合しない。
 
 ## Context
 
@@ -40,6 +37,7 @@ Tool名から実行先MCPサーバーを決定する権威を`RuntimeToolRegistr
 - 設定ファイル上の`tool_names`リストがルーティング入力として機能すると、設定とDiscovery結果の不一致が予期せぬルーティングを引き起こす
 - 未登録Toolを名前規則から推測してRoutingすると、Security Controlを迂回できる
 - 複数MCPサーバーが同じTool名を公開した場合、Profileにかかわらずどちらへルーティングするか不明確になる
+- Tool定義の存在、Discovery、LLM可視性、Routing所有権、静的な設定由来の可用性、動的なサーバー健全性、承認状態、実行適格性は別個の概念であるにもかかわらず、単一の「有効/無効」フラグへ暗黙に統合されると、コードが誤った概念を参照したり、実際にはフィルタしていない処理段階が存在するかのように文書化されたりする
 
 ### Constraints
 
@@ -47,46 +45,62 @@ Tool名から実行先MCPサーバーを決定する権威を`RuntimeToolRegistr
 - デプロイ環境では起動前に各MCPサーバーからTool定義を取得する必要がある
 - セキュリティ要件：未登録Toolの実行を拒否しなければならない
 - データ整合性：Safety TierとWrite属性はRouting、承認、監査で同じ値を参照しなければならない
-- 運用要件：Discovery結果と設定上の期待値との差を検出できること
+- 運用要件：Discovery結果は起動時に一度取得され、Agentプロセスの再起動まで再取得されない
 - 外部依存先：各MCPサーバーの`/v1/tools`エンドポイント
 
 ### Assumptions
 
-- 対象環境：単一Host、複数プロセス
+- 対象環境：単一Host、複数プロセス（Agentプロセス1、各MCPサーバープロセス）
 - 想定規模：同時実行数は限定的
 - 信頼境界：各MCPサーバー内でのみ権限を付与する
 - 外部依存先：MCPサーバーの`/v1/tools`エンドポイント
-- 前提が崩れた場合に再評価が必要な事項：複数Host構成、分散実行、外部ツール定義ストア統合
+- 前提が崩れた場合に再評価が必要な事項：複数Host構成、分散実行、外部ツール定義ストア統合、Agent再起動なしのMCPサーバー追加・削除（Hot Reload）
 
 ## Decision
 
 ### Decision Details
 
 1. 起動時に各MCPサーバーから取得したTool定義を正規化し、`RuntimeTool`として登録する。
-2. `RuntimeTool`にはTool名、所有MCPサーバー、説明、Input Schema、Read/Write分類、Safety Tier、実行制約、利用可能状態を保持させる。
+2. `RuntimeTool`にはTool名、所有MCPサーバー、説明、Input Schema、Read/Write分類、Safety Tier、実行制約、LLM可視性を保持させる。
 3. `ToolRouteResolver`は`RuntimeToolRegistry`だけを参照する。
 4. 静的`ToolRegistry`、設定上のTool名一覧、LLM Prompt内のTool定義を実行時Routingに使用しない。
-5. 静的定義を残す場合は、テスト、期待値、文書生成、Drift検証に限定する。
+5. 静的定義を残す場合は、テスト、期待値、文書生成に限定する。
 6. 未登録Toolを名前規則から推測してRoutingしない。静的RegistryへのFallbackを設けない。
 7. 複数MCPサーバーが同じTool名を公開した場合は、Profileにかかわらず起動を失敗させる。
 8. Safety TierとWrite属性はRouting、承認、監査で同じ`RuntimeTool`を参照する。
-9. Discovery結果と設定上の期待値との差をRouting Driftとして検出する。
-10. Registry更新を許可する場合、実行中Toolとの整合性を保証する。
+9. Registry更新を許可する場合、実行中Toolとの整合性を保証する。
+10. Defined（定義済み）、Discoverable（Discovery可能）、Owned（所有Tool）、LLM-visible（LLMへ公開）、Statically available（静的に利用可能）、Dynamically available（動的に利用可能）、Routable（Routing可能）、Approved（承認済み）、Executable（実行可能）は別個の概念であり、これらを区別せず単一の「有効/無効」フラグへ統合しない。
+11. 静的可用性（設定に基づき、各MCPサーバーがDiscovery時に算出し、`McpToolDiscoveryService`が起動時に一度取り込む値）とDynamic Health（サーバー到達性およびCircuit Breaker状態であり、`McpServerHealthRegistry`/`ToolExecutor`が実行中継続的に追跡する値）は別個のサブシステムである。静的可用性はLLMへの公開可否とRouting適格性を制御し、Dynamic Healthはすでに Routable な呼び出しが実行時に成功するかどうかを制御する。静的に有効だが動的にDownなToolは、LLMに可視かつRoutableのままとし、実行時にのみ失敗させる。
+12. Dynamic Healthの状態は、LLM可視性（`enabled_for_llm`等）を自動的に変更してはならない。
+13. Approval要件は無効化されたTool状態の一種ではない。Approvalは`agent/tool_policy.py`/`tool_approval.py`が所有し、Routing解決後に適用される呼び出し単位（引数によって危険度が変わり得る）のポリシー判断であり、無効化されたToolとして表現または混同してはならない。
+14. Discovery由来のTool定義（`raw_definition`、静的な`status`等）を反映するには、Agentプロセスの完全な再起動が必要である。現在の承認済み仕様がRediscoveryを明示的に定義しない限り、Reload操作は Safety Tier や許可リスト由来のLLM可視性などPolicy由来フィールドのみを更新し、Discovery由来のTool定義を再取得しない。Reload挙動は、現在サポートされている範囲としてのみ記述する。
+
+### Responsibility Boundaries
+
+- **RuntimeToolRegistry**: Tool所有権、Routing、LLM可視性メタデータ、および実行関連メタデータ（Safety Tier、Write属性等）に関する現行の実行時権威。
+- **MCP Live Discovery**（`McpToolDiscoveryService`）: 現行の実行時Tool定義の取得元。起動時に一度、各MCPサーバーの`/v1/tools`を呼び出す。
+- **Dynamic Health Subsystem**（`McpServerHealthRegistry`、`ToolExecutor`）: 到達性およびCircuit Breaker状態を担当する現行のサブシステム。LLM可視性を変更する権限を持たない。
+- **Approval Subsystem**（`agent/tool_policy.py`、`agent/tool_approval.py`）: Tool解決後の呼び出し単位の承認・リスク判定を担当する現行のサブシステム。
+
+Discovery可能、または所有されているというだけでは、そのToolが常にExecutableであることを意味しない。Dynamic HealthまたはApproval判定により、実行時に失敗または拒否され得る。
 
 ### Scope
 
-- **対象コンポーネント**: `RuntimeToolRegistry`, `ToolRegistry`, `ToolRouteResolver`
+- **対象コンポーネント**: `RuntimeToolRegistry`, `ToolRegistry`, `ToolRouteResolver`, `McpToolDiscoveryService`, `McpServerHealthRegistry`, `ToolExecutor`
 - **対象プロセス**: Agentプロセス、各MCPサーバープロセス
 - **対象データ**: Tool定義、Discovery結果、設定ファイル
 - **対象Environment Profile**: すべての環境（local/dev/production）
-- **対象APIまたは処理経路**: `RuntimeToolRegistry.resolve()`, `ToolRouteResolver.resolve()`, `McpToolDiscoveryService.discover_all()`
+- **対象APIまたは処理経路**: `RuntimeToolRegistry.resolve()`, `RuntimeToolRegistry.llm_tool_definitions()`, `RuntimeToolRegistry.apply_policy()`, `ToolRouteResolver.resolve()`, `McpToolDiscoveryService.discover_all()`
 
 ### Out of Scope
 
 - 個別のTool定義スキーマの詳細
 - MCPサーバーごとの必須性と失敗方針（別ADRで扱う）
+- 各MCPサーバーにおける静的可用性の算出方法の実装詳細（各MCPサーバー自身の責務であり、本ADRでは参照のみ）
+- Approval Policyそのものの再設計（`tool_policy.py`/`tool_approval.py`が所有し、本ADRでは参照のみ）
 - EventBus統合の設定読み込み方法の詳細
 - ランタイム動作の変更
+- Hot ReloadによるRediscovery（Policy B）の採用（将来のADRで扱う可能性がある選択肢であり、本ADRでは現在の方針（完全再起動によるDiscovery更新）のみを定める）
 - 監視・メトリクス設計（別ADRで扱う）
 
 ## Rationale
@@ -101,7 +115,11 @@ Safety TierとWrite属性がRouting、承認、監査で同じ値を参照する
 
 ### 3. 第3の採用理由 — Operability
 
-Discovery結果と設定上の期待値との差をRouting Driftとして明確に検出できる。静的定義とDiscovery結果の両方を参照すると、どの経路の値が実際に適用されたか不明確になる。
+Routing権威が一つに限定されるため、どの経路の値が実際に適用されたかが常に明確である。静的定義とDiscovery結果の両方を参照すると、どの経路の値が実際に適用されたか不明確になる。
+
+### 4. 第4の採用理由 — Correctness / Maintainability
+
+実際には複数の異なる意味を持つ単一の「有効/無効」概念は、コードが誤った概念を参照する原因になり、実際にはフィルタしていない処理段階が存在するかのような文書化を招く。「静的可用性 対 Dynamic Health」および「Approval 対 無効化状態」を明示的に区別することで、Dynamic Health駆動の機能をLLM可視性と同じフィールドへ書き込んでしまうという低コストで起こりやすい誤りを防止する。
 
 「現行コードがこの方式で実装されているため」だけを採用理由にしない。
 
@@ -179,12 +197,55 @@ Data Integrityを優先し、実行中のToolとの整合性を保証するた�
 
 #### Reason for Rejection
 
-Operabilityを優先し、Drift検証とテストのための期待値が必要であるため不採用とした。
+Operabilityを優先し、テストのための期待値が必要であるため不採用とした。
 
 #### Reconsideration Conditions
 
 - Discovery結果のみで十分な検証ができる場合
 - テストの自動化が十分に進んだ場合
+
+### Alternative D: Unify static availability and dynamic health into one `enabled` signal
+
+#### Description
+
+静的可用性とDynamic Healthを単一の`enabled`シグナルへ統合する。
+
+#### Advantages
+
+- シンプルな心的モデル
+- 確認すべきフラグが一つになる
+
+#### Disadvantages
+
+- Circuit Breakerが作動するたびにLLM可視Tool一覧が変化し、一時的なネットワーク不調によってLLMから見たTool可用性が不安定化する
+- 実行時エラーに比べて影響範囲がはるかに大きい
+
+#### Reason for Rejection
+
+現行の分離（静的が可視性を、Dynamicが実行時の成否を制御する）の方が既に安全な設計であるため、分離を維持し明文化する。
+
+#### Reconsideration Conditions
+
+- Dynamic Healthの変化がLLM可視性に反映されるべき新たな要件が生じた場合
+
+### Alternative E: Represent approval-required as a disabled state
+
+#### Description
+
+Approval要求状態を無効化Tool機構の一部として表現する。
+
+#### Advantages
+
+- 既存の無効化Tool機構を再利用できる
+
+#### Disadvantages
+
+- Approvalは引数（例：パスやBranch）に基づくRisk Escalationを伴う呼び出し単位の判断であり、Tool単位の静的な無効化フラグでは表現できない
+- 両者を統合すると、Approval対象Toolが本来LLMに可視であるべき場面でも不可視になり、実行時にGateされるという設計を実現できなくなる
+
+#### Reason for Rejection
+
+呼び出し時のPolicy判断とTool単位の可用性フラグを混同するため不採用とした。両者を分離することは、既に実装されている現実であり、正しいモデルでもある。
 
 ## Consequences
 
@@ -193,8 +254,9 @@ Operabilityを優先し、Drift検証とテストのための期待値が必要�
 - Routing権威が明確になり、所有権の競合が防止される
 - 未登録Toolの実行がFail-Closedで拒否される
 - Safety TierとWrite属性がRouting、承認、監査で一致する
-- Discovery結果と設定の差がRouting Driftとして検出される
 - 複数MCPサーバーのTool名重複が起動時に検出される
+- 共有語彙（Defined/Discoverable/Owned/LLM-visible/Statically available/Dynamically available/Routable/Approved/Executable）により、将来のMCPサーバー実装およびAgent側Routing実装での誤用を防止しやすくなる
+- Reload/再起動境界の明文化により、Config変更が既にLive Registryへ反映されたという誤った運用判断を防止する
 
 ### Negative Consequences
 
@@ -207,6 +269,7 @@ Operabilityを優先し、Drift検証とテストのための期待値が必要�
 
 - 起動時にDiscovery結果に基づいてRoutingが確定する
 - RuntimeでのTool追加・削除は禁止
+- Discovery由来の状態に影響する設定変更は、Agentプロセスの完全な再起動が必要であり、Reloadでは反映されない
 - Health Checkへの影響：Discovery失敗時は起動中止
 - 障害対応：Discovery失敗時は再起動が必要
 
@@ -216,6 +279,7 @@ Operabilityを優先し、Drift検証とテストのための期待値が必要�
 - 認証、認可：RuntimeToolRegistryがSafety Tierを一元管理
 - Secretの取扱い：Discovery結果に基づく
 - Fail-Open、Fail-Closed：未登録ToolはFail-Closed
+- 静的可用性がLLM可視性を継続してGateすることで、Config駆動のSecurity Control（例：`read_only=true`）がDynamic Health信号によって弱められることを防止する
 - Audit Log：Routing、承認、監査で同一Safety Tierを参照
 
 ## Invariants
@@ -223,8 +287,12 @@ Operabilityを優先し、Drift検証とテストのための期待値が必要�
 - INV-01: 複数のMCPサーバーが同じTool名を公開した場合、Agentの起動を中止する。
 - INV-02: `ToolRouteResolver.resolve()`は`RuntimeToolRegistry`のみを参照し、未知のTool名に対しては`ValueError`を即時発生させる。
 - INV-03: Safety TierとWrite属性はRouting、承認、監査で同一の`RuntimeTool`を参照する。
-- INV-04: 静的`ToolRegistry`は実行時Routingに使用せず、Drift検証・テスト・文書生成に限定する。
-- INV-05: Discovery結果と設定上の期待値の差をRouting Driftとして検出し、報告する。
+- INV-04: 静的`ToolRegistry`は実行時Routingに使用せず、テスト・文書生成に限定する。
+- INV-05: Defined、Discoverable、Owned、LLM-visible、Statically available、Dynamically available、Routable、Approved、Executableは別個の概念として扱い、単一の「有効/無効」へ統合しない。
+- INV-06: 静的に無効化されたToolは、LLMへ実行可能として公開してはならない。
+- INV-07: Dynamic Healthの状態は、`enabled_for_llm`等のLLM可視性を変更してはならない。
+- INV-08: 承認要求状態は、無効化されたTool状態として表現してはならない。
+- INV-09: Discoverable、Owned、Statically Available、またはRoutableであることは、そのToolが常にExecutableであることを意味しない。実行時にDynamic HealthまたはApprovalにより拒否され得る。
 
 ## Exceptions
 
@@ -246,7 +314,7 @@ Operabilityを優先し、Drift検証とテストのための期待値が必要�
 
 ### Retry Policy
 
-該当なし
+Dynamic HealthはCircuit Breakerによる CLOSED/OPEN/HALF_OPEN のTrial-Recovery Semanticsを実行層で用いる。本ADRはこの挙動を変更しない。
 
 ### Fallback Policy
 
@@ -255,9 +323,9 @@ Operabilityを優先し、Drift検証とテストのための期待値が必要�
 ## Data Ownership and Persistence
 
 - **System of Record**: `RuntimeToolRegistry`（起動時に`McpToolDiscoveryService`から取得したDiscovery結果）
-- **Derived Data**: `ToolRegistry`（Drift検証用）、設定ファイル上の`tool_names`（Drift検証用）
+- **Derived Data**: `ToolRegistry`（テスト・文書生成用）
 - **Ownership**: `RuntimeToolRegistry`
-- **Persistence**: メモリ上
+- **Persistence**: メモリ上（プロセス単位、再起動で再構築）
 - **Transaction Boundary**: 起動時
 - **Recovery Source**: 再起動後のDiscovery
 - **Deletion Rule**: 該当なし
@@ -281,13 +349,18 @@ Operabilityを優先し、Drift検証とテストのための期待値が必要�
   - **Type**: Regression
   - **Blocking**: Yes
 
-- **Test**: Discovery結果と期待値のDriftを検出すること
-  - **Verifies**: INV-05
+- **Test**: Routing、承認、監査が同一Safety Tierを参照すること
+  - **Verifies**: INV-03
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: Routing、承認、監査が同一Safety Tierを参照すること
-  - **Verifies**: INV-03
+- **Test**: 静的に無効化されたToolが`llm_tool_definitions()`に含まれないこと
+  - **Verifies**: INV-06
+  - **Type**: Regression
+  - **Blocking**: Yes
+
+- **Test**: Circuit-Openなサーバーに属するToolが`llm_tool_definitions()`に残ること
+  - **Verifies**: INV-07
   - **Type**: Integration
   - **Blocking**: Yes
 
@@ -311,38 +384,7 @@ Operabilityを優先し、Drift検証とテストのための期待値が必要�
 
 ### Manual Review
 
-自動検証できない項目はない。
-
-## Migration and Rollout
-
-### Migration Steps
-
-1. RuntimeToolRegistryのRouting権威を明文化
-2. ToolRouteResolverの参照先をRuntimeToolRegistryへ統一
-3. 静的ToolRegistryの用途をDrift検証・テスト・文書生成へ限定
-4. 既存文書のRegistry説明をADRと整合させる
-
-### Compatibility
-
-- 後方互換性：あり（既存の静的定義はDrift検証用として残る）
-- 旧設定、旧Data、旧APIの扱い：Drift検証用として維持
-- 移行期間中の二重経路の有無：なし
-
-### Rollback
-
-- Rollback可能な条件：ADRの判断内容を変更する場合
-- Rollback手順：新しいADRを作成して本ADRをSupersededへ変更
-- Rollbackできない変更：該当なし
-- Data復旧方法：再起動後のDiscovery
-
-### Completion Criteria
-
-- RuntimeToolRegistryを唯一の権威とするADRが作成されている
-- ToolRouteResolverの参照先が一意に定義されている
-- 静的ToolRegistryの用途が限定されている
-- Tool所有権重複時のFail-Fastが定義されている
-- Routing DriftとSafety属性の扱いが記載されている
-- 既存文書のRegistry説明がADRと整合している
+- 将来のPRがDynamic Health駆動のコードパスから`enabled_for_llm`へ書き込むことで、静的可用性とDynamic Healthの分離を再び統合してしまわないことを確認する。
 
 ## Implementation Notes
 
@@ -353,18 +395,21 @@ Operabilityを優先し、Drift検証とテストのための期待値が必要�
   - `scripts/shared/route_resolver.py`: `ToolRouteResolver`
   - `scripts/shared/tool_registry.py`: `ToolRegistry`
   - `scripts/shared/runtime_tool.py`: `RuntimeTool`
-  - `scripts/shared/tool_routing_validation.py`: Drift検証
+  - `scripts/agent/services/mcp_tool_discovery.py`: `McpToolDiscoveryService`
+  - `scripts/shared/mcp_health.py`: `McpServerHealthRegistry`（Dynamic Health、参照のみ）
+  - `scripts/shared/tool_executor.py`: `ToolExecutor`（Dynamic Health/実行、参照のみ）
 - **主要ClassまたはFunction**:
   - `RuntimeToolRegistry.resolve()`: Routing権威
+  - `RuntimeToolRegistry.llm_tool_definitions()`: LLM可視Tool一覧
+  - `RuntimeToolRegistry.apply_policy()`: Reload時のPolicy由来フィールド更新（Discovery由来フィールドは更新しない）
   - `ToolRouteResolver.resolve()`: RuntimeToolRegistryのみを参照
-  - `ToolRegistry.get_all_tool_names()`: Drift検証用
+  - `ToolRegistry.get_all_tool_names()`: テスト・文書生成用
 - **設定ファイル、設定Key**:
   - `config/agent.toml`の`[mcp_servers.*]`
-  - `tool_constants.py`のfrozenset（Drift検証用）
+  - `tool_constants.py`のfrozenset（テスト・文書生成用）
 - **対応するテスト**:
   - `tests/unit/test_runtime_tool_registry.py`
   - `tests/unit/test_route_resolver.py`
-  - `tests/unit/test_tool_routing_validation.py`
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -374,7 +419,7 @@ Operabilityを優先し、Drift検証とテストのための期待値が必要�
 
 確認済みの差異なし
 
-ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。Reload実行フロー全体がPolicy由来フィールドのみを更新することの実装検証状況については、Shared/DB Known Issuesの該当項目を参照。
 
 ## Review Triggers
 
@@ -387,12 +432,10 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - 外部Protocolまたは採用Libraryが変更、廃止された場合
 - 障害実績により前提またはFailure Policyが妥当でないと判明した場合
 - 代替案の不採用理由が成立しなくなった場合
-
-このADR固有の見直し条件を追加すること。
-
 - MCPサーバーごとの必須性と失敗方針の変更（ADR-004と連動）
 - RuntimeToolのフィールド定義の変更
-- Routing Driftの閾値変更
+- Agent再起動なしでのMCPサーバー追加・削除（Hot Reload/Rediscovery、Policy B）が要件となる場合
+- 可用性計算を各MCPサーバー個別ではなく中央集約する設計へ変更する場合
 
 ## Approval
 
@@ -408,7 +451,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - **Approved By**: architecture-reviewer
 - **Approval Date**: 2026-08-20
-- **Approval Reference**: ADR-003作成
+- **Approval Reference**: ADR-003作成、ADR-013統合
 
 ## Related Documents
 
@@ -421,6 +464,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md) — MCP Discovery and Routing
 - [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — Tool Registry Reference
+- [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Availability Metadata
 - [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md) — Agent Tool Execution
 - [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime
 
@@ -430,7 +474,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- 関係するKnown Issue
+- [Shared/DB Known Issues](90_shared_90_inconsistencies_and_known_issues.md) — CI-003（Reload実行フロー全体の検証未了）、CI-015（Tool所有権重複検出のテスト未整備）
 
 ### Implementation References
 
@@ -438,16 +482,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/shared/route_resolver.py::ToolRouteResolver`
 - `scripts/shared/tool_registry.py::ToolRegistry`
 - `scripts/shared/runtime_tool.py::RuntimeTool`
-- `scripts/shared/tool_routing_validation.py`
-
-## Change History
-
-Accepted後は、Decisionの意味を変更しない軽微な修正だけを記録する。
-
-- 2026-08-20: Proposedとして作成
-- 2026-08-20: Acceptedへ変更
-
-判断内容を変更する場合は、新しいADRを作成して本ADRをSupersededへ変更する。
+- `scripts/agent/services/mcp_tool_discovery.py::McpToolDiscoveryService`
 
 ## Completion Checklist
 
@@ -466,7 +501,6 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] Exceptionsまたは適用対象外が明確である
 - [x] 各InvariantにVerificationが対応している
 - [x] 自動化可能な検証がManual Reviewだけになっていない
-- [x] Migrationまたは移行不要の理由が記載されている
 - [x] 既存ADRとの関係が記載されている
 - [x] 関係するSpecificationと矛盾していない
 - [x] 現行実装との差異がKnown Issueへ登録されている

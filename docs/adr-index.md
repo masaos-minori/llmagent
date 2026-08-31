@@ -32,9 +32,10 @@ definitions, ID format rules, and section header conventions are defined once in
 | ADR-008 | SQLiteを4DBへ分離する | Accepted | `adr/ADR-008-sqlite-4db-separation.md` |
 | ADR-009 | RAGのFTS5検索用テキストとLLM提示用テキスト分離 | Accepted | `adr/ADR-009-rag-ft5-text-separation.md` |
 | ADR-010 | RAGの外部実行失敗時のインプロセスフォールバック | Accepted | `adr/ADR-010-rag-fallback.md` |
-| ADR-011 | Database Corruption Recovery Safety Boundary | Proposed | `adr/ADR-011-database-corruption-recovery-safety-boundary.md` |
 | ADR-012 | Git MCP Server-Side Write Enforcement | Proposed | `adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
-| ADR-013 | MCP Tool Availability Model | Proposed | `adr/ADR-013-mcp-tool-availability-model.md` |
+
+ADR-011（Database Corruption Recovery Safety Boundary）はADR-008へ統合され、削除された。
+ADR-013（MCP Tool Availability Model）はADR-003へ統合され、削除された。
 
 ## ADR Dependency Graph
 
@@ -47,14 +48,12 @@ ADR-006 → ADR-008
 ADR-007 → ADR-004
 ADR-009 → ADR-005
 ADR-010 → ADR-004
-ADR-013 → ADR-003
 ```
 
 ### Circular Dependencies Detected
 
 CDR-1: ADR-005 ↔ ADR-009 (bidirectional)
 CDR-2: ADR-003 ↔ ADR-007 (bidirectional)
-CDR-3: ADR-013 → ADR-003 → ADR-004 (transitive circular path)
 
 These violate the governance framework's prohibition on circular dependencies.
 Resolve by restructuring related ADRs or documenting as known exceptions.
@@ -70,7 +69,6 @@ invariants (INV-016–020) may rely on Manual Review or Operational Procedure.
 | INV-001 | ADR-001 | Workflow definition mandatory; missing workflow raises RuntimeError | Unit Test | CI | Blocking | Confirmed in code; no test yet |
 | INV-002 | ADR-001 | Workflow schema consistent across versions | Integration Test | CI | Blocking | Not implemented |
 | INV-003 | ADR-002 | Config isolation enforced between environments | Unit Test | CI | Blocking | Confirmed in code (`config_loader.py` `restrict_to()`); no test yet |
-| INV-004 | ADR-013 | No duplicate tool ownership | Unit Test | CI | Blocking | Confirmed in code (`mcp_tool_discovery.py`); no test yet |
 | INV-005 | ADR-003 | RuntimeToolRegistry is the sole routing authority | Unit Test | CI | Blocking | Confirmed in code (`resolve()` never falls back to ToolRegistry); no test yet |
 | INV-006 | ADR-007 | No stdio transport usage | Unit Test | CI | Blocking | Confirmed (no stdio transport code exists); no test yet |
 | INV-007 | ADR-005 | `chunks_vec` deleted before `documents` | Unit Test | CI | Blocking | Confirmed in code; no test yet |
@@ -83,7 +81,6 @@ invariants (INV-016–020) may rely on Manual Review or Operational Procedure.
 | INV-014 | ADR-010 | No local fallback on normal empty RAG result | Integration Test | CI | Blocking | Confirmed (`remote_empty` → `HttpResultKind.EMPTY`); no test yet |
 | INV-015 | ADR-010 | No local fallback on RAG 401/403 | Integration Test | CI | Blocking | **Potentially violated** — `http_augment.py` falls back on 4xx/parse errors (see Known Issue CI-003); no test yet |
 | INV-016 | ADR-008 | SQLite 4DB separation maintained | Operational Procedure | Pre-deploy | Deployment Blocking | Confirmed (`DbTarget` enum); needs operational procedure |
-| INV-017 | ADR-011 | Recovery respects security-profile boundary | Startup Validation | Startup | Deployment Blocking | **Violated** — `recover_corruption()` does not distinguish production/local (see Known Issue CI-002); no test yet |
 | INV-018 | ADR-012 | Git MCP write operations enforced server-side | Operational Procedure | Operations | Warning | Not verified; needs operational procedure |
 | INV-019 | ADR-004 | Missing config fails close in all modes | Startup Validation | Startup | Deployment Blocking | **Violated** — `load_config()` omits `strict=True` on `load_all()` (see Known Issue CI-005); no test yet |
 | INV-020 | ADR-004 | Local safety checks fail close | Startup Validation | Startup | Deployment Blocking | **Unclear** — needs verification that `check_readiness()` enforces fail-close in local mode (see Known Issue CI-006); no test yet |
@@ -97,7 +94,7 @@ currently exists.
 | Pipeline Stage | Invariants Covered |
 |----------------|-------------------|
 | CI (pull request) | INV-001 through INV-015 |
-| Startup validation | INV-010, INV-011, INV-017, INV-019, INV-020 |
+| Startup validation | INV-010, INV-011, INV-019, INV-020 |
 | Pre-deployment validation | INV-016 |
 | Operations (runtime monitoring) | INV-018 |
 

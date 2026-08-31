@@ -23,7 +23,7 @@ related:
 
 ## 0. Concept distinctions
 
-See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the distinction between these concepts.
+See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between these concepts.
 
 ## 1. `config_dependent` (static)
 
@@ -72,11 +72,11 @@ Always returns every implemented tool; disabled tools are never omitted from the
 
 ## /v1/tools as RuntimeToolRegistry Source
 
-See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the design decision that `/v1/tools` is the sole source for constructing `RuntimeToolRegistry`.
+See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that `/v1/tools` is the sole source for constructing `RuntimeToolRegistry`.
 
 ## Reload vs. restart for RuntimeToolRegistry
 
-See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the design decision that reload does not rediscover tools.
+See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that reload does not rediscover tools.
 
 ## Field Mapping: /v1/tools ↔ RuntimeTool
 
@@ -100,15 +100,15 @@ Disabled tools must be rejected by `/v1/call_tool` before reaching the dispatch 
 
 ## 6. RuntimeToolRegistry (agent-side)
 
-See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the design decision about RuntimeToolRegistry as the sole authority.
+See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision about RuntimeToolRegistry as the sole authority.
 
 ## 6a. Static availability vs. dynamic health (distinct, unintegrated boundary)
 
-See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the design decision that static availability and dynamic health are separate subsystems.
+See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that static availability and dynamic health are separate subsystems.
 
 ## 6b. Approval is not a disabled state
 
-See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the design decision that approval is not a form of disabled availability.
+See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that approval is not a form of disabled availability.
 
 ## Wiring reference
 

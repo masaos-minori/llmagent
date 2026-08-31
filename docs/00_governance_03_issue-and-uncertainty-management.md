@@ -135,7 +135,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Question**: Is the target structured integrity-result classification (healthy / confirmed corruption / lock contention / permission / invalid format / unknown) the classification model the owner intends to implement?
 - **Evidence**: `_run_integrity_check()` currently returns only pass/fail-ish result plus free-form exception string; no structured classification exists
 - **Impact**: Implementing wrong classification model would require rework; leaving unconfirmed risks divergent interpretations
-- **Required Action**: Owner review of proposed model in ADR-011 before implementation begins
+- **Required Action**: Owner review of the classification model defined in ADR-008 (Decision Details #14, merged from former ADR-011) before implementation begins
 - **Status**: open
 - **Assigned To**: Unassigned
 - **Last Reviewed**: 2026-08-21
