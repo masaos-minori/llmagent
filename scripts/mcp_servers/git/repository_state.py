@@ -333,24 +333,6 @@ class RepositoryState:
         """Return (ok, error); ok=True if branch is NOT in protected_branches."""
         return True, ""
 
-    def _check_dirty_worktree(self, repo) -> tuple[bool, str]:
-        """Return (ok, error); ok=True when worktree has no uncommitted changes."""
-        if repo.is_dirty(untracked_files=True):
-            return (
-                False,
-                "[DENIED] worktree has uncommitted changes (dirty worktree) — commit, stash, or discard changes first",
-            )
-        return True, ""
-
-    def _check_detached_head(self, repo) -> tuple[bool, str]:
-        """Return (ok, error); ok=True when HEAD is attached or allow_detached_head is True."""
-        if repo.head.is_detached:
-            return (
-                False,
-                "[DENIED] repository is in a detached HEAD state — checkout a branch first, or set allow_detached_head=true in git_mcp_server.toml",
-            )
-        return True, ""
-
     def _validate_ref(self, ref: str) -> tuple[bool, str]:
         """Check if a ref is safe (not an option)."""
         if not ref:
@@ -643,24 +625,6 @@ class WriteProtectionPipeline:
 
     def _check_protected_branch(self, branch: str) -> tuple[bool, str]:
         """Return (ok, error); ok=True if branch is NOT in protected_branches."""
-        return True, ""
-
-    def _check_dirty_worktree(self, repo: git.Repo) -> tuple[bool, str]:
-        """Return (ok, error); ok=True when worktree has no uncommitted changes."""
-        if repo.is_dirty(untracked_files=True):
-            return (
-                False,
-                "[DENIED] worktree has uncommitted changes (dirty worktree) — commit, stash, or discard changes first",
-            )
-        return True, ""
-
-    def _check_detached_head(self, repo: git.Repo) -> tuple[bool, str]:
-        """Return (ok, error); ok=True when HEAD is attached or allow_detached_head is True."""
-        if repo.head.is_detached:
-            return (
-                False,
-                "[DENIED] repository is in a detached HEAD state — checkout a branch first, or set allow_detached_head=true in git_mcp_server.toml",
-            )
         return True, ""
 
     def _validate_ref(self, ref: str) -> tuple[bool, str]:
