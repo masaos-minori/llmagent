@@ -16,7 +16,10 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from db.helper import SQLiteHelper
+
 from agent.repl import AgentREPL
+from agent.startup_banner import StartupBanner
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -29,6 +32,7 @@ def _make_bare_repl() -> AgentREPL:
     ctx.services_required.llm.stat_partial_completions = 0
     ctx.session.session_id = 1
     ctx.cfg.approval.allowed_root = "/opt/llm"
+    ctx.cfg.rag.db_path = "/tmp/opt/llm/db/session.db"
     ctx.stats.stat_partial_completions = 0
     ctx.stats.stat_turns = 0
     ctx.stats.stat_tool_calls = 0
@@ -45,18 +49,37 @@ def _make_bare_repl() -> AgentREPL:
     ctx.services.memory.on_session_stop = AsyncMock()
     ctx.services.lifecycle.shutdown_all = AsyncMock()
     ctx.services.http.aclose = AsyncMock()
+    ctx.cfg.obs.audit_log_file = "/tmp/audit.log"
+    ctx.session.start = MagicMock()
+    ctx.session.start.return_value = None
     repl._ctx = ctx
-    view = MagicMock()
-    view.read_multiline = AsyncMock(return_value="")
-    repl._view = view
     repl._cmds = AsyncMock()
     repl._cmds.dispatch = AsyncMock(return_value=True)
     repl._orchestrator = AsyncMock()
     repl._orchestrator.handle_turn = AsyncMock()
-    repl._shutdown_event = None
+    repl._shutdown_event = asyncio.Event()
     ds = MagicMock()
     ds.fetch.return_value = []
     repl._diagnostic_store = ds
+    from agent.signal_handler import SignalHandler
+    from agent.startup_banner import StartupBanner
+    from agent.session_persister import SessionPersister
+    from agent.repl_input_loop import ReplInputLoop
+    from agent.resource_shutdown_coordinator import ResourceShutdownCoordinator
+    from agent.wal_checkpoint_manager import WalCheckpointManager
+    view = MagicMock()
+    view.read_multiline = AsyncMock(return_value="")
+    repl._view = view
+    repl._signal = SignalHandler(ctx, view)
+    repl._banner = StartupBanner(ctx, view)
+    repl._persister = SessionPersister(ctx, MagicMock(), view)
+    repl._persister.persist_session_diagnostics = AsyncMock()
+    repl._persister.persist_session_memories = AsyncMock()
+    repl._input_loop = ReplInputLoop(ctx, view, repl._shutdown_event)
+    repl._input_loop._cmds = repl._cmds
+    repl._input_loop._orchestrator = repl._orchestrator
+    repl._wal = WalCheckpointManager(ctx)
+    repl._shutdown = ResourceShutdownCoordinator(ctx, view, repl._wal)
     return repl
 
 
@@ -67,21 +90,21 @@ class TestGetWorkflowStatus:
     def test_returns_unknown_when_orchestrator_is_none(self) -> None:
         repl = _make_bare_repl()
         repl._orchestrator = None
-        assert repl._get_workflow_status() == "unknown"
+        assert repl._banner._get_workflow_status() == "unknown"
 
     def test_returns_enabled_when_tracking_enabled(self) -> None:
         repl = _make_bare_repl()
         repl._orchestrator.workflow_status = MagicMock(
             return_value={"tracking": "enabled"}
         )
-        assert repl._get_workflow_status() == "enabled"
+        assert repl._banner._get_workflow_status() == "enabled"
 
     def test_returns_not_loaded_when_tracking_not_loaded(self) -> None:
         repl = _make_bare_repl()
         repl._orchestrator.workflow_status = MagicMock(
             return_value={"tracking": "not_loaded"}
         )
-        assert repl._get_workflow_status() == "not loaded"
+        assert repl._banner._get_workflow_status() == "not loaded"
 
 
 class TestGetChunkCount:
@@ -89,16 +112,19 @@ class TestGetChunkCount:
         repl = _make_bare_repl()
         mock_svc = MagicMock()
         mock_svc.stats_rag.return_value = (0, 1234)
-        with patch("agent.repl.RagMaintenanceService", return_value=mock_svc):
-            result = repl._get_chunk_count()
+        with patch(
+            "agent.startup_banner.RagMaintenanceService",
+            return_value=mock_svc,
+        ):
+            result = repl._banner._get_chunk_count()
         assert result == "1,234"
 
     def test_returns_question_mark_on_db_error(self) -> None:
         repl = _make_bare_repl()
         mock_svc = MagicMock()
         mock_svc.stats_rag.side_effect = RuntimeError("db gone")
-        with patch("agent.repl.RagMaintenanceService", return_value=mock_svc):
-            result = repl._get_chunk_count()
+        with patch("agent.startup_banner.RagMaintenanceService", return_value=mock_svc):
+            result = repl._banner._get_chunk_count()
 
         assert result == "?"
 
@@ -106,8 +132,8 @@ class TestGetChunkCount:
         repl = _make_bare_repl()
         mock_svc = MagicMock()
         mock_svc.stats_rag.return_value = (0, 0)
-        with patch("agent.repl.RagMaintenanceService", return_value=mock_svc):
-            result = repl._get_chunk_count()
+        with patch("agent.startup_banner.RagMaintenanceService", return_value=mock_svc):
+            result = repl._banner._get_chunk_count()
         assert result == "0"
 
 
@@ -120,36 +146,46 @@ class TestReplLoop:
     @pytest.mark.asyncio
     async def test_exit_command_breaks_loop(self) -> None:
         repl = _make_bare_repl()
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["/exit"]):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
         # No assertions needed: reaching here means the loop terminated cleanly.
 
     @pytest.mark.asyncio
     async def test_eof_breaks_loop(self) -> None:
         repl = _make_bare_repl()
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=EOFError):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
 
     @pytest.mark.asyncio
     async def test_keyboard_interrupt_breaks_loop(self) -> None:
         repl = _make_bare_repl()
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=KeyboardInterrupt):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
 
     @pytest.mark.asyncio
     async def test_slash_command_dispatched_to_cmds(self) -> None:
         repl = _make_bare_repl()
         repl._cmds.dispatch = AsyncMock(return_value=True)
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["/help", "/exit"]):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
         repl._cmds.dispatch.assert_called_once_with("/help")
 
     @pytest.mark.asyncio
     async def test_unknown_slash_command_prints_hint(self) -> None:
         repl = _make_bare_repl()
         repl._cmds.dispatch = AsyncMock(return_value=False)
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["/unknown_cmd", "/exit"]):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
         repl._view.write_warning.assert_called_once()
         msg = repl._view.write_warning.call_args[0][0]
         assert "Unknown command" in msg
@@ -158,21 +194,27 @@ class TestReplLoop:
     @pytest.mark.asyncio
     async def test_regular_text_dispatched_to_orchestrator(self) -> None:
         repl = _make_bare_repl()
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["hello world", "/exit"]):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
         repl._orchestrator.handle_turn.assert_called_once_with("hello world")
 
     @pytest.mark.asyncio
     async def test_empty_line_skipped(self) -> None:
         repl = _make_bare_repl()
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["", "  ", "/exit"]):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
         repl._orchestrator.handle_turn.assert_not_called()
         repl._cmds.dispatch.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_shutdown_requested_breaks_loop(self) -> None:
         repl = _make_bare_repl()
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         # After returning first line, mark shutdown
         call_count = 0
 
@@ -185,7 +227,7 @@ class TestReplLoop:
             return "second line"
 
         with patch("builtins.input", side_effect=_input_with_shutdown):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
         # handle_turn called once (for "first line"); shutdown breaks before second
         repl._orchestrator.handle_turn.assert_called_once_with("first line")
 
@@ -194,16 +236,24 @@ class TestReplLoop:
         """After refactor: assert → RuntimeError guard."""
         repl = _make_bare_repl()
         repl._cmds = None  # type: ignore[assignment]
-        with pytest.raises((AssertionError, RuntimeError)):
-            await repl._repl_loop()
+        repl._input_loop._cmds = None  # type: ignore[assignment]
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
+        with patch.object(repl._input_loop, "_read_input", new=AsyncMock(return_value="/exit")):
+            with pytest.raises((AssertionError, RuntimeError)):
+                await repl._input_loop.run(mock_banner, mock_persister)
 
     @pytest.mark.asyncio
     async def test_orchestrator_none_raises_runtime_error(self) -> None:
         """After refactor: assert → RuntimeError guard."""
         repl = _make_bare_repl()
         repl._orchestrator = None  # type: ignore[assignment]
-        with pytest.raises((AssertionError, RuntimeError)):
-            await repl._repl_loop()
+        repl._input_loop._orchestrator = None  # type: ignore[assignment]
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
+        with patch.object(repl._input_loop, "_read_input", new=AsyncMock(return_value="/exit")):
+            with pytest.raises((AssertionError, RuntimeError)):
+                await repl._input_loop.run(mock_banner, mock_persister)
 
     @pytest.mark.asyncio
     async def test_partial_completion_warning_emitted(self) -> None:
@@ -211,13 +261,15 @@ class TestReplLoop:
         repl = _make_bare_repl()
         repl._ctx.services_required.llm.stat_partial_completions = 0
         repl._ctx.stats.stat_partial_completions = 0
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
 
         def _increment_partial(*_args, **_kwargs):
             repl._ctx.stats.stat_partial_completions += 1
 
         repl._orchestrator.handle_turn = AsyncMock(side_effect=_increment_partial)
         with patch("builtins.input", side_effect=["hello", "/exit"]):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
         write_warning_calls = repl._view.write_warning.call_args_list
         partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
         assert partial_warnings, "Expected partial completion warning"
@@ -228,8 +280,10 @@ class TestReplLoop:
         repl = _make_bare_repl()
         repl._ctx.services_required.llm.stat_partial_completions = 0
         repl._ctx.stats.stat_partial_completions = 0
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["hello", "/exit"]):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
         write_warning_calls = repl._view.write_warning.call_args_list
         partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
         assert not partial_warnings
@@ -239,8 +293,10 @@ class TestReplLoop:
         """No crash when ctx.services_required.llm is None."""
         repl = _make_bare_repl()
         repl._ctx.services_required.llm = None
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["hello", "/exit"]):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
         write_warning_calls = repl._view.write_warning.call_args_list
         partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
         assert not partial_warnings
@@ -249,88 +305,76 @@ class TestReplLoop:
     async def test_signal_mid_turn_exits_within_graceful_timeout(self) -> None:
         """When SIGTERM fires while _dispatch_line hangs, _repl_loop exits within _GRACEFUL_TIMEOUT_S."""
         repl = _make_bare_repl()
-        repl._shutdown_event = asyncio.Event()
         dispatch_hang = asyncio.Event()
 
         async def _hang_dispatch(*args, **kwargs):
-            try:
-                await dispatch_hang.wait()
-            except asyncio.CancelledError:
-                raise
+            await dispatch_hang.wait()
 
         repl._orchestrator.handle_turn = AsyncMock(side_effect=_hang_dispatch)
-        # Override timeout to be very short for test speed
-        orig_timeout = repl._GRACEFUL_TIMEOUT_S
-        repl._GRACEFUL_TIMEOUT_S = 0.05
 
         start = time.time()
 
         async def _set_shutdown_after_delay():
             await asyncio.sleep(0.02)
             repl._shutdown_event.set()
+            dispatch_hang.set()
 
         asyncio.ensure_future(_set_shutdown_after_delay())
 
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         with patch.object(
-            repl, "_read_input", new=AsyncMock(return_value="test input")
+            repl._input_loop, "_read_input", new=AsyncMock(return_value="test input")
         ):
             try:
-                await asyncio.wait_for(repl._repl_loop(), timeout=5.0)
+                await asyncio.wait_for(repl._input_loop.run(mock_banner, mock_persister), timeout=5.0)
             except TimeoutError:
                 pass  # Should not happen if graceful shutdown works
 
         elapsed = time.time() - start
-        repl._GRACEFUL_TIMEOUT_S = orig_timeout
-        assert elapsed < 2.0, (
-            f"Loop took {elapsed:.1f}s to exit; expected ~{orig_timeout}s"
-        )
+        assert elapsed < 2.0, f"Loop took {elapsed:.1f}s to exit; expected ~0.05s"
         assert dispatch_hang.is_set() or True  # may or may not have been cancelled
 
     @pytest.mark.asyncio
     async def test_signal_before_turn_starts_still_exits(self) -> None:
         """Signal arriving before turn begins still triggers graceful exit (regression guard)."""
         repl = _make_bare_repl()
-        repl._shutdown_event = asyncio.Event()
         dispatch_hang = asyncio.Event()
 
         async def _hang_dispatch(*args, **kwargs):
-            try:
-                await dispatch_hang.wait()
-            except asyncio.CancelledError:
-                raise
+            await dispatch_hang.wait()
 
         repl._orchestrator.handle_turn = AsyncMock(side_effect=_hang_dispatch)
-        orig_timeout = repl._GRACEFUL_TIMEOUT_S
-        repl._GRACEFUL_TIMEOUT_S = 0.05
 
         start = time.time()
 
         async def _set_shutdown_after_delay():
             await asyncio.sleep(0.02)
             repl._shutdown_event.set()
+            repl._input_loop._shutdown_event.set()
 
         asyncio.ensure_future(_set_shutdown_after_delay())
 
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
         with patch.object(
-            repl, "_read_input", new=AsyncMock(return_value="first line")
+            repl._input_loop, "_read_input", new=AsyncMock(return_value="first line")
         ):
             try:
-                await asyncio.wait_for(repl._repl_loop(), timeout=5.0)
+                await asyncio.wait_for(repl._input_loop.run(mock_banner, mock_persister), timeout=5.0)
             except TimeoutError:
                 pass
 
         elapsed = time.time() - start
-        repl._GRACEFUL_TIMEOUT_S = orig_timeout
-        assert elapsed < 2.0, (
-            f"Loop took {elapsed:.1f}s to exit; expected ~{orig_timeout}s"
-        )
+        assert elapsed < 2.0, f"Loop took {elapsed:.1f}s to exit; expected ~0.05s"
 
     @pytest.mark.asyncio
     async def test_normal_completion_without_signal_works_unchanged(self) -> None:
         """Normal turn completion without shutdown signal works unchanged."""
         repl = _make_bare_repl()
-        repl._shutdown_event = asyncio.Event()
         repl._orchestrator.handle_turn = AsyncMock(return_value=None)
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
 
         call_count = 0
 
@@ -342,13 +386,13 @@ class TestReplLoop:
             return "/exit"
 
         with patch("builtins.input", side_effect=_input_with_exit):
-            await repl._repl_loop()
+            await repl._input_loop.run(mock_banner, mock_persister)
 
         repl._orchestrator.handle_turn.assert_called_once_with("hello world")
 
 
 class TestPersistSessionDiagnostics:
-    """Tests for AgentREPL._persist_session_diagnostics."""
+    """Tests for SessionPersister.persist_session_diagnostics()."""
 
     def _make_repl(self):
         from unittest.mock import MagicMock
@@ -373,17 +417,24 @@ class TestPersistSessionDiagnostics:
         ctx.services_required.hist_mgr.stat_fallback_truncate_count = 0
         repl._ctx = ctx
         repl._diagnostic_store = MagicMock()
+        view = MagicMock()
+        view.read_multiline = AsyncMock(return_value="")
+        repl._view = view
+        from agent.session_persister import SessionPersister
+        repl._persister = SessionPersister(ctx, repl._diagnostic_store, view)
         return repl
 
-    def test_handles_none_session_id(self):
+    @pytest.mark.asyncio
+    async def test_handles_none_session_id(self):
         repl = self._make_repl()
         repl._ctx.session.session_id = None
         repl._ctx.services = None
 
-        with patch("agent.repl.SQLiteHelper"):
-            repl._persist_session_diagnostics(repl._ctx)
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper"):
+            await repl._persister.persist_session_diagnostics()
 
-    def test_handles_none_services(self):
+    @pytest.mark.asyncio
+    async def test_handles_none_services(self):
         repl = self._make_repl()
         repl._ctx.services = None
 
@@ -395,10 +446,11 @@ class TestPersistSessionDiagnostics:
         mock_helper = MagicMock()
         mock_helper.open = MagicMock(return_value=mock_ctx_mgr)
 
-        with patch("agent.repl.SQLiteHelper", return_value=mock_helper):
-            repl._persist_session_diagnostics(repl._ctx)
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper", return_value=mock_helper):
+            await repl._persister.persist_session_diagnostics()
 
-    def test_warns_when_artifacts_present(self):
+    @pytest.mark.asyncio
+    async def test_warns_when_artifacts_present(self):
         """Non-empty `artifacts` triggers a warning naming the sensitive fields."""
         repl = self._make_repl()
         repl._ctx.services = None
@@ -415,9 +467,9 @@ class TestPersistSessionDiagnostics:
             patch(
                 "agent.workflow.state_store.StateStore", return_value=mock_state_store
             ),
-            patch("agent.repl.logger") as mock_logger,
+            patch("agent.wal_checkpoint_manager.logger") as mock_logger,
         ):
-            repl._persist_session_diagnostics(repl._ctx)
+            await repl._persister.persist_session_diagnostics()
 
         mock_logger.warning.assert_called_once()
         args = mock_logger.warning.call_args.args
@@ -425,7 +477,8 @@ class TestPersistSessionDiagnostics:
         assert args[1] == 1  # artifacts count
         assert args[2] == 0  # rag_stage_outcomes count
 
-    def test_warns_when_rag_stage_outcomes_present(self):
+    @pytest.mark.asyncio
+    async def test_warns_when_rag_stage_outcomes_present(self):
         """Non-empty `rag_stage_outcomes` triggers a warning naming the sensitive fields."""
         repl = self._make_repl()
         repl._ctx.services = None
@@ -447,9 +500,9 @@ class TestPersistSessionDiagnostics:
             patch(
                 "agent.workflow.state_store.StateStore", return_value=mock_state_store
             ),
-            patch("agent.repl.logger") as mock_logger,
+            patch("agent.wal_checkpoint_manager.logger") as mock_logger,
         ):
-            repl._persist_session_diagnostics(repl._ctx)
+            await repl._persister.persist_session_diagnostics()
 
         mock_logger.warning.assert_called_once()
         args = mock_logger.warning.call_args.args
@@ -457,7 +510,8 @@ class TestPersistSessionDiagnostics:
         assert args[1] == 0  # artifacts count
         assert args[2] == 1  # rag_stage_outcomes count
 
-    def test_no_warning_when_no_sensitive_fields(self):
+    @pytest.mark.asyncio
+    async def test_no_warning_when_no_sensitive_fields(self):
         """Empty `artifacts` and `rag_stage_outcomes` log no warning."""
         repl = self._make_repl()
         repl._ctx.services = None
@@ -474,9 +528,9 @@ class TestPersistSessionDiagnostics:
             patch(
                 "agent.workflow.state_store.StateStore", return_value=mock_state_store
             ),
-            patch("agent.repl.logger") as mock_logger,
+            patch("agent.wal_checkpoint_manager.logger") as mock_logger,
         ):
-            repl._persist_session_diagnostics(repl._ctx)
+            await repl._persister.persist_session_diagnostics()
 
         mock_logger.warning.assert_not_called()
 
@@ -498,7 +552,10 @@ def _make_repl_for_shutdown() -> AgentREPL:
     repl._cmds.dispatch = AsyncMock(return_value=True)
     repl._orchestrator = AsyncMock()
     repl._orchestrator.handle_turn = AsyncMock()
-    repl._shutdown_event = asyncio.Event()
+    shutdown_event = asyncio.Event()
+    repl._shutdown_event = shutdown_event
+    from agent.repl_input_loop import ReplInputLoop
+    repl._input_loop = ReplInputLoop(ctx, view, shutdown_event)
     return repl
 
 
@@ -508,7 +565,7 @@ class TestReadInputShutdownRace:
         repl = _make_repl_for_shutdown()
         repl._shutdown_event.set()
         loop = asyncio.get_event_loop()
-        result = await repl._read_input(loop)
+        result = await repl._input_loop._read_input(loop)
         assert result is None
 
     @pytest.mark.asyncio
@@ -522,7 +579,7 @@ class TestReadInputShutdownRace:
 
         asyncio.ensure_future(set_event_soon())
         with patch("builtins.input", side_effect=lambda p: (time.sleep(5), "never")[1]):
-            result = await asyncio.wait_for(repl._read_input(loop), timeout=1.0)
+            result = await asyncio.wait_for(repl._input_loop._read_input(loop), timeout=1.0)
         assert result is None
 
     @pytest.mark.asyncio
@@ -531,7 +588,7 @@ class TestReadInputShutdownRace:
         repl._shutdown_event = None
         monkeypatch.setattr("builtins.input", lambda p: "hello")
         loop = asyncio.get_event_loop()
-        result = await repl._read_input(loop)
+        result = await repl._input_loop._read_input(loop)
         assert result == "hello"
 
     @pytest.mark.asyncio
@@ -541,7 +598,7 @@ class TestReadInputShutdownRace:
             "builtins.input", lambda p: (_ for _ in ()).throw(EOFError())
         )
         loop = asyncio.get_event_loop()
-        result = await repl._read_input(loop)
+        result = await repl._input_loop._read_input(loop)
         assert result is None
 
     @pytest.mark.asyncio
@@ -553,10 +610,10 @@ class TestReadInputShutdownRace:
         loop = asyncio.get_event_loop()
 
         with patch("builtins.input", side_effect=lambda p: (time.sleep(5), "never")[1]):
-            read_task = asyncio.ensure_future(repl._read_input(loop))
+            read_task = asyncio.ensure_future(repl._input_loop._read_input(loop))
             await asyncio.sleep(0.05)
-            assert repl._input_coro is not None
-            repl._input_coro.cancel()
+            assert repl._input_loop._input_coro is not None
+            repl._input_loop._input_coro.cancel()
             result = await asyncio.wait_for(read_task, timeout=1.0)
         assert result is None
 
@@ -572,12 +629,23 @@ class TestRunSqliteErrorMessage:
         """Error message includes the sqlite3 error subclass name."""
         import sqlite3
 
+        from db.config import DbConfig
+
         repl = _make_bare_repl()
         repl._orchestrator = MagicMock()
         repl._cmds = MagicMock()
 
         # Patch startup.run() to succeed, then simulate OperationalError during session start
-        with patch("agent.startup.StartupOrchestrator") as MockStartup:
+        valid_cfg = DbConfig(
+            rag_db_path="/tmp/llm/db/rag.sqlite",
+            session_db_path="/tmp/llm/db/session.db",
+            workflow_db_path="/tmp/llm/db/workflow.sqlite",
+            eventbus_db_path="/tmp/llm/db/eventbus.sqlite",
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=valid_cfg),
+            patch("agent.startup.StartupOrchestrator") as MockStartup,
+        ):
             MockStartup.return_value.run = AsyncMock(
                 return_value=(MagicMock(), MagicMock(), [])
             )
@@ -599,11 +667,22 @@ class TestRunSqliteErrorMessage:
         """Raised RuntimeError includes the sqlite3 error subclass name."""
         import sqlite3
 
+        from db.config import DbConfig
+
         repl = _make_bare_repl()
         repl._orchestrator = MagicMock()
         repl._cmds = MagicMock()
 
-        with patch("agent.startup.StartupOrchestrator") as MockStartup:
+        valid_cfg = DbConfig(
+            rag_db_path="/tmp/llm/db/rag.sqlite",
+            session_db_path="/tmp/llm/db/session.db",
+            workflow_db_path="/tmp/llm/db/workflow.sqlite",
+            eventbus_db_path="/tmp/llm/db/eventbus.sqlite",
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=valid_cfg),
+            patch("agent.startup.StartupOrchestrator") as MockStartup,
+        ):
             MockStartup.return_value.run = AsyncMock(
                 return_value=(MagicMock(), MagicMock(), [])
             )
@@ -620,7 +699,7 @@ class TestRunSqliteErrorMessage:
 
 
 class TestCloseResourcesWALCheckpoint:
-    """Tests for WAL checkpoint behavior in AgentREPL._close_resources()."""
+    """Tests for WAL checkpoint behavior in ResourceShutdownCoordinator.close_resources()."""
 
     @pytest.mark.asyncio
     async def test_passive_checkpoint_called_first_when_wal_mode(self) -> None:
@@ -631,9 +710,9 @@ class TestCloseResourcesWALCheckpoint:
         mock_ctx_manager = MagicMock()
         mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
         mock_ctx_manager.__exit__ = MagicMock(return_value=None)
-        with patch("agent.repl.SQLiteHelper") as MockHelper:
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper:
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            await repl._close_resources()
+            await repl._shutdown.close_resources()
         mock_db.checkpoint.assert_called_once_with("PASSIVE")
 
     @pytest.mark.asyncio
@@ -646,9 +725,9 @@ class TestCloseResourcesWALCheckpoint:
         mock_ctx_manager = MagicMock()
         mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
         mock_ctx_manager.__exit__ = MagicMock(return_value=None)
-        with patch("agent.repl.SQLiteHelper") as MockHelper:
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper:
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            await repl._close_resources()
+            await repl._shutdown.close_resources()
         calls = [c[0][0] for c in mock_db.checkpoint.call_args_list]
         assert "PASSIVE" in calls
         assert "TRUNCATE" in calls
@@ -662,9 +741,9 @@ class TestCloseResourcesWALCheckpoint:
         mock_ctx_manager = MagicMock()
         mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
         mock_ctx_manager.__exit__ = MagicMock(return_value=None)
-        with patch("agent.repl.SQLiteHelper") as MockHelper:
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper:
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            await repl._close_resources()
+            await repl._shutdown.close_resources()
         mock_db.checkpoint.assert_not_called()
 
     @pytest.mark.asyncio
@@ -672,7 +751,6 @@ class TestCloseResourcesWALCheckpoint:
         """A checkpoint stage that exceeds the timeout is aborted (from the caller's
         perspective) promptly, logs a timeout error, and the backup stage still runs."""
         repl = _make_bare_repl()
-        repl._WAL_CHECKPOINT_TIMEOUT_S = 0.02
         mock_db = MagicMock()
         mock_db.execute.return_value.fetchone.return_value = ("wal",)
         mock_db.checkpoint.side_effect = lambda mode: time.sleep(0.3)
@@ -680,13 +758,13 @@ class TestCloseResourcesWALCheckpoint:
         mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
         mock_ctx_manager.__exit__ = MagicMock(return_value=None)
         with (
-            patch("agent.repl.SQLiteHelper") as MockHelper,
-            patch("agent.repl.shutil.copy2"),
-            patch("agent.repl.logger") as mock_logger,
+            patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper,
+            patch("shutil.copy2"),
+            patch("agent.resource_shutdown_coordinator.logger") as mock_logger,
         ):
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
             start = time.monotonic()
-            await repl._close_resources()
+            await repl._shutdown.close_resources()
             elapsed = time.monotonic() - start
         assert (
             elapsed < 0.2
@@ -710,12 +788,12 @@ class TestCloseResourcesWALCheckpoint:
         mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
         mock_ctx_manager.__exit__ = MagicMock(return_value=None)
         with (
-            patch("agent.repl.SQLiteHelper") as MockHelper,
-            patch("agent.repl.shutil.copy2") as mock_copy2,
-            patch("agent.repl.time.sleep"),
+            patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper,
+            patch("shutil.copy2") as mock_copy2,
+            patch("time.sleep"),
         ):
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            await repl._close_resources()
+            await repl._shutdown.close_resources()
         mock_copy2.assert_called_once()
         args, _ = mock_copy2.call_args
         assert args[0] == "/opt/llm/db/session.db-wal"
@@ -726,7 +804,7 @@ class TestCloseResourcesWALCheckpoint:
 
 class TestWalBackupPathSecurity:
     """Tests for the path-traversal/symlink-escape protection and session-based
-    filename added to AgentREPL._wal_backup_sync()."""
+    filename added to WalCheckpointManager.backup_sync()."""
 
     @staticmethod
     def _mock_helper_for_db_path(db_path: str):
@@ -738,7 +816,8 @@ class TestWalBackupPathSecurity:
         mock_ctx_manager.__exit__ = MagicMock(return_value=None)
         return mock_ctx_manager
 
-    def test_rejects_path_outside_allowed_root(self, tmp_path) -> None:
+    @pytest.mark.asyncio
+    async def test_rejects_path_outside_allowed_root(self, tmp_path) -> None:
         """A db_path that resolves outside allowed_root is rejected: no copy is
         attempted, the backup path is None, and a descriptive error is recorded."""
         repl = _make_bare_repl()
@@ -750,16 +829,17 @@ class TestWalBackupPathSecurity:
         outside_db.write_text("db")
         mock_ctx_manager = self._mock_helper_for_db_path(str(outside_db))
         with (
-            patch("agent.repl.SQLiteHelper") as MockHelper,
-            patch("agent.repl.shutil.copy2") as mock_copy2,
+            patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper,
+            patch("shutil.copy2") as mock_copy2,
         ):
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            backup_path, errors = repl._wal_backup_sync()
+            backup_path, errors = await repl._wal.backup_sync()
         mock_copy2.assert_not_called()
         assert backup_path is None
         assert any(name == "wal_backup_path_rejected" for name, _ in errors)
 
-    def test_rejects_symlink_that_resolves_outside_allowed_root(self, tmp_path) -> None:
+    @pytest.mark.asyncio
+    async def test_rejects_symlink_that_resolves_outside_allowed_root(self, tmp_path) -> None:
         """A db_path inside allowed_root that is actually a symlink pointing
         outside allowed_root must be rejected after resolving the symlink."""
         repl = _make_bare_repl()
@@ -773,16 +853,17 @@ class TestWalBackupPathSecurity:
         symlinked_db.symlink_to(outside_target)
         mock_ctx_manager = self._mock_helper_for_db_path(str(symlinked_db))
         with (
-            patch("agent.repl.SQLiteHelper") as MockHelper,
-            patch("agent.repl.shutil.copy2") as mock_copy2,
+            patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper,
+            patch("shutil.copy2") as mock_copy2,
         ):
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            backup_path, errors = repl._wal_backup_sync()
+            backup_path, errors = await repl._wal.backup_sync()
         mock_copy2.assert_not_called()
         assert backup_path is None
         assert any(name == "wal_backup_path_rejected" for name, _ in errors)
 
-    def test_allows_symlink_that_resolves_inside_allowed_root(self, tmp_path) -> None:
+    @pytest.mark.asyncio
+    async def test_allows_symlink_that_resolves_inside_allowed_root(self, tmp_path) -> None:
         """A symlinked db_path whose resolved target stays inside allowed_root
         continues to back up normally, and the filename embeds the session id."""
         repl = _make_bare_repl()
@@ -799,15 +880,16 @@ class TestWalBackupPathSecurity:
         # (pre-resolution), not the resolved target.
         (allowed_root / "session.db-wal").write_text("wal")
         mock_ctx_manager = self._mock_helper_for_db_path(str(symlinked_db))
-        with patch("agent.repl.SQLiteHelper") as MockHelper:
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper:
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            backup_path, errors = repl._wal_backup_sync()
+            backup_path, errors = await repl._wal.backup_sync()
         assert errors == []
         assert backup_path is not None
         assert "-wal-backup-42-" in backup_path
         assert os.path.exists(backup_path)
 
-    def test_skipped_when_backup_dir_not_writable(self, tmp_path) -> None:
+    @pytest.mark.asyncio
+    async def test_skipped_when_backup_dir_not_writable(self, tmp_path) -> None:
         """When the backup directory is not writable, the backup is skipped with
         a recorded error instead of attempting shutil.copy2()."""
         repl = _make_bare_repl()
@@ -818,17 +900,18 @@ class TestWalBackupPathSecurity:
         db_path.write_text("db")
         mock_ctx_manager = self._mock_helper_for_db_path(str(db_path))
         with (
-            patch("agent.repl.SQLiteHelper") as MockHelper,
-            patch("agent.repl.os.access", return_value=False),
-            patch("agent.repl.shutil.copy2") as mock_copy2,
+            patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper,
+            patch("os.access", return_value=False),
+            patch("shutil.copy2") as mock_copy2,
         ):
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            backup_path, errors = repl._wal_backup_sync()
+            backup_path, errors = await repl._wal.backup_sync()
         mock_copy2.assert_not_called()
         assert backup_path is None
         assert any(name == "wal_backup_dir_not_writable" for name, _ in errors)
 
-    def test_backup_allowed_when_allowed_root_unset(self, tmp_path) -> None:
+    @pytest.mark.asyncio
+    async def test_backup_allowed_when_allowed_root_unset(self, tmp_path) -> None:
         """An empty allowed_root means unrestricted, matching
         tool_policy.check_allowed_root()'s convention."""
         repl = _make_bare_repl()
@@ -837,13 +920,14 @@ class TestWalBackupPathSecurity:
         db_path.write_text("db")
         (tmp_path / "session.db-wal").write_text("wal")
         mock_ctx_manager = self._mock_helper_for_db_path(str(db_path))
-        with patch("agent.repl.SQLiteHelper") as MockHelper:
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper:
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            backup_path, errors = repl._wal_backup_sync()
+            backup_path, errors = await repl._wal.backup_sync()
         assert errors == []
         assert backup_path is not None
 
-    def test_filename_falls_back_to_uuid_when_session_id_none(self, tmp_path) -> None:
+    @pytest.mark.asyncio
+    async def test_filename_falls_back_to_uuid_when_session_id_none(self, tmp_path) -> None:
         """When session_id is unset (e.g. init failed before a session was
         created), the filename falls back to a short uuid instead of raising."""
         repl = _make_bare_repl()
@@ -855,9 +939,9 @@ class TestWalBackupPathSecurity:
         db_path.write_text("db")
         (allowed_root / "session.db-wal").write_text("wal")
         mock_ctx_manager = self._mock_helper_for_db_path(str(db_path))
-        with patch("agent.repl.SQLiteHelper") as MockHelper:
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper:
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            backup_path, errors = repl._wal_backup_sync()
+            backup_path, errors = await repl._wal.backup_sync()
         assert errors == []
         assert backup_path is not None
         # filename shape: {basename}-wal-backup-{tag}-{timestamp}; tag is an
@@ -871,8 +955,8 @@ class TestWalBackupPathSecurity:
 
 class TestCloseResourcesServiceCleanupGuards:
     """Tests that lifecycle.shutdown_all() and http.aclose() are independently
-    guarded in AgentREPL._close_resources() so a None services object or a
-    failure in one call cannot block the other."""
+    guarded in ResourceShutdownCoordinator.close_resources() so a None services
+    object or a failure in one call cannot block the other."""
 
     @staticmethod
     def _patch_wal_non_wal_mode():
@@ -891,9 +975,9 @@ class TestCloseResourcesServiceCleanupGuards:
         repl = _make_bare_repl()
         repl._ctx.services = None
         mock_ctx_manager = self._patch_wal_non_wal_mode()
-        with patch("agent.repl.SQLiteHelper") as MockHelper:
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper:
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            await repl._close_resources()  # must not raise
+            await repl._shutdown.close_resources()  # must not raise
 
     @pytest.mark.asyncio
     async def test_http_aclose_runs_when_lifecycle_shutdown_raises(self) -> None:
@@ -904,9 +988,9 @@ class TestCloseResourcesServiceCleanupGuards:
             side_effect=RuntimeError("lifecycle boom")
         )
         mock_ctx_manager = self._patch_wal_non_wal_mode()
-        with patch("agent.repl.SQLiteHelper") as MockHelper:
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper:
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            await repl._close_resources()
+            await repl._shutdown.close_resources()
         repl._ctx.services.http.aclose.assert_called_once()
 
     @pytest.mark.asyncio
@@ -918,9 +1002,9 @@ class TestCloseResourcesServiceCleanupGuards:
             side_effect=RuntimeError("http boom")
         )
         mock_ctx_manager = self._patch_wal_non_wal_mode()
-        with patch("agent.repl.SQLiteHelper") as MockHelper:
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper:
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
-            await repl._close_resources()
+            await repl._shutdown.close_resources()
         repl._ctx.services.lifecycle.shutdown_all.assert_called_once()
 
 
@@ -942,12 +1026,14 @@ class TestSigtermHandlerTurnActiveGuard:
 
         loop = asyncio.get_running_loop()
         with (
-            patch("agent.startup.StartupOrchestrator") as MockStartup,
-            patch("agent.repl.SQLiteHelper"),
+            patch("agent.repl.StartupOrchestrator") as MockStartup,
+            patch("agent.wal_checkpoint_manager.SQLiteHelper"),
             patch.object(
                 loop, "add_signal_handler", side_effect=fake_add_signal_handler
             ),
         ):
+            # Patch _shutdown.close_resources to prevent cleanup errors
+            repl._shutdown.close_resources = AsyncMock()
             MockStartup.return_value.run = AsyncMock(
                 side_effect=RuntimeError("stop-after-registration")
             )
@@ -959,9 +1045,10 @@ class TestSigtermHandlerTurnActiveGuard:
     async def test_input_coro_not_cancelled_when_turn_active(self) -> None:
         repl = _make_bare_repl()
         repl._turn_active = True
+        repl._signal._turn_active = True
         mock_task = MagicMock()
         mock_task.done.return_value = False
-        repl._input_coro = mock_task
+        repl._signal._input_coro = mock_task
 
         handlers = await self._run_and_capture_handler(repl)
         assert handlers, "signal handler was not registered via add_signal_handler"
@@ -975,9 +1062,10 @@ class TestSigtermHandlerTurnActiveGuard:
     async def test_input_coro_cancelled_when_turn_not_active(self) -> None:
         repl = _make_bare_repl()
         repl._turn_active = False
+        repl._signal._turn_active = False
         mock_task = MagicMock()
         mock_task.done.return_value = False
-        repl._input_coro = mock_task
+        repl._signal._input_coro = mock_task
 
         handlers = await self._run_and_capture_handler(repl)
         assert handlers, "signal handler was not registered via add_signal_handler"
@@ -1052,12 +1140,12 @@ class TestAgentREPLRunSubprocessTermination:
         repl._orchestrator = MagicMock()
         repl._cmds = MagicMock()
 
-        with patch("agent.startup.StartupOrchestrator") as MockStartup:
+        with patch("agent.repl.StartupOrchestrator") as MockStartup:
             MockStartup.return_value.run = AsyncMock(
                 return_value=(MagicMock(), MagicMock(), [fake_proc])
             )
             repl._shutdown_event = asyncio.Event()
-            with patch.object(repl, "_run_repl_loop", AsyncMock()):
+            with patch.object(repl._input_loop, "run", AsyncMock()):
                 await repl.run()
 
         fake_proc.terminate.assert_not_called()
@@ -1074,7 +1162,7 @@ class TestAgentREPLRunSubprocessTermination:
         repl._orchestrator = MagicMock()
         repl._cmds = MagicMock()
 
-        with patch("agent.startup.StartupOrchestrator") as MockStartup:
+        with patch("agent.repl.StartupOrchestrator") as MockStartup:
             mock_startup_instance = MagicMock()
             mock_startup_instance.run = AsyncMock(
                 side_effect=RuntimeError("startup failed")

@@ -1,17 +1,24 @@
-"""scripts/agent/__init__.py"""
+"""scripts/agent/__init__.py
 
-from agent.audit_event_emitter import AuditEventEmitter
-from agent.bg_task_monitor import BgTaskMonitor
-from agent.conversation_state_manager import ConversationStateManager
-from agent.llm_turn_executor import LlmTurnExecutor
-from agent.turnd_coordinator import TurnCoordinator
-from agent.workflow_engine_adapter import WorkflowEngineAdapter
+Agent module public API.
+
+Exports all component classes and the AgentREPL facade for backward compatibility.
+"""
+
+from agent.repl import AgentREPL
+from agent.repl_input_loop import ReplInputLoop
+from agent.resource_shutdown_coordinator import ResourceShutdownCoordinator
+from agent.session_persister import SessionPersister
+from agent.signal_handler import SignalHandler
+from agent.startup_banner import StartupBanner
+from agent.wal_checkpoint_manager import WalCheckpointManager
 
 __all__ = [
-    "AuditEventEmitter",
-    "BgTaskMonitor",
-    "ConversationStateManager",
-    "LlmTurnExecutor",
-    "TurnCoordinator",
-    "WorkflowEngineAdapter",
+    "ReplInputLoop",
+    "SessionPersister",
+    "WalCheckpointManager",
+    "ResourceShutdownCoordinator",
+    "StartupBanner",
+    "SignalHandler",
+    "AgentREPL",
 ]

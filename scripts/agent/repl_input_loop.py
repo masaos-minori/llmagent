@@ -1,55 +1,3 @@
-# Implementation Procedure: repl_input_loop.py — REPL input/dispatch responsibility extraction
-
-## Goal
-
-Create `scripts/agent/repl_input_loop.py` containing a `ReplInputLoop` class that owns REPL input/dispatch methods: `_repl_loop`, `_read_input`, `_should_exit`, `_dispatch_line`, `_abort_input`.
-
-## Scope
-
-- Create new module `scripts/agent/repl_input_loop.py`.
-- Extract five methods from AgentREPL into ReplInputLoop class.
-- ReplInputLoop receives AgentContext, CLIView, and asyncio.Event via constructor injection.
-
-## Assumptions
-
-- The ReplInputLoop class will be instantiated by AgentREPL.__init__ with dependencies injected.
-- The `_shutdown_event` must be passed to ReplInputLoop for shutdown racing during input reads.
-- The `_n_tools` property and `SLASH_COMMANDS` cached_property depend on AgentREPL's internal state — keep as AgentREPL properties unless they clearly belong to StartupBanner's domain.
-
-## Design decisions
-
-- Composition over inheritance: ReplInputLoop receives dependencies via constructor injection. No inheritance hierarchy.
-- Dependency injection pattern: Each dependency (AgentContext, CLIView, asyncio.Event) received only by constructor. This enables independent instantiation and testing.
-- Callback preservation: All callback signatures preserved on AgentREPL and forwarded to the appropriate component during lifecycle events.
-- Module naming convention: Use snake_case with descriptive names matching the responsibility domain.
-
-## Alternatives considered
-
-- Keep `_prompt` property inside ReplInputLoop instead of AgentREPL: Rejected — `_prompt` is a simple string property that doesn't belong to input loop concern; keeping it in AgentREPL avoids unnecessary getter delegation.
-- Pass the entire AgentREPL instance to ReplInputLoop: Rejected — violates separation of concerns; ReplInputLoop should receive only what it needs.
-
-## Implementation
-
-### Target file
-
-`scripts/agent/repl_input_loop.py`
-
-### Procedure
-
-1. Create module docstring describing ReplInputLoop's single responsibility.
-2. Define `ReplInputLoop` class with constructor accepting `(ctx, view, shutdown_event)`.
-3. Move `_repl_loop`, `_read_input`, `_should_exit`, `_dispatch_line`, `_abort_input` methods.
-4. Adapt method references: replace `self._view` with `self._view`, `self._ctx` with `self._ctx`, etc.
-5. Preserve multiline continuation via `self._view.read_multiline(loop, line)`.
-6. Preserve shutdown event racing in `_repl_loop` and `_read_input`.
-
-### Method
-
-Create — write new module from scratch.
-
-### Details
-
-```python
 """scripts/agent/repl_input_loop.py
 
 ReplInputLoop — REPL input/dispatch responsibility extraction.
@@ -59,11 +7,18 @@ Handles: readline, multiline continuation, shutdown event racing, command routin
 """
 
 import asyncio
-from typing import TYPE_CHECKING
+import sqlite3
+from collections.abc import Callable, Coroutine
+from typing import TYPE_CHECKING, Any
+
+from agent.output_tags import OutputTag
+from agent.session import SchemaMissingError
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
+    from agent.commands.registry import CommandRegistry
     from agent.context import AgentContext
+    from agent.orchestrator import Orchestrator
 
 _REPL_RESERVED_COMMANDS = frozenset(["/exit"])
 
@@ -74,6 +29,8 @@ class ReplInputLoop:
     Owns the main input/dispatch loop, readline integration, multiline
     continuation, shutdown event racing, and command routing.
     """
+
+    _GRACEFUL_TIMEOUT_S: float = 10.0
 
     def __init__(
         self,
@@ -86,9 +43,13 @@ class ReplInputLoop:
         self._shutdown_event = shutdown_event
         self._turn_active: bool = False
         self._input_coro: asyncio.Task[str] | None = None
+        self._cmds: CommandRegistry | None = None
+        self._orchestrator: Orchestrator | None = None
 
     async def run(
-        self, banner_callback: callable[[], None]
+        self,
+        banner_callback: Callable[[], None],
+        persister_callback: Callable[[], None] | Callable[[], "Coroutine[Any, Any, None]"] | None = None,
     ) -> None:
         """Run the main REPL loop."""
         ctx = self._ctx
@@ -118,11 +79,22 @@ class ReplInputLoop:
         except RuntimeError as e:
             self._view.write_fatal(str(e))
             raise
+        finally:
+            if persister_callback is not None:
+                result = persister_callback()
+                if asyncio.iscoroutine(result):
+                    await result
 
     def _abort_input(self) -> None:
         """Signal end-of-turn display and clear the tracked input task."""
         self._view.write_turn_end()
         self._input_coro = None
+
+    def _log_graceful_shutdown_timeout(self) -> None:
+        """Log a warning when graceful shutdown times out."""
+        self._view.write_warning(
+            f"Graceful shutdown timed out after {self._GRACEFUL_TIMEOUT_S}s"
+        )
 
     async def _read_input(self, loop: asyncio.AbstractEventLoop) -> str | None:
         """Read a single input line, handling EOF/keyboard interrupt and multiline continuation."""
@@ -249,17 +221,17 @@ class ReplInputLoop:
                     if dispatch_task in done:
                         dispatch_task.result()  # propagate exception if any
                         continue
-                    # shutdown_task completed first — cancel only shutdown_task, keep dispatch_task running
+                    # shutdown_task completed first — cancel both tasks and exit
                     assert shutdown_task in pending or shutdown_task in done
                     if shutdown_task in pending:
                         shutdown_task.cancel()
-                    try:
-                        await asyncio.wait_for(
-                            dispatch_task, timeout=self._GRACEFUL_TIMEOUT_S
-                        )
-                    except TimeoutError:
-                        self._log_graceful_shutdown_timeout()
-                        break
+                    if dispatch_task in pending:
+                        dispatch_task.cancel()
+                        try:
+                            await dispatch_task
+                        except asyncio.CancelledError:
+                            pass
+                    break
                 else:
                     # _shutdown_event is None or already set — await the already-created dispatch_task
                     try:
@@ -267,10 +239,11 @@ class ReplInputLoop:
                             dispatch_task,
                             timeout=self._GRACEFUL_TIMEOUT_S
                             if ctx.conv.shutdown_requested
+                            or (self._shutdown_event is not None and self._shutdown_event.is_set())
                             else None,
                         )
                     except TimeoutError:
-                        if ctx.conv.shutdown_requested:
+                        if ctx.conv.shutdown_requested or (self._shutdown_event is not None and self._shutdown_event.is_set()):
                             self._log_graceful_shutdown_timeout()
                             break
                         raise
@@ -284,80 +257,3 @@ class ReplInputLoop:
                 ctx.conv.is_processing = False
             if ctx.conv.shutdown_requested:
                 break
-```
-
-## Compatibility considerations
-
-- REQ-001: ReplInputLoop owns REPL input/dispatch methods (`_repl_loop`, `_read_input`, `_should_exit`, `_dispatch_line`, `_abort_input`).
-- REQ-008: All existing public method signatures and return types preserved.
-- REQ-010: Existing import paths (`from agent.repl import AgentREPL`) continue to work.
-
-## Security considerations
-
-- No security-sensitive data exposed; ReplInputLoop operates on AgentContext which is already trusted.
-
-## Rollback considerations
-
-- If ReplInputLoop introduces behavioral regression, revert repl.py to original version via `git checkout`.
-- The new module can be removed independently without affecting the original repl.py.
-
-## Validation plan
-
-| Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
-|---|---|---|---|
-| scripts/agent/repl_input_loop.py | Unit: instantiate and call methods independently | Custom unit test creation | Component works in isolation |
-| scripts/agent/repl.py | Integration: verify run behavior unchanged | `uv run pytest tests/agent/test_repl.py tests/agent/test_repl_error_handling.py tests/agent/test_repl_health.py tests/agent/test_repl_health_malformed.py tests/agent/test_signal_handler_race.py` | All existing tests pass |
-| scripts/agent/repl.py | Static analysis: no circular imports | `python -c "import agent.repl"` | No ImportError |
-| scripts/agent/repl.py | Static analysis: backward compat import paths | `python -c "from agent.repl import AgentREPL"` | Import succeeds |
-| All new/modified files | Lint: ruff passes | `ruff check scripts/agent/repl_input_loop.py scripts/agent/session_persister.py scripts/agent/wal_checkpoint_manager.py scripts/agent/resource_shutdown_coordinator.py scripts/agent/startup_banner.py scripts/agent/signal_handler.py scripts/agent/repl.py` | No lint errors |
-| All new/modified files | Type check: mypy passes | `mypy scripts/agent/repl_input_loop.py scripts/agent/session_persister.py scripts/agent/wal_checkpoint_manager.py scripts/agent/resource_shutdown_coordinator.py scripts/agent/startup_banner.py scripts/agent/signal_handler.py scripts/agent/repl.py` | No type errors |
-
-## Completion criteria
-
-- ReplInputLoop class has its own dedicated class with clear responsibility boundary.
-- Each extracted concern has its own dedicated class.
-- No circular imports between new modules.
-- Existing import paths (`from agent.repl import AgentREPL`) continue to work.
-- `ruff` lint passes on all modified/new files.
-- `mypy` type check passes on all modified/new files.
-
-## Out of scope
-
-- Changing the `_GRACEFUL_TIMEOUT_S` value or making it configurable.
-- Modifying StartupOrchestrator internals.
-- Adding new diagnostic metrics or changing the session diagnostics schema.
-- Changing the WAL checkpoint strategy (PASSIVE → TRUNCATE fallback).
-- Adding new signal types beyond SIGTERM/SIGINT.
-- Modifying CLIView or other display-layer components.
-- Changing the command dispatch mechanism (CommandRegistry).
-
-## Execution Status
-
-### Execution Status
-| Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
-
-### Blocker Log
-| Step | Blocker Description | Resolved | Resolution Date |
-|------|---------------------|----------|-----------------|
-| — | — | — | — |
-
-### Work Items Created
-| Item ID | Related Step | Type | Status | Owner | Due Date |
-|---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
-
-## Traceability
-
-- **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-001
-- **Source issue**: issues/20260829-080924_refactor_002_repl_separation.md
-- **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20260829-180809_plan.md
-- **Source implementation procedure**: N/A: this document is the generated implementation procedure
-- **Generated at**: 20260830-083027
-- **Related target files**: scripts/agent/repl_input_loop.py

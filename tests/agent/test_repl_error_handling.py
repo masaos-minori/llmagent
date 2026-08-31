@@ -4,26 +4,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from agent.cli_view import CLIView
 from agent.context import AgentContext
-from agent.repl import AgentREPL
+from agent.diagnostic_store import DiagnosticStore
+from agent.repl_input_loop import ReplInputLoop
+from agent.session_persister import SessionPersister
 
 
 @pytest.mark.asyncio
 async def test_repl_handles_diagnostic_save_error():
     """Verifies that the REPL remains responsive when DiagnosticStore.save raises RuntimeError."""
-    repl = AgentREPL()
+    # Set up context
+    ctx = MagicMock(spec=AgentContext)
+    ctx.session = MagicMock()
+    ctx.session.session_id = 123
+    ctx.turn = MagicMock()
+    ctx.turn.current_turn_id = "test_turn"
+    ctx.cfg = MagicMock()
+    ctx.cfg.memory = MagicMock()
 
-    # Mocking dependencies
-    repl._ctx = MagicMock(spec=AgentContext)
-    repl._ctx.session = MagicMock()
-    repl._ctx.session.session_id = 123
-    repl._ctx.turn = MagicMock()
-    repl._ctx.turn.current_turn_id = "test_turn"
-
-    # Config mocking
-    repl._ctx.cfg = MagicMock()
-    repl._ctx.cfg.memory = MagicMock()
-
-    # Stats must be primitives for JSON serialization
     stats = MagicMock()
     stats.stat_turns = 1
     stats.stat_tool_calls = 1
@@ -35,49 +32,47 @@ async def test_repl_handles_diagnostic_save_error():
     stats.stat_heartbeat_timeouts = 0
     stats.stat_reconnects = 0
     stats.stat_latency = {}
-    repl._ctx.stats = stats
+    ctx.stats = stats
 
-    # Services mocking
-    repl._ctx.services = MagicMock()
-    repl._ctx.services.llm = MagicMock()
-    repl._ctx.services.llm.stat_parse_errors = 0
-    repl._ctx.services.llm.stat_heartbeat_timeouts = 0
-    repl._ctx.services.llm.stat_reconnects = 0
+    ctx.services = MagicMock()
+    ctx.services.llm = MagicMock()
+    ctx.services.llm.stat_parse_errors = 0
+    ctx.services.llm.stat_heartbeat_timeouts = 0
+    ctx.services.llm.stat_reconnects = 0
 
-    repl._ctx.services.hist_mgr = MagicMock()
-    repl._ctx.services.hist_mgr.stat_compress_count = 0
-    repl._ctx.services.hist_mgr.stat_fallback_truncate_count = 0
+    ctx.services.hist_mgr = MagicMock()
+    ctx.services.hist_mgr.stat_compress_count = 0
+    ctx.services.hist_mgr.stat_fallback_truncate_count = 0
 
-    repl._ctx.services.memory = MagicMock()
-    repl._ctx.services.memory.on_session_stop = AsyncMock()
+    ctx.services.memory = MagicMock()
+    ctx.services.memory.on_session_stop = AsyncMock()
 
-    repl._ctx.conv = MagicMock()
-    repl._ctx.conv.shutdown_requested = False
-    repl._ctx.conv.is_processing = False
-    repl._ctx.conv.memory_disabled = False
-    repl._ctx.conv.memory_warning_shown = False
-    repl._ctx.conv.history = []
+    ctx.services_required = MagicMock()
+    ctx.services_required.runtime_tools = MagicMock()
+    ctx.services_required.runtime_tools.all_tools.return_value = []
 
-    repl._view = MagicMock(spec=CLIView)
-    repl._diagnostic_store = MagicMock()
+    ctx.conv = MagicMock()
+    ctx.conv.shutdown_requested = False
+    ctx.conv.is_processing = False
+    ctx.conv.memory_disabled = False
+    ctx.conv.memory_warning_shown = False
+    ctx.conv.history = []
+
+    view = MagicMock(spec=CLIView)
+    diagnostic_store = MagicMock(spec=DiagnosticStore)
     # Simulate RuntimeError on save
-    repl._diagnostic_store.save.side_effect = RuntimeError(
+    diagnostic_store.save.side_effect = RuntimeError(
         "Sensitive information detected"
     )
 
-    # Initialize mandatory components to avoid "called before _init_components"
-    repl._cmds = MagicMock()
-    repl._orchestrator = MagicMock()
+    # Create persister with the mocked diagnostic store
+    persister = SessionPersister(ctx, diagnostic_store, view)
 
-    # We also need to mock the loop control
-    repl._shutdown_event = asyncio.Event()
-
-    # Mock input to exit immediately
-    with patch("builtins.input", return_value="/exit"):
-        await repl._run_repl_loop()
+    # Run persist_session_diagnostics — error is caught internally, warning is written
+    await persister.persist_session_diagnostics()
 
     # Verify that the warning was written to the view
-    repl._view.write_warning.assert_any_call(
+    view.write_warning.assert_called_once_with(
         "Diagnostics could not be saved: Sensitive information detected"
     )
     # Verify that the REPL didn't crash (it reached the end of the loop)
