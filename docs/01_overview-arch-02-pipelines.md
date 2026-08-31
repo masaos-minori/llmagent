@@ -83,7 +83,7 @@ Currently, `config/agent.toml` explicitly specifies `startup_mode = "subprocess"
 
 ### Implementation Note: Behavior on Server Startup Failure
 
-See [ADR-004](adr/ADR-004-production-failure-handling-policy.md) for rationale, tradeoffs, and invariants.
+See [ADR-004](adr/ADR-004-environment-failure-handling-policy.md) for rationale, tradeoffs, and invariants.
 
 ## Related Documents
 

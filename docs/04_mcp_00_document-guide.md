@@ -162,7 +162,7 @@ Old MCP source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`) were kep
 ## Related ADRs
 
 - [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
-- [ADR-004](adr/ADR-004-production-failure-handling-policy.md) — Production Failure-Handling Policy
+- [ADR-004](adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
 - [ADR-007](adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — HTTP MCP採用とstdio非サポート
 - [ADR-012](adr/ADR-012-git-mcp-server-side-write-enforcement.md) — Git MCP Server-Side Write Enforcement
 
