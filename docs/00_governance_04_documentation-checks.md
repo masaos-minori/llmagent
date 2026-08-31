@@ -26,7 +26,6 @@ Checks all documents under `docs/*.md` for quality issues.
 - Unclosed inline code blocks
 - JSON examples without fence markers
 - Duplicate heading numbers
-- Migration Notes placement in ADRs
 - Resolved issue mentions in active documents
 
 **Custom rules:**
@@ -168,14 +167,12 @@ All ADRs must use the following section headers in this order:
 6. Consequences (Positive Consequences, Negative Consequences)
 7. Invariants (non-negotiable constraints)
 8. Verification
-9. Migration
-10. Implementation Notes
-11. Known Deviations
-12. Review Triggers
-13. Approval
-14. Related Documents
-15. Change History
-16. Completion Checklist
+9. Implementation Notes
+10. Known Deviations
+11. Review Triggers
+12. Approval
+13. Related Documents
+14. Completion Checklist
 
 Duplicate notes shared across all ADRs:
 - "この章は設計判断の根拠にしない" (Do not use this chapter as the basis for design decisions)
@@ -278,23 +275,19 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 | GV-001 | Required Front Matter | Meta | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
 | GV-002 | Valid Document Status | Meta | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
 | GV-003 | Unique ADR ID | Pol | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
-| GV-004 | Successor references for superseded ADRs | Pol | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
 | GV-005 | Existence of Related Documents | Meta | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
 | GV-006 | Self-reference prohibition | Meta | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
 | GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
 | GV-008 | Known Issue required fields | Iss | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
 | GV-009 | Needs Confirmation owner and deadline | Iss | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
-| GV-010 | Deprecated name residual presence in current Specifications | Iss | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
 | GV-011 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-012 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-013 | References to non-existent canonical documents | Pol | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
 | GV-014 | Code is NOT canonical for adopted design decisions | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-015 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-016 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
-| GV-017 | Resolved Issues/Needs Confirmations moved to Archive | Iss | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
 | GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
 | GV-019 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
-| GV-020 | Old Governance documents not used as current canonical sources | Pol | Manual | Human review | Post-migration | Warning | Missing | Register Known Issue |
 
 ### Follow-up Work Needed
 
@@ -304,10 +297,8 @@ Rules marked "Missing" above need new inspection tools or processes:
 2. **GV-014**: Add ADR-vs-code contradiction detection to CI
 3. **GV-015**: Separate dependency graph analysis by type
 4. **GV-016**: Audit auto-check implementations against documentation claims
-5. **GV-017**: Implement archive migration for resolved NC items
-6. **GV-018**: Add glossary term classification validation
-7. **GV-019**: Add metadata field usage policy enforcement
-8. **GV-020**: Post-migration verification that old governance docs are not referenced as canonical
+5. **GV-018**: Add glossary term classification validation
+6. **GV-019**: Add metadata field usage policy enforcement
 
 ## Change Impact Assessment
 
@@ -339,11 +330,7 @@ The following conditions require review before merging:
 ## Maintenance Rules
 
 - New ADRs must be created within one week of the decision being made
-- ADRs cannot be deleted without documenting what replaced them
 - "Proposed" ADRs must be reviewed quarterly
-- Superseded ADRs must remain accessible for historical reference
-- New deprecations must be added within one week of the change being made
-- Items cannot be removed without documenting what replaced them
 - "Needs confirmation" items must be reviewed quarterly
 
 ## Non-Goals

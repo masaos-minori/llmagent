@@ -14,6 +14,31 @@ related:
 
 This document consolidates policy-level rules for the LLM agent design documentation set. It covers document classification, canonical source precedence, conflict resolution, ADR conventions, and dependency graph management.
 
+## Current-Specification-Only Policy
+
+The active design documentation set describes the current system only: what is
+required to understand, implement, configure, operate, and validate the system as it
+exists today.
+
+The active documentation set does not retain:
+
+- Deprecated specifications
+- Superseded specifications
+- Rejected architectural decisions
+- Migration history
+- Change history
+- Archived issues
+- Resolved Needs Confirmation entries
+- Historical document structures
+- Replacement mappings for removed items
+- Historical compatibility records
+
+Before historical content of this kind is removed from a document, any requirement,
+constraint, invariant, rationale, or verification rule it contains that still applies
+to the current system must be transferred into the appropriate current canonical
+document. Removal of the historical content itself is a separate, later change and is
+not performed by adding or updating this policy.
+
 ## Document Classification
 
 Documents in the design documentation set are classified into seven classes:
@@ -54,7 +79,6 @@ treated as the top canonical source for every kind of decision.
 | DB Schema | Schema Generator or official DDL | Schema Test | Known Issues |
 | API Contract | API Schema or official Contract | Integration Test | Known Issues |
 | Operational Procedures | Operations / Runbook | Operational Validation | Known Issues |
-| Deprecated Items | `00_governance_03_issue-and-uncertainty-management.md` | Code Search | Deprecated Items |
 | Unconfirmed Items | `00_governance_03_issue-and-uncertainty-management.md` | Investigation Evidence | Needs Confirmation |
 
 **Code is canonical for current behavior, NOT for adopted design.** When code
@@ -182,19 +206,22 @@ To determine which documents are affected by a change:
 
 ## ADR Status Definitions
 
-- `Proposed`: Under review, not yet adopted
-- `Accepted`: Adopted and currently valid
-- `Rejected`: Considered but not adopted
-- `Deprecated`: No longer recommended but still present in some places
-- `Superseded`: Replaced by a later ADR
+- `Proposed`: Under review, not yet adopted. A Proposed ADR is not a current
+  architectural specification and must not be treated as one until it becomes
+  Accepted.
+- `Accepted`: Adopted and currently valid. An Accepted ADR is the current
+  architectural specification for its decision.
 
 ## ADR Change Protocol
 
-When changing an accepted decision, create a new ADR and mark the original as Superseded rather than modifying the body directly.
+When the current architectural decision changes, update the current Accepted ADR
+directly rather than creating a new ADR. In the same change, update every
+Specification, Reference, Operations document, and verification requirement that the
+changed decision affects.
 
 ## ADR Section Header Standardization
 
-All ADRs must use these section headers in order: Context (Problem, Constraints), Assumptions, Decision, Rationale, Alternatives Considered, Consequences (Positive/Negative), Invariants, Verification, Migration, Implementation Notes, Known Deviations, Review Triggers, Approval, Related Documents, Change History, Completion Checklist.
+All ADRs must use these section headers in order: Context (Problem, Constraints), Assumptions, Decision, Rationale, Alternatives Considered, Consequences (Positive/Negative), Invariants, Verification, Implementation Notes, Known Deviations, Review Triggers, Approval, Related Documents, Completion Checklist.
 
 Duplicate notes shared across all ADRs:
 - "この章は設計判断の根拠にしない" (Do not use this chapter as the basis for design decisions)
@@ -270,25 +297,8 @@ Permitted dependency directions:
 ## Maintenance Rules
 
 - New ADRs must be created within one week of the decision being made
-- ADRs cannot be deleted without documenting what replaced them
 - "Proposed" ADRs must be reviewed quarterly
-- Superseded ADRs must remain accessible for historical reference
-- New deprecations must be added within one week of the change being made
-- Items cannot be removed without documenting what replaced them
 - "Needs confirmation" items must be reviewed quarterly
-
-## Migration History
-
-The governance set was consolidated from 11 area-specific documents into this
-4-document set, reviewing each old document's meaning, references, and tooling
-impact rather than deleting mechanically.
-
-| Consolidated into | Former documents |
-|---|---|
-| Documentation Policy (this document) | Documentation Governance, Canonical Source Rule, Evidence Labels, Governance Framework |
-| Issue and Uncertainty Management | Known Issues Template, Deprecated Items, Needs Confirmation Inventory, Known Issues Migration Plan |
-| Documentation Metadata | AI Reading Metadata, Terminology Glossary |
-| `adr-index.md` (separate document, not part of the 4-document governance set) | ADR Index, `canonical-source-matrix.md`'s ADR-specific entries, `adr_verification_matrix.md` |
 
 ## Non-Goals
 

@@ -50,9 +50,12 @@ audience: developer
 
 ### 3. status
 
-Current state of the document.
+Current state of the document. A document in the active documentation set must carry
+one of these two values; a document that would otherwise need `deprecated` or
+`superseded` is removed from the active set rather than marked with a historical
+status.
 
-- Allowed values: stable, draft, deprecated, superseded
+- Allowed values: draft, stable
 - Example:
 ```yaml
 status: stable
@@ -130,14 +133,12 @@ completeness: complete
 ---
 ```
 
-## Migration Policy
+## Metadata Requirements for Active Documents
 
-Guidelines for adopting new metadata fields:
-
-- Add new metadata fields only during normal document update cycles
-- Do not perform bulk changes to add metadata to all documents at once
-- Prioritize adding metadata to documents that are frequently accessed by AI agents
-- New documents should include all recommended fields from creation
+Every document in the active documentation set must carry the five existing metadata
+fields (title, category, tags, related, keywords). A document should add the
+recommended fields listed above when doing so improves AI agent document selection;
+`status` MUST use one of the two allowed values.
 
 ## Non-Goals
 
@@ -172,10 +173,6 @@ Topics explicitly excluded from this document:
 5. **Plurals**: Plural forms are acceptable when referring to multiple items (Known Issues, Needs Confirmations).
 6. **First occurrence**: On first use in a document, include both preferred and alternative forms: "Needs Confirmation (Requires Confirmation)".
 7. **Subsequent occurrences**: Use only the preferred form after first definition.
-
-### Contradiction Note
-
-The Terminology Glossary defines "canonical source" in a way that contradicts the Canonical Source Rule document itself. This discrepancy was identified during Task 20 analysis and should be resolved before merging.
 
 ## Link Rules
 
