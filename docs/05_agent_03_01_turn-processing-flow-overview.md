@@ -72,8 +72,8 @@ User input (line)
 
 The session title generation task scheduled on the first turn manages consecutive failure counts upon completion.
 
-- When the consecutive failure threshold is reached, `_notify_bg_failure_threshold()` is called exactly once.
-- `_notify_bg_failure_threshold()` guarantees notification to the user. If an exception occurs, it falls back to `logger.critical()` and does not propagate the exception.
+- When the consecutive failure threshold is reached, `BgTaskMonitor.notify_bg_failure_threshold()` is called exactly once.
+- `BgTaskMonitor.notify_bg_failure_threshold()` guarantees notification to the user. If an exception occurs, it falls back to `logger.critical()` and does not propagate the exception.
 - If the constructor opt-in parameter `pause_on_critical_failure` is `True`, the corresponding task type is marked as paused when the threshold is reached. This is per-task-type control, not a global pause flag.
 - `handle_turn()` returns early and notifies the user if any entry in `_bg_pause_state` is `True` immediately after the `approval_pending` guard.
 - The paused state is held only in process memory and persists until the process restarts.
@@ -96,7 +96,7 @@ The session title generation task scheduled on the first turn manages consecutiv
 
 ### System Prompt Sync
 
-- `Orchestrator._sync_system_prompt()` is called in step ③, before user message addition.
+- `TurnCoordinator.sync_system_prompt()` (invoked via `Orchestrator._sync_system_prompt()`) is called in step ③, before user message addition.
 - If `ctx.conv.history[0]` is already in the `"system"` role, its `content` is overwritten.
 - New system messages are validated before insertion.
 

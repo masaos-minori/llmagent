@@ -13,17 +13,18 @@ Create `audit_event_emitter.py` with the AuditEventEmitter class owning `_build_
 
 ## Assumptions
 
-- AuditEventEmitter receives AgentContext via constructor injection (same as Orchestrator).
-- Callbacks (`on_turn_start`, `on_turn_end`, `on_error`) are passed through to AuditEventEmitter rather than consumed directly by Orchestrator.
-- `ToolLoopGuard` ownership remains shared between Orchestrator and LLMTurnRunner.
-- `DiagnosticStore` ownership remains in Orchestrator.
+- AuditEventEmitter takes no constructor dependencies at all (corrected during Step 3 adversarial verification: `build_turn_end_event`/`build_turn_end_metadata`/`build_turn_end_llm_stats` all receive `ctx` — or, for the LLM-stats helper, the `llm` service object — as a per-call argument, so there is nothing left to inject via `__init__`).
+- `_mode_hint` is NOT moved here (corrected during Step 3: `rg` found the pre-refactor `orchestrator.py:79` definition of `_mode_hint(mode: MdqRagMode)` had zero call sites in that file — it duplicated an already-used, already-called `_mode_hint` in `agent/mode_classification.py:38`. It was dead code in `orchestrator.py` and was dropped rather than moved.).
+- Callbacks (`on_turn_start`, `on_turn_end`, `on_error`) are NOT passed through to AuditEventEmitter (corrected during Step 3: this class only builds event dicts — invoking those callbacks is `LlmTurnExecutor`'s responsibility per REQ-004, see `05_llm_turn_executor.md`).
+- `ToolLoopGuard` ownership remains shared between Orchestrator and LLMTurnRunner (unaffected by this file).
+- `DiagnosticStore` ownership remains in Orchestrator (unaffected by this file).
 
 ## Design decisions
 
-1. **AuditEventEmitter owns audit event construction and emission**: The class encapsulates all methods related to building and emitting audit events, including turn_end metadata and LLM stats.
-2. **Constructor injection for dependencies**: AgentContext, callbacks, and required services are injected via `__init__`. This enables independent instantiation and testing.
-3. **No circular imports**: AuditEventEmitter depends only on shared types (AgentContext, etc.) and never imports Orchestrator itself.
-4. **Module-level function extraction**: `_mode_hint`, `_format_session_id`, `_build_turn_end_metadata`, `_build_turn_end_llm_stats` are moved as module-level functions (not class methods) because they don't require instance state.
+1. **AuditEventEmitter owns audit event construction**: The class encapsulates the methods related to building turn_end event dicts, metadata, and LLM stats reads. It does not emit (write) the event itself — the caller (`TurnCoordinator.handle_turn_end`) does that via `ctx.services_required.audit_logger.info(...)`.
+2. **Per-call `ctx` argument, no constructor dependencies** (corrected during Step 3, overriding the original constructor-injection plan): every method takes `ctx` directly, since `ctx` is already available at every call site.
+3. **No circular imports**: AuditEventEmitter depends only on shared types (`AgentContext`, etc.) and never imports Orchestrator itself.
+4. **Module-level function for `_format_session_id` only** (corrected during Step 3, overriding the original plan to also extract `_build_turn_end_metadata`/`_build_turn_end_llm_stats` as module-level functions): those two ended up as instance methods (`build_turn_end_metadata`, `build_turn_end_llm_stats`) on `AuditEventEmitter` instead, called internally by `build_turn_end_event` — grouping them as methods on the class that owns turn_end event construction reads more clearly than scattering module-level helper functions next to it. `_mode_hint` was dropped per the Assumptions correction above.
 
 ## Alternatives considered
 
@@ -158,15 +159,15 @@ Current state verification (adversarial check against `orchestrator.py`):
 
 ## Completion criteria
 
-- [ ] AuditEventEmitter class has `_build_turn_end_event` method
-- [ ] Module-level functions `_mode_hint`, `_format_session_id`, `_build_turn_end_metadata`, `_build_turn_end_llm_stats` exist
-- [ ] `build_turn_end_event(elapsed_ms, error_kind, task_id, is_partial) -> dict[...]` has identical signature and behavior
-- [ ] No circular imports between new modules
-- [ ] Existing import paths (`from agent.orchestrator import Orchestrator`) continue to work
-- [ ] `_build_turn_end_*` helper functions owned by AuditEventEmitter (REQ-013)
-- [ ] `ruff` lint passes on this file
-- [ ] `mypy` type check passes on this file
-- [ ] Existing Orchestrator unit tests confirm no behavioral regression
+- [x] AuditEventEmitter class has a `build_turn_end_event` method (renamed from `_build_turn_end_event` per the no-underscore-prefix convention used across all six new modules)
+- [x] Module-level function `_format_session_id` exists; `build_turn_end_metadata`/`build_turn_end_llm_stats` exist as `AuditEventEmitter` instance methods rather than module-level functions, and `_mode_hint` was dropped as dead code — see Assumptions/Design decisions corrections
+- [x] `build_turn_end_event(ctx, elapsed_ms, error_kind, task_id, is_partial) -> dict[...]` has identical behavior — `ctx` added as an explicit parameter (see Assumptions correction)
+- [x] No circular imports between new modules
+- [x] Existing import paths (`from agent.orchestrator import Orchestrator`) continue to work
+- [x] `build_turn_end_*` helper functions owned by AuditEventEmitter (REQ-013)
+- [x] `ruff` lint passes on this file
+- [x] `mypy` type check passes on this file
+- [x] Existing Orchestrator unit tests confirm no behavioral regression (`uv run pytest tests/agent/test_orchestrator.py tests/agent/test_orchestrator_bg_failure_threshold.py tests/integration/test_orchestrator_integration.py` — 136 passed)
 
 ## Out of scope
 
@@ -185,10 +186,10 @@ Current state verification (adversarial check against `orchestrator.py`):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260831-135000 | 20260831-135813 | `scripts/agent/audit_event_emitter.py` already existed on disk at cycle start; this cycle corrected the Assumptions/Design decisions to document why `_mode_hint` was dropped (dead code, confirmed via `rg` against the pre-refactor `orchestrator.py`) and why the metadata/stats helpers became instance methods instead of module-level functions. |
+| 2 | Add or update tests per Validation plan | Completed | 20260831-135000 | 20260831-135813 | No dedicated `test_audit_event_emitter.py` exists; behavior is covered indirectly through `tests/agent/test_orchestrator.py`'s turn_end audit-event assertions and `tests/integration/test_orchestrator_integration.py`. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260831-135000 | 20260831-135813 | `ruff format/check`, `mypy` clean on this file; full suite result identical to master baseline (see 01_orchestrator.md Execution Status). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260831-135000 | 20260831-135813 | N/A: no `docs/00_index.md` task-scope row references this file's symbols by name. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

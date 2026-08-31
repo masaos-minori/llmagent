@@ -100,9 +100,12 @@ def _patch_workflow_loader():
     with (
         patch("agent.orchestrator.WorkflowLoader") as mock_loader,
         patch("agent.orchestrator.StateStore"),
-        patch("agent.orchestrator.create_task", return_value=mock_task),
-        patch("agent.orchestrator.audit_workflow_start"),
-        patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine_instance),
+        patch("agent.workflow_engine_adapter.create_task", return_value=mock_task),
+        patch("agent.workflow_engine_adapter.audit_workflow_start"),
+        patch(
+            "agent.workflow_engine_adapter.WorkflowEngine",
+            return_value=mock_engine_instance,
+        ),
     ):
         mock_loader.return_value.load.return_value = MagicMock(version="test-v1")
         yield mock_loader
@@ -120,6 +123,7 @@ def _make_orchestrator(
     )
     orch._diagnostic_store = MagicMock()
     ctx.diagnostics = orch._diagnostic_store  # keep ctx.diagnostics in sync with mock
+    orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store
     return orch
 
 
@@ -164,7 +168,7 @@ class TestHandleTurnInvokesWorkflowEngine:
 
         with (
             patch(
-                "agent.orchestrator.WorkflowEngine",
+                "agent.workflow_engine_adapter.WorkflowEngine",
                 return_value=mock_engine_instance,
             ),
             patch.object(
@@ -195,14 +199,16 @@ class TestHandleTurnInvokesWorkflowEngine:
 
         with (
             patch.object(
-                orch,
-                "_init_workflow_task",
+                orch._workflow_adapter,
+                "init_workflow_task",
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
-            patch.object(orch, "_activate_workflow"),
-            patch.object(orch, "_deactivate_workflow"),
+            patch.object(orch._workflow_adapter, "activate_workflow"),
+            patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore"),
-            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+            patch(
+                "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
+            ),
         ):
             await orch.handle_turn("hello")
 
@@ -225,14 +231,16 @@ class TestHandleTurnInvokesWorkflowEngine:
 
         with (
             patch.object(
-                orch,
-                "_init_workflow_task",
+                orch._workflow_adapter,
+                "init_workflow_task",
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
-            patch.object(orch, "_activate_workflow"),
-            patch.object(orch, "_deactivate_workflow"),
+            patch.object(orch._workflow_adapter, "activate_workflow"),
+            patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore"),
-            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+            patch(
+                "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
+            ),
         ):
             # Should NOT raise
             await orch.handle_turn("hello")
@@ -274,8 +282,10 @@ class TestHandleTurnInvokesWorkflowEngine:
 
         # Restore real classes that were patched by autouse _patch_workflow_loader fixture
         monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
-        monkeypatch.setattr("agent.orchestrator.WorkflowEngine", WorkflowEngine)
-        monkeypatch.setattr("agent.orchestrator.create_task", create_task)
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
+        )
+        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
 
         ctx = _make_ctx()
         on_error = MagicMock()
@@ -291,6 +301,7 @@ class TestHandleTurnInvokesWorkflowEngine:
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
+        orch._workflow_adapter._workflow_def = orch._workflow_def
 
         # Patch _activate_workflow/_deactivate_workflow to set workflow state properly
         # so _process_turn has valid task_id/workflow_id for the execute stage
@@ -306,8 +317,14 @@ class TestHandleTurnInvokesWorkflowEngine:
             ctx_obj.workflow.workflow_id = None
 
         with (
-            patch.object(orch, "_activate_workflow", side_effect=_fake_activate),
-            patch.object(orch, "_deactivate_workflow", side_effect=_fake_deactivate),
+            patch.object(
+                orch._workflow_adapter, "activate_workflow", side_effect=_fake_activate
+            ),
+            patch.object(
+                orch._workflow_adapter,
+                "deactivate_workflow",
+                side_effect=_fake_deactivate,
+            ),
         ):
             # Should NOT raise — real WorkflowEngine will timeout after 0.01s
             await orch.handle_turn("hello")
@@ -352,8 +369,10 @@ class TestHandleTurnInvokesWorkflowEngine:
 
         # Restore real classes that were patched by autouse _patch_workflow_loader fixture
         monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
-        monkeypatch.setattr("agent.orchestrator.WorkflowEngine", WorkflowEngine)
-        monkeypatch.setattr("agent.orchestrator.create_task", create_task)
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
+        )
+        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
 
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
@@ -368,6 +387,7 @@ class TestHandleTurnInvokesWorkflowEngine:
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
+        orch._workflow_adapter._workflow_def = orch._workflow_def
 
         # Patch _activate_workflow/_deactivate_workflow to set workflow state properly
         def _fake_activate(ctx_obj, task):
@@ -382,8 +402,14 @@ class TestHandleTurnInvokesWorkflowEngine:
             ctx_obj.workflow.workflow_id = None
 
         with (
-            patch.object(orch, "_activate_workflow", side_effect=_fake_activate),
-            patch.object(orch, "_deactivate_workflow", side_effect=_fake_deactivate),
+            patch.object(
+                orch._workflow_adapter, "activate_workflow", side_effect=_fake_activate
+            ),
+            patch.object(
+                orch._workflow_adapter,
+                "deactivate_workflow",
+                side_effect=_fake_deactivate,
+            ),
         ):
             # Should NOT raise — real WorkflowEngine will timeout after 0.01s
             await orch.handle_turn("hello")
@@ -736,6 +762,7 @@ class TestHandleLlmTurnOptionalCallbacks:
         )
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
+        orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(
             orch._llm_runner,
@@ -770,6 +797,7 @@ class TestHandleLlmTurnOptionalCallbacks:
         )
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
+        orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(
             orch._llm_runner,
@@ -800,6 +828,7 @@ class TestHandleLlmTurnOptionalCallbacks:
         orch = Orchestrator(ctx, on_llm_wait_end=on_llm_wait_end)
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
+        orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("hello")
@@ -1135,7 +1164,9 @@ class TestApprovalPendingGuard:
 
         # Patch _process_turn to return a successful result without calling LLM
         with patch.object(
-            orch, "_process_turn", new=AsyncMock(return_value=("ok", None, False))
+            orch._workflow_adapter,
+            "_process_turn",
+            new=AsyncMock(return_value=("ok", None, False)),
         ):
             await orch.handle_turn("do something")
 
@@ -1331,10 +1362,13 @@ class TestInitWorkflowTaskResumeReuse:
         ctx.turn.pending_approval_task_id = "existing-task-id"
 
         with (
-            patch("agent.orchestrator.get_task_by_id", return_value=existing_task),
-            patch("agent.orchestrator.create_task") as mock_create,
+            patch(
+                "agent.workflow_engine_adapter.get_task_by_id",
+                return_value=existing_task,
+            ),
+            patch("agent.workflow_engine_adapter.create_task") as mock_create,
             patch("agent.orchestrator.StateStore"),
-            patch("agent.orchestrator.audit_workflow_start"),
+            patch("agent.workflow_engine_adapter.audit_workflow_start"),
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
@@ -1356,10 +1390,13 @@ class TestInitWorkflowTaskResumeReuse:
         ctx = _make_ctx()
 
         with (
-            patch("agent.orchestrator.get_task_by_id", return_value=existing_task),
-            patch("agent.orchestrator.create_task"),
+            patch(
+                "agent.workflow_engine_adapter.get_task_by_id",
+                return_value=existing_task,
+            ),
+            patch("agent.workflow_engine_adapter.create_task"),
             patch("agent.orchestrator.StateStore"),
-            patch("agent.orchestrator.audit_workflow_start") as mock_audit,
+            patch("agent.workflow_engine_adapter.audit_workflow_start") as mock_audit,
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
@@ -1380,10 +1417,12 @@ class TestInitWorkflowTaskResumeReuse:
         ctx = _make_ctx()
 
         with (
-            patch("agent.orchestrator.get_task_by_id", return_value=halted_task),
-            patch("agent.orchestrator.create_task") as mock_create,
+            patch(
+                "agent.workflow_engine_adapter.get_task_by_id", return_value=halted_task
+            ),
+            patch("agent.workflow_engine_adapter.create_task") as mock_create,
             patch("agent.orchestrator.StateStore"),
-            patch("agent.orchestrator.audit_workflow_start"),
+            patch("agent.workflow_engine_adapter.audit_workflow_start"),
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
@@ -1621,7 +1660,7 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
         orch = _make_orchestrator(ctx)
 
         with patch(
-            "agent.orchestrator.validate_message",
+            "agent.turnd_coordinator.validate_message",
             return_value=ValidationResult(False, "forced failure"),
         ):
             orch._sync_system_prompt()
@@ -1649,8 +1688,8 @@ class TestDiscardAndLogConsecutiveFailures:
         orch = _make_orchestrator(ctx)
 
         with (
-            patch("agent.orchestrator.logger.warning") as mock_warning,
-            patch("agent.orchestrator.logger.error") as mock_error,
+            patch("agent.bg_task_monitor.logger.warning") as mock_warning,
+            patch("agent.bg_task_monitor.logger.error") as mock_error,
         ):
             for _ in range(4):
                 orch._discard_and_log(self._fake_task(RuntimeError("boom")))
@@ -1665,8 +1704,8 @@ class TestDiscardAndLogConsecutiveFailures:
         orch = _make_orchestrator(ctx)
 
         with (
-            patch("agent.orchestrator.logger.warning") as mock_warning,
-            patch("agent.orchestrator.logger.error") as mock_error,
+            patch("agent.bg_task_monitor.logger.warning") as mock_warning,
+            patch("agent.bg_task_monitor.logger.error") as mock_error,
         ):
             for _ in range(BG_FAILURE_THRESHOLD - 1):
                 orch._discard_and_log(self._fake_task(RuntimeError("boom")))
@@ -1703,8 +1742,8 @@ class TestDiscardAndLogConsecutiveFailures:
         assert orch._consecutive_bg_failures == 3
 
         with (
-            patch("agent.orchestrator.logger.warning") as mock_warning,
-            patch("agent.orchestrator.logger.error") as mock_error,
+            patch("agent.bg_task_monitor.logger.warning") as mock_warning,
+            patch("agent.bg_task_monitor.logger.error") as mock_error,
         ):
             orch._discard_and_log(self._fake_task(asyncio.CancelledError()))
 
@@ -1757,7 +1796,7 @@ class TestDiscardAndLogConsecutiveFailures:
         # First failure also calls _on_error — it will raise too (logged as ERROR)
         orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
 
-        with patch("agent.orchestrator.logger.critical") as mock_critical:
+        with patch("agent.bg_task_monitor.logger.critical") as mock_critical:
             # 2nd-(N-1)th failures are silent
             for _ in range(BG_FAILURE_THRESHOLD - 2):
                 orch._discard_and_log(
@@ -1843,7 +1882,9 @@ class TestHandleTurnPauseGuard:
         orch._bg_pause_state["my_bg_task"] = False
 
         with patch.object(
-            orch, "_process_turn", new=AsyncMock(return_value=("ok", None, False))
+            orch._workflow_adapter,
+            "_process_turn",
+            new=AsyncMock(return_value=("ok", None, False)),
         ):
             await orch.handle_turn("do something")
 
@@ -1882,14 +1923,16 @@ class TestHandleWorkflowEngineStatusPreservation:
 
         with (
             patch.object(
-                orch,
-                "_init_workflow_task",
+                orch._workflow_adapter,
+                "init_workflow_task",
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
-            patch.object(orch, "_activate_workflow"),
-            patch.object(orch, "_deactivate_workflow"),
+            patch.object(orch._workflow_adapter, "activate_workflow"),
+            patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore", return_value=mock_store),
-            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+            patch(
+                "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
+            ),
         ):
             await orch._handle_workflow_engine("test line", ctx, time.time())
 
@@ -1923,14 +1966,16 @@ class TestHandleWorkflowEngineStatusPreservation:
 
         with (
             patch.object(
-                orch,
-                "_init_workflow_task",
+                orch._workflow_adapter,
+                "init_workflow_task",
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
-            patch.object(orch, "_activate_workflow"),
-            patch.object(orch, "_deactivate_workflow"),
+            patch.object(orch._workflow_adapter, "activate_workflow"),
+            patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore", return_value=mock_store),
-            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+            patch(
+                "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
+            ),
         ):
             await orch._handle_workflow_engine("test line", ctx, time.time())
 
@@ -1964,14 +2009,16 @@ class TestHandleWorkflowEngineStatusPreservation:
 
         with (
             patch.object(
-                orch,
-                "_init_workflow_task",
+                orch._workflow_adapter,
+                "init_workflow_task",
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
-            patch.object(orch, "_activate_workflow"),
-            patch.object(orch, "_deactivate_workflow"),
+            patch.object(orch._workflow_adapter, "activate_workflow"),
+            patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore", return_value=mock_store),
-            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+            patch(
+                "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
+            ),
         ):
             await orch._handle_workflow_engine("test line", ctx, time.time())
 
@@ -2005,18 +2052,23 @@ class TestHandleWorkflowEngineStatusPreservation:
 
         with (
             patch.object(
-                orch,
-                "_init_workflow_task",
+                orch._workflow_adapter,
+                "init_workflow_task",
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
             patch.object(
-                orch, "_process_turn", new=AsyncMock(return_value=("ok", None, False))
+                orch._workflow_adapter,
+                "_process_turn",
+                new=AsyncMock(return_value=("ok", None, False)),
             ),
-            patch.object(orch, "_deactivate_workflow"),
+            patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore", return_value=mock_store),
-            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+            patch(
+                "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
+            ),
         ):
             orch._state_store = mock_store
+            orch._workflow_adapter._state_store = mock_store
             await orch._handle_workflow_engine("test line", ctx, time.time())
 
         # The finally block should have written 'completed'
@@ -2042,21 +2094,24 @@ class TestHandleWorkflowEngineStatusPreservation:
 
         with (
             patch.object(
-                orch,
-                "_init_workflow_task",
+                orch._workflow_adapter,
+                "init_workflow_task",
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
-            patch.object(orch, "_activate_workflow"),
-            patch.object(orch, "_deactivate_workflow"),
+            patch.object(orch._workflow_adapter, "activate_workflow"),
+            patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch.object(
-                orch,
+                orch._workflow_adapter,
                 "_process_turn",
                 new=AsyncMock(return_value=("ok", "execute", False)),
             ),
             patch("agent.orchestrator.StateStore", return_value=mock_store),
-            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+            patch(
+                "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
+            ),
         ):
             orch._state_store = mock_store
+            orch._workflow_adapter._state_store = mock_store
             await orch._handle_workflow_engine("test line", ctx, time.time())
 
         # The finally block should have written 'failed' because error_kind is set

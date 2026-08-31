@@ -118,7 +118,7 @@ class TestThresholdReachedBehavior:
 
         handler = CapturingHandler()
         handler.setLevel(logging.ERROR)
-        logger = logging.getLogger("agent.orchestrator")
+        logger = logging.getLogger("agent.bg_task_monitor")
         original_handlers = logger.handlers.copy()
         logger.addHandler(handler)
 
@@ -169,7 +169,7 @@ class TestThresholdReachedBehavior:
 
         handler = LevelCapturingHandler()
         handler.setLevel(logging.DEBUG)
-        logger = logging.getLogger("agent.orchestrator")
+        logger = logging.getLogger("agent.bg_task_monitor")
         original_handlers = logger.handlers.copy()
         logger.addHandler(handler)
 

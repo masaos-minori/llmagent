@@ -12,7 +12,7 @@ Create `workflow_engine_adapter.py` with the WorkflowEngineAdapter class owning 
 
 ## Assumptions
 
-- WorkflowEngineAdapter receives AgentContext via constructor injection (same as Orchestrator).
+- WorkflowEngineAdapter receives `AgentContext` as a per-call method argument rather than via constructor injection (corrected during Step 3 adversarial verification: the constructor instead receives `workflow_def`, `state_store`, `tracer`, and the `process_turn`/`handle_turn_end`/`on_error` callables, since `ctx` is already available at every call site inside `Orchestrator.handle_turn`).
 - The inline import `from agent.tool_output import emit_approval_pending_notice` in `_handle_workflow_approval_pending` is replaced by a top-level import in WorkflowEngineAdapter.
 - `_format_session_id` constant is moved to AuditEventEmitter (REQ-013).
 - `BG_FAILURE_THRESHOLD` constant scope is limited to first-turn session-title-generation; do not generalize it.
@@ -173,20 +173,20 @@ Current state verification (adversarial check against `orchestrator.py`):
 
 ## Completion criteria
 
-- [ ] WorkflowEngineAdapter class has all five workflow engine methods
-- [ ] `handle_workflow_engine(line, ctx, turn_started_at) -> None` has identical signature and behavior
-- [ ] `_init_workflow_task(ctx, session_id, existing_task_id, store) -> tuple[str, TaskRecord]` has identical signature and behavior
-- [ ] `_activate_workflow(ctx, task) -> None` has identical signature and behavior
-- [ ] `_deactivate_workflow(ctx) -> None` has identical signature and behavior
-- [ ] `_handle_workflow_approval_pending(exc, session_id) -> None` has identical signature and behavior
-- [ ] `_handle_workflow_halt(exc) -> None` has identical signature and behavior
-- [ ] No circular imports between new modules
-- [ ] Existing import paths (`from agent.orchestrator import Orchestrator`) continue to work
-- [ ] Inline import removed from `_handle_workflow_approval_pending` (REQ-011)
-- [ ] `_format_session_id` constant owned by AuditEventEmitter (not duplicated here)
-- [ ] `ruff` lint passes on this file
-- [ ] `mypy` type check passes on this file
-- [ ] Existing Orchestrator unit tests confirm no behavioral regression
+- [x] WorkflowEngineAdapter class has all six workflow engine methods (per Key Points, exposed without the underscore prefix used in Orchestrator's pre-refactor private methods: `init_workflow_task`, `activate_workflow`, `deactivate_workflow`, `handle_workflow_approval_pending`, `handle_workflow_halt`, plus `handle_workflow_engine`)
+- [x] `handle_workflow_engine(line, ctx, turn_started_at) -> None` has identical signature and behavior
+- [x] `init_workflow_task(ctx, session_id, existing_task_id, store) -> tuple[str, TaskRecord]` has identical behavior (renamed from `_init_workflow_task` per Key Points; Orchestrator keeps a `_init_workflow_task` delegating wrapper for backward compatibility with tests)
+- [x] `activate_workflow(ctx, task) -> None` has identical behavior (renamed from `_activate_workflow`; Orchestrator keeps a `_activate_workflow` delegating wrapper — added during Step 3 adversarial verification after `rg` found `test_orchestrator.py` patches it directly)
+- [x] `deactivate_workflow(ctx) -> None` has identical behavior (renamed from `_deactivate_workflow`; same wrapper situation as above)
+- [x] `handle_workflow_approval_pending(ctx, exc, session_id) -> None` has identical behavior (renamed; `ctx` added as an explicit parameter per the Assumptions correction)
+- [x] `handle_workflow_halt(ctx, exc) -> None` has identical behavior (renamed; `ctx` added as an explicit parameter)
+- [x] No circular imports between new modules
+- [x] Existing import paths (`from agent.orchestrator import Orchestrator`) continue to work
+- [x] Inline import removed from `handle_workflow_approval_pending` (REQ-011) — `from agent.tool_output import emit_approval_pending_notice` is now a top-level import in `workflow_engine_adapter.py`
+- [x] `_format_session_id` function owned by `audit_event_emitter.py` (not duplicated here — imported by `workflow_engine_adapter.py`)
+- [x] `ruff` lint passes on this file (one unjustified `# noqa: B101` suppression found and fixed per `tools/check_suppression_justification.py` during this cycle)
+- [x] `mypy` type check passes on this file
+- [x] Existing Orchestrator unit tests confirm no behavioral regression (`uv run pytest tests/agent/test_orchestrator.py tests/agent/test_orchestrator_bg_failure_threshold.py tests/integration/test_orchestrator_integration.py` — 136 passed)
 
 ## Out of scope
 
@@ -206,10 +206,10 @@ Current state verification (adversarial check against `orchestrator.py`):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260831-135000 | 20260831-135813 | `scripts/agent/workflow_engine_adapter.py` already existed on disk at cycle start; this cycle fixed an unjustified `# noqa: B101` suppression (missing em-dash justification per `tools/check_suppression_justification.py`) and corrected the constructor-injection Assumption to match the actual per-call `ctx` parameter design. |
+| 2 | Add or update tests per Validation plan | Completed | 20260831-135000 | 20260831-135813 | No dedicated `test_workflow_engine_adapter.py` exists; behavior is covered indirectly through `tests/agent/test_orchestrator.py` and `tests/integration/test_orchestrator_integration.py`, whose mock patch targets (`agent.workflow_engine_adapter.create_task`/`audit_workflow_start`/`WorkflowEngine`/`get_task_by_id`, `orch._workflow_adapter.init_workflow_task`/`activate_workflow`/`deactivate_workflow`/`_process_turn`, `orch._workflow_adapter._workflow_def`/`_state_store`) were retargeted from stale `agent.orchestrator.*` references and instance-attribute mocks during this cycle. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260831-135000 | 20260831-135813 | `ruff format/check`, `mypy`, and `bandit` clean on this file after the suppression fix; full suite result identical to master baseline (see 01_orchestrator.md Execution Status). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260831-135000 | 20260831-135813 | N/A: no `docs/00_index.md` task-scope row references this file's symbols by name. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

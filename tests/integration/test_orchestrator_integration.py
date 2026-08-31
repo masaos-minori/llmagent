@@ -84,9 +84,12 @@ def _patch_workflow_loader():
     with (
         patch("agent.orchestrator.WorkflowLoader"),
         patch("agent.orchestrator.StateStore"),
-        patch("agent.orchestrator.create_task", return_value=mock_task),
-        patch("agent.orchestrator.audit_workflow_start"),
-        patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine_instance),
+        patch("agent.workflow_engine_adapter.create_task", return_value=mock_task),
+        patch("agent.workflow_engine_adapter.audit_workflow_start"),
+        patch(
+            "agent.workflow_engine_adapter.WorkflowEngine",
+            return_value=mock_engine_instance,
+        ),
     ):
         yield
 
@@ -103,6 +106,7 @@ def _make_orchestrator(
     )
     orch._diagnostic_store = MagicMock()
     ctx.diagnostics = orch._diagnostic_store
+    orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store
     return orch
 
 
@@ -401,6 +405,7 @@ class TestCompleteTurnExecution:
         orch = Orchestrator(ctx, allowed_tools=["search_web"])
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
+        orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(
             orch, "_handle_memory_injection", side_effect=_capture_allowed
@@ -422,6 +427,7 @@ class TestCompleteTurnExecution:
         orch = Orchestrator(ctx, allowed_tools=["search_web"])
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
+        orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(orch, "_handle_memory_injection", AsyncMock()):
             with patch.object(
@@ -770,7 +776,9 @@ class TestApprovalWorkflowWithRealDB:
         orch = _make_orchestrator(ctx, on_error=on_error)
 
         with patch.object(
-            orch, "_process_turn", new=AsyncMock(return_value=("ok", None, False))
+            orch._workflow_adapter,
+            "_process_turn",
+            new=AsyncMock(return_value=("ok", None, False)),
         ):
             await orch.handle_turn("do something")
 
@@ -789,10 +797,13 @@ class TestApprovalWorkflowWithRealDB:
         ctx.turn.pending_approval_task_id = "existing-task-id"
 
         with (
-            patch("agent.orchestrator.get_task_by_id", return_value=existing_task),
-            patch("agent.orchestrator.create_task") as mock_create,
+            patch(
+                "agent.workflow_engine_adapter.get_task_by_id",
+                return_value=existing_task,
+            ),
+            patch("agent.workflow_engine_adapter.create_task") as mock_create,
             patch("agent.orchestrator.StateStore"),
-            patch("agent.orchestrator.audit_workflow_start"),
+            patch("agent.workflow_engine_adapter.audit_workflow_start"),
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
@@ -813,10 +824,13 @@ class TestApprovalWorkflowWithRealDB:
         ctx = _make_ctx()
 
         with (
-            patch("agent.orchestrator.get_task_by_id", return_value=existing_task),
-            patch("agent.orchestrator.create_task"),
+            patch(
+                "agent.workflow_engine_adapter.get_task_by_id",
+                return_value=existing_task,
+            ),
+            patch("agent.workflow_engine_adapter.create_task"),
             patch("agent.orchestrator.StateStore"),
-            patch("agent.orchestrator.audit_workflow_start") as mock_audit,
+            patch("agent.workflow_engine_adapter.audit_workflow_start") as mock_audit,
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
@@ -836,10 +850,12 @@ class TestApprovalWorkflowWithRealDB:
         ctx = _make_ctx()
 
         with (
-            patch("agent.orchestrator.get_task_by_id", return_value=halted_task),
-            patch("agent.orchestrator.create_task") as mock_create,
+            patch(
+                "agent.workflow_engine_adapter.get_task_by_id", return_value=halted_task
+            ),
+            patch("agent.workflow_engine_adapter.create_task") as mock_create,
             patch("agent.orchestrator.StateStore"),
-            patch("agent.orchestrator.audit_workflow_start"),
+            patch("agent.workflow_engine_adapter.audit_workflow_start"),
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
@@ -872,7 +888,8 @@ class TestApprovalWorkflowWithRealDB:
             AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
         ):
             with patch(
-                "agent.orchestrator.WorkflowEngine", return_value=mock_engine_instance
+                "agent.workflow_engine_adapter.WorkflowEngine",
+                return_value=mock_engine_instance,
             ):
                 await orch.handle_turn("hello")
 
@@ -938,7 +955,7 @@ class TestApprovalWorkflowWithRealDB:
         orch = _make_orchestrator(ctx)
 
         with patch(
-            "agent.orchestrator.validate_message",
+            "agent.turnd_coordinator.validate_message",
             return_value=ValidationResult(False, "forced failure"),
         ):
             orch._sync_system_prompt()
