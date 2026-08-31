@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """scripts/agent/turnd_coordinator.py
 
-Turn lifecycle coordination (start/end, ephemeral cleanup, system prompt
-sync, user message append), extracted from Orchestrator (see
-`issues/done/20260829-080923_refactor_001_orchestrator_separation.md`).
+Turn lifecycle coordination: start/end events only.
+
+Extracted from orchestrator.py (_handle_turn_start, _handle_turn_end).
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import asyncio
 import time
 import uuid
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from shared.json_utils import dumps as _json_dumps
 from shared.logger import Logger
@@ -24,7 +24,6 @@ from agent.conversation_state_manager import EPHEMERAL_KEYS
 from agent.message_schema import validate_message
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
-
 
 class TurnCoordinator:
     """Coordinates per-turn lifecycle: start/end audit events, ephemeral
@@ -127,6 +126,5 @@ class TurnCoordinator:
                 name=getattr(self._on_first_turn, "__name__", "unknown_bg_task"),
             )
             self._background_tasks.add(_task)
-
             _task.add_done_callback(self._discard_and_log)
         ctx.session.save("user", line)

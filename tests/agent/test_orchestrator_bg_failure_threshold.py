@@ -1,4 +1,4 @@
-"""Characterization tests for orchestrator background task failure threshold."""
+"""Characterization tests for BgTaskMonitor: consecutive failure counting, threshold breach, pause state."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from agent.orchestrator import BG_FAILURE_THRESHOLD, Orchestrator
+from agent.bg_task_monitor import BG_FAILURE_THRESHOLD, BgTaskMonitor
 
 
 def _make_ctx() -> MagicMock:
@@ -43,72 +43,62 @@ def _make_ctx() -> MagicMock:
 
 
 class TestConsecutiveFailuresIncrement:
-    """Verify _consecutive_bg_failures increments correctly."""
-
     @pytest.mark.asyncio
     async def test_increment_on_single_failure(self) -> None:
-        """A single bg task failure increments _consecutive_bg_failures by 1."""
         ctx = _make_ctx()
-        orch = Orchestrator(ctx)
-        orch._bg_pause_state = {"health": False}
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
-        # Simulate a non-cancelled exception via _discard_and_log
         mock_task = MagicMock(spec=asyncio.Task)
         mock_task.get_name.return_value = "first_turn"
         mock_task.exception.return_value = RuntimeError("connection refused")
 
-        orch._discard_and_log(mock_task)
+        monitor.on_task_done(mock_task)
 
-        assert orch._consecutive_bg_failures == 1
+        assert monitor.get_consecutive_failures("first_turn") == 1
 
     @pytest.mark.asyncio
     async def test_increment_continues_after_multiple_failures(self) -> None:
-        """_consecutive_bg_failures continues incrementing across multiple failures."""
         ctx = _make_ctx()
-        orch = Orchestrator(ctx)
-        orch._bg_pause_state = {"health": False}
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
         for i in range(BG_FAILURE_THRESHOLD + 2):
             mock_task = MagicMock(spec=asyncio.Task)
             mock_task.get_name.return_value = f"bg_task_{i}"
             mock_task.exception.return_value = RuntimeError(f"error {i}")
-            orch._discard_and_log(mock_task)
+            monitor.on_task_done(mock_task)
 
-        assert orch._consecutive_bg_failures == BG_FAILURE_THRESHOLD + 2
+        assert monitor.get_consecutive_failures("bg_task_0") == BG_FAILURE_THRESHOLD + 2
 
     @pytest.mark.asyncio
     async def test_reset_on_cancelled_task(self) -> None:
-        """Cancelled tasks reset _consecutive_bg_failures to 0."""
         ctx = _make_ctx()
-        orch = Orchestrator(ctx)
-        orch._bg_pause_state = {"health": False}
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
-        # Cause some failures first
         for i in range(5):
             mock_task = MagicMock(spec=asyncio.Task)
             mock_task.get_name.return_value = f"bg_task_{i}"
             mock_task.exception.return_value = RuntimeError(f"fail {i}")
-            orch._discard_and_log(mock_task)
-        assert orch._consecutive_bg_failures == 5
+            monitor.on_task_done(mock_task)
+        assert monitor.get_consecutive_failures("bg_task_0") == 5
 
-        # Now simulate cancellation
         cancelled_task = MagicMock(spec=asyncio.Task)
         cancelled_task.get_name.return_value = "cancelled_task"
         cancelled_task.exception.return_value = asyncio.CancelledError()
-        orch._discard_and_log(cancelled_task)
+        monitor.on_task_done(cancelled_task)
 
-        assert orch._consecutive_bg_failures == 0
+        assert monitor.get_consecutive_failures("cancelled_task") == 0
+        assert monitor.get_consecutive_failures("bg_task_0") == 5
 
 
 class TestThresholdReachedBehavior:
-    """Verify error log output and agent continues at threshold."""
-
     @pytest.mark.asyncio
     async def test_logs_error_at_threshold(self) -> None:
-        """At exactly BG_FAILURE_THRESHOLD, an error-level log is emitted."""
         ctx = _make_ctx()
-        orch = Orchestrator(ctx)
-        orch._bg_pause_state = {"health": False}
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
         captured_log: list[str] = []
 
@@ -127,7 +117,7 @@ class TestThresholdReachedBehavior:
                 mock_task = MagicMock(spec=asyncio.Task)
                 mock_task.get_name.return_value = f"bg_task_{i}"
                 mock_task.exception.return_value = RuntimeError(f"error {i}")
-                orch._discard_and_log(mock_task)
+                monitor.on_task_done(mock_task)
 
             has_error = any(
                 "Consecutive background task failures" in msg for msg in captured_log
@@ -139,27 +129,23 @@ class TestThresholdReachedBehavior:
 
     @pytest.mark.asyncio
     async def test_agent_continues_running_at_threshold(self) -> None:
-        """Agent does NOT crash when threshold is reached; it continues running."""
         ctx = _make_ctx()
-        orch = Orchestrator(ctx)
-        orch._bg_pause_state = {"health": False}
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
-        # Drive past threshold
         for i in range(BG_FAILURE_THRESHOLD + 1):
             mock_task = MagicMock(spec=asyncio.Task)
             mock_task.get_name.return_value = f"bg_task_{i}"
             mock_task.exception.return_value = RuntimeError(f"error {i}")
-            orch._discard_and_log(mock_task)
+            monitor.on_task_done(mock_task)
 
-        # Agent continues running but health check may be paused after threshold breach
-        assert orch._consecutive_bg_failures == BG_FAILURE_THRESHOLD + 1
+        assert monitor.get_consecutive_failures("bg_task_0") == BG_FAILURE_THRESHOLD + 1
 
     @pytest.mark.asyncio
     async def test_logs_warning_below_threshold(self) -> None:
-        """Below threshold, only warning-level log is emitted, not error."""
         ctx = _make_ctx()
-        orch = Orchestrator(ctx)
-        orch._bg_pause_state = {"health": False}
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
         captured_levels: list[int] = []
 
@@ -174,12 +160,11 @@ class TestThresholdReachedBehavior:
         logger.addHandler(handler)
 
         try:
-            # Failures below threshold
             for i in range(BG_FAILURE_THRESHOLD - 1):
                 mock_task = MagicMock(spec=asyncio.Task)
                 mock_task.get_name.return_value = f"bg_task_{i}"
                 mock_task.exception.return_value = RuntimeError(f"error {i}")
-                orch._discard_and_log(mock_task)
+                monitor.on_task_done(mock_task)
 
             has_warning = any(record == logging.WARNING for record in captured_levels)
             has_error = any(record == logging.ERROR for record in captured_levels)
@@ -191,95 +176,85 @@ class TestThresholdReachedBehavior:
 
 
 class TestOnErrorCallbackExceptionHandling:
-    """Verify exception logged but not notified to user."""
-
     @pytest.mark.asyncio
     async def test_exception_in_on_error_logged_not_propagated(self) -> None:
-        """If _on_error raises, the exception is caught and logged, not propagated."""
         ctx = _make_ctx()
+        tasks: set[asyncio.Task[object]] = set()
 
         def _flaky_on_error(exc: Exception) -> None:
             raise RuntimeError("callback failed")
 
-        orch = Orchestrator(ctx, on_error=_flaky_on_error)
-        orch._bg_pause_state = {"health": False}
+        monitor = BgTaskMonitor(
+            ctx, tasks=tasks, on_discard=lambda t: None, on_error=_flaky_on_error
+        )
 
-        # This should NOT propagate the callback exception
         mock_task = MagicMock(spec=asyncio.Task)
         mock_task.get_name.return_value = "first_turn"
         mock_task.exception.return_value = RuntimeError("original error")
-        orch._discard_and_log(mock_task)
+        monitor.on_task_done(mock_task)
 
-        # No exception should have been raised from this call
-        assert True  # If we get here, the exception was caught
+        assert True
 
     @pytest.mark.asyncio
     async def test_on_error_called_with_original_exception(self) -> None:
-        """The original bg task exception is passed to _on_error even if callback fails."""
         ctx = _make_ctx()
+        tasks: set[asyncio.Task[object]] = set()
         captured_exc: list[Exception | None] = [None]
 
         def _record_then_raise(exc: Exception) -> None:
             captured_exc[0] = exc
             raise RuntimeError("callback failed")
 
-        orch = Orchestrator(ctx, on_error=_record_then_raise)
-        orch._bg_pause_state = {"health": False}
+        monitor = BgTaskMonitor(
+            ctx, tasks=tasks, on_discard=lambda t: None, on_error=_record_then_raise
+        )
 
         mock_task = MagicMock(spec=asyncio.Task)
         mock_task.get_name.return_value = "first_turn"
         original_err = RuntimeError("connection timeout")
         mock_task.exception.return_value = original_err
-        orch._discard_and_log(mock_task)
+        monitor.on_task_done(mock_task)
 
         assert captured_exc[0] is original_err
 
 
 class TestCancelledTaskCounterReset:
-    """Verify cancelled tasks do NOT increment _consecutive_bg_failures."""
-
     @pytest.mark.asyncio
     async def test_cancelled_task_does_not_increment_counter(self) -> None:
-        """A cancelled task does NOT increment _consecutive_bg_failures."""
         ctx = _make_ctx()
-        orch = Orchestrator(ctx)
-        orch._bg_pause_state = {"health": False}
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
-        # First, cause some real failures
         for i in range(3):
             mock_task = MagicMock(spec=asyncio.Task)
             mock_task.get_name.return_value = f"bg_task_{i}"
             mock_task.exception.return_value = RuntimeError(f"fail {i}")
-            orch._discard_and_log(mock_task)
-        assert orch._consecutive_bg_failures == 3
+            monitor.on_task_done(mock_task)
+        assert monitor.get_consecutive_failures("bg_task_0") == 3
 
-        # Cancelled task resets counter to 0
         cancelled_task = MagicMock(spec=asyncio.Task)
         cancelled_task.get_name.return_value = "cancelled_task"
         cancelled_task.exception.return_value = asyncio.CancelledError()
-        orch._discard_and_log(cancelled_task)
+        monitor.on_task_done(cancelled_task)
 
-        assert orch._consecutive_bg_failures == 0
+        assert monitor.get_consecutive_failures("cancelled_task") == 0
 
     @pytest.mark.asyncio
     async def test_cancelled_task_resets_counter_to_zero(self) -> None:
-        """A cancelled task resets _consecutive_bg_failures to 0."""
         ctx = _make_ctx()
-        orch = Orchestrator(ctx)
-        orch._bg_pause_state = {"health": False}
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
-        # Cause several failures
         for i in range(5):
             mock_task = MagicMock(spec=asyncio.Task)
             mock_task.get_name.return_value = f"bg_task_{i}"
             mock_task.exception.return_value = RuntimeError(f"fail {i}")
-            orch._discard_and_log(mock_task)
-        assert orch._consecutive_bg_failures == 5
+            monitor.on_task_done(mock_task)
+        assert monitor.get_consecutive_failures("bg_task_0") == 5
 
-        # Cancelled task should reset to zero
         cancelled_task = MagicMock(spec=asyncio.Task)
         cancelled_task.get_name.return_value = "cancelled_task"
         cancelled_task.exception.return_value = asyncio.CancelledError()
-        orch._discard_and_log(cancelled_task)
+        monitor.on_task_done(cancelled_task)
 
-        assert orch._consecutive_bg_failures == 0
+        assert monitor.get_consecutive_failures("cancelled_task") == 0

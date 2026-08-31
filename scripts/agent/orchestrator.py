@@ -15,6 +15,14 @@ Composes six extracted concern classes (see
 Delegates LLM streaming and tool-loop guarding to:
   llm_turn_runner.py  — LLMTurnRunner (streaming + inner tool-call loop)
   tool_loop_guard.py  — ToolLoopGuard + TurnLoopState (dedup/cycle/retry/error guards)
+
+All other concerns are delegated to extracted concern classes:
+  bg_task_monitor.py      — BgTaskMonitor
+  audit_event_emitter.py  — AuditEventEmitter
+  conversation_state_manager.py — ConversationStateManager
+  turnd_coordinator.py    — TurnCoordinator
+  llm_turn_executor.py    — LlmTurnExecutor
+  workflow_engine_adapter.py — WorkflowEngineAdapter
 """
 
 from __future__ import annotations
@@ -23,7 +31,7 @@ import asyncio
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from shared.llm_exceptions import LLMTransportError
 from shared.logger import Logger
@@ -44,11 +52,15 @@ from agent.workflow import (
     StateStore,
     TaskRecord,
     WorkflowDef,
+    WorkflowEngine,
     WorkflowLoader,
     WorkflowLoadError,
 )
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
 from agent.workflow_engine_adapter import WorkflowEngineAdapter
+
+if TYPE_CHECKING:
+    pass
 
 __all__ = ["BG_FAILURE_THRESHOLD", "Orchestrator"]
 
@@ -80,10 +92,9 @@ class Orchestrator:
         on_llm_wait_end: Callable[[], None] | None = None,
         tracer: Any = None,
         pause_on_critical_failure: bool = False,
-    ) -> None:
-        """Initialize the orchestrator with context, callbacks, and diagnostic storage."""
+    ):
         self._ctx = ctx
-        self._allowed_tools: list[str] | None = allowed_tools
+        self._allowed_tools = allowed_tools
         self._on_first_turn = on_first_turn
         self._on_turn_start = on_turn_start
         self._on_turn_end = on_turn_end
@@ -91,11 +102,11 @@ class Orchestrator:
         self._on_llm_wait_start = on_llm_wait_start
         self._on_llm_wait_end = on_llm_wait_end
         self._tracer = tracer
+        self._pause_on_critical_failure = pause_on_critical_failure
         self._diagnostic_store = DiagnosticStore()
         ctx.diagnostics = self._diagnostic_store
         self._guard = ToolLoopGuard(ctx)
         self._background_tasks: set[asyncio.Task[object]] = set()
-        # Startup recovery for stale running attempts
         self._state_store = StateStore()
         self._state_store.recover_stale_attempts(self._state_store.get_connection())
         self._llm_runner = LLMTurnRunner(
@@ -110,22 +121,40 @@ class Orchestrator:
                 f"{OutputTag.WORKFLOW} WorkflowLoader failed: {exc}. Expected definition at: {WORKFLOWS_DIR / 'default.json'}."
             ) from exc
 
+        # ── Component initialization (new constructor signatures) ────────────
         self._bg_task_monitor = BgTaskMonitor(
-            self._background_tasks,
-            on_error=on_error,
+            ctx,
+            tasks=self._background_tasks,
+            on_discard=self._on_discard,
+            on_error=self._on_error,
             pause_on_critical_failure=pause_on_critical_failure,
         )
-        self._audit_emitter = AuditEventEmitter()
-        self._conversation_state_manager = ConversationStateManager(self._llm_runner)
-        self._turn_coordinator = TurnCoordinator(
-            self._background_tasks,
+        self._audit_emitter = AuditEventEmitter(
+            ctx,
+            diagnostic_store=self._diagnostic_store,
+            tracer=tracer,
+            on_turn_start=on_turn_start,
+            on_turn_end=on_turn_end,
+            on_error=on_error,
             on_first_turn=on_first_turn,
-            discard_and_log=self._bg_task_monitor.discard_and_log,
-            build_turn_end_event=self._audit_emitter.build_turn_end_event,
+            on_llm_wait_start=on_llm_wait_start,
+            on_llm_wait_end=on_llm_wait_end,
         )
-        self._llm_turn_executor = LlmTurnExecutor(
-            self._llm_runner,
-            self._diagnostic_store,
+        self._conversation_manager = ConversationStateManager(
+            ctx,
+            diagnostic_store=self._diagnostic_store,
+            tasks=self._background_tasks,
+            on_discard=self._on_discard,
+            tracer=tracer,
+            on_first_turn=on_first_turn,
+            on_turn_start=on_turn_start,
+            on_turn_end=on_turn_end,
+            on_error=on_error,
+        )
+        self._llm_executor = LlmTurnExecutor(
+            ctx,
+            diagnostic_store=self._diagnostic_store,
+            tracer=tracer,
             on_turn_start=on_turn_start,
             on_turn_end=on_turn_end,
             on_error=on_error,
@@ -133,67 +162,91 @@ class Orchestrator:
             on_llm_wait_end=on_llm_wait_end,
         )
         self._workflow_adapter = WorkflowEngineAdapter(
-            self._workflow_def,
-            self._state_store,
+            ctx,
+            state_store=self._state_store,
+            workflow_engine=WorkflowEngine(
+                self._workflow_def,
+                self._state_store,
+                tracer=tracer,
+            ),
+            conversation_manager=self._conversation_manager,
+            llm_executor=self._llm_executor,
+            diagnostic_store=self._diagnostic_store,
             tracer=tracer,
-            process_turn=self._process_turn,
-            handle_turn_end=self._turn_coordinator.handle_turn_end,
             on_error=on_error,
         )
 
     # ── Public entry point ────────────────────────────────────────────────────
 
-    def workflow_status(self) -> dict[str, str]:
-        """Return public workflow status for display purposes."""
-        return {
-            "mode": "active" if self._workflow_def is not None else "disabled",
-            "tracking": "enabled" if self._workflow_def is not None else "not_loaded",
-        }
-
-    async def handle_turn(self, line: str) -> None:
-        """Call LLM with the user message and persist to DB."""
+    async def handle_turn(self, line):
         ctx = self._ctx
-        # Guard: block LLM processing while a workflow approval is pending
         if ctx.workflow.approval_pending:
-            logger.warning(
-                "Turn blocked: workflow pending approval. Use /approve %s or /reject %s.",
-                ctx.turn.pending_approval_id,
-                ctx.turn.pending_approval_id,
-            )
-            if self._on_error:
-                self._on_error(
-                    RuntimeError(
-                        f"{OutputTag.WORKFLOW} Approval is pending — use /approve {ctx.turn.pending_approval_id} [reason] "
-                        f"or /reject {ctx.turn.pending_approval_id} [reason]."
-                    )
-                )
+            await self._on_approval_pending(ctx.turn.pending_approval_id)
             return
-        # Guard: block turn processing while any background task type is
-        # paused (only reachable when `pause_on_critical_failure=True` was
-        # passed to __init__ and that task type has hit BG_FAILURE_THRESHOLD).
-        if any(self._bg_pause_state.values()):
-            paused = [
-                name for name, is_paused in self._bg_pause_state.items() if is_paused
-            ]
-            logger.warning(
-                "Turn blocked: agent paused due to background task failures: %s", paused
-            )
-            if self._on_error:
-                self._on_error(
-                    RuntimeError(
-                        f"{OutputTag.WORKFLOW} Agent paused due to repeated failures in: {paused}. "
-                        "Restart the process to clear pause state."
-                    )
-                )
+        is_paused, paused_names = self._bg_task_monitor.check_pause_state()
+        if is_paused:
+            await self._on_pause_blocked(paused_names)
             return
-        turn_started_at = time.perf_counter()
+        await self._execute_turn(line)
 
-        await self._turn_coordinator.handle_turn_start(ctx, line)
+    async def _execute_turn(self, line):
+        await self._audit_emitter.emit_turn_start()
+        answer, error_kind, is_partial = await self._workflow_adapter.execute_turn(
+            line, 0.0, ""
+        )
+        await self._audit_emitter.emit_turn_end(
+            line, answer, 0.0, error_kind, is_partial
+        )
 
-        # self._workflow_def is guaranteed non-None here: __init__() already raised
-        # RuntimeError if WorkflowLoader().load() failed, so handle_turn() can only be
-        # reached with a successfully loaded workflow definition.
-        await self._handle_workflow_engine(line, ctx, turn_started_at)
+    async def _on_approval_pending(self, pending_approval_id):
+        logger.warning(
+            "Turn blocked: workflow pending approval. Use /approve %s or /reject %s.",
+            pending_approval_id,
+            pending_approval_id,
+        )
+        if self._on_error:
+            self._on_error(
+                RuntimeError(
+                    f"{OutputTag.WORKFLOW} Approval is pending — use /approve {pending_approval_id} [reason] "
+                    f"or /reject {pending_approval_id} [reason]."
+                )
+            )
+
+    async def _on_pause_blocked(self, paused_names):
+        logger.warning(
+            "Turn blocked: agent paused due to background task failures: %s",
+            paused_names,
+        )
+        if self._on_error:
+            self._on_error(
+                RuntimeError(
+                    f"{OutputTag.WORKFLOW} Agent paused due to repeated failures in: {paused_names}. "
+                    "Restart the process to clear pause state."
+                )
+            )
+
+    def _on_discard(self, task):
+        self._bg_task_monitor.on_task_done(task)
+
+    # ── Backward-compatible delegating wrappers ─────────────────────────────
+    # Preserve the pre-refactor private method/attribute surface that existing
+    # tests call directly on an Orchestrator instance. Methods with no direct
+    # external caller (confirmed via `rg` against tests/ and scripts/) are not
+    # wrapped here — call the owning component directly instead.
+
+    def _clear_previous_turn_ephemeral_messages(self) -> None:
+        return self._conversation_manager.clear_previous_turn_ephemeral_messages()
+
+    def _sync_system_prompt(self) -> None:
+        return self._conversation_manager.sync_system_prompt()
+
+    async def _append_user_message(self, line: str) -> None:
+        return await self._conversation_manager.append_user_message(line)
+
+    async def _handle_workflow_engine(
+        self, line: str, ctx: AgentContext, turn_started_at: float
+    ) -> tuple[str, str | None, bool]:
+        return await self._workflow_adapter.execute_turn(line, turn_started_at, "")
 
     async def _process_turn(
         self, line: str, ctx: AgentContext, turn_started_at: float
@@ -205,13 +258,13 @@ class Orchestrator:
 
         with self._tool_override(self._allowed_tools):
             self._clear_previous_turn_ephemeral_messages()
-            await self._handle_memory_injection(line)
+            await self._conversation_manager.handle_memory_injection(line)
             await classify_and_inject_mode(line, ctx)
             await self._append_user_message(line)
-            await self._handle_history_compression()
+            await self._conversation_manager.handle_history_compression()
 
-            result: TurnResult = await self._llm_turn_executor.handle_llm_turn(
-                ctx, ctx.conv.llm_url
+            result: TurnResult = await self._llm_executor.handle_llm_turn(
+                ctx.conv.llm_url
             )
             answer = result.answer
             if result.action != "continue":
@@ -235,28 +288,6 @@ class Orchestrator:
         finally:
             self._ctx.cfg.tool.allowed_tools = original
 
-    # ── Backward-compatible delegating wrappers ─────────────────────────────
-    # Preserve the pre-refactor private method/attribute surface that existing
-    # tests call directly on an Orchestrator instance. Methods with no direct
-    # external caller (confirmed via `rg` against tests/ and scripts/) are not
-    # wrapped here — call the owning component directly instead.
-
-    def _clear_previous_turn_ephemeral_messages(self) -> None:
-        return self._turn_coordinator.clear_previous_turn_ephemeral_messages(self._ctx)
-
-    def _sync_system_prompt(self) -> None:
-        return self._turn_coordinator.sync_system_prompt(self._ctx)
-
-    async def _append_user_message(self, line: str) -> None:
-        return await self._turn_coordinator.append_user_message(self._ctx, line)
-
-    async def _handle_workflow_engine(
-        self, line: str, ctx: AgentContext, turn_started_at: float
-    ) -> None:
-        return await self._workflow_adapter.handle_workflow_engine(
-            line, ctx, turn_started_at
-        )
-
     def _init_workflow_task(
         self,
         ctx: AgentContext,
@@ -264,32 +295,28 @@ class Orchestrator:
         existing_task_id: str | None = None,
         store: StateStore | None = None,
     ) -> tuple[str, TaskRecord]:
-        return self._workflow_adapter.init_workflow_task(
+        return self._workflow_adapter._init_workflow_task(
             ctx, session_id, existing_task_id, store
         )
 
     def _activate_workflow(self, ctx: AgentContext, task: TaskRecord) -> None:
-        return self._workflow_adapter.activate_workflow(ctx, task)
+        return self._workflow_adapter._activate_workflow(ctx, task)
 
     def _deactivate_workflow(self, ctx: AgentContext) -> None:
-        return self._workflow_adapter.deactivate_workflow(ctx)
+        return self._workflow_adapter._deactivate_workflow(ctx)
 
     async def _handle_memory_injection(self, line: str) -> None:
-        return await self._conversation_state_manager.handle_memory_injection(
-            self._ctx, line
-        )
+        return await self._conversation_manager.handle_memory_injection(line)
 
     async def _handle_history_compression(self) -> None:
-        return await self._conversation_state_manager.handle_history_compression(
-            self._ctx
-        )
+        return await self._conversation_manager.handle_history_compression()
 
     def _discard_and_log(self, task: asyncio.Task[Any]) -> None:
-        return self._bg_task_monitor.discard_and_log(task)
+        return self._bg_task_monitor.on_task_done(task)
 
     @property
     def _bg_pause_state(self) -> dict[str, bool]:
-        return self._bg_task_monitor._bg_pause_state
+        return self._bg_task_monitor.bg_pause_state
 
     @_bg_pause_state.setter
     def _bg_pause_state(self, value: dict[str, bool]) -> None:
@@ -297,8 +324,8 @@ class Orchestrator:
 
     @property
     def _consecutive_bg_failures(self) -> int:
-        return self._bg_task_monitor._consecutive_bg_failures
+        return self._bg_task_monitor.get_consecutive_failures("unknown_bg_task")
 
     @_consecutive_bg_failures.setter
     def _consecutive_bg_failures(self, value: int) -> None:
-        self._bg_task_monitor._consecutive_bg_failures = value
+        self._bg_task_monitor.reset_consecutive_failures("unknown_bg_task")
