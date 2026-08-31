@@ -1,0 +1,151 @@
+# Implementation Procedure: agent/__init__.py — Package init updates for new module exports
+
+## Goal
+
+Update `scripts/agent/__init__.py` to export all new component classes so they are accessible via `from agent import <ClassName>` patterns used elsewhere in the codebase.
+
+## Scope
+
+- Update `scripts/agent/__init__.py` to include exports for all newly created modules.
+- Preserve existing imports that are still needed.
+- Remove imports that are no longer needed (e.g., direct AgentREPL import if it becomes internal).
+
+## Assumptions
+
+- The existing `scripts/agent/__init__.py` currently contains minimal or empty content.
+- New exports should follow the same pattern as existing agent module exports.
+- Backward compatibility requires maintaining `from agent.repl import AgentREPL` import path.
+
+## Design decisions
+
+- Export all six new component classes plus AgentREPL facade.
+- Use explicit `__all__` list to define public API surface.
+- Module-level imports use lazy loading where possible to avoid startup overhead.
+
+## Alternatives considered
+
+- Keep `scripts/agent/__init__.py` empty: Rejected — breaks existing import patterns like `from agent import AgentREPL`.
+- Re-export only AgentREPL: Rejected — violates REQ-010 which requires preserving existing import paths for all components.
+
+## Implementation
+
+### Target file
+
+`scripts/agent/__init__.py`
+
+### Procedure
+
+1. Read current `scripts/agent/__init__.py` content.
+2. Determine which exports already exist vs. which need to be added.
+3. Add exports for all six new component classes.
+4. Ensure AgentREPL is re-exported for backward compatibility.
+5. Define `__all__` list containing all public symbols.
+
+### Method
+
+Modify — edit existing file.
+
+### Details
+
+```python
+"""scripts/agent/__init__.py
+
+Agent module public API.
+
+Exports all component classes and the AgentREPL facade for backward compatibility.
+"""
+
+from agent.repl_input_loop import ReplInputLoop
+from agent.session_persister import SessionPersister
+from agent.wal_checkpoint_manager import WalCheckpointManager
+from agent.resource_shutdown_coordinator import ResourceShutdownCoordinator
+from agent.startup_banner import StartupBanner
+from agent.signal_handler import SignalHandler
+from agent.repl import AgentREPL
+
+__all__ = [
+    "ReplInputLoop",
+    "SessionPersister",
+    "WalCheckpointManager",
+    "ResourceShutdownCoordinator",
+    "StartupBanner",
+    "SignalHandler",
+    "AgentREPL",
+]
+```
+
+## Compatibility considerations
+
+- REQ-010: Existing import paths (`from agent.repl import AgentREPL`) continue to work.
+- REQ-010: New component classes must be accessible via `from agent import <ClassName>`.
+- REQ-010: No breaking changes to existing import patterns.
+
+## Security considerations
+
+- No security-sensitive data exposed; __init__.py only defines public API surface.
+
+## Rollback considerations
+
+- If __init__.py changes introduce import errors, revert to original content via `git checkout`.
+- The original __init__.py can be restored by reverting just this file.
+
+## Validation plan
+
+| Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
+|---|---|---|---|
+| scripts/agent/__init__.py | Import verification: all exports accessible | `python -c "from agent import AgentREPL, ReplInputLoop, SessionPersister, WalCheckpointManager, ResourceShutdownCoordinator, StartupBanner, SignalHandler"` | No ImportError |
+| scripts/agent/__init__.py | Backward compat: AgentREPL import path preserved | `python -c "from agent.repl import AgentREPL"` | Import succeeds |
+| scripts/agent/repl.py | Integration: verify run behavior unchanged | `uv run pytest tests/agent/test_repl.py tests/agent/test_repl_error_handling.py tests/agent/test_repl_health.py tests/agent/test_repl_health_malformed.py tests/agent/test_signal_handler_race.py` | All existing tests pass |
+| scripts/agent/repl.py | Static analysis: no circular imports | `python -c "import agent.repl"` | No ImportError |
+| scripts/agent/repl.py | Static analysis: backward compat import paths | `python -c "from agent.repl import AgentREPL"` | Import succeeds |
+| All new/modified files | Lint: ruff passes | `ruff check scripts/agent/repl_input_loop.py scripts/agent/session_persister.py scripts/agent/wal_checkpoint_manager.py scripts/agent/resource_shutdown_coordinator.py scripts/agent/startup_banner.py scripts/agent/signal_handler.py scripts/agent/repl.py scripts/agent/__init__.py` | No lint errors |
+| All new/modified files | Type check: mypy passes | `mypy scripts/agent/repl_input_loop.py scripts/agent/session_persister.py scripts/agent/wal_checkpoint_manager.py scripts/agent/resource_shutdown_coordinator.py scripts/agent/startup_banner.py scripts/agent/signal_handler.py scripts/agent/repl.py scripts/agent/__init__.py` | No type errors |
+
+## Completion criteria
+
+- All six new component classes are exported from `scripts/agent/__init__.py`.
+- AgentREPL facade remains accessible via `from agent.repl import AgentREPL`.
+- No circular imports introduced.
+- `ruff` lint passes on all modified/new files.
+- `mypy` type check passes on all modified/new files.
+
+## Out of scope
+
+- Changing the `_GRACEFUL_TIMEOUT_S` value or making it configurable.
+- Modifying StartupOrchestrator internals.
+- Adding new diagnostic metrics or changing the session diagnostics schema.
+- Changing the WAL checkpoint strategy (PASSIVE → TRUNCATE fallback).
+- Adding new signal types beyond SIGTERM/SIGINT.
+- Modifying CLIView or other display-layer components.
+- Changing the command dispatch mechanism (CommandRegistry).
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Complete | 2026-08-30T08:30:00Z | 2026-08-30T12:00:00Z | __init__.py updated with all six component class exports plus AgentREPL facade |
+| 2 | Add or update tests per Validation plan | Complete | 2026-08-30T08:30:00Z | 2026-08-30T12:00:00Z | Import verification passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-08-30T08:30:00Z | 2026-08-30T12:00:00Z | ruff, mypy, lint-imports all passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-08-30T08:30:00Z | 2026-08-30T12:00:00Z | No documentation updates required per out-of-scope section |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: REQ-010
+- **Source issue**: issues/20260829-080924_refactor_002_repl_separation.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20260829-180809_plan.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20260830-083027
+- **Related target files**: scripts/agent/__init__.py
