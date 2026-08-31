@@ -184,7 +184,7 @@ The fail-closed posture applies to:
 This policy defines the common baseline. Tool-specific deviations are documented in each tool's own documentation with clear references back to this policy. Examples:
 
 - **GitHub MCP**: `protected_branches` and `path_denylist` are fail-open by design (documented in `04_mcp_05_01_access-control-and-allowlists.md`); `protected_branches` itself only exists for GitHub MCP, not Git MCP.
-- **Git MCP**: `GitConfig.protected_branches` and `GitSecurityGuards._check_protected_branch()` enforce a protected-branch policy (tests: `test_git_security_compliance.py::test_check_protected_branch`, `test_git_checkout_protected_branch`, `test_git_push_protected_branch`, `test_is_safe_ref`). The Force-Push block is not applicable because `git_push` exposes no `force` parameter. Dirty-Worktree/Detached-HEAD/postcondition verification gaps remain open (tracked as Known Issues `GIT-001`/`GIT-002`; see `04_mcp_90_inconsistencies_and_known_issues.md`).
+- **Git MCP**: `GitConfig.protected_branches` and `GitSecurityGuards._check_protected_branch()` enforce a protected-branch policy (tests: `test_git_security_compliance.py::test_check_protected_branch`, `test_git_checkout_protected_branch`, `test_git_push_protected_branch`, `test_is_safe_ref`). The Force-Push block is not applicable because `git_push` exposes no `force` parameter. Dirty-Worktree/Detached-HEAD guards and postcondition verification are implemented (see `04_mcp_90_inconsistencies_and_known_issues.md`).
 - **Shell MCP**: `approval_shell_safe_prefixes` allows auto-approval for safe prefixes (documented in `04_mcp_04_02_file-write-file-delete-shell.md`)
 
 Tool-specific docs must include a "See also: `00_security_02_high-risk-tool-common-policy.md`" reference.

@@ -13,9 +13,23 @@ Update `ADR-012-git-mcp-server-side-write-enforcement.md`'s Known Deviations sec
 
 ## Assumptions
 
-- The plan's claim that lines 181-182 still list both `GIT-001` and `GIT-002` as open gaps is correct (verified in this cycle)
-- The plan's claim that ADR-012's Status=Proposed is correct (line 15 confirmed)
-- The plan's claim that the Verification section may have stale test-existence claims needs checking (UNK-01)
+- **Corrected during Step 3 adversarial verification (this cycle)**: the
+  plan's cited line numbers are stale — `Known Deviations` is now at line 208
+  (not 176-182), with the `GIT-001`/`GIT-002` bullets at lines 213-214 (not
+  181-182). The file has been edited since this procedure was generated (the
+  `MCP-004` bullet's wording has also changed to describe a config
+  floor-check/preview-formatting gap, unrelated to `GIT-001`/`GIT-002`). The
+  `GIT-001`/`GIT-002` bullet text itself is unchanged and still matches this
+  document's Details section verbatim, so the edit target is unaffected —
+  only the line-number references were stale.
+- The plan's claim that ADR-012's Status=Proposed is correct (re-confirmed:
+  `## Status` section states `Proposed`).
+- The plan's claim that the Verification section may have stale
+  test-existence claims needs checking (UNK-01) — **resolved in this cycle**:
+  `rg -n "GIT-001|GIT-002"` against the full file finds only the two Known
+  Deviations bullets being removed; no other section (Verification or
+  otherwise) references `GIT-001`/`GIT-002`, confirming the Method section's
+  own note that no correction is needed there.
 
 ## Design decisions
 
@@ -60,25 +74,29 @@ Update `ADR-012-git-mcp-server-side-write-enforcement.md`'s Known Deviations sec
 
 ### Details
 
-#### Known Deviations section update (current content at lines 176-182):
+#### Known Deviations section update (**corrected during Step 3 adversarial
+verification**: current content is at lines 208-214, not the plan's cited
+176-182; the `MCP-004` bullet's wording has also changed since the plan/this
+procedure were written — irrelevant to this document's scope, quoted below
+as-is for an accurate before/after record):
 
 Current content:
 ```markdown
 ## Known Deviations
 
 - **Known Issue**: MCP-003 — no protected-branch/Force-Push guard; confirmed option-injection exploit via `branch`/`remote`.
-- **Known Issue**: MCP-004 — approval tier for these tools falls back to `MEDIUM` (`y/N`) rather than the documented `HIGH` (full-word `yes`).
+- **Known Issue**: MCP-004 — effective risk below HIGH for git tools can occur if config is downgraded (no floor check); approval-screen preview for git tools falls through to generic JSON dump; no end-to-end test exercises the shipped config through the actual approval flow.
 - **Known Issue**: MCP-005 — audit `target` field likely always empty due to a key-name mismatch.
 - **Known Issue**: GIT-001 — `git_checkout`/`git_pull` do not reject dirty worktree or detached HEAD before write operations.
 - **Known Issue**: GIT-002 — postcondition verification (branch/HEAD confirmation, conflict detection) missing after write operations.
 ```
 
-New content (remove last two bullet points):
+New content (remove last two bullet points; `MCP-003`/`MCP-004`/`MCP-005` untouched):
 ```markdown
 ## Known Deviations
 
 - **Known Issue**: MCP-003 — no protected-branch/Force-Push guard; confirmed option-injection exploit via `branch`/`remote`.
-- **Known Issue**: MCP-004 — approval tier for these tools falls back to `MEDIUM` (`y/N`) rather than the documented `HIGH` (full-word `yes`).
+- **Known Issue**: MCP-004 — effective risk below HIGH for git tools can occur if config is downgraded (no floor check); approval-screen preview for git tools falls through to generic JSON dump; no end-to-end test exercises the shipped config through the actual approval flow.
 - **Known Issue**: MCP-005 — audit `target` field likely always empty due to a key-name mismatch.
 ```
 
@@ -118,10 +136,10 @@ New content (remove last two bullet points):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Not required — documentation-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Not required — documentation-only change |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Not applicable |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260831-110530 | 20260831-110530 | Corrected during Step 3 adversarial verification: cited line numbers were stale (Known Deviations moved to line 208; MCP-004's wording changed, unrelated) — removed the two `GIT-001`/`GIT-002` bullets by exact text match, unaffected by the line-number drift. Confirmed `Status: Proposed` unchanged and no Verification-section references to `GIT-001`/`GIT-002` existed (UNK-01 resolved: none found). |
+| 2 | Add or update tests per Validation plan | Completed | 20260831-110530 | 20260831-110530 | Not required — documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260831-110530 | 20260831-110530 | Not required — documentation-only change; ran `tools/check_docs_structure.py`/`check_docs_quality.py` instead |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260831-110530 | 20260831-110530 | This document's Target file *is* the documentation edit. Structure check found 2 pre-existing issues (Front Matter missing 'tags', missing '## Keywords') confirmed via `git stash` comparison to predate this edit — left as-is, out of scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

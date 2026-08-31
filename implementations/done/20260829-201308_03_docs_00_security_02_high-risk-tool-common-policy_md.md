@@ -97,10 +97,10 @@ Update `docs/00_security_02_high-risk-tool-common-policy.md`'s Git MCP bullet: r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Not required — documentation-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Not required — documentation-only change |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Not applicable |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260831-110636 | 20260831-110636 | Adversarial re-check confirmed line 187's target sentence matches the plan verbatim (no drift, unlike DOC-005 rows 1-2). Adjacent first-sentence claim about `GitSecurityGuards._check_protected_branch()` was noted but left untouched — out of scope for REQ-007. |
+| 2 | Add or update tests per Validation plan | Completed | 20260831-110636 | 20260831-110636 | Not required — documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260831-110636 | 20260831-110636 | Not required — documentation-only change; ran `tools/check_docs_structure.py`/`check_docs_quality.py` instead |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260831-110636 | 20260831-110636 | This document's Target file *is* the documentation edit. Structure check's 1 pre-existing finding (missing '## Keywords') confirmed via `git stash` comparison to predate this edit — left as-is, out of scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

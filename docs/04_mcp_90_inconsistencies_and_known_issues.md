@@ -137,7 +137,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 
 - **ID**: GIT-001
 - **Title**: `git_checkout`/`git_pull` lack Dirty Worktree / Detached HEAD checks before write operations
-- **Status**: open
+- **Status**: resolved
 - **Severity**: High
 - **Area**: MCP
 - **Type**: design-gap
@@ -148,10 +148,10 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 - **Related**: ADR-012
 - **Summary**: ADR-012 requires that Git MCP tools check for Dirty Worktree and Detached HEAD states before performing write operations. Neither `git_checkout` nor `git_pull` implements these checks.
 - **Current Description**: Both `git_checkout` and `git_pull` proceed with checkout/pull operations regardless of whether the working tree is dirty or the HEAD is detached.
-- **Observed Implementation**: `git_checkout` calls `git reset --hard` unconditionally; `git_pull` calls `git pull` without checking for uncommitted changes first.
+- **Observed Implementation**: Both `git_checkout` and `git_pull` check a `RepositoryState` snapshot (`repository_state.py`) before proceeding (unless `dry_run`): reject with `[DENIED] worktree has uncommitted changes` when `state.is_dirty`, and `[DENIED] repository is in a detached HEAD state` when `state.is_detached_head` and detached HEAD is not allowed.
 - **Impact**: A caller can silently discard uncommitted changes or create a detached HEAD state during a write operation, violating the safety guarantees ADR-012 specifies.
 - **Recommended Action**: Add Dirty Worktree and Detached HEAD checks to both `git_checkout` and `git_pull`, rejecting the operation if either condition is true unless explicitly overridden.
-- **Resolution Notes**: Open — design gap confirmed.
+- **Resolution Notes**: Guards implemented in `git_checkout()`/`git_pull()` via `RepositoryState.is_dirty`/`is_detached_head` (Verified by test, `tests/mcp_servers/git/test_git_security_compliance.py::test_git_checkout_dirty_worktree_denied`, `test_git_pull_dirty_worktree_denied`, `test_git_checkout_detached_head_denied`, `test_git_pull_detached_head_denied`).
 
 ---
 
@@ -159,7 +159,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 
 - **ID**: GIT-002
 - **Title**: Git MCP write operations lack postcondition verification
-- **Status**: open
+- **Status**: resolved
 - **Severity**: High
 - **Area**: MCP
 - **Type**: design-gap
@@ -170,10 +170,10 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 - **Related**: ADR-012
 - **Summary**: ADR-012 requires that Git MCP tools verify postconditions after write operations complete. Neither `git_checkout` nor `git_pull` verifies that the expected state was achieved.
 - **Current Description**: After executing a write operation, neither tool verifies that the working tree, branch, or remote state matches the expected outcome.
-- **Observed Implementation**: `git_checkout` returns success after calling `git checkout` without verifying the branch actually changed; `git_pull` returns success after `git pull` without verifying the remote refs updated.
+- **Observed Implementation**: `format_checkout()` verifies the resulting branch/detached-HEAD state and raises `GitServiceError` on mismatch; `format_pull()` checks for unresolved merge conflicts and raises on detection; `format_push()` scans for push-rejection markers and raises if found. The Current Description above predates this change.
 - **Impact**: Silent failures where the operation appears successful but did not achieve the expected state — operators would not know the operation failed.
 - **Recommended Action**: Add postcondition checks after each write operation (e.g., verify current branch after checkout, verify remote ref update after pull) and fail the operation if the expected state is not reached.
-- **Resolution Notes**: Open — design gap confirmed.
+- **Resolution Notes**: Postcondition verification implemented in `format_checkout()`/`format_pull()`/`format_push()` (Verified by test, `tests/mcp_servers/git/test_format_output.py::test_checkout_postcondition_failure_wrong_branch`, `test_checkout_postcondition_failure_detached_head`, `test_pull_postcondition_failure_unresolved_conflicts`, `test_push_postcondition_failure_rejection_marker_in_output`).
 
 ---
 
