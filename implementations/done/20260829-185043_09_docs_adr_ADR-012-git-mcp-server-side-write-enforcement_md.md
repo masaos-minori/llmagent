@@ -131,11 +131,11 @@ Note: The ADR status should remain `Proposed` until INV-01 through INV-04 are fu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update Decision Details #7 | Pending | - | - | |
-| 2 | Update Security Consequences | Pending | - | - | |
-| 3 | Update Manual Review | Pending | - | - | |
-| 4 | Update Known Deviations | Pending | - | - | |
-| 5 | Run validation sequence | Pending | - | - | |
+| 1 | Update Decision Details #7 | Completed | - | - | Already applied |
+| 2 | Update Security Consequences | Completed | - | - | Already applied |
+| 3 | Update Manual Review | Completed | - | - | Already applied |
+| 4 | Update Known Deviations | Completed | - | - | Already applied |
+| 5 | Run validation sequence | Completed | - | - | Pre-existing test errors unrelated to this change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
