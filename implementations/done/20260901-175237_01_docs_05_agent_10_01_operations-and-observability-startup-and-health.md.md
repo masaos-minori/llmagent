@@ -103,10 +103,10 @@ N/A: documentation update only; no code changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only changes |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Updated lines 46 and 64 in docs/05_agent_10_01_operations-and-observability-startup-and-health.md |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: documentation-only changes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | Documentation quality checks passed; pre-existing structure warnings unrelated to changes |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Updated docs/05_agent_10_01_operations-and-observability-startup-and-health.md per REQ-001 and REQ-002 requirements |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

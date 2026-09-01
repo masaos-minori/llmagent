@@ -43,7 +43,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 ## Key Constraints
 
 - Workflow definition files must always be loaded at startup. If they are missing or invalid, startup fails. Direct execution fallback is not supported.
-- In production mode, unreachable health probes are treated as startup failure (FATAL). In local mode, they only issue a warning and continue.
+- Unreachable health probes are treated as startup failure (FATAL) in production; in non-production environments, they issue a warning and continue.
 - Embedding dimension mismatches are treated as startup failures to prevent vector search data corruption.
 - During rolling upgrades for session startup, the new process's startup is verified before the old process is shut down; if issues arise, the old process is maintained.
 
@@ -61,7 +61,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 **Important Notes:**
 - `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
 - `tool_definitions` follows a unified severity scheme: FATAL when in strict mode or `security_profile=PRODUCTION`, WARNING otherwise.
-- Failure in `mcp_tool_discovery` is treated as FATAL regardless of whether it is production or local mode. Since tool discovery failure makes all session tool calls impossible, it is critical.
+- Failure in `mcp_tool_discovery` is treated as FATAL regardless of environment. Since tool discovery failure makes all session tool calls impossible, it is critical.
 
 ### Restoration of Pending Post-Execution Approvals
 

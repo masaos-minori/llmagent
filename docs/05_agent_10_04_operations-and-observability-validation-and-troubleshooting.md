@@ -39,7 +39,7 @@ The agent unconditionally verifies the existence of workflow definition files be
 **Important Notes:**
 - `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
 - `tool_definitions` do not cause FATAL errors even in strict mode — they are always downgraded to WARNING.
-- Failure in `mcp_tool_discovery` is treated as FATAL regardless of whether it is production or local mode. Since tool discovery failure makes all session tool calls impossible, it is critical.
+- Failure in `mcp_tool_discovery` is treated as FATAL regardless of environment. Since tool discovery failure makes all session tool calls impossible, it is critical.
 
 ### SIGINT/SIGTERM Interruption During Startup Sequence
 
