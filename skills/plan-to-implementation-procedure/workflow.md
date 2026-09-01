@@ -28,6 +28,11 @@ This is a document-only phase. Allowed operations:
   adversarial verification finds an unconfirmed item or an inconsistency — this
   phase's document-only constraint applies to source code and `docs/*.md`, not to the
   Plan document under active revision.
+- If `tools/generate_workitem.py --kind implementation-procedure` is used (see Step 3),
+  it appends a timestamp-marker HTML comment to the Plan file being processed (never
+  rewriting existing content) so repeated invocations against the same Plan share one
+  timestamp — this is an expected side effect of that tool, not a violation of the
+  document-only constraint.
 - Do not modify source code files.
 - Do not update documentation (`docs/*.md`) — this phase does not allow it.
 - Do not modify files outside `implementations/` and the plan file being moved — the
@@ -36,6 +41,17 @@ This is a document-only phase. Allowed operations:
 ## Out of Scope
 
 See `rules/workflow-lifecycle.md` Global Safety Restrictions for the full list.
+
+## Toolchain
+
+Repository scaffolding/archival tools relevant to this workflow (see
+`tools/TOOL_DESCRIPTIONS.md` for full usage): `tools/generate_workitem.py --kind
+implementation-procedure` (Step 3, procedure-document skeleton generation — see
+Allowed file operations above for its Plan-file timestamp-marker side effect) and
+`tools/manage_workitem_stage.py close-plan` (Step 4, `git mv`-based archival move).
+Per `rules/ai-execution.md` Repository Tool Usage, prefer these over the equivalent
+manual command when they cover the need; Step 3 and Step 4 above state the
+fallback to use if a tool is unavailable or refuses.
 
 ## Multi-file processing
 
@@ -144,7 +160,13 @@ target — see `templates/implementation-procedure.md` Notes on filling sections
 Before iterating, set one shared timestamp for this Step 3 pass: run
 `date +%Y%m%d-%H%M%S` once and reuse that exact value for every document created in
 this pass. Do not re-run `date` per row — creation order must be recoverable from
-`seq` below, not from timestamp drift between rows.
+`seq` below, not from timestamp drift between rows. If using
+`tools/generate_workitem.py --kind implementation-procedure` (see the `Not
+implemented` case below) instead of writing documents by hand, this manual
+timestamp step is unnecessary — the tool derives and shares the pass timestamp
+itself by reading/writing a marker in the Plan file (see this workflow's Allowed
+file operations), so every invocation against the same `--source-plan` reuses the
+same value regardless of invocation order or a resumed session.
 
 For each row in `Implementation Target Files`, in the order they appear in that table
 — **one target file = one implementation procedure document** (see `SKILL.md` Core
@@ -184,13 +206,21 @@ Execution Rules):
 - If `Not implemented`, create the document only (do not implement anything):
   - Create a file-level implementation and test procedure document containing
     modification instructions for exactly this row's `File Path` — no other file.
+  - Optionally scaffold the empty file first with `uv run python
+    tools/generate_workitem.py --kind implementation-procedure --source-plan
+    {plan_path} --target-file-path {target_file_path} --seq {seq}` — it reproduces
+    `templates/implementation-procedure.md`'s current field order exactly, computes
+    `target_file_slug` per the naming rule above, and shares this pass's timestamp
+    automatically across every row's invocation (see Allowed file operations) rather
+    than requiring the manual shared-timestamp step above.
   - Save the document as `implementations/{timestamp}_{seq}_{target_file_slug}.md`
     (naming per Workflow position above), using this pass's shared `timestamp` and
     this row's `seq`.
   - If the resulting path already exists, this can only mean an interrupted cycle is
     being resumed and the classification above did not treat it as covering this row
     (e.g. stale or partial-scope content) — it MUST NOT be overwritten. Stop and
-    report `Needs confirmation` for this row instead.
+    report `Needs confirmation` for this row instead. The tool's own collision
+    refusal is the same signal, not a separate failure mode.
 - Classify each evidence gap encountered while investigating a row as Blocking or
   Non-blocking:
   - Blocking: a safe, concrete procedure cannot be written without this evidence. Stop
@@ -267,6 +297,12 @@ Execution Status section.
 Apply `rules/workflow-lifecycle.md` Archival Move (`plan-to-impl-procedure` row) and
 Completion Criteria in full. This workflow's move: `plans/{filename}_plan.md` to
 `plans/done/{filename}_plan.md`, using `git mv` only.
+
+Prefer `uv run python tools/manage_workitem_stage.py close-plan
+plans/{filename}_plan.md` over a direct `git mv` — it performs the same move and
+refuses (non-zero exit, no move) if the source is missing, the destination already
+exists, or the source has uncommitted changes. Fall back to the direct `git mv`
+command only if the tool is unavailable.
 
 ---
 

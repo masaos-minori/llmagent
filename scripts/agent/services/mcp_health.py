@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
-import httpx
 from http import HTTPStatus
 from urllib.parse import urlparse
 
+import httpx
+from shared.logger import Logger
+
 from agent.context import AgentContext
 from agent.output_tags import OutputTag
-from agent.shared.health_models import HealthCheckResult, McpHealthProbeResult, ServiceWarning
-from shared.logger import Logger
+from agent.shared.health_models import (
+    HealthCheckResult,
+    McpHealthProbeResult,
+    ServiceWarning,
+)
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -33,8 +38,8 @@ async def _probe_mcp_health_detail(
             body={},
         )
     try:
-        body: dict[str, object] = resp.json()  # noqa: S603 -- MCP server response body structure varies
-    except Exception as exc:  # noqa: BLE001 -- health check must not fail on body parse errors
+        body: dict[str, object] = resp.json()  # noqa: S603 — MCP server response body structure varies
+    except Exception as exc:  # noqa: BLE001 — health check must not fail on body parse errors
         return McpHealthProbeResult(
             reachable=True,
             status_code=resp.status_code,

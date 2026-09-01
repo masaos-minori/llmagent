@@ -30,7 +30,7 @@
 |---|---|---|
 | `generate_reference_table.py` | `--type rag\|mcp\|deployment` で指定 | RAG/MCP/デプロイメントのリファレンスセクション |
 | `generate_mcp_inventory.py` | `--format json\|csv` で指定 | エージェント設定からMCPサーバー一覧をJSON/CSVで出力 |
-| `generate_workitem.py` | `--kind issue\|plan\|implementation-procedure` で指定 | 対応する`templates/*.md`からプレースホルダーのみのスケルトンを抽出し、命名規則に沿ったパスで`issues/`・`plans/`・`implementations/`に出力(実質的な内容は生成しない) |
+| `generate_workitem.py` | `--kind issue\|plan\|implementation-procedure\|unknowns\|risks` で指定 | 対応する`templates/*.md`からプレースホルダーのみのスケルトンを抽出し、命名規則に沿ったパスで`issues/`・`plans/`・`implementations/`に出力(実質的な内容は生成しない)。`unknowns`/`risks`は衝突時`--seq`でゼロパッド連番を明示指定して再試行する(自動連番なし、reject-only) |
 
 ## ドキュメント構造検証・整形補助スクリプト
 

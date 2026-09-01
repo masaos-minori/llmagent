@@ -13,6 +13,16 @@ See `routing.md`, section 'Document workflow directories'.
 Unlike the two upstream phases, this is not a document-only phase — see Allowed file
 operations below.
 
+## Toolchain
+
+Repository archival tool relevant to this workflow (see `tools/TOOL_DESCRIPTIONS.md`
+for full usage): `tools/manage_workitem_stage.py close-implementation` (Step 1's
+all-steps-completed check, and Step 7) — a `git mv`-based archival move that refuses
+(non-zero exit, no move) if the target's `## Execution Status` table still has a
+`Pending` row, without `--force --reason`. Per `rules/ai-execution.md` Repository
+Tool Usage, prefer it over a direct `git mv` when it covers the need; Step 1 and
+Step 7 below state the fallback to use if the tool is unavailable.
+
 ## Allowed file operations
 
 - Modify source code files within the scope specified in the current implementation
@@ -93,7 +103,10 @@ Apply `rules/ai-execution.md`, section 'Required File Validation'.
 - **All-steps-completed check**: after reading the file, inspect its `## Execution Status`
   table. If every step row shows `Completed` (no `Pending`, `Blocked`, or other status),
   the procedure is fully executed — do not re-execute it. Move it to
-  `implementations/done/` using `git mv` (same rules as Step 7). Report
+  `implementations/done/` (same rules as Step 7): prefer `uv run python
+  tools/manage_workitem_stage.py close-implementation implementations/{filename}.md`;
+  fall back to `git mv implementations/{filename}.md implementations/done/{filename}.md`
+  only if the tool is unavailable. Report
   `Moved to done: {filename} — all steps Completed, no further action needed`.
 
 ## Step 2: Read the Current Implementation Procedure File
@@ -177,7 +190,16 @@ If Step 5 made no edits (no changed file matched a Task scope row), skip this st
 content checks entirely and mark Step 6 Completed with Notes = `N/A: no documentation
 changes to validate`.
 
-Otherwise, check the sections edited in Step 5:
+Otherwise, run the checkers `routing.md` Tools → "When to run which tool" requires
+for an edited `docs/*.md` file (per `AGENTS.md` Global Rule 9 — do not rely on
+manual review alone for what these already automate): `uv run python
+tools/check_docs_quality.py` and `uv run python tools/check_docs_structure.py
+[edited files...]` always; add `uv run python tools/check_docs_consistency.py
+--domain <domain>` when the edited docs fall under a domain that checker covers
+(`agent`/`mcp`/`rag`/`deployment`/`overview`).
+
+These tools cover most of the check below; still confirm manually whatever they do
+not automate for the edited sections:
 - Markdown structure is not broken.
 - Edited relative links are valid where practical.
 - Edited docs match the matched Task scope row in `docs/00_index.md`.
@@ -204,11 +226,18 @@ only and does not apply to this workflow at all.
   - the final report's Execution Status section accurately reflects the actual work
     performed (completed items show Completed status, blocked items have blocker
     descriptions filled in, Work Items Created includes all artifacts produced).
-- Move the implementation procedure file to `implementations/done/` using `git mv`
-  only. Do not use `mv`, `cp` + `rm`, or any other fallback.
+- Prefer `uv run python tools/manage_workitem_stage.py close-implementation
+  implementations/{filename}.md` — it performs the same `git mv` move and refuses
+  (non-zero exit, no move) if the source is missing, the destination already
+  exists, the source has uncommitted changes, or (redundantly, since this Step's
+  own pre-check above already confirmed it) a `Pending` row remains. Fall back to
+  the direct command below only if the tool is unavailable.
+- Direct command (fallback): `git mv implementations/{filename}.md
+  implementations/done/{filename}.md`. Do not use `mv`, `cp` + `rm`, or any other
+  fallback beyond these two.
 - Verify the file exists in `implementations/done/` after the move.
-- **If `git mv` fails, stop and report `Blocked: git mv failed — {reason}`. Do not
-  fall back to another method.**
+- **If the move fails, stop and report `Blocked: move failed — {reason}`. Do not
+  fall back to another method beyond the two above.**
 
 ## Rollback on Failure
 

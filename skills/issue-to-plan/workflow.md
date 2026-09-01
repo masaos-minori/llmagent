@@ -33,6 +33,14 @@ Tools used by both paths: `rg`/`fd`/`ast-grep` (symbol/file search), `radon`/`vu
 Path B's additional architecture/dependency/historical/operational analysis tools are
 listed in `workflow-path-b.md` — loaded only when Step 3 classifies Path B, not here.
 
+Repository scaffolding/archival tools relevant to this workflow (see
+`tools/TOOL_DESCRIPTIONS.md` for full usage): `tools/generate_workitem.py --kind
+plan|unknowns|risks` (Step 5 Plan skeleton generation; Step 6 Unknown/Risk issue
+skeleton generation) and `tools/manage_workitem_stage.py close-issue` (Step 10,
+`git mv`-based archival move). Per `rules/ai-execution.md` Repository Tool Usage,
+prefer these over the equivalent manual command when they cover the need; each Step
+below states the fallback to use if the tool is unavailable or refuses.
+
 ---
 
 ## Multi-file processing
@@ -239,6 +247,12 @@ raising it to ≥ 90%.
 - Save as `plans/{timestamp}_plan.md`. If that path already exists, use the lowest
   available zero-padded sequence (`plans/{timestamp}_01_plan.md`,
   `plans/{timestamp}_02_plan.md`, ...). An existing file MUST NOT be overwritten.
+- Optionally scaffold the empty file first with `uv run python
+  tools/generate_workitem.py --kind plan` — it reproduces `templates/plan.md`'s
+  current field order exactly, removing manual timestamp/field-order transcription
+  as an error source. The tool refuses (non-zero exit, no write) on a path
+  collision rather than auto-incrementing; treat that refusal as the trigger for
+  the zero-padded sequence rule above, not as a workflow failure.
 - Use the section order and structure from `SKILL.md` Output format.
 - Assign every requirement a stable ID (`REQ-001`, `REQ-002`, ...). Each Acceptance
   criterion, Test, and Implementation step must reference its related Requirement ID.
@@ -264,7 +278,13 @@ raising it to ≥ 90%.
 ## Step 6: Analyze Unknowns and Risks
 
 - Write any generated `issues/{timestamp}_unknowns.md` / `issues/{timestamp}_risks.md`
-  file in English (see `SKILL.md` Core Execution Rules), same as the Plan.
+  file in English (see `SKILL.md` Core Execution Rules), same as the Plan. Optionally
+  scaffold the empty file first with `uv run python tools/generate_workitem.py --kind
+  unknowns` / `--kind risks` — it reproduces `templates/unknowns-issue.md` /
+  `templates/risks-issue.md`'s current field order exactly. The tool refuses
+  (non-zero exit, no write) on a base-path collision rather than auto-incrementing;
+  on that refusal, retry once with `--seq {NN}` matching the zero-padded sequence
+  rule below, rather than treating the refusal as a workflow failure.
 - Include the items carried forward from Step 2's `Needs confirmation` classifications
   as Unknowns, in addition to any Unknowns identified during Steps 3-5.
 - Resolve Unknowns only when supported by repository evidence.
@@ -288,8 +308,10 @@ raising it to ≥ 90%.
   rule as Step 5 (`issues/{timestamp}_01_unknowns.md`, `issues/{timestamp}_01_risks.md`,
   ...). An existing file MUST NOT be overwritten.
 - Each generated Unknown or Risk issue must include a Traceability section (per
-  `templates/traceability.md`): Source issue = current Issue path; Source plan = the
-  Step 5 Plan file.
+  `templates/unknowns-issue.md` / `templates/risks-issue.md` — a deliberately
+  narrower field subset than `templates/traceability.md`'s full list, since these
+  documents trace back to exactly one Issue and one Plan): Source issue = current
+  Issue path; Source plan = the Step 5 Plan file.
 
 ---
 
@@ -366,8 +388,15 @@ failure rule.
 
 - Move the Issue once Step 9 confirms information completeness is `Pass` and all
   required validations are `Pass`.
-- Use only: `git mv issues/{filename}.md issues/done/{filename}.md`. No `mv`,
-  `cp` + `rm`, file-copy APIs, or other fallback.
+- Prefer `uv run python tools/manage_workitem_stage.py close-issue
+  issues/{filename}.md` — it performs the same `git mv issues/{filename}.md
+  issues/done/{filename}.md` move and refuses (non-zero exit, no move) if the
+  source is missing, the destination already exists, or the source has
+  uncommitted changes. Fall back to the direct command below only if the tool is
+  unavailable.
+- Direct command (fallback): `git mv issues/{filename}.md
+  issues/done/{filename}.md`. No `mv`, `cp` + `rm`, file-copy APIs, or other
+  fallback beyond these two.
 - Report `Completed` only after successful verification.
 
 ---
