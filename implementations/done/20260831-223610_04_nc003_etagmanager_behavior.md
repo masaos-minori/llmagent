@@ -1,14 +1,14 @@
 ## Goal
 
-Verify that the fact recorded in archived NC-009 about RagPipelineConfig.run field obsolescence is already present in `03_rag_04_05_dto-types.md`, and add it if missing.
+Verify that the fact recorded in archived NC-003 about ETagManager behavior fix is already present in `03_rag_02_06_ingestion_pipeline-supporting-components.md`, and add it if missing.
 
 ## Scope
 
-Check `03_rag_04_05_dto-types.md` for the presence of the fact that the `run` field no longer exists on `RagPipelineConfig`. Add a concise statement if not already present.
+Check `03_rag_02_06_ingestion_pipeline-supporting-components.md` for the presence of the fact that `_update_etag()` now accepts `doc_id` parameter and `handle_existing_document()` threads `existing_doc_id` through. Add a concise statement if not already present.
 
 ## Assumptions
 
-- The archived NC-009 entry recorded verified facts about current code behavior
+- The archived NC-003 entry recorded verified facts about current code behavior
 - The fact may or may not already be documented in the cited source file
 - If the fact is already documented, no action is needed
 
@@ -27,14 +27,15 @@ Check `03_rag_04_05_dto-types.md` for the presence of the fact that the `run` fi
 
 ### Target file
 
-`03_rag_04_05_dto-types.md`
+`03_rag_02_06_ingestion_pipeline-supporting-components.md`
 
 ### Procedure
 
-1. Read `03_rag_04_05_dto-types.md` to identify existing RagPipelineConfig documentation
-2. Check whether the following fact is already present:
-   - `run` field no longer exists on `RagPipelineConfig`
-3. If the fact is missing, add a concise statement of the current fact
+1. Read `03_rag_02_06_ingestion_pipeline-supporting-components.md` to identify existing ETagManager documentation
+2. Check whether the following facts are already present:
+   - `_update_etag()` now accepts `doc_id` parameter
+   - `handle_existing_document()` threads `existing_doc_id` through
+3. If either fact is missing, add a concise statement of the current fact
 
 ### Method
 
@@ -44,11 +45,13 @@ Direct verification — read the file, search for the relevant sections, and add
 
 ```markdown
 # Facts to verify/add:
-# NC-009: RagPipelineConfig.run field
-# - Obsolete — run field no longer exists on RagPipelineConfig
+# NC-003: ETagManager behavior
+# - Fixed — _update_etag() now accepts doc_id parameter
+# - handle_existing_document() threads existing_doc_id through
 
 # If missing, add concise statement like:
-# "RagPipelineConfig.run field was removed; no longer present in the model."
+# "_update_etag() signature includes doc_id parameter; handle_existing_document() 
+# propagates existing_doc_id through the call chain."
 ```
 
 ## Compatibility considerations
@@ -68,17 +71,17 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 
 | Target | Strategy | Command | Expected Outcome |
 |---|---|---|---|
-| `03_rag_04_05_dto-types.md` | Manual comparison of archived NC-009 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
+| `03_rag_02_06_ingestion_pipeline-supporting-components.md` | Manual comparison of archived NC-003 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
 
 ## Completion criteria
 
-- [ ] Checked whether NC-009 facts are already documented in the file (REQ-002)
+- [ ] Checked whether NC-003 facts are already documented in the file (REQ-002)
 - [ ] Added missing facts if not already present
 - [ ] No duplicate documentation introduced
 
 ## Out of scope
 
-- Changes to RagPipelineConfig model itself
+- Changes to ETagManager implementation itself
 - Changes to other governance documents
 - Modifying governance-policy documents already updated by the prior task
 
@@ -88,8 +91,8 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read source file and check for existing facts | Pending | — | — | |
-| 2 | Add missing facts if not present | Pending | — | — | |
+| 1 | Read source file and check for existing facts | Completed | — | — | Both facts already present in file |
+| 2 | Add missing facts if not present | Completed | — | — | N/A: both facts already documented |
 
 ### Blocker Log
 
@@ -112,4 +115,4 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 - **Source plan**: plans/20260831-223610_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 2026-09-01T00:00:00Z
-- **Related target files**: 03_rag_04_05_dto-types.md
+- **Related target files**: 03_rag_02_06_ingestion_pipeline-supporting-components.md

@@ -52,7 +52,7 @@ When `WorkflowEngine(require_approval=True)` is used, the engine pauses after th
 - **approve**: `/approve <approval_id> [reason]` $\rightarrow$ `status=approved`, passes to the `verify` stage on the next run
 - **reject**: `/reject <approval_id> [reason]` $\rightarrow$ `status=rejected`, `WorkflowHaltError` is raised and the task halts
 - **missing**: If no existing approval record is found, a new record is created and the workflow pauses
-- **expire**: When `_gate_approval()` finds a `pending` record whose `expires_at` has passed, it marks that record `status=expired` and calls `request_approval()` again to re-request approval
+- **expire**: When `_gate_approval()` finds a `pending` record whose `expires_at` has passed, it marks that record `status=expired` and calls `request_approval()` again to re-request approval. `is_expired()` method exists in `approval_ops.py` for checking expiration status.
 - **cancel**: Not supported. By design, `/reject` is the only terminal path
 - **resume**: On the next workflow run after approve/reject, the existing approval record is checked and follows the branches above
 

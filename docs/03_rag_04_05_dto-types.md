@@ -37,6 +37,7 @@ source:
 
 - The origin of the result ("remote/local/fallback") is maintained in `rag/models_result.py` within `SearchDiagnostics.result_source` (`ResultSource` enum), which is set inside `RagPipeline.augment()` depending on the success or failure of the HTTP mode.
   [Explicit in code]
+- The `run` field was removed from `RagPipelineConfig` as dead code — the method was never invoked by any caller.
 
 ## Related Documents
 

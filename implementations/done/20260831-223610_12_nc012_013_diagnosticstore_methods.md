@@ -98,8 +98,8 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read source file and check for existing facts | Pending | — | — | |
-| 2 | Add missing facts if not present | Pending | — | — | |
+| 1 | Read source file and check for existing facts | Completed | — | — | NC-013 fact present; NC-012 detail added |
+| 2 | Add missing facts if not present | Completed | — | — | Added NC-012 loop_guard_hint removal note |
 
 ### Blocker Log
 

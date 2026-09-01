@@ -72,6 +72,7 @@ In addition to `session_summary` and `mid_turn_error`, the following `kind` valu
 | `rag_query` | RAG Export Command | Pipeline diagnostics (`stage_results`, etc.) for RAG queries. Aggregated into `rag_query_count`/`rag_stage_outcomes` in `session_summary` |
 
 Note: `fetch_by_kind` and `fetch_all` were removed in NC-013 and are no longer called from production code.
+DiagnosticStore.loop_guard_hint method was removed after confirming zero production callers.
 
 ### Session Summary Fields
 

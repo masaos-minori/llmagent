@@ -1,14 +1,14 @@
 ## Goal
 
-Verify that the fact recorded in archived NC-017 about SQLiteSessionStore callers is already present in `05_agent_09_01_data-layer-session-db.md`, and add it if missing.
+Verify that the fact recorded in archived NC-001 about `PREMATURE_EOF` error classification is already present in `05_agent_05_llm-and-streaming.md`, and add it if missing.
 
 ## Scope
 
-Check `05_agent_09_01_data-layer-session-db.md` for the presence of the fact that there are zero production callers via full-repo grep; sole caller is tests/test_db_store_impl.py. Add a concise statement if not already present.
+Check `05_agent_05_llm-and-streaming.md` for the presence of the fact that `PREMATURE_EOF` is raised when SSE stream ends before expected content-length, and `UTF8_PARTIAL_DECODE_ERROR` handles JSON decode errors separately. Add a concise statement if not already present.
 
 ## Assumptions
 
-- The archived NC-017 entry recorded verified facts about current code behavior
+- The archived NC-001 entry recorded verified facts about current code behavior
 - The fact may or may not already be documented in the cited source file
 - If the fact is already documented, no action is needed
 
@@ -27,14 +27,15 @@ Check `05_agent_09_01_data-layer-session-db.md` for the presence of the fact tha
 
 ### Target file
 
-`05_agent_09_01_data-layer-session-db.md`
+`05_agent_05_llm-and-streaming.md`
 
 ### Procedure
 
-1. Read `05_agent_09_01_data-layer-session-db.md` to identify existing SQLiteSessionStore documentation
-2. Check whether the following fact is already present:
-   - Zero production callers via full-repo grep; sole caller is tests/test_db_store_impl.py
-3. If the fact is missing, add a concise statement of the current fact
+1. Read `05_agent_05_llm-and-streaming.md` to identify existing error classification documentation
+2. Check whether the following facts are already present:
+   - `PREMATURE_EOF` is raised when SSE stream ends before expected content-length
+   - `UTF8_PARTIAL_DECODE_ERROR` handles JSON decode errors separately
+3. If either fact is missing, add a concise statement of the current fact
 
 ### Method
 
@@ -44,11 +45,13 @@ Direct verification — read the file, search for the relevant sections, and add
 
 ```markdown
 # Facts to verify/add:
-# NC-017: SQLiteSessionStore callers
-# - Zero production callers via full-repo grep; sole caller is tests/test_db_store_impl.py
+# NC-001: Error Classification
+# - PREMATURE_EOF raised when SSE stream ends before expected content-length
+# - UTF8_PARTIAL_DECODE_ERROR handles JSON decode errors separately
 
 # If missing, add concise statement like:
-# "SQLiteSessionStore has zero production callers; sole caller is tests/test_db_store_impl.py."
+# "Error classification includes PREMATURE_EOF for premature SSE stream termination 
+# and UTF8_PARTIAL_DECODE_ERROR for JSON decode failures."
 ```
 
 ## Compatibility considerations
@@ -68,17 +71,17 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 
 | Target | Strategy | Command | Expected Outcome |
 |---|---|---|---|
-| `05_agent_09_01_data-layer-session-db.md` | Manual comparison of archived NC-017 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
+| `05_agent_05_llm-and-streaming.md` | Manual comparison of archived NC-001 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
 
 ## Completion criteria
 
-- [ ] Checked whether NC-017 facts are already documented in the file (REQ-002)
+- [ ] Checked whether NC-001 facts are already documented in the file (REQ-002)
 - [ ] Added missing facts if not already present
 - [ ] No duplicate documentation introduced
 
 ## Out of scope
 
-- Changes to SQLiteSessionStore implementation itself
+- Changes to error handling code itself
 - Changes to other governance documents
 - Modifying governance-policy documents already updated by the prior task
 
@@ -88,8 +91,8 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read source file and check for existing facts | Pending | — | — | |
-| 2 | Add missing facts if not present | Pending | — | — | |
+| 1 | Read source file and check for existing facts | Completed | — | — | Both facts already present in file |
+| 2 | Add missing facts if not present | Completed | — | — | N/A: both facts already documented |
 
 ### Blocker Log
 
@@ -112,4 +115,4 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 - **Source plan**: plans/20260831-223610_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 2026-09-01T00:00:00Z
-- **Related target files**: 05_agent_09_01_data-layer-session-db.md
+- **Related target files**: 05_agent_05_llm-and-streaming.md

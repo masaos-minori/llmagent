@@ -1,14 +1,14 @@
 ## Goal
 
-Verify that the fact recorded in archived NC-006 about result_source field removal is already present in `03_rag_03_06_query_pipeline-helpers-and-cache.md`, and add it if missing.
+Verify that the fact recorded in archived NC-009 about RagPipelineConfig.run field obsolescence is already present in `03_rag_04_05_dto-types.md`, and add it if missing.
 
 ## Scope
 
-Check `03_rag_03_06_query_pipeline-helpers-and-cache.md` for the presence of the fact that `result_source` field was removed from `PipelineRunResult` as dead code. Add a concise statement if not already present.
+Check `03_rag_04_05_dto-types.md` for the presence of the fact that the `run` field no longer exists on `RagPipelineConfig`. Add a concise statement if not already present.
 
 ## Assumptions
 
-- The archived NC-006 entry recorded verified facts about current code behavior
+- The archived NC-009 entry recorded verified facts about current code behavior
 - The fact may or may not already be documented in the cited source file
 - If the fact is already documented, no action is needed
 
@@ -27,13 +27,13 @@ Check `03_rag_03_06_query_pipeline-helpers-and-cache.md` for the presence of the
 
 ### Target file
 
-`03_rag_03_06_query_pipeline-helpers-and-cache.md`
+`03_rag_04_05_dto-types.md`
 
 ### Procedure
 
-1. Read `03_rag_03_06_query_pipeline-helpers-and-cache.md` to identify existing PipelineRunResult documentation
+1. Read `03_rag_04_05_dto-types.md` to identify existing RagPipelineConfig documentation
 2. Check whether the following fact is already present:
-   - `result_source` field removed from `PipelineRunResult` — confirmed dead
+   - `run` field no longer exists on `RagPipelineConfig`
 3. If the fact is missing, add a concise statement of the current fact
 
 ### Method
@@ -44,11 +44,11 @@ Direct verification — read the file, search for the relevant sections, and add
 
 ```markdown
 # Facts to verify/add:
-# NC-006: result_source field
-# - Removed result_source field from PipelineRunResult — confirmed dead
+# NC-009: RagPipelineConfig.run field
+# - Obsolete — run field no longer exists on RagPipelineConfig
 
 # If missing, add concise statement like:
-# "PipelineRunResult.result_source field was removed as dead code."
+# "RagPipelineConfig.run field was removed; no longer present in the model."
 ```
 
 ## Compatibility considerations
@@ -68,17 +68,17 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 
 | Target | Strategy | Command | Expected Outcome |
 |---|---|---|---|
-| `03_rag_03_06_query_pipeline-helpers-and-cache.md` | Manual comparison of archived NC-006 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
+| `03_rag_04_05_dto-types.md` | Manual comparison of archived NC-009 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
 
 ## Completion criteria
 
-- [ ] Checked whether NC-006 facts are already documented in the file (REQ-002)
+- [ ] Checked whether NC-009 facts are already documented in the file (REQ-002)
 - [ ] Added missing facts if not already present
 - [ ] No duplicate documentation introduced
 
 ## Out of scope
 
-- Changes to PipelineRunResult model itself
+- Changes to RagPipelineConfig model itself
 - Changes to other governance documents
 - Modifying governance-policy documents already updated by the prior task
 
@@ -88,8 +88,8 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read source file and check for existing facts | Pending | — | — | |
-| 2 | Add missing facts if not present | Pending | — | — | |
+| 1 | Read source file and check for existing facts | Completed | — | — | Fact was missing, added |
+| 2 | Add missing facts if not present | Completed | — | — | Added dead code removal note |
 
 ### Blocker Log
 
@@ -112,4 +112,4 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 - **Source plan**: plans/20260831-223610_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 2026-09-01T00:00:00Z
-- **Related target files**: 03_rag_03_06_query_pipeline-helpers-and-cache.md
+- **Related target files**: 03_rag_04_05_dto-types.md

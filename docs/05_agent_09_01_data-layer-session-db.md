@@ -90,6 +90,7 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 ## Operational Notes
 
+- SQLiteSessionStore has zero production callers; sole caller is tests/test_db_store_impl.py.
 - Unknown
 
 ## Known Limitations

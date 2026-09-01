@@ -156,5 +156,7 @@ class PipelineRunResult:
 
 Returned by `RagPipeline.run()`.
 
+**Dead code removal:** The `result_source` field was removed from `PipelineRunResult` because it was never populated — the actual result origin is tracked in `SearchDiagnostics.result_source` instead.
+
 **Note on confusion:** There are two fields with the same name but different types.
 - `SearchDiagnostics.result_source: ResultSource` (`rag/models_result.py`) — Takes `ResultSource.LOCAL` (default), `REMOTE`, or `FALLBACK`; updated via `dataclasses.replace()` during HTTP augment execution.

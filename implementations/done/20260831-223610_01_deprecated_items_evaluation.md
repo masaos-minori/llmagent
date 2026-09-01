@@ -97,9 +97,9 @@ N/A: This is a documentation evaluation task. No security-sensitive code changes
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read deprecated items document and Current-Specification-Only Policy | Pending | — | — | |
-| 2 | Evaluate each entry against the policy | Pending | — | — | |
-| 3 | Relocate compliant content or remove non-compliant entries | Pending | — | — | |
+| 1 | Read deprecated items document and Current-Specification-Only Policy | Completed | 2026-09-01 | 2026-09-01 | |
+| 2 | Evaluate each entry against the policy | Completed | 2026-09-01 | 2026-09-01 | All 5 entries non-compliant |
+| 3 | Relocate compliant content or remove non-compliant entries | Completed | 2026-09-01 | 2026-09-01 | Document removed entirely |
 
 ### Blocker Log
 

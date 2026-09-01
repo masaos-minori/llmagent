@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_needs_confirmation_inventory.py — Verify the NC inventory stays in sync with docs/.
 
-docs/00_governance_07_needs-confirmation-inventory.md is meant to be the
+docs/00_governance_03_issue-and-uncertainty-management.md Part 2 is meant to be the
 single, centralized place where every "Needs confirmation" item across
 docs/ is tracked to resolution. Two failure modes were found by manual
 review (docs_review_governance.md):
@@ -16,7 +16,7 @@ review (docs_review_governance.md):
      cover.
 
 A third, self-contained check catches the inventory document contradicting
-itself: 00_governance_07 states its entries "must contain the following
+itself: 00_governance_03 states its entries "must contain the following
 eleven fields" while actually enumerating a different number.
 
 Usage:
@@ -41,7 +41,7 @@ from tools._docs_consistency_lib import (
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
-INVENTORY_DOC_NAME = "00_governance_07_needs-confirmation-inventory.md"
+INVENTORY_DOC_NAME = "00_governance_03_issue-and-uncertainty-management.md"
 
 # Meta/governance docs that discuss the "Needs confirmation" label itself
 # (defining it, cross-referencing it) rather than flagging an actual
@@ -54,13 +54,15 @@ _GOVERNANCE_META_DOCS = frozenset(
         "00_governance_04_known-issues-template.md",
         "00_governance_05_deprecated-items.md",
         "00_governance_06_ai-reading-metadata.md",
-        INVENTORY_DOC_NAME,
+        "00_governance_03_issue-and-uncertainty-management.md",
         "00_governance_08_known-issues-migration-plan.md",
     }
 )
 
 _INLINE_MARKER_RE = re.compile(r"needs confirmation", re.IGNORECASE)
-_NC_ENTRY_RE = re.compile(r"^### (NC-\d+)\s*$")
+_NC_ENTRY_RE = re.compile(r"^#### (NC-\d+)\s*$")
+_PART2_HEADER_RE = re.compile(r"^## Part 2:")
+_SECTION_HEADER_RE = re.compile(r"^## ")
 _SOURCE_FILE_RE = re.compile(r"\*\*Source File\*\*:\s*`([^`]+)`")
 _STATUS_RE = re.compile(r"\*\*Status\*\*:\s*(\S+)")
 
@@ -105,12 +107,20 @@ def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
     current_id: str | None = None
     current_source: str | None = None
     current_status: str | None = None
+    in_part2 = False
 
     def flush() -> None:
         if current_id is not None:
             entries.append(NcEntry(current_id, current_source, current_status))
 
     for line in inventory.lines:
+        if not in_part2:
+            if _PART2_HEADER_RE.match(line):
+                in_part2 = True
+                continue
+            continue
+        if _SECTION_HEADER_RE.match(line):
+            break
         match = _NC_ENTRY_RE.match(line)
         if match:
             flush()
@@ -137,7 +147,7 @@ def check_stale_resolved_markers(
     by_name = {f.name: f for f in docs_dir.glob("*.md")}
     issues: list[Issue] = []
     for entry in entries:
-        if entry.status != "resolved" or not entry.source_file:
+        if entry.status not in ("resolved", "fixed") or not entry.source_file:
             continue
         target = by_name.get(entry.source_file)
         if target is None:

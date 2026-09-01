@@ -24,6 +24,7 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 - Default `InjectionPolicy`: `max_semantic=5`, `max_episodic=3`, `min_importance=0.5`, `max_snippet_length=500`.
 - If embedding retrieval fails, processing continues and the entry is saved without embeddings (`stat_embed_skip` counter increases).
 - Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.SKIP_NEW`, but manual writes intentionally bypass this deduplication.
+- `knn_search` uses L2/Euclidean distance metric (explicit `distance_metric=L2` in vec0 DDL).
 
 ## Operational Notes
 

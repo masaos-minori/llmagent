@@ -49,7 +49,7 @@ DB paths are configured in `agent.toml` via `rag_db_path`, `session_db_path`, `w
 | `workflow.sqlite` | `agent/workflow/state_store.py` | `StateStore` |
 | `rag.sqlite` | `scripts/mcp_servers/rag_pipeline/` | RAG MCP Server |
 
-> **Note:** The Memory layer (`MemoryStore` in `agent/memory/store.py`) uses `SQLiteHelper("session")` and persists to `memories`/`memories_fts`/`memories_vec` tables in `session.sqlite`. It is separate from `rag.sqlite` and independent from the RAG document/chunk embedding store. `JsonlMemoryStore` in `agent/memory/jsonl_store.py` separately archives memory to a non-authoritative append-only JSONL file (for backup/audit purposes). Reading is possible via `read_all()` / `read_active()`.
+> **Note:** The Memory layer (`MemoryStore` in `agent/memory/store.py`) uses `SQLiteHelper("session")` and persists to `memories`/`memories_fts`/`memories_vec` tables in `session.sqlite`. It is separate from `rag.sqlite` and independent from the RAG document/chunk embedding store. `JsonlMemoryStore` in `agent/memory/jsonl_store.py` separately archives memory to a non-authoritative append-only JSONL file (for backup/audit purposes). `read_all()` returns all entries regardless of retention policy; `read_active()` filters by retention policy.
 
 ### Session / RAG Responsibility Boundaries
 

@@ -36,7 +36,7 @@ def test_routing_drift_non_strict_returns_warnings():
     registry = get_registry()
     registry.register(ToolDefinition("tool_a", "srv1"))
     # tool_b in config but not in registry -> drift
-    from agent.repl_health import check_routing_drift
+    from agent.services.routing_drift import check_routing_drift
 
     ctx = _make_ctx(tool_names=["tool_a", "tool_b"])
     msgs = check_routing_drift(ctx, strict=False)
@@ -48,7 +48,7 @@ def test_routing_drift_strict_raises():
     _reset_registry_for_testing()
     registry = get_registry()
     registry.register(ToolDefinition("tool_a", "srv1"))
-    from agent.repl_health import check_routing_drift
+    from agent.services.routing_drift import check_routing_drift
 
     ctx = _make_ctx(tool_names=["tool_a", "tool_b"])
     with pytest.raises(RuntimeError, match="Strict mode"):
@@ -59,7 +59,7 @@ def test_routing_drift_no_drift_returns_empty():
     _reset_registry_for_testing()
     registry = get_registry()
     registry.register(ToolDefinition("tool_a", "srv1"))
-    from agent.repl_health import check_routing_drift
+    from agent.services.routing_drift import check_routing_drift
 
     ctx = _make_ctx(tool_names=["tool_a"])
     msgs = check_routing_drift(ctx, strict=True)
@@ -100,7 +100,7 @@ def test_safety_tiers_empty_config_skips_check():
 
 
 def test_check_routing_safety_tiers_context():
-    from agent.repl_health import check_routing_safety_tiers
+    from agent.services.routing_drift import check_routing_safety_tiers
 
     ctx = _make_ctx(safety_tiers={})  # empty = no check
     msgs = check_routing_safety_tiers(ctx)
