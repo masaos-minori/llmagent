@@ -23,7 +23,6 @@ from agent.shared.health_models import (
 )
 from fastapi.testclient import TestClient
 from shared.mcp_config import (
-    FailurePolicy,
     McpServerConfig,
     SecurityProfile,
     TransportType,
@@ -768,7 +767,7 @@ class TestDiscoverAllUnreachableServers:
         assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
 
     @pytest.mark.asyncio
-    async def test_unreachable_required_server_with_fail_fast_returns_fatal(
+    async def test_unreachable_required_server_returns_fatal(
         self,
     ) -> None:
         srv_cfg = McpServerConfig(

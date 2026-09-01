@@ -44,7 +44,6 @@ from typing import TYPE_CHECKING
 
 import httpx
 from shared.mcp_config import (
-    FailurePolicy,
     McpServerConfig,
     SecurityProfile,
     TransportType,

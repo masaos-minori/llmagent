@@ -101,9 +101,9 @@ Test fixture update: replace deprecated field names, remove obsolete enum compar
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Replace dual required fields with unified field | Pending | — | — | |
-| 2 | Phase 2: Remove failure_policy parameter usage | Pending | — | — | |
-| 3 | Phase 3: Update test logic | Pending | — | — | |
+| 1 | Phase 1: Replace dual required fields with unified field | Complete | — | — | Replaced required_in_local → required |
+| 2 | Phase 2: Remove failure_policy parameter usage | Complete | — | — | Removed failure_policy params from all McpServerConfig calls |
+| 3 | Phase 3: Update test logic | Complete | — | — | Renamed test_unreachable_required_server_with_degraded_returns_warning → test_unreachable_required_server_returns_fatal, updated assertions |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
