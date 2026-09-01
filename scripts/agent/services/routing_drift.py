@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from agent.context import AgentContext
 from shared.logger import Logger
+
+from agent.context import AgentContext
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -34,7 +35,7 @@ def check_routing_drift(ctx: AgentContext, *, strict: bool = False) -> list[str]
         return warnings
     except RuntimeError:
         raise
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — routing drift check must not fail startup on unexpected errors
         logger.warning("Routing drift check failed: %s", exc)
         return []
 
