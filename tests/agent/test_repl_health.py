@@ -13,14 +13,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from agent.repl_health import (
-    _check_tool_definitions,
-    _probe_mcp_health_detail,
-    audit_security_defaults,
-    check_readiness,
-    check_workflow_definition,
-    check_workflow_schema,
-)
+from agent.services.mcp_health import _probe_mcp_health_detail, check_readiness, check_service_health
+from agent.services.tool_validation import _check_tool_definitions
+from agent.services.security_audit import audit_security_defaults
+from agent.services.workflow_schema import check_workflow_definition, check_workflow_schema, SchemaCheckResult
 from agent.security_audit_config import (
     CicdAuditConfig,
     GitAuditConfig,
@@ -275,8 +271,6 @@ class TestCheckToolDefinitions:
 class TestCheckServiceHealth:
     @pytest.mark.asyncio
     async def test_returns_empty_when_all_healthy(self) -> None:
-        from agent.repl_health import check_service_health
-
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
         ctx.cfg.rag.embed_url = "http://localhost:8080/v1/embeddings"
@@ -292,8 +286,6 @@ class TestCheckServiceHealth:
 
     @pytest.mark.asyncio
     async def test_returns_warning_on_non_200(self) -> None:
-        from agent.repl_health import check_service_health
-
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
         ctx.cfg.rag.embed_url = ""
@@ -311,8 +303,6 @@ class TestCheckServiceHealth:
 
     @pytest.mark.asyncio
     async def test_returns_warning_on_exception(self) -> None:
-        from agent.repl_health import check_service_health
-
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
         ctx.cfg.rag.embed_url = ""
@@ -328,8 +318,6 @@ class TestCheckServiceHealth:
 
     @pytest.mark.asyncio
     async def test_skips_empty_urls(self) -> None:
-        from agent.repl_health import check_service_health
-
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = ""
         ctx.cfg.rag.embed_url = ""
@@ -422,13 +410,13 @@ class TestAuditSecurityDefaults:
             sandbox_backend="firejail", command_allowlist=["ls"]
         )
         cicd_cfg = CicdAuditConfig(workflow_allowlist=["test"])
-        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.repl_health.load_git_audit_config", return_value=None):
+        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
                 with patch(
-                    "agent.repl_health.load_github_audit_config", return_value=None
+                    "agent.services.security_audit.load_github_audit_config", return_value=None
                 ):
                     with patch(
-                        "agent.repl_health.load_cicd_audit_config",
+                        "agent.services.security_audit.load_cicd_audit_config",
                         return_value=cicd_cfg,
                     ):
                         with patch("shutil.which", return_value="/usr/bin/firejail"):
@@ -442,7 +430,7 @@ class TestAuditSecurityDefaults:
         """load_shell_audit_config() raising RuntimeError in local mode → warning returned, no raise."""
         ctx = self._make_ctx()
         with patch(
-            "agent.repl_health.load_shell_audit_config",
+            "agent.services.security_audit.load_shell_audit_config",
             side_effect=RuntimeError(
                 "Security audit: failed to load shell config: no file"
             ),
@@ -456,7 +444,7 @@ class TestAuditSecurityDefaults:
         ctx = self._make_ctx()
         with (
             patch(
-                "agent.repl_health.load_shell_audit_config",
+                "agent.services.security_audit.load_shell_audit_config",
                 side_effect=RuntimeError(
                     "Security audit: failed to load shell config: no file"
                 ),
@@ -473,9 +461,9 @@ class TestAuditSecurityDefaults:
         """
         ctx = self._make_ctx()
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
             patch(
-                "agent.repl_health.load_github_audit_config",
+                "agent.services.security_audit.load_github_audit_config",
                 side_effect=RuntimeError(
                     "Security audit: failed to load github config: no file"
                 ),
@@ -488,9 +476,9 @@ class TestAuditSecurityDefaults:
         """git.allowed_repo_paths empty triggers a fail-closed warning."""
         ctx = self._make_ctx()
         empty_git = GitAuditConfig(allowed_repo_paths=[])
-        with patch("agent.repl_health.load_shell_audit_config", return_value=None):
+        with patch("agent.services.security_audit.load_shell_audit_config", return_value=None):
             with patch(
-                "agent.repl_health.load_git_audit_config", return_value=empty_git
+                "agent.services.security_audit.load_git_audit_config", return_value=empty_git
             ):
                 warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("git.allowed_repo_paths" in w for w in warnings)
@@ -499,8 +487,8 @@ class TestAuditSecurityDefaults:
         """shell_sandbox_backend=none triggers a warning."""
         ctx = self._make_ctx()
         shell_cfg = ShellAuditConfig(sandbox_backend="none", command_allowlist=["ls"])
-        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.repl_health.load_git_audit_config", return_value=None):
+        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
                 warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("shell_sandbox_backend=none" in w for w in warnings)
 
@@ -508,8 +496,8 @@ class TestAuditSecurityDefaults:
         """shell_sandbox_backend=none raises RuntimeError in production mode."""
         ctx = self._make_ctx()
         shell_cfg = ShellAuditConfig(sandbox_backend="none", command_allowlist=["ls"])
-        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.repl_health.load_git_audit_config", return_value=None):
+        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
                 with pytest.raises(
                     RuntimeError, match="Production mode requires shell sandbox"
                 ):
@@ -519,8 +507,8 @@ class TestAuditSecurityDefaults:
         """shell_sandbox_backend not 'firejail' and not 'none' → warning about firejail."""
         ctx = self._make_ctx()
         shell_cfg = ShellAuditConfig(sandbox_backend="docker", command_allowlist=["ls"])
-        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.repl_health.load_git_audit_config", return_value=None):
+        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
                 warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("firejail" in w for w in warnings)
 
@@ -530,8 +518,8 @@ class TestAuditSecurityDefaults:
         shell_cfg = ShellAuditConfig(
             sandbox_backend="firejail", command_allowlist=["ls"]
         )
-        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.repl_health.load_git_audit_config", return_value=None):
+        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
                 with patch("shutil.which", return_value=None):
                     with pytest.raises(RuntimeError, match="firejail binary not found"):
                         audit_security_defaults(ctx, production_mode=False)
@@ -542,8 +530,8 @@ class TestAuditSecurityDefaults:
         shell_cfg = ShellAuditConfig(
             sandbox_backend="firejail", command_allowlist=["ls"]
         )
-        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.repl_health.load_git_audit_config", return_value=None):
+        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
                 with patch("shutil.which", return_value="/usr/bin/firejail"):
                     warnings = audit_security_defaults(ctx, production_mode=False)
         assert not any("firejail binary not found" in w for w in warnings)
@@ -552,9 +540,9 @@ class TestAuditSecurityDefaults:
         """Summary line appended when any fail-closed or fail-open setting is empty."""
         ctx = self._make_ctx()
         empty_git = GitAuditConfig(allowed_repo_paths=[])
-        with patch("agent.repl_health.load_shell_audit_config", return_value=None):
+        with patch("agent.services.security_audit.load_shell_audit_config", return_value=None):
             with patch(
-                "agent.repl_health.load_git_audit_config", return_value=empty_git
+                "agent.services.security_audit.load_git_audit_config", return_value=empty_git
             ):
                 warnings = audit_security_defaults(ctx, production_mode=False)
         summary_lines = [w for w in warnings if "Security posture summary" in w]
@@ -566,10 +554,10 @@ class TestAuditSecurityDefaults:
         ctx = self._make_ctx()
         empty_cicd = CicdAuditConfig(workflow_allowlist=[])
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=None),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=empty_cicd),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_cicd_audit_config", return_value=empty_cicd),
         ):
             warnings_dev = audit_security_defaults(ctx, production_mode=False)
         assert any("cicd.workflow_allowlist" in w for w in warnings_dev)
@@ -584,10 +572,10 @@ class TestAuditSecurityDefaults:
             require_pr_review=True,
         )
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=gh_cfg),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_github_audit_config", return_value=gh_cfg),
+            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("allow_force_push=true" in w for w in warnings)
@@ -601,10 +589,10 @@ class TestAuditSecurityDefaults:
             require_pr_review=False,
         )
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=gh_cfg),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_github_audit_config", return_value=gh_cfg),
+            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("require_pr_review=false" in w for w in warnings)
@@ -619,10 +607,10 @@ class TestAuditSecurityDefaults:
             require_pr_review=True,
         )
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=gh_cfg),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_github_audit_config", return_value=gh_cfg),
+            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
         ):
             audit_security_defaults(ctx, production_mode=True)  # must not raise
 
@@ -633,10 +621,10 @@ class TestAuditSecurityDefaults:
         ctx.cfg.tool.tool_definitions_strict = False
         ctx.cfg.tool.routing_drift_strict = True
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=None),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
         ):
             with pytest.raises(RuntimeError, match="tool_definitions_strict"):
                 audit_security_defaults(ctx, production_mode=True)
@@ -648,10 +636,10 @@ class TestAuditSecurityDefaults:
         ctx.cfg.tool.tool_definitions_strict = True
         ctx.cfg.tool.routing_drift_strict = False
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=None),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
         ):
             with pytest.raises(RuntimeError, match="routing_drift_strict"):
                 audit_security_defaults(ctx, production_mode=True)
@@ -661,10 +649,10 @@ class TestAuditSecurityDefaults:
         ctx.cfg.tool.tool_definitions_strict = False
         ctx.cfg.tool.routing_drift_strict = False
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=None),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("tool_definitions_strict" in w for w in warnings)
@@ -676,10 +664,10 @@ class TestAuditSecurityDefaults:
         ctx.cfg.tool.tool_definitions_strict = True
         ctx.cfg.tool.routing_drift_strict = True
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=None),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
         ):
             audit_security_defaults(ctx, production_mode=True)  # must not raise
 
@@ -687,10 +675,10 @@ class TestAuditSecurityDefaults:
         ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
         ctx.cfg.approval.tool_safety_tiers = {"nonexistent_tool": "READ_ONLY"}
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=None),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("nonexistent_tool" in w for w in warnings)
@@ -701,10 +689,10 @@ class TestAuditSecurityDefaults:
         )
         ctx.cfg.approval.tool_safety_tiers = {"nonexistent_tool": "READ_ONLY"}
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=None),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
         ):
             with pytest.raises(RuntimeError):
                 audit_security_defaults(ctx, production_mode=True)
@@ -714,10 +702,10 @@ class TestAuditSecurityDefaults:
             servers={"svc": {"auth_token": "tok"}}, security_profile="production"
         )
         with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=None),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
+            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
         ):
             audit_security_defaults(ctx, production_mode=True)  # must not raise
 

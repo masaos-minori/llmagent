@@ -36,11 +36,11 @@ _GITHUB_OK = GitHubAuditConfig(
 
 
 def test_shell_config_failure_production_raises():
-    from agent.repl_health import audit_security_defaults
+    from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
     with patch(
-        "agent.repl_health.load_shell_audit_config",
+        "agent.services.security_audit.load_shell_audit_config",
         side_effect=RuntimeError(
             "Security audit: failed to load shell config: disk fail"
         ),
@@ -50,11 +50,11 @@ def test_shell_config_failure_production_raises():
 
 
 def test_shell_config_failure_local_warning():
-    from agent.repl_health import audit_security_defaults
+    from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
     with patch(
-        "agent.repl_health.load_shell_audit_config",
+        "agent.services.security_audit.load_shell_audit_config",
         side_effect=RuntimeError(
             "Security audit: failed to load shell config: disk fail"
         ),
@@ -67,13 +67,13 @@ def test_shell_config_failure_local_warning():
 
 
 def test_git_config_failure_production_raises():
-    from agent.repl_health import audit_security_defaults
+    from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.repl_health.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
             with patch(
-                "agent.repl_health.load_git_audit_config",
+                "agent.services.security_audit.load_git_audit_config",
                 side_effect=RuntimeError(
                     "Security audit: failed to load git config: not found"
                 ),
@@ -83,13 +83,13 @@ def test_git_config_failure_production_raises():
 
 
 def test_git_config_failure_local_warning():
-    from agent.repl_health import audit_security_defaults
+    from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.repl_health.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
             with patch(
-                "agent.repl_health.load_git_audit_config",
+                "agent.services.security_audit.load_git_audit_config",
                 side_effect=RuntimeError(
                     "Security audit: failed to load git config: not found"
                 ),
@@ -102,14 +102,14 @@ def test_git_config_failure_local_warning():
 
 
 def test_github_config_failure_production_raises():
-    from agent.repl_health import audit_security_defaults
+    from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.repl_health.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch("agent.repl_health.load_git_audit_config", return_value=_GIT_OK):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=_GIT_OK):
                 with patch(
-                    "agent.repl_health.load_github_audit_config",
+                    "agent.services.security_audit.load_github_audit_config",
                     side_effect=RuntimeError(
                         "Security audit: failed to load GitHub config: bad value"
                     ),
@@ -119,14 +119,14 @@ def test_github_config_failure_production_raises():
 
 
 def test_github_config_failure_local_warning():
-    from agent.repl_health import audit_security_defaults
+    from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.repl_health.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch("agent.repl_health.load_git_audit_config", return_value=_GIT_OK):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=_GIT_OK):
                 with patch(
-                    "agent.repl_health.load_github_audit_config",
+                    "agent.services.security_audit.load_github_audit_config",
                     side_effect=RuntimeError(
                         "Security audit: failed to load GitHub config: bad value"
                     ),
@@ -139,18 +139,18 @@ def test_github_config_failure_local_warning():
 
 
 def test_cicd_config_failure_production_raises():
-    from agent.repl_health import audit_security_defaults
+    from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.repl_health.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch("agent.repl_health.load_git_audit_config", return_value=_GIT_OK):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=_GIT_OK):
                 with patch(
-                    "agent.repl_health.load_github_audit_config",
+                    "agent.services.security_audit.load_github_audit_config",
                     return_value=_GITHUB_OK,
                 ):
                     with patch(
-                        "agent.repl_health.load_cicd_audit_config",
+                        "agent.services.security_audit.load_cicd_audit_config",
                         side_effect=RuntimeError(
                             "Security audit: failed to load CI/CD config: io error"
                         ),
@@ -160,18 +160,18 @@ def test_cicd_config_failure_production_raises():
 
 
 def test_cicd_config_failure_local_warning():
-    from agent.repl_health import audit_security_defaults
+    from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.repl_health.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch("agent.repl_health.load_git_audit_config", return_value=_GIT_OK):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=_GIT_OK):
                 with patch(
-                    "agent.repl_health.load_github_audit_config",
+                    "agent.services.security_audit.load_github_audit_config",
                     return_value=_GITHUB_OK,
                 ):
                     with patch(
-                        "agent.repl_health.load_cicd_audit_config",
+                        "agent.services.security_audit.load_cicd_audit_config",
                         side_effect=RuntimeError(
                             "Security audit: failed to load CI/CD config: io error"
                         ),
@@ -184,11 +184,11 @@ def test_cicd_config_failure_local_warning():
 
 
 def test_lockdown_does_not_suppress_production_failure():
-    from agent.repl_health import audit_security_defaults
+    from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx(lockdown=True)
     with patch(
-        "agent.repl_health.load_shell_audit_config",
+        "agent.services.security_audit.load_shell_audit_config",
         side_effect=RuntimeError("Security audit: failed to load shell config: fail"),
     ):
         with pytest.raises(RuntimeError, match="shell config"):
@@ -199,14 +199,14 @@ def test_lockdown_does_not_suppress_production_failure():
 
 
 def test_import_error_stays_silent():
-    from agent.repl_health import audit_security_defaults
+    from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.repl_health.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch("agent.repl_health.load_git_audit_config", return_value=_GIT_OK):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=_GIT_OK):
                 with patch(
-                    "agent.repl_health.load_github_audit_config", return_value=None
+                    "agent.services.security_audit.load_github_audit_config", return_value=None
                 ):
                     warnings = audit_security_defaults(ctx, production_mode=True)
     assert not any("GitHub config" in w for w in (warnings or []))

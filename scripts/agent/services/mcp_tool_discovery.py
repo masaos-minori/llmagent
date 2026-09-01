@@ -55,7 +55,7 @@ from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_routing_validation import validate_routing_against_live
 
-from agent.repl_health import _check_tool_definitions
+from agent.services.tool_validation import _check_tool_definitions
 from agent.shared.health_models import StartupCheckOutcome, StartupCheckStatus
 
 if TYPE_CHECKING:

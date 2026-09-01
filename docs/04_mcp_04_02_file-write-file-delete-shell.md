@@ -105,7 +105,7 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 > **Security Note — Sandboxing is disabled by default:** The default value for `sandbox_backend` is `"none"`. Shell commands are executed with the OS user and privileges of the agent process — there is no container or namespace isolation. To enable sandboxing, install firejail and set `sandbox_backend = "firejail"` in `config/shell_mcp_server.toml`. You can verify the active backend via the `details.sandbox_backend` field (`"none"` or `"firejail"`) in the `/health` response.
 > **Enforcement in Production:** In production mode (`security_profile = "production"` in `agent.toml`), `sandbox_backend = "none"` is not allowed. If this combination is detected, the agent will raise a `RuntimeError` at startup. In production environments, either set `sandbox_backend = "firejail"` or disable `shell-mcp`.
 >
-> > **Note**: `shell-mcp` itself does not perform production checks or enforcement. Enforcement in production is handled by the Agent's startup sequence (via `scripts/agent/repl_health.py::audit_security_defaults()` called from `scripts/agent/startup.py`). If `shell-mcp` is started independently of the Agent startup path, this enforcement may be bypassed.
+> > **Note**: `shell-mcp` itself does not perform production checks or enforcement. Enforcement in production is handled by the Agent's startup sequence (via `scripts/agent/services/security_audit.py::audit_security_defaults()` called from `scripts/agent/startup.py`). If `shell-mcp` is started independently of the Agent startup path, this enforcement may be bypassed.
 
 ---
 

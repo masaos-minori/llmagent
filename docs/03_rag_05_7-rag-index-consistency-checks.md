@@ -94,3 +94,7 @@ Run `/session rag-rebuild-fts` to re-sync `chunks_fts` from the `chunks` table.
 ## Keywords
 
 configuration
+
+## gen_rag_reference.py Auto-Update
+
+OPS_DOC removed from `tools/gen_rag_reference.py`; CLI-help-only write path established. gen_rag_reference.py auto-update issue shared root cause with NC-010; resolved by sibling plan.

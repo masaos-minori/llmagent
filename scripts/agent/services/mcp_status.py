@@ -20,7 +20,7 @@ from shared.mcp_config import (
 )
 
 from agent.lifecycle import LifecycleState
-from agent.repl_health import _probe_mcp_health_detail
+from agent.services.mcp_health import _probe_mcp_health_detail
 from agent.services.enums import McpAvailability, McpTier
 from agent.services.exceptions import McpProbeError
 from agent.services.models import McpProbeResult
@@ -217,7 +217,7 @@ class McpStatusService:
                  self_reported_status, dep_summary, detail_summary, parse_failure_reason,
                  probe_result).
         """
-        from agent.repl_health import McpHealthProbeResult
+        from agent.shared.health_models import McpHealthProbeResult
 
         if not url:
             return (

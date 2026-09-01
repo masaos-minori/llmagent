@@ -27,13 +27,10 @@ from agent.context import AgentContext
 from agent.factory import build_agent_context, init_tracer
 from agent.orchestrator import Orchestrator
 from agent.output_tags import OutputTag
-from agent.repl_health import (
-    audit_security_defaults,
-    check_readiness,
-    check_routing_drift,
-    check_routing_safety_tiers,
-    check_workflow_definition,
-)
+from agent.services.security_audit import audit_security_defaults
+from agent.services.mcp_health import check_readiness
+from agent.services.routing_drift import check_routing_drift, check_routing_safety_tiers
+from agent.services.workflow_schema import check_workflow_definition
 from agent.secrets_masker import _mask_secrets
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from agent.services.rag_maintenance_service import RagMaintenanceService
@@ -321,9 +318,7 @@ class StartupOrchestrator:
 
     def _check_workflow_schema(self) -> None:
         """Preflight check for workflow DB schema before Orchestrator.__init__()."""
-        from agent.repl_health import (
-            check_workflow_schema,  # lazy import: avoids a module-level import cycle with agent.repl_health, loaded only when the workflow schema check runs
-        )
+        from agent.services.workflow_schema import check_workflow_schema
 
         result = check_workflow_schema()
         if not result.valid:

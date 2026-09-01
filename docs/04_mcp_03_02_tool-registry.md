@@ -99,7 +99,7 @@ is_side_effect(tool_name: str) -> bool
 
 ### Safety Tier Verification
 
-- `check_tool_safety_tiers()`: Warns about registered tools not declared in `tool_safety_tiers`. Called from `agent/repl_health.py` during startup (Explicit in code).
+- `check_tool_safety_tiers()`: Warns about registered tools not declared in `tool_safety_tiers`. Called from `agent/services/routing_drift.py` during startup (Explicit in code).
 - `check_unknown_tool_safety_tiers()`: Detects when a key in `tool_safety_tiers` is unregistered (e.g., specifying a server key instead of an individual tool name). Called from `shared/production_config_validator.py` (Explicit in code).
 - Both functions return an empty list if `tool_safety_tiers` is empty/unset (skipping checks).
 

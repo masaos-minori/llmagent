@@ -1,7 +1,7 @@
 """Tests for /v1/tools malformed response validation in repl_health."""
 
 import pytest
-from agent.repl_health import _validate_tools_response
+from agent.services.tool_validation import _validate_tools_response, _collect_server_tool_names
 
 # --- _validate_tools_response unit tests ---
 
@@ -82,8 +82,6 @@ async def test_collect_server_tool_names_invalid_json():
     """Invalid JSON response -> server in unreachable list."""
     from unittest.mock import AsyncMock, MagicMock
 
-    from agent.repl_health import _collect_server_tool_names
-
     ctx = MagicMock()
     srv = MagicMock()
     srv.transport = "http"
@@ -106,8 +104,6 @@ async def test_collect_server_tool_names_invalid_json():
 async def test_collect_server_tool_names_missing_tools_field():
     """Missing 'tools' field -> server in unreachable list."""
     from unittest.mock import AsyncMock, MagicMock
-
-    from agent.repl_health import _collect_server_tool_names
 
     ctx = MagicMock()
     srv = MagicMock()

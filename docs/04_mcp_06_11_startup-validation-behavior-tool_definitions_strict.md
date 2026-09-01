@@ -1,6 +1,6 @@
 # Startup Validation Behavior (`tool_definitions_strict`)
 
-> **Canonical specification.** This section describes the tool definitions check in `repl_health.py`.
+> **Canonical specification.** This section describes the tool definitions check in `agent/services/tool_validation.py`.
 > For routing drift detection (`validate_routing_against_live` in `route_resolver.py`), see [04_mcp_03 Drift validation](./04_mcp_03_02_tool-registry.md#drift-validation).
 > These are different features.
 
