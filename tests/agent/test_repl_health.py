@@ -130,7 +130,7 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
             mock_collect.return_value = ({"read_file", "write_file"}, [])
             result = await _check_tool_definitions(ctx, strict=False)
@@ -146,7 +146,7 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
             mock_collect.return_value = ({"read_file"}, [])
             result = await _check_tool_definitions(ctx, strict=False)
@@ -163,7 +163,7 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
             mock_collect.return_value = ({"read_file", "delete_file"}, [])
             result = await _check_tool_definitions(ctx, strict=False)
@@ -178,7 +178,7 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
             mock_collect.return_value = ({"read_file", "delete_file"}, [])
             with pytest.raises(RuntimeError, match="Strict mode"):
@@ -192,7 +192,7 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
             mock_collect.return_value = (set(), [])
             result = await _check_tool_definitions(ctx, strict=False)
@@ -207,7 +207,7 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
             mock_collect.return_value = (
                 set(),
@@ -229,7 +229,7 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
             mock_collect.return_value = ({"read_file"}, ["srv-b"])
             result = await _check_tool_definitions(ctx, strict=False)
@@ -247,7 +247,7 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
             mock_collect.return_value = ({"read_file"}, ["srv-b"])
             with pytest.raises(RuntimeError, match="Strict mode"):
@@ -261,7 +261,7 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
             mock_collect.return_value = (set(), ["srv-a"])
             result = await _check_tool_definitions(ctx, strict=False)
