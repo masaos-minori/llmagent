@@ -74,6 +74,19 @@ class ChunkRecord:
 
 
 @dataclass(frozen=True)
+class PreparedChunk:
+    """Chunk with a generated embedding, ready for DB insertion during ingestion."""
+
+    doc_id: int
+    chunk_index: int
+    content: str
+    normalized_content: str | None
+    embedding_blob: bytes
+    chunk_type: str
+    source_file: str
+
+
+@dataclass(frozen=True)
 class CacheEntry:
     """Cached embedding result for reuse."""
 

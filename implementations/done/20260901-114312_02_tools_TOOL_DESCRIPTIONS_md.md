@@ -84,10 +84,10 @@ row. No other file depends on this specific row's wording.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row addition; verified by the sync checker, not a pytest test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `uv run python tools/check_tool_descriptions_sync.py` only — this file is outside `scripts/`, so ruff/mypy/lint-imports do not apply |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This step's own subject is the documentation update; no further doc dependency |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-120000 | 20260901-120010 | Added one row for `check_workitem_traceability.py` to the checker table, after `check_needs_confirmation_inventory.py` and before `check_compat_shims.py` |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-120000 | 20260901-120010 | N/A: documentation-only row addition; verified by the sync checker, not a pytest test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-120010 | 20260901-120030 | `uv run python tools/check_tool_descriptions_sync.py` -> "No issues found." Also ran `uv run pytest tests/tools/ -v --continue-on-collection-errors`: 61 passed, 1 pre-existing collection error (`test_check_agent_docs_consistency.py`, unrelated) — no new failures. This file is outside `scripts/`, so ruff/mypy/lint-imports do not apply |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-120030 | 20260901-120035 | N/A: no `docs/00_index.md` "Document References by Task" row targets `tools/TOOL_DESCRIPTIONS.md` itself (only `tools/01_overview.md` is mapped) — no edit made, per Step 5/6 of `skills/code-implementation/workflow.md` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

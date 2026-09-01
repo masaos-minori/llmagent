@@ -89,10 +89,10 @@ row. No other file depends on this specific row's wording.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row addition; verified by the sync checker, not a pytest test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `uv run python tools/check_tool_descriptions_sync.py` only — this file is outside `scripts/`, so ruff/mypy/lint-imports do not apply |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This step's own subject is the documentation update; no further doc dependency |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-154611 | 20260901-154611 | Added `rename_doc.py` row to the "ドキュメント構造検証・整形補助スクリプト" table, adjacent to `rename_mcp_modules.py`'s row |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-154611 | 20260901-154611 | N/A: documentation-only row addition; verified by the sync checker, not a pytest test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-154611 | 20260901-154611 | `uv run python tools/check_tool_descriptions_sync.py` -> "No issues found." Also ran `uv run pytest tests/tools/ -v --continue-on-collection-errors`: 78 passed, 1 pre-existing collection error (`test_check_agent_docs_consistency.py`, unrelated) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-154611 | 20260901-154611 | N/A: no `docs/00_index.md` task-scope row matches `tools/TOOL_DESCRIPTIONS.md` as a changed file; edit skipped |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

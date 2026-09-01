@@ -164,10 +164,10 @@ it, same as any other Git rename.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by `implementations/20260901-114646_03_tests_tools_test_manage_workitem_stage_py.md` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Covered by `implementations/20260901-114646_02_tools_TOOL_DESCRIPTIONS_md.md` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-152510 | 20260901-152510 | |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-152510 | 20260901-152510 | Dedicated test file deferred to `implementations/20260901-114646_03_tests_tools_test_manage_workitem_stage_py.md`; this cycle confirmed no new failures via `uv run pytest tests/tools/ -v --continue-on-collection-errors` and manual close-issue/close-plan/close-implementation verification in an isolated `/tmp` git repo |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-152510 | 20260901-152510 | `ruff format`/`ruff check`/`mypy`/`bandit` all clean on the new file |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-152510 | 20260901-152510 | `docs/00_index.md` has no task-scope row mapping a specific new `tools/*.py` file; `tools/TOOL_DESCRIPTIONS.md` update deferred to `implementations/20260901-114646_02_tools_TOOL_DESCRIPTIONS_md.md` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

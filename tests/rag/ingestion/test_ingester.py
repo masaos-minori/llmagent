@@ -21,8 +21,10 @@ from unittest.mock import MagicMock, patch
 
 import orjson
 import pytest
+from rag.exceptions import IngestionFailureReason
 from rag.ingestion.document_manager import DocumentManager
-from rag.ingestion.ingester import IngestionFailureReason, PreparedChunk, RagIngester
+from rag.ingestion.ingester import RagIngester
+from rag.models_data import PreparedChunk
 
 # Minimal rag.sqlite schema (regular tables; vec0 extension not required in tests)
 _SCHEMA_SQL = """

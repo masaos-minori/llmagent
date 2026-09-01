@@ -90,10 +90,10 @@ row. No other file depends on this specific row's wording.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row addition; verified by the sync checker, not a pytest test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `uv run python tools/check_tool_descriptions_sync.py` only — this file is outside `scripts/`, so ruff/mypy/lint-imports do not apply |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This step's own subject is the documentation update; no further doc dependency |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-122201 | 20260901-122201 | Adversarial verification confirmed `tools/generate_workitem.py` exists, its `--kind {issue,plan,implementation-procedure}` flag, and the existing table rows; no correction to this procedure needed. Added one row for `generate_workitem.py` to the "リファレンス自動生成スクリプト" table |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-122201 | 20260901-122201 | N/A: documentation-only row addition; verified by the sync checker, not a pytest test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-122201 | 20260901-122201 | `uv run python tools/check_tool_descriptions_sync.py` -> "No issues found." Also ran `uv run pytest tests/tools/ -v` (52 passed; pre-existing unrelated collection error in `test_check_agent_docs_consistency.py` ignored per instruction) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-122201 | 20260901-122201 | N/A: no `docs/00_index.md` "Document References by Task" row maps `tools/TOOL_DESCRIPTIONS.md` or `generate_workitem.py`; no edit made |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -15,6 +15,8 @@
 | `_docs_consistency_lib.py` | (共通基盤、単体実行不可) | DocFile/Issueデータ型、ファイル探索、壊れた内部リンク・削除済みファイル参照・スラッシュコマンドドリフト・ディレクトリ一覧の網羅性・`scripts/`パス参照/関数参照の実在性の汎用チェック |
 | `check_docs_consistency.py` | `--domain agent\|mcp\|rag\|deployment\|overview` | 上記5ドメインのチェックを統合。`--skip <check>`で特定チェックをスキップ可能 |
 | `check_needs_confirmation_inventory.py` | `docs/*.md` 全体 | 「Needs confirmation」記載が`00_governance_07`の集中インベントリに登録されているか、resolved済みNC項目の該当箇所にマーカーが残っていないか、フィールド数宣言と実際のリスト項目数の一致 |
+| `check_known_deviation_sync.py` | `docs/adr/*.md`, `docs/*_90_inconsistencies_and_known_issues.md` | 各ADRの`## Known Deviations`(および`## Related Documents`→`### Known Issues`)が参照するKnown Issue ID(例: `MCP-004`)について、ADR側のresolved-like/open-likeシグナルと正本(`docs/*_90_inconsistencies_and_known_issues.md`)側のStatusフィールドの不一致、および正本側に該当IDの見出しが存在しないdangling参照を検出する。読み取り専用(検出のみで自動修正は行わない)。`--format json`で機械可読形式の出力にも対応 |
+| `check_workitem_traceability.py` | `issues/`, `plans/`, `implementations/`(各`done/`含む) | 各ドキュメントの`## Traceability`節をパースし、missing-source-file(`Source *`参照先ファイルの不在)・no-plan-yet(未紐付けissue)・no-procedure-yet(未紐付けplan)・stale-target-heuristic(issue記載後に更新された参照先ドキュメントの可能性、判定は候補提示のみ)の4種類を検出する。読み取り専用(`issues/`/`plans/`/`implementations/`配下への書き込み・改名・移動・削除は一切行わない)。`--format json\|csv`で機械可読形式の出力にも対応 |
 | `check_compat_shims.py` | `scripts/`, `docs/`, `tests/`, `tools/` | 後方互換スタブ・shimの残存検出 |
 | `check_suppression_justification.py` | `scripts/`, `tests/` | `# noqa`/`# type: ignore`/`# nosec` にルール/エラーコードとem-dash(` — `)区切りの正当化理由が伴っているかを検出。`DEFAULT_ALLOWLIST`で既存の非準拠行をベースライン許容 |
 | `check_docs_quality.py` | `docs/*.md` 全体 | コアチェック(壊れた見出し、不正なMarkdownテーブル、閉じられていないコードブロック、JSON例のフェンス漏れ、重複見出し番号、Migration Notesの配置、解決済みissueの記載等)+ カスタムルール(`config/doc_quality_rules.json`から動的ロード)。`--core-only`/`--custom-only`/`--skip <check>`/`--only <check>`でフィルタリング可能 |
@@ -28,6 +30,7 @@
 |---|---|---|
 | `generate_reference_table.py` | `--type rag\|mcp\|deployment` で指定 | RAG/MCP/デプロイメントのリファレンスセクション |
 | `generate_mcp_inventory.py` | `--format json\|csv` で指定 | エージェント設定からMCPサーバー一覧をJSON/CSVで出力 |
+| `generate_workitem.py` | `--kind issue\|plan\|implementation-procedure` で指定 | 対応する`templates/*.md`からプレースホルダーのみのスケルトンを抽出し、命名規則に沿ったパスで`issues/`・`plans/`・`implementations/`に出力(実質的な内容は生成しない) |
 
 ## ドキュメント構造検証・整形補助スクリプト
 
@@ -35,6 +38,7 @@
 |---|---|
 | `check_docs_structure.py` | `docs/*.md` の構造規約(ファイルサイズ、H1見出し数、Front Matter、Related Documents/Keywordsセクション、内部 `.md` リンクの到達可能性)を検証する。`uv run python tools/check_docs_structure.py [glob ...]` |
 | `manage_frontmatter.py` | `add-missing` サブコマンドでFront Matter欠落を検知・追加、`dedupe-lists` サブコマンドでリストフィールドの重複エントリを除去 |
+| `manage_workitem_stage.py` | `close-issue`/`close-plan`/`close-implementation` の3サブコマンドで、`issues/`→`issues/done/`、`plans/`→`plans/done/`、`implementations/`→`implementations/done/`のアーカイブ移動を`git mv`(GitPython経由)で実行する。`close-implementation`は対象ファイルの`### Execution Status`テーブルに`Pending`行が残っている場合は移動をブロックし、`--force`と`--reason <理由>`を両方指定した場合のみ強制移動する。いずれのサブコマンドもファイル移動のみを行い、ファイル内容(Execution Status行等)の編集は行わない。 |
 | `fix_docstring_blank_line.py` | D205(docstringサマリー行の直後に空行がない)を検出し、空行を挿入する一括修正スクリプト。三重引用符文字列の判定を堅牢にし、SQL文字列リテラルの誤検出を回避する。`--dir` でスキャン対象ディレクトリを指定可能。 |
 | `fix_docs_section_marks.py` | `docs/`・`skills/` 配下の Markdown ファイルから節記号 `§`(表示崩れの原因)を除去し、平易な英語表現(`section N`、`sections N-M` 等)に置き換える。`--dir <path...>` でスキャン対象を変更可能(デフォルト `docs skills`)。`--apply` を付けない限り dry-run。 |
 | `fix_docstring_paths.py` | `scripts/**/*.py` のモジュールレベルdocstringヘッダーパスをリポジトリルートからの相対パス（scripts/<relpath>形式）に書き換える。--dry-run で変更内容を表示、--apply で実際に適用。 |
@@ -42,6 +46,7 @@
 | `merge_part_files.py` | `docs/` 内の `-partN.md` 形式分割ファイルを統合する。`find_groups()` で単純ペア(2ファイル)と多パートシリーズ(3ファイル以上)の両方を検出し、それぞれ適切なマージ戦略を適用。`update_internal_refs_for_multi()` でマージ後の内部リンクを更新。 |
 | `fix_part_refs.py` | マージ後のドキュメント間で壊れた `-part*.md` 参照を修正する。8つの正規表現パターンでmarkdownリンクURL/テキスト、バッククォート、プレーンテキスト、アンカー、セクション名の各形式に対応。 |
 | `rename_mcp_modules.py` | `mcp_servers/<server>/` 配下のモジュール名を一括リネームするためのスクリプト。絶対インポート・相対インポート・patchターゲット・ドキュメント文字列の更新を自動処理。 |
+| `rename_doc.py` | `docs/*.md`(`docs/adr/*.md`含む)を`<old-path> <new-path>`引数で`git mv`し、`docs/`配下の全Markdownファイルを走査して該当ファイルへのMarkdownリンクパスを書き換える。オプションの`--old-title`/`--new-title`を両方指定した場合はリンクテキストも置換(非リンクのプレーンテキスト言及は書き換えず報告のみ)。書き込みは`docs/`配下に限定。`--apply`を付けない限り`--dry-run`相当(デフォルト)で変更内容の表示のみ。 |
 
 ## モジュールドキュメント文字列チェックスクリプト
 

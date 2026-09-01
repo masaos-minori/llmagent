@@ -122,10 +122,10 @@ depends on it.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on `tools/check_known_deviation_sync.py` existing first (seq 01) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's own subject is the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation dependency for this test file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-161020 | 20260901-161020 | `tools/check_known_deviation_sync.py` (seq 01) exists and was read in full before writing the test file |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-161020 | 20260901-161020 | `tests/tools/test_check_known_deviation_sync.py` created; covers match/mismatch/dangling/false-positive-avoidance/no-ID-headings scenarios via tmp_path fixtures |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-161020 | 20260901-161020 | `ruff format`/`ruff check`/`mypy` clean; new tests 5/5 pass; `tests/tools/` full run 88 passed, 1 pre-existing unrelated collection error (`test_check_agent_docs_consistency.py`) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-161020 | 20260901-161020 | N/A: no `docs/00_index.md` Document References by Task row matches `tests/tools/test_check_known_deviation_sync.py` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

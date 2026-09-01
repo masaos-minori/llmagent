@@ -108,7 +108,17 @@ convention, not a new CLI framework). Imports `DocFile`, `Issue`,
 ### Details
 - Regex for the ADR-side ID lookahead: `r"([A-Z]+-\d+)(?=\s|—|$)"` (or
   equivalent), applied only within the two scoped sections per bullet line —
-  never against the full file content.
+  never against the full file content. Within a `## Known Deviations`
+  `**Known Issue**`/`**Resolved**` bullet specifically, apply it anchored at
+  the start of the text following the label (`re.match`, not `re.search`) —
+  confirmed necessary during implementation: ADR-012's first Known Deviations
+  bullet (`_validate_protected()` empty-`branch` bypass) contains the
+  substring `INV-03` later in its free-form description text, which an
+  unanchored `re.search` misreads as the bullet's referenced Known Issue ID
+  and reports as a spurious dangling reference. The real Known Issue ID (when
+  present) is always the first token immediately after the label in every
+  confirmed case (MCP-003/004/005, EVENTBUS-008, DESIGN-1/2, CI-001), so the
+  anchored match loses no true positive.
 - An ADR bullet whose first token after its label does not match the ID pattern
   at all (e.g. `docs/adr/ADR-005-rag-source-derived-index-relationships.md`'s
   backtick-led `sqlite-vec` bullet, confirmed to carry no ID token) contributes
@@ -183,10 +193,10 @@ read-only, it cannot have altered any other file's state.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by `implementations/20260901-115359_03_tests_tools_test_check_known_deviation_sync_py.md` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `mypy` N/A per Assumptions |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Covered by `implementations/20260901-115359_02_tools_TOOL_DESCRIPTIONS_md.md` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-160339 | 20260901-160339 | See Details correction: `re.search` -> anchored `re.match` for Known Deviations bullets, to avoid an `INV-03` false-positive dangling reference (found via live-repo validation, ADR-012). |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-160339 | 20260901-160339 | N/A this cycle: dedicated pytest coverage is covered by `implementations/20260901-115359_03_tests_tools_test_check_known_deviation_sync_py.md`. Manual live-repo validation (all AC-1..AC-5, AC-7 checks) performed instead — see Final Report. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-160339 | 20260901-160339 | `ruff format`/`ruff check`/`bandit -r tools/` clean for this file; `mypy tools/check_known_deviation_sync.py` (file explicitly named, since `pyproject.toml`'s `[tool.mypy] files = ["scripts/"]` excludes `tools/` per Assumptions) also clean. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-160339 | 20260901-160339 | N/A: no `docs/00_index.md` task-scope row resolves to an existing, editable doc for this change (the one `tools/` row points at `tools/01_overview.md`, which does not exist in the repository); `TOOL_DESCRIPTIONS.md` update is explicitly covered by `implementations/20260901-115359_02_tools_TOOL_DESCRIPTIONS_md.md`, out of this cycle's scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

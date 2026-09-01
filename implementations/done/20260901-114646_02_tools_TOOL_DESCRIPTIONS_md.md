@@ -79,10 +79,10 @@ Any other edit to `tools/TOOL_DESCRIPTIONS.md` beyond the one new entry.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only entry addition; verified by the sync checker, not a pytest test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `uv run python tools/check_tool_descriptions_sync.py` only — this file is outside `scripts/`, so ruff/mypy/lint-imports do not apply |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This step's own subject is the documentation update; no further doc dependency |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-152906 | 20260901-152906 | Added `manage_workitem_stage.py` row to the "ドキュメント構造検証・整形補助スクリプト" table, next to `manage_frontmatter.py`; adversarial verification confirmed the three subcommands, `git mv`-based move, and `close-implementation` Pending-block/`--force --reason` behavior against current `tools/manage_workitem_stage.py` source |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-152906 | 20260901-152906 | N/A: documentation-only entry addition; verified by the sync checker, not a pytest test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-152906 | 20260901-152906 | `uv run python tools/check_tool_descriptions_sync.py` -> "No issues found."; `uv run pytest tests/tools/ -v --continue-on-collection-errors` -> 68 passed, 1 pre-existing collection error (`test_check_agent_docs_consistency.py`, unrelated) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-152906 | 20260901-152906 | N/A: no `docs/00_index.md` task-scope row maps specifically to a `TOOL_DESCRIPTIONS.md` single-entry addition (checked "tools/ scripts overview" row -> `tools/01_overview.md`; not a file-level match) — consistent with the precedent from the two prior `_02_tools_TOOL_DESCRIPTIONS_md.md` cycles, neither of which edited `docs/00_index.md` or `tools/01_overview.md` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

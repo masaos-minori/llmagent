@@ -135,10 +135,10 @@ it.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on `tools/manage_workitem_stage.py` existing first (seq 01) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's own subject is the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation dependency for this test file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-153344 | 20260901-153344 | Verified `cmd_close_issue`/`cmd_close_plan`/`cmd_close_implementation` take `argparse.Namespace` and return `int` (print, no `MoveResult` returned to caller) — built `args` via `build_parser().parse_args([...])`, matching actual source |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-153344 | 20260901-153344 | `tests/tools/test_manage_workitem_stage.py` created: 3 subcommands' success paths, missing-source/existing-destination refusals, Pending-row block, forced `--force --reason` override, content-unchanged (REQ-005), and printed-path/exit-code (REQ-006) assertions |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-153344 | 20260901-153344 | `ruff format`/`ruff check`/`mypy` clean on the new test file |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-153344 | 20260901-153344 | N/A: no `docs/00_index.md` task-scope mapping for `tools/manage_workitem_stage.py` or this test file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

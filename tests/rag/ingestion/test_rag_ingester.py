@@ -10,9 +10,9 @@ from db.helper import SQLiteHelper
 from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.ingester import (
     IngestUrlResult,
-    PreparedChunk,
     RagIngester,
 )
+from rag.models_data import PreparedChunk
 
 # ── Constants & Helpers ───────────────────────────────────────────────────────
 

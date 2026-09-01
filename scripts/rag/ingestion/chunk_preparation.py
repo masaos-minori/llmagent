@@ -12,6 +12,7 @@ from pathlib import Path
 
 import httpx
 from rag.exceptions import IngestionFailureReason
+from rag.ingestion.embedding import EmbeddingService
 from rag.models_data import PreparedChunk
 from shared.logger import Logger
 
@@ -23,7 +24,7 @@ class ChunkFactory:
 
     def __init__(
         self,
-        embed_service: object,
+        embed_service: EmbeddingService,
         workers: int,
     ) -> None:
         """Initialize with EmbeddingService and worker count."""

@@ -130,10 +130,10 @@ test or module depends on it.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on `tools/rename_doc.py` existing first (seq 01) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's own subject is the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation dependency for this test file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-155203 | 20260901-155203 | `tools/rename_doc.py` (seq 01) already existed; verified against current source before writing tests |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-155203 | 20260901-155203 | `tests/tools/test_rename_doc.py` created, covering T1-T5 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-155203 | 20260901-155203 | ruff format/check + mypy clean; `pytest tests/tools/test_rename_doc.py -v` 5/5 passed; `pytest tests/tools/ -v --continue-on-collection-errors` 83 passed, 1 pre-existing unrelated collection error (`test_check_agent_docs_consistency.py`) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-155203 | 20260901-155203 | N/A: no `docs/00_index.md` task-scope row matches `tests/tools/test_rename_doc.py` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

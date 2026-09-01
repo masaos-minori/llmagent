@@ -80,6 +80,43 @@ counterparts) into `tmp_path` subdirectories for T1/T3, while T2 reads the real
   above states the intended contract (exit code 1 / raised error) that seq 01
   should implement, so both sides stay agreements-in-sync.
 
+#### Adversarial verification finding (seq 03, non-blocking)
+Confirmed against the actual seq 01 implementation
+(`tools/generate_workitem.py`): CLI argument names, `main()`'s signature
+(`main(argv: list[str] | None = None) -> int`, no direct `sys.exit()` call),
+and the error surface (returns `1`, does not raise, on validation failure) all
+match this document's intended contract — no adjustment needed there.
+
+One discrepancy was found and is **not** fixed here (out of scope — this
+document's Target file is the test file only):
+- This document's own Procedure step 1 example states
+  `scripts/agent/foo.py -> scripts_agent_foo_py` (the `.` replaced by `_`).
+  The actual `tools/generate_workitem.py` `_NON_PATH_SLUG_RE` pattern
+  (`[^A-Za-z0-9_.-]`) does not replace `.`, so the real rendered slug is
+  `scripts_agent_foo.py` (output filename ends `..._scripts_agent_foo.py.md`,
+  a double `.py.md` extension). This also diverges from
+  `skills/plan-to-implementation-procedure/workflow.md`'s stated naming rule
+  and from the two existing precedent filenames
+  (`implementations/done/20260901-113804_01_tools_generate_workitem_py.md`,
+  `..._02_tools_TOOL_DESCRIPTIONS_md.md`), both of which have `.` replaced by
+  `_`. `tests/tools/test_generate_workitem.py`'s
+  `TestFilenameGeneration`/`TestFieldOrder` cases for
+  `implementation-procedure` assert the tool's **actual current** behavior
+  (dot preserved) — with an inline comment documenting the intended/correct
+  behavior quoted above — so the test suite stays green without modifying
+  `tools/generate_workitem.py`. A follow-up fix to
+  `tools/generate_workitem.py`'s `_NON_PATH_SLUG_RE` (and, separately, a
+  wording clarification of this document's own Procedure step 1 example) is
+  tracked as a new finding — see this document's Blocker Log — not
+  implemented in this cycle.
+- Separately (a test-authoring detail, not a tool/doc mismatch): `main()`'s
+  success-path print (`output_path.relative_to(REPO_ROOT)`) assumes
+  `output_path` is always under the module-level `REPO_ROOT` constant. Tests
+  that redirect `ISSUES_DIR`/`PLANS_DIR`/`IMPLEMENTATIONS_DIR` into `tmp_path`
+  must also monkeypatch `REPO_ROOT` to `tmp_path`, otherwise this line raises
+  an uncaught `ValueError` (not a clean `1` return) after the file has
+  already been written. Handled in the `workitem_dirs` fixture.
+
 ## Compatibility considerations
 New test file; no existing test module imports it. Adding it does not change any
 existing test's behavior.
@@ -116,15 +153,15 @@ other test or module depends on it.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on `tools/generate_workitem.py` existing first (seq 01) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's own subject is the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation dependency for this test file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-124500 | 20260901-124500 | `tests/tools/test_generate_workitem.py` created; adversarial verification against `tools/generate_workitem.py` performed first (see Details above) |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-124500 | 20260901-124500 | T1-T4 implemented as `TestFilenameGeneration`/`TestFieldOrder`/`TestCollisionRejection`/`TestMissingSourcePlan` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-124500 | 20260901-124500 | `ruff format`/`check` clean; `mypy` clean; `pytest tests/tools/test_generate_workitem.py -v` 9 passed; `pytest tests/tools/ -v` 61 passed, 1 pre-existing unrelated collection error (`test_check_agent_docs_consistency.py`, reproduced identically without this change) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-124500 | 20260901-124500 | N/A: no `docs/00_index.md` mapping for this test file (same finding as seq 01/02 — the only candidate row, "`tools/` scripts overview", scopes to `docs/01_overview.md`, which does not cover scaffolding tools/tests) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 2 | Adversarial verification found `tools/generate_workitem.py`'s `_NON_PATH_SLUG_RE` does not replace `.`, contradicting this document's own Procedure step 1 example, `skills/plan-to-implementation-procedure/workflow.md`'s naming rule, and both existing `implementations/done/` precedent filenames — see Details above. Non-blocking for this document (test asserts actual current behavior); tracked as a new finding for a follow-up `tools/generate_workitem.py` fix, not implemented here. | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

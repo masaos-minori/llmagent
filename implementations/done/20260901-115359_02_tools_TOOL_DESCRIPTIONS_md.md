@@ -86,10 +86,10 @@ row. No other file depends on this specific row's wording.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row addition; verified by the sync checker, not a pytest test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `uv run python tools/check_tool_descriptions_sync.py` only — this file is outside `scripts/`, so ruff/mypy/lint-imports do not apply |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This step's own subject is the documentation update; no further doc dependency |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-160651 | 20260901-160651 | Added `check_known_deviation_sync.py` row to the domain-consistency-checker table, after `check_needs_confirmation_inventory.py` |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-160651 | 20260901-160651 | N/A: documentation-only row addition; verified by the sync checker, not a pytest test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-160651 | 20260901-160651 | `uv run python tools/check_tool_descriptions_sync.py` -> "No issues found." — this file is outside `scripts/`, so ruff/mypy/lint-imports do not apply |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-160651 | 20260901-160651 | N/A: no `docs/00_index.md` task-scope row matches `tools/TOOL_DESCRIPTIONS.md` as a changed file; edit skipped |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

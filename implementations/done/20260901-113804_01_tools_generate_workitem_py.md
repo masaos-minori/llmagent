@@ -151,10 +151,10 @@ outside this Plan's own target files).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by `implementations/20260901-113804_03_tests_tools_test_generate_workitem_py.md` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Covered by `implementations/20260901-113804_02_tools_TOOL_DESCRIPTIONS_md.md` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260901-121951 | 20260901-121951 | |
+| 2 | Add or update tests per Validation plan | Completed | 20260901-121951 | 20260901-121951 | Dedicated test file covered by `implementations/20260901-113804_03_tests_tools_test_generate_workitem_py.md` (separate cycle, not yet run); this cycle ran `uv run pytest tests/tools/ -v` (existing suite) to confirm no regression — 52 passed, 1 pre-existing collection error in `test_check_agent_docs_consistency.py` unrelated to this change (reproduced identically with the new file absent) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260901-121951 | 20260901-121951 | ruff format/check, mypy, bandit, radon all clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260901-121951 | 20260901-121951 | N/A: no `docs/00_index.md` task-scope mapping for `tools/generate_workitem.py` (the only candidate row, "`tools/` scripts overview", targets `docs/01_overview.md`, which contains zero mentions of `tools/` and is scoped to CI checks/doc formatting/historical doc migration, not scaffolding); `tools/TOOL_DESCRIPTIONS.md` update is covered by `implementations/20260901-113804_02_tools_TOOL_DESCRIPTIONS_md.md` (separate cycle) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
