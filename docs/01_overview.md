@@ -38,8 +38,8 @@ source:
 
 ## Implementation Intent
 
-- Split `01_overview-arch.md` into 3 files by H2 boundaries: process, pipelines, features
-- Split `01_overview-files.md` into 6 files by logical directory boundaries: build, rag, scripts, shared, config, misc
+- Split into 3 files by H2 boundaries: process, pipelines, features → `[01_overview-arch-01-process.md](01_overview-arch-01-process.md)`, `[01_overview-arch-02-pipelines.md](01_overview-arch-02-pipelines.md)`, `[01_overview-arch-03-features.md](01_overview-arch-03-features.md)`
+- Split into 6 files by logical directory boundaries: build, rag, scripts, shared, config, misc → `[01_overview-files-01-build.md](01_overview-files-01-build.md)`, `[01_overview-files-02-rag.md](01_overview-files-02-rag.md)`, `[01_overview-files-03-scripts.md](01_overview-files-03-scripts.md)`, `[01_overview-files-04-shared.md](01_overview-files-04-shared.md)`, `[01_overview-files-05-config.md](01_overview-files-05-config.md)`, `[01_overview-files-06-misc.md](01_overview-files-06-misc.md)`
 - Added YAML Front Matter including title/category/tags/related documents/keywords to each file
 - This file is the system-wide overview index. Refer to the following catalogs for each detailed document set
 

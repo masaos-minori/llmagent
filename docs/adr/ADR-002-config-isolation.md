@@ -315,29 +315,6 @@ Securityを優先し、プロセス境界を超えた設定漏洩を防ぐため
 
 Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
 
-## Migration and Rollout
-
-既存実装はDecisionに適合しており、移行作業は不要。
-
-### Compatibility
-
-- 後方互換性：既存の設定ファイルはそのまま使用可能
-- 旧設定、旧Data、旧APIの扱い：なし
-
-### Rollback
-
-- Rollback可能な条件：設定ファイルの変更が問題を引き起こした場合
-- Rollback手順：旧設定ファイルを復元
-- Rollbackできない変更：設定ファイルの削除（ロールバック不可）
-- Data復旧方法：設定ファイルの手動復旧
-
-### Completion Criteria
-
-- 移行完了と判断する条件：既存実装がDecisionに適合していることを確認
-- 旧経路を削除する条件：既存実装がDecisionに適合していることを確認
-
-移行が不要な場合は「既存実装はDecisionに適合しており、移行作業は不要」と記載する。
-
 ## Implementation Notes
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
@@ -435,18 +412,6 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - `config/chunk_splitter.toml` — chunk_splitter設定ファイル
 - `config/ingester.toml` — ingester設定ファイル
 - `config/eventbus.toml` — EventBus設定ファイル
-
-## Change History
-
-- 2026-08-20: Acceptedとして作成
-- 2026-08-25: CI-001 file attribution corrected (broker.py -> config.py/app.py) and marked Resolved after local-implementation fix
-
-Accepted後は、Decisionの意味を変更しない軽微な修正だけを記録する。
-
-- YYYY-MM-DD: Acceptedへ変更
-- YYYY-MM-DD: Linkまたは表現を修正。Decisionの変更なし
-
-判断内容を変更する場合は、新しいADRを作成して本ADRをSupersededへ変更する。
 
 ## Completion Checklist
 

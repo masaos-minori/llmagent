@@ -190,19 +190,6 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 - The protected-branch check (`_validate_protected()`) short-circuits on an empty `branch` argument, skipping the check entirely for that one input shape. This is a known, narrow gap against INV-03 (see Known Deviations) that has not been fixed; review before relying on protected-branch enforcement for callers that might supply an empty `branch`.
 - Confirm the audit `target` field fix (MCP-005) via an actual captured log line — COMPLETED.
 
-## Migration and Rollout
-
-No existing callers rely on Force Push or protected-branch bypass being possible (no such capability is currently exposed as an intentional feature), so closing this gap is not expected to break existing legitimate usage.
-
-### Compatibility
-Ref values that were never valid git refs to begin with (i.e., only option-injection strings) lose the ability to reach `git` as an argument; this is the intended effect, not a compatibility break.
-
-### Rollback
-Revert the validation change if it is found to reject legitimate ref names not anticipated by the safe-ref pattern; track any such false rejection as a bug in the pattern, not a reason to remove the check.
-
-### Completion Criteria
-This ADR moves to Accepted once INV-01 through INV-04 are implemented and covered by the tests above, and MCP-003/MCP-005 are closed.
-
 ## Implementation Notes
 
 - Implementation files: `scripts/mcp_servers/git/repository_state.py` (`RepositoryState`, `WriteProtectionPipeline`, `_is_safe_ref`, `_validate_ref`, `_check_protected_branch`), `scripts/mcp_servers/git/git_security.py` (`GitSecurityGuards`), `scripts/mcp_servers/git/git_service.py` (`GitService`, dispatch table), `scripts/mcp_servers/git/format_output.py` (`format_checkout()`, `format_pull()`, `format_push()`), `scripts/mcp_servers/git/git_server.py` (`call_tool()` endpoint, audit logging), `scripts/mcp_servers/git/git_models.py` (`GitConfig`, request models)

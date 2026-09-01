@@ -124,11 +124,11 @@ Document-only modification: selective deletion of deprecated sections, content r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Preparation | Pending | — | — | |
-| 2 | Phase 2: Analyze Migration and Rollout section | Pending | — | — | |
-| 3 | Phase 3: Analyze Change History section | Pending | — | — | |
-| 4 | Phase 4: Section reordering | Pending | — | — | |
-| 5 | Phase 5: Verification | Pending | — | — | |
+| 1 | Phase 1: Preparation | Done | — | — | Read full ADR; identified both deprecated sections |
+| 2 | Phase 2: Analyze Migration and Rollout section | Done | — | — | All statements are historical narrative → deleted |
+| 3 | Phase 3: Analyze Change History section | Done | — | — | All entries are historical narrative → deleted |
+| 4 | Phase 4: Section reordering | Not applicable | — | — | Only two sections removed; no reordering needed |
+| 5 | Phase 5: Verification | Done | — | — | Neither deprecated section exists; check_docs_quality.py passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

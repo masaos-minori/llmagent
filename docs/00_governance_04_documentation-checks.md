@@ -16,7 +16,7 @@ This document defines the automated and manual checks that validate the quality,
 
 ## Automated Checks
 
-### 1. Document Quality Check (`check_doc_quality.py`)
+### 1. Document Quality Check (`check_docs_quality.py`)
 
 Checks all documents under `docs/*.md` for quality issues.
 
@@ -33,12 +33,12 @@ Checks all documents under `docs/*.md` for quality issues.
 
 **Usage:**
 ```bash
-python tools/check_doc_quality.py                          # run all core + custom
-python tools/check_doc_quality.py --core-only              # only core checks
-python tools/check_doc_quality.py --custom-only            # only custom rules
-python tools/check_doc_quality.py --skip broken_headings   # skip specific check
-python tools/check_doc_quality.py --only stale_patterns    # only specific check
-python tools/check_doc_quality.py docs/*.md                # check specific files
+python tools/check_docs_quality.py                          # run all core + custom
+python tools/check_docs_quality.py --core-only              # only core checks
+python tools/check_docs_quality.py --custom-only            # only custom rules
+python tools/check_docs_quality.py --skip broken_headings   # skip specific check
+python tools/check_docs_quality.py --only stale_patterns    # only specific check
+python tools/check_docs_quality.py docs/*.md                # check specific files
 ```
 
 ### 2. Domain Consistency Check (`check_docs_consistency.py`)
@@ -86,7 +86,7 @@ Verifies the NC inventory stays in sync with `docs/*.md`.
 - Resolved NC items do not leave markers in source documents
 - Field count declarations match actual list item counts
 
-### 4. Backward Compatibility Check (`check_no_compat.py`)
+### 4. Backward Compatibility Check (`check_compat_shims.py`)
 
 Checks for stale compatibility layers left behind after API migrations.
 
@@ -104,7 +104,7 @@ Validates that `# noqa`, `# type: ignore`, and `# nosec` comments have proper ru
 - `scripts/`
 - `tests/`
 
-### 6. Docstring Format Check (`check_all_docstrings.py`)
+### 6. Docstring Format Check (`check_docstrings.py`)
 
 Validates Python module-level docstring format in `scripts/`.
 
@@ -118,7 +118,7 @@ Validates Python module-level docstring format in `scripts/`.
 
 Compares file names listed in `tools/TOOL_DESCRIPTIONS.md` against actual `tools/*.py` files to detect drift in both directions (unlisted additions / deleted references).
 
-### 8. Documentation Structure Validation (`validate_docs_structure.py`)
+### 8. Documentation Structure Validation (`check_docs_structure.py`)
 
 Validates structural conventions for `docs/*.md`:
 - File size limits
@@ -129,8 +129,8 @@ Validates structural conventions for `docs/*.md`:
 
 **Usage:**
 ```bash
-uv run python tools/validate_docs_structure.py [glob ...]
-uv run python tools/validate_docs_structure.py docs/05_agent_*.md --category agent
+uv run python tools/check_docs_structure.py [glob ...]
+uv run python tools/check_docs_structure.py docs/05_agent_*.md --category agent
 ```
 
 ## Manual Checks
@@ -272,18 +272,18 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 
 | Rule ID | Rule | Doc | Method | Tool/Review | Timing | Gate | Status | Follow-up |
 |---------|------|-----|--------|--------------|--------|------|--------|-----------|
-| GV-001 | Required Front Matter | Meta | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
-| GV-002 | Valid Document Status | Meta | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
-| GV-003 | Unique ADR ID | Pol | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
-| GV-005 | Existence of Related Documents | Meta | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
-| GV-006 | Self-reference prohibition | Meta | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
-| GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
-| GV-008 | Known Issue required fields | Iss | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
-| GV-009 | Needs Confirmation owner and deadline | Iss | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
+| GV-001 | Required Front Matter | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
+| GV-002 | Valid Document Status | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
+| GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
+| GV-005 | Existence of Related Documents | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
+| GV-006 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
+| GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
+| GV-008 | Known Issue required fields | Iss | Auto | `check_docs_quality.py` | PR | Blocking | Missing | Implement |
+| GV-009 | Needs Confirmation owner and deadline | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Missing | Implement |
 | GV-011 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-012 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
-| GV-013 | References to non-existent canonical documents | Pol | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
-| GV-014 | Code is NOT canonical for adopted design decisions | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
+| GV-013 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Partial | Extend stale_patterns config |
+| GV-014 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py` | PR | Warning | Existing | None |
 | GV-015 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-016 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
 | GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
@@ -291,14 +291,17 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 
 ### Follow-up Work Needed
 
-Rules marked "Missing" above need new inspection tools or processes:
+Rules marked "Missing" or "Partial" above need new inspection tools or processes:
 
-1. **GV-011, GV-012**: Implement cross-document canonical source conflict detection
-2. **GV-014**: Add ADR-vs-code contradiction detection to CI
-3. **GV-015**: Separate dependency graph analysis by type
-4. **GV-016**: Audit auto-check implementations against documentation claims
-5. **GV-018**: Add glossary term classification validation
-6. **GV-019**: Add metadata field usage policy enforcement
+1. **GV-008**: Implement Known Issue required fields validation (owner, severity, status)
+2. **GV-009**: Implement Needs Confirmation owner and deadline validation
+3. **GV-011, GV-012**: Implement cross-document canonical source conflict detection
+4. **GV-013**: Extend `stale_patterns` custom rule config to cover canonical document references
+5. **GV-014**: Add ADR-vs-code contradiction detection to CI
+6. **GV-015**: Separate dependency graph analysis by type
+7. **GV-016**: Audit auto-check implementations against documentation claims
+8. **GV-018**: Add glossary term classification validation
+9. **GV-019**: Add metadata field usage policy enforcement
 
 ## Change Impact Assessment
 

@@ -122,10 +122,10 @@ Document-only modification: search-and-replace for filename corrections, content
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Tool filename corrections | Pending | — | — | |
-| 2 | Phase 2: GV rule re-verification | Pending | — | — | |
-| 3 | Phase 3: Follow-up Work Needed update | Pending | — | — | |
-| 4 | Phase 4: Verification | Pending | — | — | |
+| 1 | Phase 1: Tool filename corrections | Done | — | — | All four filenames corrected |
+| 2 | Phase 2: GV rule re-verification | Done | — | — | Verified against actual tool implementations |
+| 3 | Phase 3: Follow-up Work Needed update | Done | — | — | Added newly Missing rules |
+| 4 | Phase 4: Verification | Done | — | — | Consistency verified via grep |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

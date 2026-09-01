@@ -325,31 +325,6 @@ Operabilityを優先し、リアルタイム同期と人間の操作ミスを防
 
 Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
 
-## Migration and Rollout
-
-既存実装はDecisionに適合しており、移行作業は不要。DESIGN-3の判断をADRへ統合するのみ。
-
-### Compatibility
-
-- 後方互換性：既存のインジェクションパイプラインはそのまま使用可能
-- 旧設定、旧Data、旧APIの扱い：なし
-
-### Rollback
-
-- Rollback可能な条件：ADRの判断が誤りであった場合
-- Rollback手順：新しいADRを作成して本ADRをSupersededへ変更
-- Rollbackできない変更：正本の削除（ロールバック不可）
-- Data復旧方法：正本の手動復旧
-
-該当しない場合は「対象外」と記載する。
-
-### Completion Criteria
-
-- 移行完了と判断する条件：既存実装がDecisionに適合していることを確認
-- 旧経路を削除する条件：既存実装がDecisionに適合していることを確認
-
-移行が不要な場合は「既存実装はDecisionに適合しており、移行作業は不要」と記載する。
-
 ## Implementation Notes
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
@@ -450,17 +425,6 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - トリガー — `chunks_ai`, `chunks_au`, `chunks_ad`
 - テスト — `tests/test_rag_index_integrity.py`（TEST-DESIGN3-01〜05）
 - テスト — `tests/test_fts_fallback.py`
-
-## Change History
-
-- 2026-08-21: Acceptedとして作成。DESIGN-3の判断をADRへ統合
-
-Accepted後は、Decisionの意味を変更しない軽微な修正だけを記録する。
-
-- YYYY-MM-DD: Acceptedへ変更
-- YYYY-MM-DD: Linkまたは表現を修正。Decisionの変更なし
-
-判断内容を変更する場合は、新しいADRを作成して本ADRをSupersededへ変更する。
 
 ## Completion Checklist
 

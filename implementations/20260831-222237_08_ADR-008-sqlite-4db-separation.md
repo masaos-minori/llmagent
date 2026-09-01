@@ -93,8 +93,8 @@ Document-only read-only verification. If deprecated sections are found, apply th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Verification | Pending | — | — | |
-| 2 | Phase 2: Content relocation (if needed) | Pending | — | — | |
+| 1 | Phase 1: Verification | Done | — | — | Neither `Migration and Rollout` nor `Change History` section headers exist; confirmed via rg |
+| 2 | Phase 2: Content relocation (if needed) | Not applicable | — | — | No deprecated sections found |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

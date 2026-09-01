@@ -124,11 +124,11 @@ Document-only modification: selective deletion of deprecated sections, content r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Preparation | Pending | — | — | |
-| 2 | Phase 2: Analyze Migration and Rollout section | Pending | — | — | |
-| 3 | Phase 3: Analyze Change History section | Pending | — | — | |
-| 4 | Phase 4: Section reordering | Pending | — | — | |
-| 5 | Phase 5: Verification | Pending | — | — | |
+| 1 | Phase 1: Preparation | Done | — | — | Read full ADR and governance policy |
+| 2 | Phase 2: Analyze Migration and Rollout section | Done | — | — | All statements are historical narrative → delete |
+| 3 | Phase 3: Analyze Change History section | Done | — | — | Section does not exist in this ADR |
+| 4 | Phase 4: Section reordering | Pending | — | — | Not applicable — no new sections added |
+| 5 | Phase 5: Verification | Done | — | — | check_docs_quality.py passed; structure errors are pre-existing |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
