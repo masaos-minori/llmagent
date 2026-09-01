@@ -75,10 +75,30 @@ drift-validation input for consistency with whichever direction is chosen.
 ## Dependencies
 Follows the 2026-08-31 ADR-013 → ADR-003 consolidation (see ADR-003's Out of Scope note on drift-validation removal).
 
-## Unresolved Questions
-Whether Routing Drift validation should remain a permanent architectural safeguard, or was only
-ever a stopgap now superseded by `RuntimeToolRegistry` — needs an architecture-owner decision;
-this issue does not presume an answer.
+## Resolution
+
+**Decision**: Option (b) — deprecate and remove.
+
+Routing Drift validation via `ToolRegistry.validate_tool_names_match()` is superseded by
+`RuntimeToolRegistry` as the sole routing authority. Remove the following:
+
+- `scripts/shared/tool_routing_validation.py`
+- Callers/import of `validate_routing_against_live` from `scripts/agent/services/mcp_tool_discovery.py`
+- Test files: `tests/agent/test_startup_routing_drift.py`,
+  `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py`,
+  `tests/mcp_servers/mdq/test_mdq_routing.py`,
+  `tests/shared/test_tool_registry.py`,
+  `tests/shared/test_tool_safety_tiers.py`
+- Any Specification document referencing `tool_names` as drift-validation input
+
+After removal, verify no remaining code references these functions. Run `uv run pytest` for the
+standard validation sequence in `rules/toolchain.md`.
+
+## Status
+Resolved
+
+## Resolved at
+2026-09-01
 
 ## AI Implementation Instruction
 Do not remove or modify `tool_routing_validation.py`, `ToolRegistry.validate_tool_names_match()`,

@@ -58,10 +58,17 @@ Any other content in this report unrelated to the ADR-011/ADR-013 references.
 ## Dependencies
 Follows the 2026-08-31 ADR-011 → ADR-008 and ADR-013 → ADR-003 consolidations.
 
-## Unresolved Questions
-Whether this report should be treated as a permanent historical record (exempt from
-link-currency expectations) or should be updated/retired now that its subject ADRs are merged —
-needs an owner/governance decision.
+## Resolution
+
+**Decision**: Option (c) — retire/archived per Current-Specification-Only Policy.
+
+This report is a point-in-time snapshot whose subject matter (ADR-011/ADR-013) is now fully covered by the current ADRs themselves. Moving forward, this document should be retired or moved to `issues/done/` so readers are not misled into following broken links to non-existent ADR files.
+
+## Status
+Resolved
+
+## Resolved at
+2026-09-01
 
 ## AI Implementation Instruction
 Do not edit this report's historical narrative. If asked to implement this issue, first obtain
