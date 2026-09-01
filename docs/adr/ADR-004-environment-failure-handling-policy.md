@@ -449,7 +449,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 ## Known Deviations
 
-- **Known Issue**: ADR-004-D1-profile-config-model-still-present — `scripts/shared/mcp_config.py`の`McpServerConfig`と`scripts/agent/services/mcp_tool_discovery.py`は、`security_profile`（環境）の値に基づいて`required_in_production`／`required_in_local`のいずれを参照するか分岐している。**現行の実効値**（`config/agent.toml`に上書き設定がなく、両フィールドともデフォルトの`True`）の下では、この分岐はすべての環境で同一の結果（Fail-Fast）を生むため、Decision #14（必須コンポーネント）とは矛盾しない。しかし、分類ロジック自体が環境の値を参照する構造は、「コンポーネントの必須性は環境に依存しない性質である」という本ADRの方針（Decision #1、#3）と整合しない。**影響**: INV-01, INV-02, INV-09, INV-14。
+- **Known Issue [resolved]**: ADR-004-D1-profile-config-model-still-present — `scripts/shared/mcp_config.py`の`McpServerConfig`と`scripts/agent/services/mcp_tool_discovery.py`は、`security_profile`（環境）の値に基づいて`required_in_production`／`required_in_local`のいずれを参照するか分岐している。**現行の実効値**（`config/agent.toml`に上書き設定がなく、両フィールドともデフォルトの`True`）の下では、この分岐はすべての環境で同一の結果（Fail-Fast）を生むため、Decision #14（必須コンポーネント）とは矛盾しない。しかし、分類ロジック自体が環境の値を参照する構造は、「コンポーネントの必須性は環境に依存しない性質である」という本ADRの方針（Decision #1、#3）と整合しない。**影響**: INV-01, INV-02, INV-09, INV-14。— Resolved by REQ-001 through REQ-004: unified `required` field replaces `required_in_production`/`required_in_local`; `FailurePolicy` simplified to FAIL_FAST only.
 - **報告のみ（Known Issue未登録）**: 非必須コンポーネントの可用性障害による起動継続（Decision #18、INV-09）、および未定義の必須性による起動継続禁止（Decision #12、INV-14）を検証する自動テストが現行では存在しない。また、コンポーネント単位の必須／非必須分類を記録する現行の承認済みSpecificationも存在しない（Decision #13が要求する分類記録の主体が未整備）。これらは新規Known Issueとして別途登録することを推奨する。
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。

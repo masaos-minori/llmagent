@@ -128,20 +128,12 @@ class McpToolDiscoveryService:
                 key, cfg
             )
             if is_unreachable:
-                is_prod = (
-                    self._ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION
-                )
-                is_required = (
-                    cfg.required_in_production if is_prod else cfg.required_in_local
-                )
+                is_required = cfg.required
                 new_findings = []
                 for o in server_findings:
                     new_status = (
                         StartupCheckStatus.FATAL
-                        if (
-                            is_required
-                            and cfg.failure_policy == FailurePolicy.FAIL_FAST
-                        )
+                        if is_required
                         else StartupCheckStatus.WARNING
                     )
                     new_findings.append(

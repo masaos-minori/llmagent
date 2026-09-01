@@ -734,8 +734,7 @@ class TestDiscoverAllUnreachableServers:
         srv_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
-            required_in_local=False,
-            failure_policy=FailurePolicy.FAIL_FAST,
+            required=False,
         )
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
@@ -755,29 +754,7 @@ class TestDiscoverAllUnreachableServers:
         srv_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
-            required_in_local=False,
-            failure_policy=FailurePolicy.DEGRADED,
-        )
-        http = AsyncMock(spec=httpx.AsyncClient)
-        http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
-        ctx = _make_ctx({"srv": srv_cfg}, http)
-
-        result = await McpToolDiscoveryService(ctx).discover_all()
-
-        assert result.unreachable == ["srv"]
-        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
-        assert all(f.status != StartupCheckStatus.FATAL for f in mcp_findings)
-        assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
-
-    @pytest.mark.asyncio
-    async def test_unreachable_required_server_with_degraded_returns_warning(
-        self,
-    ) -> None:
-        srv_cfg = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://127.0.0.1:9000",
-            required_in_local=True,
-            failure_policy=FailurePolicy.DEGRADED,
+            required=False,
         )
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
@@ -797,8 +774,7 @@ class TestDiscoverAllUnreachableServers:
         srv_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
-            required_in_local=True,
-            failure_policy=FailurePolicy.FAIL_FAST,
+            required=True,
         )
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))

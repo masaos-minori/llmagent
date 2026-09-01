@@ -28,8 +28,6 @@ class FailurePolicy(StrEnum):
     """Failure policy for MCP servers."""
 
     FAIL_FAST = "fail-fast"
-    DISABLE_TOOL = "disable-tool"
-    DEGRADED = "degraded"
 
 
 class TransportType(StrEnum):
@@ -93,8 +91,7 @@ class McpServerConfig:
     )
     max_stderr_log_size_mb: float = 100.0  # max size in MB before rotation
     max_stderr_log_files: int = 3  # number of rotated files to keep
-    required_in_production: bool = True
-    required_in_local: bool = True
+    required: bool = True
     failure_policy: FailurePolicy = FailurePolicy.FAIL_FAST
 
     @property
@@ -295,7 +292,6 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         cmd=cmd,
         env=env,
         key=key,
-        required_in_production=bool(v.get("required_in_production", True)),
-        required_in_local=bool(v.get("required_in_local", True)),
+        required=bool(v.get("required", True)),
         failure_policy=FailurePolicy(v.get("failure_policy", "fail-fast")),
     )

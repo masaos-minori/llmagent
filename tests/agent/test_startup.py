@@ -34,6 +34,7 @@ from agent.workflow.task_ops import create_task, update_task_status
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
 from shared.mcp_config import (
+    FailurePolicy,
     McpServerConfig,
     SecurityProfile,
     StartupMode,
@@ -1555,12 +1556,12 @@ class TestStartupMemoryFailures:
         srv1_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9999",
-            failure_policy="disable-tool",
+            failure_policy=FailurePolicy.FAIL_FAST,
         )
         srv2_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9998",
-            failure_policy="degraded",
+            failure_policy=FailurePolicy.FAIL_FAST,
         )
         ctx = MagicMock()
         ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
@@ -1578,5 +1579,5 @@ class TestStartupMemoryFailures:
         startup._report_readiness(pipeline)
         warn_call = str(view.write_warning.call_args[0][0])
         assert "Excluded tools (unavailable)" in warn_call
-        assert "srv1 (disable-tool)" in warn_call
-        assert "srv2 (degraded)" in warn_call
+        assert "srv1 (fail-fast)" in warn_call
+        assert "srv2 (fail-fast)" in warn_call
