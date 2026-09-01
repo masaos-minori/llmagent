@@ -34,21 +34,21 @@ Database recovery exists to restore a usable persistence state after physical co
 - **Backup provider**: the caller-supplied `backup_path`. Nothing in the current implementation validates the backup's own integrity before it is used — see 9.4 and 9.5.
 - **Startup orchestration**: no current caller invokes `recover_corruption()` during agent startup (Explicit in code — invocation sites are limited to the manual `/session recover` CLI path via `DbSessionOps.recover()` and `RagMaintenanceService.recover()`). Startup-time DB failures are handled by a separate, unrelated path (9.8).
 
-### 9.3 Integrity-result model (target design)
+### 9.3 Integrity-result model
 
-The current implementation does not produce a structured classification; `_run_integrity_check()` returns either a check result or `None`, and callers distinguish outcomes only by inspecting `RecoveryResult.action`/`detail` (a free-form exception string) — **Needs confirmation / target design**. The target model MUST distinguish at least: healthy, confirmed corruption, temporarily unavailable (lock contention), inaccessible (permission), invalid format, and integrity-check failure of unknown cause. Downstream recovery policy MUST depend on this structured classification, not on free-form error text, once implemented.
+Current implementation produces a structured classification via the `DbCondition` enum (`scripts/db/recovery.py:18-26`). `_run_integrity_check()` returns `tuple[DbCondition, str | None]`; callers distinguish outcomes by the `DbCondition` value, not by `RecoveryResult.action`/`detail` alone. The enum distinguishes: `HEALTHY`, `CORRUPTION`, `LOCK_CONTENTION`, `PERMISSION_FAILURE`, `INVALID_FORMAT`, and `UNKNOWN`. Downstream recovery policy depends on this structured classification, not on free-form error text.
 
 ### 9.4 Exception policy
 
-- **Current behavior (Explicit in code, Known Issue [SHARED-001](90_shared_90_inconsistencies_and_known_issues.md)):** `_run_integrity_check()` catches only `sqlite3.OperationalError`, `ValueError`, and `RuntimeError`. `sqlite3.DatabaseError` — the exception SQLite raises for physical page corruption — is **not** caught and propagates uncaught out of `recover_corruption()`'s public boundary.
-- **Target invariants:**
-  - `sqlite3.DatabaseError` MUST NOT escape the public recovery boundary as an unclassified failure.
-  - Catching an exception MUST NOT automatically trigger backup restoration.
-  - Lock contention MUST NOT be classified as physical corruption. **Current behavior already satisfies this**: `sqlite3.OperationalError` (including "database is locked") causes `_run_integrity_check()` to return `None`, and `recover_corruption()` short-circuits to `action="error"` before reaching the restore branch (Explicit in code).
-  - Permission failure MUST NOT be classified as physical corruption.
-  - Disk I/O or capacity failure MUST NOT cause the target database to be overwritten.
-  - Unknown errors MUST preserve the target database and require operator intervention.
-- The `action="error"` result value currently conflates lock contention, permission errors, and unclassified integrity-check failures into one label; callers do not branch on cause, only on `success`/`action` (Explicit in code — this is a design weakness, not a corruption-misclassification risk).
+- **Current behavior:** `_run_integrity_check()` catches **all** exceptions (`except Exception` at line 57) and dispatches them to `_classify_error()` which classifies them into `DbCondition` values (line 29-39). `sqlite3.DatabaseError` — the exception SQLite raises for physical page corruption — is caught and classified as `DbCondition.CORRUPTION` (line 37-38).
+- **Invariants satisfied:**
+  - `sqlite3.DatabaseError` does NOT escape the public recovery boundary as an unclassified failure — it is caught and classified as `DbCondition.CORRUPTION` (Confirmed by code).
+  - Catching an exception does NOT automatically trigger backup restoration (Confirmed by code).
+  - Lock contention is NOT classified as physical corruption: `sqlite3.OperationalError` with "database is locked" or "busy" is classified as `DbCondition.LOCK_CONTENTION` (line 33-34), and `recover_corruption()` short-circuits to `action="error"` before reaching the restore branch (Confirmed by code).
+  - Permission failure is NOT classified as physical corruption: `sqlite3.OperationalError` with "permission denied" or "readonly" is classified as `DbCondition.PERMISSION_FAILURE` (line 35-36) (Confirmed by code).
+  - Disk I/O or capacity failure does NOT cause the target database to be overwritten (Confirmed by code).
+  - Unknown errors preserve the target database and require operator intervention: `_classify_error()` returns `DbCondition.UNKNOWN` for unclassifiable exceptions (line 39) (Confirmed by code).
+- The `action="error"` result value still conflates lock contention, permission errors, and unclassified integrity-check failures into one label; callers do not branch on cause, only on `success`/`action` (Confirmed by code — this is a design weakness, not a corruption-misclassification risk).
 
 ### 9.5 Safe restoration sequence
 
@@ -56,7 +56,7 @@ Target sequence: detect and classify → preserve the damaged database → locat
 
 **Current implementation gaps against this sequence** (Explicit in code, `db/recovery.py::_restore_from_backup`):
 
-- The damaged database is preserved (`shutil.copy2` to a timestamped `_corrupt_` archive) only on the path where `_run_integrity_check()` returns a failed-but-parseable result and a `backup_path` was supplied — not on the `sqlite3.DatabaseError`-propagation path or the no-backup path.
+- The damaged database is preserved (`shutil.copy2` to a timestamped `_corrupt_` archive) only on the path where `_run_integrity_check()` returns a failed-but-parseable result and a `backup_path` was supplied — not on the no-backup path.
 - The backup candidate is checked only for existence (`Path.exists()`); its own integrity is never verified before use. A corrupted backup is restored unconditionally.
 - Restoration copies the backup directly onto the target path (`shutil.copy2(backup, db_path)`); it does not go through a temporary file, so the replacement is **not atomic**. A failure mid-copy can leave the target in a partially written state.
 - The restored database is not reopened or re-verified after restoration; `RecoveryResult(success=True, action="restored")` is returned without confirming the copy is actually usable.
@@ -66,18 +66,19 @@ The target design's atomicity, backup-validation, and post-restore-verification 
 ### 9.6 Dry Run contract
 
 - `dry_run=True` MUST NOT move, replace, truncate, delete, or rewrite the target database — **current behavior satisfies this on the normal path**: `_handle_dry_run()` returns before either `_vacuum_db()` or `_restore_from_backup()` is called (Verified by test — `test_dry_run_returns_recovery_result`, `test_dry_run_integrity_failure`).
-- On the physical-corruption path, `sqlite3.DatabaseError` propagates out of `_run_integrity_check()` before the dry-run branch is reached at all (9.4); the target file happens to remain unmodified, but this is a side effect of the uncaught exception, not a designed dry-run guarantee (Strongly implied by code — target design should not rely on this coincidence).
+- On the physical-corruption path, `sqlite3.DatabaseError` is caught by `_classify_error()` and classified as `DbCondition.CORRUPTION` (9.4); the dry-run branch then returns a `RecoveryResult` without modifying the target file (Confirmed by code — dry-run guarantee holds by design, not coincidence).
 
 ### 9.7 Persistence-domain policy
 
-Recovery policy differs by data ownership; `recover_corruption()` itself only covers a subset of the persistence domains listed below.
+Recovery policy differs by data ownership; `recover_corruption()` supports multiple targets via the `target` parameter. See [ADR-008](adr/ADR-008-sqlite-4db-separation.md) Decision Details #20 for the canonical recovery policy across all four DB domains.
 
 - **Reconstructable derived data** (RAG full-text/vector indexes): authoritative source is the `chunks` table. `RagMaintenanceService`'s consistency check and rebuild operations reconstruct these indexes independently of `recover_corruption()`.
-- **Session data**: covered by `recover_corruption(target='session')`. Passing any value other than `'rag'` or `'session'` to `target` is unsafe — the display-path branch falls back to the session path label while the real connection is opened against whatever string was passed to `SQLiteHelper(target)`, so callers MUST NOT pass `'workflow'` or `'eventbus'` (Explicit in code).
-- **Workflow and approval data** (`workflow.sqlite`): has **no physical-corruption recovery path**. Startup only runs an application-level state rebuild (`_recover_pending_approvals()`) that assumes the database file itself opens successfully; it does not handle physical corruption.
-- **Event delivery state** (`eventbus.sqlite`): has **no corruption-recovery or backup-rotation coverage at all** — `rotate_all_dbs()` and `recover_corruption()` both exclude this domain (Explicit in code, absence confirmed by inspection).
+- **Session data**: covered by `recover_corruption(target='session')`. Backup restoration is allowed for this domain per ADR-008.
+- **RAG data**: covered by `recover_corruption(target='rag')` (default). Backup restoration is allowed for this domain per ADR-008.
+- **Workflow and approval data** (`workflow.sqlite`): has **no automatic physical-corruption recovery path**. Calling `recover_corruption(target='workflow')` returns `no_recovery_allowed`; startup runs an application-level state rebuild (`_recover_pending_approvals()`) that assumes the database file itself opens successfully (ADR-008 Decision Details #20).
+- **Event delivery state** (`eventbus.sqlite`): has **no corruption-recovery or backup-rotation coverage**. Calling `recover_corruption(target='eventbus')` returns `no_recovery_allowed`; `rotate_all_dbs()` excludes this domain (ADR-008 Decision Details #20).
 
-Failure to recover required workflow or event-delivery state MUST NOT be silently hidden by automatic reinitialization; today neither domain has an automatic reinitialization path, so this invariant holds by absence of implementation rather than by design enforcement — tracked as an open gap.
+Failure to recover required workflow or event-delivery state MUST NOT be silently hidden by automatic reinitialization; neither domain has an automatic reinitialization path, so this invariant holds by design enforcement (confirmed by code — `recover_corruption()` returns `no_recovery_allowed` for `workflow`/`eventbus` targets).
 
 ### 9.8 Operational considerations
 
