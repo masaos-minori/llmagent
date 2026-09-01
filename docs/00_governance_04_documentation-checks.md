@@ -273,17 +273,17 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 | Rule ID | Rule | Doc | Method | Tool/Review | Timing | Gate | Status | Follow-up |
 |---------|------|-----|--------|--------------|--------|------|--------|-----------|
 | GV-001 | Required Front Matter | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
-| GV-002 | Valid Document Status | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
-| GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
+| GV-002 | Valid Document Status | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Missing | Implement |
+| GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Missing | Implement |
 | GV-005 | Existence of Related Documents | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
-| GV-006 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
-| GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
+| GV-006 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Missing | Implement |
+| GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Missing | Implement |
 | GV-008 | Known Issue required fields | Iss | Auto | `check_docs_quality.py` | PR | Blocking | Missing | Implement |
 | GV-009 | Needs Confirmation owner and deadline | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Missing | Implement |
 | GV-011 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-012 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-013 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Partial | Extend stale_patterns config |
-| GV-014 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py` | PR | Warning | Existing | None |
+| GV-014 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py` | PR | Warning | Missing | Implement |
 | GV-015 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-016 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
 | GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
@@ -293,15 +293,19 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 
 Rules marked "Missing" or "Partial" above need new inspection tools or processes:
 
-1. **GV-008**: Implement Known Issue required fields validation (owner, severity, status)
-2. **GV-009**: Implement Needs Confirmation owner and deadline validation
-3. **GV-011, GV-012**: Implement cross-document canonical source conflict detection
-4. **GV-013**: Extend `stale_patterns` custom rule config to cover canonical document references
-5. **GV-014**: Add ADR-vs-code contradiction detection to CI
-6. **GV-015**: Separate dependency graph analysis by type
-7. **GV-016**: Audit auto-check implementations against documentation claims
-8. **GV-018**: Add glossary term classification validation
-9. **GV-019**: Add metadata field usage policy enforcement
+1. **GV-002**: Implement Valid Document Status value validation
+2. **GV-003**: Implement Unique ADR ID enforcement
+3. **GV-006**: Implement Self-reference prohibition check
+4. **GV-007**: Implement Duplicate Related Link prohibition check
+5. **GV-008**: Implement Known Issue required fields validation (owner, severity, status)
+6. **GV-009**: Implement Needs Confirmation owner and deadline validation
+7. **GV-011, GV-012**: Implement cross-document canonical source conflict detection
+8. **GV-013**: Extend `stale_patterns` custom rule config to cover canonical document references
+9. **GV-014**: Add ADR-vs-code contradiction detection to CI
+10. **GV-015**: Separate dependency graph analysis by type
+11. **GV-016**: Audit auto-check implementations against documentation claims
+12. **GV-018**: Add glossary term classification validation
+13. **GV-019**: Add metadata field usage policy enforcement
 
 ## Change Impact Assessment
 
