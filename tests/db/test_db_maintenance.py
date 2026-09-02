@@ -751,7 +751,8 @@ class TestRecoverCorruption:
 
         mock_restore.assert_not_called()
         assert result.success is False
-        assert result.action == "unknown_preserved"
+        assert result.action == "preserved_operator_intervention_required"
+        assert "operator intervention required" in result.detail
 
 
 # ── purge_corrupt_archives ──────────────────────────────────────────────────────

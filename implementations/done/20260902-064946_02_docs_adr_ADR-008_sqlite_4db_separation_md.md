@@ -116,8 +116,8 @@ Replace the existing Known Issue block with an updated version:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update ADR-008 Known Deviations entry per Procedure/Method/Details | Pending | — | — | |
-| 2 | Validate no unintended changes via git diff | Pending | — | — | |
+| 1 | Update ADR-008 Known Deviations entry per Procedure/Method/Details | Complete | — | — | Updated action value from "unknown_preserved" to "preserved_operator_intervention_required"; updated implementation procedure reference |
+| 2 | Validate no unintended changes via git diff | Complete | — | — | Verified no unintended changes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

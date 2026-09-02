@@ -36,46 +36,43 @@ Ensure `DbCondition.UNKNOWN` integrity-check results preserve the target databas
 
 ### Procedure
 
-1. After the existing `condition in (LOCK_CONTENTION, PERMISSION_FAILURE, INVALID_FORMAT)` branch (line ~204-214), add a new `elif condition == DbCondition.UNKNOWN:` branch.
-2. Inside the new branch, return a `RecoveryResult(success=False, action="preserved_operator_intervention_required", detail=f"Unknown integrity-check failure ({detail}): operator intervention required", dry_run=dry_run)`.
-3. Update the docstring `action` value list (lines ~178-184) to include `"preserved_operator_intervention_required"` as a documented possible value.
+1. Adversarial verification finds the UNKNOWN branch already exists at line 218-224 but uses `action="unknown_preserved"` instead of the procedure's specified `action="preserved_operator_intervention_required"`.
+2. Change the action value from `"unknown_preserved"` to `"preserved_operator_intervention_required"` on line 221.
+3. Update the detail message on line 222 to match the procedure's format: `f"Unknown integrity-check failure ({detail}): operator intervention required"`.
+4. Update the docstring `action` value list (line ~187) to replace `"unknown_preserved"` with `"preserved_operator_intervention_required"`.
 
 ### Method
 
-Insert the UNKNOWN branch between the existing conditional branches and the "# It's CORRUPTION or UNKNOWN" comment:
+Change the action value and detail message in the existing UNKNOWN branch (line 218-224):
 
+**Before:**
 ```python
-    if condition in (
-        DbCondition.LOCK_CONTENTION,
-        DbCondition.PERMISSION_FAILURE,
-        DbCondition.INVALID_FORMAT,
-    ):
+    if condition == DbCondition.UNKNOWN:
         return RecoveryResult(
             success=False,
-            action="error",
-            detail=f"{condition.value}: {detail}",
+            action="unknown_preserved",
+            detail=f"Unknown integrity failure: {detail}",
             dry_run=dry_run,
         )
+```
 
-    # NEW: UNKNOWN classification — preserve DB, require operator intervention
-    elif condition == DbCondition.UNKNOWN:
+**After:**
+```python
+    if condition == DbCondition.UNKNOWN:
         return RecoveryResult(
             success=False,
             action="preserved_operator_intervention_required",
             detail=f"Unknown integrity-check failure ({detail}): operator intervention required",
             dry_run=dry_run,
         )
-
-    # It's CORRUPTION or UNKNOWN
-    ...
 ```
 
 ### Details
 
-- Line reference: Insert after line ~214 (end of LOCK_CONTENTION/PERMISSION_FAILURE/INVALID_FORMAT branch), before line ~216 ("# It's CORRUPTION or UNKNOWN").
-- The `detail` field includes the original error detail string (`{detail}`) for debugging context.
+- Line reference: Modify line 221 (action value) and line 222 (detail message).
+- The `detail` field follows the procedure's specified format: `{condition_type} ({detail}): {explanation}`.
 - The `dry_run` parameter is forwarded unchanged from the caller.
-- Docstring update: Add `"preserved_operator_intervention_required"` to the action value list near lines ~178-184.
+- Docstring update: Replace `"unknown_preserved"` with `"preserved_operator_intervention_required"` in the action value list near line 187.
 
 ## Compatibility considerations
 
@@ -123,10 +120,10 @@ Insert the UNKNOWN branch between the existing conditional branches and the "# I
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Complete | — | — | Corrected action value from "unknown_preserved" to "preserved_operator_intervention_required" |
+| 2 | Add or update tests per Validation plan | Complete | — | — | Updated test assertions in test_db_maintenance.py and test_session_recovery.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | — | — | ruff OK, mypy OK, all 13 recovery tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Handled by separate procedure: 20260902-064946_02_docs_adr_ADR-008_sqlite_4db_separation_md.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -194,5 +194,6 @@ def test_e06_recover_corruption_unknown_preserves_session_db(
 
     mock_restore.assert_not_called()
     assert result.success is False
-    assert result.action == "unknown_preserved"
+    assert result.action == "preserved_operator_intervention_required"
+    assert "operator intervention required" in result.detail
     assert session_db.read_bytes() == original_bytes

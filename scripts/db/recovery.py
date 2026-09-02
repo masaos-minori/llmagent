@@ -184,7 +184,7 @@ def recover_corruption(
                                                "eventbus"
       "error"                               — could not open DB or OS-level failure
       "no_recovery_allowed"                 — automatic recovery prohibited for workflow/eventbus
-      "unknown_preserved"                        — integrity check returned an unclassifiable result; DB preserved, operator intervention required
+      "preserved_operator_intervention_required" — integrity check returned an unclassifiable result; DB preserved, operator intervention required
     """
     db_cfg = build_db_config()
     target_db_path = getattr(db_cfg, f"{target}_db_path", None)
@@ -218,8 +218,8 @@ def recover_corruption(
     if condition == DbCondition.UNKNOWN:
         return RecoveryResult(
             success=False,
-            action="unknown_preserved",
-            detail=f"Unknown integrity failure: {detail}",
+            action="preserved_operator_intervention_required",
+            detail=f"Unknown integrity-check failure ({detail}): operator intervention required",
             dry_run=dry_run,
         )
 
