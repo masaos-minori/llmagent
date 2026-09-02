@@ -150,7 +150,16 @@ After running the move, verify all of the following:
 - source no longer exists
 - the move is recorded as a Git rename or staged move
 
-- **If you cannot move the file, stop and report the error.** Do not proceed without completing this step.
+- **If you cannot move the file, report `Blocked` for that specific file — this is
+  immediately terminal for that file, with no automatic retry (see `Archival Move`'s
+  per-skill `Blocked` bullets above). Do not proceed without completing this step for
+  *that file*.** In a Multi-file-processing batch, this halts only the blocked file's
+  own cycle — its output document remains generated but unarchived — and the batch
+  continues to the next target file, since Completion Criteria (below) already tracks
+  completion per file, not as an all-or-nothing batch property. This continuation is
+  strictly sequential (the next file's cycle starts only after the blocked file's cycle
+  has fully stopped), not parallel recovery, per `rules/ai-execution.md` Global Safety
+  Restrictions (Base).
 - Only after confirming the move succeeded, consider the cycle complete.
 
 ## Completion Criteria
@@ -159,6 +168,10 @@ The cycle is complete only when:
 - output document generated and validated
 - source file moved to archive and verified
 - no unresolved blocking items remain
+
+These criteria apply per file, per `Sequential Target Processing (Base)`'s per-file gating —
+a batch containing one `Blocked` file alongside otherwise-`Completed` files is a valid,
+partially-complete outcome, not a batch-wide failure.
 
 ## Traceability Template
 

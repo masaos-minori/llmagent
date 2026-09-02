@@ -112,10 +112,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add correction-cycle bound to Step 2 per Method | Pending | — | — | |
-| 2 | Add correction-cycle bound cross-reference to Step 8 per Method | Pending | — | — | |
-| 3 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 4 | Manual review validation | Pending | — | — | |
+| 1 | Add correction-cycle bound to Step 2 per Method | Completed | 2026-09-02 | 2026-09-02 | Verified lines 149-153 matched exactly |
+| 2 | Add correction-cycle bound cross-reference to Step 8 per Method | Completed | 2026-09-02 | 2026-09-02 | Inserted before itp005's cause→re-entry-Step table, which remains intact at line 402 |
+| 3 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 4 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed distinct from itp003's filename-collision retry (line 271) and itp004's Rollback Directive; both cite the same AGENTS.md Attempt Limit consistently |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -151,6 +151,13 @@ duplicate plans when multiple agents process the same Issue concurrently.
   rule above (`Needs confirmation` if unresolved; `Confirmed by repository evidence` /
   `Derived from confirmed evidence` if resolved) and write the corrected understanding
   into the Plan (Step 5), not the Issue's original, possibly stale claim.
+  A single Issue's Plan tolerates at most 3 consecutive correction-and-recheck cycles
+  (matching `AGENTS.md` Loop Prevention > Attempt Limit — this is the same 3-attempt
+  bound, applied to Plan-correction cycles specifically, not a separate workflow-specific
+  value). If a clean `Pass` is not reached within that bound, stop and report `Blocked:
+  Plan requires more than 3 correction cycles — {summary of all remaining unresolved
+  issues}` rather than continuing to patch — the summary must list every remaining
+  unresolved issue, not only the last one encountered.
 - Any item classified `Needs confirmation` carries forward to Step 6 as an Unknown by
   name — do not re-derive it there. This classification is also the source for the
   Requirement Traceability table's Status column in Step 7.
@@ -383,6 +390,10 @@ any row remains `Needs confirmation` or the section is not `Frozen`.
 Report one of: `Pass` / `Fail` / `Partial` / `Blocked`. If any requirement information
 is unmapped or untraceable, or `Implementation Target Files` is not `Frozen`, do not
 report `Pass` or `Completed`.
+
+If reaching `Pass` requires more than 3 consecutive correction-and-recheck cycles (see
+Step 2's cycle bound above), stop and report `Blocked` per that same bound rather than
+continuing to cycle through Step 2/Step 8 indefinitely.
 
 If Step 8 reports `Fail` or `Partial`, resume from the Step matching the failure's cause,
 not from Step 5 (full Plan regeneration), unless the cause is shown to invalidate multiple

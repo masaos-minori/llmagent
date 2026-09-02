@@ -108,10 +108,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add batch-continuation clause to Archival Move per Method | Pending | — | — | |
-| 2 | Add per-file-scope clarification to Completion Criteria per Method | Pending | — | — | |
-| 3 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 4 | Manual review validation | Pending | — | — | |
+| 1 | Add batch-continuation clause to Archival Move per Method | Completed | 2026-09-02 | 2026-09-02 | Verified lines 153-154 matched exactly (17-line shift from cited 136, from an earlier itp004 edit to this same file) |
+| 2 | Add per-file-scope clarification to Completion Criteria per Method | Completed | 2026-09-02 | 2026-09-02 | Verified lines 156-161 matched exactly |
+| 3 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 4 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed consistent with rules/ai-execution.md Sequential Target Processing (Base) and Global Safety Restrictions (Base) — no parallel recovery implied |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
