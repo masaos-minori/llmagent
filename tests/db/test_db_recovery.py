@@ -188,3 +188,21 @@ def test_recover_eventbus_uses_correct_db_path(mock_db_cfg, mock_sqlite_helper):
         mock_integrity.assert_called_once_with(mock_db_cfg.eventbus_db_path, "eventbus")
         assert result.success is False
         assert result.action == "no_recovery_allowed"
+
+
+def test_recover_unknown_preserved_operator_intervention_required(
+    mock_db_cfg, mock_sqlite_helper
+):
+    """DbCondition.UNKNOWN must preserve the DB and require operator intervention."""
+    with patch(
+        "scripts.db.recovery._run_integrity_check",
+        return_value=(DbCondition.UNKNOWN, "unclassifiable integrity failure"),
+    ) as mock_integrity:
+        result = recover_corruption(target="rag")
+
+        mock_integrity.assert_called_once()
+        assert result.success is False
+        assert result.action == "preserved_operator_intervention_required"
+        assert result.detail is not None
+        assert "operator intervention required" in result.detail
+        assert "unclassifiable integrity failure" in result.detail

@@ -39,6 +39,15 @@ def _set_fallback_reason(
         set_fallback_reason(reason)
 
 
+def _set_fetch_result(
+    set_fetch_result: Callable[[TwoStageFetchResult], None] | None,
+    fetch_result: TwoStageFetchResult,
+) -> None:
+    """Call the fetch result callback if provided."""
+    if set_fetch_result is not None:
+        set_fetch_result(fetch_result)
+
+
 async def call_rag_service(
     http: httpx.AsyncClient,
     rag_url: str,
@@ -46,7 +55,7 @@ async def call_rag_service(
     history_context: str,
     *,
     auth_token: str = "",
-    set_fetch_result: Callable[[TwoStageFetchResult], None],
+    set_fetch_result: Callable[[TwoStageFetchResult], None] | None = None,
     set_fallback_reason: Callable[[str], None] | None = None,
 ) -> tuple[str | None, int | None, float]:
     """Delegate to external RAG service for context augmentation.
@@ -85,9 +94,8 @@ async def call_rag_service(
         - JSON parse errors: no retry (malformed response)
 
     Side effects:
-        ``set_fetch_result`` is defined in the signature for forward compatibility
-        but is not called by this function (``/v1/call_tool`` returns text only).
-        If ``set_fallback_reason`` is provided, it is called with a reason
+        If ``set_fetch_result`` is provided, it is called with a ``TwoStageFetchResult``
+        on success paths. If ``set_fallback_reason`` is provided, it is called with a reason
         string on each non-success path (4xx, transport error, etc.).
 
     Args:

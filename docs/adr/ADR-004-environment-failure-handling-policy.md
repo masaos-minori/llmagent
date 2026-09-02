@@ -378,13 +378,13 @@ PredictabilityとMaintainabilityを優先し、静的な分類基準で十分で
   - **Verifies**: INV-08
   - **Type**: Integration
   - **Blocking**: Yes
-   - **Status**: Confirmed（`tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers.test_unreachable_required_server_returns_fatal`、`test_classification_equivalent_across_security_profiles(required_value=True)` で検証済み；`uv run pytest tests/agent/services/test_mcp_tool_discovery.py -k TestDiscoverAllUnreachableServers` → 11 passed）
+   - **Status**: Confirmed（実行してPass確認済み）— `tests/agent/services/test_mcp_tool_discovery.py`の`TestDiscoverAllUnreachableServers`クラスが`is_required`分岐を直接検証する
 
 - **Test**: 非必須コンポーネントの可用性障害が起動継続を許可し、当該コンポーネントが無効化されること
   - **Verifies**: INV-09
   - **Type**: Integration
   - **Blocking**: Yes
-   - **Status**: Confirmed（`tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers.test_unreachable_non_required_server_with_fail_fast_returns_warning`、`test_unreachable_non_required_server_with_degraded_returns_warning`、`test_classification_equivalent_across_security_profiles(required_value=False)` で検証済み；`uv run pytest tests/agent/services/test_mcp_tool_discovery.py -k TestDiscoverAllUnreachableServers` → 11 passed）
+   - **Status**: Confirmed（実行してPass確認済み）— 同じ`TestDiscoverAllUnreachableServers`クラスが非必須コンポーネント分類に紐づく専用シナリオを直接検証する
 
 - **Test**: 安全性・整合性障害が部分的可用性に変換されないこと
   - **Verifies**: INV-10
@@ -450,7 +450,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 - **Known Issue**: ADR-004-D1-profile-config-model-still-present — `scripts/shared/mcp_config.py`の`McpServerConfig`と`scripts/agent/services/mcp_tool_discovery.py`は、`security_profile`（環境）の値に基づいて`required_in_production`／`required_in_local`のいずれを参照するか分岐していた。**部分解決**: REQ-001およびREQ-002により、`required_in_production`/`required_in_local`を統合した単一の`required`フィールドに置換し、`McpToolDiscoveryService.discover_all()`の分類分岐を`cfg.required`直接読み取りに置き換え。環境に基づく分岐ロジックは削除され、必須性の決定が環境非依存となった。**残課題**: REQ-002のクロスプロファイル等価テスト（`tests/agent/services/test_mcp_tool_discovery.py`）、REQ-001のデフォルト値テスト（`tests/shared/test_mcp_config.py`）、REQ-004のissueアーカイブ（`issues/done/`）。**影響**: INV-01, INV-02, INV-09 → 解消済み。INV-14 → テストカバレッジ未完了のため保留中。
 - **報告のみ（Known Issue未登録）**: 非必須コンポーネントの可用性障害による起動継続（Decision #18、INV-09）を検証する自動テストは、`tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers` にて既に検証済み（上記Verificationセクション参照）。この部分のステータスは更新済み。
-- **報告のみ（Known Issue未登録）**: 未定義の必須性による起動継続禁止（Decision #12、INV-14）を検証する自動テストが現行では存在しない。また、コンポーネント単位の必須／非必須分類を記録する現行の承認済みSpecificationも存在しない（Decision #13が要求する分類記録の主体が未整備）。これらは新規Known Issueとして別途登録することを推奨する。
+- **報告のみ（Known Issue未登録）**: 未定義の必須性による起動継続禁止（Decision #12、INV-14）を検証する自動テストが現行では存在しない。コンポーネント単位の必須／非必須分類を記録するSpecificationは`05_agent_08_04_configuration-mcp-approval-obs.md`のComponent Criticality Classification節に整備済み（Decision #13が要求する分類記録の主体を充足）。これらは新規Known Issueとして別途登録することを推奨する。
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
@@ -499,6 +499,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - [Turn Processing Flow](05_agent_03_03_turn-processing-flow-workflow-engine.md) — ワークフロー実行の詳細
 - [Deployment Guide](02_deployment.md) — デプロイメント時のワークフロー検証
+- [MCP Configuration / Approval / Observability](../05_agent_08_04_configuration-mcp-approval-obs.md#component-criticality-classification) — MCPサーバーの必須／非必須分類記録(Decision Group 3)
 
 ### Operations
 
@@ -530,9 +531,9 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] Negative Consequencesが記載されている
 - [x] 検証可能なInvariantsが定義されている
 - [x] 各InvariantにVerificationが対応している（一部はNeeds confirmation/未検証として明記）
-- [ ] 自動化可能な検証がManual Reviewだけになっていない（INV-01, INV-08, INV-09, INV-14はManual Review/未検証のまま）
+- [ ] 自動化可能な検証がManual Reviewだけになっていない（INV-01, INV-14はManual Review/未検証のまま；INV-08, INV-09はConfirmed）
 - [x] 既存ADRとの関係が記載されている
-- [ ] 関係するSpecificationと矛盾していない（要再確認 — コンポーネント必須性分類を記録するSpecificationが現行では存在しない。Known Deviations参照）
+- [x] 関係するSpecificationと矛盾していない（コンポーネント必須性分類を記録するSpecificationが整備済み）
 - [x] 現行実装との差異がKnown Issueへ登録されている（一部は新規登録が必要、Known Deviations参照）
 - [ ] Ownerと必要なReviewerが定義されている（Approval Recordはpendingのまま）
 - [x] Review Triggersが記載されている

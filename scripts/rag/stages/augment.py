@@ -2,6 +2,8 @@
 
 Augment stage for RAG pipeline."""
 
+from typing import Literal
+
 from rag.repository import RagHit
 from rag.stage import PipelineContext, PipelineStage
 from rag.utils import sanitize_document
@@ -24,6 +26,14 @@ def _format_chunks(reranked: list[RagHit]) -> str:
 
 class AugmentStage(PipelineStage):
     """Text augmentation stage that formats reranked chunks into RAG context blocks."""
+
+    def get_status(
+        self, ctx: PipelineContext
+    ) -> tuple[Literal["success", "fallback"], str | None]:
+        """Return execution status of this stage with optional reason string."""
+        if not ctx.reranked:
+            return "fallback", "no reranked results"
+        return "success", None
 
     async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
         """Format reranked chunks into a RAG context block and store in context."""
