@@ -108,6 +108,8 @@ Apply `rules/ai-execution.md`, section 'Required File Validation'.
   fall back to `git mv implementations/{filename}.md implementations/done/{filename}.md`
   only if the tool is unavailable. Report
   `Moved to done: {filename} — all steps Completed, no further action needed`.
+  If this move fails, the same continuation policy applies: report `Blocked` for this
+  file only and continue to the next target file in the batch (see Step 7).
 
 ## Step 2: Read the Current Implementation Procedure File
 
@@ -128,6 +130,12 @@ accurate — check via `rg`/Read whether the target file, symbol, line numbers, 
 call path it describes still match current source, and whether any stated assumption
 or scope boundary is stale or inconsistent with a sibling procedure document or the
 source Plan.
+
+Stop once the target file, the specific symbol/line/call-path claims the procedure
+makes, and its stated dependencies have each been checked once against current
+source, in that order — a disconfirming finding ends investigation for that specific
+finding (the procedure document must be corrected, per the paragraph below, not
+further researched) rather than triggering deeper search.
 
 If verification finds an unconfirmed item or an inconsistency, correct the
 implementation procedure document itself (`implementations/{filename}.md`, via Edit)
@@ -238,6 +246,10 @@ only and does not apply to this workflow at all.
 - Verify the file exists in `implementations/done/` after the move.
 - **If the move fails, stop and report `Blocked: move failed — {reason}`. Do not
   fall back to another method beyond the two above.**
+  Report `Blocked` for this specific file only — its code/test/doc changes remain
+  applied and validated, and its implementation procedure document remains generated
+  but unarchived — then continue Multi-file processing with the next target file in
+  the batch. Do not halt the entire batch because one file's Archival Move failed.
 
 ## Rollback on Failure
 

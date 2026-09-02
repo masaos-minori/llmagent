@@ -99,17 +99,14 @@ archive directory `issues/done/`.
 Before creating a new Plan, verify whether one already exists for this Issue. This prevents
 duplicate plans when multiple agents process the same Issue concurrently.
 
-- **If the Issue filename contains an ID** (format: `{timestamp}_{id}_{slug}.md`, e.g.
-  `20260828-155804_nc019_git_mcp_command_specific_guards.md`): extract the ID portion
-  (`nc019`), then glob `plans/*{issue_id}*plan.md` (case-insensitive match on the ID).
-- **If the Issue filename does NOT contain an ID but has a timestamp prefix** (e.g.
-  `20260717-171259_nuitka_onefile_packaging_proposal.md`): extract the timestamp portion
-  (`20260717-171259`), then glob both `plans/*{timestamp}*plan.md` and
-  `plans/done/*{timestamp}*plan.md` (case-insensitive match on the timestamp). A plan
-  may exist in `plans/` (active) or `plans/done/` (archived after implementation).
-- **If the Issue filename does NOT contain an ID or timestamp** (plain descriptive name,
-  e.g. `multi-agent-orchestration-design-plan.md`): this case is outside the scope of
-  the issue-creator skill. Do not attempt dedup; proceed to Step 2 normally.
+- **Corrected 2026-09-02**: the ID/timestamp filename-glob check below was previously
+  non-functional — Plan filenames use the Plan-*generation* timestamp
+  (`plans/{generation-timestamp}_plan.md`), never the source Issue's own ID or timestamp,
+  so no real Plan filename was ever matched by a glob on the Issue's filename. Use a
+  content-based check instead: for the current Issue's repository-relative path
+  (`{issue_path}`), search for an exact `- **Source issue**: {issue_path}` line inside the
+  `## Traceability` section of any file in `plans/*.md` or `plans/done/*.md` (e.g.
+  `grep -rl -- "- \*\*Source issue\*\*: {issue_path}" plans/*.md plans/done/*.md`).
 - **If a matching plan exists**: record the existing plan's path in the Traceability section,
   note that this Issue has been addressed elsewhere, and proceed to Step 9/10 to move the
   Issue to `issues/done/` without creating a duplicate Plan.
@@ -131,6 +128,12 @@ duplicate plans when multiple agents process the same Issue concurrently.
   overstated, and whether two claims within the same Issue (or against a related
   `plans/`/`implementations/` document) contradict each other. Treat this as a search
   for disconfirming evidence, not reconfirmation of prior findings.
+  Stop once every field extracted per `templates/issue.md` (Step 2's own extraction list,
+  below) has been checked against at least one concrete source (a file, test, or existing
+  Plan/Implementation document), and no new disconfirming evidence was found in the last
+  full pass over that field list — this is complementary to, not a replacement for,
+  `rules/workflow-lifecycle.md`'s workflow-level Completion Criteria, which gates the whole
+  cycle rather than this Step alone.
 - Extract the fields defined in `templates/issue.md` (the canonical Issue shape shared
   with `skills/issue-creator`): title, priority, target files, background, problem,
   reason for change, implementation intent, implementation instructions, constraints,
@@ -172,6 +175,13 @@ Assessment) section, **before** inspecting.
   documentation, callers and callees, dependencies, data ownership, side effects, error
   handling, compatibility constraints, and security constraints. This inspection feeds
   the broader analysis in Step 5.
+  Stop each of the four analysis dimensions (Architecture analysis, Dependency graphing,
+  Historical analysis, Operational dependency inspection — see
+  `workflow-path-b.md`) once its listed toolchain command(s) have been run once against
+  the relevant target and their output reviewed; do not re-run the same command against
+  the same target without a changed input, per `rules/ai-execution.md` Tool Usage. This
+  is consistent with `workflow-path-b.md`'s own existing "once all four analyses above
+  are complete" gate, not a change to it.
 
 Read only relevant sections unless the full file is required for an accurate
 conclusion. Record the Path A/B decision for reuse in Step 5.
@@ -355,6 +365,11 @@ any row remains `Needs confirmation` or the section is not `Frozen`.
 Report one of: `Pass` / `Fail` / `Partial` / `Blocked`. If any requirement information
 is unmapped or untraceable, or `Implementation Target Files` is not `Frozen`, do not
 report `Pass` or `Completed`.
+
+If Step 8 (or an earlier Step's revalidation) requires correcting the Plan document via
+Edit, see `rules/workflow-lifecycle.md` Plan-Document Correction Handling for whether
+`AGENTS.md` Rollback Directive applies (it does not) and how a repeated-correction risk is
+bounded instead.
 
 Before delivering, cross-check (do not re-derive): goal is one sentence and verifiable;
 scope has explicit in/out boundaries; assumptions are falsifiable; no blocking Unknowns

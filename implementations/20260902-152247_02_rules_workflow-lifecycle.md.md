@@ -101,10 +101,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert `## Plan-Document Correction Handling` section per Method | Pending | — | — | Must land before or with seq 01 (`skills/issue-to-plan/workflow.md`'s cross-reference points here) |
-| 2 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 3 | Manual review validation | Pending | — | — | |
-| 4 | Documentation update | Pending | — | — | N/A: this file is the documentation being updated |
+| 1 | Insert `## Plan-Document Correction Handling` section per Method | Completed | 2026-09-02 | 2026-09-02 | Inserted between `## Sequential Processing` and `## Implementation Target Files Validation (Plan Freeze)` as specified |
+| 2 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 3 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed AGENTS.md Loop Prevention/Rollback Directive/Attempt Limit and rules/ai-execution.md Explicit exceptions wording all match the citation |
+| 4 | Documentation update | Completed | 2026-09-02 | 2026-09-02 | N/A: this file is the documentation being updated; no `docs/00_index.md` task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -34,6 +34,23 @@ Each workflow file must explicitly define:
 Apply the base rules from `rules/ai-execution.md` (Sequential Target Processing). In
 addition, do not read files under the archive directory (see Target Validation above).
 
+## Plan-Document Correction Handling
+
+When Step 2/Step 3 adversarial verification, or a later step's revalidation, finds an
+unconfirmed item or inconsistency and the workflow instructs correcting the Plan document
+itself (via Edit), `AGENTS.md` Loop Prevention > Rollback Directive does **not** apply to
+that correction. Rollback Directive is stated in code-modification terms (`git checkout`,
+"the code") for a *failed fix*; correcting a Plan document mid-workflow is itself the
+intended, sanctioned mechanism for incorporating new evidence — not a fix that failed and
+needs reverting. This is an explicit exception per `rules/ai-execution.md` Instruction
+Precedence > Explicit exceptions, naming Rollback Directive as the overridden rule.
+
+To bound a genuine correction-loop risk (the same field/section being corrected repeatedly
+across cycles with no new evidence), apply `AGENTS.md` Loop Prevention > Attempt Limit's
+existing framing: after repeated correction of the same Plan field/section without new
+evidence changing the outcome, stop and report a summary to the user rather than continuing
+to re-edit indefinitely.
+
 ## Implementation Target Files Validation (Plan Freeze)
 
 Applies to a Plan's `Implementation Target Files` and `Reference Files` sections

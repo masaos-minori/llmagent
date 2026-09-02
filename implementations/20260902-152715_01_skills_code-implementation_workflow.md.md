@@ -88,10 +88,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add continuation policy to Step 7 per Method | Pending | — | — | |
-| 2 | Add cross-reference to Step 1 per Method | Pending | — | — | |
-| 3 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 4 | Manual review validation | Pending | — | — | |
+| 1 | Add continuation policy to Step 7 per Method | Completed | 2026-09-02 | 2026-09-02 | Verified lines 239-240 matched exactly |
+| 2 | Add cross-reference to Step 1 per Method | Completed | 2026-09-02 | 2026-09-02 | Verified line 106 area matched exactly |
+| 3 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 4 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed consistent with rules/ai-execution.md Sequential Target Processing and Global Safety Restrictions (no parallel processing implied) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

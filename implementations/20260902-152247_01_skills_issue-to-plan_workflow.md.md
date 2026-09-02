@@ -119,10 +119,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add Step 2 termination condition per Method | Pending | — | — | |
-| 2 | Add Step 3 Path B termination condition per Method | Pending | — | — | |
-| 3 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 4 | Manual review validation | Pending | — | — | |
+| 1 | Add Step 2 termination condition per Method | Completed | 2026-09-02 | 2026-09-02 | Verified lines 127-133 matched exactly |
+| 2 | Add Step 3 Path B termination condition per Method | Completed | 2026-09-02 | 2026-09-02 | Verified lines 171-174 matched exactly |
+| 3 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 4 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed both additions cite `workflow-path-b.md`'s existing dimension names/gate accurately, no contradiction introduced |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

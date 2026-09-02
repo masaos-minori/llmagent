@@ -111,10 +111,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace Step 1.5's glob branches with content-based check per Method | Pending | — | — | |
-| 2 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 3 | Manual verification per Validation plan | Pending | — | — | |
-| 4 | Documentation update | Pending | — | — | N/A: this file is the documentation being updated |
+| 1 | Replace Step 1.5's glob branches with content-based check per Method | Completed | 2026-09-02 | 2026-09-02 | Verified lines 102-112 matched exactly (2-line shift from cited 97-119, within tolerance) |
+| 2 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 3 | Manual verification per Validation plan | Completed | 2026-09-02 | 2026-09-02 | Ran `grep -rl -- "- \*\*Source issue\*\*: {issue_path}" plans/*.md plans/done/*.md` for `issues/20260901-170327_itp001_...md`: correctly found `plans/done/20260901-214449_plan.md`; negative control (nonexistent issue path) correctly found nothing |
+| 4 | Documentation update | Completed | 2026-09-02 | 2026-09-02 | N/A: this file is the documentation being updated; no `docs/00_index.md` task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

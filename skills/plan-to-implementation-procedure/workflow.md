@@ -105,8 +105,9 @@ simultaneously.
   responsibility, not this workflow's; do not freeze it here.
 - Revalidate the frozen inventory per `rules/workflow-lifecycle.md` Implementation
   Target Files Validation (Plan Freeze) — Revalidation, before proceeding to Step 3.
-  If revalidation finds a discrepancy, correct the Plan per that section's rules
-  before continuing.
+  If revalidation finds a discrepancy, correct the Plan per that section's rules, then
+  re-run the Plan Freeze validation for the corrected row(s) specifically (not the whole
+  table, and not skipped) before proceeding to Step 3.
 - Extract this plan's Traceability section's `Source issue` value for reuse in this
   cycle's generated documents (Step 3) — the Plan already carries it forward from the
   Issue that produced it; do not re-derive it from scratch.
@@ -139,6 +140,10 @@ Background never checked). Verify via `rg`/Read that the target file, symbol, ca
 path, and test currently exist and behave as described. Investigate in this order:
 the target file itself, its direct dependencies (immediate imports/importers), then
 related tests — expand beyond this order only when evidence remains insufficient.
+Stop once the target file, its direct dependencies, and its related tests have each
+been checked once against the Plan's claim about them. A disconfirming finding at any
+stage ends investigation for that finding — correct the Plan (see below), rather than
+researching further to double-confirm it.
 
 If adversarial verification finds an unconfirmed item or an inconsistency (a stale
 claim, a missing Requirement, a newly discovered dead-code reference, a duplicate or
@@ -149,6 +154,14 @@ Execution Status) rather than silently working around the discrepancy — and re
 the corrected understanding in the generated document(s). Record what was found and
 corrected in the progress report; do not report a row `Completed` while a
 Plan-level inconsistency it surfaced remains unresolved.
+
+If this correction is made while processing row K (K > 1), check whether any
+already-generated document for rows 1..K-1 relied on the now-corrected claim. If one
+does: amend that earlier document in the same cycle when the fix is bounded and does
+not require re-investigating that row's dependencies or tests; otherwise, flag it in
+the progress report and the Plan's Execution Status as needing re-verification before
+Step 4's move — do not silently leave a stale earlier document unflagged. Scope this
+check to the corrected claim only, not a full re-verification of every prior row.
 
 Files read only to confirm current behavior or dependencies are not additional target
 files — a file belongs under `Target file` only if it is a row in the Plan's
@@ -221,6 +234,11 @@ Execution Rules):
     (e.g. stale or partial-scope content) — it MUST NOT be overwritten. Stop and
     report `Needs confirmation` for this row instead. The tool's own collision
     refusal is the same signal, not a separate failure mode.
+    This `Needs confirmation` report is terminal for this cycle, not retriable: do not
+    re-attempt the same row again within the same pass. Report it once; Step 4's "every
+    row... accounted for" check is satisfied by this single stopped attempt. A human must
+    resolve the underlying interrupted-cycle state (confirm whether the existing file is
+    stale, partial, or already covers the row) before any future run revisits this row.
 - Classify each evidence gap encountered while investigating a row as Blocking or
   Non-blocking:
   - Blocking: a safe, concrete procedure cannot be written without this evidence. Stop
@@ -313,6 +331,11 @@ command only if the tool is unavailable.
   filter; only when a name matches, read that matched file's content (not the full
   target source file) to confirm its stated scope actually covers the current row
   before deciding to skip.
+  Capture the `implementations/` and `implementations/done/` directory listing once at
+  the start of Step 3's row-processing loop, and reuse it for every row's filter check
+  rather than re-scanning the filesystem per row. If this same pass writes a new file for
+  an earlier row, update the in-memory listing to include it (do not re-scan the
+  filesystem) before checking any later row against it.
 - In Step 3, perform the per-row investigation (reading the related source file to
   write Method/Details) sequentially; read only the relevant sections of the target
   source file (locate them with grep first, then read a limited range) rather than the
