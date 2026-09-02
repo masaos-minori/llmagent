@@ -53,6 +53,70 @@ No constructor (inherits from `PipelineStage`).
 
 **Content-only Invariance Rule:** AugmentStage only formats `content` and never uses `normalized_content`. See [ADR-009](../adr/ADR-009-rag-ft5-text-separation.md) for rationale, alternatives, and tradeoffs.
 
+### 5.6 AugmentRefiner Class (`scripts/rag/augment.py`)
+
+```python
+from rag.augment import AugmentRefiner
+```
+
+**Purpose:** Owns all HTTP augment and context refinement related state and behavior extracted from `RagPipeline`. Uses constructor injection for dependency management.
+
+**Constructor Dependencies:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `http` | `httpx.AsyncClient` | Yes | HTTP client for external RAG service calls |
+| `cfg` | `RagConfig` | Yes | Configuration including `rag_service_url`, `rag_auth_token`, `refiner_*` settings |
+| `on_status` | `Callable[[str], None] \| None` | No | Status callback; defaults to no-op |
+| `set_fetch_result` | `Callable[[str], None] \| None` | No | Fetch result callback; defaults to no-op |
+| `set_fallback_reason` | `Callable[[str], None] \| None` | No | Fallback reason callback; defaults to no-op |
+| `search_diagnostics` | `SearchDiagnostics \| None` | No | Diagnostics object; defaults to empty `SearchDiagnostics()` |
+| `llm` | `RagLLM \| None` | No | LLM client for refiner; required when `use_refiner=true` |
+
+#### Methods
+
+##### `run_http_augment(query, history_context, rag_url)` — HTTP augment execution
+
+Returns `str | None`:
+- `str` (non-empty): HTTP call successful; non-empty context returned
+- `""` (empty string): HTTP 200 but `context` field is `""` — valid empty result, not a fallback
+- `None`: HTTP error; triggers fallback to in-process pipeline
+
+Side effects:
+- Updates `search_diagnostics` with `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`
+- Appends `StageResult` to `last_stage_results` if available
+
+##### `run_refiner(reranked, query)` — Context refinement
+
+Returns `RefineResult`:
+- `text` (str | None): Summarized context text; falls back to `None` on failure
+- `reason` (str | None): Failure reason; `None` on success
+
+Raises `ValueError` if `llm` dependency not injected.
+
+Side effects:
+- Appends `StageResult` to `last_stage_results` with `"success"` or `"fallback"` status
+- Logs at INFO level when refiner fallback occurs
+
+##### `map_http_result_kind(kind)` — Static method
+
+Maps HTTP result kind string to `HttpResultKind` enum:
+- `None` → `NOT_USED`
+- `"remote_nonempty"` → `SUCCESS`
+- `"remote_empty"` → `EMPTY`
+- `"in_process_fallback"` → `ERROR`
+
+#### Properties
+
+| Property | Type | Description |
+|---|---|---|
+| `last_stage_results` | `list[StageResult]` | Accumulated stage results |
+| `search_diagnostics` | `SearchDiagnostics` | Search diagnostic information |
+
+#### Integration with RagPipeline
+
+`RagPipeline` instantiates `AugmentRefiner` via constructor injection and delegates HTTP augment and refiner operations to it. The class maintains its own `SearchDiagnostics` and `StageResult` tracking separate from `RagPipeline`'s own diagnostics.
+
 #### RefineResult dataclass (`scripts/rag/pipeline_refiner.py`)
 
 ```python

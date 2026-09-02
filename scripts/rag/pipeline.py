@@ -436,6 +436,8 @@ class RagPipeline:
             result = await self._augment_refiner.run_http_augment(
                 query, history_context, rag_url
             )
+            self.last_search_diagnostics = self._augment_refiner.search_diagnostics
+            self.last_stage_results = list(self._augment_refiner.last_stage_results)
             if result is not None:
                 return result
         # Semantic cache lookup (in-process mode only)

@@ -37,6 +37,9 @@ def _make_pipeline(rag_service_url: str = "http://rag.local") -> RagPipeline:
     return pipeline
 
 
+# ── HTTP result classification (rag/http_augment.py) ─────────────────────────
+
+
 @pytest.mark.asyncio
 async def test_remote_empty_sets_result_source_remote() -> None:
     """Remote empty result ('') -> last_search_diagnostics.http_result_kind == EMPTY."""
@@ -72,6 +75,9 @@ async def test_remote_empty_does_not_trigger_in_process(monkeypatch) -> None:
 
     assert result == ""
     run_mock.assert_not_called()
+
+
+# ── In-process fallback behavior (rag/pipeline.py) ─────────────────────────────
 
 
 @pytest.mark.asyncio
