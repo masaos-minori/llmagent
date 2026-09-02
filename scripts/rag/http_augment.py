@@ -12,8 +12,6 @@ from rag.pipeline_service import call_rag_service
 
 if TYPE_CHECKING:
     import httpx
-
-    from rag.models_data import TwoStageFetchResult  # noqa: TCH004
 from rag.models_result import HttpResultKind
 from rag.stage import PipelineContext, StageResult
 
@@ -65,7 +63,7 @@ class HttpAugment:
         http: httpx.AsyncClient,
         rag_url: str,
         auth_token: str = "",
-        set_fetch_result: Callable[[TwoStageFetchResult], None] | None = None,
+        set_fetch_result: Callable[[str], None] | None = None,
         set_fallback_reason: Callable[[str], None] | None = None,
     ) -> None:
         """Initialize with HTTP client, RAG URL, optional auth token, and callbacks."""
@@ -118,6 +116,11 @@ class HttpAugment:
             if result == ""
             else "in_process_fallback"
         )
+        # Call user-provided callbacks after determining result
+        if result is not None:
+            self._set_fetch_result(result)
+        elif result is None:
+            self._set_fallback_reason(http_fallback_reason)
         return HttpAugmentResult(
             result=result,
             status_code=status_code,

@@ -13,8 +13,6 @@ from collections.abc import Callable
 import httpx
 from shared.json_utils import parse_http_json
 
-from rag.models_data import TwoStageFetchResult
-
 logger = logging.getLogger(__name__)
 
 _MAX_ATTEMPTS = 3
@@ -40,8 +38,8 @@ def _set_fallback_reason(
 
 
 def _set_fetch_result(
-    set_fetch_result: Callable[[TwoStageFetchResult], None] | None,
-    fetch_result: TwoStageFetchResult,
+    set_fetch_result: Callable[[str], None] | None,
+    fetch_result: str,
 ) -> None:
     """Call the fetch result callback if provided."""
     if set_fetch_result is not None:
@@ -55,7 +53,7 @@ async def call_rag_service(
     history_context: str,
     *,
     auth_token: str = "",
-    set_fetch_result: Callable[[TwoStageFetchResult], None] | None = None,
+    set_fetch_result: Callable[[str], None] | None = None,
     set_fallback_reason: Callable[[str], None] | None = None,
 ) -> tuple[str | None, int | None, float]:
     """Delegate to external RAG service for context augmentation.
@@ -94,7 +92,7 @@ async def call_rag_service(
         - JSON parse errors: no retry (malformed response)
 
     Side effects:
-        If ``set_fetch_result`` is provided, it is called with a ``TwoStageFetchResult``
+        If ``set_fetch_result`` is provided, it is called with a ``str``
         on success paths. If ``set_fallback_reason`` is provided, it is called with a reason
         string on each non-success path (4xx, transport error, etc.).
 

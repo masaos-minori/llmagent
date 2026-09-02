@@ -24,7 +24,6 @@ from shared.types import RagConfig, RagHit
 
 from rag.http_augment import HttpAugment, _map_http_result_kind
 from rag.llm_client import RagLLM
-from rag.models_data import TwoStageFetchResult
 from rag.models_result import HttpResultKind, ResultSource, SearchDiagnostics
 from rag.pipeline_refiner import RefineResult, refine_context
 from rag.stage import StageResult
@@ -45,7 +44,7 @@ class AugmentRefiner:
         cfg: RagConfig,
         *,
         on_status: Callable[[str], None] | None = None,
-        set_fetch_result: Callable[[TwoStageFetchResult], None] | None = None,
+        set_fetch_result: Callable[[str], None] | None = None,
         set_fallback_reason: Callable[[str], None] | None = None,
         search_diagnostics: SearchDiagnostics | None = None,
         llm: RagLLM | None = None,
@@ -71,7 +70,7 @@ class AugmentRefiner:
             self._http,
             rag_url,
             auth_token=self._cfg.rag_auth_token or "",
-            set_fetch_result=lambda fr: self._set_fetch_result(fr),
+            set_fetch_result=lambda r: self._set_fetch_result(r),
             set_fallback_reason=lambda _: self._set_fallback_reason(_),
         )
         result = await http_aug.run(query, history_context)
