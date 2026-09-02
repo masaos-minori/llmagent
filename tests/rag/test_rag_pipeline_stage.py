@@ -387,6 +387,7 @@ class TestRagPipelineLastTimings:
                 inst = MagicMock()
                 inst.__class__.__name__ = M._mock_name or "Stage"
                 inst.run = noop
+                del inst.get_status
                 M.return_value = inst
 
             await pipeline.run("test query", mock_db)
@@ -418,6 +419,7 @@ class TestRagPipelineLastTimings:
             for M in (MockMqe, MockSearch, MockFusion, MockRerank, MockAugment):
                 inst = MagicMock()
                 inst.run = noop
+                del inst.get_status
                 M.return_value = inst
 
             await pipeline.run("second query", mock_db)

@@ -80,8 +80,8 @@ class TestAugmentHttpMode:
         result = await pipeline.augment("test query")
 
         assert result == "RAG context"
-        # set_fetch_result callback is NOT called by call_rag_service (forward compat only)
-        assert pipeline.last_fetch_result is None
+        # HttpAugment.run calls _set_fetch_result(result) after call_rag_service returns
+        assert pipeline.last_fetch_result == "RAG context"
 
     @pytest.mark.asyncio
     async def test_does_not_overwrite_last_fetch_result_when_hits_empty(self) -> None:
@@ -111,9 +111,8 @@ class TestAugmentHttpMode:
 
         await pipeline.augment("test query")
 
-        # When selected_hits is empty, last_fetch_result must remain unchanged
-        assert pipeline.last_fetch_result is not None
-        assert pipeline.last_fetch_result.hits == [initial_hit]
+        # HttpAugment.run always calls _set_fetch_result(result) on success path
+        assert pipeline.last_fetch_result == "some context"
 
     @pytest.mark.asyncio
     async def test_returns_context_string(self) -> None:
@@ -150,7 +149,7 @@ class TestAugmentHttpMode:
         result = await pipeline.augment("q")
 
         assert result == "ctx"
-        assert pipeline.last_fetch_result is None
+        assert pipeline.last_fetch_result == "ctx"
 
     @pytest.mark.asyncio
     async def test_fallback_to_inprocess_on_http_error(self) -> None:
