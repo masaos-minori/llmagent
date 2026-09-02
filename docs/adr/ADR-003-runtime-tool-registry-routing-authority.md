@@ -74,6 +74,7 @@ Tool名から実行先MCPサーバーを決定する権威を`RuntimeToolRegistr
 12. Dynamic Healthの状態は、LLM可視性（`enabled_for_llm`等）を自動的に変更してはならない。
 13. Approval要件は無効化されたTool状態の一種ではない。Approvalは`agent/tool_policy.py`/`tool_approval.py`が所有し、Routing解決後に適用される呼び出し単位（引数によって危険度が変わり得る）のポリシー判断であり、無効化されたToolとして表現または混同してはならない。
 14. Discovery由来のTool定義（`raw_definition`、静的な`status`等）を反映するには、Agentプロセスの完全な再起動が必要である。現在の承認済み仕様がRediscoveryを明示的に定義しない限り、Reload操作は Safety Tier や許可リスト由来のLLM可視性などPolicy由来フィールドのみを更新し、Discovery由来のTool定義を再取得しない。Reload挙動は、現在サポートされている範囲としてのみ記述する。
+15. 静的`ToolRegistry`は、起動時Drift検証（`shared/tool_routing_validation.py`による設定`tool_names`および実行時`/v1/tools`応答との比較、`agent/services/routing_drift.py`経由で呼び出される）の入力データとしてのみ使用してよい。この用途はRouting判断そのものではなく、既に確定した`RuntimeToolRegistry`ベースのRouting結果の妥当性を事後的に警告する診断的検証であり、`ToolRouteResolver.resolve()`が`RuntimeToolRegistry`のみを参照するという原則（Decision Detail #3、INV-02）を変更しない。（2026-09-02追加、`issues/20260831-181721_adr003_01_tool_routing_validation_status_decision.md`参照）
 
 ### Responsibility Boundaries
 
@@ -287,7 +288,7 @@ Approval要求状態を無効化Tool機構の一部として表現する。
 - INV-01: 複数のMCPサーバーが同じTool名を公開した場合、Agentの起動を中止する。
 - INV-02: `ToolRouteResolver.resolve()`は`RuntimeToolRegistry`のみを参照し、未知のTool名に対しては`ValueError`を即時発生させる。
 - INV-03: Safety TierとWrite属性はRouting、承認、監査で同一の`RuntimeTool`を参照する。
-- INV-04: 静的`ToolRegistry`は実行時Routingに使用せず、テスト・文書生成に限定する。
+- INV-04: 静的`ToolRegistry`は実行時Routingに使用せず、テスト・文書生成、および起動時Drift検証(`shared/tool_routing_validation.py`)の入力データに限定する（Decision Detail #15、2026-09-02追加）。
 - INV-05: Defined、Discoverable、Owned、LLM-visible、Statically available、Dynamically available、Routable、Approved、Executableは別個の概念として扱い、単一の「有効/無効」へ統合しない。
 - INV-06: 静的に無効化されたToolは、LLMへ実行可能として公開してはならない。
 - INV-07: Dynamic Healthの状態は、`enabled_for_llm`等のLLM可視性を変更してはならない。
@@ -348,6 +349,12 @@ Dynamic HealthはCircuit Breakerによる CLOSED/OPEN/HALF_OPEN のTrial-Recover
   - **Verifies**: INV-04
   - **Type**: Regression
   - **Blocking**: Yes
+
+- **Test**: 起動時Drift検証(config/live比較)が静的`ToolRegistry`を入力として使用し、`RuntimeToolRegistry`ベースのRouting判断自体を変更しないこと
+  - **Verifies**: INV-04 (Decision Detail #15)
+  - **Type**: Integration
+  - **Blocking**: No（警告のみ。strictモード時は起動を中止するが、Routing判断そのものには影響しない）
+  - **Test files**: `tests/agent/test_startup_routing_drift.py`, `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py`, `tests/shared/test_tool_registry.py`, `tests/shared/test_tool_safety_tiers.py`
 
 - **Test**: Routing、承認、監査が同一Safety Tierを参照すること
   - **Verifies**: INV-03

@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""scripts/shared/tool_routing_validation.py — MCP tool routing drift validation against config and live responses."""
+"""scripts/shared/tool_routing_validation.py — MCP tool routing drift validation against config and live responses.
+
+This module's use of the static ToolRegistry as drift-detection input is a formalized,
+current architectural decision — see ADR-003 Decision Detail #15 / INV-04
+(docs/adr/ADR-003-runtime-tool-registry-routing-authority.md).
+"""
 
 from typing import TYPE_CHECKING
 

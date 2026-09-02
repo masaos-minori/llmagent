@@ -9,7 +9,9 @@ live /v1/tools discovery. ToolRegistry serves one verified production role:
       shared/tool_routing_validation.py) and config drift checks
       (production_config_validator.py, agent/repl_health.py).
 This role remains active and maintained (not abolished) — confirmed by the live wiring in
-repl_health.py, mcp_tool_discovery.py, and production_config_validator.py.
+repl_health.py (via agent/services/routing_drift.py), mcp_tool_discovery.py, and
+production_config_validator.py. Formalized as ADR-003 Decision Detail #15 / INV-04
+(2026-09-02): see docs/adr/ADR-003-runtime-tool-registry-routing-authority.md.
 As of 2026-08-25, ToolRegistry is no longer consulted by agent.tool_policy.classify_operation_type() for risk classification — that function now uses RuntimeToolRegistry exclusively (ADR-003 Decision #8); see docs/adr/ADR-003-runtime-tool-registry-routing-authority.md.
 
 Ownership model:
