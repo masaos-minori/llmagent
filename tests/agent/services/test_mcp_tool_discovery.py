@@ -792,6 +792,10 @@ class TestDiscoverAllUnreachableServers:
 class TestDiscoverAllCrossProfileEquivalence:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
+        "security_profile",
+        [SecurityProfile.LOCAL, SecurityProfile.PRODUCTION],
+    )
+    @pytest.mark.parametrize(
         "required_value,expected_status",
         [
             (True, StartupCheckStatus.FATAL),
@@ -799,7 +803,10 @@ class TestDiscoverAllCrossProfileEquivalence:
         ],
     )
     async def test_classification_equivalent_across_security_profiles(
-        self, required_value: bool, expected_status: StartupCheckStatus
+        self,
+        required_value: bool,
+        expected_status: StartupCheckStatus,
+        security_profile: SecurityProfile,
     ) -> None:
         srv_cfg = McpServerConfig(
             transport=TransportType.HTTP,
@@ -808,7 +815,7 @@ class TestDiscoverAllCrossProfileEquivalence:
         )
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
-        ctx = _make_ctx({"srv": srv_cfg}, http)
+        ctx = _make_ctx({"srv": srv_cfg}, http, security_profile=security_profile)
 
         result = await McpToolDiscoveryService(ctx).discover_all()
 

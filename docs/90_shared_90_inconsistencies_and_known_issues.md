@@ -71,9 +71,9 @@ Each item follows this format:
 
 ---
 
-### CI-002: former-ADR-011 INV-01/INV-02 — Production/local recovery distinction (stale reference)
+### CI-002: former-ADR-011 INV-01/INV-02 — Production/local recovery distinction (resolved: stale reference)
 
-`recover_corruption()` in `db/recovery.py` does NOT distinguish between production and local environments. This entry's original wording cited an "INV-01 (production MUST NOT auto-recover without explicit operator confirmation)" / "INV-02 (local MAY auto-recover)" pair that does not correspond to any invariant in the current (pre-deletion) ADR-011 text, nor to any invariant in ADR-008 after the ADR-011 merger — ADR-008 defines no production/local distinction for recovery. Status: open / Severity: Critical / Type: stale reference — needs re-investigation. Impact: it is unclear whether a real production/local gap exists in `recover_corruption()`, or whether this entry described a since-superseded draft of ADR-011. Action: re-investigate whether a production/local distinction for auto-recovery is an intended current requirement; if so, raise it as a new decision against ADR-008, since ADR-008 (which absorbed ADR-011) contains no such invariant today. Design reference: [ADR-008](adr/ADR-008-sqlite-4db-separation.md).
+`recover_corruption()` in `db/recovery.py` does NOT distinguish between production and local environments — this is confirmed to be the correct, intended current behavior, not a gap. This entry's original wording cited an "INV-01 (production MUST NOT auto-recover without explicit operator confirmation)" / "INV-02 (local MAY auto-recover)" pair that was investigated against all three tracked ADR-011 revisions (commits `e87db8e3`, `e886b98a`, `03f51e1b`) and the current ADR-008 text: no such invariant pair was ever present. Status: resolved (stale reference, closed) / Severity: N/A / Type: stale reference. Impact: none — no production/local recovery gap exists; the entry described a citation that never corresponded to real ADR content. Action: none required; this entry is retained as a historical record of the investigation. Design reference: [ADR-008](adr/ADR-008-sqlite-4db-separation.md).
 
 ### CI-003: ADR-003 Decision Details #14 — Reload updates only policy-derived fields (not verified)
 
