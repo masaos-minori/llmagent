@@ -65,22 +65,34 @@ class IngestUrlResult:
     def unexpected_failure(url: str) -> "IngestUrlResult":
         """Return a failure result for unexpected errors."""
         return IngestUrlResult(
-            url=url, n_success=0, n_failed=0, skipped=False,
+            url=url,
+            n_success=0,
+            n_failed=0,
+            skipped=False,
             failure_reason=IngestionFailureReason.UNEXPECTED_FAILURE,
         )
 
     @staticmethod
     def log_ingestion_result(
-        doc_id: int, url: str, inserted: int, total: int,
-        failed: int, embed_failed: int,
+        doc_id: int,
+        url: str,
+        inserted: int,
+        total: int,
+        failed: int,
+        embed_failed: int,
     ) -> None:
         """Log the chunk ingestion result."""
         src_type = "file" if url.startswith("file://") else "http"
         logger.info(
             "inserted %s/%s chunks (%s failed, %s embed-failed): %s",
-            inserted, total, failed, embed_failed, url,
+            inserted,
+            total,
+            failed,
+            embed_failed,
+            url,
             extra={"doc_id": doc_id, "source_type": src_type, "stage_name": "ingester"},
         )
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # RagIngester class
@@ -100,7 +112,9 @@ class RagIngester:
         self._rag_db_path: str = str(cfg.get("rag_db_path", ""))
         self._sqlite_vec_so: str = str(cfg.get("sqlite_vec_so", ""))
         self._sqlite_timeout: int = int(cfg.get("sqlite_timeout", 30))
-        self._sqlite_busy_timeout_ms: int = int(cfg.get("sqlite_busy_timeout_ms", 30000))
+        self._sqlite_busy_timeout_ms: int = int(
+            cfg.get("sqlite_busy_timeout_ms", 30000)
+        )
         self._rag_pipeline_service_url: str = cfg.get("rag_pipeline_service_url", "")
         self._client = httpx.Client(timeout=60)
         # Extracted classes
@@ -152,19 +166,29 @@ class RagIngester:
         ).open(write_mode=True, row_factory=True) as db:
             doc_manager = DocumentManager(db)
             doc_store = DocumentStore(db, doc_manager)
-            results = self._process_url_groups(doc_manager, db, doc_store, url_groups, force)
+            results = self._process_url_groups(
+                doc_manager, db, doc_store, url_groups, force
+            )
             consistency_report = doc_manager.check_consistency(
-                embed_failed=sum(r.n_embed_failed for r in results if r.n_embed_failed > 0),
+                embed_failed=sum(
+                    r.n_embed_failed for r in results if r.n_embed_failed > 0
+                ),
                 on_ingest_complete=on_ingest_complete,
             )
 
         total_success = sum(r.n_success for r in results)
         total_failed = sum(r.n_failed for r in results if r.n_failed > 0)
-        total_embed_failed = sum(r.n_embed_failed for r in results if r.n_embed_failed > 0)
+        total_embed_failed = sum(
+            r.n_embed_failed for r in results if r.n_embed_failed > 0
+        )
         total_skipped = sum(1 for r in results if r.skipped)
         logger.info(
             "=== done: %s URLs processed (%d success, %d failed, %d embed-failed, %d skipped) ===",
-            len(results), total_success, total_failed, total_embed_failed, total_skipped,
+            len(results),
+            total_success,
+            total_failed,
+            total_embed_failed,
+            total_skipped,
             extra={"stage_name": "ingester"},
         )
         if consistency_report is None:
@@ -200,9 +224,15 @@ class RagIngester:
             return IngestUrlResult.validation_failure(url, chunk_files)
 
         first_fields = (
-            first_data.url, first_data.title, first_data.lang, first_data.fetched_at,
-            first_data.etag, first_data.last_modified, first_data.source_file,
-            first_data.chunking_strategy, first_data.chunk_type,
+            first_data.url,
+            first_data.title,
+            first_data.lang,
+            first_data.fetched_at,
+            first_data.etag,
+            first_data.last_modified,
+            first_data.source_file,
+            first_data.chunking_strategy,
+            first_data.chunk_type,
         )
         chunk_indices: set[int] = set()
         for cp in chunk_files:
@@ -211,19 +241,32 @@ class RagIngester:
             except ChunkFormatError:
                 return IngestUrlResult.validation_failure(url, chunk_files)
             cf = (
-                cd.url, cd.title, cd.lang, cd.fetched_at, cd.etag,
-                cd.last_modified, cd.source_file, cd.chunking_strategy, cd.chunk_type,
+                cd.url,
+                cd.title,
+                cd.lang,
+                cd.fetched_at,
+                cd.etag,
+                cd.last_modified,
+                cd.source_file,
+                cd.chunking_strategy,
+                cd.chunk_type,
             )
             if cf != first_fields:
                 return IngestUrlResult(
-                    url=url, n_success=0, n_failed=len(chunk_files), skipped=False,
+                    url=url,
+                    n_success=0,
+                    n_failed=len(chunk_files),
+                    skipped=False,
                     failure_reason=IngestionFailureReason.GROUP_VALIDATION_FAILED,
                 )
             chunk_indices.add(cd.chunk_index)
         expected = set(range(len(chunk_files)))
         if chunk_indices != expected:
             return IngestUrlResult(
-                url=url, n_success=0, n_failed=len(chunk_files), skipped=False,
+                url=url,
+                n_success=0,
+                n_failed=len(chunk_files),
+                skipped=False,
                 failure_reason=IngestionFailureReason.GROUP_VALIDATION_FAILED,
             )
 
@@ -234,9 +277,15 @@ class RagIngester:
         chunking_strategy = first_data.chunking_strategy
 
         doc_id, skip, replace = doc_store.get_or_create(
-            db, url, title, lang, force,
-            etag=etag, last_modified=last_modified,
-            chunking_strategy=chunking_strategy, fetched_at=first_data.fetched_at,
+            db,
+            url,
+            title,
+            lang,
+            force,
+            etag=etag,
+            last_modified=last_modified,
+            chunking_strategy=chunking_strategy,
+            fetched_at=first_data.fetched_at,
         )
         if skip:
             logger.info("already registered, skipping", extra={"url": url})
@@ -246,17 +295,25 @@ class RagIngester:
         effective_doc_id = doc_id if doc_id is not None else -1
 
         factory = ChunkFactory(self._embedding_service, self._embed_workers)
-        prepared_chunks, prepared_paths, failed_paths, embed_failed = (
-            factory.prepare(effective_doc_id, chunk_files)
+        prepared_chunks, prepared_paths, failed_paths, embed_failed = factory.prepare(
+            effective_doc_id, chunk_files
         )
 
         if len(prepared_chunks) > 0 and len(failed_paths) == 0:
             tx_mgr = TransactionManager(db, doc_mgr, doc_store)
             tx_mgr.commit(
-                url, doc_id, prepared_chunks, prepared_paths,
-                force, replace, title, lang,
-                etag=etag, last_modified=last_modified,
-                chunking_strategy=chunking_strategy, fetched_at=first_data.fetched_at,
+                url,
+                doc_id,
+                prepared_chunks,
+                prepared_paths,
+                force,
+                replace,
+                title,
+                lang,
+                etag=etag,
+                last_modified=last_modified,
+                chunking_strategy=chunking_strategy,
+                fetched_at=first_data.fetched_at,
             )
             self._file_router.route(prepared_paths, [])
         else:
@@ -267,12 +324,19 @@ class RagIngester:
 
         n_success = len(prepared_chunks) if len(failed_paths) == 0 else 0
         IngestUrlResult.log_ingestion_result(
-            doc_id if doc_id is not None else -1, url, n_success,
-            len(chunk_files), len(failed_paths), embed_failed,
+            doc_id if doc_id is not None else -1,
+            url,
+            n_success,
+            len(chunk_files),
+            len(failed_paths),
+            embed_failed,
         )
         return IngestUrlResult(
-            url=url, n_success=n_success, n_failed=len(failed_paths),
-            skipped=False, n_embed_failed=embed_failed,
+            url=url,
+            n_success=n_success,
+            n_failed=len(failed_paths),
+            skipped=False,
+            n_embed_failed=embed_failed,
         )
 
     # ── Helpers ───────────────────────────────────────────────────────────────
@@ -290,8 +354,15 @@ class RagIngester:
         except ChunkFormatError:
             pass
         logger.error(
-            "Failed to ingest %s: %s", path, e,
-            extra={"doc_id": doc_id, "url": chunk_url, "source_type": "file", "stage_name": "ingester"},
+            "Failed to ingest %s: %s",
+            path,
+            e,
+            extra={
+                "doc_id": doc_id,
+                "url": chunk_url,
+                "source_type": "file",
+                "stage_name": "ingester",
+            },
         )
 
     def _process_url_groups(
@@ -306,11 +377,14 @@ class RagIngester:
         results: list[IngestUrlResult] = []
         for url, paths in url_groups.items():
             try:
-                results.append(self.ingest_url_group(doc_mgr, db, doc_store, url, paths, force))
+                results.append(
+                    self.ingest_url_group(doc_mgr, db, doc_store, url, paths, force)
+                )
             except (OSError, RuntimeError, ValueError):
                 logger.exception("ingest_url_group failed: %s", url)
                 results.append(IngestUrlResult.unexpected_failure(url))
         return results
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Entry point
@@ -322,7 +396,11 @@ def main() -> None:
             "Embedding generation and DB ingestion: rag-src/chunk/*.json -> SQLite -> rag-src/registered/"
         ),
     )
-    parser.add_argument("--force", action="store_true", help="Force delete and re-ingest already registered URLs")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force delete and re-ingest already registered URLs",
+    )
     args = parser.parse_args()
 
     ingester = RagIngester()

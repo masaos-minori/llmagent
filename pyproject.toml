@@ -88,7 +88,8 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "UP", "BLE001"]
 # E501 is not auto-fixable in string literals; ruff format handles code line length
-ignore = ["E501"]
+# E402 intentionally excluded: local imports used for circular dependency avoidance
+ignore = ["E501", "E402"]
 # PLC0415 (import-outside-top-level) intentionally excluded: ~1193 net-new findings
 # measured against this codebase (see plans/done/20260806-133908_plan.md) — a
 # disproportionate blast radius for a single-plan increment.

@@ -1,0 +1,117 @@
+# Implementation Procedure: Reorganize test_rag_pipeline.py
+
+## Goal
+
+Reorganize test file alongside new module layout (REQ-013).
+
+## Scope
+
+- Move test classes/functions in `tests/rag/test_rag_pipeline.py` alongside new modules
+- Align test structure with new module layout
+
+## Assumptions
+
+- Test organization should follow module structure: MQE tests near mqe.py, search tests near search.py, etc.
+- Existing test coverage must be preserved without behavioral regression
+- Test imports will need updating to reflect new module locations
+
+## Design decisions
+
+- Group test classes by concern area (MQE, search, fusion, rerank, augment/refiner)
+- Maintain existing test naming conventions where possible
+- Use parametrization to reduce duplication across similar test patterns
+
+## Alternatives considered
+
+- Split into multiple test files per concern: would increase file count but improve locality
+- Keep single test file with section comments: preserves simplicity but doesn't align with new module structure
+
+## Implementation
+
+### Target file
+
+`tests/rag/test_rag_pipeline.py`
+
+### Procedure
+
+Reorganize test classes and functions to align with new module layout
+
+### Method
+
+File modification: move test classes/functions to appropriate sections, update imports
+
+### Details
+
+1. Identify test classes/functions currently testing MQE, search, fusion, rerank, and augment/refiner concerns
+2. Move MQE-related tests to section near `scripts/rag/stages/mqe.py` references
+3. Move search-related tests to section near `scripts/rag/stages/search.py` references
+4. Move fusion-related tests to section near `scripts/rag/stages/fusion.py` references
+5. Move rerank-related tests to section near `scripts/rag/stages/rerank.py` references
+6. Move HTTP augment + refiner tests to section near `scripts/rag/augment.py` references
+7. Update import statements to reference new module locations
+8. Verify all tests pass with updated imports
+
+## Compatibility considerations
+
+- All pre-existing tests must pass unchanged in outcome (REQ-013)
+- Test assertions and expected values must not change
+- Test fixture setup/teardown must produce identical results
+
+## Security considerations
+
+No security-sensitive changes expected. Test reorganization does not modify authentication or authorization logic.
+
+## Rollback considerations
+
+- Revert git commit restores original test file
+- Import updates can be reverted by restoring original import paths
+
+## Validation plan
+
+| Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
+|---|---|---|---|
+| tests/rag/test_rag_pipeline.py | Unit — verify all tests pass | uv run pytest tests/rag/test_rag_pipeline.py | No new failures |
+
+## Completion criteria
+
+- Test classes/functions organized by concern area matching new module layout
+- All tests pass with updated imports
+- No behavioral regression in test outcomes
+- `ruff`, `mypy`, and `bandit` are clean on the modified file (REQ-014)
+
+## Out of scope
+
+- Adding new tests for new functionality
+- Changing test assertion logic
+- Modifying test fixtures beyond import path updates
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 2 | Add or update tests per Validation plan | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: REQ-013
+- **Source issue**: issues/20260831-155041_refactor_006_rag_pipeline_separation.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20260902-073914_plan.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20260902-073914
+- **Related target files**: tests/rag/test_rag_pipeline.py

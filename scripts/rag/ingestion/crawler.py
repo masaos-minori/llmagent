@@ -8,33 +8,28 @@ Output: rag-src/{timestamp}-{slug}.json — JSON payload (not plain text).
 Fields: url, title, lang, fetched_at, content, code_blocks, etag, last_modified.
 
 Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
+
+Refactored: WebCrawler reduced to thin composition facade delegating to
+HttpFetcher, ContentExtractor, LinkDiscovery, LanguageResolver, and
+CrawlPersister components.
 """
 
 import argparse
 import asyncio
-import hashlib
-import sqlite3
-from datetime import UTC, datetime
-from http import HTTPStatus
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
 
 import httpx
-import orjson
-from bs4 import BeautifulSoup, Tag
-from db.helper import SQLiteHelper
+from rag.ingestion.content_extractor import ContentExtractor
+from rag.ingestion.crawl_persister import CrawlPersister
 from rag.ingestion.crawler_utils import (
-    _SUPPORTED_LANGS,
-    detect_lang,
-    extract_text,
-    normalize_url,
     parse_target_urls,
     parse_targets_file,
-    same_origin,
-    url_to_slug,
+    validate_url,
 )
-from rag.ingestion.pipeline_utils import CrawlJsonPayload
-from rag.utils import MIN_TEXT_LENGTH_FOR_DETECTION, validate_url
+from rag.ingestion.http_fetcher import HttpFetcher
+from rag.ingestion.language_resolver import LanguageResolver
+from rag.ingestion.link_discovery import LinkDiscovery
+from rag.ingestion.orchestrator import CrawlOrchestrator
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
@@ -42,10 +37,11 @@ logger = Logger(__name__, "/opt/llm/logs/crawl.log")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Crawler class
+# Crawler class (thin composition facade)
 # ──────────────────────────────────────────────────────────────────────────────
 class WebCrawler:
-    """BFS web crawler: extracts text and code blocks from same-origin pages and saves JSON files to rag-src/."""
+    """Thin composition facade: delegates to HttpFetcher, ContentExtractor,
+    LinkDiscovery, LanguageResolver, and CrawlPersister components."""
 
     _USER_AGENT = "Mozilla/5.0 (compatible; RAG-bot/1.0; +local)"
     # Class-level headers shared across all AsyncClient instances
@@ -58,7 +54,8 @@ class WebCrawler:
 
     def __init__(self, config: dict | None = None) -> None:
         """Initialize with optional config override and load crawler settings."""
-        cfg: dict = config or ConfigLoader().load("crawler.toml")
+        self.config: dict = config or ConfigLoader().load("crawler.toml")
+        cfg: dict = self.config
         self._rag_src_dir: Path = Path(cfg["rag_src_dir"])
         self._crawl_delay: float = float(cfg["crawl_delay"])
         self._max_depth: int = int(cfg["max_depth"])
@@ -79,55 +76,30 @@ class WebCrawler:
             cfg.get("sqlite_busy_timeout_ms", 30000)
         )
 
+        # Wire components via constructor injection
+        self.http_fetcher = HttpFetcher(self.config)
+        self.content_extractor = ContentExtractor(self._min_chunk)
+        self.link_discovery = LinkDiscovery(
+            skip_nofollow=self._skip_nofollow,
+            skip_external=self._skip_external,
+            max_depth=self._max_depth,
+        )
+        self.language_resolver = LanguageResolver()
+        self.crawl_persister = CrawlPersister(self.config)
+        self.orchestrator = CrawlOrchestrator(
+            http_fetcher=self.http_fetcher,
+            content_extractor=self.content_extractor,
+            link_discovery=self.link_discovery,
+            language_resolver=self.language_resolver,
+            persister=self.crawl_persister,
+            config=self.config,
+        )
+
     # ── Public interface ──────────────────────────────────────────────────────
 
     def crawl_file(self, path: Path, lang: str) -> int:
         """Save a local file as a crawl result JSON in rag-src/; .py files stored as code blocks; returns 1 on success, 0 on failure."""
-        # Guard: file must exist before reading
-        if not path.exists():
-            logger.error("Local file not found: %s", path)
-            return 0
-        try:
-            content = path.read_text(encoding="utf-8", errors="ignore")
-        except OSError as e:
-            logger.error("Failed to read local file %s: %s", path, e)
-            return 0
-        # Resolve "auto" lang by CJK-ratio detection on the file content
-        resolved_lang: str = (
-            self._resolve_lang(content, "auto") if lang == "auto" else lang
-        )
-        if resolved_lang not in _SUPPORTED_LANGS:
-            logger.warning(
-                "lang=%r not supported, skipping local file: %s", resolved_lang, path
-            )
-            return 0
-        url = f"file://{path.resolve()}"
-        # Compute mtime and SHA-256 for freshness detection in ingester
-        stat = path.stat()
-        mtime_utc = datetime.fromtimestamp(stat.st_mtime, tz=UTC).strftime(
-            "%Y-%m-%dT%H:%M:%SZ"
-        )
-        sha256 = hashlib.sha256(content.encode("utf-8", errors="ignore")).hexdigest()
-        # Python files are stored as code blocks so the code chunker applies.
-        is_python = path.suffix == ".py"
-        payload: CrawlJsonPayload = {
-            "url": url,
-            "title": path.name,
-            "lang": resolved_lang,
-            "fetched_at": mtime_utc,
-            "content": "" if is_python else content,
-            "code_blocks": [content] if is_python else [],
-            "etag": sha256,
-            "last_modified": mtime_utc,
-        }
-        self._rag_src_dir.mkdir(parents=True, exist_ok=True)
-        out = self._make_crawl_filepath(url)
-        out.write_bytes(orjson.dumps(payload, option=orjson.OPT_INDENT_2))
-        logger.info(
-            "saved local file",
-            extra={"url": url, "source_type": "file"},
-        )
-        return 1
+        return self.crawl_persister.save(path, lang)
 
     async def crawl(self, targets: list[tuple[str, str]] | None = None) -> None:
         """Crawl all given targets, or config target_urls when targets is None."""
@@ -137,315 +109,10 @@ class WebCrawler:
                 if url.startswith("file://"):
                     self.crawl_file(Path(url[len("file://") :]), lang)
                 else:
-                    await self.crawl_site(url, lang)
+                    await self.orchestrator.crawl_site(url, lang)
             except (httpx.RequestError, httpx.HTTPStatusError, OSError) as _crawl_err:
                 logger.exception("crawl failed: %s: %s", url, _crawl_err)
             logger.info("=== done:  %s ===", url)
-
-    def _drain_queue_to_tasks(
-        self,
-        queue: asyncio.Queue,
-        visited: set[str],
-        start_url: str,
-        hint_lang: str,
-        client: httpx.AsyncClient,
-        sem: asyncio.Semaphore,
-    ) -> set[asyncio.Task]:
-        """Dequeue all pending URLs and create fetch tasks for unvisited ones; visited check is safe because no await occurs between check and add."""
-        tasks: set[asyncio.Task] = set()
-        while not queue.empty():
-            url, depth = queue.get_nowait()
-            if url in visited or depth > self._max_depth:
-                continue
-            visited.add(url)
-            tasks.add(
-                asyncio.create_task(
-                    self._process_crawl_url_async(
-                        url,
-                        depth,
-                        start_url,
-                        hint_lang,
-                        queue,
-                        client,
-                        sem,
-                    ),
-                ),
-            )
-        return tasks
-
-    async def crawl_site(self, start_url: str, hint_lang: str) -> None:
-        """Async BFS crawl within the same origin up to max_depth levels via asyncio.Semaphore concurrency and FIRST_COMPLETED loop."""
-        if not validate_url(start_url):
-            logger.error("Invalid start URL (must be http/https): %r", start_url)
-            return
-
-        sem = asyncio.Semaphore(self._concurrency)
-        queue: asyncio.Queue[tuple[str, int]] = asyncio.Queue()
-        visited: set[str] = set()
-        pending: set[asyncio.Task] = set()
-        queue.put_nowait((normalize_url(start_url), 0))
-
-        async with httpx.AsyncClient(
-            headers=self._HEADERS,
-            timeout=self._fetch_timeout,
-            follow_redirects=True,
-        ) as client:
-            while not queue.empty() or pending:
-                if len(visited) >= self._max_pages:
-                    logger.warning(
-                        "Reached max_pages=%s; stopping BFS at %s",
-                        self._max_pages,
-                        start_url,
-                    )
-                    break
-                pending |= self._drain_queue_to_tasks(
-                    queue,
-                    visited,
-                    start_url,
-                    hint_lang,
-                    client,
-                    sem,
-                )
-                if not pending:
-                    break
-                done, pending = await asyncio.wait(
-                    pending,
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-                for t in done:
-                    if exc := t.exception():
-                        logger.error("Crawl task error: %s", exc)
-
-    # ── Private helpers ───────────────────────────────────────────────────────
-
-    def _get_conditional_headers(self, url: str) -> dict[str, str]:
-        """Return If-None-Match/If-Modified-Since headers from the cached document."""
-        try:
-            with SQLiteHelper(
-                db_path=self._rag_db_path,
-                sqlite_timeout=self._sqlite_timeout,
-                sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
-            ).open(row_factory=True) as db:
-                rows = db.fetchall(
-                    "SELECT etag, last_modified FROM documents WHERE url = ?",
-                    (url,),
-                )
-        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            logger.debug("DB lookup for conditional headers failed (%s): %s", url, e)
-            return {}
-        if not rows:
-            return {}
-        row = rows[0]
-        hdrs: dict[str, str] = {}
-        if row["etag"]:
-            hdrs["If-None-Match"] = row["etag"]
-        if row["last_modified"]:
-            hdrs["If-Modified-Since"] = row["last_modified"]
-        return hdrs
-
-    def _make_crawl_filepath(self, url: str) -> Path:
-        """Generate an output path in yyyymmddhhmmss-{slug}.json format."""
-        ts = datetime.now().strftime("%Y%m%d%H%M%S")
-        slug = url_to_slug(url)
-        return self._rag_src_dir / f"{ts}-{slug}.json"
-
-    async def _fetch_html_async(
-        self,
-        url: str,
-        client: httpx.AsyncClient,
-        extra_headers: dict[str, str] | None = None,
-    ) -> tuple[str, str | None, str | None] | None:
-        """Fetch HTML with optional conditional request headers; returns (html, etag, last_modified) on 200, None on 304 or retry exhaustion."""
-        req_headers = dict(extra_headers or {})
-        for i in range(self._fetch_retry):
-            try:
-                resp = await client.get(url, headers=req_headers)
-                if resp.status_code == HTTPStatus.NOT_MODIFIED:
-                    logger.info(
-                        "%s Not Modified, skipping: %s",
-                        HTTPStatus.NOT_MODIFIED,
-                        url,
-                    )
-                    return None
-                resp.raise_for_status()
-                etag = resp.headers.get("ETag") or resp.headers.get("etag")
-                last_modified = resp.headers.get("Last-Modified") or resp.headers.get(
-                    "last-modified",
-                )
-                return resp.text, etag, last_modified
-            except httpx.HTTPError as e:
-                logger.warning(
-                    "fetch failed (%s/%s) %s: %s", i + 1, self._fetch_retry, url, e
-                )
-                if i < self._fetch_retry - 1:
-                    await asyncio.sleep(min(2**i, 10))
-        return None
-
-    def _extract_code_blocks(self, soup: BeautifulSoup) -> list[str]:
-        """Extract <pre> text blocks and remove them from the DOM."""
-        code_blocks: list[str] = []
-        for pre in soup.find_all("pre"):
-            code = pre.get_text()
-            stripped = code.strip()
-            if len(stripped) >= self._min_chunk:
-                code_blocks.append(stripped)
-            pre.decompose()
-        return code_blocks
-
-    def _extract_content(self, html: str, url: str) -> tuple[str, str, list[str]]:
-        """Return (title, body text, code blocks) extracted from HTML."""
-        soup = BeautifulSoup(html, "lxml")
-        title = soup.title.get_text(strip=True) if soup.title else urlparse(url).path
-        code_blocks = self._extract_code_blocks(soup)
-        text = extract_text(soup)
-        return title, text, code_blocks
-
-    def _save_crawl_file(
-        self,
-        url: str,
-        title: str,
-        lang: str,
-        content: str,
-        code_blocks: list[str],
-        etag: str | None = None,
-        last_modified: str | None = None,
-        fetched_at: str | None = None,
-    ) -> Path:
-        """Save crawl results as JSON to rag-src/yyyymmddhhmmss-{slug}.json."""
-        if lang not in _SUPPORTED_LANGS:
-            logger.warning("lang=%r not supported, skipping save: %s", lang, url)
-            return self._make_crawl_filepath(url)
-        if not isinstance(code_blocks, list):
-            logger.warning("code_blocks is not a list, skipping save: %s", url)
-            return self._make_crawl_filepath(url)
-        if not content and not code_blocks:
-            logger.warning("empty content without code blocks, skipping save: %s", url)
-            return self._make_crawl_filepath(url)
-        self._rag_src_dir.mkdir(parents=True, exist_ok=True)
-        path = self._make_crawl_filepath(url)
-        payload: CrawlJsonPayload = {
-            "url": url,
-            "title": title,
-            "lang": lang,
-            "fetched_at": fetched_at
-            or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "content": content,
-            "code_blocks": code_blocks,
-            "etag": etag,
-            "last_modified": last_modified,
-        }
-        path.write_bytes(orjson.dumps(payload, option=orjson.OPT_INDENT_2))
-        logger.info(
-            "saved",
-            extra={"url": url, "source_type": "http"},
-        )
-        return path
-
-    async def _fetch_and_extract_async(
-        self,
-        url: str,
-        client: httpx.AsyncClient,
-        extra_headers: dict[str, str] | None = None,
-    ) -> tuple[str, str, str, list[str], str | None, str | None] | None:
-        """Fetch HTML and extract content; returns (html, title, text, code_blocks, etag, last_modified) or None when unavailable or 304."""
-        fetch_result = await self._fetch_html_async(url, client, extra_headers)
-        if fetch_result is None:
-            return None
-        html, etag, last_modified = fetch_result
-        title, text, code_blocks = self._extract_content(html, url)
-        if not text and not code_blocks:
-            logger.debug("no content: %s", url)
-            return None
-        return html, title, text, code_blocks, etag, last_modified
-
-    def _enqueue_links(
-        self,
-        html: str,
-        current_url: str,
-        start_url: str,
-        depth: int,
-        queue: asyncio.Queue,
-    ) -> None:
-        """Parse links from HTML and put URLs into the BFS queue; nofollow/external filtering applies; dedup happens at dequeue time."""
-        if depth >= self._max_depth:
-            return
-        soup = BeautifulSoup(html, "lxml")
-        for a in soup.find_all("a", href=True):
-            if not self._should_enqueue_link(a, current_url, start_url):
-                continue
-            href = str(a["href"])
-            next_url = normalize_url(urljoin(current_url, href))
-            queue.put_nowait((next_url, depth + 1))
-
-    def _should_enqueue_link(
-        self, a_tag: Tag, current_url: str, start_url: str
-    ) -> bool:
-        """Check if a link should be enqueued based on nofollow and cross-origin rules."""
-        href = a_tag.get("href")
-        if not isinstance(href, str):
-            return False
-        if self._skip_nofollow:
-            rel = a_tag.get("rel")
-            if isinstance(rel, str):
-                rel = rel.split()
-            if rel and "nofollow" in rel:
-                return False
-        if self._skip_external:
-            next_url = normalize_url(urljoin(current_url, str(href)))
-            if not same_origin(next_url, start_url):
-                return False
-        return True
-
-    def _resolve_lang(self, text: str, hint_lang: str) -> str:
-        """Determine page language; 'auto' uses CJK-ratio detection with 'en' fallback for short/inconclusive texts; returns a _SUPPORTED_LANGS value."""
-        if len(text) < MIN_TEXT_LENGTH_FOR_DETECTION:
-            return "en" if hint_lang == "auto" else hint_lang
-        detected = detect_lang(text)
-        if hint_lang == "auto":
-            return detected or "en"
-        return detected if detected is not None else hint_lang
-
-    async def _process_crawl_url_async(
-        self,
-        url: str,
-        depth: int,
-        start_url: str,
-        hint_lang: str,
-        queue: asyncio.Queue,
-        client: httpx.AsyncClient,
-        sem: asyncio.Semaphore,
-    ) -> None:
-        """Fetch, extract, save one URL and enqueue its outbound links; semaphore caps concurrency; crawl_delay throttles; ETag/Last-Modified enable 304 skip."""
-        async with sem:
-            logger.info("[depth=%s] %s", depth, url)
-            await asyncio.sleep(self._crawl_delay)
-
-            # Guard: use cached ETag / Last-Modified for conditional GET (304 skip)
-            extra_headers = self._get_conditional_headers(url)
-            result = await self._fetch_and_extract_async(url, client, extra_headers)
-            # Guard: 304 Not Modified or fetch/extraction failure → skip
-            if result is None:
-                return
-            html, title, text, code_blocks, etag, last_modified = result
-
-            resolved_lang: str = self._resolve_lang(text, hint_lang)
-            # Guard: skip pages whose detected language is not supported
-            if resolved_lang not in _SUPPORTED_LANGS:
-                logger.debug("lang=%r not supported: %s", resolved_lang, url)
-                return
-
-            fetched_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-            self._save_crawl_file(
-                url,
-                title,
-                resolved_lang,
-                text,
-                code_blocks,
-                etag,
-                last_modified,
-                fetched_at,
-            )
-            self._enqueue_links(html, url, start_url, depth, queue)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

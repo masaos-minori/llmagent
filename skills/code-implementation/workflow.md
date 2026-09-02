@@ -142,7 +142,7 @@ loaded in Step 0 from `skills/python-implementation/SKILL.md` and
 After implementing:
 - Run repository-defined non-test validation: formatting, linting, type checking,
   architecture/import-boundary checks, security checks.
-- Fix all errors before proceeding to Step 4.
+- Fix all errors before proceeding to Step 4. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt must be recorded (approach, error, reason) before trying a different approach.
 
 ## Step 4: Test the Feature
 
@@ -154,7 +154,7 @@ failure's cause is not immediately obvious, load and apply
   selection, see `skills/python-test-and-fix/workflow.md` Step 10) when available;
   otherwise use tests under the same module path as each changed file, plus any test
   found via `rg` to import a changed symbol.
-- Run targeted tests during implementation; fix all related failures.
+- Run targeted tests during implementation; fix all related failures. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt must be recorded (approach, error, reason) before trying a different approach.
 - Run the repository-defined full test suite exactly once, after targeted tests
   pass — the only full-suite run for this cycle; Step 6 MUST NOT run tests again.
 - Check the repository-defined coverage threshold if one exists.
@@ -242,7 +242,7 @@ only and does not apply to this workflow at all.
 ## Rollback on Failure
 
 If implementation breaks existing functionality, revert changes immediately and
-report `Blocked: {description}`. Do not proceed until the issue is resolved.
+report `Blocked: {description}`. Per AGENTS.md Failure Log, record the failure details (approach, error, reason) before considering a different approach. If reaching Attempt Limit (3 attempts for the same error), the revert-and-report action is required — do not proceed until the issue is resolved.
 
 ## Final Report
 
