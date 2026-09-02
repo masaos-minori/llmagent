@@ -43,7 +43,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 ## Key Constraints
 
 - Workflow definition files must always be loaded at startup. If they are missing or invalid, startup fails. Direct execution fallback is not supported.
-- Unreachable health probes are treated as startup failure (FATAL) in production; in non-production environments, they issue a warning and continue.
+- Unreachable health probes are treated as startup failure (FATAL); in non-production environments, a warning is issued instead.
 - Embedding dimension mismatches are treated as startup failures to prevent vector search data corruption.
 - During rolling upgrades for session startup, the new process's startup is verified before the old process is shut down; if issues arise, the old process is maintained.
 
