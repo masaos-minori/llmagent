@@ -35,6 +35,7 @@ class TestHttpRetryOnTransientFailure:
     async def test_fetch_retry_on_http_error(self, mock_config):
         """HTTP errors trigger retries up to fetch_retry count."""
         import httpx
+        from rag.ingestion.http_fetcher import HttpFetcher
 
         client = MagicMock()
         resp_mock = MagicMock()
@@ -43,10 +44,11 @@ class TestHttpRetryOnTransientFailure:
         )
         client.get = AsyncMock(return_value=resp_mock)
 
-        crawler = WebCrawler(config=mock_config)
-        crawler._fetch_retry = 3
+        config = dict(mock_config)
+        config["fetch_retry"] = 3
+        fetcher = HttpFetcher(config=config)
 
-        result = await crawler._fetch_html_async(
+        result = await fetcher.fetch_html(
             "http://example.com/page", client, extra_headers=None
         )
 
@@ -57,6 +59,7 @@ class TestHttpRetryOnTransientFailure:
     async def test_success_after_retry(self, mock_config):
         """Successful response after initial failure returns content."""
         import httpx
+        from rag.ingestion.http_fetcher import HttpFetcher
 
         client = MagicMock()
         resp_mock = MagicMock()
@@ -79,10 +82,11 @@ class TestHttpRetryOnTransientFailure:
 
         client.get = AsyncMock(side_effect=side_effect)
 
-        crawler = WebCrawler(config=mock_config)
-        crawler._fetch_retry = 2
+        config = dict(mock_config)
+        config["fetch_retry"] = 2
+        fetcher = HttpFetcher(config=config)
 
-        result = await crawler._fetch_html_async(
+        result = await fetcher.fetch_html(
             "http://example.com/page", client, extra_headers=None
         )
 
@@ -98,15 +102,17 @@ class TestResponseSkippingContentFetch:
     @pytest.mark.asyncio
     async def test_304_skips_content_fetch(self, mock_config):
         """304 Not Modified returns None, no content extraction."""
+        from rag.ingestion.http_fetcher import HttpFetcher
+
         client = MagicMock()
         resp_mock = MagicMock()
         resp_mock.status_code = 304
         resp_mock.is_success = True
         client.get = AsyncMock(return_value=resp_mock)
 
-        crawler = WebCrawler(config=mock_config)
+        fetcher = HttpFetcher(config=mock_config)
 
-        result = await crawler._fetch_html_async(
+        result = await fetcher.fetch_html(
             "http://example.com/page", client, extra_headers=None
         )
 
@@ -116,6 +122,8 @@ class TestResponseSkippingContentFetch:
     @pytest.mark.asyncio
     async def test_conditional_headers_sent_with_request(self, mock_config):
         """Conditional headers are sent when available from DB lookup."""
+        from rag.ingestion.http_fetcher import HttpFetcher
+
         client = MagicMock()
         resp_mock = MagicMock()
         resp_mock.status_code = 200
@@ -124,24 +132,27 @@ class TestResponseSkippingContentFetch:
         resp_mock.headers = {"ETag": "abc123"}
         client.get = AsyncMock(return_value=resp_mock)
 
-        crawler = WebCrawler(config=mock_config)
-        crawler._rag_db_path = ":memory:"
+        config = dict(mock_config)
+        config["rag_db_path"] = ":memory:"
+        fetcher = HttpFetcher(config=config)
 
         # Mock DB to return conditional headers
         with patch.object(
-            crawler,
-            "_get_conditional_headers",
+            fetcher,
+            "get_conditional_headers",
             return_value={
                 "If-None-Match": "old-etag",
                 "If-Modified-Since": "Mon, 01 Jan 2024 00:00:00 GMT",
             },
         ):
-            result = await crawler._fetch_and_extract_async(
-                "http://example.com/page", client, None
+            result = await fetcher.fetch_html(
+                "http://example.com/page",
+                client,
+                extra_headers={"If-None-Match": "old-etag"},
             )
 
         assert result is not None
-        _, title, text, code_blocks, etag, last_modified = result
+        html, etag, last_modified = result
         assert etag == "abc123"
 
 
@@ -179,7 +190,7 @@ class TestMaxPagesBoundaryCondition:
 
         with (
             patch.object(crawler, "crawl_site") as mock_crawl,
-            patch.object(crawler, "_drain_queue_to_tasks") as mock_drain,
+            patch.object(crawler.orchestrator, "_drain_queue_to_tasks") as mock_drain,
         ):
             mock_crawl.side_effect = lambda url, lang: None
             mock_drain.return_value = set()
@@ -249,15 +260,16 @@ class TestLinkFiltering:
     def test_nofollow_links_excluded_when_skip_nofollow_true(self, mock_config):
         """Links with rel=nofollow are excluded when skip_nofollow=True."""
         from bs4 import BeautifulSoup
+        from rag.ingestion.link_discovery import LinkDiscovery
 
         mock_config["skip_nofollow"] = True
-        crawler = WebCrawler(config=mock_config)
+        discovery = LinkDiscovery(skip_nofollow=True, skip_external=False)
 
         html = '<a href="http://example.com/link" rel="nofollow">nofollow</a>'
         soup = BeautifulSoup(html, "lxml")
         a_tag = soup.find("a")
 
-        result = crawler._should_enqueue_link(
+        result = discovery.should_enqueue_link(
             a_tag, "http://start.com/", "http://start.com/"
         )
         assert result is False
@@ -265,16 +277,17 @@ class TestLinkFiltering:
     def test_nofollow_links_included_when_skip_nofollow_false(self, mock_config):
         """Links with rel=nofollow are included when skip_nofollow=False."""
         from bs4 import BeautifulSoup
+        from rag.ingestion.link_discovery import LinkDiscovery
 
         mock_config["skip_nofollow"] = False
         mock_config["skip_external"] = False  # Allow external links too
-        crawler = WebCrawler(config=mock_config)
+        discovery = LinkDiscovery(skip_nofollow=False, skip_external=False)
 
         html = '<a href="http://example.com/link" rel="nofollow">nofollow</a>'
         soup = BeautifulSoup(html, "lxml")
         a_tag = soup.find("a")
 
-        result = crawler._should_enqueue_link(
+        result = discovery.should_enqueue_link(
             a_tag, "http://start.com/", "http://start.com/"
         )
         assert result is True
@@ -282,15 +295,16 @@ class TestLinkFiltering:
     def test_cross_origin_links_excluded_when_skip_external_true(self, mock_config):
         """Cross-origin links are excluded when skip_external=True."""
         from bs4 import BeautifulSoup
+        from rag.ingestion.link_discovery import LinkDiscovery
 
         mock_config["skip_external"] = True
-        crawler = WebCrawler(config=mock_config)
+        discovery = LinkDiscovery(skip_nofollow=False, skip_external=True)
 
         html = '<a href="http://other-domain.com/link">external</a>'
         soup = BeautifulSoup(html, "lxml")
         a_tag = soup.find("a")
 
-        result = crawler._should_enqueue_link(
+        result = discovery.should_enqueue_link(
             a_tag, "http://same-origin.com/page", "http://same-origin.com/"
         )
         assert result is False
@@ -298,15 +312,16 @@ class TestLinkFiltering:
     def test_same_origin_links_included_when_skip_external_true(self, mock_config):
         """Same-origin links are included even when skip_external=True."""
         from bs4 import BeautifulSoup
+        from rag.ingestion.link_discovery import LinkDiscovery
 
         mock_config["skip_external"] = True
-        crawler = WebCrawler(config=mock_config)
+        discovery = LinkDiscovery(skip_nofollow=False, skip_external=True)
 
         html = '<a href="/page">internal</a>'
         soup = BeautifulSoup(html, "lxml")
         a_tag = soup.find("a")
 
-        result = crawler._should_enqueue_link(
+        result = discovery.should_enqueue_link(
             a_tag, "http://same-origin.com/page", "http://same-origin.com/"
         )
         assert result is True

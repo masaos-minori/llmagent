@@ -1022,8 +1022,11 @@ class TestIntegrityErrorPropagation:
             source_file="",
             embedding_blob=b"\x00\x01",
         )
-        doc_mgr = DocumentManager(fake_db)
-        tx_mgr = TransactionManager(fake_db, doc_mgr, DocumentStore(fake_db, doc_mgr))
+        tx_mgr = TransactionManager(
+            fake_db,
+            DocumentManager(fake_db),
+            DocumentStore(fake_db, DocumentManager(fake_db)),
+        )
         with pytest.raises(sqlite3.IntegrityError):
             with fake_db.begin_immediate():
                 tx_mgr._insert_chunks_batch(fake_db, [prepared])

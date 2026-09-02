@@ -548,6 +548,7 @@ class TestStartupOrchestratorSetupPrompt:
         snippet = MagicMock()
         snippet.text = "test memory"
         ctx = MagicMock()
+        ctx.conv = ConversationState()
         mock_mem = MagicMock()
         mock_mem.on_session_start.return_value = [snippet]
         ctx.services_required.memory = mock_mem
@@ -568,6 +569,7 @@ class TestStartupOrchestratorSetupPrompt:
     async def test_no_memory_injection_when_disabled(self) -> None:
         """System prompt is unchanged when memory is disabled."""
         ctx = MagicMock()
+        ctx.conv = ConversationState()
         ctx.services_required.memory = None
         ctx.conv = ConversationState()
         ctx.conv.system_prompt_name = "default"
@@ -601,6 +603,7 @@ class TestStartupOrchestratorSetupPrompt:
         """Memory snippets are truncated when exceeding the configured limit."""
         snippets = [MagicMock(text=f"memory {i}") for i in range(15)]
         ctx = MagicMock()
+        ctx.conv = ConversationState()
         mock_mem = MagicMock()
         mock_mem.on_session_start.return_value = snippets
         ctx.services_required.memory = mock_mem

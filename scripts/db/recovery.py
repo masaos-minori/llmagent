@@ -174,15 +174,18 @@ def recover_corruption(
 
     target: "rag" (default), "session", "workflow", or "eventbus".
     action values:
-      "vacuum"        — integrity ok; VACUUM executed (or skipped in dry_run)
-      "vacuum_failed" — integrity ok but VACUUM raised
-      "restored"      — integrity failed; DB restored from backup_path
-      "no_backup"     — integrity failed; no usable backup_path
-      "restore_verify_failed" — restored from backup, but post-restore integrity
-                                 check failed
-      "unsupported_target"    — target is not one of "rag"/"session"/"workflow"/
-                                 "eventbus"
-      "error"         — could not open DB or OS-level failure
+      "vacuum"                              — integrity ok; VACUUM executed (or skipped in dry_run)
+      "vacuum_failed"                       — integrity ok but VACUUM raised
+      "restored"                            — integrity failed; DB restored from backup_path
+      "no_backup"                           — integrity failed; no usable backup_path
+      "restore_verify_failed"               — restored from backup, but post-restore integrity
+                                               check failed
+      "unsupported_target"                  — target is not one of "rag"/"session"/"workflow"/
+                                               "eventbus"
+      "error"                               — could not open DB or OS-level failure
+      "no_recovery_allowed"                 — automatic recovery prohibited for workflow/eventbus
+      "preserved_operator_intervention_required" — UNKNOWN integrity-check failure; operator
+                                                   intervention required
     """
     db_cfg = build_db_config()
     target_db_path = getattr(db_cfg, f"{target}_db_path", None)
@@ -210,6 +213,14 @@ def recover_corruption(
             success=False,
             action="error",
             detail=f"{condition.value}: {detail}",
+            dry_run=dry_run,
+        )
+
+    if condition == DbCondition.UNKNOWN:
+        return RecoveryResult(
+            success=False,
+            action="preserved_operator_intervention_required",
+            detail=f"Unknown integrity-check failure: operator intervention required ({detail})",
             dry_run=dry_run,
         )
 

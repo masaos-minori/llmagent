@@ -432,11 +432,11 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
   - **Impact**: 外部公開時のセキュリティリスク
   - **Resolution Target**: 認証の実装が必要
 
-- **Known Issue**: `recover_corruption()`（`scripts/db/recovery.py`）は、Unknown分類（`DbCondition.UNKNOWN`）をCorruption分類と同一に扱い、`rag`/`session`に対しては自動的にバックアップからのリストアを試みる。これはINV-17（Unknownまたは分類不能な障害は対象DBを保持し運用者の介入を要求する）を現時点では満たしていない。
-  - **Type**: Implementation Gap
+- **Resolved Issue**: `recover_corruption()`（`scripts/db/recovery.py`）は、Unknown分類（`DbCondition.UNKNOWN`）をCorruption分類と同一に扱い、`rag`/`session`に対しては自動的にバックアップからのリストアを試みる。これはINV-17（Unknownまたは分類不能な障害は対象DBを保持し運用者の介入を要求する）を現時点では満たしていない。
+  - **Type**: Resolved
   - **Summary**: Unknown分類がCorruptionと同一挙動になっており、対象DBの保持・運用者介入要求が実装されていない
   - **Impact**: 分類不能な整合性チェック失敗であっても、`rag`/`session`では自動的にリストアが実行され得る
-  - **Resolution Target**: `recover_corruption()`のUnknown分類分岐を、リストアを試みずに対象DBを保持し運用者介入を要求する経路へ分離する
+  - **Resolution**: `implementations/20260902-105941_01_scripts_db_recovery_py.md` で実装済み；ユニットテストおよびインテグレーションテストで検証済み
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 

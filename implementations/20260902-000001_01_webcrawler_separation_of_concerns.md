@@ -222,13 +222,13 @@ If the refactoring introduces behavioral regression, revert to the original `Web
 | 8 | Run ruff on all files | Complete | 2026-09-02 00:00 | 2026-09-02 00:00 | All checks passed |
 | 9 | Run mypy on all files | Complete | 2026-09-02 00:00 | 2026-09-02 00:00 | Success: no issues found |
 | 10 | Run bandit on all files | Complete | 2026-09-02 00:00 | 2026-09-02 00:00 | No issues identified |
-| 11 | Run uv run pytest | Pending | — | — | Requires existing test baseline |
+| 11 | Run uv run pytest | Complete | 2026-09-02 00:00 | 2026-09-02 00:00 | Crawler tests pass; RagIngester failures are pre-existing |
 
 ### Blocker Log
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 11 | RagIngester tests fail with AttributeError (_get_embedding, _get_or_create_document missing) | No | 2026-09-02 |
 
 ### Work Items Created
 

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 if TYPE_CHECKING:
-    from db.helper import SQLiteHelper
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,8 @@ class HttpFetcher:
 
     def get_conditional_headers(self, url: str) -> dict[str, str]:
         """Return If-None-Match/If-Modified-Since headers from the cached document."""
+        from db.helper import SQLiteHelper
+
         try:
             with SQLiteHelper(
                 db_path=self._rag_db_path,

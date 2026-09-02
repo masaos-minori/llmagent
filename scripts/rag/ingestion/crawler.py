@@ -101,6 +101,10 @@ class WebCrawler:
         """Save a local file as a crawl result JSON in rag-src/; .py files stored as code blocks; returns 1 on success, 0 on failure."""
         return self.crawl_persister.save(path, lang)
 
+    async def crawl_site(self, start_url: str, hint_lang: str) -> None:
+        """Crawl a single site starting from start_url with optional language hint."""
+        await self.orchestrator.crawl_site(start_url, hint_lang)
+
     async def crawl(self, targets: list[tuple[str, str]] | None = None) -> None:
         """Crawl all given targets, or config target_urls when targets is None."""
         for url, lang in targets or self._target_urls:
