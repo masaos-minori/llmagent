@@ -1,0 +1,125 @@
+## Goal
+
+Update the `test_config_loader.py` test suite to cover the new strict-default behavior and the REQ-002 consequence.
+
+## Scope
+
+Modify `tests/shared/test_config_loader.py` only. Add tests for strict-default behavior and the REQ-002 consequence.
+
+## Assumptions
+
+- REQ-001's fix (making `load_all()` strict by default) is applied first.
+- REQ-002's fix (explicit default for `security_profile`) is applied before testing its consequences.
+- The existing test suite structure supports adding new test cases.
+
+## Design decisions
+
+- Add two new test methods: one for strict-default behavior, one for REQ-002 consequence.
+- Use the existing `TestConfigLoader` class pattern.
+
+## Alternatives considered
+
+- Modifying existing tests to change their expectations. Rejected because it risks breaking existing coverage.
+- Creating a separate test class. Rejected because the existing class already covers related scenarios.
+
+## Implementation
+
+### Target file
+
+`tests/shared/test_config_loader.py`
+
+### Procedure
+
+Add two new test methods to `TestConfigLoader`:
+1. Test that `load_all()` raises `ConfigMissingError` when `agent.toml` is missing (strict-default).
+2. Test that `build_agent_config()` raises `ConfigMissingError` when `agent.toml` is missing (REQ-002 consequence).
+
+### Method
+
+1. After applying REQ-001 and REQ-002 fixes, read `tests/shared/test_config_loader.py` to find the appropriate location for new tests.
+2. Add two new test methods following the existing naming convention.
+
+### Details
+
+1. Read `tests/shared/test_config_loader.py` around lines 100-150 to find the end of the `TestConfigLoader` class.
+2. Add the following test methods:
+
+```python
+def test_load_all_strict_default_missing_file(self):
+    """REQ-001: load_all() raises ConfigMissingError when agent.toml is missing."""
+    # Arrange: create a temporary directory without agent.toml
+    temp_dir = tempfile.mkdtemp()
+    try:
+        loader = ConfigLoader(temp_dir)
+        # Act & Assert
+        with pytest.raises(ConfigMissingError):
+            loader.load_all()
+    finally:
+        shutil.rmtree(temp_dir)
+
+def test_build_agent_config_requires_agent_toml(self):
+    """REQ-002: build_agent_config() raises ConfigMissingError when agent.toml is missing."""
+    # Arrange: patch ConfigLoader to return empty config
+    with patch('scripts.agent.config_builders.ConfigLoader') as mock_loader:
+        mock_loader.return_value.load_all.side_effect = ConfigMissingError("agent.toml")
+        # Act & Assert
+        with pytest.raises(ConfigMissingError):
+            build_agent_config()
+```
+
+## Compatibility considerations
+
+- Existing tests remain unchanged. New tests add coverage without modifying existing assertions.
+
+## Security considerations
+
+- These tests verify the fail-closed behavior required by ADR-004 INV-01/INV-02.
+
+## Rollback considerations
+
+- Remove the two new test methods if REQ-001 or REQ-002 is rolled back. No other rollback needed.
+
+## Validation plan
+
+Run `uv run pytest tests/shared/test_config_loader.py -v` to confirm all tests pass including the new ones.
+
+## Completion criteria
+
+- Two new test methods added covering strict-default and REQ-002 consequence
+- All tests in `tests/shared/test_config_loader.py` pass
+
+## Out of scope
+
+- Changes to other test files (handled by their respective documents)
+- Unknown-key rejection tests (REQ-004, handled separately)
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 2 | Add or update tests per Validation plan | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: REQ-001, REQ-002
+- **Source issue**: issues/20260902-101452_h02_config_loader_fail_closed_gap.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20260902-191443_plan.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20260902-220059
+- **Related target files**: tests/shared/test_config_loader.py
