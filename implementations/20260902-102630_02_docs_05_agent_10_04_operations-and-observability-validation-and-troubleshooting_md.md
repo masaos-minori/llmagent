@@ -80,10 +80,10 @@ Verification only — no modification needed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | No change needed — already compliant |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only changes |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-09-02 | 2026-09-02 | Already compliant — no change needed |
+| 2 | Add or update tests per Validation plan | Done | 2026-09-02 | 2026-09-02 | N/A: documentation-only changes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-09-02 | 2026-09-02 | Grep for "production or local mode" returns zero matches |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-09-02 | 2026-09-02 | No update needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
