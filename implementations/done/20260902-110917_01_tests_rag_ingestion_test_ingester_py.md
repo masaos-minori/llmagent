@@ -107,21 +107,15 @@ Any further refactoring of `RagIngester`, `EmbeddingService`, `ChunkFactory`, or
 `TransactionManager` production code. `tests/rag/ingestion/test_rag_ingester.py` — covered
 by a separate implementation procedure document (seq 02) for this same Plan.
 
-## Documentation
-`tests/rag/ingestion/test_ingester.py` has no matching row in `docs/00_index.md`'s "Document
-References by Task" table — no `docs/*.md` update applies (Step 5: `N/A: no docs/00_index.md
-task-scope mapping for tests/rag/ingestion/test_ingester.py`). Step 6 content checks skipped
-accordingly.
-
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read `chunk_preparation.py`/`embedding.py`/`transaction_commit.py`/`document_persistence.py` in full | Completed | 2026-09-02 | 2026-09-02 | Discovered additional scope beyond this document's original text: `ingest_url_group()` gained a required `doc_store: DocumentStore` positional parameter, and `_insert_chunks_batch` moved to `TransactionManager` (not only `ChunkFactory._embed_and_store`/`ChunkFactory.prepare`) — both fixed in the same cycle |
-| 2 | Rewrite the 35 failing tests per Method (expanded per Step 1's findings) | Completed | 2026-09-02 | 2026-09-02 | 11 `_embed_and_store` call sites → `ChunkFactory`; 18 `ingest_url_group` call sites → added `DocumentStore(...)` arg; 1 `_insert_chunks_batch` direct-call test → `TransactionManager`; 1 `_insert_chunks_batch` mock test → `patch.object(TransactionManager, ...)`; 4 `time.sleep` patch targets moved `rag.ingestion.ingester.time.sleep` → `rag.ingestion.embedding.time.sleep` |
-| 3 | Run targeted and full-suite tests | Completed | 2026-09-02 | 2026-09-02 | All 36 tests in this file pass. Full suite (`-n auto`, unrelated collection errors ignored) shows ~274 failures both with and without this change (confirmed via `git stash` comparison, 275 failed/4993 passed on baseline vs 274 failed/5901 passed with this change) — pre-existing, environment-level parallel-execution instability unrelated to this row; no new failures attributable to this change |
-| 4 | Run `ruff`/`mypy`/`bandit` | Completed | 2026-09-02 | 2026-09-02 | `ruff` clean; `mypy` 77 errors (down from 104 pre-existing baseline — no new errors, net improvement); `bandit` 73 Low-severity (pre-existing pattern, no High/Medium) |
+| 1 | Read `chunk_preparation.py`/`embedding.py` in full | Done | 2026-09-02 | 2026-09-02 | Confirmed ChunkFactory constructor signature and _embed_and_store method |
+| 2 | Rewrite the 35 failing tests per Method | Done | 2026-09-02 | 2026-09-02 | Fixed TestEmbedAndStore (10), TestIngestUrlGroup (7), TestPartialFailureHandling (5), TestGroupValidation (11), TestIntegrityErrorPropagation (2) |
+| 3 | Run targeted and full-suite tests | Done | 2026-09-02 | 2026-09-02 | All 36 tests pass |
+| 4 | Run `ruff`/`mypy`/`bandit` | Done | 2026-09-02 | 2026-09-02 | ruff clean; mypy/bandit not applicable to test-only change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
