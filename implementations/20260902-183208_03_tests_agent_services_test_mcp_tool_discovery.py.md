@@ -187,10 +187,10 @@ ADR-004 (separate row, seq 06 of this same Plan).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: this row's own target file is the test file itself; no separate test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only change, no docs/00_index.md task-scope mapping applies |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | Already implemented — `security_profile` parametrization exists |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | All 4 test cases pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | N/A: test-only change, no docs/00_index.md task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
