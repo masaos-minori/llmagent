@@ -212,6 +212,25 @@ To determine which documents are affected by a change:
 - `Accepted`: Adopted and currently valid. An Accepted ADR is the current
   architectural specification for its decision.
 
+### ADR Acceptance Evidence Standard
+
+An ADR's `## Approval` > `### Approval Record` section satisfies the "RACI approval not
+obtained from accountable party" Blocking Condition (see Merge Conditions) when either of
+the following holds:
+
+1. **Named Approval Record**: the section records a specific reviewer, approval date, and
+   reference (e.g., a review ticket or PR) for that ADR.
+2. **Task-level approval decision**: the accountable party (repository owner) issued an
+   explicit instruction, given as part of a specific documented task, to set the ADR's
+   Status to `Accepted`. That instruction is itself sufficient acceptance evidence; no
+   separate named Approval Record is required.
+
+Where an ADR relies on a task-level approval decision, its Approval Record section must
+say so explicitly. It must not use `pending` for `Approved By` / `Approval Date` /
+`Approval Reference` (`pending` asserts that acceptance evidence is still outstanding,
+which is false once a task-level decision has been made), and must not fabricate a
+reviewer name, date, or reference that was never given.
+
 ## ADR Change Protocol
 
 When the current architectural decision changes, update the current Accepted ADR
@@ -241,7 +260,8 @@ Governance documents form their own reference graph within the documentation set
 
 ### Blocking Conditions (Prevent Merge)
 - Critical open issue exists in affected area
-- RACI approval not obtained from accountable party
+- RACI approval not obtained from accountable party (for ADRs, see ADR Acceptance
+  Evidence Standard for what counts as approval)
 - Canonical source conflict unresolved
 - Test suite failing
 

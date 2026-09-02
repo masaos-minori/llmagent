@@ -472,9 +472,11 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Approval Record
 
-- **Approved By**: pending
-- **Approval Date**: pending
-- **Approval Reference**: pending
+- **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
+- **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
+- **Approval Reference**: `docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+
+本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
 
 ## Related Documents
 
