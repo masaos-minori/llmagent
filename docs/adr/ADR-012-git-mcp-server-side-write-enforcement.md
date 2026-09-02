@@ -186,9 +186,10 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 - **Test**: `RepositoryState` is a frozen dataclass and snapshots capture the required fields (`test_snapshot_frozen_dataclass`, plus the `TestRepositoryStateSnapshot` suite) — **Verifies**: Decision Details #8 — **Type**: Unit — **Blocking**: Yes
 - **Test**: audit records include the correct repository identity and pre/post-condition state (`test_audit_record_includes_repo_identity`, `test_audit_record_has_pre_condition`, `test_audit_record_has_post_condition`) — **Verifies**: Decision Details #7, #10 — **Type**: Unit — **Blocking**: Yes
 
-### Manual Review
-- The protected-branch check (`_validate_protected()`) short-circuits on an empty `branch` argument, skipping the check entirely for that one input shape. This is a known, narrow gap against INV-03 (see Known Deviations) that has not been fixed; review before relying on protected-branch enforcement for callers that might supply an empty `branch`.
-- Confirm the audit `target` field fix (MCP-005) via an actual captured log line — COMPLETED.
+### Resolved Items
+
+- **Resolved**: Protected-branch empty-branch short-circuit — resolved by commit `800aea33e` (fix `_validate_protected()` to reject empty `branch` argument).
+- **Resolved**: MCP-005 — audit `target` field key-name mismatch fixed (see Resolution Notes).
 
 ## Implementation Notes
 
@@ -202,13 +203,8 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 ## Known Deviations
 
-- **Known Issue**: `_validate_protected()` skips the protected-branch check entirely when the `branch` argument is an empty string, so a call that omits `branch` bypasses INV-03 for that input shape.
-  - **Type**: Design Gap
-  - **Summary**: Protected-branch enforcement has a narrow bypass via an empty `branch` argument
-  - **Impact**: A caller supplying an empty `branch` value is not evaluated against the protected-branch list
-  - **Resolution Target**: Fix `_validate_protected()` to treat an empty `branch` as subject to the same check, or document why an empty value is always safe to allow
-- **Known Issue**: MCP-003 — no protected-branch/Force-Push guard; confirmed option-injection exploit via `branch`/`remote`.
-- **Known Issue**: MCP-004 — effective risk below HIGH for git tools can occur if config is downgraded (no floor check); approval-screen preview for git tools falls through to generic JSON dump; no end-to-end test exercises the shipped config through the actual approval flow.
+- **Resolved**: MCP-003 — protected-branch/Force-Push guard added (commit `800aea33e`).
+- **Resolved**: MCP-004 — effective risk below HIGH for git tools can occur if config is downgraded (no floor check); approval-screen preview for git tools falls through to generic JSON dump; no end-to-end test exercises the shipped config through the actual approval flow — resolved by commit `800aea33e`.
 - **Resolved**: MCP-005 — audit `target` field key-name mismatch fixed (see Resolution Notes).
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。

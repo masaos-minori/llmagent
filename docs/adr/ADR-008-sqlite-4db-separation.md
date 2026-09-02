@@ -500,6 +500,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 ### Operations
 
 - [Operations and Observability](05_agent_10_01_operations-and-observability-startup-and-health.md) — 運用と観測
+- [Manual Recovery: workflow.sqlite / eventbus.sqlite](05_agent_10_01_operations-and-observability-startup-and-health.md#manual-recovery-workflowsqlite-eventbussqlite) — workflow.sqlite / eventbus.sqliteの手動復旧手順
 
 ### Known Issues
 

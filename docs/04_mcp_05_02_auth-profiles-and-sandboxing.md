@@ -41,7 +41,7 @@ Controls whether Bearer token authentication is mandatory for HTTP MCP servers.
 | `local` (default) | Authentication is optional. If `auth_token` is missing on an HTTP server, a warning is issued at startup. |
 | `production` | Authentication is mandatory. If any HTTP server lacks an `auth_token`, startup fails with a `RuntimeError`. |
 
-**Enforcement Point:** `agent/repl_health.py::audit_security_defaults()` raises an exception at startup if `security_profile == "production"` and an HTTP server has an empty `auth_token`. It also warns about `shell_sandbox_backend == "none"` and empty `tool.allowed_tools`.
+**Enforcement Point:** `agent/services/security_audit.py::audit_security_defaults()` raises an exception at startup if `security_profile == "production"` and an HTTP server has an empty `auth_token`. It also raises an exception, regardless of environment, if `shell_sandbox_backend == "none"`; it separately warns about empty `tool.allowed_tools`.
 
 **Reload Boundary:** `/reload` does not re-run these checks nor apply `auth_token` changes to running MCP servers — token changes always require a restart (see [Configuration: Hot-reload eligibility](./05_agent_08_01_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility)). Production authentication validation is performed only at startup; there are no runtime paths to weaken or bypass this.
 
@@ -69,7 +69,7 @@ Controls whether Bearer token authentication is mandatory for HTTP MCP servers.
 
 ```toml
 # Development:
-shell_sandbox_backend = "none"    # WARNING at startup; no isolation
+shell_sandbox_backend = "none"    # RuntimeError at startup (regardless of environment); no isolation
 # Production:
 shell_sandbox_backend = "firejail"  # RuntimeError at startup if binary missing
 ```
@@ -77,7 +77,7 @@ shell_sandbox_backend = "firejail"  # RuntimeError at startup if binary missing
 | Backend | Use Case | Required in Production? | Startup Behavior |
 |---|---|---|---|
 | `firejail` | Process isolation, restricted filesystem | **Yes** | `RuntimeError` if binary is missing |
-| `none` | Development only — no isolation | No | Logs a WARNING; `RuntimeError` in production mode |
+| `none` | Not permitted in any environment — no isolation | No | `RuntimeError` at startup, regardless of environment |
 
 - `"firejail"`: Prepends `["firejail", "--private", "--net=none", "--noroot", "--"]` to `argv`.
 - `"none"`: No sandbox; only `RLIMIT_*` resource limits applied.
@@ -85,7 +85,7 @@ shell_sandbox_backend = "firejail"  # RuntimeError at startup if binary missing
 **Startup Enforcement** (added in plan 20260626-091916):
 - If `backend == "firejail"` and `shutil.which("firejail")` returns `None` $\rightarrow$ `RuntimeError` at startup.
 - If `backend != "firejail"` and `backend != "none"` $\rightarrow$ WARNING at startup.
-- If `backend == "none"` in production mode $\rightarrow$ `RuntimeError`.
+- If `backend == "none"` $\rightarrow$ `RuntimeError`, regardless of environment.
 
 Installing firejail: `sudo apt-get install firejail` (Debian/Ubuntu) or `apk add firejail` (Alpine).
 Verify: `firejail --version`

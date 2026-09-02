@@ -84,6 +84,28 @@ Each step is independently guarded so that if one fails, others still execute. W
 
 If SIGINT/SIGTERM is received during the startup sequence, a `ShutdownInterrupted` exception is raised, triggering a rollback. The HTTP subprocess health polling loop is also immediately interrupted by the shutdown event.
 
+### Manual Recovery: workflow.sqlite / eventbus.sqlite
+
+When `workflow.sqlite` or `eventbus.sqlite` becomes corrupted (e.g., disk failure, unexpected shutdown), the agent cannot restore its state automatically. Follow these steps to recover:
+
+1. Stop the agent process completely (ensure no remaining subprocesses).
+2. Back up the corrupted database files:
+   ```bash
+   cp workflow.sqlite workflow.sqlite.corrupted
+   cp eventbus.sqlite eventbus.sqlite.corrupted
+   ```
+3. Create fresh databases:
+   ```bash
+   sqlite3 workflow.sqlite ".dump" > workflow.sql 2>/dev/null || true
+   sqlite3 eventbus.sqlite ".dump" > eventbus.sql 2>/dev/null || true
+   rm -f workflow.sqlite eventbus.sqlite
+   sqlite3 workflow.sqlite < workflow.sql 2>/dev/null || touch workflow.sqlite
+   sqlite3 eventbus.sqlite < eventbus.sql 2>/dev/null || touch eventbus.sqlite
+   ```
+4. Start the agent process again. It will initialize with empty state.
+
+**Warning**: This procedure clears all pending approvals and workflow state. Only use when automatic recovery fails.
+
 ## Known Limitations / Unresolved Issues
 
 - Some branches in `startup.py` have been tested, but their actual behavior in production environments has only been partially verified.

@@ -108,7 +108,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Priority**: High
 - **Related NC**: NC-020
 - **Resolution Target**: Owner decision, then implementation per ADR-012
-- **Blocking**: No — tracked in parallel with Known Issue MCP-003
 
 #### NC-020
 
@@ -145,7 +144,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Before implementing Known Issue SHARED-001/SHARED-002 fixes
 - **Blocking**: No
 
-No other active items beyond NC-019 through NC-021 above.
+No other active items beyond NC-020 and NC-021 above.
 
 ## Non-Goals
 
