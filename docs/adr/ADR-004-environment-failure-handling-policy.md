@@ -378,13 +378,13 @@ PredictabilityとMaintainabilityを優先し、静的な分類基準で十分で
   - **Verifies**: INV-08
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: **未検証** — `scripts/agent/services/mcp_tool_discovery.py`の`is_required`分岐を直接検証する専用テストは見つからなかった。Known Deviations参照
+   - **Status**: Confirmed（`tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers.test_unreachable_required_server_returns_fatal`、`test_classification_equivalent_across_security_profiles(required_value=True)` で検証済み；`uv run pytest tests/agent/services/test_mcp_tool_discovery.py -k TestDiscoverAllUnreachableServers` → 11 passed）
 
 - **Test**: 非必須コンポーネントの可用性障害が起動継続を許可し、当該コンポーネントが無効化されること
   - **Verifies**: INV-09
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: **未検証** — 同上。WARNING集約時に起動が継続する一般機構（`test_warnings_only_no_raise`）は存在するが、非必須コンポーネント分類に紐づく専用シナリオのテストは見つからなかった
+   - **Status**: Confirmed（`tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers.test_unreachable_non_required_server_with_fail_fast_returns_warning`、`test_unreachable_non_required_server_with_degraded_returns_warning`、`test_classification_equivalent_across_security_profiles(required_value=False)` で検証済み；`uv run pytest tests/agent/services/test_mcp_tool_discovery.py -k TestDiscoverAllUnreachableServers` → 11 passed）
 
 - **Test**: 安全性・整合性障害が部分的可用性に変換されないこと
   - **Verifies**: INV-10
@@ -427,7 +427,7 @@ PredictabilityとMaintainabilityを優先し、静的な分類基準で十分で
 - 障害方針の変更レビュー
 - コンポーネントの必須性分類の見直し
 - INV-01（単一の共通障害処理方針）を直接検証する自動テストは存在しない
-- INV-08・INV-09（必須／非必須コンポーネントの起動時挙動）を直接検証する自動テストは存在しない
+
 - INV-14（未定義の必須性による起動継続禁止）は現行実装で強制されていない（Known Deviations参照）
 
 Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
@@ -449,8 +449,9 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 ## Known Deviations
 
-- **Known Issue**: ADR-004-D1-profile-config-model-still-present — `scripts/shared/mcp_config.py`の`McpServerConfig`と`scripts/agent/services/mcp_tool_discovery.py`は、`security_profile`（環境）の値に基づいて`required_in_production`／`required_in_local`のいずれを参照するか分岐していた。**解決済み**: REQ-001 through REQ-004により、`required_in_production`/`required_in_local`を統合した単一の`required`フィールドに置換し、`FailurePolicy`をFAIL_FASTのみに簡素化。これにより環境に基づく分岐ロジックは削除され、必須性の決定が環境非依存となった。**影響**: INV-01, INV-02, INV-09, INV-14 → 解消済み。
-- **報告のみ（Known Issue未登録）**: 非必須コンポーネントの可用性障害による起動継続（Decision #18、INV-09）、および未定義の必須性による起動継続禁止（Decision #12、INV-14）を検証する自動テストが現行では存在しない。また、コンポーネント単位の必須／非必須分類を記録する現行の承認済みSpecificationも存在しない（Decision #13が要求する分類記録の主体が未整備）。これらは新規Known Issueとして別途登録することを推奨する。
+- **Known Issue**: ADR-004-D1-profile-config-model-still-present — `scripts/shared/mcp_config.py`の`McpServerConfig`と`scripts/agent/services/mcp_tool_discovery.py`は、`security_profile`（環境）の値に基づいて`required_in_production`／`required_in_local`のいずれを参照するか分岐していた。**部分解決**: REQ-001およびREQ-002により、`required_in_production`/`required_in_local`を統合した単一の`required`フィールドに置換し、`McpToolDiscoveryService.discover_all()`の分類分岐を`cfg.required`直接読み取りに置き換え。環境に基づく分岐ロジックは削除され、必須性の決定が環境非依存となった。**残課題**: REQ-002のクロスプロファイル等価テスト（`tests/agent/services/test_mcp_tool_discovery.py`）、REQ-001のデフォルト値テスト（`tests/shared/test_mcp_config.py`）、REQ-004のissueアーカイブ（`issues/done/`）。**影響**: INV-01, INV-02, INV-09 → 解消済み。INV-14 → テストカバレッジ未完了のため保留中。
+- **報告のみ（Known Issue未登録）**: 非必須コンポーネントの可用性障害による起動継続（Decision #18、INV-09）を検証する自動テストは、`tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers` にて既に検証済み（上記Verificationセクション参照）。この部分のステータスは更新済み。
+- **報告のみ（Known Issue未登録）**: 未定義の必須性による起動継続禁止（Decision #12、INV-14）を検証する自動テストが現行では存在しない。また、コンポーネント単位の必須／非必須分類を記録する現行の承認済みSpecificationも存在しない（Decision #13が要求する分類記録の主体が未整備）。これらは新規Known Issueとして別途登録することを推奨する。
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
