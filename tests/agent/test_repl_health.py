@@ -13,15 +13,22 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from agent.services.mcp_health import _probe_mcp_health_detail, check_readiness, check_service_health
-from agent.services.tool_validation import _check_tool_definitions
-from agent.services.security_audit import audit_security_defaults
-from agent.services.workflow_schema import check_workflow_definition, check_workflow_schema, SchemaCheckResult
 from agent.security_audit_config import (
     CicdAuditConfig,
     GitAuditConfig,
     GitHubAuditConfig,
     ShellAuditConfig,
+)
+from agent.services.mcp_health import (
+    _probe_mcp_health_detail,
+    check_readiness,
+    check_service_health,
+)
+from agent.services.security_audit import audit_security_defaults
+from agent.services.tool_validation import _check_tool_definitions
+from agent.services.workflow_schema import (
+    check_workflow_definition,
+    check_workflow_schema,
 )
 from db.schema_sql import WORKFLOW_SCHEMA_VERSION
 
@@ -126,7 +133,8 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names",
+            new_callable=AsyncMock,
         ) as mock_collect:
             mock_collect.return_value = ({"read_file", "write_file"}, [])
             result = await _check_tool_definitions(ctx, strict=False)
@@ -142,7 +150,8 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names",
+            new_callable=AsyncMock,
         ) as mock_collect:
             mock_collect.return_value = ({"read_file"}, [])
             result = await _check_tool_definitions(ctx, strict=False)
@@ -159,7 +168,8 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names",
+            new_callable=AsyncMock,
         ) as mock_collect:
             mock_collect.return_value = ({"read_file", "delete_file"}, [])
             result = await _check_tool_definitions(ctx, strict=False)
@@ -174,7 +184,8 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names",
+            new_callable=AsyncMock,
         ) as mock_collect:
             mock_collect.return_value = ({"read_file", "delete_file"}, [])
             with pytest.raises(RuntimeError, match="Strict mode"):
@@ -188,7 +199,8 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names",
+            new_callable=AsyncMock,
         ) as mock_collect:
             mock_collect.return_value = (set(), [])
             result = await _check_tool_definitions(ctx, strict=False)
@@ -203,7 +215,8 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names",
+            new_callable=AsyncMock,
         ) as mock_collect:
             mock_collect.return_value = (
                 set(),
@@ -225,7 +238,8 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names",
+            new_callable=AsyncMock,
         ) as mock_collect:
             mock_collect.return_value = ({"read_file"}, ["srv-b"])
             result = await _check_tool_definitions(ctx, strict=False)
@@ -243,7 +257,8 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names",
+            new_callable=AsyncMock,
         ) as mock_collect:
             mock_collect.return_value = ({"read_file"}, ["srv-b"])
             with pytest.raises(RuntimeError, match="Strict mode"):
@@ -257,7 +272,8 @@ class TestCheckToolDefinitions:
         ]
 
         with patch(
-            "agent.services.tool_validation._collect_server_tool_names", new_callable=AsyncMock
+            "agent.services.tool_validation._collect_server_tool_names",
+            new_callable=AsyncMock,
         ) as mock_collect:
             mock_collect.return_value = (set(), ["srv-a"])
             result = await _check_tool_definitions(ctx, strict=False)
@@ -378,9 +394,16 @@ class TestAuditSecurityDefaults:
             security_profile="local",
         )
         ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
-        shell_cfg = ShellAuditConfig(sandbox_backend="firejail", command_allowlist=["ls"])
-        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
+        shell_cfg = ShellAuditConfig(
+            sandbox_backend="firejail", command_allowlist=["ls"]
+        )
+        with patch(
+            "agent.services.security_audit.load_shell_audit_config",
+            return_value=shell_cfg,
+        ):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ):
                 with patch("shutil.which", return_value="/usr/bin/firejail"):
                     warnings = audit_security_defaults(ctx, production_mode=False)
         auth_warnings = [w for w in warnings if "web_search" in w]
@@ -414,10 +437,16 @@ class TestAuditSecurityDefaults:
             sandbox_backend="firejail", command_allowlist=["ls"]
         )
         cicd_cfg = CicdAuditConfig(workflow_allowlist=["test"])
-        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
+        with patch(
+            "agent.services.security_audit.load_shell_audit_config",
+            return_value=shell_cfg,
+        ):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ):
                 with patch(
-                    "agent.services.security_audit.load_github_audit_config", return_value=None
+                    "agent.services.security_audit.load_github_audit_config",
+                    return_value=None,
                 ):
                     with patch(
                         "agent.services.security_audit.load_cicd_audit_config",
@@ -465,7 +494,10 @@ class TestAuditSecurityDefaults:
         """
         ctx = self._make_ctx()
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
             patch(
                 "agent.services.security_audit.load_github_audit_config",
                 side_effect=RuntimeError(
@@ -480,9 +512,12 @@ class TestAuditSecurityDefaults:
         """git.allowed_repo_paths empty triggers a fail-closed warning."""
         ctx = self._make_ctx()
         empty_git = GitAuditConfig(allowed_repo_paths=[])
-        with patch("agent.services.security_audit.load_shell_audit_config", return_value=None):
+        with patch(
+            "agent.services.security_audit.load_shell_audit_config", return_value=None
+        ):
             with patch(
-                "agent.services.security_audit.load_git_audit_config", return_value=empty_git
+                "agent.services.security_audit.load_git_audit_config",
+                return_value=empty_git,
             ):
                 warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("git.allowed_repo_paths" in w for w in warnings)
@@ -491,17 +526,29 @@ class TestAuditSecurityDefaults:
         """shell_sandbox_backend=none raises RuntimeError regardless of environment."""
         ctx = self._make_ctx()
         shell_cfg = ShellAuditConfig(sandbox_backend="none", command_allowlist=["ls"])
-        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
-                with pytest.raises(RuntimeError, match="shell_sandbox_backend=none is not permitted"):
+        with patch(
+            "agent.services.security_audit.load_shell_audit_config",
+            return_value=shell_cfg,
+        ):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ):
+                with pytest.raises(
+                    RuntimeError, match="shell_sandbox_backend=none is not permitted"
+                ):
                     audit_security_defaults(ctx, production_mode=False)
 
     def test_shell_sandbox_none_raises_in_production(self) -> None:
         """shell_sandbox_backend=none raises RuntimeError regardless of environment."""
         ctx = self._make_ctx()
         shell_cfg = ShellAuditConfig(sandbox_backend="none", command_allowlist=["ls"])
-        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
+        with patch(
+            "agent.services.security_audit.load_shell_audit_config",
+            return_value=shell_cfg,
+        ):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ):
                 with pytest.raises(
                     RuntimeError, match="shell_sandbox_backend=none is not permitted"
                 ):
@@ -511,8 +558,13 @@ class TestAuditSecurityDefaults:
         """shell_sandbox_backend not 'firejail' and not 'none' → warning about firejail."""
         ctx = self._make_ctx()
         shell_cfg = ShellAuditConfig(sandbox_backend="docker", command_allowlist=["ls"])
-        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
+        with patch(
+            "agent.services.security_audit.load_shell_audit_config",
+            return_value=shell_cfg,
+        ):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ):
                 warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("firejail" in w for w in warnings)
 
@@ -522,8 +574,13 @@ class TestAuditSecurityDefaults:
         shell_cfg = ShellAuditConfig(
             sandbox_backend="firejail", command_allowlist=["ls"]
         )
-        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
+        with patch(
+            "agent.services.security_audit.load_shell_audit_config",
+            return_value=shell_cfg,
+        ):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ):
                 with patch("shutil.which", return_value=None):
                     with pytest.raises(RuntimeError, match="firejail binary not found"):
                         audit_security_defaults(ctx, production_mode=False)
@@ -534,8 +591,13 @@ class TestAuditSecurityDefaults:
         shell_cfg = ShellAuditConfig(
             sandbox_backend="firejail", command_allowlist=["ls"]
         )
-        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
+        with patch(
+            "agent.services.security_audit.load_shell_audit_config",
+            return_value=shell_cfg,
+        ):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ):
                 with patch("shutil.which", return_value="/usr/bin/firejail"):
                     warnings = audit_security_defaults(ctx, production_mode=False)
         assert not any("firejail binary not found" in w for w in warnings)
@@ -544,9 +606,12 @@ class TestAuditSecurityDefaults:
         """Summary line appended when any fail-closed or fail-open setting is empty."""
         ctx = self._make_ctx()
         empty_git = GitAuditConfig(allowed_repo_paths=[])
-        with patch("agent.services.security_audit.load_shell_audit_config", return_value=None):
+        with patch(
+            "agent.services.security_audit.load_shell_audit_config", return_value=None
+        ):
             with patch(
-                "agent.services.security_audit.load_git_audit_config", return_value=empty_git
+                "agent.services.security_audit.load_git_audit_config",
+                return_value=empty_git,
             ):
                 warnings = audit_security_defaults(ctx, production_mode=False)
         summary_lines = [w for w in warnings if "Security posture summary" in w]
@@ -558,10 +623,21 @@ class TestAuditSecurityDefaults:
         ctx = self._make_ctx()
         empty_cicd = CicdAuditConfig(workflow_allowlist=[])
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_cicd_audit_config", return_value=empty_cicd),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ),
+            patch(
+                "agent.services.security_audit.load_github_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_cicd_audit_config",
+                return_value=empty_cicd,
+            ),
         ):
             warnings_dev = audit_security_defaults(ctx, production_mode=False)
         assert any("cicd.workflow_allowlist" in w for w in warnings_dev)
@@ -576,10 +652,21 @@ class TestAuditSecurityDefaults:
             require_pr_review=True,
         )
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_github_audit_config", return_value=gh_cfg),
-            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ),
+            patch(
+                "agent.services.security_audit.load_github_audit_config",
+                return_value=gh_cfg,
+            ),
+            patch(
+                "agent.services.security_audit.load_cicd_audit_config",
+                return_value=None,
+            ),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("allow_force_push=true" in w for w in warnings)
@@ -593,10 +680,21 @@ class TestAuditSecurityDefaults:
             require_pr_review=False,
         )
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_github_audit_config", return_value=gh_cfg),
-            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ),
+            patch(
+                "agent.services.security_audit.load_github_audit_config",
+                return_value=gh_cfg,
+            ),
+            patch(
+                "agent.services.security_audit.load_cicd_audit_config",
+                return_value=None,
+            ),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("require_pr_review=false" in w for w in warnings)
@@ -611,10 +709,21 @@ class TestAuditSecurityDefaults:
             require_pr_review=True,
         )
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_github_audit_config", return_value=gh_cfg),
-            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ),
+            patch(
+                "agent.services.security_audit.load_github_audit_config",
+                return_value=gh_cfg,
+            ),
+            patch(
+                "agent.services.security_audit.load_cicd_audit_config",
+                return_value=None,
+            ),
         ):
             audit_security_defaults(ctx, production_mode=True)  # must not raise
 
@@ -625,10 +734,21 @@ class TestAuditSecurityDefaults:
         ctx.cfg.tool.tool_definitions_strict = False
         ctx.cfg.tool.routing_drift_strict = True
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ),
+            patch(
+                "agent.services.security_audit.load_github_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_cicd_audit_config",
+                return_value=None,
+            ),
         ):
             with pytest.raises(RuntimeError, match="tool_definitions_strict"):
                 audit_security_defaults(ctx, production_mode=True)
@@ -640,10 +760,21 @@ class TestAuditSecurityDefaults:
         ctx.cfg.tool.tool_definitions_strict = True
         ctx.cfg.tool.routing_drift_strict = False
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ),
+            patch(
+                "agent.services.security_audit.load_github_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_cicd_audit_config",
+                return_value=None,
+            ),
         ):
             with pytest.raises(RuntimeError, match="routing_drift_strict"):
                 audit_security_defaults(ctx, production_mode=True)
@@ -653,10 +784,21 @@ class TestAuditSecurityDefaults:
         ctx.cfg.tool.tool_definitions_strict = False
         ctx.cfg.tool.routing_drift_strict = False
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ),
+            patch(
+                "agent.services.security_audit.load_github_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_cicd_audit_config",
+                return_value=None,
+            ),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("tool_definitions_strict" in w for w in warnings)
@@ -668,10 +810,21 @@ class TestAuditSecurityDefaults:
         ctx.cfg.tool.tool_definitions_strict = True
         ctx.cfg.tool.routing_drift_strict = True
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ),
+            patch(
+                "agent.services.security_audit.load_github_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_cicd_audit_config",
+                return_value=None,
+            ),
         ):
             audit_security_defaults(ctx, production_mode=True)  # must not raise
 
@@ -679,10 +832,21 @@ class TestAuditSecurityDefaults:
         ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
         ctx.cfg.approval.tool_safety_tiers = {"nonexistent_tool": "READ_ONLY"}
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ),
+            patch(
+                "agent.services.security_audit.load_github_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_cicd_audit_config",
+                return_value=None,
+            ),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("nonexistent_tool" in w for w in warnings)
@@ -693,10 +857,21 @@ class TestAuditSecurityDefaults:
         )
         ctx.cfg.approval.tool_safety_tiers = {"nonexistent_tool": "READ_ONLY"}
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ),
+            patch(
+                "agent.services.security_audit.load_github_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_cicd_audit_config",
+                return_value=None,
+            ),
         ):
             with pytest.raises(RuntimeError):
                 audit_security_defaults(ctx, production_mode=True)
@@ -706,10 +881,21 @@ class TestAuditSecurityDefaults:
             servers={"svc": {"auth_token": "tok"}}, security_profile="production"
         )
         with (
-            patch("agent.services.security_audit.load_shell_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_git_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_github_audit_config", return_value=None),
-            patch("agent.services.security_audit.load_cicd_audit_config", return_value=None),
+            patch(
+                "agent.services.security_audit.load_shell_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_git_audit_config", return_value=None
+            ),
+            patch(
+                "agent.services.security_audit.load_github_audit_config",
+                return_value=None,
+            ),
+            patch(
+                "agent.services.security_audit.load_cicd_audit_config",
+                return_value=None,
+            ),
         ):
             audit_security_defaults(ctx, production_mode=True)  # must not raise
 

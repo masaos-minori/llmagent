@@ -9,7 +9,7 @@ when modifying health check behaviour.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TypeVar, Optional
+from typing import TypeVar
 
 from shared.logger import Logger
 from shared.mcp_config import TransportType
