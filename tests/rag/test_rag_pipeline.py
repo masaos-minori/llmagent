@@ -22,7 +22,7 @@ from shared.types import MergedHit, RankedHit, RawHit
 
 RagHit = RawHit | MergedHit | RankedHit
 
-# ── sanitize_document ─────────────────────────────────────────────────────────
+# ── sanitize_document (rag/utils.py) ──────────────────────────────────────────
 
 
 class TestSanitizeDocument:
@@ -73,7 +73,7 @@ class TestSanitizeDocument:
         assert result.count("[REMOVED]") >= 2
 
 
-# ── _format_chunks ────────────────────────────────────────────────────────────
+# ── _format_chunks (rag/stages/augment.py) ─────────────────────────────────────
 
 
 class TestFormatChunks:
@@ -123,7 +123,7 @@ class TestFormatChunks:
         assert "---" in result
 
 
-# ── DESIGN-2: content-only regression tests ───────────────────────────────────
+# ── DESIGN-2: content-only regression tests (rag/stages/augment.py) ───────────
 
 
 class TestFormatChunksDesign2:
@@ -160,7 +160,7 @@ class TestFormatChunksDesign2:
         assert normalized not in result
 
 
-# ── RagPipelineError ──────────────────────────────────────────────────────────
+# ── RagPipelineError (rag/pipeline.py) ─────────────────────────────────────────
 
 
 class TestRagPipelineErrorOnDbOpen:
@@ -242,7 +242,7 @@ class TestRagPipelineErrorOnDbOpen:
         assert result == ""
 
 
-# ── RagPipeline.get_diagnostics() ────────────────────────────────────────────
+# ── RagPipeline.get_diagnostics() (rag/pipeline.py) ────────────────────────────
 
 
 class TestGetDiagnostics:
@@ -326,7 +326,7 @@ class TestGetDiagnostics:
         assert isinstance(encoded, bytes)
 
 
-# ── RagPipeline.invalidate_cache() ───────────────────────────────────────────
+# ── RagPipeline.invalidate_cache() (rag/cache.py) ──────────────────────────────
 
 
 class TestInvalidateCache:

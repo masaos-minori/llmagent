@@ -104,7 +104,7 @@ class TestPipelineContextFields:
 
 
 # ---------------------------------------------------------------------------
-# MqeStage
+# MqeStage (rag/stages/mqe.py)
 # ---------------------------------------------------------------------------
 
 
@@ -139,7 +139,7 @@ class TestMqeStage:
 
 
 # ---------------------------------------------------------------------------
-# SearchStage
+# SearchStage (rag/stages/search.py)
 # ---------------------------------------------------------------------------
 
 
@@ -177,7 +177,7 @@ class TestSearchStage:
 
 
 # ---------------------------------------------------------------------------
-# FusionStage
+# FusionStage (rag/stages/fusion.py)
 # ---------------------------------------------------------------------------
 
 
@@ -205,7 +205,7 @@ class TestFusionStage:
 
 
 # ---------------------------------------------------------------------------
-# RerankStage
+# RerankStage (rag/stages/rerank.py)
 # ---------------------------------------------------------------------------
 
 
@@ -282,7 +282,7 @@ class TestRerankStage:
 
 
 # ---------------------------------------------------------------------------
-# AugmentStage
+# AugmentStage (rag/stages/augment.py)
 # ---------------------------------------------------------------------------
 
 
@@ -360,7 +360,7 @@ class TestAugmentStage:
 
 
 # ---------------------------------------------------------------------------
-# RagPipeline.last_timings
+# RagPipeline.last_timings (rag/pipeline.py)
 # ---------------------------------------------------------------------------
 
 
@@ -426,7 +426,7 @@ class TestRagPipelineLastTimings:
 
 
 class TestSemanticCacheDimensionGuard:
-    """Test SemanticCache dimension validation added in fail-fast refactor."""
+    """Test SemanticCache dimension validation added in fail-fast refactor. (rag/cache.py)"""
 
     def test_put_sets_dimension_on_first_entry(self) -> None:
         from rag.cache import SemanticCache
@@ -457,7 +457,7 @@ class TestSemanticCacheDimensionGuard:
 
 
 # ---------------------------------------------------------------------------
-# RagPipeline._run_stage — pipeline-level failure absorption
+# RagPipeline._run_stage — pipeline-level failure absorption (rag/pipeline.py)
 # ---------------------------------------------------------------------------
 
 
@@ -494,7 +494,7 @@ class TestRagPipelineRunStage:
 
 
 # ---------------------------------------------------------------------------
-# Pipeline-level fallback integration tests
+# Pipeline-level fallback integration tests (rag/pipeline.py)
 # ---------------------------------------------------------------------------
 
 

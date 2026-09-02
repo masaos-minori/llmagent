@@ -7,6 +7,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from rag.augment import AugmentRefiner
 from rag.models_result import HttpResultKind, ResultSource
 from rag.pipeline import RagPipeline, SearchDiagnostics
 from rag.types import PipelineRunResult
@@ -33,6 +34,22 @@ def _make_pipeline(rag_service_url: str = "http://rag.local") -> RagPipeline:
     pipeline._sqlite_vec_so = ""
     pipeline._sqlite_timeout = 30
     pipeline._sqlite_busy_timeout_ms = 30000
+
+    # Set callback attributes BEFORE creating AugmentRefiner
+    pipeline._on_status = lambda _: None
+    pipeline._set_fetch_result = lambda _: None
+    pipeline._set_fallback_reason = lambda _: None
+
+    # Create real AugmentRefiner so call_rag_service patch works
+    pipeline._augment_refiner = AugmentRefiner(
+        pipeline._http,
+        cfg,
+        on_status=pipeline._on_status,
+        set_fetch_result=pipeline._set_fetch_result,
+        set_fallback_reason=pipeline._set_fallback_reason,
+        search_diagnostics=pipeline.last_search_diagnostics,
+    )
+
     return pipeline
 
 
