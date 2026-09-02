@@ -84,8 +84,8 @@ Tools not listed in `tool_safety_tiers` are treated as `WRITE_DANGEROUS` by defa
 
 Entries in `tool_safety_tiers` must match registered tool names exactly (not server keys). Bidirectional validation is performed at startup.
 
-- **Missing Tiers:** If a registered tool is not in `tool_safety_tiers`, it causes an error (fatal `RuntimeError`) in production, and a warning in local/development.
-- **Unknown Keys:** If a key in `tool_safety_tiers` does not match a registered tool name, it causes an error (fatal `RuntimeError`) in production, and a warning in local/development.
+- **Missing Tiers:** If a registered tool is not in `tool_safety_tiers`, it causes an error (fatal `RuntimeError`) regardless of environment.
+- **Unknown Keys:** If a key in `tool_safety_tiers` does not match a registered tool name, it causes an error (fatal `RuntimeError`) regardless of environment.
 
 Both checks are performed via `ProductionConfigValidator.validate()`, which integrates all validations for strict-key, safety-tier, and allowed-tools in a single pass.
 

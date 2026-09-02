@@ -251,6 +251,26 @@ class TestSecurityProfile:
         assert SecurityProfile("production") == SecurityProfile.PRODUCTION
 
 
+class TestRequiredDefault:
+    def test_required_default_true_on_direct_construction(self) -> None:
+        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
+        assert cfg.required is True
+
+    def test_required_default_true_from_toml_absent_key(self) -> None:
+        """_build_mcp_servers must apply True default when 'required' TOML key is absent."""
+        cfg = {
+            "mcp_servers": {
+                "minimal": {
+                    "transport": "http",
+                    "url": "http://127.0.0.1:8000",
+                }
+            }
+        }
+        result = _build_mcp_servers(cfg)
+        s = result["minimal"]
+        assert s.required is True
+
+
 def test_valid_string_transport_rejected() -> None:
     """'http' is a valid transport string value but not a TransportType instance — must be rejected."""
     with pytest.raises(ValueError):

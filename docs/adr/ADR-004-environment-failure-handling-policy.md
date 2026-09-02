@@ -427,7 +427,6 @@ PredictabilityとMaintainabilityを優先し、静的な分類基準で十分で
 - 障害方針の変更レビュー
 - コンポーネントの必須性分類の見直し
 - INV-01（単一の共通障害処理方針）を直接検証する自動テストは存在しない
-
 - INV-14（未定義の必須性による起動継続禁止）は現行実装で強制されていない（Known Deviations参照）
 
 Verificationが存在しないInvariantは、未検証事項としてIssue登録する。

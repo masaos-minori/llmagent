@@ -788,6 +788,34 @@ class TestDiscoverAllUnreachableServers:
 
 # ── cross-server duplicate tool names ──────────────────────────────────────────
 
+class TestDiscoverAllCrossProfileEquivalence:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "required_value,expected_status",
+        [
+            (True, StartupCheckStatus.FATAL),
+            (False, StartupCheckStatus.WARNING),
+        ],
+    )
+    async def test_classification_equivalent_across_security_profiles(
+        self, required_value: bool, expected_status: StartupCheckStatus
+    ) -> None:
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            required=required_value,
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
+        ctx = _make_ctx({"srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.unreachable == ["srv"]
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        assert len(mcp_findings) >= 1
+        assert any(f.status == expected_status for f in mcp_findings)
+
 
 class TestDiscoverAllDuplicates:
     def _dup_ctx(self, security_profile: SecurityProfile) -> MagicMock:

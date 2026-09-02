@@ -378,7 +378,11 @@ class TestAuditSecurityDefaults:
             security_profile="local",
         )
         ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
-        warnings = audit_security_defaults(ctx, production_mode=False)
+        shell_cfg = ShellAuditConfig(sandbox_backend="firejail", command_allowlist=["ls"])
+        with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
+                with patch("shutil.which", return_value="/usr/bin/firejail"):
+                    warnings = audit_security_defaults(ctx, production_mode=False)
         auth_warnings = [w for w in warnings if "web_search" in w]
         assert len(auth_warnings) == 1
 
@@ -484,22 +488,22 @@ class TestAuditSecurityDefaults:
         assert any("git.allowed_repo_paths" in w for w in warnings)
 
     def test_shell_sandbox_none_warns(self) -> None:
-        """shell_sandbox_backend=none triggers a warning."""
+        """shell_sandbox_backend=none raises RuntimeError regardless of environment."""
         ctx = self._make_ctx()
         shell_cfg = ShellAuditConfig(sandbox_backend="none", command_allowlist=["ls"])
         with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
             with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
-                warnings = audit_security_defaults(ctx, production_mode=False)
-        assert any("shell_sandbox_backend=none" in w for w in warnings)
+                with pytest.raises(RuntimeError, match="shell_sandbox_backend=none is not permitted"):
+                    audit_security_defaults(ctx, production_mode=False)
 
     def test_shell_sandbox_none_raises_in_production(self) -> None:
-        """shell_sandbox_backend=none raises RuntimeError in production mode."""
+        """shell_sandbox_backend=none raises RuntimeError regardless of environment."""
         ctx = self._make_ctx()
         shell_cfg = ShellAuditConfig(sandbox_backend="none", command_allowlist=["ls"])
         with patch("agent.services.security_audit.load_shell_audit_config", return_value=shell_cfg):
             with patch("agent.services.security_audit.load_git_audit_config", return_value=None):
                 with pytest.raises(
-                    RuntimeError, match="Production mode requires shell sandbox"
+                    RuntimeError, match="shell_sandbox_backend=none is not permitted"
                 ):
                     audit_security_defaults(ctx, production_mode=True)
 

@@ -115,11 +115,8 @@ def audit_security_defaults(
         import shutil as _shutil
 
         if shell_cfg.sandbox_backend == "none":
-            msg = "shell_sandbox_backend=none is not permitted in production mode"
-            if production_mode:
-                raise RuntimeError(f"Production mode requires shell sandbox. {msg}")
-            logger.warning("Security: %s", msg)
-            warnings.append(f"Security: {msg}")
+            msg = "shell_sandbox_backend=none is not permitted"
+            raise RuntimeError(f"{msg} regardless of environment")
         elif shell_cfg.sandbox_backend != "firejail":
             msg = (
                 f"shell_sandbox_backend={shell_cfg.sandbox_backend!r}; "
