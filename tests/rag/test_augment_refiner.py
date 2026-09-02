@@ -69,8 +69,9 @@ def _make_refiner(**kwargs: object) -> AugmentRefiner:
     set_fallback_reason = kwargs.pop("set_fallback_reason", lambda _: None)
     search_diagnostics = kwargs.pop("search_diagnostics", SearchDiagnostics())
     llm = kwargs.pop("llm", None)
+    http = kwargs.pop("http", MagicMock())
     return AugmentRefiner(
-        http=MagicMock(),
+        http=http,
         cfg=cfg,
         on_status=on_status,
         set_fetch_result=set_fetch_result,
@@ -496,9 +497,9 @@ class TestRunHttpAugment:
 
     @pytest.mark.asyncio
     async def test_set_fetch_result_callback_called_with_result(self) -> None:
-        """set_fetch_result callback should be called with the TwoStageFetchResult."""
-        captured_results: list[TwoStageFetchResult] = []
-        mock_http = MagicMock()
+        """set_fetch_result callback should be called with augment result string."""
+        captured_results: list[str] = []
+        mock_http = MagicMock(spec=httpx.AsyncClient)
         cfg = _make_cfg(rag_service_url="http://example.com/api")
         refiner = _make_refiner(
             http=mock_http,
@@ -506,29 +507,22 @@ class TestRunHttpAugment:
             set_fetch_result=lambda fr: captured_results.append(fr),
         )
 
-        mock_fr = MagicMock(spec=TwoStageFetchResult)
-        mock_result = MagicMock()
-        mock_result.result = "context"
-        mock_result.http_result_kind = "remote_nonempty"
-        mock_result.status_code = 200
-        mock_result.latency_ms = 100
+        with patch("rag.http_augment.call_rag_service") as mock_call_rag_service:
+            mock_call_rag_service.return_value = ("context", 200, 100.0)
 
-        with patch("rag.augment.HttpAugment") as MockHttpAugment:
-            mock_instance = MagicMock()
-            mock_instance.run = AsyncMock(return_value=mock_result)
-            mock_instance.stage_result = None
-            MockHttpAugment.return_value = mock_instance
+            result = await refiner.run_http_augment(
+                "query", "", "http://example.com/api"
+            )
 
-            await refiner.run_http_augment("query", "", "http://example.com/api")
-
+        assert result == "context"
         assert len(captured_results) == 1
-        assert captured_results[0] is mock_fr
+        assert captured_results[0] == "context"
 
     @pytest.mark.asyncio
     async def test_set_fallback_reason_callback_called(self) -> None:
         """set_fallback_reason callback should be called with reason string."""
         captured_reasons: list[str] = []
-        mock_http = MagicMock()
+        mock_http = MagicMock(spec=httpx.AsyncClient)
         cfg = _make_cfg(rag_service_url="http://example.com/api")
         refiner = _make_refiner(
             http=mock_http,
@@ -536,18 +530,19 @@ class TestRunHttpAugment:
             set_fallback_reason=lambda r: captured_reasons.append(r),
         )
 
-        mock_result = MagicMock()
-        mock_result.result = None
-        mock_result.http_result_kind = "in_process_fallback"
-        mock_result.status_code = 500
-        mock_result.latency_ms = 200
+        with patch("rag.http_augment.call_rag_service") as mock_call_rag_service:
 
-        with patch("rag.augment.HttpAugment") as MockHttpAugment:
-            mock_instance = MagicMock()
-            mock_instance.run = AsyncMock(return_value=mock_result)
-            mock_instance.stage_result = None
-            MockHttpAugment.return_value = mock_instance
+            def side_effect(*args, **kwargs):
+                set_fallback_reason = kwargs.get("set_fallback_reason")
+                if set_fallback_reason:
+                    set_fallback_reason("http_max_retries: 3 attempts failed")
+                return (None, None, 0.0)
 
-            await refiner.run_http_augment("query", "", "http://example.com/api")
+            mock_call_rag_service.side_effect = side_effect
 
+            result = await refiner.run_http_augment(
+                "query", "", "http://example.com/api"
+            )
+
+        assert result is None
         assert len(captured_reasons) >= 1
