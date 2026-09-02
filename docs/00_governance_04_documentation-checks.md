@@ -283,7 +283,7 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 | GV-011 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-012 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-013 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Partial | Extend stale_patterns config |
-| GV-014 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py` | PR | Warning | Missing | Implement |
+| GV-014 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | Optional: run cited tests in CI, not just verify path existence |
 | GV-015 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-016 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
 | GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
@@ -301,7 +301,13 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
 6. **GV-009**: Implement Needs Confirmation owner and deadline validation
 7. **GV-011, GV-012**: Implement cross-document canonical source conflict detection
 8. **GV-013**: Extend `stale_patterns` custom rule config to cover canonical document references
-9. **GV-014**: Add ADR-vs-code contradiction detection to CI
+9. **GV-014**: Resolved — `check_adr_invariant_matrix.py` (Invariant Matrix cited test-path
+   verification), `check_compat_shims.py`'s `ADR_PROHIBITED_PATTERNS` extension (per-ADR
+   prohibited-pattern registry), and `check_adr_reference.py` (scoped ADR-reference
+   requirement on matrix-named `scripts/*.py` files) ship the three staged checks this item
+   originally requested. Remaining, optional scope: actually running each cited test in CI
+   (this check only verifies the path exists), tracked as a future enhancement, not a gap in
+   the current implementation.
 10. **GV-015**: Separate dependency graph analysis by type
 11. **GV-016**: Audit auto-check implementations against documentation claims
 12. **GV-018**: Add glossary term classification validation

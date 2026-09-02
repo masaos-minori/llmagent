@@ -51,3 +51,15 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: adr-invariant-matrix
+        name: Check ADR Invariant Matrix cited test paths exist
+        entry: python -m tools.check_adr_invariant_matrix
+        language: system
+        pass_filenames: false
+        types_or: [python, markdown]
+      - id: adr-reference-scoped
+        name: Check ADR-cited source files carry an ADR-XXX reference
+        entry: python -m tools.check_adr_reference
+        language: system
+        pass_filenames: false
+        types_or: [python, markdown]

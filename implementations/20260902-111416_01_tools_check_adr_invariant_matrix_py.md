@@ -106,15 +106,22 @@ Running the cited tests to confirm they pass (optional future CI sub-step, not t
 `.github/workflows/ci.yml`, `docs/00_governance_04_documentation-checks.md` — each covered
 by its own implementation procedure document for this same Plan.
 
+## Documentation
+`tools/check_adr_invariant_matrix.py` has no matching row in `docs/00_index.md`'s "Document
+References by Task" table — no `docs/*.md` update applies (Step 5: `N/A: no docs/00_index.md
+task-scope mapping for tools/check_adr_invariant_matrix.py`). Step 6 content checks skipped
+accordingly.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read `check_known_deviation_sync.py` and `_docs_consistency_lib.py` | Pending | — | — | |
-| 2 | Implement matrix parser and test-path extraction | Pending | — | — | |
-| 3 | Add tests under `tests/tools/` | Pending | — | — | |
-| 4 | Run against live repository; confirm zero false positives | Pending | — | — | |
+| 1 | Read `check_known_deviation_sync.py` and `_docs_consistency_lib.py` | Completed | 2026-09-02 | 2026-09-02 | Modeled structure on `check_known_deviation_sync.py`; used `Issue`/`report_and_exit` directly from `_docs_consistency_lib`, no `DocFile`/`discover_md_files` needed since only one file (`docs/adr-index.md`) is read |
+| 2 | Implement matrix parser and test-path extraction | Completed | 2026-09-02 | 2026-09-02 | Regex requires a `.py` + `::` pair inside backticks, confirmed to correctly skip INV-003's code-reference cell (no `::`) |
+| 3 | Add tests under `tests/tools/` | Completed | 2026-09-02 | 2026-09-02 | 6 tests, all pass: resolvable path, unresolvable path, code-reference cell, no-test-yet row, multiple rows, missing heading |
+| 4 | Run against live repository; confirm zero false positives | Completed | 2026-09-02 | 2026-09-02 | `uv run python tools/check_adr_invariant_matrix.py` → "No issues found.", exit 0 |
+| 5 | Validation | Completed | 2026-09-02 | 2026-09-02 | `ruff`/`mypy`/`bandit` clean on both new files; `lint-imports` shows one pre-existing, unrelated broken contract (`shared.production_config_validator -> agent.tool_policy`) not touched by this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -83,6 +83,21 @@ COMPAT_PATTERNS = {
     "_reset_registry_for_testing": r"_reset_registry_for_testing",
 }
 
+# Patterns an Accepted ADR phrases as an explicit prohibition, keyed by name,
+# each mapped to (adr_id, regex). Seeded only from a prohibition an
+# implementer can point at verbatim in ADR text — not speculative rules (see
+# docs/00_governance_04_documentation-checks.md GV-014). Identifier-shaped
+# (snake_case with underscores), not natural-language phrasing, so this does
+# not also match the ADR's own prose describing the prohibition (e.g.
+# ADR-001's Japanese "Workflow無効化モードを設けない" / "Workflowを迂回する
+# 直接実行経路を設けない" text is not itself flagged).
+ADR_PROHIBITED_PATTERNS: dict[str, tuple[str, str]] = {
+    "workflow disable/bypass flag or function": (
+        "ADR-001",
+        r"\b(?:disable_workflow|workflow_disabled|bypass_workflow|skip_workflow)\b",
+    ),
+}
+
 # Allowlist: files that are permitted to contain these patterns (archive/migration notes only)
 DEFAULT_ALLOWLIST = {
     # Migration notes that document historical changes
@@ -169,9 +184,30 @@ def check_compat_patterns(
     return issues
 
 
+def check_adr_prohibited_patterns(
+    content: str, filepath: Path, allowlist: set[Path]
+) -> list[str]:
+    """Check for patterns an Accepted ADR explicitly prohibits."""
+    issues: list[str] = []
+    if is_allowlisted(filepath, allowlist):
+        return issues
+
+    lines = content.split("\n")
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+        for pattern_name, (adr_id, pattern) in ADR_PROHIBITED_PATTERNS.items():
+            if re.search(pattern, stripped):
+                issues.append(
+                    f"{filepath}:{i}: {adr_id} prohibited pattern — '{pattern_name}': {stripped}"
+                )
+    return issues
+
+
 def check_all(content: str, filepath: Path, allowlist: set[Path]) -> list[str]:
     """Run all checks and return combined issues."""
-    return check_compat_patterns(content, filepath, allowlist)
+    return check_compat_patterns(
+        content, filepath, allowlist
+    ) + check_adr_prohibited_patterns(content, filepath, allowlist)
 
 
 def main() -> int:

@@ -108,22 +108,34 @@ against current, correct content.
 `tools/check_adr_invariant_matrix.py`, `tools/check_compat_shims.py`,
 `.pre-commit-config.yaml`, `.github/workflows/ci.yml`,
 `docs/00_governance_04_documentation-checks.md` — each covered by its own implementation
-procedure document for this same Plan.
+procedure document for this same Plan. Adding the missing ADR-004 comment to
+`scripts/agent/startup.py` — a real gap this check correctly found, but not a file in this
+Plan's frozen `Implementation Target Files` table (see Execution Status Blocker Log).
+
+## Documentation
+`tools/check_adr_reference.py` has no matching row in `docs/00_index.md`'s "Document
+References by Task" table — no `docs/*.md` update applies (Step 5: `N/A: no
+docs/00_index.md task-scope mapping for tools/check_adr_reference.py`). Step 6 content
+checks skipped accordingly.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Determine matrix-parsing reuse strategy vs. seq 01 | Pending | — | — | |
-| 2 | Confirm actual set of `scripts/*.py` files named by the matrix | Pending | — | — | |
-| 3 | Implement the check | Pending | — | — | |
-| 4 | Add tests under `tests/tools/` | Pending | — | — | |
-| 5 | Run against live repository; confirm zero false positives | Pending | — | — | |
+| 1 | Determine matrix-parsing reuse strategy vs. seq 01 | Completed | 2026-09-02 | 2026-09-02 | Chose local duplication of the small row-locating logic over importing seq 01's private `_matrix_rows()`, per the Needs Confirmation note this document already recorded — cross-tool private-function imports avoided |
+| 2 | Confirm actual set of `scripts/*.py` files named by the matrix | Completed | 2026-09-02 | 2026-09-02 | `grep -oE` over `docs/adr-index.md` found exactly one full `scripts/<path>.py` reference (`scripts/agent/startup.py`, INV-011/ADR-004); all other `.py`-containing backtick spans are either bare filenames (`config_loader.py`, `http_augment.py`, `offsets.py`, ambiguous/unresolvable, out of scope by design) or `tests/*.py::test_name` node ids (a different check's concern). Scope narrowed accordingly to `scripts/` full paths only |
+| 3 | Implement the check | Completed | 2026-09-02 | 2026-09-02 | **Important finding**: running the tool against the live repo found `scripts/agent/startup.py` does NOT currently contain an 'ADR-004' reference — a true positive (the check works correctly), not a bug. This is a genuine, pre-existing gap the check was built to catch. **Decision needed before seq 04 (`.pre-commit-config.yaml`) wires this check into pre-commit**: wiring it now would make `pre-commit run --all-files` fail immediately for every future commit until `scripts/agent/startup.py` gets its ADR-004 comment. Fixing that comment is a 1-line, well-precedented change (matching `scripts/agent/tool_policy.py`/`scripts/db/recovery.py`/`scripts/shared/tool_registry.py`'s existing convention) but is NOT a file in this Plan's frozen `Implementation Target Files` table — adding it would be an additional-target-file discovery per `skills/plan-to-implementation-procedure/workflow.md` Step 3. Not resolved in this row; flagged for the user/Plan owner before seq 04 proceeds |
+| 4 | Add tests under `tests/tools/` | Completed | 2026-09-02 | 2026-09-02 | 7 tests, all pass: scripts-path extraction, test-node exclusion, bare-filename exclusion, malformed-ADR-column exclusion, file-with-reference (no issue), file-missing-reference (error), nonexistent-file (error) |
+| 5 | Run against live repository | Completed | 2026-09-02 | 2026-09-02 | `uv run python tools/check_adr_reference.py` → 1 ERROR (`scripts/agent/startup.py` missing ADR-004 reference) — see Step 3's Notes; zero *false* positives (the detection logic itself is correct) |
+| 6 | Validation | Completed | 2026-09-02 | 2026-09-02 | `ruff`/`mypy`/`bandit` clean on both new files |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
+| 3 | Wiring this check into `.pre-commit-config.yaml` (seq 04) would fail on every commit until `scripts/agent/startup.py` gets an ADR-004 comment — a 1-line fix not in this Plan's frozen `Implementation Target Files` table | Yes — user explicitly authorized adding the comment (2026-09-02) | 2026-09-02 |
+
+Resolution: added a 3-line comment citing "ADR-004 Decision #14" immediately above the `# 4. MCP tool discovery and validation` block in `scripts/agent/startup.py` (the exact block INV-011's Verification Status cell describes), matching the existing convention in `scripts/agent/tool_policy.py`/`scripts/db/recovery.py`/`scripts/shared/tool_registry.py`. `uv run python tools/check_adr_reference.py` now reports "No issues found." `ruff`/`mypy` clean (one pre-existing, unrelated `I001` import-sort warning confirmed present before this change too, via `git stash`); `bandit` unchanged (1 pre-existing Low). `tests/agent/test_startup.py` still shows the same pre-existing, unrelated failure (`TestStartupWorkflowPreflight::test_aborts_on_missing_workflow_schema`, documented in seq 01's Execution Status) — 71 passed, 1 failed, no new regression.
 | — | — | — | — |
 
 ### Work Items Created

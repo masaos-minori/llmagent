@@ -27,13 +27,13 @@ from agent.context import AgentContext
 from agent.factory import build_agent_context, init_tracer
 from agent.orchestrator import Orchestrator
 from agent.output_tags import OutputTag
-from agent.services.security_audit import audit_security_defaults
-from agent.services.mcp_health import check_readiness
-from agent.services.routing_drift import check_routing_drift, check_routing_safety_tiers
-from agent.services.workflow_schema import check_workflow_definition
 from agent.secrets_masker import _mask_secrets
+from agent.services.mcp_health import check_readiness
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from agent.services.rag_maintenance_service import RagMaintenanceService
+from agent.services.routing_drift import check_routing_drift, check_routing_safety_tiers
+from agent.services.security_audit import audit_security_defaults
+from agent.services.workflow_schema import check_workflow_definition
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
 from agent.workflow.approval_ops import find_all_pending_approvals
 from agent.workflow.state_store import StateStore
@@ -357,6 +357,9 @@ class StartupOrchestrator:
             pipeline.add_fatal("readiness", f"Readiness check failed: {exc}")
 
         # 4. MCP tool discovery and validation (consolidated)
+        # ADR-004 Decision #14: a FATAL discovery finding always routes through
+        # pipeline.add_fatal() unconditionally, regardless of production_mode —
+        # environment name must not weaken this safety/integrity Fail-Fast path.
         try:
             discovery = await McpToolDiscoveryService(ctx).discover_all()
             ctx.services_required.runtime_tools = discovery.registry

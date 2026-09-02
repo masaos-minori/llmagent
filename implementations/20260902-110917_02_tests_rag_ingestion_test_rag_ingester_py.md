@@ -132,15 +132,21 @@ Any further refactoring of `RagIngester`, `EmbeddingService`, `ChunkFactory`, or
 `TransactionManager` production code. `tests/rag/ingestion/test_ingester.py` — covered by a
 separate implementation procedure document (seq 01) for this same Plan.
 
+## Documentation
+`tests/rag/ingestion/test_rag_ingester.py` has no matching row in `docs/00_index.md`'s
+"Document References by Task" table — no `docs/*.md` update applies (Step 5: `N/A: no
+docs/00_index.md task-scope mapping for tests/rag/ingestion/test_rag_ingester.py`). Step 6
+content checks skipped accordingly.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read `chunk_preparation.py`/`embedding.py` in full | Pending | — | — | |
-| 2 | Rewrite the 8 failing tests per Method | Pending | — | — | |
-| 3 | Run targeted and full-suite tests | Pending | — | — | |
-| 4 | Run `ruff`/`mypy`/`bandit` | Pending | — | — | |
+| 1 | Read `chunk_preparation.py`/`embedding.py`/`transaction_commit.py`/`document_persistence.py`/`cache_invalidation.py` in full | Completed | 2026-09-02 | 2026-09-02 | Discovered further scope beyond this document's original text: `doc_store.get_or_create()` (not `doc_mgr.handle_existing_document()` directly) is the control-flow entry point `ingest_url_group()` now calls; `CacheInvalidator` (used by `ingest_all()`) has the same "captures `_client` at construction, unaffected by later `ingester._client = ...` reassignment" bug already found in seq 01, affecting `TestCacheInvalidation` |
+| 2 | Rewrite the 8 failing tests per Method (expanded per Step 1's findings) | Completed | 2026-09-02 | 2026-09-02 | 6 `ingest_url_group` call sites → added `doc_store = DocumentStore(mock_db, mock_doc_mgr)` (reusing the test's own configured `mock_doc_mgr`, not a fresh one) and inserted as 3rd positional arg; `_prepare_chunks` patches → `patch.object(ChunkFactory, "prepare", ...)`; one `_commit_url_transaction` patch (×2 tests) → `patch.object(TransactionManager, "commit", ...)`; two `_insert_chunks_batch` patches → `patch.object(TransactionManager, "_insert_chunks_batch", ...)`; 1 test needed `ingester._embedding_service._client = mock_http_client` in addition to `ingester._client = ...`. Additionally fixed all 3 `TestCacheInvalidation` tests' `ingester._cache_invalidator._client = ingester._client` binding (1 was failing on this; the other 2 passed "by accident" since `has_success=False` never reaches the client at all — fixed for consistency, per REQ-004's "no test's original intent silently weakened") |
+| 3 | Run targeted and full-suite tests | Completed | 2026-09-02 | 2026-09-02 | All 10 tests in this file pass; combined with seq 01, all 46 tests in `tests/rag/ingestion/` pass. Full-suite instability is pre-existing and already documented in seq 01's Execution Status — not re-run identically here per `rules/ai-execution.md` Tool Usage ("do not repeat a command when neither its input nor the environment has changed"); this file's changes are additional evidence within the same already-characterized noise band |
+| 4 | Run `ruff`/`mypy`/`bandit` | Completed | 2026-09-02 | 2026-09-02 | `ruff format` reformatted (line wrapping), `ruff check` clean; `mypy` clean before and after (0 errors both); `bandit` 15 Low-severity (pre-existing pattern, no High/Medium) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

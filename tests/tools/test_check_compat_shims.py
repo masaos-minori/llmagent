@@ -11,8 +11,10 @@ from pathlib import Path
 import pytest
 
 from tools.check_compat_shims import (
+    ADR_PROHIBITED_PATTERNS,
     COMPAT_PATTERNS,
     ROOT_DIR,
+    check_adr_prohibited_patterns,
     check_compat_patterns,
     main,
 )
@@ -66,6 +68,46 @@ class TestPatternDetection:
         dirty.write_text("# re-export stub for compatibility\n")
         issues = check_compat_patterns(dirty.read_text(), dirty, {dirty})
         assert issues == []
+
+
+class TestAdrProhibitedPatterns:
+    """The ADR-scoped check (REQ-002) fires on a seeded pattern and is
+    silent otherwise; distinct from COMPAT_PATTERNS's own detection."""
+
+    def test_seeded_pattern_detected_in_synthetic_code(self, tmp_path: Path) -> None:
+        dirty = tmp_path / "synthetic.py"
+        dirty.write_text("if disable_workflow:\n    pass\n")
+        issues = check_adr_prohibited_patterns(dirty.read_text(), dirty, set())
+        assert len(issues) == 1
+        assert "ADR-001" in issues[0]
+
+    def test_clean_file_has_no_adr_pattern_matches(self, tmp_path: Path) -> None:
+        clean = tmp_path / "clean.py"
+        clean.write_text("if some_other_flag:\n    pass\n")
+        issues = check_adr_prohibited_patterns(clean.read_text(), clean, set())
+        assert issues == []
+
+    def test_allowlisted_file_skipped(self, tmp_path: Path) -> None:
+        dirty = tmp_path / "allowlisted.py"
+        dirty.write_text("if disable_workflow:\n    pass\n")
+        issues = check_adr_prohibited_patterns(dirty.read_text(), dirty, {dirty})
+        assert issues == []
+
+    def test_adr001_prose_in_docs_is_not_matched(self, tmp_path: Path) -> None:
+        """The Japanese ADR-001 prohibition prose must not self-trigger this
+        identifier-shaped check."""
+        doc = tmp_path / "adr_prose.md"
+        doc.write_text(
+            "Workflow無効化モードを設けない。Workflowを迂回する直接実行経路を設けない。\n"
+        )
+        issues = check_adr_prohibited_patterns(doc.read_text(), doc, set())
+        assert issues == []
+
+    def test_every_pattern_maps_to_a_real_adr_id(self) -> None:
+        for name, (adr_id, pattern) in ADR_PROHIBITED_PATTERNS.items():
+            assert re.match(r"^ADR-\d{3}$", adr_id), (
+                f"'{name}' maps to malformed ADR id {adr_id!r}"
+            )
 
 
 class TestDirectoryPositionalArgument:

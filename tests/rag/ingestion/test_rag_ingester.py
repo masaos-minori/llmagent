@@ -7,11 +7,14 @@ from unittest.mock import MagicMock, patch
 import orjson
 import pytest
 from db.helper import SQLiteHelper
+from rag.ingestion.chunk_preparation import ChunkFactory
 from rag.ingestion.document_manager import DocumentManager
+from rag.ingestion.document_persistence import DocumentStore
 from rag.ingestion.ingester import (
     IngestUrlResult,
     RagIngester,
 )
+from rag.ingestion.transaction_commit import TransactionManager
 from rag.models_data import PreparedChunk
 
 # ── Constants & Helpers ───────────────────────────────────────────────────────
@@ -132,13 +135,14 @@ class TestRagIngester:
         ingester.db = mock_db
 
         mock_doc_mgr.handle_existing_document.return_value = (1, False, False)
+        doc_store = DocumentStore(mock_db, mock_doc_mgr)
 
         chunk_path = tmp_path / "chunk" / "test.json"
         chunk_path.write_bytes(orjson.dumps(_make_chunk_json()))
 
         with patch.object(
-            ingester,
-            "_prepare_chunks",
+            ChunkFactory,
+            "prepare",
             return_value=(
                 [PreparedChunk(1, 0, "c", None, b"", "t", "s")],
                 [chunk_path],
@@ -147,10 +151,10 @@ class TestRagIngester:
             ),
         ) as mock_prep:
             with patch.object(
-                ingester, "_commit_url_transaction", return_value=None
+                TransactionManager, "commit", return_value=None
             ) as mock_commit:
                 result = ingester.ingest_url_group(
-                    mock_doc_mgr, mock_db, urls[0], [chunk_path], force=False
+                    mock_doc_mgr, mock_db, doc_store, urls[0], [chunk_path], force=False
                 )
 
                 assert isinstance(result, IngestUrlResult)
@@ -165,13 +169,14 @@ class TestRagIngester:
 
         # Scenario: document exists and should be replaced
         mock_doc_mgr.handle_existing_document.return_value = (1, False, True)
+        doc_store = DocumentStore(mock_db, mock_doc_mgr)
 
         chunk_path = tmp_path / "chunk" / "test.json"
         chunk_path.write_bytes(orjson.dumps(_make_chunk_json()))
 
         with patch.object(
-            ingester,
-            "_prepare_chunks",
+            ChunkFactory,
+            "prepare",
             return_value=(
                 [PreparedChunk(1, 0, "c", None, b"", "t", "s")],
                 [chunk_path],
@@ -180,10 +185,15 @@ class TestRagIngester:
             ),
         ) as mock_prep:
             with patch.object(
-                ingester, "_commit_url_transaction", return_value=None
+                TransactionManager, "commit", return_value=None
             ) as mock_commit:
                 result = ingester.ingest_url_group(
-                    mock_doc_mgr, mock_db, "http://a.com", [chunk_path], force=True
+                    mock_doc_mgr,
+                    mock_db,
+                    doc_store,
+                    "http://a.com",
+                    [chunk_path],
+                    force=True,
                 )
                 assert result.n_success == 1
                 assert mock_prep.called
@@ -200,8 +210,10 @@ class TestAtomicity:
 
         ingester = _make_ingester(tmp_path)
         ingester._client = mock_http_client
+        ingester._embedding_service._client = mock_http_client
         ingester.doc_mgr = mock_doc_mgr
         ingester.db = mock_db
+        doc_store = DocumentStore(mock_db, mock_doc_mgr)
 
         # Setup: valid chunk file so it doesn't exit early
         chunk_path = tmp_path / "chunk" / "valid.json"
@@ -217,7 +229,12 @@ class TestAtomicity:
         )
 
         result = ingester.ingest_url_group(
-            mock_doc_mgr, mock_db, "http://example.com", [chunk_path], force=True
+            mock_doc_mgr,
+            mock_db,
+            doc_store,
+            "http://example.com",
+            [chunk_path],
+            force=True,
         )
 
         # Verify: n_success is 0 because it failed during preparation
@@ -236,6 +253,7 @@ class TestAtomicity:
         ingester.doc_mgr = mock_doc_mgr
         ingester.db = mock_db
         ingester._client = mock_http_client
+        doc_store = DocumentStore(mock_db, mock_doc_mgr)
 
         # Setup: all chunks prepare successfully
         chunk_path = tmp_path / "chunk" / "valid.json"
@@ -244,12 +262,12 @@ class TestAtomicity:
         prepared_chunks = [PreparedChunk(123, 0, "c", None, b"", "t", "s")]
 
         with patch.object(
-            ingester,
-            "_prepare_chunks",
+            ChunkFactory,
+            "prepare",
             return_value=(prepared_chunks, [chunk_path], [], 0),
         ):
             with patch.object(
-                ingester,
+                TransactionManager,
                 "_insert_chunks_batch",
                 side_effect=sqlite3.DatabaseError("Database error"),
             ):
@@ -257,6 +275,7 @@ class TestAtomicity:
                     ingester.ingest_url_group(
                         mock_doc_mgr,
                         mock_db,
+                        doc_store,
                         "http://example.com",
                         [chunk_path],
                         force=True,
@@ -275,6 +294,7 @@ class TestAtomicity:
         ingester.doc_mgr = mock_doc_mgr
         ingester.db = mock_db
         ingester._client = mock_http_client
+        doc_store = DocumentStore(mock_db, mock_doc_mgr)
 
         # Setup: two chunk files, only one prepares successfully
         chunk_path1 = tmp_path / "chunk" / "valid1.json"
@@ -288,12 +308,17 @@ class TestAtomicity:
         failed_paths = [(chunk_path2, "embedding_failed")]
 
         with patch.object(
-            ingester,
-            "_prepare_chunks",
+            ChunkFactory,
+            "prepare",
             return_value=(prepared_chunks, [chunk_path1], failed_paths, 1),
         ):
             result = ingester.ingest_url_group(
-                mock_doc_mgr, mock_db, "http://example.com", chunk_files, force=False
+                mock_doc_mgr,
+                mock_db,
+                doc_store,
+                "http://example.com",
+                chunk_files,
+                force=False,
             )
 
             # Verify: n_success is 0 because we didn't reach commit if we treat partial failures as group failure
@@ -311,6 +336,7 @@ class TestAtomicity:
         ingester.doc_mgr = mock_doc_mgr
         ingester.db = mock_db
         ingester._client = mock_http_client
+        doc_store = DocumentStore(mock_db, mock_doc_mgr)
 
         # Setup: all chunks succeed
         chunk_path = tmp_path / "chunk" / "valid.json"
@@ -318,14 +344,15 @@ class TestAtomicity:
         prepared_chunks = [PreparedChunk(123, 0, "c", None, b"", "t", "s")]
 
         with patch.object(
-            ingester,
-            "_prepare_chunks",
+            ChunkFactory,
+            "prepare",
             return_value=(prepared_chunks, [chunk_path], [], 0),
         ):
-            with patch.object(ingester, "_insert_chunks_batch") as mock_batch:
+            with patch.object(TransactionManager, "_insert_chunks_batch") as mock_batch:
                 result = ingester.ingest_url_group(
                     mock_doc_mgr,
                     mock_db,
+                    doc_store,
                     "http://example.com",
                     [chunk_path],
                     force=True,
@@ -344,6 +371,7 @@ class TestCacheInvalidation:
         ingester.doc_mgr = mock_doc_mgr
         ingester.db = mock_db
         ingester._client = MagicMock()
+        ingester._cache_invalidator._client = ingester._client
         ingester._rag_pipeline_service_url = "http://cache-svc"
 
         # Add dummy chunk files
@@ -375,6 +403,7 @@ class TestCacheInvalidation:
         ingester.doc_mgr = mock_doc_mgr
         ingester.db = mock_db
         ingester._client = MagicMock()
+        ingester._cache_invalidator._client = ingester._client
         ingester._rag_pipeline_service_url = "http://cache-svc"
 
         # Add dummy chunk files
@@ -403,6 +432,7 @@ class TestCacheInvalidation:
         ingester.doc_mgr = mock_doc_mgr
         ingester.db = mock_db
         ingester._client = MagicMock()
+        ingester._cache_invalidator._client = ingester._client
         ingester._rag_pipeline_service_url = "http://cache-svc"
 
         # Add dummy chunk files

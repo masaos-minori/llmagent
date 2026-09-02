@@ -92,6 +92,12 @@ on this change.
 - `uv run mypy tests/agent/test_startup.py` — no new type errors vs. pre-existing baseline.
 
 ## Completion criteria
+(Corrected 2026-09-02, Step 4: `TestStartupWorkflowPreflight::test_aborts_on_missing_workflow_schema`
+fails identically with this row's changes reverted — a pre-existing, unrelated failure, not
+introduced by this row. "All 72 tests pass" below should be read as "all 6 tests this row
+targets pass, with no new regression" — 71 passed / 1 failed (pre-existing) is the actual,
+correct outcome.)
+
 All 72 tests in `tests/agent/test_startup.py` pass; the six previously-failing tests
 (`test_memory_snippets_are_injected_when_enabled`, `test_no_memory_injection_when_disabled`,
 `test_memory_snippets_truncated_when_exceeds_limit`, and the three
@@ -104,16 +110,24 @@ All 72 tests in `tests/agent/test_startup.py` pass; the six previously-failing t
 ctx.conv.replace_history(...)` is correct as-is). Any other test in
 `tests/agent/test_startup.py` not named above. `ctx.conv`'s production implementation
 (`scripts/agent/context.py::ConversationState`) — read-only reference, not modified.
+`TestStartupWorkflowPreflight::test_aborts_on_missing_workflow_schema` — confirmed
+pre-existing, unrelated failure (see Execution Status Step 3), not fixed by this row.
+
+## Documentation
+`tests/agent/test_startup.py` has no matching row in `docs/00_index.md`'s "Document
+References by Task" table — no `docs/*.md` update applies (Step 5: `N/A: no docs/00_index.md
+task-scope mapping for tests/agent/test_startup.py`). Step 6 content checks skipped
+accordingly.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert `ctx.conv = ConversationState()` in the six affected test bodies | Pending | — | — | |
-| 2 | Run targeted test selection (9 tests) | Pending | — | — | |
-| 3 | Run full-file regression (`uv run pytest tests/agent/test_startup.py -q`) | Pending | — | — | |
-| 4 | Run `ruff format`/`ruff check`/`mypy` | Pending | — | — | |
+| 1 | Insert `ctx.conv = ConversationState()` in the six affected test bodies | Completed | 2026-09-02 | 2026-09-02 | |
+| 2 | Run targeted test selection (9 tests) | Completed | 2026-09-02 | 2026-09-02 | All 9 pass |
+| 3 | Run full-file regression (`uv run pytest tests/agent/test_startup.py -q`) | Completed | 2026-09-02 | 2026-09-02 | 71 passed, 1 failed — `TestStartupWorkflowPreflight::test_aborts_on_missing_workflow_schema` fails identically with this Plan's changes reverted (`git stash`), with and without `pytest-randomly` — confirmed pre-existing, unrelated to this row's scope; not fixed here |
+| 4 | Run `ruff format`/`ruff check`/`mypy` | Completed | 2026-09-02 | 2026-09-02 | `ruff` clean; `mypy` shows 42 pre-existing errors, identical count before/after this change (confirmed via `git stash`) — none introduced by this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

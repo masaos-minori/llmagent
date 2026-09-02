@@ -22,8 +22,11 @@ from unittest.mock import MagicMock, patch
 import orjson
 import pytest
 from rag.exceptions import IngestionFailureReason
+from rag.ingestion.chunk_preparation import ChunkFactory
 from rag.ingestion.document_manager import DocumentManager
+from rag.ingestion.document_persistence import DocumentStore
 from rag.ingestion.ingester import RagIngester
+from rag.ingestion.transaction_commit import TransactionManager
 from rag.models_data import PreparedChunk
 
 # Minimal rag.sqlite schema (regular tables; vec0 extension not required in tests)
@@ -209,7 +212,8 @@ class TestEmbedAndStore:
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester._embed_and_store(doc_id, path)
+            factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
+            result = factory._embed_and_store(doc_id, path)
 
         assert isinstance(result, PreparedChunk)
         assert result.chunk_index == 7
@@ -228,7 +232,8 @@ class TestEmbedAndStore:
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester._embed_and_store(doc_id, path)
+            factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
+            result = factory._embed_and_store(doc_id, path)
 
         assert isinstance(result, PreparedChunk)
         assert result.normalized_content == "正規化"
@@ -252,7 +257,8 @@ class TestEmbedAndStore:
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester._embed_and_store(doc_id, path)
+            factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
+            result = factory._embed_and_store(doc_id, path)
 
         assert isinstance(result, PreparedChunk)
         assert result.normalized_content is None
@@ -270,7 +276,8 @@ class TestEmbedAndStore:
             patch.object(ingester._client, "post", return_value=bad_resp),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester._embed_and_store(doc_id, path)
+            factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
+            result = factory._embed_and_store(doc_id, path)
 
         assert result == IngestionFailureReason.EMBEDDING_FAILED
         count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
@@ -287,7 +294,8 @@ class TestEmbedAndStore:
         with (
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester._embed_and_store(doc_id, path)
+            factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
+            result = factory._embed_and_store(doc_id, path)
 
         assert result == IngestionFailureReason.PARSE_FAILED
         count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
@@ -307,7 +315,8 @@ class TestEmbedAndStore:
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester._embed_and_store(doc_id, path)
+            factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
+            result = factory._embed_and_store(doc_id, path)
 
         assert result == IngestionFailureReason.PARSE_FAILED
 
@@ -328,7 +337,8 @@ class TestEmbedAndStore:
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester._embed_and_store(doc_id, path)
+            factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
+            result = factory._embed_and_store(doc_id, path)
 
         assert result == IngestionFailureReason.PARSE_FAILED
         count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
@@ -345,7 +355,7 @@ class TestEmbedAndStore:
         bad_resp.content = orjson.dumps({"embedding": []})  # empty → ValueError
 
         with (
-            patch("rag.ingestion.ingester.time.sleep"),
+            patch("rag.ingestion.embedding.time.sleep"),
             patch.object(
                 ingester._client,
                 "post",
@@ -353,7 +363,8 @@ class TestEmbedAndStore:
             ),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester._embed_and_store(doc_id, path)
+            factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
+            result = factory._embed_and_store(doc_id, path)
 
         assert isinstance(result, PreparedChunk)
         assert result.chunk_index == 0
@@ -369,11 +380,12 @@ class TestEmbedAndStore:
         bad_resp.content = orjson.dumps({"embedding": []})
 
         with (
-            patch("rag.ingestion.ingester.time.sleep"),
+            patch("rag.ingestion.embedding.time.sleep"),
             patch.object(ingester._client, "post", return_value=bad_resp),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester._embed_and_store(doc_id, path)
+            factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
+            result = factory._embed_and_store(doc_id, path)
 
         assert result == IngestionFailureReason.EMBEDDING_FAILED
         count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
@@ -388,7 +400,7 @@ class TestEmbedAndStore:
         import httpx
 
         with (
-            patch("rag.ingestion.ingester.time.sleep"),
+            patch("rag.ingestion.embedding.time.sleep"),
             patch.object(
                 ingester._client,
                 "post",
@@ -399,7 +411,8 @@ class TestEmbedAndStore:
             ),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester._embed_and_store(doc_id, path)
+            factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
+            result = factory._embed_and_store(doc_id, path)
 
         assert isinstance(result, PreparedChunk)
         assert result.chunk_index == 0
@@ -413,7 +426,7 @@ class TestEmbedAndStore:
         wrong_dim_resp = _fake_embed_resp(embedding=[0.1] * 8)  # wrong dim (expect 384)
 
         with (
-            patch("rag.ingestion.ingester.time.sleep"),
+            patch("rag.ingestion.embedding.time.sleep"),
             patch.object(
                 ingester._client,
                 "post",
@@ -421,7 +434,8 @@ class TestEmbedAndStore:
             ),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester._embed_and_store(doc_id, path)
+            factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
+            result = factory._embed_and_store(doc_id, path)
 
         assert isinstance(result, PreparedChunk)
         assert result.chunk_index == 0
@@ -455,6 +469,7 @@ class TestIngestUrlGroup:
             ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 [path],
                 force=False,
@@ -485,6 +500,7 @@ class TestIngestUrlGroup:
             ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 paths,
                 force=False,
@@ -510,6 +526,7 @@ class TestIngestUrlGroup:
             ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 [path],
                 force=False,
@@ -530,6 +547,7 @@ class TestIngestUrlGroup:
             ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 [path],
                 force=False,
@@ -543,6 +561,7 @@ class TestIngestUrlGroup:
             ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 [path2],
                 force=False,
@@ -569,6 +588,7 @@ class TestIngestUrlGroup:
             ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 [path],
                 force=False,
@@ -588,6 +608,7 @@ class TestIngestUrlGroup:
             ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 [path2],
                 force=True,
@@ -613,6 +634,7 @@ class TestIngestUrlGroup:
             ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 [chunk_dir / "c.json"],
                 force=False,
@@ -629,6 +651,7 @@ class TestIngestUrlGroup:
             ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 [chunk_dir / "c2.json"],
                 force=True,
@@ -662,6 +685,7 @@ class TestIngestUrlGroup:
             result = ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 url,
                 list(chunk_dir.iterdir()),
                 force=False,
@@ -731,6 +755,7 @@ class TestPartialFailureHandling:
             result = ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 url,
                 [path],
                 force=False,
@@ -779,6 +804,7 @@ class TestPartialFailureHandling:
             result = ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/mixed",
                 [path_ok, path_fail],
                 force=False,
@@ -820,6 +846,7 @@ class TestPartialFailureHandling:
             result = ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 url,
                 [path1, path2],
                 force=False,
@@ -850,6 +877,7 @@ class TestPartialFailureHandling:
             result = ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 url,
                 [path],
                 force=False,
@@ -902,6 +930,7 @@ class TestGroupValidation:
             result = ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 [path0, path1],
                 force=False,
@@ -929,6 +958,7 @@ class TestGroupValidation:
             result = ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 [path0, path1],
                 force=False,
@@ -955,6 +985,7 @@ class TestGroupValidation:
             result = ingester.ingest_url_group(
                 DocumentManager(fake_db),
                 fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
                 "https://example.com/doc",
                 [path0, path1],
                 force=False,
@@ -991,9 +1022,11 @@ class TestIntegrityErrorPropagation:
             source_file="",
             embedding_blob=b"\x00\x01",
         )
+        doc_mgr = DocumentManager(fake_db)
+        tx_mgr = TransactionManager(fake_db, doc_mgr, DocumentStore(fake_db, doc_mgr))
         with pytest.raises(sqlite3.IntegrityError):
             with fake_db.begin_immediate():
-                ingester._insert_chunks_batch(fake_db, [prepared])
+                tx_mgr._insert_chunks_batch(fake_db, [prepared])
         assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
 
     def test_integrity_error_routes_to_failed_via_ingest_url_group(
@@ -1008,17 +1041,20 @@ class TestIntegrityErrorPropagation:
         conn.commit()
         chunk_dir = tmp_path / "chunk"
         path = _write_chunk(chunk_dir, "c.json")
-        ingester._insert_chunks_batch = MagicMock(
-            side_effect=sqlite3.IntegrityError("foreign key violation")
-        )
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+            patch.object(
+                TransactionManager,
+                "_insert_chunks_batch",
+                side_effect=sqlite3.IntegrityError("foreign key violation"),
+            ),
         ):
             with pytest.raises(sqlite3.IntegrityError):
                 ingester.ingest_url_group(
                     DocumentManager(fake_db),
                     fake_db,
+                    DocumentStore(fake_db, DocumentManager(fake_db)),
                     "https://example.com/doc",
                     [path],
                     force=True,

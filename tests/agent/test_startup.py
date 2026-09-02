@@ -552,6 +552,7 @@ class TestStartupOrchestratorSetupPrompt:
         mock_mem.on_session_start.return_value = [snippet]
         ctx.services_required.memory = mock_mem
         ctx.session.session_id = 1
+        ctx.conv = ConversationState()
         ctx.conv.system_prompt_name = "default"
         ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         ctx.cfg.agent_memory_max_startup_snippets = 10
@@ -568,6 +569,7 @@ class TestStartupOrchestratorSetupPrompt:
         """System prompt is unchanged when memory is disabled."""
         ctx = MagicMock()
         ctx.services_required.memory = None
+        ctx.conv = ConversationState()
         ctx.conv.system_prompt_name = "default"
         ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         view = MagicMock()
@@ -603,6 +605,7 @@ class TestStartupOrchestratorSetupPrompt:
         mock_mem.on_session_start.return_value = snippets
         ctx.services_required.memory = mock_mem
         ctx.session.session_id = 1
+        ctx.conv = ConversationState()
         ctx.conv.system_prompt_name = "default"
         ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         ctx.cfg.agent_memory_max_startup_snippets = 10
@@ -1517,6 +1520,7 @@ class TestStartupMemoryFailures:
         self, exception_class, log_method, exception_msg
     ) -> None:
         ctx = MagicMock()
+        ctx.conv = ConversationState()
         ctx.conv.system_prompt_name = "default"
         ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         ctx.cfg.agent_memory_max_startup_snippets = 10

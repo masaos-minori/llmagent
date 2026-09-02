@@ -87,9 +87,9 @@ but separately tracked governance rule, per the Plan's own Out-of-Scope).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update GV-014 row (`Tooling`/`Status`/`Follow-up`) | Pending | — | — | |
-| 2 | Reword or remove Follow-up Work item #9 | Pending | — | — | |
-| 3 | Run `check_docs_quality.py` | Pending | — | — | |
+| 1 | Update GV-014 row (`Tooling`/`Status`/`Follow-up`) | Completed | 2026-09-02 | 2026-09-02 | `Status` set to `Existing` (matching GV-001/GV-005's existing vocabulary, not a newly-invented word); `Tooling` lists all 3 shipped tools; `Follow-up` notes the one remaining optional sub-step (running cited tests in CI) |
+| 2 | Reword Follow-up Work item #9 | Completed | 2026-09-02 | 2026-09-02 | Reworded (not removed, avoiding renumbering items #10-13) to state resolution and name the 3 shipped tools, plus the same remaining optional scope |
+| 3 | Run `check_docs_quality.py`/`check_docs_structure.py` | Completed | 2026-09-02 | 2026-09-02 | Both report no issues. `check_docs_consistency.py --domain <agent\|mcp\|rag\|deployment\|overview>` does not apply — this document's area is `governance`, not one of the 5 covered domains |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

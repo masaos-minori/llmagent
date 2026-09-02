@@ -97,15 +97,22 @@ content; the existing compat-pattern check's behavior is unchanged.
 `docs/00_governance_04_documentation-checks.md` — each covered by its own implementation
 procedure document for this same Plan.
 
+## Documentation
+`tools/check_compat_shims.py` has no matching row in `docs/00_index.md`'s "Document
+References by Task" table — no `docs/*.md` update applies (Step 5: `N/A: no
+docs/00_index.md task-scope mapping for tools/check_compat_shims.py`). Step 6 content
+checks skipped accordingly.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm a seedable ADR-001 pattern via `scripts/` search | Pending | — | — | |
-| 2 | Add `ADR_PROHIBITED_PATTERNS` and check function | Pending | — | — | |
-| 3 | Add tests under `tests/tools/` | Pending | — | — | |
-| 4 | Run against live repository; confirm zero false positives | Pending | — | — | |
+| 1 | Confirm a seedable ADR-001 pattern via `scripts/` search | Completed | 2026-09-02 | 2026-09-02 | No existing occurrence found (expected — this catches a future regression); chose identifier-shaped patterns (`disable_workflow`/`workflow_disabled`/`bypass_workflow`/`skip_workflow`) grounded in ADR-001's "Workflow無効化モードを設けない"/"Workflowを迂回する直接実行経路を設けない" prohibition, deliberately snake_case so the ADR's own Japanese prose is never self-matched (verified by test) |
+| 2 | Add `ADR_PROHIBITED_PATTERNS` and check function | Completed | 2026-09-02 | 2026-09-02 | Added as a separate dict/function (`ADR_PROHIBITED_PATTERNS`, `check_adr_prohibited_patterns()`), wired into `check_all()` alongside the existing `check_compat_patterns()` |
+| 3 | Add tests under `tests/tools/` | Completed | 2026-09-02 | 2026-09-02 | 5 new tests added to `tests/tools/test_check_compat_shims.py` (25→30 total, all pass): seeded-pattern detection, clean file, allowlist skip, ADR-001 prose non-match, ADR-id format check |
+| 4 | Run against live repository; confirm zero false positives | Completed | 2026-09-02 | 2026-09-02 | `uv run python -m tools.check_compat_shims` → "All checks passed" |
+| 5 | Validation | Completed | 2026-09-02 | 2026-09-02 | `ruff`/`mypy`/`bandit` clean on both files; no regression in the 25 pre-existing tests |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
