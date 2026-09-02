@@ -754,7 +754,6 @@ class TestRecoverCorruption:
         assert result.action == "unknown_preserved"
 
 
-
 # ── purge_corrupt_archives ──────────────────────────────────────────────────────
 
 

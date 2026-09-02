@@ -3,6 +3,7 @@
 Fusion (RRF) stage for RAG pipeline."""
 
 import logging
+from typing import Literal
 
 from rag.repository import RagScorer, _dedup_hits
 from rag.stage import PipelineContext, PipelineStage
@@ -19,6 +20,14 @@ class FusionStage(PipelineStage):
         """Initialize with RRF constant k and whether to apply RRF scoring."""
         self._rrf_k = rrf_k
         self._use_rrf = use_rrf
+
+    def get_status(
+        self, ctx: PipelineContext
+    ) -> tuple[Literal["success", "fallback"], str | None]:
+        """Return execution status of this stage with optional reason string."""
+        if not self._use_rrf:
+            return "fallback", "use_rrf=False"
+        return "success", None
 
     async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
         """Merge search results using RRF or dedup-only mode based on configuration."""

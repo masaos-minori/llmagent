@@ -34,6 +34,34 @@ Documents the structure and constraints of MCP, Approval, and Observability conf
 - `url`: Base URL of the HTTP server
 - `cmd`: Command to start a subprocess
 
+#### Component Criticality Classification
+
+`McpServerConfig.required: bool` (default `True`) records each MCP server's
+ADR-004 Decision Group 3 required/non-required classification. A server may be
+classified non-required only if it satisfies all of Decision Group 3 item 10's
+criteria (safe-core-processing unaffected, no security-control bypass, failure
+localizable, related tools reliably disablable, Fail-Closed rejection of calls,
+disabled-state observability, other required components stay safe, any fallback
+defined by an Accepted ADR) — undefined or unassessed criticality must not be
+assumed non-required (Decision Group 3 item 12).
+
+| Server (`config/agent.toml` key) | Classification | Rationale |
+|---|---|---|
+| `shell` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `git` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `web_search` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `file_delete` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `file_write` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `file_read` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `github` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `cicd` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `rag_pipeline` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `mdq` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+
+No server currently overrides `required` in `config/agent.toml`; a future
+non-required reclassification requires an explicit owner decision and an update to
+this table, per ADR-004 Decision Group 3 item 13.
+
 #### Process Isolation
 
 Each MCP server is an independent process that only reads its own configuration file. → [ADR-002](../adr/ADR-002-config-isolation.md)

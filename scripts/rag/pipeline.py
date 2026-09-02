@@ -18,7 +18,6 @@ Module layout:
 """
 
 import asyncio
-import dataclasses
 import logging
 import sqlite3
 import time
@@ -35,13 +34,13 @@ from shared.types import (
     RagHit,
 )
 
+from rag.augment import AugmentRefiner
 from rag.cache import SemanticCache
-from rag.http_augment import HttpAugment, _map_http_result_kind
+from rag.http_augment import _map_http_result_kind
 from rag.llm_client import RagLLM, get_embedding
 from rag.models_config import RagConfigImpl
 from rag.models_data import TwoStageFetchResult
 from rag.models_result import HttpResultKind, SearchDiagnostics
-from rag.pipeline_refiner import RefineResult, refine_context
 from rag.repository import (
     RagRepository,
     deduplicate_chunks,
@@ -195,6 +194,17 @@ class RagPipeline:
         self._sqlite_timeout: int = self._cfg.sqlite_timeout
         self._sqlite_busy_timeout_ms: int = self._cfg.sqlite_busy_timeout_ms
 
+        # AugmentRefiner: HTTP augment + refiner concern
+        self._augment_refiner = AugmentRefiner(
+            http=self._http,
+            cfg=self._cfg,
+            on_status=self._on_status,
+            set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
+            set_fallback_reason=lambda _: None,
+            search_diagnostics=self.last_search_diagnostics,
+            llm=self._llm,
+        )
+
         logger.info(
             "RagPipeline init: use_rrf=%s rrf_k=%d",
             self._cfg.use_rrf,
@@ -210,49 +220,11 @@ class RagPipeline:
         self, stage: PipelineStage, ctx: PipelineContext
     ) -> tuple[Literal["success", "fallback", "failure"], str | None]:
         """Return the execution status of a pipeline stage with an optional reason string."""
-        name = type(stage).__name__
-        if name == "MqeStage":
-            return self._mqe_status(ctx)
-        if name == "SearchStage":
-            return self._search_status(ctx)
-        if name == "FusionStage":
-            return self._fusion_status()
-        if name == "RerankStage":
-            return self._rerank_status(ctx)
-        return "success", None
-
-    def _mqe_status(
-        self, ctx: PipelineContext
-    ) -> tuple[Literal["success", "fallback"], str | None]:
-        """Determine MQE stage status based on configuration and context."""
-        if not self._cfg.use_mqe:
-            return "fallback", "use_mqe=False"
-        if ctx._fallback_reason == "mqe_exception":
-            return "fallback", "mqe_exception"
-        return "success", None
-
-    def _search_status(
-        self, ctx: PipelineContext
-    ) -> tuple[Literal["success", "fallback"], str | None]:
-        """Determine search stage status based on whether results were produced."""
-        if not ctx.search_results:
-            return "fallback", "no search results"
-        return "success", None
-
-    def _fusion_status(self) -> tuple[Literal["success", "fallback"], str | None]:
-        """Determine RRF fusion stage status based on configuration."""
-        if not self._cfg.use_rrf:
-            return "fallback", "use_rrf=False"
-        return "success", None
-
-    def _rerank_status(
-        self, ctx: PipelineContext
-    ) -> tuple[Literal["success", "fallback"], str | None]:
-        """Determine rerank stage status based on configuration and context."""
-        if not self._cfg.use_rerank:
-            return "fallback", "use_rerank=False"
-        if ctx._fallback_reason == "rerank_exception":
-            return "fallback", "rerank_exception"
+        if hasattr(stage, "get_status"):
+            return cast(
+                tuple[Literal["success", "fallback", "failure"], str | None],
+                stage.get_status(ctx),
+            )
         return "success", None
 
     async def _run_stage(
@@ -461,7 +433,9 @@ class RagPipeline:
             return ""
         # HTTP mode: delegate to external RAG service when rag_service_url is configured
         if rag_url := self._cfg.rag_service_url:
-            result = await self._run_http_augment(query, history_context, rag_url)
+            result = await self._augment_refiner.run_http_augment(
+                query, history_context, rag_url
+            )
             if result is not None:
                 return result
         # Semantic cache lookup (in-process mode only)
@@ -510,7 +484,9 @@ class RagPipeline:
             return ""
         # Refiner: compress chunks to query-relevant key points before injection
         if self._cfg.use_refiner:
-            refined = await self._run_refiner(pipeline_result.reranked, query)
+            refined = await self._augment_refiner.run_refiner(
+                pipeline_result.reranked, query
+            )
             if refined.text is not None:
                 refined_text: str = refined.text
                 return refined_text
@@ -521,77 +497,6 @@ class RagPipeline:
                     "Failed to store embedding in semantic cache (dimension mismatch)"
                 )
         return context_block
-
-    async def _run_http_augment(
-        self,
-        query: str,
-        history_context: str,
-        rag_url: str,
-    ) -> str | None:
-        """Run HTTP augment and return result or None for fallback."""
-        http_aug = HttpAugment(
-            self._http,
-            rag_url,
-            auth_token=self._cfg.rag_auth_token or "",
-            set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
-            set_fallback_reason=lambda _: None,
-        )
-        result = await http_aug.run(query, history_context)
-        # Apply diagnostics from HttpAugment result
-        from rag.models_result import ResultSource
-
-        if result.result is not None:
-            result_source = ResultSource.REMOTE
-        else:
-            result_source = ResultSource.FALLBACK
-
-        self.last_search_diagnostics = dataclasses.replace(
-            self.last_search_diagnostics,
-            result_source=result_source,
-            http_result_kind=_map_http_result_kind(result.http_result_kind),
-            remote_status_code=result.status_code,
-            remote_latency_ms=result.latency_ms,
-        )
-        # Apply stage result from HttpAugment
-        if http_aug.stage_result is not None:
-            self.last_stage_results.append(http_aug.stage_result)
-        http_result: str | None = result.result
-        return http_result
-
-    async def _run_refiner(
-        self,
-        reranked: list[RagHit],
-        query: str,
-    ) -> RefineResult:
-        """Run refiner and return result."""
-        t0 = time.perf_counter()
-        refined = await refine_context(
-            self._llm,
-            self._on_status,
-            reranked,
-            query,
-            max_tokens=self._cfg.refiner_max_tokens,
-            per_chunk_chars=self._cfg.refiner_max_chars_per_chunk,
-            timeout=self._cfg.refiner_timeout,
-        )
-        elapsed = time.perf_counter() - t0
-        refiner_status: Literal["success", "fallback"] = (
-            "success" if refined.text is not None else "fallback"
-        )
-        self.last_stage_results.append(
-            StageResult(
-                stage_name="Refiner",
-                status=refiner_status,
-                elapsed_seconds=elapsed,
-                fallback_reason=refined.reason,
-            )
-        )
-        if refined.text is None:
-            logger.info(
-                "augment: refiner fallback (reason=%s); using raw chunks",
-                refined.reason,
-            )
-        return refined
 
     def get_diagnostics(self) -> dict:
         """Return structured diagnostics for the last pipeline execution.

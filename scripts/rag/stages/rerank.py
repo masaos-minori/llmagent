@@ -3,6 +3,7 @@
 Rerank stage for RAG pipeline."""
 
 import logging
+from typing import Literal
 
 from shared.types import RagConfig
 
@@ -48,6 +49,16 @@ class RerankStage(PipelineStage):
         """Initialize with RAG configuration and LLM client for reranking."""
         self._cfg = cfg
         self._llm = llm
+
+    def get_status(
+        self, ctx: PipelineContext
+    ) -> tuple[Literal["success", "fallback"], str | None]:
+        """Return execution status of this stage with optional reason string."""
+        if not self._cfg.use_rerank:
+            return "fallback", "use_rerank=False"
+        if ctx._fallback_reason == "rerank_exception":
+            return "fallback", "rerank_exception"
+        return "success", None
 
     async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
         """Execute reranking and store the reordered results in context."""

@@ -56,3 +56,9 @@ class PipelineStage(Protocol):
     async def run(self, ctx: PipelineContext, **kwargs: Any) -> None:
         """Execute this pipeline stage, modifying context in-place."""
         ...
+
+    def get_status(
+        self, ctx: PipelineContext
+    ) -> tuple[Literal["success", "fallback", "failure"], str | None]:
+        """Return execution status of this stage with optional reason string."""
+        ...

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from rag.repository import RagRepository
 from rag.stage import PipelineContext, PipelineStage
@@ -86,6 +86,14 @@ class SearchStage(PipelineStage):
         self._cfg = cfg
         self._http = http
         self._embed_url = embed_url
+
+    def get_status(
+        self, ctx: PipelineContext
+    ) -> tuple[Literal["success", "fallback"], str | None]:
+        """Return execution status of this stage with optional reason string."""
+        if not ctx.search_results:
+            return "fallback", "no search results"
+        return "success", None
 
     async def run(
         self, ctx: PipelineContext, db: SQLiteHelper | None = None, **kwargs: Any

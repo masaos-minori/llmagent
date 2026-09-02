@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     from rag.models_data import TwoStageFetchResult  # noqa: TCH004
 from rag.models_result import HttpResultKind
-from rag.stage import StageResult
+from rag.stage import PipelineContext, StageResult
 
 _HTTP_RESULT_KIND_MAP: dict[str, HttpResultKind] = {
     "remote_nonempty": HttpResultKind.SUCCESS,
@@ -74,6 +74,14 @@ class HttpAugment:
         self._auth_token = auth_token or ""
         self._set_fetch_result = set_fetch_result or (lambda _: None)
         self._set_fallback_reason = set_fallback_reason or (lambda _: None)
+
+    def get_status(
+        self, ctx: PipelineContext
+    ) -> tuple[Literal["success", "fallback"], str | None]:
+        """Return execution status of this stage with optional reason string."""
+        if not ctx.augment_result:
+            return "fallback", "no augment result"
+        return "success", None
 
     async def run(self, query: str, history_context: str) -> HttpAugmentResult:
         """Run HTTP augment and return result."""

@@ -3,6 +3,7 @@
 MQE stage for RAG pipeline."""
 
 import logging
+from typing import Literal
 
 from shared.types import RagConfig
 
@@ -32,6 +33,16 @@ class MqeStage(PipelineStage):
         """Initialize with RAG configuration and LLM client."""
         self._cfg = cfg
         self._llm = llm
+
+    def get_status(
+        self, ctx: PipelineContext
+    ) -> tuple[Literal["success", "fallback"], str | None]:
+        """Return execution status of this stage with optional reason string."""
+        if not self._cfg.use_mqe:
+            return "fallback", "use_mqe=False"
+        if ctx._fallback_reason == "mqe_exception":
+            return "fallback", "mqe_exception"
+        return "success", None
 
     async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
         """Execute multi-query expansion and store results in context."""
