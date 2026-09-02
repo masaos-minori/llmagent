@@ -88,12 +88,12 @@ If the citations introduce ambiguity or conflict with existing AGENTS.md wording
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read AGENTS.md Loop Prevention and workflow.md sections | Pending | — | — | |
-| 2 | Add Attempt Limit citation to Step 3 | Pending | — | — | |
-| 3 | Add Attempt Limit citation to Step 4 | Pending | — | — | |
-| 4 | Add Failure Log citation to Step 3 and Step 4 | Pending | — | — | |
-| 5 | Amend Rollback on Failure section | Pending | — | — | |
-| 6 | Manual review of added citations | Pending | — | — | |
+| 1 | Read AGENTS.md Loop Prevention and workflow.md sections | Completed | — | — | Verified citations present in workflow.md |
+| 2 | Add Attempt Limit citation to Step 3 | Completed | — | — | Applied |
+| 3 | Add Attempt Limit citation to Step 4 | Completed | — | — | Applied |
+| 4 | Add Failure Log citation to Step 3 and Step 4 | Completed | — | — | Applied |
+| 5 | Amend Rollback on Failure section | Completed | — | — | Applied |
+| 6 | Manual review of added citations | Completed | — | — | Verified consistency with AGENTS.md |
 
 ### Blocker Log
 
