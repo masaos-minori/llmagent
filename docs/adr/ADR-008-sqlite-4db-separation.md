@@ -434,9 +434,10 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 
 - **Resolved Issue**: `recover_corruption()`（`scripts/db/recovery.py`）は、Unknown分類（`DbCondition.UNKNOWN`）をCorruption分類と同一に扱い、`rag`/`session`に対しては自動的にバックアップからのリストアを試みる。これはINV-17（Unknownまたは分類不能な障害は対象DBを保持し運用者の介入を要求する）を現時点では満たしていない。
   - **Type**: Resolved
-  - **Summary**: Unknown分類がCorruptionと同一挙動になっており、対象DBの保持・運用者介入要求が実装されていない
+  - **Summary**: Unknown分類がCorruptionと同一挙動になっていたが、`unknown_preserved`アクションでDB保持・運用者介入要求を実装した
   - **Impact**: 分類不能な整合性チェック失敗であっても、`rag`/`session`では自動的にリストアが実行され得る
   - **Resolution**: `implementations/20260902-105941_01_scripts_db_recovery_py.md` で実装済み；ユニットテストおよびインテグレーションテストで検証済み
+  - **解決済み**: REQ-001〜REQ-003により、`recover_corruption()`に`DbCondition.UNKNOWN`専用の分岐を追加し、`action="unknown_preserved"`を返して対象DBを保持し運用者介入を要求するようになった（`_restore_from_backup()`は呼び出されない）。これによりINV-17を満たす。**影響**: INV-17 → 解消済み。
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 

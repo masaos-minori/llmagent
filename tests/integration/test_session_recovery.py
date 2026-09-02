@@ -170,3 +170,29 @@ def test_e05_concurrent_session_start_under_exclusive_lock(
             session.start()
     finally:
         lock_t.join(timeout=3.0)
+
+
+def test_e06_recover_corruption_unknown_preserves_session_db(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """UNKNOWN classification preserves the session DB file untouched."""
+    from unittest.mock import patch
+
+    from db.recovery import DbCondition, recover_corruption
+
+    session_db = tmp_path / "session.sqlite"
+    original_bytes = b"not a real sqlite file, but presence/content is what matters"
+    session_db.write_bytes(original_bytes)
+    _patch_db_config(monkeypatch, tmp_path, str(session_db))
+
+    with patch(
+        "db.recovery._run_integrity_check",
+        return_value=(DbCondition.UNKNOWN, "simulated unclassifiable failure"),
+    ):
+        with patch("db.recovery._restore_from_backup") as mock_restore:
+            result = recover_corruption(target="session")
+
+    mock_restore.assert_not_called()
+    assert result.success is False
+    assert result.action == "unknown_preserved"
+    assert session_db.read_bytes() == original_bytes

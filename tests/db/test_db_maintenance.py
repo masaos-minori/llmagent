@@ -23,7 +23,7 @@ from db.maintenance import (
     vacuum_db,
 )
 from db.models import RecoveryResult
-from db.recovery import recover_corruption
+from db.recovery import DbCondition, recover_corruption
 from db.rotation import (
     rotate_all_dbs,
     rotate_eventbus_db,
@@ -735,6 +735,24 @@ class TestRecoverCorruption:
 
         assert result.success is False
         assert result.action == "restore_verify_failed"
+
+    def test_unknown_condition_preserves_db_and_does_not_restore(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """UNKNOWN classification is preserved, not treated as CORRUPTION."""
+        from unittest.mock import patch
+
+        with patch(
+            "db.recovery._run_integrity_check",
+            return_value=(DbCondition.UNKNOWN, "unrecognized failure"),
+        ):
+            with patch("db.recovery._restore_from_backup") as mock_restore:
+                result = recover_corruption(target="rag")
+
+        mock_restore.assert_not_called()
+        assert result.success is False
+        assert result.action == "unknown_preserved"
+
 
 
 # ── purge_corrupt_archives ──────────────────────────────────────────────────────
