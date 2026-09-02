@@ -880,6 +880,62 @@ class TestPurgeCorruptArchives:
             )
 
 
+# ── DbCondition.UNKNOWN handling ───────────────────────────────────────────────
+
+class TestRecoverCorruptionUnknown:
+    """Tests for DbCondition.UNKNOWN handling in recover_corruption()."""
+
+    @pytest.fixture(autouse=True)
+    def _patch_build_db_config(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Patch build_db_config so recover_corruption does not need real config."""
+        monkeypatch.setattr(
+            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
+    def test_unknown_does_not_restore_rag_db(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Verify UNKNOWN classification preserves the target database and does not trigger restore.
+
+        REQ-001: recover_corruption() MUST distinguish DbCondition.UNKNOWN from CORRUPTION
+                 and NOT trigger automatic backup-restore for UNKNOWN conditions on rag targets.
+        REQ-005: Tests MUST assert that an Unknown classification does not call
+                 _restore_from_backup() and leaves the target database unmodified.
+        """
+        from unittest.mock import patch
+
+        from db.recovery import (
+            DbCondition,
+            recover_corruption,
+        )
+
+        # Create a valid minimal SQLite file
+        db_path = tmp_path / "rag_unknown.sqlite"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY)")
+        conn.execute("INSERT INTO test_table VALUES (1)")
+        conn.commit()
+        conn.close()
+
+        original_content = db_path.read_bytes()
+
+        with patch("db.recovery._classify_error") as mock_classify, \
+             patch("db.recovery._restore_from_backup") as mock_restore:
+            mock_classify.return_value = (DbCondition.UNKNOWN, "unknown integrity error")
+
+            result = recover_corruption(target="rag")
+
+            mock_restore.assert_not_called()
+            assert result.action != "restored"
+            current_content = db_path.read_bytes()
+            assert current_content == original_content
+            assert result.success is False
+
+
 # ── MaintenanceMode ────────────────────────────────────────────────────────────
 
 
