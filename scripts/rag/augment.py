@@ -58,6 +58,7 @@ class AugmentRefiner:
         self._set_fallback_reason = set_fallback_reason or (lambda _: None)
         self._search_diagnostics = search_diagnostics or SearchDiagnostics()
         self._llm = llm
+        self._last_stage_results: list[StageResult] = []
 
     async def run_http_augment(
         self,
@@ -132,7 +133,9 @@ class AugmentRefiner:
         elapsed = time.perf_counter() - t0
         from typing import Literal
 
-        refiner_status: Literal["success", "fallback"] = "success" if refined.text is not None else "fallback"
+        refiner_status: Literal["success", "fallback"] = (
+            "success" if refined.text is not None else "fallback"
+        )
         self.last_stage_results.append(
             StageResult(
                 stage_name="Refiner",
