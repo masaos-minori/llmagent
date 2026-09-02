@@ -95,10 +95,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add post-move verification sentence to Step 1 per Method | Pending | — | — | Coordinate with `cip002`'s separate edit to the same bullet |
-| 2 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 3 | Manual review validation | Pending | — | — | |
-| 4 | Documentation update | Pending | — | — | N/A: this file is the documentation being updated |
+| 1 | Add post-move verification sentence to Step 1 per Method | Completed | 2026-09-02 | 2026-09-02 | `cip002`'s edit to the same bullet had already landed (confirmed at lines 111-120); both edits coexist without overlap |
+| 2 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 3 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed wording is worded identically to Step 7's line 265 |
+| 4 | Documentation update | Completed | 2026-09-02 | 2026-09-02 | N/A: this file is the documentation being updated; no `docs/00_index.md` task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

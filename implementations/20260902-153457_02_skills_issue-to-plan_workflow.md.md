@@ -87,10 +87,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert cross-reference paragraph per Method | Pending | — | — | Depends on seq 01 landing first (or in the same cycle) |
-| 2 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 3 | Manual review validation | Pending | — | — | |
-| 4 | Documentation update | Pending | — | — | N/A: this file is the documentation being updated |
+| 1 | Insert cross-reference paragraph per Method | Completed | 2026-09-02 | 2026-09-02 | seq 01 (`rules/ai-execution.md` Progress Reporting bullet) landed first in this same cycle |
+| 2 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 3 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed cross-reference resolves to real content in rules/ai-execution.md |
+| 4 | Documentation update | Completed | 2026-09-02 | 2026-09-02 | N/A: this file is the documentation being updated; no `docs/00_index.md` task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

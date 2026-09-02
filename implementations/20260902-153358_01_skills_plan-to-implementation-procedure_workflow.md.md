@@ -83,10 +83,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add cross-reference note per Method | Pending | — | — | |
-| 2 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 3 | Manual review validation | Pending | — | — | |
-| 4 | Documentation update | Pending | — | — | N/A: this file is the documentation being updated |
+| 1 | Add cross-reference note per Method | Completed | 2026-09-02 | 2026-09-02 | Verified lines 56-63 matched exactly |
+| 2 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 3 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed pure cross-reference, no duplicated definition; timestamp-marker mechanism confirmed present at lines 9-50 |
+| 4 | Documentation update | Completed | 2026-09-02 | 2026-09-02 | N/A: this file is the documentation being updated; no `docs/00_index.md` task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

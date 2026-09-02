@@ -59,6 +59,13 @@ Apply `rules/ai-execution.md` Sequential Target Processing (Base): each cycle co
 Steps 1-4, ending with the move to `plans/done/` in Step 4, before starting Step 1 for
 the next file.
 
+This workflow's idempotency guarantee for a resumed pass comes from two existing
+mechanisms, not from this section: Step 3's `Already implemented` classification
+(skips a row already covered by an existing document) and the Plan-file
+timestamp-marker mechanism described in `Allowed file operations` and Step 3 (keeps a
+resumed pass's generated-document timestamp consistent). See those sections for the
+mechanisms themselves — this note only points to them.
+
 Do not summarize shared rules or template content in chat — reference them by file
 name instead.
 
@@ -103,6 +110,14 @@ simultaneously.
 - Confirm the `Implementation Target Files` section's `Freeze status` is `Frozen`. If
   it is not `Frozen`, stop and report `Blocked` — freezing is `issue-to-plan` Step 8's
   responsibility, not this workflow's; do not freeze it here.
+- **All-rows-already-implemented short-circuit**: check whether every
+  `Implementation Target Files` row's `target_file_slug` already matches a document
+  under `implementations/` or `implementations/done/` whose `Source plan` and
+  `Related target files` confirm full coverage of that row — the identical criteria
+  Step 3's `Already implemented` classification uses per-row (see Step 3 below), not
+  a separate, looser check. If every row meets this criteria, skip Revalidation and
+  Step 3's per-row loop entirely and proceed directly to Step 4's move, reporting the
+  short-circuit explicitly: `All rows already implemented — proceeding to Step 4`.
 - Revalidate the frozen inventory per `rules/workflow-lifecycle.md` Implementation
   Target Files Validation (Plan Freeze) — Revalidation, before proceeding to Step 3.
   If revalidation finds a discrepancy, correct the Plan per that section's rules, then
@@ -155,6 +170,11 @@ the corrected understanding in the generated document(s). Record what was found 
 corrected in the progress report; do not report a row `Completed` while a
 Plan-level inconsistency it surfaced remains unresolved.
 
+If this correction requires reverting a prior edit to `plans/{filename}_plan.md`, see
+`rules/workflow-lifecycle.md` Plan-Document Correction Handling for whether `AGENTS.md`
+Rollback Directive applies (it does not) — and, if a revert is nonetheless performed,
+see the timestamp-marker preservation requirement below.
+
 If this correction is made while processing row K (K > 1), check whether any
 already-generated document for rows 1..K-1 relied on the now-corrected claim. If one
 does: amend that earlier document in the same cycle when the fix is bounded and does
@@ -180,6 +200,15 @@ timestamp step is unnecessary — the tool derives and shares the pass timestamp
 itself by reading/writing a marker in the Plan file (see this workflow's Allowed
 file operations), so every invocation against the same `--source-plan` reuses the
 same value regardless of invocation order or a resumed session.
+
+If `plans/{filename}_plan.md` is reverted (in whole or in part) during an active Step 3
+pass for any reason, the existing `_PASS_TIMESTAMP_MARKER_RE` marker line (format:
+`<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: {timestamp}
+-->`) MUST be preserved — re-add it if a full-file revert removed it. Do not let it
+silently regenerate with a new value: a still-pending row's later
+`generate_workitem.py` call would then mint a different timestamp than earlier rows in
+the same pass, breaking the "one shared timestamp per pass" guarantee this Step
+otherwise depends on.
 
 For each row in `Implementation Target Files`, in the order they appear in that table
 — **one target file = one implementation procedure document** (see `SKILL.md` Core
@@ -226,6 +255,10 @@ Execution Rules):
     `target_file_slug` per the naming rule above, and shares this pass's timestamp
     automatically across every row's invocation (see Allowed file operations) rather
     than requiring the manual shared-timestamp step above.
+    After a `0` exit, independently verify the expected file exists at
+    `implementations/{timestamp}_{seq}_{target_file_slug}.md` before proceeding — a `0`
+    exit alone is not sufficient evidence per `rules/ai-execution.md` Repository Tool
+    Usage #8.
   - Save the document as `implementations/{timestamp}_{seq}_{target_file_slug}.md`
     (naming per Workflow position above), using this pass's shared `timestamp` and
     this row's `seq`.
@@ -263,14 +296,20 @@ Execution Rules):
 
 ### Progress recording during Step 3
 
-Report an interim update only when a row's outcome is Blocked, Partially implemented,
-fails verification, produces a Plan Gap, or is an additional target file discovery —
-do not report for a row that completes as Already implemented or Not
-implemented→newly created without incident:
-- Note which target file you are working on
-- Record the current status (In Progress / Blocked / Completed) for each row
-- If blocked, describe the blocker and whether it requires user intervention
-- Update the Execution Status table in the output document
+**Chat-facing reporting** (frequency-gated): report an interim update only when a
+row's outcome is Blocked, Partially implemented, fails verification, produces a Plan
+Gap, or is an additional target file discovery — do not report for a row that
+completes as Already implemented or Not implemented→newly created without incident.
+When reporting, note which target file you are working on, record the current status
+(In Progress / Blocked / Completed), and if blocked, describe the blocker and whether
+it requires user intervention.
+
+**Execution Status table write** (unconditional, per row): update the Execution
+Status table in the output document every time a row's status changes, regardless of
+whether an interim chat report is also made for that row. This persisted record is
+the recovery mechanism if the session is interrupted mid-pass — it must not be
+skipped merely because the chat-report frequency gate above did not trigger for that
+row.
 
 ---
 
@@ -321,6 +360,12 @@ plans/{filename}_plan.md` over a direct `git mv` — it performs the same move a
 refuses (non-zero exit, no move) if the source is missing, the destination already
 exists, or the source has uncommitted changes. Fall back to the direct `git mv`
 command only if the tool is unavailable.
+
+After a `0` exit, independently verify the same checklist `rules/workflow-lifecycle.md`
+Archival Move already requires for the manual `git mv` fallback: destination file
+exists, source file no longer exists, and the move is recorded as a Git rename — a `0`
+exit alone is not sufficient evidence per `rules/ai-execution.md` Repository Tool Usage
+#8, regardless of which path (tool call or manual fallback) performed the move.
 
 ---
 

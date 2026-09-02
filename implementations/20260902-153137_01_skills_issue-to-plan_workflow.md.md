@@ -106,10 +106,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add cause → re-entry-Step table to Step 8 per Method | Pending | — | — | |
-| 2 | Add cross-reference to Step 9 per Method | Pending | — | — | |
-| 3 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 4 | Manual review validation | Pending | — | — | |
+| 1 | Add cause → re-entry-Step table to Step 8 per Method | Completed | 2026-09-02 | 2026-09-02 | Inserted before the itp004 Plan-Document Correction Handling cross-reference added earlier in this same section |
+| 2 | Add cross-reference to Step 9 per Method | Completed | 2026-09-02 | 2026-09-02 | Verified lines 399-403 matched exactly |
+| 3 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 4 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed table covers all three failure conditions Step 8 names (unmapped, untraceable, not-Frozen); consistent with rules/workflow-lifecycle.md Revalidation procedure |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

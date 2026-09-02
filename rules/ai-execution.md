@@ -68,6 +68,15 @@ heading or Rule ID). An exception MUST NOT be inferred from silence or omission.
 - Batch independent tool calls into one request instead of issuing them one at a time.
 - Use verbose, debug, or trace output only when diagnosing a problem.
 - Do not repeat a command when neither its input nor the environment has changed.
+  This applies across separate target-file cycles in a Multi-file-processing workflow,
+  not only within a single cycle — a side-effect-free, read-only command against a file
+  confirmed unchanged (same file path, same content — git blob hash or byte-for-byte
+  match — and same command string) MAY be skipped rather than re-run. This does not permit
+  reusing the *conclusion* drawn from a prior cycle across cycles where a workflow's own
+  cycle-isolation rule forbids it (e.g. `skills/issue-to-plan/workflow.md` Multi-file
+  processing) — only the command execution itself may be skipped; its output MUST still be
+  independently re-verified as evidence per Repository Tool Usage item 8, not silently
+  trusted from a stale cache.
 
 ## Reasoning and Planning
 
@@ -101,6 +110,11 @@ with an ad hoc script or a generic command.
 
 1. Before creating an ad hoc script or using an equivalent generic command, `tools/`
    MUST be inspected for a tool that already covers the need.
+   A workflow's own `Toolchain` section (where one exists, e.g. `issue-to-plan`,
+   `plan-to-implementation-procedure`, `code-implementation`) satisfies this inspection
+   obligation for the needs it names — reading that section once (at Step 0) is
+   sufficient for those needs. This obligation still applies in full when a need arises
+   that the workflow's `Toolchain` section does not cover.
 2. Only tools relevant to the active workflow and its approved scope MAY be
    considered — every tool under `tools/` MUST NOT be run indiscriminately.
 3. A tool's behavior MUST be determined from at least one reliable source: README,
@@ -147,6 +161,12 @@ verified`.
   change made, a decision taken, a failure, or a blocker) — a workflow's own
   "Progress recording" section, if it has one, defines workflow-specific trigger
   conditions for interim, within-step updates.
+- Every reported value is read back from where the workflow already recorded it (e.g. a
+  Plan document, an earlier Step's decision, a validation result) by default — not
+  recomputed for the report. This is the same default as `Context Reading`'s "reuse a
+  verified fact only while its source file is unchanged" principle, applied to
+  end-of-workflow reporting specifically. Re-derive a value only when its source is known
+  to have changed since it was recorded.
 - Keep start/end progress reports to one or two lines; do not restate full document
   content.
 - Include all failures, blocking issues, and important validation results even in

@@ -90,10 +90,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace Step 6's final sentence per Method | Pending | — | — | |
-| 2 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 3 | Manual review validation | Pending | — | — | |
-| 4 | Documentation update | Pending | — | — | N/A: this file is the documentation being updated |
+| 1 | Replace Step 6's final sentence per Method | Completed | 2026-09-02 | 2026-09-02 | Verified line 237 matched exactly |
+| 2 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 3 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed "Task scope row" terminology consistent with Step 5 (line 192) |
+| 4 | Documentation update | Completed | 2026-09-02 | 2026-09-02 | N/A: this file is the documentation being updated; no `docs/00_index.md` task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

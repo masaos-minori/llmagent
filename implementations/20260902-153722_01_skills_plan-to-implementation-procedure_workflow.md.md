@@ -104,10 +104,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add Rollback-Directive cross-reference per Method | Pending | — | — | Depends on itp004's rules/workflow-lifecycle.md section landing first |
-| 2 | Add timestamp-marker preservation requirement per Method | Pending | — | — | |
-| 3 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 4 | Manual review validation | Pending | — | — | |
+| 1 | Add Rollback-Directive cross-reference per Method | Completed | 2026-09-02 | 2026-09-02 | itp004's rules/workflow-lifecycle.md section had already landed in a prior batch; cross-reference resolves correctly |
+| 2 | Add timestamp-marker preservation requirement per Method | Completed | 2026-09-02 | 2026-09-02 | Verified `_PASS_TIMESTAMP_MARKER_RE`/`_PASS_TIMESTAMP_MARKER_TEMPLATE` at tools/generate_workitem.py:75,79 |
+| 3 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 4 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed consistent with itp004's resolution and generate_workitem.py's documented marker behavior |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -55,6 +55,10 @@ Additional context-hygiene guidance specific to this workflow:
   Retain only a concise confirmation or correction, not full file contents.
 - Process each Steps 1-10 cycle sequentially — investigation MUST NOT carry from one
   file's cycle into the next; cycles MUST run one at a time, not in parallel.
+  This isolation applies to conclusions and investigation state, not to re-running an
+  identical read-only command against a file confirmed unchanged — see
+  `rules/ai-execution.md` Tool Usage for when such a command may be skipped instead of
+  re-run.
 - Do not summarize shared rules or template content in chat — reference them by file
   name instead.
 
@@ -257,12 +261,20 @@ raising it to ≥ 90%.
 - Save as `plans/{timestamp}_plan.md`. If that path already exists, use the lowest
   available zero-padded sequence (`plans/{timestamp}_01_plan.md`,
   `plans/{timestamp}_02_plan.md`, ...). An existing file MUST NOT be overwritten.
+  Retry up to 3 times (per `AGENTS.md` Loop Prevention > Attempt Limit — this collision
+  retry is an instance of that rule, not a separate bound). After 3 collisions, stop and
+  report `Blocked: repeated filename collision — plans/{timestamp}_plan.md` rather than
+  continuing to increment.
 - Optionally scaffold the empty file first with `uv run python
   tools/generate_workitem.py --kind plan` — it reproduces `templates/plan.md`'s
   current field order exactly, removing manual timestamp/field-order transcription
   as an error source. The tool refuses (non-zero exit, no write) on a path
   collision rather than auto-incrementing; treat that refusal as the trigger for
   the zero-padded sequence rule above, not as a workflow failure.
+  After a `0` exit, independently verify the reported output path exists and contains
+  the expected `## ` section headings before proceeding to fill in its content — per
+  `rules/ai-execution.md` Repository Tool Usage item 8, a `0` exit alone MUST NOT be
+  treated as proof the file was written correctly.
 - Use the section order and structure from `SKILL.md` Output format.
 - Assign every requirement a stable ID (`REQ-001`, `REQ-002`, ...). Each Acceptance
   criterion, Test, and Implementation step must reference its related Requirement ID.
@@ -295,6 +307,9 @@ raising it to ≥ 90%.
   (non-zero exit, no write) on a base-path collision rather than auto-incrementing;
   on that refusal, retry once with `--seq {NN}` matching the zero-padded sequence
   rule below, rather than treating the refusal as a workflow failure.
+  After a `0` exit, independently verify the reported output path(s) exist and contain
+  the expected `## ` section headings before proceeding to fill in their content — same
+  verification as Step 5, per `rules/ai-execution.md` Repository Tool Usage item 8.
 - Include the items carried forward from Step 2's `Needs confirmation` classifications
   as Unknowns, in addition to any Unknowns identified during Steps 3-5.
 - Resolve Unknowns only when supported by repository evidence.
@@ -317,6 +332,9 @@ raising it to ≥ 90%.
 - If either path already exists, apply the same lowest-available zero-padded sequence
   rule as Step 5 (`issues/{timestamp}_01_unknowns.md`, `issues/{timestamp}_01_risks.md`,
   ...). An existing file MUST NOT be overwritten.
+  The same 3-attempt bound and stop-and-report behavior from Step 5 apply here: after 3
+  collisions on either path, stop and report `Blocked: repeated filename collision —
+  {path}` for the colliding path.
 - Each generated Unknown or Risk issue must include a Traceability section (per
   `templates/unknowns-issue.md` / `templates/risks-issue.md` — a deliberately
   narrower field subset than `templates/traceability.md`'s full list, since these
@@ -366,6 +384,18 @@ Report one of: `Pass` / `Fail` / `Partial` / `Blocked`. If any requirement infor
 is unmapped or untraceable, or `Implementation Target Files` is not `Frozen`, do not
 report `Pass` or `Completed`.
 
+If Step 8 reports `Fail` or `Partial`, resume from the Step matching the failure's cause,
+not from Step 5 (full Plan regeneration), unless the cause is shown to invalidate multiple
+sections:
+
+| Failure cause | Re-entry Step |
+|---|---|
+| A Requirement field is unmapped | Step 4 (Issue→Plan field mapping) |
+| A Requirement is untraceable | Step 7 (Requirement Traceability) |
+| An `Implementation Target Files` row fails Plan Freeze validation | Correct that row per `rules/workflow-lifecycle.md`'s Revalidation procedure, then re-run only this Step's freeze check |
+
+Corrections are scoped to the affected section(s) by default.
+
 If Step 8 (or an earlier Step's revalidation) requires correcting the Plan document via
 Edit, see `rules/workflow-lifecycle.md` Plan-Document Correction Handling for whether
 `AGENTS.md` Rollback Directive applies (it does not) and how a repeated-correction risk is
@@ -389,9 +419,17 @@ freeze status (`Frozen` / not `Frozen` with reason); unresolved items count; and
 Issue pending move. Do not restate the Requirement Traceability evidence-classification
 breakdown — it is already in the Plan's Requirement Traceability table.
 
+Per `rules/ai-execution.md` Progress Reporting (Base), every value above is read back from
+where it was already recorded (e.g. the Path A/B classification from Step 3's record, the
+freeze status from Step 8's validation) — not re-derived for this report — unless the
+source is known to have changed since it was recorded.
+
 No human approval is required for the move to `issues/done/`, per
 `rules/workflow-lifecycle.md` Validation Reporting — proceed to Step 10 once Step 8 is
 `Pass` and all required validations are `Pass`.
+
+If Step 8 is `Fail` or `Partial`, do not proceed to Step 10 — resume from the Step named in
+Step 8's cause → re-entry-Step table above, then re-run Step 8 before reconsidering Step 10.
 
 ---
 

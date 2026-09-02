@@ -120,10 +120,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add cross-file-conflict detection-and-stop instruction to Step 3 per Method | Pending | — | — | Coordinate with `cip003`'s separate edit to the same paragraph |
-| 2 | Add conditional re-validation exception to Step 4 per Method | Pending | — | — | |
-| 3 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 4 | Manual review validation | Pending | — | — | |
+| 1 | Add cross-file-conflict detection-and-stop instruction to Step 3 per Method | Completed | 2026-09-02 | 2026-09-02 | `cip003`'s edit to the same paragraph had already landed (confirmed at lines 135-152); this edit inserted after it with no conflict |
+| 2 | Add conditional re-validation exception to Step 4 per Method | Completed | 2026-09-02 | 2026-09-02 | Verified lines 174-176 matched exactly |
+| 3 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 4 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed the Step 4 exception is explicitly scoped to the conflict-detected case, not routine |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -99,10 +99,10 @@ Not a `docs/*.md` file; no `docs/00_index.md` task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Split Progress recording section per Method | Pending | — | — | |
-| 2 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 3 | Manual review validation | Pending | — | — | |
-| 4 | Documentation update | Pending | — | — | N/A: this file is the documentation being updated |
+| 1 | Split Progress recording section per Method | Completed | 2026-09-02 | 2026-09-02 | Verified lines 297-306 matched exactly (51-line shift due to prior edits, within tolerance) |
+| 2 | N/A: no test to add (doc-only change) | Completed | 2026-09-02 | 2026-09-02 | N/A |
+| 3 | Manual review validation | Completed | 2026-09-02 | 2026-09-02 | Confirmed chat-report frequency gate preserved verbatim; only decoupling made explicit |
+| 4 | Documentation update | Completed | 2026-09-02 | 2026-09-02 | N/A: this file is the documentation being updated; no `docs/00_index.md` task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
