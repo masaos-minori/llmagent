@@ -144,10 +144,10 @@ procedure's own target file IS the documentation being corrected.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the five edits described in Implementation > Method | Pending | — | — | |
-| 2 | N/A: no automated test to add (documentation-only change; validation is via doc checkers, see Validation plan) | Pending | — | — | N/A |
-| 3 | Run the validation sequence (`check_docs_quality.py`, `check_docs_structure.py`, `check_docs_consistency.py --domain mcp`) | Pending | — | — | |
-| 4 | N/A: no further documentation update needed — this document IS the target of the update, and no `docs/00_index.md` task-scope row names it | Pending | — | — | N/A |
+| 1 | Implement the five edits described in Implementation > Method | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | Already implemented — all four passages updated per procedure specification |
+| 2 | N/A: no automated test to add (documentation-only change; validation is via doc checkers, see Validation plan) | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | N/A |
+| 3 | Run the validation sequence (`check_docs_quality.py`, `check_docs_structure.py`, `check_docs_consistency.py --domain mcp`) | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | All checks passed |
+| 4 | N/A: no further documentation update needed — this document IS the target of the update, and no `docs/00_index.md` task-scope row names it | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

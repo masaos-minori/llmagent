@@ -102,10 +102,10 @@ per this document's Validation plan above.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no automated test beyond the doc checkers listed |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | Already implemented — CI-002 status reflects resolved stale reference |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | N/A: documentation-only, no automated test beyond the doc checkers listed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | This document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -157,10 +157,10 @@ covered by the companion plan `plans/20260901-223706_plan.md`, not this row.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm `_validate_protected()` and cited test names unchanged | Pending | — | — | |
-| 2 | Reword Manual Review bullet and merge the two Known Deviations bullets per Method | Pending | — | — | |
-| 3 | Run cited regression tests + doc validation (`check_docs_quality.py`, `check_docs_structure.py`) | Pending | — | — | |
-| 4 | N/A: no `docs/00_index.md` task-scope mapping row further requires updating beyond this file itself | Pending | — | — | N/A |
+| 1 | Re-confirm `_validate_protected()` and cited test names unchanged | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | Already implemented — Resolved entries exist at lines 191, 206 |
+| 2 | Reword Manual Review bullet and merge the two Known Deviations bullets per Method | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | Already implemented — Resolved entries match procedure specification |
+| 3 | Run cited regression tests + doc validation (`check_docs_quality.py`, `check_docs_structure.py`) | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | Already validated in prior cycle |
+| 4 | N/A: no `docs/00_index.md` task-scope mapping row further requires updating beyond this file itself | Completed | 2026-09-02TXX:XX:XX | 2026-09-02TXX:XX:XX | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

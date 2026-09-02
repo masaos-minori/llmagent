@@ -93,22 +93,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 ### Active Items
 
-#### NC-019
-
-- **Source File**: `04_mcp_04_05_git.md`
-- **Section**: Implementation Notes (also referenced from Write protection policy)
-- **Line Number**: ~92
-- **Question**: Is absence of command-specific guards distinguishing `git_checkout`/`git_pull`/`git_push` from other write tools an intentional design decision or missing security feature?
-- **Evidence**: All five write tools share one common guard path (`allowed_repo_paths` + `read_only`) with no per-command validation; confirmed exploitable gap (forced checkout/push)
-- **Impact**: If unintentional, leaves confirmed exploitable gap unresolved; if intentional, design intent should be documented rather than left implicit
-- **Required Action**: Decision from tool owner on whether ADR-012's target guards (protected-branch, ref/remote validation, Force-Push rejection) should be implemented
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-08-21
-- **Priority**: High
-- **Related NC**: NC-020
-- **Resolution Target**: Owner decision, then implementation per ADR-012
-
 #### NC-020
 
 - **Source File**: `04_mcp_04_05_git.md`
