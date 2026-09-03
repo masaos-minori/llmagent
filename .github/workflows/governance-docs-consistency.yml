@@ -5,10 +5,12 @@ on:
     paths:
       - "docs/**/*.md"
       - "tools/check_needs_confirmation_inventory.py"
+      - "tools/check_dependency_graph_cycles.py"
   pull_request:
     paths:
       - "docs/**/*.md"
       - "tools/check_needs_confirmation_inventory.py"
+      - "tools/check_dependency_graph_cycles.py"
 
 # Cancel in-progress runs for the same workflow + branch
 concurrency:
@@ -31,3 +33,8 @@ jobs:
         run: |
           set -euo pipefail
           python tools/check_needs_confirmation_inventory.py
+
+      - name: Run dependency graph cycle check
+        run: |
+          set -euo pipefail
+          python tools/check_dependency_graph_cycles.py
