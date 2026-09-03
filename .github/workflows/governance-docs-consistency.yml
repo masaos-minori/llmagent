@@ -6,11 +6,15 @@ on:
       - "docs/**/*.md"
       - "tools/check_needs_confirmation_inventory.py"
       - "tools/check_dependency_graph_cycles.py"
+      - "tools/check_docs_structure.py"
+      - "schemas/doc_front_matter.json"
   pull_request:
     paths:
       - "docs/**/*.md"
       - "tools/check_needs_confirmation_inventory.py"
       - "tools/check_dependency_graph_cycles.py"
+      - "tools/check_docs_structure.py"
+      - "schemas/doc_front_matter.json"
 
 # Cancel in-progress runs for the same workflow + branch
 concurrency:
@@ -38,3 +42,10 @@ jobs:
         run: |
           set -euo pipefail
           python tools/check_dependency_graph_cycles.py
+
+      - name: Run Front Matter schema compliance check (report-only)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml
+          python tools/check_docs_structure.py docs/*.md docs/adr/*.md --schema schemas/doc_front_matter.json
