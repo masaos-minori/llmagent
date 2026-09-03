@@ -148,7 +148,7 @@ own implementation-procedure documents.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Precondition not met: `ragcontract`/`ragfreshness` implementation-procedure documents remain pending under `implementations/`, not yet archived to `implementations/done/`, as of 2026-09-03 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | 20260903-170458 | — | Re-verified 2026-09-03 (code-implementation cycle): precondition still not met. `RAG-006`/`RAG-007` still absent (`grep -n "^#### RAG-"` shows only `RAG-003`/`RAG-004`/`RAG-005`); none of `ragcontract`'s or `ragfreshness`'s generated implementation-procedure documents (timestamps `20260903-121706`, `20260903-122926`) have moved to `implementations/done/`. No drift since this document was generated. |
 | 2 | Add or update tests per Validation plan | N/A | — | — | Documentation-only row, no test file owned by this row |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Blocked | — | — | Cannot meaningfully run until step 1's precondition is met — `RAG-006`/`RAG-007` do not exist yet to validate |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No other documentation in scope for this row |
@@ -156,7 +156,7 @@ own implementation-procedure documents.
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | `ragcontract` (`plans/done/20260903-085152_plan.md`) and `ragfreshness` (`plans/done/20260903-085718_plan.md`) have not yet been implemented — their generated implementation-procedure documents remain pending under `implementations/`, not archived to `implementations/done/` | No | — |
+| 1 | `ragcontract` (`plans/done/20260903-085152_plan.md`) and `ragfreshness` (`plans/done/20260903-085718_plan.md`) have not yet been implemented — their generated implementation-procedure documents remain pending under `implementations/`, not archived to `implementations/done/`. Re-checked 2026-09-03 during a `code-implementation` cycle targeting this file: still unresolved, no change. | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
