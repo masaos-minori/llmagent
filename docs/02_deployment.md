@@ -138,6 +138,60 @@ MCP servers automatically start as uvicorn subprocesses according to the `startu
 
 ---
 
+## Production-Only Migration Procedure
+
+### Current State
+
+As of 2026-09-03, repository-wide inspection found **zero** Local/development-only
+configuration or deployment artifacts: no `config/*.local.toml`/`*.dev.toml`/
+`*_local.toml`/`*_dev.toml` files, no `config/local/`/`config/dev/` directories, no
+`.env.local`/`.env.development`, no `docker-compose.local.yml`/`docker-compose.dev.yml`.
+`systemd/`, `docker-compose*.yml`, and `Dockerfile*` do not exist at all in this
+repository. `deploy/`'s scripts contain no Local/development-mode branching. This is a
+point-in-time finding, not a permanent guarantee — re-run the same inspection
+immediately before executing the migration procedure below, in case a Local-only
+overlay file has been introduced since.
+
+### Migration Procedure
+
+Once `localremoval`, `loopbackonly`, and `mcpauth` (see Prerequisite below) are
+implemented and verified, migrate a deployment to Production-only in this order:
+
+1. **Backup** the current configuration (`config/`, especially `config/agent.toml`).
+2. **Migrate bind addresses** (per `loopbackonly`) and **MCP authentication tokens**
+   (per `mcpauth`) together, in the same maintenance window.
+3. **Verify strict validation**: confirm `ProductionConfigValidator`'s
+   now-unconditional strict validation (per `localremoval`) passes against the
+   migrated configuration before restarting.
+4. **Full restart**: restart the agent process fully — do not use `/reload`, since
+   authentication, MCP server definition, and bind-address changes are
+   restart-only.
+5. **Post-restart verification**: confirm authentication, MCP discovery, tool
+   routing, tool visibility, and socket binding all behave as expected after
+   restart.
+6. **Verify external unreachability**: confirm MCP-internal services remain
+   unreachable from outside the loopback interface.
+7. **Conditional deletion**: only after the above verification succeeds, and only
+   if a Local-only overlay file exists (see Current State above — none does as of
+   this writing), confirm its purpose and remaining references before deleting it.
+
+### Rollback Guidance
+
+Rollback means redeploying a prior release — never re-enabling a Local runtime
+profile or restoring a deleted override key. There is no supported "revert to
+Local mode" path once a deployment has migrated to Production-only.
+
+### Prerequisite
+
+This procedure applies only once `localremoval` (`plans/20260903-091417_plan.md`),
+`loopbackonly` (`plans/20260903-091921_plan.md`), and `mcpauth`
+(`plans/20260903-092407_plan.md`) are all implemented and verified — do not execute
+this procedure against a real deployment before then. Immediately before executing,
+re-run the Current State inspection above rather than relying solely on this
+document's recorded finding.
+
+---
+
 ## 3. DB Initialization
 
 ### 3.0 Platform DB Overview

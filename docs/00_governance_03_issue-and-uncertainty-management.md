@@ -155,6 +155,44 @@ them, are preserved here rather than lost:
 - **Impact**: Vector index grows over time with orphaned entries, increasing memory usage and potentially degrading search performance.
 - **Recommended Action**: Accept this limitation and implement periodic cleanup of orphaned vectors, or migrate to a vector store that supports FK constraints. (Note: this is a known, accepted architectural limitation mitigated by deletion ordering, not an active defect being worked.)
 
+#### RAG-006
+
+- **ID**: RAG-006
+- **Title**: Documentation described `read_json_file()`'s lenient fallback behavior as a current production reader
+- **Status**: resolved
+- **Severity**: Medium
+- **Area**: RAG
+- **Type**: obsolete-description
+- **Source**: `scripts/rag/ingestion/pipeline_utils.py`
+- **Owner**: Team
+- **First Found**: 2026-09-02
+- **Target**: `docs/03_rag_02_03_ingestion_pipeline-chunksplitter.md`
+- **Related**: N/A: no related active Known Issue
+- **Summary**: `docs/03_rag_02_08_ingestion_pipeline-shared.md` documented `read_json_file()`'s lenient fallback behavior (`lang` default `"en"`, `chunk_index` default `0`, empty-string fallbacks) as a currently-relevant reader, even though the strict-reader migration (`read_crawl_json()`/`read_chunk_json()`, both raising `ChunkFormatError` on missing/invalid fields) had already superseded it in code.
+- **Current Description**: `read_json_file()` remains in `scripts/rag/ingestion/pipeline_utils.py` (removal was out of scope for this resolution) but is confirmed unused by any current pipeline code path. The `docs/03_rag_*.md` Specification set now states `read_crawl_json()`/`read_chunk_json()` as the canonical readers, documents the `ChunkFormatError` failure mode, classifies every crawl/chunk field as Required/Nullable/Conditional in one canonical table (this document's Target), and marks `read_json_file()`'s description as historical in `docs/03_rag_02_08_ingestion_pipeline-shared.md`.
+- **Observed Implementation**: Verified by test — `tests/rag/ingestion/test_pipeline_utils_strict.py` exercises `read_crawl_json()`/`read_chunk_json()`'s `ChunkFormatError` conditions; no test exercises `read_json_file()` as a production path.
+- **Impact**: Prior to resolution, new artifact producers or future implementers reading the Specification set risked reintroducing lenient-fallback assumptions no longer valid against the strict readers.
+- **Recommended Action**: Resolved — canonical-reader statements, the `ChunkFormatError` failure mode, and a single canonical Required/Nullable/Conditional field-contract table were added across the `docs/03_rag_*.md` Specification set, and `read_json_file()`'s description was relocated to a clearly marked historical section. (Action already taken via `plans/20260903-085152_plan.md`; entry retained per this template pending removal at next review, matching the `SHARED-002` precedent in this document.)
+
+#### RAG-007
+
+- **ID**: RAG-007
+- **Title**: Documentation did not reflect Null Fill Mode's removal from `ETagManager`
+- **Status**: resolved
+- **Severity**: Medium
+- **Area**: RAG
+- **Type**: obsolete-description
+- **Source**: `scripts/rag/ingestion/etag_manager.py`
+- **Owner**: Team
+- **First Found**: 2026-09-02
+- **Target**: `docs/03_rag_02_06_ingestion_pipeline-supporting-components.md`
+- **Related**: N/A: no related active Known Issue
+- **Summary**: `issues/done/20260828_01_remove-fetched-at-null-fill-and-mandatory-contract.md` removed `_update_null_fill()` and made `fetched_at` mandatory on `ChunkDocument`/`ETagManager.update()`/`DocumentManager.handle_existing_document()`, but that change's Documentation Impact was limited to docstrings — the `docs/03_rag_*.md` Specification set was not updated to reflect Null Fill Mode's removal, `fetched_at`'s mandatory status, or several ETagManager freshness-comparison edge cases (invalid timestamps, equal timestamps, missing stored timestamp) newly relevant once the fallback path was gone.
+- **Current Description**: `scripts/rag/ingestion/` no longer contains any `_update_null_fill`, `null_fill`, or `COALESCE` reference (confirmed via repository-wide search). The `docs/03_rag_*.md` Specification set now states Freshness Mode as `ETagManager`'s only update mode, documents `fetched_at` as a required field on `ChunkDocument`, and documents the invalid-incoming-timestamp, invalid-stored-timestamp, equal-timestamp, and missing-stored-timestamp outcomes in this document's Target above.
+- **Observed Implementation**: Explicit in code — `scripts/rag/ingestion/etag_manager.py`'s `ETagManager` has a single update path (`_update_with_freshness()`), gated by `_is_stale_update()`; `ChunkDocument.fetched_at`, `ETagManager.update()`'s `new_fetched_at`, and `DocumentManager.handle_existing_document()`'s `fetched_at` are all typed `str`, not `str | None`.
+- **Impact**: Prior to resolution, a reader of the Specification set could believe missing-`fetched_at` fallback handling (Null Fill Mode) still existed, or could be unaware of the freshness-comparison edge cases introduced by its removal.
+- **Recommended Action**: Resolved — the `docs/03_rag_*.md` Specification set was updated to document `fetched_at` as required, Freshness Mode as the only update mode, and the invalid-timestamp/equal-timestamp/missing-stored-timestamp edge cases, cross-linked from the ingester and document-manager documents rather than duplicated. (Action already taken via `plans/done/20260903-085718_plan.md`; entry retained per this template pending removal at next review, matching the `SHARED-002`/`RAG-006` precedent in this document.)
+
 #### DESIGN-1
 
 - **ID**: DESIGN-1

@@ -117,9 +117,9 @@ itself (seq 01); any other documentation file; `localremoval`'s/
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Should execute after seq 01 (`test_production_security_regression.py`) so actual test names/behavior can be cited accurately |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903-181700 | 20260903-181700 | Executed after seq 01 completed; re-read the actual test file and confirmed all 10 cited test function names match exactly (`grep`). Added the "Production Security Regression Suite" section with coverage list, xfail-pending-Plan citations, and platform-capability/manual-fallback subsection, placed before `` ## `/context` Interpretation `` as planned. |
 | 2 | Add or update tests per Validation plan | N/A | — | — | Documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903-181700 | 20260903-181700 | `check_docs_quality.py`: 0 errors. `check_docs_structure.py`: pre-existing "missing Related Documents/Keywords" findings confirmed identical via stash-diff. `check_docs_consistency.py --domain agent`: 1 new warning (`getsockname()`) — confirmed benign false positive, same pattern as `fromisoformat()` in an earlier row (Python stdlib `socket` method, not a project symbol); other 2 warnings pre-existing. |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This document's own target file is the documentation being updated; no separate doc row applies |
 
 ### Blocker Log

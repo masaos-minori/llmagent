@@ -98,10 +98,10 @@ Run `uv run pytest tests/shared/test_config_loader.py -v` to confirm all tests p
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-03 | 2026-09-03 | No change needed; REQ-001 strict-default covered by test_strict_true_raises_on_missing_agent_toml + test_load_all_default_is_strict; REQ-002 consequence covered by REQ-002 regression test |
-| 2 | Add or update tests per Validation plan | Completed | 2026-09-03 | 2026-09-03 | All tests pass (1 pre-existing failure unrelated to this change) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-03 | 2026-09-03 | ruff clean, mypy clean, bandit high-confidence=0 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-03 | 2026-09-03 | Out of scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Tests already existed in source |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Fixed mock path: scripts.agent → agent |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | Both tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No docs changes needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

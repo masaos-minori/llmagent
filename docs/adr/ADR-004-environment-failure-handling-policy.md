@@ -458,7 +458,13 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 行番号は記載せず、File PathとSymbol名で参照する。
 
-## Known Deviations
+## Alignment with INV-01/INV-02
+
+With REQ-001's fix (strict-default behavior), the Fail-Fast requirements of INV-01/INV-02 are now enforced at startup time. Specifically:
+
+1. **INV-01**: Missing required config files cause immediate process termination (no silent-continue).
+2. **INV-02**: All processes enforce fail-closed behavior regardless of environment.
+3. **No environment-based relaxation**: The strict-default applies uniformly across all environments.
 
 - **Known Issue**: ADR-004-D1-profile-config-model-still-present — `scripts/shared/mcp_config.py`の`McpServerConfig`と`scripts/agent/services/mcp_tool_discovery.py`は、`security_profile`（環境）の値に基づいて`required_in_production`／`required_in_local`のいずれを参照するか分岐していた。**部分解決**: REQ-001およびREQ-002により、`required_in_production`/`required_in_local`を統合した単一の`required`フィールドに置換し、`McpToolDiscoveryService.discover_all()`の分類分岐を`cfg.required`直接読み取りに置き換え。環境に基づく分岐ロジックは削除され、必須性の決定が環境非依存となった。**残課題**: REQ-002のクロスプロファイル等価テスト（`tests/agent/services/test_mcp_tool_discovery.py`、`security_profile`を第2パラメータ軸として追加）のみ。**影響**: INV-01, INV-02, INV-09 → 解消済み。INV-14 → テストカバレッジ未完了のため保留中。
 - **報告のみ（Known Issue未登録）**: 非必須コンポーネントの可用性障害による起動継続（Decision #18、INV-09）を検証する自動テストは、`tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers` にて既に検証済み（上記Verificationセクション参照）。この部分のステータスは更新済み。

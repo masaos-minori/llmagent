@@ -130,9 +130,9 @@ Mode's removal as resolved.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Re-check next available `RAG-*` ID immediately before inserting (coordinate with sibling Plan's `RAG-006`) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903-175500 | 20260903-175500 | Re-checked immediately before editing: highest existing ID was `RAG-006` (added by sibling `ragcontract` row 8 earlier this session, exactly as this row's Assumptions anticipated) — used `RAG-007` with zero further collision. Re-confirmed zero `_update_null_fill`/`null_fill`/`COALESCE` remnants and all `str`-not-`Optional` type claims. Applied the "First Found: 2026-09-02" date correctly this time (row 8's sibling entry had a copy-paste date error, corrected then) |
 | 2 | Add or update tests per Validation plan | N/A | — | — | No tests required — documentation-only (Plan Tests section) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `check_docs_quality.py`, `check_docs_consistency.py --domain rag` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903-175500 | 20260903-175500 | `check_docs_quality.py`: 0 errors. `check_docs_consistency.py --domain rag`: no findings for this file. `check_needs_confirmation_inventory.py`: 10 warnings (9 pre-existing + 1 new, from this batch's own row 2 edit adding an inline "Needs confirmation" phrase to `03_rag_02_06_...md` — same non-blocking pattern as the 9 pre-existing instances, not this row's own content). `check_known_deviation_sync.py`: no issues found. `check_docs_structure.py`: pre-existing "size exceeds 24576 byte limit" finding continues growing (58485→61176 bytes), same ongoing situation flagged in row 8 of the sibling `ragcontract` batch |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This document IS the documentation update |
 
 ### Blocker Log

@@ -112,9 +112,9 @@ return-type/behavior text.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903-175100 | 20260903-175100 | Adversarially re-verified: table row unchanged since Plan creation; `document_manager.py:48-57` confirms the Plan Gap still real (`-> tuple[int, bool, bool]`, not documented `-> bool`); `etag_manager.py:34-35` confirms the `ValueError`-on-empty-`fetched_at` claim exactly. Edit scoped strictly to REQ-002 per Design decisions — return-type inaccuracy deliberately left untouched |
 | 2 | Add or update tests per Validation plan | N/A | — | — | No tests required — documentation-only (Plan Tests section) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `check_docs_quality.py`, `check_docs_consistency.py --domain rag` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903-175100 | 20260903-175100 | `check_docs_quality.py`: 0 errors. `check_docs_structure.py`: all checks passed. `check_docs_consistency.py --domain rag`: no findings for this file |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This document IS the documentation update |
 
 ### Blocker Log

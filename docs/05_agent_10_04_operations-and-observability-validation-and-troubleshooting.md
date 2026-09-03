@@ -131,6 +131,57 @@ The MCP watchdog (background automatic health polling and auto-restart loop) has
 
 Changed MCP server definitions are only applied during a full agent restart.
 
+## Production Security Regression Suite
+
+`tests/integration/test_production_security_regression.py` is a process/
+integration-level regression suite proving Production-grade policy, MCP
+loopback-only exposure, and MCP authentication. It covers:
+
+- Production-only policy enforcement (`test_production_only_rejects_local_mode`)
+- Strict configuration validation through the real `ProductionConfigValidator`
+  (`test_strict_configuration_validation_via_real_startup`)
+- MCP server loopback-socket binding, with real socket inspection
+  (`test_mcp_server_socket_is_loopback_only`,
+  `test_mcp_server_wildcard_bind_is_rejected`)
+- Required-vs-optional MCP startup failure handling
+  (`test_required_mcp_failure_aborts_startup`,
+  `test_optional_mcp_failure_disables_only_that_tool`) and disabled-tool
+  LLM-visibility exclusion (`test_disabled_tool_excluded_from_llm_visibility`)
+- MCP Bearer-token authentication and log redaction
+  (`test_mcp_auth_missing_invalid_valid_token`,
+  `test_mcp_auth_token_redacted_in_logs`)
+- External unreachability from outside the loopback interface
+  (`test_external_unreachability_or_manual_fallback`)
+
+Several of these tests already exercise real, currently-existing production
+code and pass today. Three remain `xfail`, each naming the specific pending
+dependency Plan in its reason: `test_production_only_rejects_local_mode`
+(`localremoval`, `plans/20260903-091417_plan.md`),
+`test_mcp_server_wildcard_bind_is_rejected` (`loopbackonly`,
+`plans/20260903-091921_plan.md`), and `test_mcp_auth_token_redacted_in_logs`
+(`mcpauth`, `plans/20260903-092407_plan.md`) — remove each `xfail` marker
+once its named Plan lands and confirm the test passes for real.
+
+### Platform-Capability Requirements and Manual Fallback
+
+`test_external_unreachability_or_manual_fallback` uses `unshare --net`
+network-namespace isolation when this environment grants that capability
+(some CI/sandbox/container environments do not). When unavailable, the test
+automatically falls back to a manual-equivalent check — binding a probe
+socket to a non-loopback local interface address and confirming a
+`ConnectionRefused`/timeout when attempting to reach the loopback-bound
+service from it — and prints which path it took. If no non-loopback local
+address is available to probe (e.g. a fully isolated sandbox whose hostname
+itself resolves to loopback), the test reports `SKIPPED` with an explicit
+reason rather than a false pass.
+
+To manually verify loopback-only binding and external unreachability without
+running the automated suite: start the MCP server in question, confirm
+`socket.getsockname()` (or `ss -tlnp` / `netstat -tlnp` at the OS level)
+reports a `127.0.0.1` bind address, then attempt a connection to that port
+from a different host or network namespace and confirm it is refused or
+times out.
+
 ## `/context` Interpretation
 
 ``` text

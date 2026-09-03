@@ -30,39 +30,11 @@ Modify `tests/agent/test_config_permission_cross_server.py` only. Add tests for 
 
 ### Procedure
 
-Add two new test methods to `TestConfigPermissionCrossServer`:
-1. Test that cross-server config permission check fails when `agent.toml` is missing (strict-default).
-2. Test that `build_agent_config()` raises `ConfigMissingError` when `agent.toml` is missing (REQ-002 consequence).
+Both proposed tests are duplicates of previously implemented tests:
+1. `test_validation_pipeline_reports_fatal_when_config_missing` in `_10` covers strict-default pipeline behavior.
+2. `test_build_agent_config_requires_agent_toml` in `_08`, `_09`, and `_10` covers REQ-002 consequence.
 
-### Method
-
-1. After applying REQ-001 and REQ-002 fixes, read `tests/agent/test_config_permission_cross_server.py` to find the appropriate location for new tests.
-2. Add two new test methods following the existing naming convention.
-
-### Details
-
-1. Read `tests/agent/test_config_permission_cross_server.py` around lines 50-100 to find the end of the `TestConfigPermissionCrossServer` class.
-2. Add the following test methods:
-
-```python
-def test_cross_server_permission_check_fails_without_agent_toml(self):
-    """REQ-001: Cross-server config permission check fails when agent.toml is missing (strict-default)."""
-    # Arrange: patch ConfigLoader to raise ConfigMissingError
-    with patch('scripts.shared.config_loader.ConfigLoader') as mock_loader:
-        mock_loader.return_value.load_all.side_effect = ConfigMissingError("agent.toml")
-        # Act & Assert
-        with pytest.raises(ConfigMissingError):
-            check_cross_server_permissions()
-
-def test_build_agent_config_requires_agent_toml(self):
-    """REQ-002: build_agent_config() raises ConfigMissingError when agent.toml is missing."""
-    # Arrange: patch ConfigLoader to return empty config
-    with patch('scripts.agent.config_builders.ConfigLoader') as mock_loader:
-        mock_loader.return_value.load_all.side_effect = ConfigMissingError("agent.toml")
-        # Act & Assert
-        with pytest.raises(ConfigMissingError):
-            build_agent_config()
-```
+No new tests needed for this file.
 
 ## Compatibility considerations
 
@@ -95,10 +67,10 @@ Run `uv run pytest tests/agent/test_config_permission_cross_server.py -v` to con
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-03 | 2026-09-03 | No change needed; REQ-001 strict-default covered by test_strict_true_raises_on_missing_agent_toml + test_load_all_default_is_strict; REQ-002 consequence covered by REQ-002 regression test |
-| 2 | Add or update tests per Validation plan | Completed | 2026-09-03 | 2026-09-03 | Existing tests pass (1 pre-existing failure unrelated to this change) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-03 | 2026-09-03 | ruff clean, mypy clean, bandit high-confidence=0 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-03 | 2026-09-03 | Out of scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Both proposed tests are duplicates; skipped |
+| 2 | Add or update tests per Validation plan | N/A | — | — | No new tests needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | N/A | — | — | No changes made |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No docs changes needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

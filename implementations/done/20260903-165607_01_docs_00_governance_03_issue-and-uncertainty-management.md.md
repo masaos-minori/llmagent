@@ -148,15 +148,15 @@ own implementation-procedure documents.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | 20260903-170458 | — | Re-verified 2026-09-03 (code-implementation cycle): precondition still not met. `RAG-006`/`RAG-007` still absent (`grep -n "^#### RAG-"` shows only `RAG-003`/`RAG-004`/`RAG-005`); none of `ragcontract`'s or `ragfreshness`'s generated implementation-procedure documents (timestamps `20260903-121706`, `20260903-122926`) have moved to `implementations/done/`. No drift since this document was generated. |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903-180200 | 20260903-180200 | Precondition now met: `ragcontract` and `ragfreshness` both fully implemented (all 8 + 6 generated documents archived under `implementations/done/`). Re-read Part 1: `RAG-006` (read_json_file() gap, Source `pipeline_utils.py`) and `RAG-007` (Null Fill Mode/ETagManager removal, Source `etag_manager.py`) landed as expected. Compared Title/Summary/Source/Target across all 5 `RAG-*` entries (003-007) — no topical overlap found; no consolidation needed. Re-checked the artifact-versioning contract (`REQ-004`): the pre-existing `ChunkJsonRaw` comment plus `ragcontract`'s own landed canonical field-contract table (`docs/03_rag_02_03_ingestion_pipeline-chunksplitter.md`, explicitly stating `schema_version`/`artifact_type`/`created_by` are "accepted but not validated or mapped onto `ChunkDocument`'s own fields") together adequately resolve the question — no new Needs Confirmation entry registered (AC-2 satisfied via this explicit confirmation, not silence). |
 | 2 | Add or update tests per Validation plan | N/A | — | — | Documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Blocked | — | — | Cannot meaningfully run until step 1's precondition is met — `RAG-006`/`RAG-007` do not exist yet to validate |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903-180200 | 20260903-180200 | `check_needs_confirmation_inventory.py`: 10 pre-existing warnings, unrelated to this row. `check_known_deviation_sync.py`: no issues found. No edit was made (verification confirmed no duplication and the contract already resolved), so no new findings possible. |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No other documentation in scope for this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | `ragcontract` (`plans/done/20260903-085152_plan.md`) and `ragfreshness` (`plans/done/20260903-085718_plan.md`) have not yet been implemented — their generated implementation-procedure documents remain pending under `implementations/`, not archived to `implementations/done/`. Re-checked 2026-09-03 during a `code-implementation` cycle targeting this file: still unresolved, no change. | No | — |
+| 1 | `ragcontract` (`plans/done/20260903-085152_plan.md`) and `ragfreshness` (`plans/done/20260903-085718_plan.md`) had not yet been implemented — their generated implementation-procedure documents remained pending under `implementations/`, not archived to `implementations/done/`. | Yes | 2026-09-03 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

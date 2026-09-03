@@ -38,6 +38,14 @@ source:
 
 For a complete list of dataclasses and public methods, see `scripts/rag/ingestion/ingester.py`.
 
+`read_chunk_json()` (`scripts/rag/ingestion/pipeline_utils.py:163`) is the canonical
+reader for chunk-stage JSON artifacts; `RagIngester._read_chunk_json()`
+(`scripts/rag/ingestion/ingester.py:344`, calling `read_chunk_json()` at line 346) is
+its wrapper, used at `ingester.py:222,240`. A missing required key or invalid field
+type raises `ChunkFormatError` — see [03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md)
+and the canonical field-contract table in
+[03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md).
+
 ### 4.2 Detailed Behavior
 
 - **E5 Prefix:** Prepends `passage: {text}` before embedding (uses `query: ` for queries).
@@ -64,7 +72,7 @@ chunks_vec (explicitly deleted) → documents (deleting documents triggers casca
 - `DocumentManager.delete_document(url)` (`scripts/mcp_servers/rag_pipeline/document_manager.py`) — MCP tool (`rag_delete_document`) path.
 - Both paths follow the same order to prevent orphaned vector records (see [ADR-005](adr/ADR-005-rag-source-derived-index-relationships.md) for details).
 - **Idempotency:** If the URL already exists in `documents`, processing is skipped. However, due to the freshness guard described below, `etag`/`last_modified` may still be updated. When skipped, `chunking_strategy` is NOT updated.
-- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). All callers now provide `fetched_at`; there is no fallback path for missing timestamps.
+- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). All callers now provide `fetched_at`; there is no fallback path for missing timestamps. For the full set of edge cases (invalid timestamps, equal timestamps, missing stored timestamp) and error conditions, see [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.8.1](03_rag_02_06_ingestion_pipeline-supporting-components.md#481-freshness-comparison-edge-cases-and-error-handling).
 - **Embedding Failure Tracking:** Chunk and embedding results are returned as a tuple. `n_embed_failed` counts failures specific to embedding, separate from parsing/DB errors.
 - **Local File Unchanged Detection:** Compares SHA-256 ETags for `file://` URLs.
 
@@ -168,7 +176,7 @@ Current DB schema definition $\rightarrow$ [RAG schema reference document](03_ra
 | Invalid `lang` value | Raises `ValueError`; skips the URL group; logs an `ERROR` with traceback |
 | Improper `chunks_vec` deletion order | Raises `ValueError`; skips the chunk; logs a `WARNING` |
 | Embedding dimension mismatch | Raises `ValueError`; skips the chunk; logs a `WARNING` |
-| Artifact validation failure | Logs a `WARNING`; skips the chunk as an embedding failure |
+| Artifact validation failure (`ChunkFormatError` from `read_chunk_json()`) | The entire URL's chunk group is marked failed via `IngestUrlResult.validation_failure()` (`n_failed = len(chunk_files)`, `n_success = 0`); not counted as an embedding failure (`n_embed_failed` unchanged); no `WARNING` is logged at this layer |
 | File move failure | Logs an `ERROR` containing structured fields: `url`, `source_type`, and `stage_name` |
 
 ### 4.7 Logging

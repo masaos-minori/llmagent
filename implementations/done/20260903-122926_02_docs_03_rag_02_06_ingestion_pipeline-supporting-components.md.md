@@ -132,9 +132,9 @@ equal-timestamp outcome, and the missing-stored-timestamp outcome — each trace
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903-174700 | 20260903-174700 | Adversarially re-verified: `_is_stale_update()`'s full body (lines 36-78) matches every claim exactly — timestamp parsing, both raise sites, missing-stored early return, strict `<` comparison; `grep` confirms zero `_update_null_fill`/`null_fill`/`COALESCE` remnants |
 | 2 | Add or update tests per Validation plan | N/A | — | — | No tests required — documentation-only (Plan Tests section) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `check_docs_quality.py`, `check_docs_consistency.py --domain rag`, manual cross-check |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903-174700 | 20260903-174700 | `check_docs_quality.py`: 0 errors. `check_docs_structure.py`: all checks passed. `check_docs_consistency.py --domain rag`: 1 warning for `fromisoformat()` — manually confirmed benign false positive (Python stdlib `datetime` method, not a project symbol; checker only scans `scripts/`) |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This document IS the documentation update |
 
 ### Blocker Log

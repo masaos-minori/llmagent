@@ -123,9 +123,9 @@ behavior instead of the prior "skips the chunk as an embedding failure" claim.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Two edits: 4.1 addition, 4.6 row correction |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903-172900 | 20260903-172900 | Adversarially re-verified all cited line numbers/behavior against current `ingester.py` (`IngestUrlResult.validation_failure()`, `n_embed_failed` default, logger call locations) — exact match. Both duplicate "4.1"/"4.6" sections exist as described (pre-existing, out of scope); edited only the first occurrence of each via precise line-targeted replacement (Edit's string match was ambiguous across the two identical duplicate blocks) |
 | 2 | Add or update tests per Validation plan | N/A | — | — | No tests required — documentation-only (Plan Tests section) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `check_docs_quality.py`, `check_docs_consistency.py --domain rag` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903-172900 | 20260903-172900 | `check_docs_quality.py`: 0 errors. `check_docs_structure.py`: pre-existing "3 H1 headings" finding confirmed via stash-diff to predate this edit (out of scope). `check_docs_consistency.py --domain rag`: no findings for this file |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This document IS the documentation update |
 
 ### Blocker Log
