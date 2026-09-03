@@ -16,104 +16,35 @@ This document consolidates metadata conventions for AI agents to select relevant
 
 ## Existing Metadata Fields
 
-The following five metadata fields should be preserved in all documents:
+The following four metadata fields are required in every document's front matter:
 
 - **title** — Document title
-- **category** — Document category (e.g., overview, deployment, rag, mcp, agent, eventbus, shared-db, governance)
+- **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`, `adr`, `security`. The sole category-style field — `category` is not a valid front-matter key.
 - **tags** — Keywords describing the document content
 - **related** — Links to related documents
-- **keywords** — Additional search terms for document retrieval
+
+`keywords` is not a front-matter key. Every document instead uses a `## Keywords` body-section heading — see `tools/check_docs_structure.py`'s own check, which looks for that heading, not a front-matter key.
 
 ## Recommended Additional Fields
 
-Eight new metadata fields to enhance AI agent document selection:
+One optional metadata field beyond the four required fields in "Existing Metadata Fields":
 
-### 1. scope
+### status
 
-Defines the boundary of what the document covers.
+Current state of the document. Optional — defaults to `stable` when absent. A
+document that would otherwise need `deprecated` or `superseded` is removed from
+the active set rather than marked with a historical status.
 
-- Allowed values: overview, deployment, rag, mcp, agent, eventbus, shared-db, governance
-- Example:
-```yaml
-scope: agent
-```
-
-### 2. audience
-
-Intended reader level.
-
-- Allowed values: beginner, intermediate, advanced, developer, operator
-- Example:
-```yaml
-audience: developer
-```
-
-### 3. status
-
-Current state of the document. A document in the active documentation set must carry
-one of these two values; a document that would otherwise need `deprecated` or
-`superseded` is removed from the active set rather than marked with a historical
-status.
-
-- Allowed values: draft, stable
+- Allowed values: `stable` (default), `draft`
 - Example:
 ```yaml
 status: stable
 ```
 
-### 4. priority
-
-Importance level for AI selection.
-
-- Allowed values: critical, high, medium, low
-- Example:
-```yaml
-priority: high
-```
-
-### 5. version
-
-Document version number.
-
-- Allowed values: semantic versioning (e.g., 1.0.0, 2.1.3)
-- Example:
-```yaml
-version: 1.0.0
-```
-
-### 6. last_updated
-
-Date of last modification.
-
-- Allowed values: ISO 8601 date format (YYYY-MM-DD)
-- Example:
-```yaml
-last_updated: "2026-07-22"
-```
-
-### 7. author
-
-Primary author or responsible team.
-
-- Allowed values: Free text, but prefer team names over individuals
-- Example:
-```yaml
-author: agent-team
-```
-
-### 8. completeness
-
-How complete the document is relative to its scope.
-
-- Allowed values: complete, partial, outline
-- Example:
-```yaml
-completeness: partial
-```
-
 ## Front Matter Example
 
-Complete Front Matter block showing both existing and new fields:
+Complete Front Matter block showing the four required fields plus the one
+optional field:
 
 ```yaml
 ---
@@ -121,24 +52,16 @@ title: Agent Reorganization
 area: agent
 tags: [architecture, reorganization]
 related: [00_governance_01_documentation-policy.md]
-keywords: [agent, architecture, structure]
-scope: agent
-audience: developer
 status: stable
-priority: high
-version: 1.0.0
-last_updated: "2026-07-22"
-author: agent-team
-completeness: complete
 ---
 ```
 
 ## Metadata Requirements for Active Documents
 
-Every document in the active documentation set must carry the five existing metadata
-fields (title, category, tags, related, keywords). A document should add the
-recommended fields listed above when doing so improves AI agent document selection;
-`status` MUST use one of the two allowed values.
+Every document in the active documentation set must carry the four required
+metadata fields (title, area, tags, related). `status` is optional: when
+present, it must use one of the two allowed values (`stable`, `draft`); when
+absent, it defaults to `stable`.
 
 ## Non-Goals
 
