@@ -58,7 +58,7 @@ This document retains its 5-tier classification scheme (Design Decision / Implem
 
 - **ID**: WF-001
 - **Title**: INV-01 and INV-05 duplicate the same invariant condition
-- **Status**: open
+- **Status**: resolved
 - **Severity**: Medium
 - **Area**: Agent
 - **Type**: documentation-gap
@@ -67,12 +67,12 @@ This document retains its 5-tier classification scheme (Design Decision / Implem
 - **First Found**: 2026-08-22
 - **Target**: `docs/adr/ADR-001-workflow-engine-mandatory.md`
 - **Related**: ADR-001
-- **Summary**: INV-01 ("All execution paths must flow through the Workflow Engine") and INV-05 ("The Workflow Engine is the sole orchestrator of tool execution") express the same invariant — that all tool execution must go through the Workflow Engine. This duplication creates ambiguity about whether they represent distinct requirements or redundant statements.
-- **Current Description**: Both INV-01 and INV-05 assert that tool execution must pass through the Workflow Engine, but neither distinguishes between "execution path" and "orchestration" as separate concerns.
-- **Observed Implementation**: The two invariants use different phrasing but cover identical ground — no code pattern exists where a tool executes outside the Workflow Engine while still being orchestrated by it.
+- **Summary**: INV-01 ("ワークフロー定義ファイルが欠落している場合、Agentの起動を中止する。") and INV-05 ("ワークフロー定義ファイルの検証失敗時は起動を中止する。") are two distinct precondition-failure modes: absent file vs. present-but-invalid file. The originally-quoted text did not match the real ADR-001 wording.
+- **Current Description**: INV-01 and INV-05 address different failure conditions — INV-01 covers missing workflow definition files at startup, INV-05 covers validation failures when a file exists but is malformed. They are not duplicative.
+- **Observed Implementation**: The two invariants use different phrasing because they govern distinct scenarios: absent file (INV-01) versus present-but-invalid file (INV-05). No code pattern exists where a tool executes outside the Workflow Engine while still being orchestrated by it.
 - **Impact**: Redundant invariants may lead to confusion during audits and maintenance; operators cannot determine which invariant is violated if a bypass occurs.
 - **Recommended Action**: Consolidate INV-01 and INV-05 into a single invariant, or clarify the distinction between "execution path" and "orchestration" if they are meant to be separate concerns.
-- **Resolution Notes**: Open — documentation cleanup pending.
+- **Resolution Notes**: Accepted current specification — INV-01 and INV-05 are distinct, non-duplicative invariants; the entry's originally-quoted text did not match the real ADR-001 wording and has been corrected.
 
 ---
 
@@ -80,7 +80,7 @@ This document retains its 5-tier classification scheme (Design Decision / Implem
 
 - **ID**: WF-002
 - **Title**: No test verifies that Workflow Engine execution success implies document state verification success
-- **Status**: open
+- **Status**: resolved
 - **Severity**: Medium
 - **Area**: Agent
 - **Type**: missing-test
@@ -89,12 +89,12 @@ This document retains its 5-tier classification scheme (Design Decision / Implem
 - **First Found**: 2026-08-22
 - **Target**: `tests/` directory
 - **Related**: ADR-001
-- **Summary**: INV-03 states "When the Workflow Engine reports successful execution, the corresponding document state must reflect that execution." However, there is no test that verifies this postcondition — specifically, no test checks that a document's state in the database matches the Workflow Engine's reported outcome after ingestion.
+- **Summary**: The entry's original text misquoted INV-03 as "When the Workflow Engine reports successful execution, the corresponding document state must reflect that execution" (a RAG-ingestion document-state claim unrelated to the real INV-03), and cited `scripts/rag/ingester.py` — confirmed absent from the repository. Real INV-03 ("実行成功と検証成功は区別され、それぞれ独立して検証される。") is already verified by `test_execute_success_verify_failure_marks_task_failed` (`tests/agent/workflow/test_workflow_engine.py:469`).
 - **Current Description**: The Workflow Engine's `execute()` method returns success/failure, but no test asserts that the document's persisted state aligns with this return value.
 - **Observed Implementation**: `ingester.py::execute_ingestion()` calls `WorkflowEngine.execute()`, but the caller does not verify that the document's `status` field in the database reflects the returned outcome.
 - **Impact**: A silent failure scenario where the Workflow Engine reports success but the document state remains unchanged — no regression would be caught by existing tests.
 - **Recommended Action**: Add a test that calls `WorkflowEngine.execute()` and then queries the document state to confirm alignment between the return value and the database record.
-- **Resolution Notes**: Open — test coverage gap identified.
+- **Resolution Notes**: Obsolete and removable — the entry's premise did not correspond to any real invariant or existing code path.
 
 ---
 
@@ -102,7 +102,7 @@ This document retains its 5-tier classification scheme (Design Decision / Implem
 
 - **ID**: WF-003
 - **Title**: Decision #5 of ADR-001 specifies a simple Q&A single-stage workflow, but no such workflow is implemented
-- **Status**: open
+- **Status**: resolved
 - **Severity**: Medium
 - **Area**: Agent
 - **Type**: unimplemented-feature
@@ -111,12 +111,12 @@ This document retains its 5-tier classification scheme (Design Decision / Implem
 - **First Found**: 2026-08-22
 - **Target**: `scripts/workflow_engine/`
 - **Related**: ADR-001
-- **Summary**: ADR-001 Decision #5 describes a "simple Q&A single-stage workflow" as an example of what the Workflow Engine should support. No implementation of this workflow exists in the current codebase.
+- **Summary**: ADR-001 Decision Detail #5 requires simple Q&A to remain under Workflow Engine management; it does not itself specify a separate single-stage Q&A workflow implementation. The original claim was a misreading of Decision Detail #5's actual text.
 - **Current Description**: The ADR explicitly mentions a "simple Q&A single-stage workflow" as a target capability, but no matching workflow definition or handler exists in `scripts/workflow_engine/`.
 - **Observed Implementation**: Grep for "q&a", "qa", "single_stage", or similar patterns in `scripts/workflow_engine/` yields no results. The only workflows implemented are multi-stage pipeline workflows.
 - **Impact**: The ADR promises a capability that does not exist; users expecting this feature will encounter unexpected behavior.
 - **Recommended Action**: Implement the simple Q&A single-stage workflow described in Decision #5, or update the ADR to remove the reference if it was aspirational rather than prescriptive.
-- **Resolution Notes**: Open — feature gap identified.
+- **Resolution Notes**: Documentation fix required, resolved — the original claim was a misreading of Decision Detail #5's actual text.
 
 ## Related Docs
 
