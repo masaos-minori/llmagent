@@ -107,9 +107,9 @@ failure mode, and links to (without duplicating) the canonical field-contract ta
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903-172500 | 20260903-172500 | Adversarially re-verified: cited line numbers (`pipeline_utils.py:100`, `chunk_splitter.py:196`) and the 8-required-key list matched current code exactly, no drift |
 | 2 | Add or update tests per Validation plan | N/A | — | — | No tests required — documentation-only (Plan Tests section) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `check_docs_quality.py`, `check_docs_consistency.py --domain rag` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903-172500 | 20260903-172500 | `check_docs_quality.py`: 0 errors, 1 pre-existing unrelated warning. `check_docs_structure.py` (this file): all checks passed. `check_docs_consistency.py --domain rag`: 21 pre-existing warnings, none within this edit's diff scope |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This document IS the documentation update |
 
 ### Blocker Log

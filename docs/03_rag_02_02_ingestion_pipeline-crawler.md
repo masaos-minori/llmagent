@@ -106,7 +106,17 @@ Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto
 
 ### 2.4 Output JSON Format
 
-See [docs/03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md) for details.
+`read_crawl_json()` (`scripts/rag/ingestion/pipeline_utils.py:100`) is the canonical
+reader for crawl-stage JSON artifacts; `ChunkSplitter`
+(`scripts/rag/ingestion/chunk_splitter.py:196`) is its sole caller. A crawl artifact
+requires exactly 8 keys (`url`, `content`, `title`, `lang`, `code_blocks`, `etag`,
+`last_modified`, `fetched_at`) — a missing key or an invalid field type raises
+`ChunkFormatError` (see [03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md)).
+For the full Required/Nullable/Conditional classification of these fields, see the
+canonical crawl/chunk artifact-field contract table in
+[03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md).
+See also [docs/03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md) for
+the `ChunkDocument` DTO this reader returns.
 
 ### 2.5 Error Handling
 
