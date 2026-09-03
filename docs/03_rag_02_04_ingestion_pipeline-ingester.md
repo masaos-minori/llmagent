@@ -38,6 +38,14 @@ source:
 
 For a complete list of dataclasses and public methods, see `scripts/rag/ingestion/ingester.py`.
 
+`read_chunk_json()` (`scripts/rag/ingestion/pipeline_utils.py:163`) is the canonical
+reader for chunk-stage JSON artifacts; `RagIngester._read_chunk_json()`
+(`scripts/rag/ingestion/ingester.py:344`, calling `read_chunk_json()` at line 346) is
+its wrapper, used at `ingester.py:222,240`. A missing required key or invalid field
+type raises `ChunkFormatError` — see [03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md)
+and the canonical field-contract table in
+[03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md).
+
 ### 4.2 Detailed Behavior
 
 - **E5 Prefix:** Prepends `passage: {text}` before embedding (uses `query: ` for queries).
@@ -168,7 +176,7 @@ Current DB schema definition $\rightarrow$ [RAG schema reference document](03_ra
 | Invalid `lang` value | Raises `ValueError`; skips the URL group; logs an `ERROR` with traceback |
 | Improper `chunks_vec` deletion order | Raises `ValueError`; skips the chunk; logs a `WARNING` |
 | Embedding dimension mismatch | Raises `ValueError`; skips the chunk; logs a `WARNING` |
-| Artifact validation failure | Logs a `WARNING`; skips the chunk as an embedding failure |
+| Artifact validation failure (`ChunkFormatError` from `read_chunk_json()`) | The entire URL's chunk group is marked failed via `IngestUrlResult.validation_failure()` (`n_failed = len(chunk_files)`, `n_success = 0`); not counted as an embedding failure (`n_embed_failed` unchanged); no `WARNING` is logged at this layer |
 | File move failure | Logs an `ERROR` containing structured fields: `url`, `source_type`, and `stage_name` |
 
 ### 4.7 Logging
