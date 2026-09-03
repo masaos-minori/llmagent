@@ -147,6 +147,9 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "tests" / "shared" / "test_tool_registry_counts.py",
     # CI guard test that references the helper name as a string to assert its absence from production code
     ROOT_DIR / "tests" / "shared" / "test_tool_registry_reset_protection.py",
+    # Test files using the test-only _reset_registry_for_testing helper as intended
+    ROOT_DIR / "tests" / "agent" / "shared" / "test_startup_validation_pipeline.py",
+    ROOT_DIR / "tests" / "agent" / "test_startup_mcp_starter.py",
     # plan 56 patterns — test file that checks the checker itself (contains patterns as test data)
     ROOT_DIR / "tests" / "tools" / "test_check_compat_shims.py",
     # The checker itself (self-reference for new location)

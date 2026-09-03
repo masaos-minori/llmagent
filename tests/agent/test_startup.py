@@ -24,10 +24,10 @@ from agent.shared.health_models import (
     StartupValidationResult,
 )
 from agent.startup import (
-    HEALTH_CHECK_RETRY_DELAY_SEC,
     StartupInterrupted,
     StartupOrchestrator,
 )
+from agent.startup_mcp_starter import RETRY_DELAY_SEC
 from agent.workflow.approval_ops import request_approval
 from agent.workflow.state_store import StateStore
 from agent.workflow.task_ops import create_task, update_task_status
@@ -181,7 +181,7 @@ class TestStartupOrchestratorStartServers:
     @pytest.mark.asyncio
     async def test_shutdown_event_during_retry_delay_raises_promptly(self) -> None:
         """shutdown_event firing mid-retry-delay must interrupt _interruptible_sleep()
-        promptly, well before HEALTH_CHECK_RETRY_DELAY_SEC elapses."""
+        promptly, well before RETRY_DELAY_SEC elapses."""
         cfg = _http_subprocess_cfg()
         shutdown_event = asyncio.Event()
         startup = _make_startup(
@@ -204,7 +204,7 @@ class TestStartupOrchestratorStartServers:
         elapsed = time.monotonic() - start
         await fire_task
 
-        assert elapsed < HEALTH_CHECK_RETRY_DELAY_SEC / 2
+        assert elapsed < RETRY_DELAY_SEC / 2
 
     @pytest.mark.asyncio
     async def test_shutdown_event_passed_but_never_set_is_no_op(self) -> None:
@@ -951,12 +951,39 @@ async def _run_check_services(
         return pipeline
 
     startup = StartupOrchestrator(ctx, MagicMock())
+    # Wire a mock validation pipeline so _check_services() has something to call
+    startup._validation_pipeline = MagicMock()
+    startup._reporter = MagicMock()
+
+    # Create a real pipeline instance that will be returned by check_services()
+    real_pipeline = StartupValidationResult()
+    captured["pipeline"] = real_pipeline
+
+    def _mock_check_services() -> StartupValidationResult:
+        return real_pipeline
+
+    startup._validation_pipeline.check_services = AsyncMock(
+        side_effect=_mock_check_services
+    )
+
     exc: Exception | None = None
     with ExitStack() as stack:
+        # Patch the correct submodule locations (not agent.startup.{name})
         for name, mock_obj in mocks.items():
-            stack.enter_context(patch(f"agent.startup.{name}", mock_obj))
+            submodules = {
+                "audit_security_defaults": "agent.services.security_audit.audit_security_defaults",
+                "check_readiness": "agent.services.mcp_health.check_readiness",
+                "McpToolDiscoveryService": "agent.services.mcp_tool_discovery.McpToolDiscoveryService",
+                "check_routing_drift": "agent.services.routing_drift.check_routing_drift",
+                "check_routing_safety_tiers": "agent.services.routing_drift.check_routing_safety_tiers",
+                "RagMaintenanceService": "agent.services.rag_maintenance_service.RagMaintenanceService",
+            }
+            stack.enter_context(patch(submodules[name], mock_obj))
         stack.enter_context(
-            patch("agent.startup.StartupValidationResult", side_effect=_new_pipeline)
+            patch(
+                "agent.shared.health_models.StartupValidationResult",
+                side_effect=_new_pipeline,
+            )
         )
         stack.enter_context(
             patch(
@@ -1501,7 +1528,7 @@ class TestStartupVerifyMcpHealth:
         elapsed = time.monotonic() - start
         await fire_task
 
-        assert elapsed < HEALTH_CHECK_RETRY_DELAY_SEC / 2
+        assert elapsed < RETRY_DELAY_SEC / 2
 
 
 # ── StartupOrchestrator._setup_prompt() memory failure ─────────────────────────
