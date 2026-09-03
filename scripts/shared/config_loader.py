@@ -65,7 +65,7 @@ class ConfigLoader:
             merged.update(filtered)
         return merged
 
-    def load_all(self, strict: bool = False) -> dict[str, Any]:
+    def load_all(self, strict: bool = True) -> dict[str, Any]:
         """Load all base config files from config/ in dependency order.
 
         Args:
