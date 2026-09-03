@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DocFrontMatter",
+  "type": "object",
+  "required": ["title", "area", "tags", "related"],
+  "additionalProperties": true,
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Document title"
+    },
+    "area": {
+      "type": "string",
+      "enum": [
+        "overview",
+        "deployment",
+        "rag",
+        "mcp",
+        "agent",
+        "eventbus",
+        "shared",
+        "governance",
+        "adr",
+        "security"
+      ],
+      "description": "Document area — the sole category-style field"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Keywords describing the document content"
+    },
+    "related": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Links to related documents"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["stable", "draft"],
+      "default": "stable",
+      "description": "Current state of the document; defaults to stable when absent"
+    }
+  }
+}

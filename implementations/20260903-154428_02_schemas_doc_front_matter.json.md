@@ -195,10 +195,10 @@ Files table. Wiring this schema into any tool's default validation path —
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: no test file owned by this row; manual discrimination check per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Created the file exactly per Details. |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | N/A: no test file owned by this row. Manual discrimination check: compliant example (`title`/`area: agent`/`tags`/`related`) has zero missing required fields; a `category`-only block is missing required `area` — confirmed via direct Python dict comparison against `schema["required"]`. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | JSON parses via `json.load()`. `tools/_front_matter_schema.py::load_front_matter_schema()` now returns this file as `source` with the exact `required_fields`/`area_enum`/`status_enum` designed. `check_docs_structure.py --schema` against the full corpus: 179 issues, identical count to the pre-existing baseline (no new area-enum violations — `grep` confirms all 10 real `area:` values already match the finalized enum exactly, including zero remaining `shared-db` usages). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
