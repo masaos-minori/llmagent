@@ -108,11 +108,15 @@ related:
   - 01_overview-files-03-scripts.md
   - 01_overview-files-03-scripts.md
   - 01_overview-files-03-scripts.md
-  - [01_overview.md](01_overview.md)
+  - 01_overview.md
 ---
 
 # File Structure
 ```
+
+Note: the `related:` list's last entry is shown here as `01_overview.md`, not
+the original `[01_overview.md](01_overview.md)` — see the Step 3 correction
+recorded in Execution Status below.
 
 ## Compatibility considerations
 No other document links to this file's front matter by anchor. Independent of
@@ -156,15 +160,15 @@ Plan Gap, not this row's scope.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Re-verified lines 1-16 before editing — no drift. Applied the closing `---` and `category:`→`area:` rename. `check_docs_structure.py` then reported a NEW error: "Front Matter is not valid YAML" — the `related:` list's last entry, `[01_overview.md](01_overview.md)` (Markdown-link syntax), is invalid as a YAML block-sequence scalar. This was pre-existing, invisible only because the unterminated fence meant this content was never previously parsed as YAML. Fixed by rewriting it to `01_overview.md`, matching the plain-filename format every other entry in the same list already uses — preserves the reference target unchanged, removes only the invalid decoration. |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | N/A: documentation-only row, no test file owned by this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `check_docs_structure.py docs/01_overview-files-03-scripts.md`: All checks passed (after the YAML fix). `grep`: `category:` absent, `area: overview` present. `check_docs_quality.py`: 0 errors, 1 pre-existing unrelated warning. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | `related:`'s `[01_overview.md](01_overview.md)` entry was invalid YAML once the front matter's closing fence made it actually parseable — a pre-existing issue this row's original Details did not anticipate (it only specified the fence/rename edits, preserving `related` "unchanged"). | Yes | 2026-09-03 (fixed by rewriting the entry to the plain-filename format its sibling entries already use) |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

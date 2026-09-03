@@ -1,6 +1,6 @@
 ---
 title: "Scripts File Structure: Agent Core & Memory (Part 1/5)"
-category: overview
+area: overview
 tags:
   - scripts
   - agent
@@ -11,7 +11,8 @@ related:
   - 01_overview-files-03-scripts.md
   - 01_overview-files-03-scripts.md
   - 01_overview-files-03-scripts.md
-  - [01_overview.md](01_overview.md)
+  - 01_overview.md
+---
 
 # File Structure
 
