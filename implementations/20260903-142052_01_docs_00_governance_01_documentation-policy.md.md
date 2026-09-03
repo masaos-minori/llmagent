@@ -351,20 +351,21 @@ Implementation Target Files table.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Initially Blocked (see Blocker Log, resolved) — Edits 1-4 applied as originally designed once the blocker was resolved. |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | N/A: documentation-only row, no test file owned by this row; test coverage for the blocker's resolution (`MAX_SIZE`) was added to `tests/tools/test_check_docs_structure.py` as part of resolving Step 1 — see Blocker Log |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `uv run python tools/check_docs_quality.py` (0 errors, 1 pre-existing unrelated warning) and `uv run python tools/check_docs_structure.py docs/00_governance_01_documentation-policy.md` (All checks passed) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | This row's own target file is the documentation update; no `docs/00_index.md` task-scope mapping applies (governance self-edit, per the Plan's own Documentation Impact note) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | `docs/00_governance_01_documentation-policy.md` is a hard-capped 16KB file (`tools/check_docs_structure.py` `MAX_SIZE`) that was already at 16252/16384 bytes before this Plan — REQ-001/002/005/006's mandated 4-section replacement cannot fit within the remaining ~132 bytes even after 4 rounds of prose compression (best reached: 16808 bytes, 424 over). Escalated to the user via `AskUserQuestion`; user selected "revisit the 16KB limit check itself" over splitting the document or further content loss. Resolved by raising `tools/check_docs_structure.py`'s `MAX_SIZE` from 16384 to 24576 (comment explains why; `docs/00_governance_03_issue-and-uncertainty-management.md` at ~46KB was found to already exceed even the old limit as a pre-existing, unrelated condition — confirming the old limit was already stale/under-enforced) and adding `TestCheckSize` regression coverage to `tests/tools/test_check_docs_structure.py`. Edits 1-4 then re-applied with their original (non-compressed) text; `docs/00_governance_01_documentation-policy.md` is 19183 bytes, under the new 24576 limit. This resolution touched `tools/check_docs_structure.py` and its test file, outside this row's originally-declared Scope/Target file — authorized by explicit, current-turn user instruction (`rules/ai-execution.md` Instruction Precedence, layer 1). | Yes | 2026-09-03 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| tools/check_docs_structure.py MAX_SIZE change | 1 | Code Change | Completed | N/A | N/A |
+| tests/tools/test_check_docs_structure.py TestCheckSize | 2 | Test | Completed | N/A | N/A |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

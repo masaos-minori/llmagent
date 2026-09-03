@@ -24,7 +24,14 @@ from tools._front_matter_schema import FrontMatterSchema, load_front_matter_sche
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DOCS_DIR = ROOT_DIR / "docs"
-MAX_SIZE = 16384
+# Raised from 16384 (2026-09-03, plans/20260902-191512_plan.md): a governance
+# doc consolidation was already at 16252 bytes before the dependency-graph
+# redesign added ~2900 bytes of required content (four scoped relation-type
+# sections), leaving no realistic headroom under the old limit. 24576 covers
+# that need with margin while still catching genuinely oversized files (e.g.
+# docs/00_governance_03_issue-and-uncertainty-management.md at ~46KB remains
+# correctly flagged).
+MAX_SIZE = 24576
 
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+\.md)(?:#[^)]*)?\)")
 

@@ -13,7 +13,12 @@ import json
 from pathlib import Path
 
 from tools._front_matter_schema import load_front_matter_schema
-from tools.check_docs_structure import check_schema_compliance, validate_file
+from tools.check_docs_structure import (
+    MAX_SIZE,
+    check_schema_compliance,
+    check_size,
+    validate_file,
+)
 
 
 def _write(path: Path, content: str) -> Path:
@@ -109,6 +114,29 @@ class TestSchemaComplianceEnums:
         issues = check_schema_compliance(doc, doc.read_text(), schema)
         assert len(issues) == 1
         assert "obsolete" in issues[0]
+
+
+class TestCheckSize:
+    """Regression for MAX_SIZE (raised 2026-09-03, see the constant's own
+    comment): a governance doc consolidation needed more headroom than the
+    old 16384-byte limit allowed."""
+
+    def test_file_at_limit_passes(self, tmp_path: Path) -> None:
+        doc = tmp_path / "example.md"
+        assert check_size(doc, MAX_SIZE) == []
+
+    def test_file_over_limit_is_flagged(self, tmp_path: Path) -> None:
+        doc = tmp_path / "example.md"
+        issues = check_size(doc, MAX_SIZE + 1)
+        assert len(issues) == 1
+        assert str(MAX_SIZE) in issues[0]
+
+    def test_file_between_old_and_new_limit_passes(self, tmp_path: Path) -> None:
+        """19183 bytes is what docs/00_governance_01_documentation-policy.md
+        grew to under plans/20260902-191512_plan.md's REQ-001 change — this
+        must pass under the raised limit even though it exceeded the old one."""
+        doc = tmp_path / "example.md"
+        assert check_size(doc, 19183) == []
 
 
 class TestValidateFileSchemaOptIn:

@@ -144,7 +144,7 @@ When two documents contradict each other:
 
 1. Identify the area(s) each document belongs to
 2. Determine if both documents are in the same area — if so, consult the area's document-guide for the canonical source
-3. If documents span different areas, check whether one area's specification supersedes another's based on dependency direction
+3. If documents span different areas, identify the decision target the conflict concerns and apply the Decision Target Canonical Source Matrix (see `## Canonical Source Precedence` > `### Decision Target Canonical Source Matrix`) to determine the authoritative source for that decision target
 4. If neither rule resolves the conflict, register a Known Issue and defer resolution until the next review cycle
 
 ## Code vs Document Conflict Rule
@@ -199,8 +199,18 @@ The following conditions require review before merging:
 
 To determine which documents are affected by a change:
 
-1. Identify the change category (architecture, configuration, command, behavioral, documentation-only)
-2. Map the change to affected areas using the area dependency graph
+1. Identify the change category (architecture, configuration, command, behavioral, deployment, governance-policy, documentation-only)
+2. Select which relation type governs the change, by category:
+   - Architecture, behavioral, or command changes → Software Runtime Dependency Graph
+   - Deployment changes → Deployment Management Graph
+   - Documentation-only changes → Documentation Reference Graph
+   - Governance-policy changes → Governance Applicability Matrix
+   - Configuration or API changes → continue to use the existing Canonical Source
+     Precedence matrix (Decision Target Canonical Source Matrix); no separate
+     Configuration Ownership Map or API Consumer Map exists (tracked as a Needs
+     Confirmation entry in `docs/00_governance_03_issue-and-uncertainty-management.md`)
+
+   Map the change to the areas or components covered by the selected graph or matrix.
 3. List all documents in affected areas that reference the changed element
 4. Prioritize updates by document class priority: Specification > Guide > Reference > Operations > Note
 
@@ -250,12 +260,6 @@ Duplicate notes shared across all ADRs:
 The ADR list, dependency graph, and invariant verification matrix are maintained in
 `adr-index.md`, not here.
 
-## Software Dependency Graph vs Documentation Reference Graph Separation
-
-Governance documents are excluded from the software component dependency graph because they do not represent runtime components. The software dependency graph covers only Agent, MCP Server, RAG, EventBus, and Shared/DB components.
-
-Governance documents form their own reference graph within the documentation set. This separation prevents confusion between runtime architecture dependencies and documentation cross-references.
-
 ## Merge Conditions
 
 ### Blocking Conditions (Prevent Merge)
@@ -299,20 +303,86 @@ Governance: `@governance-lead`, accountable to `@executive`, consulted `@all-are
 | Developer | @developer | `<area-lead>` | @reviewer | @team |
 | Reviewer | @reviewer | `<area-lead>` | @developer | @team |
 
-## Area Dependency Graph
+## Software Runtime Dependency Graph
 
-Permitted dependency directions:
+Node set: Agent, MCP, RAG, EventBus, Shared/DB. Governance, Overview, and Deployment
+are not runtime components and are intentionally excluded — see the Governance
+Applicability Matrix and Deployment Management Graph below for their own relation
+types.
 
-- Overview → Deployment, RAG, MCP, Agent, EventBus, Shared/DB, Governance
-- Deployment → RAG, MCP, Agent, EventBus, Shared/DB
-- RAG → Agent, EventBus
-- MCP → Agent, EventBus
-- Agent → EventBus, Shared/DB
+`A → B` means: A calls B at runtime, or requires B's data or functionality to
+function.
+
+**Cycles prohibited**: no circular dependencies are allowed among these 5 nodes.
+Enforced automatically by `tools/check_dependency_graph_cycles.py` (see
+`docs/00_governance_04_documentation-checks.md` "12. Area Dependency Graph
+Validation").
+
+Confirmed edges (direct source evidence —
+`scripts/agent/services/mcp_tool_discovery.py` fetches every MCP server's
+`/v1/tools` over HTTP):
+- Agent → MCP
+- Agent → Shared/DB
 - EventBus → Shared/DB
-- Governance → Overview, Deployment, RAG, MCP, Agent, EventBus, Shared/DB
 
-**Cycles prohibited**: No circular dependencies allowed.
-**Direction constraint**: Dependencies only flow downward (Overview → Governance).
+Needs Confirmation (tracked as `NC-022` in
+`docs/00_governance_03_issue-and-uncertainty-management.md`; no corresponding
+import or HTTP-publish call found in current source):
+- RAG → EventBus
+- MCP → EventBus
+- Agent → EventBus
+
+Not represented as an edge: no direct RAG ↔ Agent call path exists in current
+source (`scripts/agent/` contains no import of `scripts/rag/`) — RAG-related
+functionality, if any, is reached only through the generic `Agent → MCP` edge
+above. Whether `scripts/rag/` and `scripts/mcp_servers/rag_pipeline/` are the same
+or a different RAG implementation is unresolved and tracked as `NC-023`.
+
+## Deployment Management Graph
+
+Node set: Deployment, plus every Software Runtime Dependency Graph node (Agent,
+MCP, RAG, EventBus, Shared/DB).
+
+`A → B` means: A places, starts, stops, or validates B's runtime — a management
+relation, not a call dependency.
+
+Not cycle-checked: a management graph is not expected to be acyclic in the same
+sense as a call-dependency graph.
+
+Edges:
+- Deployment → Agent, MCP, RAG, EventBus, Shared/DB
+
+## Documentation Reference Graph
+
+Node set: every documentation area — Overview, Deployment, RAG, MCP, Agent,
+EventBus, Shared/DB, Governance.
+
+`A → B` means: area A's documentation cross-references area B's documentation.
+
+Not cycle-checked: mutual cross-references between areas (for example, Overview ↔
+Governance) are expected and are not a violation of any rule in this graph.
+Checked only for broken links, self-reference, and duplicate reference — see
+`tools/check_docs_structure.py`.
+
+## Governance Applicability Matrix
+
+Governance's relationship to each area is expressed as applicability, not as a
+directed graph edge — Governance applies across every area rather than depending
+on, or being depended on by, any one of them. Governance therefore does not
+participate as a node in the Software Runtime Dependency Graph, the Deployment
+Management Graph, or the Documentation Reference Graph above.
+
+| Area | Governance Applies |
+|------|---------------------|
+| Overview | Yes |
+| Deployment | Yes |
+| RAG | Yes |
+| MCP | Yes |
+| Agent | Yes |
+| EventBus | Yes |
+| Shared/DB | Yes |
+
+Not cycle-checked: this is a matrix, not a directed graph.
 
 ## Maintenance Rules
 
