@@ -155,6 +155,25 @@ them, are preserved here rather than lost:
 - **Impact**: Vector index grows over time with orphaned entries, increasing memory usage and potentially degrading search performance.
 - **Recommended Action**: Accept this limitation and implement periodic cleanup of orphaned vectors, or migrate to a vector store that supports FK constraints. (Note: this is a known, accepted architectural limitation mitigated by deletion ordering, not an active defect being worked.)
 
+#### RAG-006
+
+- **ID**: RAG-006
+- **Title**: Documentation described `read_json_file()`'s lenient fallback behavior as a current production reader
+- **Status**: resolved
+- **Severity**: Medium
+- **Area**: RAG
+- **Type**: obsolete-description
+- **Source**: `scripts/rag/ingestion/pipeline_utils.py`
+- **Owner**: Team
+- **First Found**: 2026-09-02
+- **Target**: `docs/03_rag_02_03_ingestion_pipeline-chunksplitter.md`
+- **Related**: N/A: no related active Known Issue
+- **Summary**: `docs/03_rag_02_08_ingestion_pipeline-shared.md` documented `read_json_file()`'s lenient fallback behavior (`lang` default `"en"`, `chunk_index` default `0`, empty-string fallbacks) as a currently-relevant reader, even though the strict-reader migration (`read_crawl_json()`/`read_chunk_json()`, both raising `ChunkFormatError` on missing/invalid fields) had already superseded it in code.
+- **Current Description**: `read_json_file()` remains in `scripts/rag/ingestion/pipeline_utils.py` (removal was out of scope for this resolution) but is confirmed unused by any current pipeline code path. The `docs/03_rag_*.md` Specification set now states `read_crawl_json()`/`read_chunk_json()` as the canonical readers, documents the `ChunkFormatError` failure mode, classifies every crawl/chunk field as Required/Nullable/Conditional in one canonical table (this document's Target), and marks `read_json_file()`'s description as historical in `docs/03_rag_02_08_ingestion_pipeline-shared.md`.
+- **Observed Implementation**: Verified by test — `tests/rag/ingestion/test_pipeline_utils_strict.py` exercises `read_crawl_json()`/`read_chunk_json()`'s `ChunkFormatError` conditions; no test exercises `read_json_file()` as a production path.
+- **Impact**: Prior to resolution, new artifact producers or future implementers reading the Specification set risked reintroducing lenient-fallback assumptions no longer valid against the strict readers.
+- **Recommended Action**: Resolved — canonical-reader statements, the `ChunkFormatError` failure mode, and a single canonical Required/Nullable/Conditional field-contract table were added across the `docs/03_rag_*.md` Specification set, and `read_json_file()`'s description was relocated to a clearly marked historical section. (Action already taken via `plans/20260903-085152_plan.md`; entry retained per this template pending removal at next review, matching the `SHARED-002` precedent in this document.)
+
 #### DESIGN-1
 
 - **ID**: DESIGN-1
