@@ -721,6 +721,106 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: The prerequisite structured-classification implementation is already in place (`DbCondition`/`_classify_error()` in `scripts/db/recovery.py`); this item now tracks confirming the classification model matches the owner's intent
 - **Blocking**: No
 
+#### NC-022
+
+- **Source File**: `00_governance_01_documentation-policy.md`
+- **Section**: Software Runtime Dependency Graph
+- **Line Number**: ~306
+- **Question**: Are `RAG → EventBus`, `MCP → EventBus`, and `Agent → EventBus`
+  unimplemented design intent, or a documentation error that should be removed from
+  the graph entirely?
+- **Evidence**: `grep -rl "eventbus" scripts/agent/ scripts/mcp_servers/ scripts/rag/`
+  returns 0 matches — none of Agent, MCP, or RAG source imports or HTTP-publishes to
+  EventBus, despite these three edges being asserted in the previous (pre-correction)
+  Area Dependency Graph
+- **Impact**: If unimplemented, the corrected graph's marking of these edges as
+  Needs Confirmation (rather than confirmed fact) is the right interim state; if a
+  documentation error, the edges should eventually be removed once confirmed absent
+- **Required Action**: Owner review of whether Agent/MCP/RAG are intended to
+  eventually publish to EventBus, or whether these edges should be removed once
+  confirmed absent
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-03
+- **Priority**: Medium
+- **Related NC**: None
+- **Resolution Target**: Next EventBus integration review, or next Software Runtime
+  Dependency Graph review, whichever comes first
+- **Blocking**: No
+
+#### NC-023
+
+- **Source File**: `00_governance_01_documentation-policy.md`
+- **Section**: Software Runtime Dependency Graph
+- **Line Number**: ~306
+- **Question**: Are `scripts/rag/` and `scripts/mcp_servers/rag_pipeline/` the same
+  RAG implementation (one wrapping the other) or two independent implementations?
+- **Evidence**: Not investigated by `plans/done/20260902-191512_plan.md` (explicitly
+  Out-of-Scope there); the Software Runtime Dependency Graph's RAG node's exact
+  relationship to the MCP node's `rag_pipeline` server is undetermined as a result
+- **Impact**: Without resolving this, the Runtime Graph's RAG node scope is
+  ambiguous, and any future edge involving RAG cannot be confirmed as
+  direct-vs-indirect
+- **Required Action**: Owner or RAG-area-lead investigation comparing
+  `scripts/rag/` and `scripts/mcp_servers/rag_pipeline/`'s actual code and
+  responsibilities
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-03
+- **Priority**: Medium
+- **Related NC**: None
+- **Resolution Target**: Next RAG architecture review
+- **Blocking**: No
+
+#### NC-024
+
+- **Source File**: `00_governance_01_documentation-policy.md`
+- **Section**: Software Runtime Dependency Graph / Governance Applicability Matrix
+- **Line Number**: ~306
+- **Question**: Should the Security governance area be treated as a runtime
+  component (added as a node to the Software Runtime Dependency Graph) rather than
+  governance-only?
+- **Evidence**: No `scripts/security/` or equivalent runtime package was found by a
+  quick `find` during this Plan's investigation, but this was not exhaustively
+  confirmed
+- **Impact**: If Security has a runtime component not yet reflected as a graph
+  node, the Runtime Graph's node set (Agent, MCP, RAG, EventBus, Shared/DB) would be
+  incomplete
+- **Required Action**: Owner confirmation of whether a Security runtime component
+  exists anywhere in the repository; if so, add it to the Software Runtime
+  Dependency Graph's node set
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-03
+- **Priority**: Low
+- **Related NC**: None
+- **Resolution Target**: Next governance area-scope review
+- **Blocking**: No
+
+#### NC-025
+
+- **Source File**: `00_governance_01_documentation-policy.md`
+- **Section**: Change Impact Rule
+- **Line Number**: ~198
+- **Question**: Is a Configuration Ownership Map or API Consumer Map needed for the
+  Change Impact Rule's configuration/API-change categories, beyond the existing
+  Canonical Source Precedence matrix?
+- **Evidence**: The Change Impact Rule directs configuration/API changes to the
+  existing Canonical Source Precedence matrix (Decision Target Canonical Source
+  Matrix) rather than a dedicated map; no such map exists anywhere in the repository
+- **Impact**: Without a dedicated map, configuration/API change-impact scoping
+  relies on the same general-purpose matrix used for all decision types, which may
+  be too coarse for large configuration surfaces
+- **Required Action**: Owner review of whether configuration/API change volume
+  justifies building a dedicated Configuration Ownership Map or API Consumer Map
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-03
+- **Priority**: Low
+- **Related NC**: None
+- **Resolution Target**: Next governance tooling review
+- **Blocking**: No
+
 #### NC-026
 
 - **Source File**: `03_rag_02_04_ingestion_pipeline-ingester.md`
@@ -789,7 +889,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next language-detection logic review
 - **Blocking**: No
 
-No other active items beyond NC-021, NC-026, NC-027, NC-028, and NC-029 above.
+No other active items beyond NC-021 through NC-029 above.
 
 ## Non-Goals
 

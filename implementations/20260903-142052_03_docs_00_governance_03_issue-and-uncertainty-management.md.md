@@ -269,15 +269,15 @@ implementation-procedure document per this Plan's Implementation Target Files ta
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Re-verify NC-022–025 still unused immediately before editing (Procedure step 1) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Re-verified NC-022-025 unused immediately before editing (`grep -rn` across `docs/`, `plans/`, `issues/`, `implementations/` found only Plan/procedure reservations, no live registration); also re-verified Line Number fields against seq 01's actual applied content: Software Runtime Dependency Graph at line 306, Change Impact Rule at line 198 (both corrected from the "~300"/"~200" placeholders) |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | N/A: documentation-only row, no test file owned by this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `check_needs_confirmation_inventory.py`: 8 warnings, identical set to before this edit (0 new). `check_docs_quality.py`: 0 errors, 1 pre-existing unrelated warning. `check_docs_structure.py` was not part of this row's own Validation plan and was not run as a gate — see Blocker Log for the pre-existing finding it would have surfaced. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | This row's own target file is the documentation update; no `docs/00_index.md` task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | Non-blocking observation (not a blocker for this row): `uv run python tools/check_docs_structure.py docs/00_governance_03_issue-and-uncertainty-management.md` reports the file at 51181 bytes, exceeding even the raised 24576-byte `MAX_SIZE` (see seq 01's Blocker Log). The file was already at 46529 bytes — over the raised limit — before this row's edit; this row's 4-entry addition (~4652 bytes) is not the cause of the violation, and `check_docs_structure.py` was never part of this row's own Validation plan. Out of scope for this row (adding NC entries); the file's overall size would need its own splitting/restructuring effort, tracked here only as an observation, not acted on. | N/A | N/A: pre-existing condition, not caused by or resolved by this row |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
