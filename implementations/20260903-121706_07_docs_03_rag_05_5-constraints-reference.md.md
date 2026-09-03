@@ -97,9 +97,9 @@ corresponding Evidence entry.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Table rows + Evidence bullet |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903-173700 | 20260903-173700 | Adversarially re-verified: `enums.py:11-15` (LanguageCode EN/JA), `pipeline_utils.py:53-58/61-66/90-97/141-145` (validators + cross-field rule), and confirmed zero `LanguageCode` references in either reader's body via grep — exact match |
 | 2 | Add or update tests per Validation plan | N/A | — | — | No tests required — documentation-only (Plan Tests section) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `check_docs_quality.py`, `check_docs_consistency.py --domain rag` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903-173700 | 20260903-173700 | `check_docs_quality.py`: 0 errors. `check_docs_structure.py`: all checks passed. `check_docs_consistency.py --domain rag`: no findings for this file |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This document IS the documentation update |
 
 ### Blocker Log
