@@ -157,10 +157,10 @@ per this Plan's 2026-09-03 correction (file no longer exists).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Re-verified lines 105-120 before editing — no drift. Applied Edits 1-2 exactly as designed. |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | N/A: documentation-only row, no test file owned by this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `check_docs_quality.py`: 0 errors, 1 pre-existing unrelated warning. `check_docs_consistency.py --domain mcp`: several pre-existing port/reference findings, none mentioning this file (confirmed by grep). `check_docs_structure.py`: 4 pre-existing structural findings (2 H1s, missing Front Matter/Related Documents/Keywords — this is a "Part 2" continuation file); diff confirmed scoped to exactly the 2 intended lines, so none of these are new. `grep -n server_configs` confirms no remaining claim that the constructor accepts it. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | N/A: no `docs/00_index.md` task-scope mapping applies — this row changed a doc file itself, not source code, and no other doc needs a consequential update |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
