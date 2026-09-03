@@ -11,22 +11,17 @@ from __future__ import annotations
 import asyncio
 import sqlite3
 import subprocess
-import time
 from typing import TYPE_CHECKING
 
-import httpx
 from shared.logger import Logger
 from shared.mcp_config import (
     McpServerHealthState,
     SecurityProfile,
-    StartupMode,
-    TransportType,
 )
 
 from agent.context import AgentContext
 from agent.orchestrator import Orchestrator
 from agent.output_tags import OutputTag
-from agent.secrets_masker import _mask_secrets
 from agent.services.mcp_health import check_readiness
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from agent.services.rag_maintenance_service import RagMaintenanceService
@@ -34,6 +29,7 @@ from agent.services.routing_drift import check_routing_drift, check_routing_safe
 from agent.services.security_audit import audit_security_defaults
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
 from agent.startup_component_init import ComponentInitializer
+from agent.startup_mcp_starter import McpServerStarter
 from agent.workflow.approval_ops import find_all_pending_approvals
 from agent.workflow.state_store import StateStore
 
@@ -43,8 +39,6 @@ class StartupInterrupted(RuntimeError):
 
 
 if TYPE_CHECKING:
-    from shared.mcp_config import McpServerConfig
-
     from agent.cli_view import CLIView
     from agent.commands.registry import CommandRegistry
 
@@ -57,8 +51,6 @@ class StartupOrchestrator:
     Handles: component init, MCP server spawning, service health checks,
     security audit, tool definition validation, and initial system prompt setup.
     """
-
-    HEALTH_CHECK_RETRY_DELAY_SEC = 1.0
 
     def __init__(
         self,
@@ -73,25 +65,7 @@ class StartupOrchestrator:
         self._orchestrator: Orchestrator | None = None
         self._spawned_subprocesses: list[subprocess.Popen] = []
         self._shutdown_event = shutdown_event
-
-    async def _interruptible_sleep(self, delay: float) -> bool:
-        """Sleep for `delay` seconds, racing against `_shutdown_event`.
-
-        Returns True iff the shutdown event fired before `delay` elapsed (caller
-        should raise `StartupInterrupted`); returns False if the full delay elapsed
-        normally or no `shutdown_event` was configured.
-        """
-        if self._shutdown_event is None:
-            await asyncio.sleep(delay)
-            return False
-        sleep_task = asyncio.ensure_future(asyncio.sleep(delay))
-        shutdown_task = asyncio.ensure_future(self._shutdown_event.wait())
-        done, pending = await asyncio.wait(
-            {sleep_task, shutdown_task}, return_when=asyncio.FIRST_COMPLETED
-        )
-        for task in pending:
-            task.cancel()
-        return shutdown_task in done
+        self._mcp_starter = McpServerStarter(ctx, view, shutdown_event)
 
     async def run(self) -> tuple[CommandRegistry, Orchestrator, list[subprocess.Popen]]:
         """Execute full startup sequence; return (cmds, orchestrator, spawned_subprocesses)."""
@@ -120,159 +94,19 @@ class StartupOrchestrator:
             )
         return self._cmds, self._orchestrator, self._spawned_subprocesses
 
-    async def _start_http_subprocess_once(
-        self, key: str, cfg: McpServerConfig
-    ) -> float | None:
-        """Attempt one start_http_subprocess() call.
-
-        On success, tracks the spawned process and returns the new
-        last_startup_time (`time.monotonic()`); returns None when the
-        lifecycle manager reports no process was started.
-        """
-        proc = await self._ctx.services_required.lifecycle.start_http_subprocess(
-            key, cfg, shutdown_event=self._shutdown_event
-        )
-        if proc is not None:
-            self._spawned_subprocesses.append(proc)
-            return time.monotonic()
-        return None
-
     async def _start_servers(self) -> list[subprocess.Popen]:
         """Spawn subprocesses for HTTP subprocess MCP servers.
 
-        Handles:
-        - http  + startup_mode='subprocess': start HTTP server subprocess, poll /health
-        - Persistent-mode servers: externally managed, excluded here.
-        - Subprocess-mode servers with startup_mode='subprocess': started at agent init.
-        - Other subprocess-mode servers: start on first tool call via ensure_ready().
+        Delegates to McpServerStarter.start_servers().
         """
-        ctx = self._ctx
-        if ctx.services_required.tools is None:
-            raise RuntimeError("tools service not initialized")
-        if ctx.services_required.lifecycle is None:
-            raise RuntimeError("lifecycle service not initialized")
-        last_startup_time = 0.0
-        for key, cfg in ctx.cfg.mcp.mcp_servers.items():
-            if self._shutdown_event is not None and self._shutdown_event.is_set():
-                raise StartupInterrupted(
-                    f"shutdown requested before starting MCP subprocess {key!r}"
-                )
-            if (
-                cfg.startup_mode == StartupMode.SUBPROCESS
-                and cfg.transport == TransportType.HTTP
-            ):
-                if last_startup_time > 0 and cfg.startup_stagger_delay_sec > 0:
-                    elapsed = time.monotonic() - last_startup_time
-                    stagger_delay = max(0.0, cfg.startup_stagger_delay_sec - elapsed)
-                    if stagger_delay > 0:
-                        if await self._interruptible_sleep(stagger_delay):
-                            raise StartupInterrupted(
-                                f"shutdown requested during startup stagger delay for {key!r}"
-                            )
-                        logger.info(
-                            "Staggering startup by %.1fs for %r", stagger_delay, key
-                        )
-
-                try:
-                    started_at = await self._start_http_subprocess_once(key, cfg)
-                    if started_at is not None:
-                        last_startup_time = started_at
-                except (OSError, RuntimeError) as e:
-                    # First attempt failure — log at INFO level
-                    logger.info(
-                        "First attempt failed for MCP subprocess %r: %s",
-                        key,
-                        _mask_secrets(str(e)),
-                    )
-
-                    # Retry after delay
-                    if await self._interruptible_sleep(
-                        self.HEALTH_CHECK_RETRY_DELAY_SEC
-                    ):
-                        raise StartupInterrupted(
-                            f"shutdown requested during startup retry delay for {key!r}"
-                        )
-                    try:
-                        started_at = await self._start_http_subprocess_once(key, cfg)
-                        if started_at is not None:
-                            last_startup_time = started_at
-                    except (OSError, RuntimeError) as retry_err:
-                        # Retry attempt failure — log at WARNING level
-                        if ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION:
-                            msg = f"{OutputTag.FATAL} MCP subprocess {key!r} failed to start after retry: {retry_err}"
-                            masked_msg = _mask_secrets(msg)
-                            logger.error(masked_msg)
-                            raise RuntimeError(masked_msg) from retry_err
-                        logger.warning(
-                            "MCP subprocess %r failed to start after retry: %s",
-                            key,
-                            _mask_secrets(str(retry_err)),
-                        )
-                        self._view.write_warning(
-                            f"{OutputTag.NON_FATAL} HTTP subprocess MCP server {key!r} failed to start after retry: {retry_err}"
-                        )
-        return self._spawned_subprocesses
+        return await self._mcp_starter.start_servers()
 
     async def _verify_mcp_health(self) -> None:
-        """Verify health of all MCP subprocess servers after startup."""
-        ctx = self._ctx
-        if ctx.services_required.tools is None:
-            raise RuntimeError("tools service not initialized")
-        if ctx.services_required.lifecycle is None:
-            raise RuntimeError("lifecycle service not initialized")
+        """Verify health of all MCP subprocess servers after startup.
 
-        subprocess_servers = [
-            (key, cfg)
-            for key, cfg in ctx.cfg.mcp.mcp_servers.items()
-            if cfg.startup_mode == StartupMode.SUBPROCESS
-            and cfg.transport == TransportType.HTTP
-        ]
-
-        for server_key, cfg in subprocess_servers:
-            if self._shutdown_event is not None and self._shutdown_event.is_set():
-                raise StartupInterrupted(
-                    f"shutdown requested before health check for {server_key!r}"
-                )
-            url = cfg.url.rstrip("/") + "/health"
-            try:
-                async with httpx.AsyncClient(timeout=5.0) as client:
-                    resp = await client.get(url)
-                    if resp.status_code != httpx.codes.OK:
-                        raise RuntimeError(f"HTTP {resp.status_code}")
-                    logger.info("Post-startup health check passed for %r", server_key)
-            except Exception:  # noqa: BLE001 — any health-check failure (network, HTTP, timeout) triggers a retry rather than aborting startup
-                # NOTE: the interruptible-sleep check is deliberately outside the
-                # nested try/except below — raising StartupInterrupted from inside
-                # that try would be caught by its own `except Exception as retry_err`
-                # and either re-wrapped as a generic RuntimeError (production profile)
-                # or swallowed as a mere warning (non-production profile), defeating
-                # the prompt-interruption contract.
-                if await self._interruptible_sleep(self.HEALTH_CHECK_RETRY_DELAY_SEC):
-                    raise StartupInterrupted(
-                        f"shutdown requested during post-startup health check retry delay for {server_key!r}"
-                    ) from None
-                try:
-                    async with httpx.AsyncClient(timeout=5.0) as client:
-                        resp = await client.get(url)
-                        if resp.status_code != httpx.codes.OK:
-                            raise RuntimeError(f"HTTP {resp.status_code}")
-                        logger.info(
-                            "Post-startup health check passed for %r (after retry)",
-                            server_key,
-                        )
-                except Exception as retry_err:
-                    if ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION:
-                        msg = f"{OutputTag.FATAL} MCP subprocess {server_key!r} failed post-startup health check: {retry_err}"
-                        logger.error(msg)
-                        raise RuntimeError(msg) from retry_err
-                    logger.warning(
-                        "Post-startup health check failed for %r: %s",
-                        server_key,
-                        retry_err,
-                    )
-                    self._view.write_warning(
-                        f"{OutputTag.NON_FATAL} MCP subprocess {server_key!r} failed post-startup health check: {retry_err}"
-                    )
+        Delegates to McpServerStarter.verify_health().
+        """
+        await self._mcp_starter.verify_health()
 
     async def _check_services(self) -> None:
         """Probe LLM/Embed health, validate tool definitions, and audit security defaults."""
