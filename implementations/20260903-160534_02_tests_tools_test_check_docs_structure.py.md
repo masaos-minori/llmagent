@@ -159,10 +159,10 @@ table.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row's own file is the test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Re-verified anchor before editing — no drift. Inserted the new test exactly as designed. |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | This row's own file is the test — 12 tests total (was 11), all passing |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `uv run pytest tests/tools/test_check_docs_structure.py -v`: 12/12 passed. `uv run pytest tests/tools/ -q` (broader regression check, scoped to this change's actual blast radius): 179/179 passed, no regression. `ruff format`/`ruff check`: clean. `mypy`: no issues. Full repo-wide `uv run pytest -v` not re-run — this session already ran it once earlier for an unrelated change and found 274 pre-existing failures in modules this row does not touch (agent commands, REPL, RAG ingestion); re-running for a one-test addition to `tests/tools/` would not add new information. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

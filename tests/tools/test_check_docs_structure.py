@@ -55,6 +55,24 @@ class TestSchemaComplianceRequiredFields:
         issues = check_schema_compliance(doc, doc.read_text(), schema)
         assert any("related" in i for i in issues)
 
+    def test_category_only_fixture_is_flagged_for_missing_area(
+        self, tmp_path: Path
+    ) -> None:
+        """REQ-004's literal named fixture: a document using `category:`
+        instead of `area:` is flagged for the missing required `area` field.
+        `check_schema_compliance()` has no `additionalProperties` check, so
+        this produces the same finding as any other `area:`-less fixture —
+        this test exists to match REQ-004's exact wording, not to exercise a
+        new code path."""
+        content = (
+            '---\ntitle: "Example"\ncategory: agent\ntags:\n  - agent\n'
+            "related:\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        schema = load_front_matter_schema(tmp_path / "no_schema_here.json")
+        issues = check_schema_compliance(doc, doc.read_text(), schema)
+        assert any("area" in i for i in issues)
+
     def test_missing_front_matter_entirely_is_not_double_reported(
         self, tmp_path: Path
     ) -> None:
