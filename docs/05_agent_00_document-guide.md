@@ -11,7 +11,7 @@ related:
   - 05_agent_02_runtime-architecture.md
   - 05_agent_05_llm-and-streaming.md
   - 05_agent_13_reference-api.md
-  - 05_agent_90_inconsistencies_and_known_issues.md
+  - 00_governance_03_issue-and-uncertainty-management.md
 ---
 
 # Agent Documentation Guide
@@ -100,7 +100,7 @@ When schema/command references change, verify that `05_agent_01_system-overview.
 
 ### Removed Files
 
-Deleted `05_ref-*` / `05_agent-impl-flow.md` / `05_agent-ops.md` files are integrated into chapters 02-13 above. See [05_agent_90_inconsistencies_and_known_issues.md](05_agent_90_inconsistencies_and_known_issues.md) for known issues and unresolved items.
+Deleted `05_ref-*` / `05_agent-impl-flow.md` / `05_agent-ops.md` files are integrated into chapters 02-13 above. See [00_governance_03_issue-and-uncertainty-management.md](00_governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Agent) for known issues and unresolved items.
 
 ### Additional References
 
@@ -108,4 +108,4 @@ Deleted `05_ref-*` / `05_agent-impl-flow.md` / `05_agent-ops.md` files are integ
 - `05_agent_02_runtime-architecture.md`
 - `05_agent_05_llm-and-streaming.md`
 - `05_agent_13_reference-api.md`
-- `05_agent_90_inconsistencies_and_known_issues.md`
+- `00_governance_03_issue-and-uncertainty-management.md`

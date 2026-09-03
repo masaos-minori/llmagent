@@ -52,7 +52,7 @@ The following Agent-side integrations are intentionally unimplemented at this ti
 - **SSE subscription by Agents**: There is no Agent-side subscriber consuming events via `/subscribe` SSE. Agent-side consumers are planned for a future release.
 - **Agent event topics**: No topics defined by the Agent exist at this time. Topic naming conventions for Agent lifecycle events will be defined when Agent integration is implemented.
 
-These items are also documented as Deferred Items in `docs/06_eventbus_90_inconsistencies_and_known_issues.md`.
+These items are also documented as Deferred Items in `docs/00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus).
 
 ## Related Documents
 

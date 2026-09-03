@@ -21,7 +21,7 @@ related:
   - 90_shared_03_01_runtime_and_execution-config-and-logging.md
   - 90_shared_04_01_db_architecture_and_schema-overview-and-config.md
   - 90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md
-  - 90_shared_90_inconsistencies_and_known_issues.md
+  - 00_governance_03_issue-and-uncertainty-management.md
 ---
 
 # Shared and DB Layer Overview
@@ -148,4 +148,4 @@ All persistent data resides in three SQLite files: `rag.sqlite` (RAG index), `se
 
 ## 10. AI Reference Guide
 
-You can identify corresponding documents from the section titles: Types/DTOs → [section 2](90_shared_02_01_types_and_protocols-core-types.md), ConfigLoader → [section 3](90_shared_03_01_runtime_and_execution-config-and-logging.md), SQLite Schema → [section 4](90_shared_04_01_db_architecture_and_schema-overview-and-config.md), SQLiteHelper API → [section 5](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md), Inconsistencies → [section 90](90_shared_90_inconsistencies_and_known_issues.md).
+You can identify corresponding documents from the section titles: Types/DTOs → [section 2](90_shared_02_01_types_and_protocols-core-types.md), ConfigLoader → [section 3](90_shared_03_01_runtime_and_execution-config-and-logging.md), SQLite Schema → [section 4](90_shared_04_01_db_architecture_and_schema-overview-and-config.md), SQLiteHelper API → [section 5](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md), Inconsistencies → [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB).

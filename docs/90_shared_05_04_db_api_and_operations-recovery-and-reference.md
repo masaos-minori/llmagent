@@ -101,7 +101,7 @@ Failure to recover required workflow or event-delivery state MUST NOT be silentl
 
 `sqlite3.OperationalError` (busy/locked): automatic wait via `PRAGMA busy_timeout` (default 30 seconds); `sqlite3.IntegrityError`: propagates to caller; does not occur in upsert paths; `sqlite-vec` load error: `sqlite3.OperationalError` → connection failure; schema DDL failure: exception re-thrown from `executescript()`; `prune_old_memories` failure: `STRICT` — exception propagates; `BEST_EFFORT` — returns `MaintenanceResult(success=False)`; `commit()` error: WARNING logged + `sqlite3.OperationalError` re-thrown; `close()` error: WARNING logged only; no exception thrown.
 
-**Integrity check failure (current behavior, corrected from prior wording):** `_run_integrity_check()` logs the error and, only for `sqlite3.OperationalError`/`ValueError`/`RuntimeError`, returns a failed check result that `recover_corruption()` may act on. It does **not** "attempt restore from backup" unconditionally — `sqlite3.DatabaseError` (physical corruption) propagates uncaught instead of reaching the restore branch at all. See [section 9.4 Exception policy](#94-exception-policy) and Known Issue [SHARED-001](90_shared_90_inconsistencies_and_known_issues.md).
+**Integrity check failure:** `_run_integrity_check()` catches all exceptions and dispatches them to `_classify_error()`, which classifies `sqlite3.DatabaseError` (physical corruption) as `DbCondition.CORRUPTION` rather than letting it propagate uncaught; `recover_corruption()` acts on the resulting classification rather than on the raw exception. See [section 9.4 Exception policy](#94-exception-policy).
 
 ---
 

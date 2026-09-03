@@ -16,7 +16,7 @@ related:
   - 04_mcp_06_02_configuration-file-inventory.md
   - 04_mcp_07_tool_schema_export_policy.md
   - 04_mcp_08_tool_capability_naming_convention.md
-  - 04_mcp_90_inconsistencies_and_known_issues.md
+  - 00_governance_03_issue-and-uncertainty-management.md
 ---
 
 # MCP Documentation Guide
@@ -113,7 +113,7 @@ Provides guidance on determining which chapters to open as the entry point for t
 | [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) | Schema Export |
 | [04_mcp_08_tool_capability_naming_convention.md](04_mcp_08_tool_capability_naming_convention.md) | Capability Naming Convention |
 | ~~[04_mcp_07_mdq_rag_boundary.md]~~ | Deleted |
-| [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | Known Issues |
+| [00_governance_03_issue-and-uncertainty-management.md](00_governance_03_issue-and-uncertainty-management.md) | Known Issues (all areas) |
 
 ---
 
@@ -176,7 +176,7 @@ Old MCP source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`) were kep
 - `04_mcp_06_01_purpose.md`
 - `04_mcp_07_tool_schema_export_policy.md`
 - `04_mcp_08_tool_capability_naming_convention.md`
-- `04_mcp_90_inconsistencies_and_known_issues.md`
+- `00_governance_03_issue-and-uncertainty-management.md`
 
 ## Keywords
 

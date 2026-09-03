@@ -62,7 +62,7 @@ Approval and technical safety are different concerns: Agent-side approval confir
 ### Out of Scope
 
 - GitHub MCP's existing `protected_branches`/force-push handling (already implemented separately; not part of this decision).
-- Redesign of the Agent-side approval risk-tier mapping (tracked separately as Known Issue MCP-004).
+- Redesign of the Agent-side approval risk-tier mapping (tracked separately; resolved).
 - Any capability to allow Force Push, even as an administrative feature — this ADR only requires that if such a capability is later added, it MUST NOT be the default `git_push` path.
 
 ## Rationale
@@ -126,7 +126,7 @@ A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the r
 ### Security Consequences
 - Closes the option-injection vector for `branch`/`remote` arguments.
 - Audit records identify the affected repository and capture pre/post-condition state.
-- Audit `target` field fix completed (MCP-005); this tool category's audit trail now includes canonical repository identity.
+- Audit `target` field fix completed; this tool category's audit trail now includes canonical repository identity.
 
 ## Traceability
 
@@ -189,7 +189,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 ### Resolved Items
 
 - **Resolved**: Protected-branch empty-branch short-circuit — resolved by commit `800aea33e` (fix `_validate_protected()` to reject empty `branch` argument).
-- **Resolved**: MCP-005 — audit `target` field key-name mismatch fixed (see Resolution Notes).
+- **Resolved**: Audit `target` field key-name mismatch fixed (see Resolution Notes).
 
 ## Implementation Notes
 
@@ -203,9 +203,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 ## Known Deviations
 
-- **Resolved**: MCP-003 — protected-branch/Force-Push guard added (commit `800aea33e`).
-- **Resolved**: MCP-004 — effective risk below HIGH for git tools can occur if config is downgraded (no floor check); approval-screen preview for git tools falls through to generic JSON dump; no end-to-end test exercises the shipped config through the actual approval flow — resolved by commit `800aea33e`.
-- **Resolved**: MCP-005 — audit `target` field key-name mismatch fixed (see Resolution Notes).
+現時点で記載すべき差異はない(protected-branch/Force-Pushガード追加、承認リスク階層の是正、audit `target`フィールド修正はいずれも解決済み)。
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
@@ -236,7 +234,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - [Fail-Open/Fail-Closed and Risk Tiers](../04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)
 
 ### Known Issues
-- [MCP Known Issues](../04_mcp_90_inconsistencies_and_known_issues.md) — MCP-003 (narrowed scope resolved via the guards this ADR requires), MCP-004 (approval risk-tier mapping, out of scope for this ADR), MCP-005 (audit repository-identity fix, resolved)
+- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — no active entries related to this ADR; the protected-branch/Force-Push guard, approval risk-tier mapping, and audit repository-identity gaps this ADR addressed are all resolved.
 
 ### Implementation References
 - `scripts/mcp_servers/git/repository_state.py` — `RepositoryState`, `WriteProtectionPipeline`

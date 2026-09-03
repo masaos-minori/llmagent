@@ -13,7 +13,7 @@ related:
   - 03_rag_03_01_query_pipeline-overview.md
   - 03_rag_04_05_dto-types.md
   - 03_rag_05_1-configuration-reference.md
-  - 03_rag_90_inconsistencies_and_known_issues.md
+  - 00_governance_03_issue-and-uncertainty-management.md
   - 03_rag_91_design_notes.md
 ---
 
@@ -29,7 +29,7 @@ Read this file first to determine which chapter you should open.
 ## Reading Order
 
 ``` text
-01 System Overview → 02 Ingestion Pipeline → 03 Query Pipeline → 04 Data Model → 05 Configuration → 90 Known Issues → 91 Design Notes
+01 System Overview → 02 Ingestion Pipeline → 03 Query Pipeline → 04 Data Model → 05 Configuration → 91 Design Notes
 ```
 
 ---
@@ -47,7 +47,7 @@ Read this file first to determine which chapter you should open.
 | What is the SQLite schema for the RAG database? | `03_rag_04` |
 | What are `RawHit`, `MergedHit`, and `RankedHit`? | `03_rag_04` |
 | What are the configuration parameters? | `03_rag_05` |
-| Are there any known bugs or behavioral inconsistencies? | `03_rag_90` |
+| Are there any known bugs or behavioral inconsistencies? | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
 | What are the established design invariants regarding FTS5/LLM content separation and table responsibilities? | `03_rag_91` |
 
 ---
@@ -62,10 +62,10 @@ Only the restructured documents listed in the following file index are valid sou
 | File formats (JSON structure, field names) | `03_rag_02_01_ingestion_pipeline-overview.md`, `03_rag_04_01_dto-models_data.md` |
 | Query pipeline behavior (stages, RRF, reranking, HTTP mode) | `03_rag_03_01_query_pipeline-overview.md` |
 | Configuration parameters and operational commands | `03_rag_05_1-configuration-reference.md` |
-| Known bugs, specification contradictions, unresolved issues | `03_rag_90_inconsistencies_and_known_issues.md` |
+| Known bugs, specification contradictions, unresolved issues | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
 | Established design invariants and regression test gaps | `03_rag_91_design_notes.md`, `03_rag_91_design_notes.md` |
 
-**Conflict Resolution**: If a contradiction is detected during review or implementation changes, modify the canonical file as defined by the Canonical Source Rule and add the detection date and details to `docs/03_rag_90_inconsistencies_and_known_issues.md`. If it cannot be resolved immediately, record it as an entry with a DOC-N label in the same file. For local checks, use `python tools/check_docs_consistency.py [target files...]`.
+**Conflict Resolution**: If a contradiction is detected during review or implementation changes, modify the canonical file as defined by the Canonical Source Rule and add an entry to `docs/00_governance_03_issue-and-uncertainty-management.md` Part 1 (Area: RAG) with the detection date and details. For local checks, use `python tools/check_docs_consistency.py [target files...]`.
 
 ---
 
@@ -104,7 +104,7 @@ Only the restructured documents listed in the following file index are valid sou
 | [03_rag_05_6-local-file-re-ingestion.md](03_rag_05_6-local-file-re-ingestion.md) | Local file re-ingestion |
 | [03_rag_05_7-rag-index-consistency-checks.md](03_rag_05_7-rag-index-consistency-checks.md) | Consistency checks |
 | [03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md](03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md) | MCP internal operations |
-| [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) | Known issues |
+| [00_governance_03_issue-and-uncertainty-management.md](00_governance_03_issue-and-uncertainty-management.md) | Known issues (all areas) |
 | [03_rag_91_design_notes.md](03_rag_91_design_notes.md) | DESIGN-2 notes |
 | [03_rag_91_design_notes.md](03_rag_91_design_notes.md) | DESIGN-3 notes |
 
@@ -126,7 +126,6 @@ Cross-cutting documentation rules and policies:
 - `03_rag_03_01_query_pipeline-overview.md`
 - `03_rag_04_05_dto-types.md`
 - `03_rag_05_1-configuration-reference.md`
-- `03_rag_90_inconsistencies_and_known_issues.md`
 - `03_rag_91_design_notes.md`
 
 ## Related ADRs

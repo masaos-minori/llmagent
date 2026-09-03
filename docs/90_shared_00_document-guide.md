@@ -9,7 +9,7 @@ tags:
   - routing
   - ai reference
 related:
-  - 90_shared_90_inconsistencies_and_known_issues.md
+  - 00_governance_03_issue-and-uncertainty-management.md
 source:
   - 90_shared_00_document-guide.md
 ---
@@ -52,7 +52,7 @@ Documents the `shared/` layer (common types, configuration, logging, OTel, tool 
 
 ## Navigation to Major Known Issues
 
-Refer to [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) for a full catalog of known inconsistencies (currently no open items). Note that `ArtifactEvent` does not involve an event bus (it is data definition only).
+Refer to [00_governance_03_issue-and-uncertainty-management.md](00_governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB) for a full catalog of known inconsistencies. Note that `ArtifactEvent` does not involve an event bus (it is data definition only).
 
 ---
 

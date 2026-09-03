@@ -14,7 +14,7 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 | Delivery Semantics & Consumer Responsibilities | `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` |
 | Configuration, Security Constraints & Operations | `06_eventbus_05_*` |
 | Reference API (for detailed verification) | `06_eventbus_06_*` |
-| Known Issues & Pending Items | `06_eventbus_90_inconsistencies_and_known_issues.md` |
+| Known Issues & Pending Items | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## AI Query Routing
 
@@ -26,7 +26,7 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 | Delivery semantics & consumer responsibilities | `06_eventbus_04` |
 | Configuration, bind address, health checks & operations | `06_eventbus_05` |
 | API details, types & schemas | `06_eventbus_06` |
-| Known issues & specification inconsistencies | `06_eventbus_90` |
+| Known issues & specification inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## Canonical Source Rule
 
@@ -34,7 +34,7 @@ The canonical source for behavior is the **source code** (`scripts/eventbus/`), 
 
 ## Known Issues / Deferred Items
 
-Known limitations, specification gaps, and pending items are centrally managed in `06_eventbus_90_inconsistencies_and_known_issues.md`. Do not duplicate them in individual chapters.
+Known limitations, specification gaps, and pending items are centrally managed in `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus). Do not duplicate them in individual chapters.
 
 ## Reference API
 

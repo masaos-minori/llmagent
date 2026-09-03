@@ -32,13 +32,9 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 
 ## Known Issues
 
-Each category manages its own known inconsistencies and unresolved items:
+All areas' known inconsistencies and unresolved items are tracked in one place:
 
-- [RAG](03_rag_90_inconsistencies_and_known_issues.md)
-- [MCP](04_mcp_90_inconsistencies_and_known_issues.md)
-- [Agent](05_agent_90_inconsistencies_and_known_issues.md)
-- [Event Bus](06_eventbus_90_inconsistencies_and_known_issues.md)
-- [Shared/DB](90_shared_90_inconsistencies_and_known_issues.md)
+- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — Part 1: Known Issues (all areas)
 
 ## Document References by Task
 
@@ -49,7 +45,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | Task scope | Reference docs |
 |---|---|
 | Agent spec (overview, design, known issues) | `05_agent_00_document-guide.md` + `05_agent_01_system-overview.md` |
-| Agent known issues / inconsistencies | `05_agent_90_inconsistencies_and_known_issues.md` |
+| Agent known issues / inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent) |
 | MCP server spec (overview, design, known issues) | `04_mcp_00_document-guide.md` + `04_mcp_01_system_overview.md` |
 | RAG pipeline spec (overview, design, known issues) | `03_rag_00_document-guide.md` + `03_rag_01_system_overview.md` |
 | MDQ vs RAG boundary | `04_mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
@@ -101,8 +97,8 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | System security architecture / trust boundaries / threat model | `00_security_01_architecture-and-trust-boundaries.md` |
 | High-risk MCP tool policy (path/repo allowlists, traversal prevention, approval-to-risk-tier mapping) | `00_security_02_high-risk-tool-common-policy.md` |
 | Any MCP server (catalog only) | `04_mcp_04_01_web-search-file-read-github.md` |
-| mdq-mcp specifics | `04_mcp_04_04_mdq.md` + `04_mcp_90_inconsistencies_and_known_issues.md` |
-| MCP known bugs / inconsistencies | `04_mcp_90_inconsistencies_and_known_issues.md` |
+| mdq-mcp specifics | `04_mcp_04_04_mdq.md` + `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
+| MCP known bugs / inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
 
 #### RAG
 
@@ -114,7 +110,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | crawler.py changes / API reference | `03_rag_02_02_ingestion_pipeline-crawler.md` |
 | chunk_splitter.py changes / API reference | `03_rag_02_03_ingestion_pipeline-chunksplitter.md` |
 | ingester.py changes / API reference | `03_rag_02_04_ingestion_pipeline-ingester.md` |
-| RAG known bugs / inconsistencies | `03_rag_90_inconsistencies_and_known_issues.md` |
+| RAG known bugs / inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
 | RAG configuration parameters | `03_rag_05_1-configuration-reference.md` |
 
 #### DB / Shared
@@ -123,7 +119,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 |---|---|
 | SQLite / DB connection / WAL / transactions | `90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md` |
 | Config / logger / formatters / rag_utils | `90_shared_03_01_runtime_and_execution-config-and-logging.md` |
-| Shared layer / DB layer known issues / inconsistencies | `90_shared_90_inconsistencies_and_known_issues.md` |
+| Shared layer / DB layer known issues / inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Shared/DB) |
 
 #### Event Bus
 
@@ -135,7 +131,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | Event Bus (DLQ/offsets) | `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` |
 | Event Bus (config/ops) | `06_eventbus_05_configuration-and-operations.md` |
 | Event Bus (API ref) | `06_eventbus_06_reference-api.md` |
-| Event Bus (issues) | `06_eventbus_90_inconsistencies_and_known_issues.md` |
+| Event Bus (issues) | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## Related Documents
 

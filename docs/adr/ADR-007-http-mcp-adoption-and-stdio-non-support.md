@@ -346,17 +346,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 ADRと現行実装、設定、テスト、文書に差異がある場合に記載する。
 
-- **Known Issue**: MCP-001 — `include_disabled` filter unimplemented on `/v1/tools`.
-- **Type**: Open Issue
-- **Summary**: `/v1/tools`でdisabledサーバーのフィルタリングが未実装
-- **Impact**: disabledサーバーの情報も返される可能性がある
-- **Resolution Target**: リファクタリング時に実装
-
-- **Known Issue**: MCP-002 — Tool runtime availability metadata partially implemented (`enabled`/`disabled_reason` missing on some servers).
-- **Type**: Documentation Gap
-- **Summary**: ツールの実行時利用状況メタデータの不完全
-- **Impact**: 運用担当者の混乱
-- **Resolution Target**: ドキュメントの更新が必要
+現時点で記載すべき差異はない（MCP-001、MCP-002はいずれも解決済み）。
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
@@ -422,7 +412,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [MCP Known Issues](04_mcp_90_inconsistencies_and_known_issues.md) — MCP既知の問題
+- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — MCP既知の問題
 
 ### Implementation References
 

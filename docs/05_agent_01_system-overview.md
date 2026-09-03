@@ -95,7 +95,7 @@ For the canonical command list, see [05_agent_07 Slash Command Reference](05_age
 
 ## Known Limitations
 
-N/A — no known limitations documented beyond those tracked in `05_agent_90_inconsistencies_and_known_issues.md`.
+N/A — no known limitations documented beyond those tracked in `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent).
 
 ## Related Docs
 
