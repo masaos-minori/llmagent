@@ -317,10 +317,10 @@ table.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Apply after seq 01 and seq 04 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row's own file is the test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Applied after seq 01 and seq 04 (both already in place); corrected one stale reference from "plans/20260902-191512_plan.md" to "plans/done/20260902-191512_plan.md" (the Plan has since been archived) |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | This row's own file is the test — 13 tests, all passing |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `uv run pytest tests/tools/test_check_dependency_graph_cycles.py -v`: 13/13 passed, including `TestRealGraphIntegration::test_real_repo_graph_has_no_cycle`. `ruff format`/`ruff check`: clean. `mypy`: no issues. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
