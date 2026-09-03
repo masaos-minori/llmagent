@@ -281,10 +281,10 @@ implementation-procedure document per this Plan's Implementation Target Files ta
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Apply after seq 01 (see Compatibility considerations) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Applied after seq 01 (already in place) |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | N/A: documentation-only row, no test file owned by this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `check_docs_quality.py` (0 errors, 1 pre-existing unrelated warning); `check_docs_structure.py docs/00_governance_04_documentation-checks.md` (All checks passed, 17284 bytes) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | This row's own target file is the documentation update; no `docs/00_index.md` task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

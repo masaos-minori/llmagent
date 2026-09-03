@@ -181,46 +181,22 @@ Duplicate notes shared across all ADRs:
 
 ### 12. Area Dependency Graph Validation
 
-Permitted dependency directions only:
+Canonical source: the dependency-graph taxonomy (Software Runtime Dependency Graph,
+Deployment Management Graph, Documentation Reference Graph, Governance Applicability
+Matrix) is defined in `docs/00_governance_01_documentation-policy.md` — see that
+document's sections by these names. This document does not duplicate the edge list.
 
-```mermaid
-graph TD
-    Overview --> Deployment
-    Overview --> RAG
-    Overview --> MCP
-    Overview --> Agent
-    Overview --> EventBus
-    Overview --> Shared/DB
-    Overview --> Governance
-    
-    Deployment --> RAG
-    Deployment --> MCP
-    Deployment --> Agent
-    Deployment --> EventBus
-    Deployment --> Shared/DB
-    
-    RAG --> Agent
-    RAG --> EventBus
-    
-    MCP --> Agent
-    MCP --> EventBus
-    
-    Agent --> EventBus
-    Agent --> Shared/DB
-    
-    EventBus --> Shared/DB
-    
-    Governance --> Overview
-    Governance --> Deployment
-    Governance --> RAG
-    Governance --> MCP
-    Governance --> Agent
-    Governance --> EventBus
-    Governance --> Shared/DB
-```
+**Automated** (Software Runtime Dependency Graph only): `tools/check_dependency_graph_cycles.py`
+parses the Software Runtime Dependency Graph's edge list from
+`docs/00_governance_01_documentation-policy.md` and fails if a cycle exists among its
+5 in-scope nodes (Agent, MCP, RAG, EventBus, Shared/DB). Wired into
+`.github/workflows/governance-docs-consistency.yml`.
 
-**Cycles prohibited**: No circular dependencies allowed.
-**Direction constraint**: Dependencies only flow downward (Overview → Governance).
+**Manual** (all other relation types): the Deployment Management Graph, Documentation
+Reference Graph, and Governance Applicability Matrix are not cycle-checked by any
+tool — see each section's own cycle-tolerance statement in
+`docs/00_governance_01_documentation-policy.md` — and remain subject to human review
+only.
 
 ### 13. Merge Condition Validation
 
@@ -284,7 +260,7 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 | GV-012 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-013 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Partial | Extend stale_patterns config |
 | GV-014 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | Optional: run cited tests in CI, not just verify path existence |
-| GV-015 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
+| GV-015 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Existing | None |
 | GV-016 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
 | GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
 | GV-019 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
@@ -308,7 +284,11 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
    originally requested. Remaining, optional scope: actually running each cited test in CI
    (this check only verifies the path exists), tracked as a future enhancement, not a gap in
    the current implementation.
-10. **GV-015**: Separate dependency graph analysis by type
+10. **GV-015**: Resolved — `docs/00_governance_01_documentation-policy.md`'s
+   Software Runtime Dependency Graph, Deployment Management Graph, Documentation
+   Reference Graph, and Governance Applicability Matrix sections separate the four
+   relation types the previous single graph conflated; closing reference:
+   `issues/done/20260902-102831_depgraph_area-dependency-graph-cycle-and-relationship-conflation.md`.
 11. **GV-016**: Audit auto-check implementations against documentation claims
 12. **GV-018**: Add glossary term classification validation
 13. **GV-019**: Add metadata field usage policy enforcement
@@ -317,8 +297,18 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
 
 To determine which documents are affected by a change:
 
-1. Identify the change category (architecture, configuration, command, behavioral, documentation-only)
-2. Map the change to affected areas using the area dependency graph
+1. Identify the change category (architecture, configuration, command, behavioral, deployment, governance-policy, documentation-only)
+2. Select which relation type governs the change, by category:
+   - Architecture, behavioral, or command changes → Software Runtime Dependency Graph
+   - Deployment changes → Deployment Management Graph
+   - Documentation-only changes → Documentation Reference Graph
+   - Governance-policy changes → Governance Applicability Matrix
+   - Configuration or API changes → continue to use the existing Canonical Source
+     Precedence matrix (Decision Target Canonical Source Matrix); no separate
+     Configuration Ownership Map or API Consumer Map exists (tracked as a Needs
+     Confirmation entry in `docs/00_governance_03_issue-and-uncertainty-management.md`)
+
+   Map the change to the areas or components covered by the selected graph or matrix.
 3. List all documents in affected areas that reference the changed element
 4. Prioritize updates by document class priority: Specification > Guide > Reference > Operations > Note
 
