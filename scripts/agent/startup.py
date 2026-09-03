@@ -24,7 +24,6 @@ from shared.mcp_config import (
 )
 
 from agent.context import AgentContext
-from agent.factory import build_agent_context, init_tracer
 from agent.orchestrator import Orchestrator
 from agent.output_tags import OutputTag
 from agent.secrets_masker import _mask_secrets
@@ -33,12 +32,10 @@ from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.services.routing_drift import check_routing_drift, check_routing_safety_tiers
 from agent.services.security_audit import audit_security_defaults
-from agent.services.workflow_schema import check_workflow_definition
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
+from agent.startup_component_init import ComponentInitializer
 from agent.workflow.approval_ops import find_all_pending_approvals
 from agent.workflow.state_store import StateStore
-
-HEALTH_CHECK_RETRY_DELAY_SEC = 1.0
 
 
 class StartupInterrupted(RuntimeError):
@@ -60,6 +57,8 @@ class StartupOrchestrator:
     Handles: component init, MCP server spawning, service health checks,
     security audit, tool definition validation, and initial system prompt setup.
     """
+
+    HEALTH_CHECK_RETRY_DELAY_SEC = 1.0
 
     def __init__(
         self,
@@ -96,7 +95,9 @@ class StartupOrchestrator:
 
     async def run(self) -> tuple[CommandRegistry, Orchestrator, list[subprocess.Popen]]:
         """Execute full startup sequence; return (cmds, orchestrator, spawned_subprocesses)."""
-        self._initialize()
+        self._cmds, self._orchestrator = await ComponentInitializer(
+            self._ctx, self._view
+        ).initialize()
         try:
             self._spawned_subprocesses = await self._start_servers()
             await self._verify_mcp_health()
@@ -118,43 +119,6 @@ class StartupOrchestrator:
                 "StartupOrchestrator.run() failed to initialize cmds/orchestrator"
             )
         return self._cmds, self._orchestrator, self._spawned_subprocesses
-
-    def _initialize(self) -> None:
-        """Setup readline, wire DI, init CommandRegistry and Orchestrator."""
-        ctx = self._ctx
-        self._view.setup_readline()
-        build_agent_context(ctx, self._view)
-        from shared.llm_client import build_llm_url
-
-        ctx.conv.llm_url = build_llm_url(ctx.cfg.llm.llm_url)
-        self._init_command_registry()
-        self._check_workflow_definition()
-        self._check_workflow_schema()
-        self._init_orchestrator()
-
-    def _init_command_registry(self) -> None:
-        """Build the command registry from the context."""
-        from agent.commands.registry import (
-            CommandRegistry,  # lazy: deferred to avoid circular import at module level
-        )
-
-        self._cmds = CommandRegistry(self._ctx)
-
-    def _init_orchestrator(self) -> None:
-        """Construct the Orchestrator with command registry, view, and tracing."""
-        if self._cmds is None:
-            raise RuntimeError("_init_orchestrator requires _cmds to be set first")
-        tracer = init_tracer(self._ctx)
-        self._orchestrator = Orchestrator(
-            self._ctx,
-            on_turn_start=self._view.write_turn_start,
-            on_turn_end=self._view.write_turn_end,
-            on_error=self._view.write_llm_error,
-            on_first_turn=self._cmds._generate_session_title,
-            on_llm_wait_start=self._view.start_spinner,
-            on_llm_wait_end=self._view.stop_spinner,
-            tracer=tracer,
-        )
 
     async def _start_http_subprocess_once(
         self, key: str, cfg: McpServerConfig
@@ -222,7 +186,9 @@ class StartupOrchestrator:
                     )
 
                     # Retry after delay
-                    if await self._interruptible_sleep(HEALTH_CHECK_RETRY_DELAY_SEC):
+                    if await self._interruptible_sleep(
+                        self.HEALTH_CHECK_RETRY_DELAY_SEC
+                    ):
                         raise StartupInterrupted(
                             f"shutdown requested during startup retry delay for {key!r}"
                         )
@@ -281,7 +247,7 @@ class StartupOrchestrator:
                 # and either re-wrapped as a generic RuntimeError (production profile)
                 # or swallowed as a mere warning (non-production profile), defeating
                 # the prompt-interruption contract.
-                if await self._interruptible_sleep(HEALTH_CHECK_RETRY_DELAY_SEC):
+                if await self._interruptible_sleep(self.HEALTH_CHECK_RETRY_DELAY_SEC):
                     raise StartupInterrupted(
                         f"shutdown requested during post-startup health check retry delay for {server_key!r}"
                     ) from None
@@ -307,23 +273,6 @@ class StartupOrchestrator:
                     self._view.write_warning(
                         f"{OutputTag.NON_FATAL} MCP subprocess {server_key!r} failed post-startup health check: {retry_err}"
                     )
-
-    def _check_workflow_definition(self) -> None:
-        """Preflight check for workflow definition file before Orchestrator.__init__()."""
-        try:
-            check_workflow_definition()
-        except RuntimeError as e:
-            logger.error("Workflow preflight check failed: %s", e)
-            raise
-
-    def _check_workflow_schema(self) -> None:
-        """Preflight check for workflow DB schema before Orchestrator.__init__()."""
-        from agent.services.workflow_schema import check_workflow_schema
-
-        result = check_workflow_schema()
-        if not result.valid:
-            logger.error("Workflow schema preflight failed: %s", result.error)
-            raise RuntimeError(result.error)
 
     async def _check_services(self) -> None:
         """Probe LLM/Embed health, validate tool definitions, and audit security defaults."""
