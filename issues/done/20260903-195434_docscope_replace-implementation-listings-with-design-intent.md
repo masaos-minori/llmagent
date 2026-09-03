@@ -1,5 +1,15 @@
 # Replace implementation-detail listings in docs/ with design-intent documentation
 
+> **Superseded 2026-09-03**: split into three smaller, independently
+> reviewable issues by work unit, per user request:
+> `issues/20260903-200135_docscope1_define-design-intent-content-policy.md`
+> (policy definition), `issues/20260903-200135_docscope2_build-content-policy-detection-tool.md`
+> (detection tool + governance registration), and
+> `issues/20260903-200135_docscope3_reconcile-port-drift-checks-with-new-policy.md`
+> (port-check reconciliation). No implementation work happened against this
+> version — retained here only for the original evidence/reasoning it
+> gathered, now redistributed across the three split issues.
+
 ## Priority
 Medium
 
