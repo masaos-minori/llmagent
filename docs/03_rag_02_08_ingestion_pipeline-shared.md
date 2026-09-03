@@ -59,11 +59,23 @@ source:
 
 | Function | Signature | Description |
 |---|---|---|
-| `read_json_file` | `(path: Path) -> ChunkDocument` | Reads and parses a JSON file, converting it to a `ChunkDocument`; raises `ChunkFormatError` on failure |
+| `read_json_file` | `(path: Path) -> ChunkDocument` | **Legacy fallback reader, not called by any current pipeline path** (confirmed via repository-wide search) — see "Historical: `read_json_file()` Legacy Fallback Reader" below. Current production readers are `read_crawl_json()` / `read_chunk_json()`, documented canonically in [03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md). |
 | `collect_source_files` | `(rag_src_dir: Path, target: Path \| None = None) $\rightarrow$ tuple[list[Path], list[SkipInfo]]` | Returns (target files, skip information); if `target` is specified and exists, returns `[target]`; if `target` does not exist, returns an empty list with `SkipInfo`; otherwise, globs `*.json` from `rag_src_dir` |
 | `is_already_processed` | `(sentinel_path: Path, force: bool) $\rightarrow$ bool` | Returns `True` if the sentinel file exists and `force=False` (skip signal for `chunk_splitter`) |
 
-**Field Mapping for `read_json_file`**
+**Historical: `read_json_file()` Legacy Fallback Reader (superseded)**
+
+The following field-mapping table describes `read_json_file()`'s lenient fallback
+behavior, retained for historical reference only. This function is **not** used by any
+current pipeline code path (verified: no caller exists outside its own definition in
+`pipeline_utils.py`) — it predates the strict-reader migration
+(`read_crawl_json()`/`read_chunk_json()`, both raising `ChunkFormatError` on
+missing/invalid fields instead of silently substituting a default). It remains in
+source only because removing it is out of scope for the strict-reader documentation
+alignment (see this document's `Source plan`). Do not rely on this fallback behavior
+for any new artifact producer — use the canonical readers documented in
+[03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md)
+instead.
 
 | JSON Field | ChunkDocument Field | Fallback |
 |---|---|---|
