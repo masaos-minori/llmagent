@@ -174,6 +174,18 @@ Topics explicitly excluded from this document:
 6. **First occurrence**: On first use in a document, include both preferred and alternative forms: "Needs Confirmation (Requires Confirmation)".
 7. **Subsequent occurrences**: Use only the preferred form after first definition.
 
+### Compatibility and Lifecycle Terminology
+
+| Term | Definition | Example |
+|------|------------|---------|
+| Backward Compatibility | Preserving an old public interface or API surface so existing callers continue to work unchanged after the underlying implementation changes. | `scripts/agent/__init__.py`'s module docstring: "Exports all component classes and the AgentREPL facade for backward compatibility" — old import paths through the package's `__init__.py` keep working. |
+| Operational Fallback | A runtime behavior that automatically switches to an alternate code path when a primary path fails or is unavailable, without requiring manual intervention. Distinct from Backward Compatibility (a static interface-preservation property): a fallback is a live, per-call runtime decision. | RAG's `call_rag_service()` falls back to in-process execution when the remote RAG service call fails (`docs/03_rag_03_01_query_pipeline-overview.md`). |
+| Default | A value substituted when a configuration key is absent or `None`, applied at load time. Distinct from Lenient Parsing: a present-but-wrong-typed value still raises rather than silently falling back to the default. | `get_typed(d, "field_name", int, "an integer", default=DEFAULT_VALUE)` (`rules/coding.md` Type-coercion policy) returns `default` only when the key is missing or `None`. |
+| Lenient Parsing | Tolerating an unexpected or partially-invalid input by skipping or degrading gracefully rather than raising, when that input is not itself the primary contract being validated. | `scripts/shared/production_config_validator.py`'s best-effort tool-registry lookup is skipped (not failed) on an unexpected exception during production config validation (`# noqa: BLE001` — justified inline as best-effort). |
+| Migration | A structural or schema change applied incrementally to an existing system's persisted state, without discarding existing data. | `workflow.sqlite`'s `db/schema_sql.py::apply_workflow_migrations()` applies a sequential list of (ID, SQL) pairs as incremental column additions to existing databases; a no-op for new databases (`docs/90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md`). |
+| Obsolete | A named entity (function, class, config key) that still exists in source and remains callable, but is no longer the current production path for its original purpose — superseded by a different mechanism. | `read_json_file()` (`scripts/rag/ingestion/pipeline_utils.py`) is retained in code but no longer documented as the current production reader (`plans/done/20260903-085152_plan.md`). |
+| Dead Code | A named entity that exists in source with zero current callers anywhere in the codebase — distinct from Obsolete, which may still be reachable via a legacy path. | `shared/tool_executor_helpers.py::is_side_effect()` is defined but has zero call sites in current source (confirmed by repository-wide search); `docs/04_mcp_03_01_dispatch-and-routing.md` accurately describes it as "deprecated (no longer used after TTL cache removal)". |
+
 ## Link Rules
 
 When referencing other documents:
