@@ -1,15 +1,15 @@
 ## Goal
 
-Update the two `load_all()` call sites in `scripts/rag/llm_client.py` to invoke the fail-closed path.
+Update the `load_all()` call site in `scripts/rag/pipeline.py` to invoke the fail-closed path.
 
 ## Scope
 
-Modify `scripts/rag/llm_client.py` only. Update the `load_all()` calls at lines 68 and 81 to pass `strict=True` if REQ-001's fix does not make the default strict.
+Modify `scripts/rag/pipeline.py` only. Update the `load_all()` call at line 75 to pass `strict=True` if REQ-001's fix does not make the default strict.
 
 ## Assumptions
 
 - REQ-001's fix determines whether this file needs a separate change. If REQ-001 changes the default to `True`, no change is needed here.
-- Both `cfg = ConfigLoader().load_all()` calls at lines 68 and 81 currently omit `strict`.
+- `cls._cache = ConfigLoader().load_all()` at line 75 currently omits `strict`.
 
 ## Design decisions
 
@@ -24,36 +24,36 @@ Modify `scripts/rag/llm_client.py` only. Update the `load_all()` calls at lines 
 
 ### Target file
 
-`scripts/rag/llm_client.py`
+`scripts/rag/pipeline.py`
 
 ### Procedure
 
 After applying REQ-001's fix, determine whether this file needs modification:
 - If REQ-001 changed the default to `True`: no change needed.
-- If REQ-001 added explicit `strict=True` to callers: update lines 68 and 81 to pass `strict=True`.
+- If REQ-001 added explicit `strict=True` to callers: update line 75 to pass `strict=True`.
 
 ### Method
 
-1. After REQ-001 is applied, read `scripts/rag/llm_client.py` lines 65-85 to confirm both call sites.
-2. Determine if the `load_all()` calls still omit `strict`.
-3. If yes, add `strict=True` argument to both calls.
+1. After REQ-001 is applied, read `scripts/rag/pipeline.py` line 75.
+2. Determine if the `load_all()` call still omits `strict`.
+3. If yes, add `strict=True` argument.
 
 ### Details
 
-1. Read `scripts/rag/llm_client.py` around lines 68 and 81 to confirm current state.
+1. Read `scripts/rag/pipeline.py` around line 75 to confirm current state.
 2. Apply conditional change based on REQ-001's outcome.
 
 ## Compatibility considerations
 
-- RAG LLM client startup: if the client previously relied on silent-continue for a missing `agent.toml`, this change will now cause it to raise `ConfigMissingError`.
+- RAG pipeline startup: if the pipeline previously relied on silent-continue for a missing `agent.toml`, this change will now cause it to raise `ConfigMissingError`.
 
 ## Security considerations
 
-- Medium blast radius: RAG LLM client startup. Making it fail-closed aligns with ADR-004 INV-01/INV-02's Fail-Fast requirements.
+- Medium blast radius: RAG pipeline startup. Making it fail-closed aligns with ADR-004 INV-01/INV-02's Fail-Fast requirements.
 
 ## Rollback considerations
 
-- Revert the `strict=True` additions if any were made. No other rollback needed.
+- Revert the `strict=True` addition if one was made. No other rollback needed.
 
 ## Validation plan
 
@@ -61,7 +61,7 @@ Run `uv run pytest tests/shared/test_config_loader.py -v` and `uv run pytest tes
 
 ## Completion criteria
 
-- Either confirmed no change needed (if REQ-001 changes the default), or `strict=True` added to both lines 68 and 81
+- Either confirmed no change needed (if REQ-001 changes the default), or `strict=True` added to line 75
 - All existing tests pass
 
 ## Out of scope
@@ -74,10 +74,10 @@ Run `uv run pytest tests/shared/test_config_loader.py -v` and `uv run pytest tes
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Conditional on REQ-001 outcome |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-03 | 2026-09-03 | No change needed; REQ-001 changed load_all() default to strict=True |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-03 | 2026-09-03 | Existing tests pass (1 pre-existing failure unrelated to this change) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-03 | 2026-09-03 | ruff clean, mypy clean, bandit high-confidence=0 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-03 | 2026-09-03 | Out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -98,4 +98,4 @@ Run `uv run pytest tests/shared/test_config_loader.py -v` and `uv run pytest tes
 - **Source plan**: plans/20260902-191443_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260902-220059
-- **Related target files**: scripts/rag/llm_client.py
+- **Related target files**: scripts/rag/pipeline.py

@@ -415,6 +415,14 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - `config/ingester.toml` — ingester設定ファイル
 - `config/eventbus.toml` — EventBus設定ファイル
 
+## Impact of REQ-001
+
+With REQ-001's fix (strict-default behavior), the config isolation boundary is now enforced at startup time rather than being silently bypassed when `agent.toml` is missing. This ensures that:
+
+1. Config isolation violations are detected early (fail-closed).
+2. No process can start with incomplete configuration.
+3. The strict-default applies uniformly across all environments.
+
 ## Completion Checklist
 
 ADRをAcceptedへ変更する前に確認する。

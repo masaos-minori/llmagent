@@ -75,10 +75,10 @@ Run `uv run pytest tests/agent/test_startup.py -v` after adding the regression t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | No code change required; consequence of REQ-001 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Add regression test for REQ-002 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-03 | 2026-09-03 | No code change required; consequence of REQ-001 |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-03 | 2026-09-03 | Added regression test for REQ-002 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-03 | 2026-09-03 | All 41 tests pass, lint/typecheck/bandit clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-03 | 2026-09-03 | Out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

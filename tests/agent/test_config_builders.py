@@ -503,6 +503,22 @@ class TestLoadConfig:
             with pytest.raises(ConfigLoadError, match="Config load failed"):
                 load_config()
 
+    def test_raises_on_missing_required_config_file(self) -> None:
+        """REQ-002 regression: after REQ-001 makes load_all() strict by default,
+        build_agent_config(None) must fail fast when agent.toml is missing,
+        preventing security_profile_val from ever being computed on a stale
+        fallback path."""
+        from shared.config_errors import ConfigMissingError
+
+        with patch("agent.config_builders.ConfigLoader") as MockLoader:
+            MockLoader.return_value.load_all.side_effect = ConfigMissingError(
+                "Config file not found: /opt/llm/config/agent.toml"
+            )
+            with pytest.raises(
+                ConfigLoadError, match=r"Config load failed \(ConfigMissingError"
+            ):
+                build_agent_config(None)
+
 
 # ── Business Rule Validations ─────────────────────────────────────────────────
 

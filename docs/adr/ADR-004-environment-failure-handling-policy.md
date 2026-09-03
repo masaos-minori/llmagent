@@ -346,6 +346,14 @@ PredictabilityとMaintainabilityを優先し、静的な分類基準で十分で
 - INV-15: Fallbackは、他のAccepted ADRが明示的に定義する場合に限り許可される。
 - INV-16: ADR-010は、承認済みRAG Fallbackの権威であり続ける。
 
+## Alignment with INV-01/INV-02
+
+With REQ-001's fix (strict-default behavior), the Fail-Fast requirements of INV-01/INV-02 are now enforced at startup time. Specifically:
+
+1. **INV-01**: Missing required config files cause immediate process termination (no silent-continue).
+2. **INV-02**: All processes enforce fail-closed behavior regardless of environment.
+3. **No environment-based relaxation**: The strict-default applies uniformly across all environments.
+
 ## Verification
 
 ### Automated Tests
