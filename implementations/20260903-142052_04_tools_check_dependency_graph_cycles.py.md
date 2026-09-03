@@ -322,10 +322,10 @@ table.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Apply after seq 01 (see Compatibility considerations) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Test file itself is seq 05's row; this row only confirms the tool runs standalone |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row's own file is not documentation |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Applied after seq 01 (already in place). Re-verified the applied Software Runtime Dependency Graph text matches this tool's `_EDGE_RE` format exactly (one-edge-per-line, `- Agent → MCP` style) before creating the file. |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | Test file itself is seq 05's row; this row confirmed the tool runs standalone: `uv run python tools/check_dependency_graph_cycles.py` → "No cycle found among 5 node(s), 6 edge(s)." (exit 0) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `ruff format`/`ruff check`: clean. `mypy`: no issues. `bandit`: no issues (0 findings, 124 lines scanned). Pre-commit's `check-tool-descriptions-sync` hook failed on first commit attempt (new tool not documented) — added a row to `tools/TOOL_DESCRIPTIONS.md`; re-ran `uv run python tools/check_tool_descriptions_sync.py` (No issues found) before committing. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | N/A: this row's own file is not documentation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
