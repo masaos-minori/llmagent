@@ -241,6 +241,63 @@ Text is split by Markdown headings (# through ######). Sections exceeding `md_sn
 - `normalized_content`: Japanese only (Sudachi normalization), null for English/code
 - `source_file`: Filename of the crawler output without the `.json` extension
 
+### 3.4a Canonical Artifact-Field Contract
+
+This is the canonical field-contract table for both artifact types in the RAG
+ingestion pipeline — other `docs/03_rag_*.md` documents link here instead of
+duplicating this table. Classification is derived directly from the validator each
+field is checked against in `scripts/rag/ingestion/pipeline_utils.py`
+(`read_crawl_json()` / `read_chunk_json()`); both raise `ChunkFormatError` (see
+[03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md))
+on a missing required key or an invalid field type.
+
+**Missing key vs. `null` vs. empty string**: a key absent from the JSON payload is
+always rejected by an exact-key-set check, regardless of classification below —
+`null`/empty-string tolerance applies only once the key is present. `null` is accepted
+only for `Nullable` fields; empty string is accepted only for `Conditional` fields;
+`Required` fields accept neither.
+
+#### Crawl artifacts (8 required keys) — reader: `read_crawl_json()`
+
+| Field | Classification | Validator | Notes |
+|---|---|---|---|
+| `url` | Required | `_validate_str` | non-empty string |
+| `content` | Conditional | `_validate_str_or_empty` | empty string allowed only when `code_blocks` is non-empty (cross-field rule) |
+| `title` | Nullable | `_validate_nullable_str` | defaults to `""` when `null` |
+| `lang` | Required | `_validate_str` | any non-empty string accepted; the `en`/`ja` value set (`LanguageCode`) is convention only — not enforced at parse time (Needs confirmation: whether enforcement is intended) |
+| `code_blocks` | Required | `_validate_list_of_str` | list of `str`; may be an empty list |
+| `etag` | Nullable | `_validate_nullable_str` | optional upstream metadata, not always available at crawl time |
+| `last_modified` | Nullable | `_validate_nullable_str` | optional upstream metadata, not always available at crawl time |
+| `fetched_at` | Required | `_validate_str` | non-empty string |
+
+Crawl artifacts do not carry `normalized_content` / `chunk_index` / `source_file` /
+`chunk_type` / `chunking_strategy` as input keys — `read_crawl_json()` sets these
+internally rather than reading them: `chunking_strategy="text"`,
+`normalized_content=None`, `chunk_index=0`, `source_file=""`, `chunk_type=""` (these
+crawl-stage values do not exist yet).
+
+#### Chunk artifacts (13 required keys) — reader: `read_chunk_json()`
+
+| Field | Classification | Validator | Notes |
+|---|---|---|---|
+| `url` | Required | `_validate_str` | non-empty string |
+| `content` | Required | `_validate_str` | non-empty string — no cross-field exception here, unlike crawl artifacts |
+| `title` | Nullable | `_validate_nullable_str` | defaults to `""` when `null` |
+| `lang` | Required | `_validate_str` | same non-enforcement note as crawl artifacts |
+| `code_blocks` | Required | `_validate_list_of_str` | list of `str`; may be an empty list |
+| `etag` | Nullable | `_validate_nullable_str` | optional upstream metadata |
+| `last_modified` | Nullable | `_validate_nullable_str` | optional upstream metadata |
+| `normalized_content` | Nullable | `_validate_nullable_str` | Japanese-only Sudachi normalization; `null` for English/code chunks |
+| `chunk_index` | Required | `_validate_int_non_negative` | non-negative int; `bool` is explicitly rejected before the `int` check |
+| `source_file` | Conditional | `_validate_str_or_empty` | empty string allowed unconditionally; otherwise the crawler output filename stem without `.json` |
+| `chunk_type` | Conditional | `_validate_str_or_empty` | `"text"` or `"code"` by convention; empty string allowed unconditionally; no enum enforced in code |
+| `chunking_strategy` | Required | `_validate_str` | `"text"` or `"heading"` by convention; no enum enforced in code (Needs confirmation: whether a closed value set is intended) |
+| `fetched_at` | Required | `_validate_str` | non-empty string |
+
+`read_chunk_json()` additionally rejects any key beyond these 13, except
+`schema_version`, `artifact_type`, and `created_by`, which are accepted but not
+validated or mapped onto `ChunkDocument`'s own fields.
+
 ### 3.5 Error Handling
 
 | Case | Action |
