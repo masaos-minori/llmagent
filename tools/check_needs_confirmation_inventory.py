@@ -46,16 +46,20 @@ INVENTORY_DOC_NAME = "00_governance_03_issue-and-uncertainty-management.md"
 # Meta/governance docs that discuss the "Needs confirmation" label itself
 # (defining it, cross-referencing it) rather than flagging an actual
 # unverified statement in domain content.
+#
+# Corrected 2026-09-03: this set previously named seven predecessor
+# filenames (00_governance_01_documentation-governance.md through
+# 00_governance_08_known-issues-migration-plan.md) that no longer exist —
+# those governance docs were since renamed/consolidated into the four files
+# that actually exist under docs/00_governance_*.md today. Only
+# 00_governance_03_issue-and-uncertainty-management.md (the inventory
+# document itself) happened to already match by coincidence.
 _GOVERNANCE_META_DOCS = frozenset(
     {
-        "00_governance_01_documentation-governance.md",
-        "00_governance_02_canonical-source-rule.md",
-        "00_governance_03_evidence-labels.md",
-        "00_governance_04_known-issues-template.md",
-        "00_governance_05_deprecated-items.md",
-        "00_governance_06_ai-reading-metadata.md",
+        "00_governance_01_documentation-policy.md",
+        "00_governance_02_documentation-metadata.md",
         "00_governance_03_issue-and-uncertainty-management.md",
-        "00_governance_08_known-issues-migration-plan.md",
+        "00_governance_04_documentation-checks.md",
     }
 )
 

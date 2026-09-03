@@ -15,7 +15,9 @@ from tools.check_compat_shims import (
     COMPAT_PATTERNS,
     ROOT_DIR,
     check_adr_prohibited_patterns,
+    check_all,
     check_compat_patterns,
+    check_removed_name_reintroduction,
     main,
 )
 
@@ -242,3 +244,94 @@ class TestWorkflowEnforcementPatterns:
     def test_unrelated_mode_assignment_not_flagged(self) -> None:
         issues = _check('display_mode = "compact"')
         assert not any("workflow_mode field reference" in i for i in issues)
+
+
+class TestRemovedNameReintroduction:
+    """check_removed_name_reintroduction() — compatterms REQ-003's
+    simple-absence case: `_update_null_fill` and the ToolRouteResolver+
+    server_configs co-occurrence, both scoped to docs/*.md only, both
+    exempted inside historical/resolved context."""
+
+    def test_update_null_fill_flagged_outside_historical_context(
+        self, tmp_path: Path
+    ) -> None:
+        doc = tmp_path / "example.md"
+        doc.write_text("`_update_null_fill()` is the current fallback path.\n")
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert len(issues) == 1
+        assert "_update_null_fill" in issues[0]
+
+    def test_update_null_fill_exempted_in_historical_context(
+        self, tmp_path: Path
+    ) -> None:
+        doc = tmp_path / "example.md"
+        doc.write_text(
+            "**Status**: resolved\n\n"
+            "This entry records that `_update_null_fill()` was removed.\n"
+        )
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert issues == []
+
+    def test_non_markdown_file_is_not_checked(self, tmp_path: Path) -> None:
+        py_file = tmp_path / "example.py"
+        py_file.write_text("# _update_null_fill() is current\n")
+        issues = check_removed_name_reintroduction(py_file.read_text(), py_file)
+        assert issues == []
+
+    def test_tool_route_resolver_server_configs_flagged_same_section(
+        self, tmp_path: Path
+    ) -> None:
+        doc = tmp_path / "example.md"
+        doc.write_text(
+            "## ToolRouteResolver\n\n"
+            "- **Configuration:** accepts `server_configs` for backward "
+            "compatibility.\n"
+        )
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert len(issues) == 1
+        assert "ToolRouteResolver+server_configs" in issues[0]
+
+    def test_tool_route_resolver_server_configs_exempted_in_historical_section(
+        self, tmp_path: Path
+    ) -> None:
+        doc = tmp_path / "example.md"
+        doc.write_text(
+            "## ToolRouteResolver (historical)\n\n"
+            "- **Removed:** previously accepted `server_configs`.\n"
+        )
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert issues == []
+
+    def test_server_configs_alone_without_class_name_not_flagged(
+        self, tmp_path: Path
+    ) -> None:
+        """server_configs unrelated to ToolRouteResolver (e.g. ToolExecutor's
+        own, still-current field) must not be flagged."""
+        doc = tmp_path / "example.md"
+        doc.write_text(
+            "## ToolExecutor\n\n"
+            "- **Configuration:** `server_configs` is the active MCP "
+            "execution configuration.\n"
+        )
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert issues == []
+
+
+class TestCheckAllRemovedNamesGating:
+    """check_all()'s `include_removed_names` defaults to False so the
+    existing .pre-commit-config.yaml wiring (a bare invocation with no
+    flags) is unaffected by this new, currently-non-compliant check."""
+
+    def test_default_does_not_include_removed_names_check(self, tmp_path: Path) -> None:
+        doc = tmp_path / "example.md"
+        doc.write_text("`_update_null_fill()` is the current fallback path.\n")
+        issues = check_all(doc.read_text(), doc, allowlist=set())
+        assert issues == []
+
+    def test_opt_in_includes_removed_names_check(self, tmp_path: Path) -> None:
+        doc = tmp_path / "example.md"
+        doc.write_text("`_update_null_fill()` is the current fallback path.\n")
+        issues = check_all(
+            doc.read_text(), doc, allowlist=set(), include_removed_names=True
+        )
+        assert len(issues) == 1

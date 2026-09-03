@@ -48,10 +48,30 @@ ADR_DIR = DOCS_DIR / "adr"
 # list -- EVENTBUS-008 is cited by ADR-006/ADR-008 but only resolves against
 # docs/06_eventbus_90_inconsistencies_and_known_issues.md, which is not one of
 # the three areas (mcp/agent/shared) the originating issue named explicitly.
+#
+# The five area-specific `*_90_inconsistencies_and_known_issues.md` files this
+# suffix originally matched were consolidated into
+# `docs/00_governance_03_issue-and-uncertainty-management.md` Part 1 and
+# deleted on 2026-09-03 (see that document's own Part 1 Consolidation Note) --
+# the suffix match below now finds nothing on its own and is kept only as a
+# harmless no-op in case a future per-area file reappears; the governance
+# document is the current, real canonical source and is always included
+# explicitly, independent of the suffix.
 _CANONICAL_SUFFIX = "_90_inconsistencies_and_known_issues.md"
+_GOVERNANCE_KNOWN_ISSUES_DOC = "00_governance_03_issue-and-uncertainty-management.md"
 
-_CANONICAL_ID_HEADER_RE = re.compile(r"^### ([A-Z]+-\d+):")
-# Bullet-list form, e.g. "- **Status**: resolved" (04_mcp_90, 05_agent_90).
+# Matches both the legacy per-area heading ("### MCP-004: Some title") and the
+# consolidated governance document's heading ("#### RAG-003", no title on the
+# same line) -- see docs/00_governance_03_issue-and-uncertainty-management.md
+# Part 1's Entry Template.
+_CANONICAL_ID_HEADER_RE = re.compile(r"^#{3,4} ([A-Z]+-\d+)(?::|\s*$)")
+# The governance document's Part 2 ("Needs Confirmation Inventory") also uses
+# `#### NC-<N>` headings that match the ID shape above (letters-dash-digits)
+# but are a different inventory entirely -- entries at or after this heading
+# must not be parsed as Known Issues.
+_PART_BOUNDARY_RE = re.compile(r"^## Part 2\b")
+# Bullet-list form, e.g. "- **Status**: resolved" (04_mcp_90, 05_agent_90, and
+# the consolidated governance document, which also uses this form).
 _CANONICAL_BULLET_STATUS_RE = re.compile(r"^-\s+\*\*Status\*\*:\s*(\S+)")
 # Inline-prose fallback, e.g. "... Status: partially resolved / Severity: High
 # / Type: design-gap. ..." (90_shared_90).
@@ -110,9 +130,17 @@ class AdrReference:
 
 
 def discover_canonical_docs() -> list[DocFile]:
-    """All docs/*_90_inconsistencies_and_known_issues.md files."""
+    """All docs/*_90_inconsistencies_and_known_issues.md files, plus the
+    consolidated `docs/00_governance_03_issue-and-uncertainty-management.md`
+    (the current real canonical source — see the module-level comment above
+    `_CANONICAL_SUFFIX`)."""
     all_files = discover_md_files(DOCS_DIR, prefix="")
-    return [f for f in all_files if f.rel_path.endswith(_CANONICAL_SUFFIX)]
+    return [
+        f
+        for f in all_files
+        if f.rel_path.endswith(_CANONICAL_SUFFIX)
+        or f.rel_path == _GOVERNANCE_KNOWN_ISSUES_DOC
+    ]
 
 
 def discover_adr_docs() -> list[DocFile]:
@@ -169,13 +197,21 @@ def parse_canonical_statuses(
     statuses: dict[str, CanonicalStatus] = {}
     issues: list[Issue] = []
     for doc in files:
+        # Stop scanning at a "## Part 2" boundary (the governance document's
+        # Needs Confirmation Inventory) -- its `#### NC-<N>` headings are
+        # ID-shaped but belong to a different inventory, not Known Issues.
+        boundary = next(
+            (i for i, line in enumerate(doc.lines) if _PART_BOUNDARY_RE.match(line)),
+            len(doc.lines),
+        )
+        scan_lines = doc.lines[:boundary]
         headers = [
             (m.group(1), i)
-            for i, line in enumerate(doc.lines)
+            for i, line in enumerate(scan_lines)
             if (m := _CANONICAL_ID_HEADER_RE.match(line))
         ]
         for idx, (entry_id, header_idx) in enumerate(headers):
-            end_idx = headers[idx + 1][1] if idx + 1 < len(headers) else len(doc.lines)
+            end_idx = headers[idx + 1][1] if idx + 1 < len(headers) else boundary
             body = doc.lines[header_idx + 1 : end_idx]
 
             raw_status: str | None = None

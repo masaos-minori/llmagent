@@ -1,14 +1,23 @@
-"""tests/test_check_agent_docs_consistency.py
+"""tests/tools/test_check_agent_docs_consistency.py
 
-Unit tests for tools/check_agent_docs_consistency.py — synthetic doc content
-and synthetic source snippets, not references to real doc/source files.
+Unit tests for the agent-domain generic checks — synthetic doc content and
+synthetic source snippets, not references to real doc/source files.
+
+Corrected 2026-09-03: these functions originally lived in the standalone
+tools/check_agent_docs_consistency.py, since consolidated into
+tools/_docs_consistency_lib.py (shared across all domains via
+tools/check_docs_consistency.py --domain agent|mcp|rag|deployment|overview —
+see that module's own docstring). This file's import was never updated after
+that consolidation, so every test here failed to collect (ModuleNotFoundError)
+until this fix — the assertions themselves needed no change, since the
+consolidated functions kept the same names and signatures.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from check_agent_docs_consistency import (
+from tools._docs_consistency_lib import (
     DocFile,
     check_broken_internal_links,
     check_command_drift,

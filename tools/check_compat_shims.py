@@ -160,6 +160,103 @@ DEFAULT_ALLOWLIST = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Check: removed-name reintroduction in current specifications (docs/ only)
+# ---------------------------------------------------------------------------
+#
+# `plans/20260903-090945_plan.md` (compatterms) REQ-003 designs an asymmetric
+# rule: a name confirmed fully absent from source needs only a simple
+# grep-vs-source-absence check (implemented here); a name that remains in
+# source but is no longer the current production path (e.g. `read_json_file`)
+# needs a harder, context-aware "is this presented as current?" check that
+# this function does not attempt — see that Plan's Design section for why the
+# two cases are not the same check. Scoped to docs/ only (this checks
+# documentation claims, not source code, which is where check_compat_patterns
+# above already looks for the removed identifiers themselves).
+
+_HISTORICAL_CONTEXT_MARKERS: frozenset[str] = frozenset(
+    {"legacy", "historical", "archive only", "resolved", "was:", "removed"}
+)
+
+_REMOVED_NAME_PATTERNS: dict[str, re.Pattern[str]] = {
+    "_update_null_fill (confirmed removed from scripts/rag/ingestion/, per "
+    "plans/20260903-085718_plan.md)": re.compile(r"_update_null_fill\b"),
+}
+
+_TOOL_ROUTE_RESOLVER_RE = re.compile(r"\bToolRouteResolver\b")
+_SERVER_CONFIGS_RE = re.compile(r"\bserver_configs\b")
+_HEADING_RE = re.compile(r"^#{1,6}\s")
+
+
+def _is_historical_context(lines: list[str], line_idx: int) -> bool:
+    """True if *line_idx* itself, or any of the preceding 10 lines, carries an
+    explicit historical/resolved marker — mirrors
+    tools/check_docs_quality.py's `_is_historical_context` helper so both
+    tools recognize "this is a historical reference, not a current claim" the
+    same way."""
+    start = max(0, line_idx - 10)
+    for i in range(start, line_idx + 1):
+        if any(marker in lines[i].lower() for marker in _HISTORICAL_CONTEXT_MARKERS):
+            return True
+    return False
+
+
+def check_removed_name_reintroduction(content: str, filepath: Path) -> list[str]:
+    """Flag a removed name presented as current outside historical context.
+
+    Only applies to `*.md` files — this checks whether documentation
+    reintroduces a claim about a name confirmed absent from source, not
+    whether the name itself appears in source (that's `check_compat_patterns`'s
+    job for source files). Not restricted to files physically under this
+    repository's `docs/` directory, so it can be exercised against isolated
+    fixtures in tests, not only real files on disk.
+    """
+    if filepath.suffix != ".md":
+        return []
+
+    issues: list[str] = []
+    lines = content.split("\n")
+    for i, line in enumerate(lines):
+        if _is_historical_context(lines, i):
+            continue
+        for description, pattern in _REMOVED_NAME_PATTERNS.items():
+            if pattern.search(line):
+                issues.append(
+                    f"{filepath}:{i + 1}: removed name reintroduced as current — "
+                    f"{description}: {line.strip()}"
+                )
+
+    # ToolRouteResolver+server_configs: section-scoped, not line-adjacent —
+    # a `## <Heading>` mentioning ToolRouteResolver may describe its
+    # constructor's arguments (including the stale server_configs claim)
+    # several bullets below the heading itself, with no repeated mention of
+    # the class name on that specific line.
+    section_start = 0
+    for i in range(len(lines) + 1):
+        at_boundary = i == len(lines) or _HEADING_RE.match(lines[i])
+        if not at_boundary:
+            continue
+        section = lines[section_start:i]
+        if (
+            section
+            and _TOOL_ROUTE_RESOLVER_RE.search("\n".join(section))
+            and _SERVER_CONFIGS_RE.search("\n".join(section))
+        ):
+            for j, sec_line in enumerate(section):
+                if _SERVER_CONFIGS_RE.search(sec_line) and not _is_historical_context(
+                    lines, section_start + j
+                ):
+                    issues.append(
+                        f"{filepath}:{section_start + j + 1}: "
+                        f"ToolRouteResolver+server_configs co-occurrence in the "
+                        f"same section — this constructor argument does not "
+                        f"exist in current code (confirmed removed, per "
+                        f"plans/20260903-090104_plan.md): {sec_line.strip()}"
+                    )
+        section_start = i
+    return issues
+
+
 def is_allowlisted(filepath: Path, allowlist: set[Path]) -> bool:
     """Check if the file is in the allowlist."""
     return filepath in allowlist
@@ -203,11 +300,32 @@ def check_adr_prohibited_patterns(
     return issues
 
 
-def check_all(content: str, filepath: Path, allowlist: set[Path]) -> list[str]:
-    """Run all checks and return combined issues."""
-    return check_compat_patterns(
+def check_all(
+    content: str,
+    filepath: Path,
+    allowlist: set[Path],
+    include_removed_names: bool = False,
+) -> list[str]:
+    """Run all checks and return combined issues.
+
+    `include_removed_names` defaults to `False` so this tool's existing
+    `.pre-commit-config.yaml` wiring (a bare `python -m tools.check_compat_shims`
+    with no flags) keeps its current pass/fail behavior unchanged.
+    `check_removed_name_reintroduction()` currently has one confirmed, known
+    finding in the live corpus (`docs/05_agent_13_reference-api.md:114`,
+    tracked by `plans/20260903-090104_plan.md`) — per this repository's
+    "new checks stay report-only until the corpus is compliant" convention,
+    it must be opted into explicitly (`--check-removed-names`) until that
+    Plan lands, not silently made blocking for every future commit.
+    """
+    if is_allowlisted(filepath, allowlist):
+        return []
+    issues = check_compat_patterns(
         content, filepath, allowlist
     ) + check_adr_prohibited_patterns(content, filepath, allowlist)
+    if include_removed_names:
+        issues += check_removed_name_reintroduction(content, filepath)
+    return issues
 
 
 def main() -> int:
@@ -219,6 +337,18 @@ def main() -> int:
         type=Path,
         default=None,
         help="Override the default allowlist with a custom file (one path per line)",
+    )
+    parser.add_argument(
+        "--check-removed-names",
+        action="store_true",
+        help=(
+            "Also run the removed-name-reintroduction check (docs/*.md only; "
+            "see check_removed_name_reintroduction()). Off by default — this "
+            "check currently has one known, Plan-tracked finding "
+            "(docs/05_agent_13_reference-api.md:114) and stays report-only "
+            "(opt-in) until that Plan lands, per this repository's convention "
+            "for new checks."
+        ),
     )
     parser.add_argument(
         "files",
@@ -267,7 +397,9 @@ def main() -> int:
         if not filepath.exists():
             continue
         content = filepath.read_text(encoding="utf-8")
-        issues = check_all(content, filepath, allowlist)
+        issues = check_all(
+            content, filepath, allowlist, include_removed_names=args.check_removed_names
+        )
         if issues:
             total_issues += len(issues)
             try:

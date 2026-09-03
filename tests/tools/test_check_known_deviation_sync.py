@@ -164,6 +164,64 @@ class TestFalsePositiveAvoidance:
         assert cross_check(statuses, adr_refs) == []
 
 
+class TestConsolidatedGovernanceFormat:
+    """The consolidated `docs/00_governance_03_issue-and-uncertainty-management.md`
+    format (`#### <ID>` heading, no colon/title on the same line) must resolve
+    identically to the legacy `### <ID>: <title>` per-area format — regression
+    for the confirmed bug where discover_canonical_docs()/_CANONICAL_ID_HEADER_RE
+    only recognized the now-deleted per-area files' heading style, so every
+    real ADR reference resolved as a false-positive dangling warning."""
+
+    def test_four_hash_id_only_heading_resolves(self, tmp_path: Path) -> None:
+        canonical_dir = tmp_path / "docs"
+        _write(
+            canonical_dir,
+            "00_governance_03_issue-and-uncertainty-management.md",
+            "## Part 1: Known Issues\n\n"
+            "#### RAG-999\n\n"
+            "- **ID**: RAG-999\n"
+            "- **Status**: open\n",
+        )
+        adr_dir = tmp_path / "adr"
+        _write(
+            adr_dir,
+            "ADR-006-example.md",
+            "## Known Deviations\n\n"
+            "- **Known Issue**: RAG-999 — still open per implementation\n",
+        )
+
+        statuses, parse_issues = parse_canonical_statuses(_discover(canonical_dir))
+        assert parse_issues == []
+        assert statuses["RAG-999"].raw_status == "open"
+
+        adr_refs = parse_adr_references(_discover(adr_dir))
+        assert cross_check(statuses, adr_refs) == []
+
+    def test_part_2_needs_confirmation_ids_are_not_parsed_as_known_issues(
+        self, tmp_path: Path
+    ) -> None:
+        """A `#### NC-<N>` heading under '## Part 2' is ID-shaped
+        (letters-dash-digits) but belongs to a different inventory — it must
+        not be captured as a Known Issue status, and must not swallow the
+        preceding Part 1 entry's body across the Part boundary."""
+        canonical_dir = tmp_path / "docs"
+        _write(
+            canonical_dir,
+            "00_governance_03_issue-and-uncertainty-management.md",
+            "## Part 1: Known Issues\n\n"
+            "#### RAG-998\n\n"
+            "- **Status**: resolved\n\n"
+            "## Part 2: Needs Confirmation Inventory\n\n"
+            "#### NC-030\n\n"
+            "- **Status**: open\n",
+        )
+
+        statuses, parse_issues = parse_canonical_statuses(_discover(canonical_dir))
+        assert parse_issues == []
+        assert statuses["RAG-998"].raw_status == "resolved"
+        assert "NC-030" not in statuses
+
+
 class TestNoIdHeadings:
     """A canonical document defining zero `### <ID>` headings at all does not
     exempt an ADR reference that would otherwise belong to it -- the
