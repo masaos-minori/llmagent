@@ -125,9 +125,10 @@ Current line numbers (to be re-confirmed before editing):
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-03T09:xx:xx | 2026-09-03T09:xx:xx | Updated MCP-003/MCP-004/MCP-005 entries |
-| 2 | Add or update tests per Validation plan | Completed | 2026-09-03T09:xx:xx | 2026-09-03T09:xx:xx | N/A: doc-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-03T09:xx:xx | 2026-09-03T09:xx:xx | check_docs_quality.py passed |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-03T09:xx:xx | 2026-09-03T09:xx:xx | Documentation IS the target |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903-000000 | 20260903-000000 | |
+| 2 | Add or update tests per Validation plan | Completed | 20260903-000000 | 20260903-000000 | N/A: doc-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903-000000 | 20260903-000000 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903-000000 | 20260903-000000 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
