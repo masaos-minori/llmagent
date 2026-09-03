@@ -17,14 +17,14 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from shared.logger import Logger
-from shared.mcp_config import McpServerHealthState
 
 from agent.context import AgentContext
 from agent.orchestrator import Orchestrator
 from agent.output_tags import OutputTag
-from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
+from agent.shared.health_models import StartupValidationResult
 from agent.startup_component_init import ComponentInitializer
 from agent.startup_mcp_starter import McpServerStarter
+from agent.startup_reporter import ReadinessReporter
 from agent.startup_validation import StartupValidationPipeline
 from agent.workflow.approval_ops import find_all_pending_approvals
 from agent.workflow.state_store import StateStore
@@ -63,6 +63,7 @@ class StartupOrchestrator:
         self._shutdown_event = shutdown_event
         self._mcp_starter = McpServerStarter(ctx, view, shutdown_event)
         self._validation_pipeline = StartupValidationPipeline(ctx, view)
+        self._reporter = ReadinessReporter(ctx, view)
 
     async def run(self) -> tuple[CommandRegistry, Orchestrator, list[subprocess.Popen]]:
         """Execute full startup sequence; return (cmds, orchestrator, spawned_subprocesses)."""
@@ -121,145 +122,11 @@ class StartupOrchestrator:
 
     def _display_pipeline_results(self, pipeline: StartupValidationResult) -> None:
         """Display startup validation warnings and fatal errors via the CLI view."""
-        for outcome in pipeline.outcomes:
-            if outcome.status == StartupCheckStatus.WARNING:
-                self._view.write_warning(f"{OutputTag.NON_FATAL} {outcome.message}")
-            elif outcome.status == StartupCheckStatus.FATAL:
-                self._view.write_fatal(outcome.message)
-                if outcome.remediation:
-                    self._view.write_fatal(f"  Remediation: {outcome.remediation}")
-            elif outcome.status == StartupCheckStatus.SKIPPED:
-                self._view.write_warning(f"{OutputTag.SKIPPED} {outcome.message}")
+        self._reporter.display_pipeline_results(pipeline)
 
     def _report_readiness(self, pipeline: StartupValidationResult) -> None:
         """Report aggregated readiness status after startup checks complete."""
-        mcp_ok = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "readiness" and o.status == StartupCheckStatus.OK
-        )
-        mcp_fail = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "readiness" and o.status == StartupCheckStatus.FATAL
-        )
-        mcp_skip = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "readiness" and o.status == StartupCheckStatus.SKIPPED
-        )
-        mcp_warn = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "readiness" and o.status == StartupCheckStatus.WARNING
-        )
-        rag_ok = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "rag_consistency" and o.status == StartupCheckStatus.OK
-        )
-        rag_fail = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "rag_consistency" and o.status == StartupCheckStatus.FATAL
-        )
-        rag_warn = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "rag_consistency" and o.status == StartupCheckStatus.WARNING
-        )
-        security_ok = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "security_audit" and o.status == StartupCheckStatus.OK
-        )
-        security_fail = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "security_audit" and o.status == StartupCheckStatus.FATAL
-        )
-        security_warn = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "security_audit" and o.status == StartupCheckStatus.WARNING
-        )
-        tool_disc_ok = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "mcp_tool_discovery" and o.status == StartupCheckStatus.OK
-        )
-        tool_disc_fail = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "mcp_tool_discovery" and o.status == StartupCheckStatus.FATAL
-        )
-        tool_disc_warn = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "mcp_tool_discovery"
-            and o.status == StartupCheckStatus.WARNING
-        )
-        tool_disc_skip = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "mcp_tool_discovery"
-            and o.status == StartupCheckStatus.SKIPPED
-        )
-        lines: list[str] = []
-        lines.append("Readiness Summary:")
-        lines.append(
-            f"  Security audit: {'OK' if security_ok else 'FAIL'} ({security_fail} fatal, {security_warn} warnings)"
-        )
-        lines.append(
-            f"  Service readiness: {'OK' if mcp_ok else 'FAIL'} ({mcp_fail} fatal, {mcp_warn} warnings, {mcp_skip} skipped)"
-        )
-        lines.append(
-            f"  Tool discovery: {'OK' if tool_disc_ok else 'FAIL'} ({tool_disc_fail} fatal, {tool_disc_warn} warnings, {tool_disc_skip} skipped)"
-        )
-        lines.append(
-            f"  RAG consistency: {'OK' if rag_ok else 'WARN'} ({rag_fail} fatal, {rag_warn} warnings)"
-        )
-        unreachable_count = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "mcp_tool_discovery" and "unreachable" in o.message.lower()
-        )
-        if unreachable_count > 0:
-            lines.append(f"  Unreachable servers: {unreachable_count}")
-        degraded_keys = []
-        registry = (
-            self._ctx.services_required.health_registry
-            if self._ctx.services_required
-            else None
-        )
-        if registry is not None:
-            degraded_keys = [
-                key
-                for key in self._ctx.cfg.mcp.mcp_servers
-                if registry.get_state(key) == McpServerHealthState.DEGRADED
-            ]
-        if degraded_keys:
-            lines.append(f"  Degraded servers: {', '.join(degraded_keys)}")
-        unavailable_servers: frozenset[str] = frozenset()
-        runtime_tools = (
-            self._ctx.services_required.runtime_tools
-            if self._ctx.services_required
-            else None
-        )
-        if runtime_tools is not None:
-            unavailable_servers = runtime_tools.unavailable_servers
-        if unavailable_servers:
-            parts = []
-            for key in sorted(unavailable_servers):
-                cfg_entry = self._ctx.cfg.mcp.mcp_servers.get(key)
-                policy = getattr(cfg_entry, "failure_policy", None)
-                if policy is not None:
-                    parts.append(f"{key} ({policy})")
-                else:
-                    parts.append(key)
-            lines.append(f"  Excluded tools (unavailable): {', '.join(parts)}")
-        self._view.write_warning("\n".join(lines))
-        logger.info("Readiness summary: %s", "; ".join(lines))
+        self._reporter.report_readiness(pipeline)
 
     async def _recover_pending_approvals(self) -> None:
         """Restore workflow approval-pending state from a previous session."""
