@@ -377,10 +377,8 @@ class TestLoadAllStrictMode:
         assert "_doc" not in result
         assert result.get("agent_loaded") is True
 
-    def test_load_all_existing_behavior_unchanged(
-        self, tmp_cfg: ConfigLoader, tmp_path: Path
-    ) -> None:
-        """Existing load() behavior is unchanged — strict=False skips missing files."""
-        # Default (strict=False) should skip missing files
-        result = tmp_cfg.load_all()
-        assert isinstance(result, dict)
+    def test_load_all_default_is_strict(self, tmp_cfg: ConfigLoader, tmp_path: Path) -> None:
+        """Default load_all() is strict — raises ConfigMissingError for missing required files."""
+        # Default (strict=True) should raise for missing required files
+        with pytest.raises(ConfigMissingError):
+            tmp_cfg.load_all()
