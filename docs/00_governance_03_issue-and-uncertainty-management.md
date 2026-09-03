@@ -891,6 +891,38 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 No other active items beyond NC-021 through NC-029 above.
 
+## Temporary Exception Process
+
+Applies to any automated check finding classified `Warning` (not `Blocking`) in
+`docs/00_governance_04_documentation-checks.md`'s Governance Verification Matrix
+— for example, `GV-020`'s removed-name reintroduction findings. A `Warning`
+finding does not block merge by itself, but leaving it neither fixed nor formally
+excepted is not a complete review (see `docs/00_governance_04_documentation-checks.md`
+`### 13. Merge Condition Validation`).
+
+### Exception Record Fields
+
+A temporary exception must record all three of:
+- **Reason**: why the finding is not being fixed now (e.g. the flagged usage is
+  intentional and pending a separate follow-up issue).
+- **Owner**: who accepted the exception — a specific person, not `Team` or
+  `Unassigned`.
+- **Expiration Date**: the date by which the exception must be re-reviewed or the
+  underlying finding fixed. An exception with no expiration date is not valid.
+
+### Recording an Exception
+
+Record the exception inline, next to the flagged line, as:
+
+`<!-- exception: {rule-id} — {reason} — {owner} — expires {YYYY-MM-DD} -->`
+
+For example: `<!-- exception: GV-020 — read_json_file mention is a historical
+comparison, not a current-spec claim — @agent-lead — expires 2026-12-01 -->`
+
+An exception past its expiration date is treated as an unexplained finding (see
+`docs/00_governance_04_documentation-checks.md`
+`### 13. Merge Condition Validation`) — not as still-covered.
+
 ## Non-Goals
 
 Topics explicitly excluded from this document:

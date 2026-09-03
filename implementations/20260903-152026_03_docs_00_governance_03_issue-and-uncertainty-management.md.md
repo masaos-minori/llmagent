@@ -178,10 +178,10 @@ separate, already-tracked condition not caused by or in scope for this row.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Re-verified insertion point before editing — no drift. Inserted the section as designed; `check_docs_quality.py` then caught a self-authored bug (an inline-code span split across a line break, "`### 13. Merge Condition\nValidation`" in the "Recording an Exception" paragraph) — fixed by keeping the backtick-quoted heading name on one line, matching the earlier occurrence's formatting in the same insertion. |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | N/A: documentation-only row, no test file owned by this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `check_docs_quality.py`: 0 errors after the line-wrap fix (1 pre-existing unrelated warning). `check_needs_confirmation_inventory.py`: 8 warnings, identical to the pre-existing set (0 new). `check_docs_structure.py`: reports the same pre-existing size violation tracked in seq 03 of the depgraph Plan (52654 bytes; not caused by this row). Diff confirmed scoped to exactly the 32 inserted lines. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | N/A: no `docs/00_index.md` task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
