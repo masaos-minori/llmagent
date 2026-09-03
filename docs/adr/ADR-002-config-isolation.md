@@ -1,6 +1,10 @@
 ---
 title: "ADR-002: プロセス単位の設定所有権とConfig Isolation"
 area: adr
+tags:
+  - system
+  - configuration
+  - config-isolation
 decision_scope:
   - system
 related:

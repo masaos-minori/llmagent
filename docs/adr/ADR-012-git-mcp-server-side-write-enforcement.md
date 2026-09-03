@@ -1,6 +1,10 @@
 ---
 title: "ADR-012: Git MCP Server-Side Write Enforcement"
 area: adr
+tags:
+  - mcp
+  - git
+  - write-enforcement
 decision_scope:
   - mcp/git
 related: []

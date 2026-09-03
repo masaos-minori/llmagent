@@ -1,6 +1,10 @@
 ---
 title: "ADR-010: RAGの外部実行失敗時のインプロセスフォールバック"
 area: adr
+tags:
+  - rag
+  - fallback
+  - in-process
 decision_scope:
   - rag
 related:

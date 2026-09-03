@@ -185,10 +185,10 @@ single row.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Covers all 11 ADR files via 11 individual `Edit` operations |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-09-03 | 2026-09-03 | Re-confirmed all 11 files still missing `tags` immediately before editing (zero drift), then inserted each file's derived `tags:` block immediately after `area: adr` per the Details table |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Documentation-only row, no test file owned by this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-09-03 | 2026-09-03 | `check_docs_structure.py docs/adr/*.md`: zero "missing 'tags' field" findings among the 11 files. `check_docs_quality.py`: 0 errors, 1 pre-existing unrelated warning. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No other documentation in scope for this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

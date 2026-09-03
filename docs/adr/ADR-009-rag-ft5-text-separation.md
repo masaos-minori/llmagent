@@ -1,6 +1,10 @@
 ---
 title: "ADR-009: RAGのFTS5検索用テキストとLLM提示用テキスト分離"
 area: adr
+tags:
+  - rag
+  - fts5
+  - text-separation
 decision_scope:
   - rag
 related:

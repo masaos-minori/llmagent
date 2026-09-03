@@ -1,6 +1,10 @@
 ---
 title: "ADR-007: HTTP MCP採用とstdio非サポート"
 area: adr
+tags:
+  - mcp
+  - http
+  - transport
 decision_scope:
   - mcp
 related:

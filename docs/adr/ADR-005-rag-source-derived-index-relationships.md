@@ -1,6 +1,10 @@
 ---
 title: "ADR-005: RAGの正本と派生インデックスの関係"
 area: adr
+tags:
+  - rag
+  - index
+  - canonical-source
 decision_scope:
   - rag
 related:

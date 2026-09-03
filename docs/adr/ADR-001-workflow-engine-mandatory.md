@@ -1,6 +1,10 @@
 ---
 title: "ADR-001: Workflow Engine必須化"
 area: adr
+tags:
+  - system
+  - workflow-engine
+  - architecture
 decision_scope:
   - system
 related: []

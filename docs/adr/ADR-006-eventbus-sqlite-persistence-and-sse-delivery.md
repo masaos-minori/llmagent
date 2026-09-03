@@ -1,6 +1,10 @@
 ---
 title: "ADR-006: EventBusのSQLite永続化とSSE配信方式"
 area: adr
+tags:
+  - eventbus
+  - sqlite
+  - sse
 decision_scope:
   - eventbus
 related:

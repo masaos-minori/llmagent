@@ -1,6 +1,10 @@
 ---
 title: "ADR-008: SQLiteを4DBへ分離する"
 area: adr
+tags:
+  - system
+  - sqlite
+  - database-separation
 decision_scope:
   - system
 related:
