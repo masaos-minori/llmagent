@@ -124,10 +124,10 @@ Current line numbers (to be re-confirmed before editing):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-03T09:xx:xx | 2026-09-03T09:xx:xx | Updated MCP-003/MCP-004/MCP-005 entries |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-03T09:xx:xx | 2026-09-03T09:xx:xx | N/A: doc-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-03T09:xx:xx | 2026-09-03T09:xx:xx | check_docs_quality.py passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-03T09:xx:xx | 2026-09-03T09:xx:xx | Documentation IS the target |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -139,7 +139,44 @@ Current line numbers (to be re-confirmed before editing):
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
 
-## Traceability
+## Verification Results
+
+### Adversarial Verification (Step 3)
+
+#### MCP-003 Claim Verification
+- **Claim**: Status → `resolved`, Resolution Notes cite GIT-001/GIT-002 resolution and verifying tests
+- **Verification**:
+  - MCP-003 Status was `open` — confirmed stale (GIT-001 and GIT-002 sub-issues both resolved)
+  - MCP-003 Current Description still references unresolved gaps — now superseded by resolved sub-issues
+  - Verified by: `tests/mcp_servers/git/test_git_security_compliance.py::test_check_protected_branch`, `tests/mcp_servers/git/test_git_security_compliance.py::test_is_safe_ref`
+- **Result**: PASS — claim valid, edit applied
+
+#### MCP-004 Claim Verification
+- **Claim**: Remove stale "(1) config floor check" item from Resolution Notes; confirm items (2) and (3) resolved
+- **Verification**:
+  - MCP-004 Status was `resolved` — but Resolution Notes still listed stale item (1)
+  - Item (1): `_check_approval_risk_floor()` exists at `scripts/shared/production_config_validator.py:71` — already implements config floor check
+  - Item (2): `tests/agent/test_tool_policy_comprehensive.py::test_real_config_resolves_git_tools_to_high_risk` exists — verified
+  - Item (3): `scripts/agent/tool_result_formatter.py::build_preview` has git_ prefix branch at lines 79-88 — verified
+- **Result**: PASS — claim valid, edits applied
+
+#### MCP-005 Claim Verification
+- **Claim**: Status → `resolved`, Resolution Notes cite `test_audit_record_includes_repo_identity` and corrected `repo_path` usage
+- **Verification**:
+  - MCP-005 Status was `fixed` — not yet fully resolved
+  - Fix verified: `req.args.get("repo_path", "")` used at `scripts/mcp_servers/git/git_server.py::call_tool`
+  - Test verified: `tests/mcp_servers/git/test_repository_state.py::TestAuditLogVerification::test_audit_record_includes_repo_identity`
+- **Result**: PASS — claim valid, edit applied
+
+### Post-Validation (Step 4)
+- `tools/check_docs_quality.py docs/04_mcp_90_inconsistencies_and_known_issues.md`: PASSED (0 errors, 1 pre-existing warning about Migration Notes)
+
+### All MCP Entries Verified Against Source
+| Entry | Original Status | New Status | Verification Method |
+|-------|----------------|------------|-------------------|
+| MCP-003 | open | resolved | test + code inspection |
+| MCP-004 | resolved | resolved | test + code inspection |
+| MCP-005 | fixed | resolved | test + code inspection |
 - **Workflow phase**: plan-to-implementation-procedure
 - **Requirement ID**: REQ-001, REQ-002
 - **Source issue**: `issues/20260831-185650_adr012_02_mcp_known_issues_stale_status.md`
