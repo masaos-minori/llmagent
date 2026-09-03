@@ -248,10 +248,10 @@ table.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Re-verify NC-029 still the highest ID immediately before editing (Procedure step 1) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Re-verified NC-029 still highest (no drift) and governance_02's actual post-edit line numbers (area at line 22, related at line 24 — corrected from "~21"/"~24" approximations to exact values since seq 01 was already applied). Inserted NC-030 through NC-032 exactly as designed. |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | N/A: documentation-only row, no test file owned by this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `check_docs_quality.py`: 0 errors, 1 pre-existing unrelated warning. `check_needs_confirmation_inventory.py`: 8 warnings, identical to the pre-existing baseline (0 new). Diff confirmed scoped to exactly the 77 inserted lines. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

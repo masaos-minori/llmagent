@@ -889,7 +889,83 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next language-detection logic review
 - **Blocking**: No
 
-No other active items beyond NC-021 through NC-029 above.
+#### NC-030
+
+- **Source File**: `00_governance_02_documentation-metadata.md`
+- **Section**: Existing Metadata Fields (`area` enum)
+- **Line Number**: ~22
+- **Question**: Should `adr` and `security` be permanent `area` enum values, or
+  folded into an existing area (e.g. `overview`)?
+- **Evidence**: 11 real documents use `area: adr`, 2 use `area: security`, yet
+  neither was part of the original 8-value enum; no stated design rationale
+  was found for the omission
+- **Impact**: If folded into another area instead, 13 documents' `area:`
+  values would need migration; if kept permanent, no migration is needed but
+  the enum grows to 10 values
+- **Required Action**: Owner review of whether `adr` and `security` warrant
+  their own top-level area, given their real, non-trivial adoption
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-03
+- **Priority**: Medium
+- **Related NC**: None
+- **Resolution Target**: Next governance area-taxonomy review
+- **Blocking**: No
+
+#### NC-031
+
+- **Source File**: `00_governance_02_documentation-metadata.md`
+- **Section**: Existing Metadata Fields (`related`)
+- **Line Number**: ~24
+- **Question**: Is the front-matter `related` field and the `## Related
+  Documents` body-section heading an intentional duality (front matter for
+  tooling, body section for human readers), or an unintentional drift where
+  one should be removed?
+- **Evidence**: Both exist in active use across the document set; no design
+  rationale was found in `docs/00_governance_01_documentation-policy.md` or
+  `docs/00_governance_02_documentation-metadata.md` explaining why both exist
+- **Impact**: If unintentional drift, maintaining two parallel
+  related-documents lists risks them diverging (one updated, the other left
+  stale)
+- **Required Action**: Owner decision on whether both should be kept (and if
+  so, whether one should generate the other), or one should be deprecated
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-03
+- **Priority**: Low
+- **Related NC**: None
+- **Resolution Target**: Next governance metadata review
+- **Blocking**: No
+
+#### NC-032
+
+- **Source File**: `schemas/doc_front_matter.json`
+- **Section**: `additionalProperties` (top-level schema property)
+- **Line Number**: ~6
+- **Question**: Should `schemas/doc_front_matter.json` set
+  `additionalProperties: false` (strict, matching `schemas/event_envelope.json`'s
+  own convention) or remain permissive (`true`) to allow forward-compatible,
+  area-specific extension fields?
+- **Evidence**: `schemas/event_envelope.json` itself uses
+  `additionalProperties: false`; however, this repository's actual `docs/*.md`
+  front matter already carries area-specific extra keys in active use in some
+  files (e.g. `source:` seen in several RAG documents)
+- **Impact**: If later set to `false` without first auditing which documents
+  carry extension keys, `docmeta03`'s CI enforcement would immediately fail on
+  every file using one
+- **Required Action**: Owner decision, informed by a survey of which documents
+  currently use non-required front-matter keys, before `docmeta03`'s
+  CI-enforcement implementation begins
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-03
+- **Priority**: Medium
+- **Related NC**: None
+- **Resolution Target**: Before `docmeta03`'s CI-enforcement implementation
+  begins
+- **Blocking**: No
+
+No other active items beyond NC-021 through NC-032 above.
 
 ## Temporary Exception Process
 
