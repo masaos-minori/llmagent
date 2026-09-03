@@ -21,7 +21,7 @@
 | `git diff --name-only --diff-filter=U` | Sync | capture conflicted file paths before aborting a failed rebase |
 | `git rebase --abort` | Sync | abandon a conflicted rebase and restore the pre-rebase state |
 | `git status --short` / `git diff --stat` | Sync | validate repository state after a successful fast-forward or rebase |
-| `git push` | Push | push to remote after approval |
+| `git push` | Push | push to remote automatically once Commit and Sync succeed with no conflicts |
 | `git push --set-upstream origin <branch>` | Push | set upstream if missing (suggestion only) |
 
 Forbidden commands: see `SKILL.md` Core rules.
@@ -153,8 +153,8 @@ git rev-parse --abbrev-ref --symbolic-full-name @{u}
 ```
 
 If this fails (no upstream configured for the current branch), skip the rest of this
-phase — there is nothing to compare against — and continue to Phase 8. Phase 9 (Push)
-already handles the missing-upstream case for the push itself.
+phase — there is nothing to compare against — and continue directly to Phase 8
+(Push), which already handles the missing-upstream case for the push itself.
 
 ### Classify the sync case
 
@@ -164,11 +164,11 @@ git rev-parse @{u}
 git merge-base HEAD @{u}
 ```
 
-- `HEAD` and `@{u}` identical → already up to date. Continue to Phase 8.
+- `HEAD` and `@{u}` identical → already up to date. Continue to Phase 8 (Push).
 - `HEAD` equals the merge-base (local has not diverged; upstream has new commits) →
   **fast-forward** (below).
 - `@{u}` equals the merge-base (upstream has not moved; local is ahead only) →
-  nothing to sync. Continue to Phase 8.
+  nothing to sync. Continue to Phase 8 (Push).
 - Otherwise (both sides have commits the other lacks since the merge-base) →
   histories have **diverged** → **rebase** (below).
 
@@ -255,17 +255,10 @@ other than the `--ff-only` step above, `git merge --abort`.
 
 ---
 
-## Phase 8: Ask Before Push
+## Phase 8: Push
 
-Unless the user already approved push in this session, ask:
-
-> Commit complete. Sync succeeded. Approve `git push`?
-
-Do not push without explicit approval.
-
----
-
-## Phase 9: Push
+Push automatically once Phase 6 (Commit) and Phase 7 (Sync) have both succeeded
+with no conflicts — no approval prompt is required for this step by default.
 
 ```bash
 git push
@@ -278,9 +271,26 @@ If upstream is missing, stop. Report:
 
 Do not run the suggestion without user approval.
 
+If `git push` is rejected for any other reason — most commonly a non-fast-forward
+rejection because the remote advanced again after Phase 7's sync completed — stop
+and report the exact rejection message. Do not retry, do not force push, and do not
+re-run Phase 7's sync automatically to work around it; let the user decide the next
+step.
+
+Do not proceed to `git push` at all if:
+- Phase 7 aborted a rebase due to a conflict — Phase 7 already stops before this
+  phase is reached in that case; this is a defense-in-depth reminder, not a separate
+  check to perform here.
+- Post-sync validation (Phase 7) failed.
+- The user's current instructions say not to push, or ask for confirmation before
+  pushing — follow that instruction instead of this phase's default (see `SKILL.md`
+  Core rules). When the user has specifically asked for confirmation this way, ask:
+  `Commit complete. Sync succeeded. Approve git push?` — this is no longer the
+  default for every run, only for when the user requests it.
+
 ---
 
-## Phase 10: Report
+## Phase 9: Report
 
 Report:
 - branch and commit SHA
