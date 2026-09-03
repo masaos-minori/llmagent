@@ -51,7 +51,7 @@ No constructor (inherits from `PipelineStage`).
 - Sanitizes content using `rag.utils.sanitize_document(c.content)` before formatting
 - If `reranked` is empty, returns `[RAG_CONTEXT_START]\n\n[RAG_CONTEXT_END]`
 
-**Content-only Invariance Rule:** AugmentStage only formats `content` and never uses `normalized_content`. See [ADR-009](../adr/ADR-009-rag-ft5-text-separation.md) for rationale, alternatives, and tradeoffs.
+**Content-only Invariance Rule:** AugmentStage only formats `content` and never uses `normalized_content`. See [ADR-009](adr/ADR-009-rag-ft5-text-separation.md) for rationale, alternatives, and tradeoffs.
 
 ### 5.6 AugmentRefiner Class (`scripts/rag/augment.py`)
 

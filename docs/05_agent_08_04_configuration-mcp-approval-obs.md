@@ -64,7 +64,7 @@ this table, per ADR-004 Decision Group 3 item 13.
 
 #### Process Isolation
 
-Each MCP server is an independent process that only reads its own configuration file. → [ADR-002](../adr/ADR-002-config-isolation.md)
+Each MCP server is an independent process that only reads its own configuration file. → [ADR-002](adr/ADR-002-config-isolation.md)
 
 ### Approval Configuration
 

@@ -86,7 +86,7 @@ Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recov
 - A failure during `HALF_OPEN` immediately reverts the state to `UNAVAILABLE` and resets the cooldown.
 - `record_success()` restores the state to `HEALTHY` and clears the failure count and degraded reason.
 
-The `[mcp_servers.*].tool_names` does not affect the circuit breaker state or routing — it is merely reference information and not an input for routing (consistent with [04_mcp_06_03](./04_mcp_06_03_tool_schema_export_policy.md)).
+The `[mcp_servers.*].tool_names` does not affect the circuit breaker state or routing — it is merely reference information and not an input for routing (consistent with [04_mcp_06_03](04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md)).
 
 Basis: Explicit in code (`shared/mcp_health.py`). Health checks within the `ToolExecutor` execution process act as a gate before dispatching.
 

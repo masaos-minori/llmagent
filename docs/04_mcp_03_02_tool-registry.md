@@ -41,7 +41,7 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 
 ### Adding a New Tool
 
-For detailed procedures, refer to [Adding a new tool](docs/04_mcp_03_05_lifecycle-and-new-server.md#adding-a-new-tool). Note that `tool_names` is not an input for routing, but metadata for drift verification.
+For detailed procedures, refer to [Adding a new tool](04_mcp_03_05_lifecycle-and-new-server.md#adding-a-new-tool). Note that `tool_names` is not an input for routing, but metadata for drift verification.
 
 ### Verification
 
@@ -122,8 +122,8 @@ is_side_effect(tool_name: str) -> bool
 - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`
 - `04_mcp_07_tool_schema_export_policy.md`
-- [ADR-003](../adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
-- [ADR-004](../adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
+- [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
+- [ADR-004](adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
 
 ## Keywords
 

@@ -17,7 +17,7 @@ related:
 
 ## config/github_mcp_server.toml
 
-- Server Catalog → [docs/04_mcp_04_01_web-search-file-read-github.md](docs/04_mcp_04_01_web-search-file-read-github.md)
+- Server Catalog → [04_mcp_04_01_web-search-file-read-github.md](04_mcp_04_01_web-search-file-read-github.md)
 
 ## Purpose
 

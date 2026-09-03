@@ -115,7 +115,7 @@ config/crawler.toml [target_urls]
 
 > **Implementation Note:** Configuration consists of three separate files per script rather than a single `config/rag_pipeline.toml`:
 > (`config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml`). Each script loads only its own configuration using `ConfigLoader().load("<script>.toml")` and restricts access to other files using `ConfigLoader.restrict_to("<script>.toml")` (verified in `scripts/rag/ingestion/crawler.py` and `ingester.py`).
-> Basis: [ADR-002](../adr/ADR-002-config-isolation.md) §Decision #9, #13. Explicit in code.
+> Basis: [ADR-002](adr/ADR-002-config-isolation.md) §Decision #9, #13. Explicit in code.
 
 ---
 

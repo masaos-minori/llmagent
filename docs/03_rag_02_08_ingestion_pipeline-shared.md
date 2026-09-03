@@ -114,7 +114,7 @@ from rag.utils import (
 
 ### FTS5 / LLM Content Separation
 
-See [ADR-009](../adr/ADR-009-rag-ft5-text-separation.md) for rationale, alternatives, tradeoffs, and invariants.
+See [ADR-009](adr/ADR-009-rag-ft5-text-separation.md) for rationale, alternatives, tradeoffs, and invariants.
 
 Japanese chunks store two versions:
 - `chunks.content` — Original text (passed as context to the LLM)

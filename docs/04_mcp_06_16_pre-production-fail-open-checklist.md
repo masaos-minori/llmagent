@@ -33,7 +33,7 @@ Before deploying to production, verify the following:
 
 ### Firejail Installation and Configuration
 
-For instructions on installing `firejail` and configuring the sandbox backend, please refer to the "Sandbox Backend (shell-mcp)" section in [docs/04_mcp_05_02_auth-profiles-and-sandboxing.md](docs/04_mcp_05_02_auth-profiles-and-sandboxing.md).
+For instructions on installing `firejail` and configuring the sandbox backend, please refer to the "Sandbox Backend (shell-mcp)" section in [04_mcp_05_02_auth-profiles-and-sandboxing.md](04_mcp_05_02_auth-profiles-and-sandboxing.md).
 
 Refer to `04_mcp_05_01_access-control-and-allowlists.md` for the complete table of fail-open/fail-closed policies.
 
