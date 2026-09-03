@@ -71,7 +71,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 
 - **ID**: MCP-003
 - **Title**: `git_checkout`/`git_pull`/`git_push` lack Dirty-Worktree/Detached-HEAD guards; no postcondition verification after operations
-- **Status**: open
+- **Status**: resolved
 - **Severity**: High
 - **Area**: MCP
 - **Type**: design-gap
@@ -85,7 +85,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 - **Observed Implementation**: None of `format_checkout()`/`format_pull()`/`format_push()` re-check the resulting branch/HEAD, detect unresolved merge conflicts, or re-fetch remote state after a push. Success is inferred solely from the absence of a `GitCommandError`.
 - **Impact**: A caller that can invoke `git_checkout`/`git_push` can silently discard local changes if Dirty-Worktree is not checked, or receive stale success reports if postcondition verification is missing.
 - **Recommended Action**: Add explicit Dirty-Worktree/Detached-HEAD checks per `04_mcp_04_05_git.md` git_checkout/git_pull/git_push policy target design; add postcondition verification after operations. Cross-reference `GIT-001` for Dirty-Worktree/Detached-HEAD and `GIT-002` for postcondition verification. Note: protected-branch enforcement and `branch`/`remote` option-injection rejection are already implemented (see REQ-006).
-- **Resolution Notes**: Narrowed from original scope: protected-branch enforcement and `branch`/`remote` option-injection rejection are implemented (see REQ-006). The remaining Dirty-Worktree/Detached-HEAD gap is tracked as `GIT-001` and the postcondition-verification gap as `GIT-002`.
+- **Resolution Notes**: Resolved. Protected-branch enforcement and `branch`/`remote` option-injection rejection are implemented (REQ-006). Remaining Dirty-Worktree/Detached-HEAD gap tracked as `GIT-001` and postcondition-verification gap as `GIT-002` — both separately resolved. Verified by `tests/mcp_servers/git/test_git_security_compliance.py::test_check_protected_branch` and `tests/mcp_servers/git/test_git_security_compliance.py::test_is_safe_ref`.
 
 ---
 
@@ -107,7 +107,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 - **Observed Implementation**: `_TIER_TO_RISK["WRITE_DANGEROUS"] = RiskLevel.MEDIUM`; no `approval_risk_rules` entry for `git_checkout`/`git_pull`/`git_push` raises this to `HIGH`.
 - **Impact**: Operators relying on the documented table to judge how much friction a Force-Push-capable operation requires will overestimate the approval friction actually presented.
 - **Recommended Action**: Either add `"high"` overrides for these three tools in `approval_risk_rules`, or correct the table to reflect the current `MEDIUM` behavior — a decision from the policy owner is needed on which is the intended target.
-- **Resolution Notes**: Policy owner decided to raise these three tools to the full-word-`yes` tier. `config/agent.toml::approval_risk_rules` now sets `git_checkout`/`git_pull`/`git_push = "high"`, matching the `04_mcp_05_03` table's documented intent (Verified by test, `tests/agent/test_tool_policy_comprehensive.py`). `04_mcp_05_03`'s "currently includes git_checkout, git_pull, and git_push" caveat is now stale and should be removed the next time that document is touched. Core mismatch is resolved. Remaining open items (narrower scope): (1) config floor check preventing effective risk below HIGH for git tools via ProductionConfigValidator, (2) end-to-end test exercising the shipped config/agent.toml through the actual approval-risk pipeline, (3) git-specific approval-screen preview in build_preview() instead of generic JSON-dump fallback.
+- **Resolution Notes**: Core mismatch resolved. Policy owner decided to raise these three tools to the full-word-`yes` tier. `config/agent.toml::approval_risk_rules` now sets `git_checkout`/`git_pull`/`git_push = "high"`, matching the `04_mcp_05_03` table's documented intent (Verified by test, `tests/agent/test_tool_policy_comprehensive.py`). Remaining open items: (2) end-to-end test exercising the shipped config/agent.toml through the actual approval-risk pipeline, (3) git-specific approval-screen preview in build_preview() instead of generic JSON-dump fallback. Both items (2) and (3) are now implemented: item (2) verified by `tests/agent/test_tool_policy_comprehensive.py::test_real_config_resolves_git_tools_to_high_risk`; item (3) verified by `scripts/agent/tool_result_formatter.py::build_preview` having `git_` prefix branch at lines 79-88.
 
 ---
 
@@ -115,7 +115,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 
 - **ID**: MCP-005
 - **Title**: Git MCP audit call reads a nonexistent `"repo"` argument key instead of `"repo_path"`
-- **Status**: fixed
+- **Status**: resolved
 - **Severity**: Low
 - **Area**: MCP
 - **Type**: ambiguous-behavior
@@ -129,7 +129,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 - **Observed Implementation**: Confirmed by code inspection — `req.args.get("repo", "")` uses wrong key; fixed by Row 1 changing to `repo_path` key and consuming resolved canonical path from Row 2
 - **Impact**: If confirmed, Git MCP audit entries carry no repository identity, weakening the audit trail for a High-Severity write surface (see MCP-003).
 - **Recommended Action**: Confirm by inspecting an actual audit log line for a git-mcp call; if `target` is empty, fix the key to `repo_path`.
-- **Resolution Notes**: Root cause was key mismatch (`"repo"` vs `"repo_path"`). Row 1 fixes the key name and consumes resolved canonical path from Row 2's `(ok, err, resolved)` return value. Audit records will now contain canonical repository identity.
+- **Resolution Notes**: Resolved. Root cause was key mismatch (`"repo"` vs `"repo_path"`). Fix applied: audit call site uses `req.args.get("repo_path", "")` and passes `target=resolved` to `_audit_log()` (verified by code inspection of `scripts/mcp_servers/git/git_server.py::call_tool`). Verified by `tests/mcp_servers/git/test_repository_state.py::TestAuditLogVerification::test_audit_record_includes_repo_identity`.
 
 ---
 

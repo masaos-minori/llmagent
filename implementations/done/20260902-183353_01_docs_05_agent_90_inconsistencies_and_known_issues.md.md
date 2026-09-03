@@ -190,12 +190,12 @@ Implementation fix required, per Design decisions).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct and close WF-001 per Method | Pending | — | — | |
-| 2 | Correct and close WF-002 per Method | Pending | — | — | |
-| 3 | Correct and close WF-003 per Method | Pending | — | — | |
-| 4 | Confirm Operational Notes consistency (no edit needed) | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md` / Validation plan above) | Pending | — | — | |
-| 6 | Update documentation (N/A — this document is the target of the change itself) | Pending | — | — | N/A |
+| 1 | Correct and close WF-001 per Method | Completed | 2026-09-03 | 2026-09-03 | INV-01/INV-05 corrected to real ADR-001 wording |
+| 2 | Correct and close WF-002 per Method | Completed | 2026-09-03 | 2026-09-03 | Entry classified Obsolete and removable |
+| 3 | Correct and close WF-003 per Method | Completed | 2026-09-03 | 2026-09-03 | Misreading of Decision Detail #5 corrected |
+| 4 | Confirm Operational Notes consistency (no edit needed) | Completed | 2026-09-03 | 2026-09-03 | No wording change required |
+| 5 | Run the validation sequence (`rules/toolchain.md` / Validation plan above) | Completed | 2026-09-03 | 2026-09-03 | Quality: 0 errors; Structure: 2 pre-existing warnings; Consistency: 26 warnings (including WF-002 stale ref) |
+| 6 | Update documentation (N/A — this document is the target of the change itself) | Completed | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
