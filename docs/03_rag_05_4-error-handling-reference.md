@@ -29,6 +29,31 @@ source:
 | Failure at file level | `ERROR` (with traceback); continue to next file |
 | Existing chunks | Skip unless `--force` is specified |
 
+## Pipeline Utils — Artifact Validation (`read_crawl_json()` / `read_chunk_json()`)
+
+Both canonical artifact readers (`scripts/rag/ingestion/pipeline_utils.py`) raise
+`ChunkFormatError` (`scripts/rag/exceptions.py:27`, a `RagLayerError` and `ValueError`
+subclass) on any validation failure — there is no silent-default fallback path in
+either reader (contrast with the legacy `read_json_file()`, documented as historical
+in [03_rag_02_08_ingestion_pipeline-shared.md](03_rag_02_08_ingestion_pipeline-shared.md)).
+
+| Error | Action |
+|---|---|
+| File read failure (`OSError`) | `ChunkFormatError` |
+| JSON parse failure | `ChunkFormatError` |
+| Parsed JSON is not an object | `ChunkFormatError` |
+| Missing one or more required keys (exact-key-set check; 8 keys for crawl, 13 for chunk) | `ChunkFormatError` |
+| Unknown key present beyond the required 13 (chunk artifacts only; `schema_version`/`artifact_type`/`created_by` are exempted) | `ChunkFormatError` |
+| Required-classified field is missing, `null`, or the wrong type (`_validate_str`) | `ChunkFormatError` |
+| Conditional-classified field has the wrong type (`_validate_str_or_empty`) | `ChunkFormatError` |
+| Nullable-classified field is present but neither `str` nor `null` (`_validate_nullable_str`) | `ChunkFormatError` |
+| `chunk_index` is `bool`, non-`int`, or negative (`_validate_int_non_negative`; `bool` explicitly rejected before the `int` check) | `ChunkFormatError` |
+| Crawl artifact only: `content` is empty and `code_blocks` is also empty (cross-field rule) | `ChunkFormatError` |
+
+For the full per-field Required/Nullable/Conditional classification referenced above,
+see the canonical table in
+[03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md).
+
 ## RagIngester
 
 | Error | Action |
