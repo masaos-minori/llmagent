@@ -1,3 +1,16 @@
+---
+title: "Memory Layer — Overview and Modes (Part 1)"
+area: agent
+tags:
+  - agent
+  - memory
+  - overview
+related:
+  - 05_agent_12_02_memory-gate-data-model-search.md
+  - 05_agent_12_03_memory-module-ref-core-and-store.md
+  - 05_agent_12_04_memory-module-ref-retrieval-and-injection.md
+  - 05_agent_12_05_memory-module-ref-extraction-and-facade.md
+---
 # Memory Layer — Overview and Modes (Part 1)
 
 - Operations and Observability $\rightarrow$ [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)

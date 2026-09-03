@@ -1,3 +1,12 @@
+---
+title: "Documentation Overview"
+area: overview
+tags:
+  - overview
+  - navigation
+  - index
+related:
+---
 # Documentation Overview
 
 Project documentation top-level navigation hub. It lists all top-level categories and links to their entry files. `01_overview.md` continues to exist as the system-wide architecture overview and is not replaced by this file.

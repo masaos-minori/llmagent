@@ -1,3 +1,15 @@
+---
+title: "Memory Layer — Module Reference: Extraction and Facade"
+area: agent
+tags:
+  - agent
+  - memory
+  - extraction-facade
+related:
+  - 05_agent_12_01_memory-overview-and-modes.md
+  - 05_agent_12_03_memory-module-ref-core-and-store.md
+  - 05_agent_12_04_memory-module-ref-retrieval-and-injection.md
+---
 # Memory Layer — Module Reference: Extraction and Facade
 
 - Operations and Observability $\rightarrow$ [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)

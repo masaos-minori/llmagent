@@ -1,5 +1,6 @@
+---
 title: "HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys (Part 1 & 2)"
-category: mcp
+area: mcp
 tags:
   - mcp
   - transport
@@ -12,6 +13,7 @@ related:
   - 04_mcp_03_05_lifecycle-and-new-server.md
 source:
   - 04_mcp_03_03_transport-and-health.md
+---
 
 # HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys (Part 1)
 

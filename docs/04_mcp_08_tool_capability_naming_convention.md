@@ -1,3 +1,12 @@
+---
+title: "MCP Tool Capability Naming Convention"
+area: mcp
+tags:
+  - mcp
+  - tool-naming
+  - convention
+related:
+---
 # MCP Tool Capability Naming Convention
 
 ## Overview

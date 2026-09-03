@@ -1,3 +1,14 @@
+---
+title: "MCP Security and Safety Model: Authentication, Security Profiles, Output Limits and Sandboxing"
+area: mcp
+tags:
+  - mcp
+  - security
+  - authentication
+related:
+  - 04_mcp_05_01_access-control-and-allowlists.md
+  - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+---
 # MCP Security and Safety Model: Authentication, Security Profiles, Output Limits and Sandboxing
 
 ## `read_only` Flag (git-mcp)

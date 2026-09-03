@@ -1,3 +1,12 @@
+---
+title: "Startup Validation Behavior (`tool_definitions_strict`)"
+area: mcp
+tags:
+  - mcp
+  - startup
+  - validation
+related:
+---
 # Startup Validation Behavior (`tool_definitions_strict`)
 
 > **Canonical specification.** This section describes the tool definitions check in `agent/services/tool_validation.py`.

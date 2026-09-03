@@ -1,3 +1,12 @@
+---
+title: "Settings with High Operational Impact"
+area: mcp
+tags:
+  - mcp
+  - configuration
+  - operations
+related:
+---
 # Settings with High Operational Impact
 
 | Setting | Impact |

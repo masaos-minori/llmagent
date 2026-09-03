@@ -1,3 +1,12 @@
+---
+title: "Agent State and Persistence - History Compression"
+area: agent
+tags:
+  - agent
+  - state-persistence
+  - history-compression
+related:
+---
 # Agent State and Persistence - History Compression
 
 Turn flow $\rightarrow$ [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)

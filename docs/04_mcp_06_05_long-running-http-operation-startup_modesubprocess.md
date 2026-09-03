@@ -1,3 +1,12 @@
+---
+title: "Long-Running HTTP Operation (startup_mode=subprocess)"
+area: mcp
+tags:
+  - mcp
+  - startup-modes
+  - subprocess
+related:
+---
 # Long-Running HTTP Operation (startup_mode=subprocess)
 
 At startup, the Agent starts uvicorn and polls `/health` every 0.5 seconds until `startup_timeout_sec` is reached. If the health check never succeeds, a `RuntimeError` is raised.

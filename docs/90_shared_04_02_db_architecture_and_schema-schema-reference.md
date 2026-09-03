@@ -1,3 +1,12 @@
+---
+title: "DB Architecture and Schema"
+area: shared
+tags:
+  - shared
+  - db
+  - schema
+related:
+---
 # DB Architecture and Schema
 
 - Overview → [90_shared_01_overview.md](90_shared_01_overview.md)

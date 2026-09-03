@@ -1,3 +1,12 @@
+---
+title: "MCP Failure Diagnosis"
+area: mcp
+tags:
+  - mcp
+  - diagnostics
+  - troubleshooting
+related:
+---
 # MCP Failure Diagnosis
 
 To track failed or unexpected MCP tool calls, use the following flow:

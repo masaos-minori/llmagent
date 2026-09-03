@@ -1,3 +1,14 @@
+---
+title: "Shared Runtime and Execution Infrastructure — Tool Executor and Infrastructure"
+area: shared
+tags:
+  - shared
+  - tool-executor
+  - infrastructure
+related:
+  - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
+  - 90_shared_03_04_runtime_and_execution-caching-and-reference.md
+---
 # Shared Runtime and Execution Infrastructure
 
 - Overview → [90_shared_01_overview.md](90_shared_01_overview.md)

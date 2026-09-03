@@ -1,3 +1,12 @@
+---
+title: "MCP Watchdog — Removed (2026-07-16)"
+area: mcp
+tags:
+  - mcp
+  - watchdog
+  - monitoring
+related:
+---
 # MCP Watchdog — Removed (2026-07-16)
 
 The MCP watchdog (a background asyncio task that periodically probed every

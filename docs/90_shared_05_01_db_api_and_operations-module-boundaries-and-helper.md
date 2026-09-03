@@ -1,3 +1,14 @@
+---
+title: "DB API and Operations — Module Boundaries and Helper"
+area: shared
+tags:
+  - shared
+  - db
+  - module-boundaries
+related:
+  - 90_shared_05_02_db_api_and_operations-protocol-and-backend.md
+  - 90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md
+---
 # DB API and Operations
 
 - Schema $\rightarrow$ [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md)

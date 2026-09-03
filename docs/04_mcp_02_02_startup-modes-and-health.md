@@ -1,3 +1,14 @@
+---
+title: "MCP Protocol and Transport: Startup Modes, Authentication, and Health Checks"
+area: mcp
+tags:
+  - mcp
+  - startup-modes
+  - health-checks
+related:
+  - 04_mcp_00_document-guide.md
+  - 04_mcp_03_03_transport-and-health.md
+---
 # MCP Protocol and Transport: Startup Modes, Authentication, and Health Checks
 
 ## HTTP Startup Modes

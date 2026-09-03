@@ -1,3 +1,12 @@
+---
+title: "Agent Runtime Architecture (Part 1)"
+area: agent
+tags:
+  - agent
+  - runtime
+  - architecture
+related:
+---
 # Agent Runtime Architecture (Part 1)
 
 - System Overview $\rightarrow$ [05_agent_01_system-overview.md](05_agent_01_system-overview.md)

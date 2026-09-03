@@ -1,3 +1,12 @@
+---
+title: "End-to-End Tool Call Tracing"
+area: mcp
+tags:
+  - mcp
+  - tracing
+  - observability
+related:
+---
 # End-to-End Tool Call Tracing
 
 To trace a failed tool call through agent, transport, and server logs, follow these steps:

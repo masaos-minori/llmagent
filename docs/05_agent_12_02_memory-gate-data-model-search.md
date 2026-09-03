@@ -1,3 +1,14 @@
+---
+title: "Memory Layer — Activation Gate, Data Model, and Search (Part 1)"
+area: agent
+tags:
+  - agent
+  - memory
+  - search
+related:
+  - 05_agent_12_01_memory-overview-and-modes.md
+  - 05_agent_12_03_memory-module-ref-core-and-store.md
+---
 # Memory Layer — Activation Gate, Data Model, and Search (Part 1)
 
 - Operations and Observability $\rightarrow$ [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)

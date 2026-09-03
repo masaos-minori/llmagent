@@ -1,3 +1,14 @@
+---
+title: "MCP Security and Safety Model: MDQ/RAG Boundary Enforcement, Fail-Open/Fail-Closed Defaults and Deny-All Lockdown"
+area: mcp
+tags:
+  - mcp
+  - security
+  - mdq-boundary
+related:
+  - 04_mcp_05_04_mdq-rag-boundary.md
+  - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+---
 # MCP Security and Safety Model: MDQ/RAG Boundary Enforcement, Fail-Open/Fail-Closed Defaults and Deny-All Lockdown
 
 ## Boundary Enforcement

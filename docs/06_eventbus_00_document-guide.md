@@ -1,3 +1,11 @@
+---
+title: "Event Bus: Document Guide"
+area: eventbus
+tags:
+  - eventbus
+  - document-guide
+related:
+---
 # Event Bus: Document Guide
 
 ## Purpose

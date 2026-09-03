@@ -1,3 +1,14 @@
+---
+title: "Process Introspection and Adding a New MCP Server"
+area: mcp
+tags:
+  - mcp
+  - lifecycle
+  - process-introspection
+related:
+  - 04_mcp_00_document-guide.md
+  - 04_mcp_03_03_transport-and-health.md
+---
 # Process Introspection and Adding a New MCP Server
 
 ## Process Introspection

@@ -1,3 +1,14 @@
+---
+title: "Shared Runtime and Execution Infrastructure — LLM and MCP Clients"
+area: shared
+tags:
+  - shared
+  - llm-client
+  - mcp-client
+related:
+  - 90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
+  - 90_shared_03_04_runtime_and_execution-caching-and-reference.md
+---
 # Shared Runtime and Execution Infrastructure
 
 - Overview → [90_shared_01_overview.md](90_shared_01_overview.md)

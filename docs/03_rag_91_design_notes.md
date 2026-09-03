@@ -1,3 +1,15 @@
+---
+title: "Design Notes Index"
+area: rag
+tags:
+  - rag
+  - design-notes
+  - adr-migration
+related:
+  - adr/ADR-010-rag-fallback.md
+  - adr/ADR-009-rag-ft5-text-separation.md
+  - adr/ADR-005-rag-source-derived-index-relationships.md
+---
 # Design Notes Index
 
 ## DESIGN-1: RAG Remote Fallback

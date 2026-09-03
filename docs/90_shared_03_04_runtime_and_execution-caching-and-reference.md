@@ -1,3 +1,14 @@
+---
+title: "Shared Runtime and Execution Infrastructure — Caching and Reference"
+area: shared
+tags:
+  - shared
+  - caching
+  - reference
+related:
+  - 90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
+  - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
+---
 # Shared Runtime and Execution Infrastructure
 
 - Overview → [90_shared_01_overview.md](90_shared_01_overview.md)

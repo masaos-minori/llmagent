@@ -1,5 +1,6 @@
+---
 title: "MCP Security and Safety Model: Fail-Open vs Fail-Closed Summary, Dry-Run, Risk Tiers and AI Notes"
-category: mcp
+area: mcp
 tags:
   - mcp
   - security
@@ -12,6 +13,7 @@ related:
   - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
   - 00_security_01_architecture-and-trust-boundaries.md
   - 00_security_02_high-risk-tool-common-policy.md
+---
 
 ## Fail-Open vs Fail-Closed Summary
 

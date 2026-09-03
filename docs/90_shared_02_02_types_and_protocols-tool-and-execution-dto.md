@@ -1,3 +1,14 @@
+---
+title: "Shared Types and Protocols - Tool and Execution DTOs (Part 1)"
+area: shared
+tags:
+  - shared
+  - types
+  - dto
+related:
+  - 90_shared_02_01_types_and_protocols-core-types.md
+  - 90_shared_02_03_types_and_protocols-reference.md
+---
 # Shared Types and Protocols - Tool and Execution DTOs (Part 1)
 
 - Overview → [90_shared_01_overview.md](90_shared_01_overview.md)

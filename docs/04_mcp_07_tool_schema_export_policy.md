@@ -1,3 +1,12 @@
+---
+title: "MCP Tool Schema Export Policy"
+area: mcp
+tags:
+  - mcp
+  - tool-schema
+  - export-policy
+related:
+---
 # MCP Tool Schema Export Policy
 
 ## Standard Export Name: `TOOL_LIST`

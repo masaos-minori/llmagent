@@ -1,3 +1,12 @@
+---
+title: "Agent Operations and Observability"
+area: agent
+tags:
+  - agent
+  - operations
+  - observability
+related:
+---
 # Agent Operations and Observability
 
 - Configuration → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)

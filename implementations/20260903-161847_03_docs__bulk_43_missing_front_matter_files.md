@@ -252,10 +252,10 @@ together once seq 01/02/03/04 all land, not owned by any single row.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Covers all 43 files via one tool invocation plus per-file manual review |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-09-03 | 2026-09-03 | Ran `manage_frontmatter.py add-missing --fix` for all 43 files, then reviewed each file's title/tags/related per the Review Checklist. Found and fixed a tool bug (duplicate/orphaned pre-existing pseudo-YAML metadata blocks left unremoved) in `04_mcp_03_03_transport-and-health.md` and `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`, migrating their richer original content into the single fenced block. Corrected `04_mcp_06_01_purpose.md`'s overly generic title to "MCP Configuration Reference: Purpose". Left `00_index.md`'s meaningless self-reference `related: [00_index.md]` empty. |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Documentation-only row, no test file owned by this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-09-03 | 2026-09-03 | `check_docs_structure.py docs/*.md --schema schemas/doc_front_matter.json`: no required-field/enum/YAML errors among the 43 target files (one pre-existing YAML issue found in `01_overview-arch-03-features.md`, confirmed out of scope — not part of this row's 43 files, untouched by this row). `check_docs_quality.py`: 0 errors, 1 pre-existing unrelated warning. Confirmed via stash-diff that this row reduced `check_docs_structure.py docs/*.md` total issue count from 177 to 134, with no new issues introduced. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No other documentation in scope for this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

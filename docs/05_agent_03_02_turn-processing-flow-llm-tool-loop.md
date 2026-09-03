@@ -1,3 +1,14 @@
+---
+title: "Agent Turn Processing Flow - LLM and Tool Loop"
+area: agent
+tags:
+  - agent
+  - turn-processing
+  - llm-tool-loop
+related:
+  - 05_agent_03_01_turn-processing-flow-overview.md
+  - 05_agent_03_03_turn-processing-flow-workflow-engine.md
+---
 # Agent Turn Processing Flow - LLM and Tool Loop
 
 - Runtime Architecture $\rightarrow$ [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)

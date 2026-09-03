@@ -1,3 +1,12 @@
+---
+title: "Agent Reference API — Part 1"
+area: agent
+tags:
+  - agent
+  - api-reference
+related:
+  - 05_agent_02_runtime-architecture.md
+---
 # Agent Reference API — Part 1
 
 ## Purpose

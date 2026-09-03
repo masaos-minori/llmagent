@@ -1,3 +1,14 @@
+---
+title: "Agent Turn Processing Flow - Workflow Engine Integration & Turn-by-turn State Changes"
+area: agent
+tags:
+  - agent
+  - turn-processing
+  - workflow-engine
+related:
+  - 05_agent_03_01_turn-processing-flow-overview.md
+  - 05_agent_03_02_turn-processing-flow-llm-tool-loop.md
+---
 # Agent Turn Processing Flow - Workflow Engine Integration & Turn-by-turn State Changes
 
 - Runtime Architecture $\rightarrow$ [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)

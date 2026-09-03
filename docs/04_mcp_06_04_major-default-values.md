@@ -1,3 +1,13 @@
+---
+title: "Major Default Values"
+area: mcp
+tags:
+  - mcp
+  - configuration
+  - defaults
+related:
+  - 04_mcp_06_02_configuration-file-inventory.md
+---
 # Major Default Values
 
 | Parameter | Default | Production Recommendation | Config File |

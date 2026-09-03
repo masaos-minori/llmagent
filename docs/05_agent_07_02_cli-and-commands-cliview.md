@@ -1,3 +1,12 @@
+---
+title: "Agent CLI and Commands"
+area: agent
+tags:
+  - agent
+  - cli
+  - commands
+related:
+---
 # Agent CLI and Commands
 
 - System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)

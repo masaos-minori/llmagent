@@ -1,3 +1,14 @@
+---
+title: "Shared Types and Protocols - Core Types"
+area: shared
+tags:
+  - shared
+  - types
+  - protocols
+related:
+  - 90_shared_02_02_types_and_protocols-tool-and-execution-dto.md
+  - 90_shared_02_03_types_and_protocols-reference.md
+---
 # Shared Types and Protocols - Core Types
 
 - Overview → [90_shared_01_overview.md](90_shared_01_overview.md)

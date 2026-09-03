@@ -1,3 +1,13 @@
+---
+title: "MCP Server Catalog: file-write-mcp / file-delete-mcp / shell-mcp"
+area: mcp
+tags:
+  - mcp
+  - server-catalog
+  - file-operations
+related:
+  - 04_mcp_00_document-guide.md
+---
 # MCP Server Catalog: file-write-mcp / file-delete-mcp / shell-mcp
 
 ## file-write-mcp (Port 8007)

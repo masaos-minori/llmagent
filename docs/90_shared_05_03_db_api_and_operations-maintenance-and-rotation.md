@@ -1,3 +1,14 @@
+---
+title: "DB API and Operations — Maintenance and Rotation"
+area: shared
+tags:
+  - shared
+  - db
+  - maintenance-rotation
+related:
+  - 90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md
+  - 90_shared_05_02_db_api_and_operations-protocol-and-backend.md
+---
 # DB API and Operations
 
 - Schema $\rightarrow$ [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md)
