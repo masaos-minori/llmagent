@@ -7,9 +7,13 @@ Characterization tests for ConfigLoader behavior.
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
+import tempfile
 
 import orjson
 import pytest
+from unittest.mock import patch
+
 from shared.config_loader import (
     ConfigLoader,
     ConfigMissingError,
@@ -17,6 +21,8 @@ from shared.config_loader import (
     ConfigPermissionError,
     ConfigReadError,
 )
+from agent.config_builders import build_agent_config
+from shared.config_errors import ConfigLoadError
 
 
 @pytest.fixture(autouse=True)
@@ -382,3 +388,20 @@ class TestLoadAllStrictMode:
         # Default (strict=True) should raise for missing required files
         with pytest.raises(ConfigMissingError):
             tmp_cfg.load_all()
+
+    def test_load_all_strict_default_missing_file(self) -> None:
+        """REQ-001: load_all() raises ConfigMissingError when agent.toml is missing."""
+        temp_dir = tempfile.mkdtemp()
+        try:
+            loader = ConfigLoader(Path(temp_dir))
+            with pytest.raises(ConfigMissingError):
+                loader.load_all()
+        finally:
+            shutil.rmtree(temp_dir)
+
+    def test_build_agent_config_requires_agent_toml(self) -> None:
+        """REQ-002: build_agent_config() raises ConfigLoadError when agent.toml is missing."""
+        with patch("agent.config_builders.ConfigLoader") as mock_loader:
+            mock_loader.return_value.load_all.side_effect = ConfigMissingError("agent.toml")
+            with pytest.raises(ConfigLoadError):
+                build_agent_config()

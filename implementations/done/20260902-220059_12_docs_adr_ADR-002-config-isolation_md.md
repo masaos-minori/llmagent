@@ -84,10 +84,10 @@ Review the updated ADR-002 to ensure the new section accurately reflects the str
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-03 | 2026-09-03 | Added "Impact of REQ-001" section to ADR-002 documenting strict-default behavior impact on config isolation |
-| 2 | Add or update tests per Validation plan | Completed | 2026-09-03 | 2026-09-03 | N/A (documentation update only) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-03 | 2026-09-03 | ruff clean (no Python files in docs/adr/) |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-03 | 2026-09-03 | Done — ADR-002 updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Added "Impact of REQ-001" section to ADR-002 |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Documentation task; no tests needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | N/A | — | — | No code changes; manual review sufficient |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Section added to ADR-002 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

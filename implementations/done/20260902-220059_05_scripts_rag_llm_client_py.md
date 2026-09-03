@@ -74,10 +74,10 @@ Run `uv run pytest tests/shared/test_config_loader.py -v` and `uv run pytest tes
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-03 | 2026-09-03 | No change needed; REQ-001 changed load_all() default to strict=True |
-| 2 | Add or update tests per Validation plan | Completed | 2026-09-03 | 2026-09-03 | Existing tests pass (1 pre-existing failure unrelated to this change) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-03 | 2026-09-03 | ruff clean, mypy clean, bandit high-confidence=0 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-03 | 2026-09-03 | Out of scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | No change needed; REQ-001 made load_all() default to strict=True |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | No code change required |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Skipped | — | — | No code change required |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | No code change required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

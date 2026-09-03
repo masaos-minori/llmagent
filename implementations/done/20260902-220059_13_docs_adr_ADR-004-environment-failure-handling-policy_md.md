@@ -84,10 +84,10 @@ Review the updated ADR-004 to ensure the new section accurately reflects the str
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Added "Alignment with INV-01/INV-02" section to ADR-004 |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Documentation task; no tests needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | N/A | — | — | No code changes; manual review sufficient |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Section added to ADR-004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

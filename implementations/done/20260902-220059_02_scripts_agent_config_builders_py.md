@@ -34,15 +34,15 @@ No code modification required. Confirm the consequence of REQ-001's fix by verif
 
 ### Method
 
-1. After applying REQ-001's fix, verify that `ConfigLoader().load_all()` at line 60 raises `ConfigMissingError` when `agent.toml` is missing.
+1. After applying REQ-001's fix, verify that `ConfigLoader().load_all()` at line 60 raises `ConfigMissingError` when `agent.toml` is missing, and that `load_config()` re-raises it as `ConfigLoadError`.
 2. Confirm that execution never reaches `security_profile_val = SecurityProfile(cfg.get("security_profile", "local"))` at line 447.
-3. Add a regression test in `tests/agent/test_startup.py` to assert this behavior.
+3. Add a regression test in `tests/agent/test_startup.py` to assert `build_agent_config()` raises `ConfigLoadError` when `agent.toml` is missing.
 
 ### Details
 
 1. Read `scripts/agent/config_builders.py` lines 55-65 to confirm `load_all()` call site.
 2. Read `scripts/agent/config_builders.py` lines 440-450 to confirm `security_profile_val` computation location.
-3. After REQ-001 is applied, add a test in `tests/agent/test_startup.py` that verifies `build_agent_config()` raises `ConfigMissingError` when `agent.toml` is missing.
+3. After REQ-001 is applied, add a test in `tests/agent/test_startup.py` that verifies `build_agent_config()` raises `ConfigLoadError` when `agent.toml` is missing.
 
 ## Compatibility considerations
 
@@ -75,10 +75,10 @@ Run `uv run pytest tests/agent/test_startup.py -v` after adding the regression t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-03 | 2026-09-03 | No code change required; consequence of REQ-001 |
-| 2 | Add or update tests per Validation plan | Completed | 2026-09-03 | 2026-09-03 | Added regression test for REQ-002 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-03 | 2026-09-03 | All 41 tests pass, lint/typecheck/bandit clean |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-03 | 2026-09-03 | Out of scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | No code change required; consequence of REQ-001 |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Regression test added for REQ-002 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | All checks pass; no new mypy regressions |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Updated docs/05_agent_08_01_configuration-loading-agent-config.md with REQ-001 fail-closed behavior |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
