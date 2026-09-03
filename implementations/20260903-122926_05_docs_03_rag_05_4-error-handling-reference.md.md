@@ -114,9 +114,9 @@ edge-case subsection.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903-175300 | 20260903-175300 | Adversarially re-verified full propagation path (`etag_manager.py`→`document_manager.py:104-112`→`document_persistence.py:61-65`→`ingester.py:279`→`_process_url_groups()` catch-all at `:383`) — exact match. **Corrected**: the procedure's quoted "existing text" for the anchor row ("Raises `ValueError`; skips the URL group; logs an `ERROR` with traceback") did not match the actual file content ("`ValueError`; skip URL group; `ERROR` (with traceback)") — this table uses terser wording than the procedure assumed. Anchored on the actual text and phrased the new row consistently with the table's real style, preserving all substantive content specified. |
 | 2 | Add or update tests per Validation plan | N/A | — | — | No tests required — documentation-only (Plan Tests section) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `check_docs_quality.py`, `check_docs_consistency.py --domain rag` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903-175300 | 20260903-175300 | `check_docs_quality.py`: 0 errors. `check_docs_structure.py`: all checks passed. `check_docs_consistency.py --domain rag`: no findings for this file |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This document IS the documentation update |
 
 ### Blocker Log

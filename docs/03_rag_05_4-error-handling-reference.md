@@ -61,6 +61,7 @@ see the canonical table in
 | Embedding API failure | Retry with exponential backoff up to `embed_retry` |
 | Retry limit reached (single chunk) | `WARNING`; skip chunk; continue |
 | Invalid `lang` value | `ValueError`; skip URL group; `ERROR` (with traceback) |
+| Invalid `fetched_at` (incoming or stored) | `ETagManager._is_stale_update()` raises `ValueError` — `Invalid incoming timestamp: {value}` or `Invalid stored timestamp: {value}` (message text is the only current distinction; no separate exception classes). Uncaught at the call site (`RagIngester.ingest_url_group()`), it propagates to the same catch-all as "Invalid `lang` value" above: skip URL group; `ERROR` (with traceback). See [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.8.1](03_rag_02_06_ingestion_pipeline-supporting-components.md#481-freshness-comparison-edge-cases-and-error-handling). |
 
 ## RagPipeline
 
