@@ -96,6 +96,24 @@ Checks for stale compatibility layers left behind after API migrations.
 - `tests/`
 - `tools/`
 
+**Removed-name reintroduction detection** (`check_removed_name_reintroduction()`,
+opt-in via `--check-removed-names`, default off): flags a name confirmed absent
+from source code being presented as current in `docs/*.md`, outside historical
+context. Two cases require different detection strategies:
+- **Name confirmed fully absent from source** (e.g. `_update_null_fill`;
+  `ToolRouteResolver`+`server_configs` co-occurrence, section-scoped) — a simple
+  grep-vs-source-absence check suffices. Implemented.
+- **Name that remains in source but is no longer the current production path**
+  (e.g. `read_json_file`, still defined in
+  `scripts/rag/ingestion/pipeline_utils.py` but no longer the current production
+  reader) — requires checking whether a *current-specification* section presents
+  it as production, not merely whether the identifier string appears in `docs/`.
+  Not yet implemented (follow-up).
+
+**Historical-reference allowlist**: a line within 10 lines of an explicit marker
+(`legacy`, `historical`, `archive only`, `resolved`, `was:`, `removed`) is exempt
+from this check (`_HISTORICAL_CONTEXT_MARKERS` / `_is_historical_context()`).
+
 ### 5. Suppression Justification Check (`check_suppression_justification.py`)
 
 Validates that `# noqa`, `# type: ignore`, and `# nosec` comments have proper rule/error-code justification with em-dash separator.
@@ -151,7 +169,7 @@ Verify evidence labels on statements match their actual grounding level:
 2. **Strongly implied by code** — Inferred from code structure/patterns
 3. **Documentation only** — Exists only in documentation without code verification
 4. **Needs confirmation** — Accuracy unverified against implementation
-5. **Deprecated** — Describes an obsolete feature no longer in use
+5. **Deprecated** — Describes an obsolete feature no longer in use. Distinct from `docs/00_governance_02_documentation-metadata.md`'s Terminology Glossary terms `Obsolete` (a name still present and callable, but no longer the current production path) and `Dead Code` (a name with zero current callers): this evidence label classifies how well a *statement* is grounded, not the compatibility lifecycle of the thing the statement describes.
 6. **Verified by test** — Confirmed through automated tests
 7. **Operationally observed** — Based on runtime behavior observations
 
@@ -212,6 +230,11 @@ Before merging any change:
 - High-severity open issue exists in affected area
 - Documentation outdated but code is correct
 - Config drift detected but no behavioral impact
+- Removed-name reintroduction detected by `check_compat_shims.py --check-removed-names` (`GV-020`), without an approved temporary exception (`docs/00_governance_03_issue-and-uncertainty-management.md`)
+
+A `GV-020` finding is not itself blocking, but every finding must be resolved or
+covered by an approved temporary exception before merge — an unexplained finding
+left neither fixed nor excepted is treated as incomplete review, not a passing PR.
 
 **Merge workflow:**
 1. Check blocking conditions — if any fail, reject merge
@@ -264,6 +287,7 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 | GV-016 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
 | GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
 | GV-019 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
+| GV-020 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Implement the context-aware (retained-but-superseded) detection case; promote to default-on once the corpus is compliant |
 
 ### Follow-up Work Needed
 
@@ -292,6 +316,11 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
 11. **GV-016**: Audit auto-check implementations against documentation claims
 12. **GV-018**: Add glossary term classification validation
 13. **GV-019**: Add metadata field usage policy enforcement
+14. **GV-020**: Implement the `read_json_file`-style context-aware detection
+    case (a name retained in source but no longer the current production path);
+    promote `--check-removed-names` from opt-in to default-on once
+    `plans/done/20260903-090104_plan.md` (toolroutedoc)'s corpus fix lands, per
+    `check_compat_shims.py`'s own "report-only until compliant" convention.
 
 ## Change Impact Assessment
 
