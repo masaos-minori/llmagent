@@ -1,6 +1,6 @@
 ---
 title: "Shared Infrastructure File Structure: venv/db/ + scripts/db/ (Part 1/2)"
-category: overview
+area: overview
 tags:
   - shared
   - db
@@ -8,6 +8,7 @@ tags:
   - file-structure
 related:
   - 01_overview-files-04-shared.md
+---
 
 # File Structure
 

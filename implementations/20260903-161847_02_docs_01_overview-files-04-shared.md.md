@@ -134,10 +134,10 @@ data-quality observation, reported as a Plan Gap, not this row's scope.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Re-verified lines 1-12 before editing — no drift. Applied the closing `---` and `category:`→`area:` rename exactly as designed. |
+| 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | N/A: documentation-only row, no test file owned by this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `check_docs_structure.py`: reports "found 3 H1 heading(s), expected exactly 1" — confirmed pre-existing and unrelated to this row's edit (`grep -n "^# "` shows 3 `# File Structure` headings at lines 13/59/105, all outside the diff's touched lines 1-13; `git diff` confirms exactly the 2 intended lines changed). Out of this row's scope (body-content change), not fixed. No "opening '---' has no closing '---'" finding. `grep`: `category:` absent, `area: overview` present. `check_docs_quality.py`: 0 errors, 1 pre-existing unrelated warning. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
