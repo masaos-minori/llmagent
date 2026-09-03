@@ -30,10 +30,29 @@ This file defines the data models shared throughout the RAG pipeline. All DTOs a
 - `lang`: Language hint (`LanguageCode` enum, `"en"`/`"ja"`)
 
 ### ChunkDocument — Chunk data passed between pipeline stages
-- `url`, `title`, `lang`, `content`: Required fields
-- `etag`, `last_modified`: For change detection
-- `normalized_content`: Sudachi-normalized text (Japanese only)
-- `chunking_strategy`, `source_file`, `chunk_type`: Processing metadata
+DTO-level field types (`scripts/rag/models_data.py:31-47`):
+- `url`, `title`, `lang`, `content`, `chunking_strategy`, `chunk_index`,
+  `source_file`, `chunk_type`, `fetched_at` are non-`Optional` (`str`/`int`);
+  `code_blocks` defaults to `[]` (never `None`).
+- `etag`, `last_modified`, `normalized_content` are `str | None` (default `None`) —
+  the only three fields that may be `None` at this DTO level. `etag`/`last_modified`
+  represent optional upstream metadata not always available at crawl/chunk time;
+  `normalized_content` is Japanese-only Sudachi normalization, always `None` for
+  crawl artifacts, English chunks, and code chunks.
+- `title` is always a `str` at this DTO level, defaulting to `""` — both
+  `read_crawl_json()` and `read_chunk_json()` convert an explicit JSON `null` to `""`
+  (`title or ""`) before constructing `ChunkDocument`. This differs from the
+  JSON-input-level classification (see below), where `title` is Nullable.
+- `chunking_strategy`/`source_file`/`chunk_type` are always non-`None` `str` here;
+  crawl artifacts always set them to `"text"`/`""`/`""` respectively (crawl-stage
+  values do not exist yet); chunk artifacts allow `source_file`/`chunk_type` to be
+  explicit (possibly empty) strings and require `chunking_strategy` to be a
+  non-empty string, with no code-enforced closed value set for either.
+
+For the JSON-input-level Required/Nullable/Conditional classification (what the
+parsing readers accept from the raw payload before DTO construction — not identical
+to the DTO-level typing above), see the canonical table in
+[03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md).
 
 ### ChunkRecord — Chunk with embedding vector (used by query pipeline)
 - `chunk_id`, `url`, `title`, `lang`, `content`: Required fields
