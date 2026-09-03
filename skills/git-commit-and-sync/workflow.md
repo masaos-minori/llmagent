@@ -12,8 +12,15 @@
 | `git diff --cached --stat` | Check Staged | verify staged set before commit |
 | `git diff --cached --name-only` | Check Staged | list staged file paths |
 | `git commit -m` | Commit | create conventional commit |
-| `git pull --ff-only` | Pull | safe remote sync; abort on diverge |
-| `git diff --check` | Resolve Conflicts | detect remaining conflict markers |
+| `git fetch` | Sync | update remote-tracking refs only; never touches the working tree or current branch |
+| `git rev-parse --abbrev-ref --symbolic-full-name @{u}` | Sync | confirm an upstream branch exists |
+| `git rev-parse HEAD` / `git rev-parse @{u}` / `git merge-base HEAD @{u}` | Sync | classify the sync case: up to date, fast-forward, ahead-only, or diverged |
+| `git status --porcelain` | Sync | confirm the working tree is clean before attempting a rebase |
+| `git merge --ff-only @{u}` | Sync | fast-forward onto upstream when the local branch has not diverged |
+| `git rebase @{u}` | Sync | non-interactive rebase onto upstream when histories have diverged |
+| `git diff --name-only --diff-filter=U` | Sync | capture conflicted file paths before aborting a failed rebase |
+| `git rebase --abort` | Sync | abandon a conflicted rebase and restore the pre-rebase state |
+| `git status --short` / `git diff --stat` | Sync | validate repository state after a successful fast-forward or rebase |
 | `git push` | Push | push to remote after approval |
 | `git push --set-upstream origin <branch>` | Push | set upstream if missing (suggestion only) |
 
@@ -124,117 +131,141 @@ Stop if commit fails (see `rules/coding.md` Prohibited behavior (all tasks) for 
 
 ---
 
-## Phase 7: Pull
+## Phase 7: Sync (Fetch, Fast-Forward, or Rebase)
 
-Before push, always run:
+This phase replaces `git pull --ff-only` with `git fetch` followed by an explicit
+fast-forward-or-rebase decision, so histories that have diverged from the upstream
+branch can be synced automatically instead of stopping outright.
+
+Always run first:
 
 ```bash
-git pull --ff-only
+git fetch
 ```
 
-If pull succeeds with no conflicts, continue to Phase 10.
-If pull produces conflict markers, continue to Phase 8.
+`git fetch` only updates remote-tracking refs — it never touches the working tree or
+the current branch, so it is always safe to run regardless of repository state.
 
-Stop if:
-- Fast-forward is not possible (diverged history). Report: `Fast-forward pull failed. No push was performed.`
-- Pull exits with an error unrelated to conflicts.
+Confirm an upstream branch exists:
 
-Do not run the commands `SKILL.md` Core rules forbids (`git pull` without `--ff-only`, `git pull --rebase`, `git merge`, `git rebase`).
+```bash
+git rev-parse --abbrev-ref --symbolic-full-name @{u}
+```
 
----
+If this fails (no upstream configured for the current branch), skip the rest of this
+phase — there is nothing to compare against — and continue to Phase 8. Phase 9 (Push)
+already handles the missing-upstream case for the push itself.
 
-## Phase 8: Resolve Conflicts
+### Classify the sync case
 
-Resolve conflicts only when ALL conditions hold:
+```bash
+git rev-parse HEAD
+git rev-parse @{u}
+git merge-base HEAD @{u}
+```
 
-- File is a text file (not binary, not lock file, not migration file).
-- Conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) are visible.
-- The correct result is clear from context without product decisions.
-- The change is small (fewer than ~30 conflicted lines).
-- Validation can be run after the fix.
+- `HEAD` and `@{u}` identical → already up to date. Continue to Phase 8.
+- `HEAD` equals the merge-base (local has not diverged; upstream has new commits) →
+  **fast-forward** (below).
+- `@{u}` equals the merge-base (upstream has not moved; local is ahead only) →
+  nothing to sync. Continue to Phase 8.
+- Otherwise (both sides have commits the other lacks since the merge-base) →
+  histories have **diverged** → **rebase** (below).
 
-Inspect conflict state:
+### Fast-forward
+
+```bash
+git merge --ff-only @{u}
+```
+
+This can only fast-forward or fail cleanly — it never creates a merge commit and
+never produces a conflict. If it fails unexpectedly, stop and report the error; do
+not fall back to a non-fast-forward merge or a rebase for this case.
+
+### Rebase (only when histories have diverged)
+
+Before rebasing, confirm both preconditions hold:
+
+- **Working tree is clean**: `git status --porcelain` returns no output for tracked
+  changes (Phase 6's commit should already have made this true; re-check rather than
+  assume).
+- **Upstream branch exists**: already confirmed above.
+
+If either precondition fails, stop and report why the rebase cannot proceed — do not
+rebase against a dirty tree and do not rebase without a resolvable upstream.
+
+```bash
+git rebase @{u}
+```
+
+This MUST be a plain, non-interactive rebase onto the current branch's own upstream
+only — never `rebase -i`, never `rebase --onto` with a different target.
+
+If the rebase completes with no conflicts, continue to Post-Sync Validation below.
+
+If the rebase reports a conflict, capture the conflicted files **before** aborting —
+this information disappears once the rebase is abandoned:
+
+```bash
+git diff --name-only --diff-filter=U
+```
+
+Then abort immediately:
+
+```bash
+git rebase --abort
+```
+
+Stop. Do not push. Report:
+- `Rebase onto @{u} failed with conflicts. Rebase aborted; branch restored to its pre-rebase state.`
+- the conflicted file paths captured above
+
+Do not run `git rebase --continue`, `git rebase --skip`, or attempt to resolve the
+conflict manually in any way — this skill never resolves rebase conflicts
+automatically, regardless of how small or textual the conflict looks.
+
+### Post-Sync Validation (after a successful fast-forward or rebase)
 
 ```bash
 git status --short
-git diff --name-only
-```
-
-For each conflicted file:
-
-1. Read both sides (`HEAD` and incoming).
-2. Keep the correct code; combine only when both sides are needed.
-3. Remove all conflict markers.
-4. Preserve formatting and indentation.
-5. Do not remove unrelated code or invent behavior.
-
-Validate after editing:
-
-```bash
-git diff --check
 git diff --stat
-git status --short
 ```
 
-If Python files are involved, run:
+If Python files were touched by the fast-forward or rebase, run:
 
 ```bash
 uv run pytest tests/ -x -q
 ```
 
-Stop conflict resolution if:
-- File is binary
-- Conflict is large or spans logical sections
-- File is a lock file and the correct version is unclear
-- File is a migration and ordering is unclear
-- File contains security, authentication, or data deletion logic
-- File affects a public API contract
-- The correct resolution is not obvious
-- Tests fail
-- Validation cannot be run
+Delegate to `python-test-and-fix` if validation fails, or to `python-lint-typecheck`
+for lint/type checks, per `SKILL.md` Composition rules.
 
-When stopping, report:
-- conflicted files
-- unclear points
-- suggested next action for the user
+Stop if:
+- `git fetch` fails.
+- The fast-forward merge fails for a reason other than needing a rebase (e.g.
+  uncommitted local changes blocking it).
+- The rebase reports a conflict (handled above — always abort and report; never
+  continue, skip, or resolve manually).
+- Post-sync validation (status/diff review, or tests) fails.
 
----
-
-## Phase 9: Commit Conflict Resolution
-
-Stage only resolved files:
-
-```bash
-git add <resolved-files>
-git diff --cached --stat
-git diff --cached --name-only
-```
-
-Commit:
-
-```bash
-git commit -m "fix: resolve merge conflicts"
-```
-
-Use a more specific message when appropriate:
-
-```bash
-git commit -m "fix: resolve workflow documentation conflict"
-```
+Do not run the commands `SKILL.md` Core rules forbids: `git pull` in any form,
+`git rebase -i`/`--interactive`, `git rebase --onto` to any target other than the
+current branch's upstream, `git rebase --continue`, `git rebase --skip`, `git merge`
+other than the `--ff-only` step above, `git merge --abort`.
 
 ---
 
-## Phase 10: Ask Before Push
+## Phase 8: Ask Before Push
 
 Unless the user already approved push in this session, ask:
 
-> Commit complete. Pull succeeded. Approve `git push`?
+> Commit complete. Sync succeeded. Approve `git push`?
 
 Do not push without explicit approval.
 
 ---
 
-## Phase 11: Push
+## Phase 9: Push
 
 ```bash
 git push
@@ -249,15 +280,17 @@ Do not run the suggestion without user approval.
 
 ---
 
-## Phase 12: Report
+## Phase 10: Report
 
 Report:
 - branch and commit SHA
 - staged files
 - commit message
-- pull result (fast-forward, conflict resolved, or failed)
-- conflict files and resolution summary (if applicable)
-- validation result (if tests were run)
+- sync result (already up to date, fast-forwarded, rebased onto upstream, aborted
+  due to a rebase conflict — with the conflicted file paths, or skipped because no
+  upstream exists)
+- validation result (if status/diff review or tests were run after a successful
+  sync)
 - push result (or reason push was skipped)
 - remaining uncommitted changes
 - stop conditions triggered, with explanation

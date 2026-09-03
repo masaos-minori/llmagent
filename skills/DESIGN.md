@@ -244,5 +244,5 @@ Applies to any skill that writes or transforms production Python code
 | `issue-creator` | `skills/issue-creator/` | Convert requests, findings, or plans into actionable GitHub Issues |
 | `mcp-server-add` | `skills/mcp-server-add/` | Add a new MCP server to the project |
 | `deploy` | `skills/deploy/` | Deploy changes to the production environment |
-| `git-commit-and-sync` | `skills/git-commit-and-sync/` | Safe Git commit, pull, conflict resolution, and push |
+| `git-commit-and-sync` | `skills/git-commit-and-sync/` | Safe Git commit, fetch-based sync (fast-forward or automatic rebase, abort-and-report on conflict), and push |
 | `test-audit` | `skills/test-audit/` | Whole-suite test audit: discovery, safety-gated execution, gap analysis, stabilization work plan |
