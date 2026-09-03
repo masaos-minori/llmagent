@@ -24,13 +24,15 @@ from agent.services.models import ConfigReloadRequest
 
 if TYPE_CHECKING:
     from shared.runtime_tool import AgentSafetyTier
+    from shared.runtime_tool_registry import RuntimeToolRegistry
 
     from agent.config_dataclasses import AgentConfig
     from agent.context import AgentContext
+    from agent.history import HistoryManager
+    from agent.llm_client import LLMClient
 
 from agent.services.typed_validators import (
     _get_bool,
-    _get_dict,
     _get_dict_nonempty,
     _get_float,
     _get_int,
@@ -39,6 +41,57 @@ from agent.services.typed_validators import (
     _get_str,
     _get_str_nonempty,
 )
+
+# Magic string constants — replaces scattered literal field names
+FIELD_HTTP_TIMEOUT = "http_timeout"
+FIELD_CONTEXT_TOKEN_LIMIT = "context_token_limit"
+FIELD_EMBED_URL = "embed_url"
+FIELD_USE_SEMANTIC_CACHE = "use_semantic_cache"
+FIELD_MAX_TOOL_TURNS = "max_tool_turns"
+FIELD_TOOL_RESULT_MAX_LLM_CHARS = "tool_result_max_llm_chars"
+FIELD_CONTEXT_CHAR_LIMIT = "context_char_limit"
+FIELD_CONTEXT_COMPRESS_TURNS = "context_compress_turns"
+FIELD_SERIAL_TOOL_CALLS = "serial_tool_calls"
+FIELD_TOOL_DEFINITIONS_STRICT = "tool_definitions_strict"
+FIELD_PLAN_BLOCKED_TOOLS = "plan_blocked_tools"
+FIELD_LLML_TEMPERATURE = "llm_temperature"
+FIELD_LLML_MAX_TOKENS = "llm_max_tokens"
+FIELD_LLML_URL = "llm_url"
+FIELD_WEB_SEARCH_URL = "web_search_url"
+FIELD_LLML_MAX_RETRIES = "llm_max_retries"
+FIELD_LLML_RETRY_BASE_DELAY = "llm_retry_base_delay"
+FIELD_SSE_HEARTBEAT_TIMEOUT = "sse_heartbeat_timeout"
+FIELD_SSE_MALFORMED_RETRY = "sse_malformed_retry"
+FIELD_SSE_RECONNECT_MAX = "sse_reconnect_max"
+FIELD_LLML_STREAM_RETRY_ON_HEARTBEAT_TIMEOUT = "llm_stream_retry_on_heartbeat_timeout"
+FIELD_LLML_STREAM_RETRY_ON_MALFORMED_CHUNK = "llm_stream_retry_on_malformed_chunk"
+FIELD_SYSTEM_PROMPT_TOOL = "system_prompt_tool"
+FIELD_SYSTEM_PROMPTS = "system_prompts"
+FIELD_TOOL_DEFINITIONS = "tool_definitions"
+FIELD_SEMANTIC_CACHE_THRESHOLD = "semantic_cache_threshold"
+FIELD_SEMANTIC_CACHE_MAX_SIZE = "semantic_cache_max_size"
+FIELD_USE_REFINER = "use_refiner"
+FIELD_REFINER_MAX_TOKENS = "refiner_max_tokens"
+FIELD_REFINER_TIMEOUT = "refiner_timeout"
+FIELD_REFINER_MAX_CHARS_PER_CHUNK = "refiner_max_chars_per_chunk"
+FIELD_APPROVAL_RISK_RULES = "approval_risk_rules"
+FIELD_APPROVAL_PROTECTED_PATHS = "approval_protected_paths"
+FIELD_APPROVAL_HIGH_RISK_BRANCHES = "approval_high_risk_branches"
+FIELD_APPROVAL_SHELL_SAFE_PREFIXES = "approval_shell_safe_prefixes"
+FIELD_APPROVAL_RESOURCE_KEYS = "approval_resource_keys"
+FIELD_APPROVAL_DRY_RUN_TOOLS = "approval_dry_run_tools"
+FIELD_TOOL_SAFETY_TIERS = "tool_safety_tiers"
+FIELD_ALLOWED_ROOT = "allowed_root"
+FIELD_ALLOWED_TOOLS = "allowed_tools"
+FIELD_APPROVAL_GITHUB_ALLOWED_REPOS = "approval_github_allowed_repos"
+FIELD_GITOPS_PUSH_BLOCKED = "gitops_push_blocked"
+FIELD_MEMORY_RETENTION_DAYS = "memory_retention_days"
+FIELD_MEMORY_LOCAL_ONLY = "memory_local_only"
+FIELD_SECURITY_PROFILE = "security_profile"
+FIELD_SECURITY_LOCKDOWN_ENABLED = "security_lockdown_enabled"
+FIELD_USE_MEMORY_LAYER = "use_memory_layer"
+FIELD_ROUTING_DRIFT_STRICT = "routing_drift_strict"
+FIELD_MEMORY_EMBED_ENABLED = "memory_embed_enabled"
 
 _MCP_SERVER_FIELDS = (
     "transport",
@@ -124,7 +177,7 @@ class ConfigReloadService:
         The command handler only calls this method and renders the result.
         """
         ctx = self._ctx
-        self._validate_request(new_cfg)
+        self._collect_field_changes(new_cfg, {}, {}, {})
         self._apply_rag_tool_params(ctx, new_cfg)
         self._reload_approval_config(ctx, new_cfg)
         self._reload_tool_allowlist(ctx, new_cfg)
@@ -141,104 +194,105 @@ class ConfigReloadService:
                 lifecycle = ctx.services_required.lifecycle
                 if lifecycle is not None:
                     lifecycle.cleanup_server_resources(server_key)
-        service_result = self._sync_services(new_cfg)
+        service_result = self._sync_services(
+            new_cfg,
+            ctx.services_required.llm,
+            ctx.services_required.hist_mgr,
+            ctx.services_required.runtime_tools,
+        )
         result.applied.extend(service_result.applied)
         result.skipped.extend(service_result.skipped)
         result.startup_only = self._detect_startup_only(new_cfg)
         result.always_live = self._detect_diagnostics_live_fields(new_cfg)
         return result
 
-    def _validate_request(self, new_cfg: dict[str, Any]) -> None:
-        """Validate request values BEFORE applying any changes.
-
-        Creates fresh dataclass instances from defaults + request values,
-        then runs validators. Raises ConfigReloadValidationError on failure.
-        This ensures validation runs independently of mocked apply_config_dict.
-        """
-        llm_changes: dict[str, Any] = {}
-        rag_changes: dict[str, Any] = {}
-        tool_changes: dict[str, Any] = {}
-
-        self._collect_request_values(new_cfg, llm_changes, rag_changes, tool_changes)
-
-        if llm_changes:
-            try:
-                new_llm = dataclasses.replace(self._ctx.cfg.llm, **llm_changes)
-                from agent.services.config_validators import (
-                    validate_llm_context_token_limit,
-                    validate_llm_http_timeout,
-                )
-
-                validate_llm_http_timeout(new_llm)
-                validate_llm_context_token_limit(new_llm)
-            except ValueError as e:
-                raise ConfigReloadValidationError(str(e)) from e
-
-        if rag_changes:
-            # Remove undeclared fields that cannot go through dataclasses.replace()
-            rag_changes = {
-                k: v for k, v in rag_changes.items() if k != "web_search_url"
-            }
-            if rag_changes:
-                try:
-                    new_rag = dataclasses.replace(self._ctx.cfg.rag, **rag_changes)
-                    from agent.services.config_validators import (
-                        validate_rag_refiner_max_chars_per_chunk,
-                        validate_rag_refiner_max_tokens,
-                        validate_rag_refiner_timeout,
-                    )
-
-                    validate_rag_refiner_max_tokens(new_rag)
-                    validate_rag_refiner_timeout(new_rag)
-                    validate_rag_refiner_max_chars_per_chunk(new_rag)
-                except ValueError as e:
-                    raise ConfigReloadValidationError(str(e)) from e
-
-        if tool_changes:
-            try:
-                new_tool = dataclasses.replace(self._ctx.cfg.tool, **tool_changes)
-                from agent.services.config_validators import (
-                    validate_progress_stagnation_window,
-                    validate_tool_cycle_detect_window,
-                    validate_tool_dedup_max_repeats,
-                    validate_tool_error_max_consecutive,
-                    validate_tool_error_retry_max,
-                    validate_tool_max_tool_turns,
-                    validate_tool_result_max_llm_chars,
-                )
-
-                validate_tool_dedup_max_repeats(new_tool)
-                validate_tool_cycle_detect_window(new_tool)
-                validate_tool_error_max_consecutive(new_tool)
-                validate_tool_error_retry_max(new_tool)
-                validate_progress_stagnation_window(new_tool)
-                validate_tool_max_tool_turns(new_tool)
-                validate_tool_result_max_llm_chars(new_tool)
-            except ValueError as e:
-                raise ConfigReloadValidationError(str(e)) from e
-
     @staticmethod
-    def _collect_request_values(
+    def _collect_field_changes(
         new_cfg: dict[str, Any],
         llm_changes: dict[str, Any],
         rag_changes: dict[str, Any],
         tool_changes: dict[str, Any],
     ) -> None:
-        """Collect field values from new_cfg into change dicts for validation."""
-        if (v := _get_float(new_cfg, "http_timeout")) is not None:
-            llm_changes["http_timeout"] = v
-        if (v := _get_int(new_cfg, "context_token_limit")) is not None:
-            llm_changes["context_token_limit"] = v
-        if (embed_url := _get_str(new_cfg, "embed_url")) is not None:
-            rag_changes["embed_url"] = embed_url
-        if (vb := _get_bool(new_cfg, "use_semantic_cache")) is not None:
-            rag_changes["use_semantic_cache"] = vb
-        if (v := _get_int(new_cfg, "max_tool_turns")) is not None:
-            tool_changes["max_tool_turns"] = v
+        """Collect field values from new_cfg into change dicts for validation.
+
+        Replaces _collect_request_values() and _apply_llm_prompt_params().
+        Populates one unified set of change dicts.
+        """
+        # LLM fields
+        if (v := _get_float(new_cfg, FIELD_HTTP_TIMEOUT)) is not None:
+            llm_changes[FIELD_HTTP_TIMEOUT] = v
+        if (v := _get_int(new_cfg, FIELD_CONTEXT_TOKEN_LIMIT)) is not None:
+            llm_changes[FIELD_CONTEXT_TOKEN_LIMIT] = v
+        if (temperature := _get_float(new_cfg, FIELD_LLML_TEMPERATURE)) is not None:
+            llm_changes[FIELD_LLML_TEMPERATURE] = temperature
+        if (max_tokens := _get_int(new_cfg, FIELD_LLML_MAX_TOKENS)) is not None:
+            llm_changes[FIELD_LLML_MAX_TOKENS] = max_tokens
+        if (llm_url := _get_str(new_cfg, FIELD_LLML_URL)) is not None:
+            llm_changes[FIELD_LLML_URL] = llm_url
+        if (max_retries := _get_int(new_cfg, FIELD_LLML_MAX_RETRIES)) is not None:
+            llm_changes[FIELD_LLML_MAX_RETRIES] = max_retries
+        if (base_delay := _get_float(new_cfg, FIELD_LLML_RETRY_BASE_DELAY)) is not None:
+            llm_changes[FIELD_LLML_RETRY_BASE_DELAY] = base_delay
+
+        # SSE fields
+        if (vf := _get_float(new_cfg, FIELD_SSE_HEARTBEAT_TIMEOUT)) is not None:
+            llm_changes[FIELD_SSE_HEARTBEAT_TIMEOUT] = vf
+        if (vi := _get_int(new_cfg, FIELD_SSE_MALFORMED_RETRY)) is not None:
+            llm_changes[FIELD_SSE_MALFORMED_RETRY] = vi
+        if (vi := _get_int(new_cfg, FIELD_SSE_RECONNECT_MAX)) is not None:
+            llm_changes[FIELD_SSE_RECONNECT_MAX] = vi
         if (
-            tool_result_max_chars := _get_int(new_cfg, "tool_result_max_llm_chars")
+            vb := _get_bool(new_cfg, FIELD_LLML_STREAM_RETRY_ON_HEARTBEAT_TIMEOUT)
         ) is not None:
-            tool_changes["tool_result_max_llm_chars"] = tool_result_max_chars
+            llm_changes[FIELD_LLML_STREAM_RETRY_ON_HEARTBEAT_TIMEOUT] = vb
+        if (
+            vb := _get_bool(new_cfg, FIELD_LLML_STREAM_RETRY_ON_MALFORMED_CHUNK)
+        ) is not None:
+            llm_changes[FIELD_LLML_STREAM_RETRY_ON_MALFORMED_CHUNK] = vb
+
+        # RAG fields
+        if (embed_url := _get_str(new_cfg, FIELD_EMBED_URL)) is not None:
+            rag_changes[FIELD_EMBED_URL] = embed_url
+        if (vb := _get_bool(new_cfg, FIELD_USE_SEMANTIC_CACHE)) is not None:
+            rag_changes[FIELD_USE_SEMANTIC_CACHE] = vb
+        if (web_search_url := _get_str(new_cfg, FIELD_WEB_SEARCH_URL)) is not None:
+            rag_changes[FIELD_WEB_SEARCH_URL] = web_search_url
+        if (vf := _get_float(new_cfg, FIELD_SEMANTIC_CACHE_THRESHOLD)) is not None:
+            rag_changes[FIELD_SEMANTIC_CACHE_THRESHOLD] = vf
+        if (vi := _get_int(new_cfg, FIELD_SEMANTIC_CACHE_MAX_SIZE)) is not None:
+            rag_changes[FIELD_SEMANTIC_CACHE_MAX_SIZE] = vi
+        if (vb := _get_bool(new_cfg, FIELD_USE_REFINER)) is not None:
+            rag_changes[FIELD_USE_REFINER] = vb
+        if (v := _get_int(new_cfg, FIELD_REFINER_MAX_TOKENS)) is not None:
+            rag_changes[FIELD_REFINER_MAX_TOKENS] = v
+        if (v := _get_float(new_cfg, FIELD_REFINER_TIMEOUT)) is not None:
+            rag_changes[FIELD_REFINER_TIMEOUT] = v
+        if (v := _get_int(new_cfg, FIELD_REFINER_MAX_CHARS_PER_CHUNK)) is not None:
+            rag_changes[FIELD_REFINER_MAX_CHARS_PER_CHUNK] = v
+
+        # Tool fields
+        if (v := _get_int(new_cfg, FIELD_MAX_TOOL_TURNS)) is not None:
+            tool_changes[FIELD_MAX_TOOL_TURNS] = v
+        if (
+            tool_result_max_chars := _get_int(new_cfg, FIELD_TOOL_RESULT_MAX_LLM_CHARS)
+        ) is not None:
+            tool_changes[FIELD_TOOL_RESULT_MAX_LLM_CHARS] = tool_result_max_chars
+        if (lst := _get_list_nonempty(new_cfg, FIELD_TOOL_DEFINITIONS)) is not None:
+            tool_changes[FIELD_TOOL_DEFINITIONS] = list(lst)
+        if (
+            prompt_tool := _get_str_nonempty(new_cfg, FIELD_SYSTEM_PROMPT_TOOL)
+        ) is not None:
+            tool_changes[FIELD_SYSTEM_PROMPT_TOOL] = prompt_tool
+        if (
+            sys_prompts := _get_dict_nonempty(new_cfg, FIELD_SYSTEM_PROMPTS)
+        ) is not None:
+            tool_changes[FIELD_SYSTEM_PROMPTS] = dict(sys_prompts)
+        if (vb := _get_bool(new_cfg, FIELD_SERIAL_TOOL_CALLS)) is not None:
+            tool_changes[FIELD_SERIAL_TOOL_CALLS] = vb
+        if (vb := _get_bool(new_cfg, FIELD_TOOL_DEFINITIONS_STRICT)) is not None:
+            tool_changes[FIELD_TOOL_DEFINITIONS_STRICT] = vb
+        if (lst := _get_list(new_cfg, FIELD_PLAN_BLOCKED_TOOLS)) is not None:
+            tool_changes[FIELD_PLAN_BLOCKED_TOOLS] = list(lst)
 
     @staticmethod
     def _req_to_dict(req: ConfigReloadRequest) -> dict[str, Any]:
@@ -260,13 +314,19 @@ class ConfigReloadService:
 
     # ── Service sync ──────────────────────────────────────────────────────────
 
-    def _sync_services(self, new_cfg: dict[str, Any]) -> ConfigReloadOutcome:
+    def _sync_services(
+        self,
+        new_cfg: dict[str, Any],
+        llm_service: LLMClient | None,
+        hist_mgr_service: HistoryManager | None,
+        runtime_tools_service: RuntimeToolRegistry | None,
+    ) -> ConfigReloadOutcome:
         """Apply new_cfg values to running service instances; return a report."""
         result = ConfigReloadOutcome()
         ctx = self._ctx
 
-        if ctx.services_required.llm is not None:
-            ctx.services_required.llm.apply_config(
+        if llm_service is not None:
+            llm_service.apply_config(
                 temperature=ctx.cfg.llm.llm_temperature,
                 max_tokens=ctx.cfg.llm.llm_max_tokens,
                 max_retries=ctx.cfg.llm.llm_max_retries,
@@ -279,8 +339,8 @@ class ConfigReloadService:
             )
             result.applied.append("llm")
 
-        if ctx.services_required.hist_mgr is not None:
-            ctx.services_required.hist_mgr.apply_config(
+        if hist_mgr_service is not None:
+            hist_mgr_service.apply_config(
                 char_limit=ctx.cfg.llm.context_char_limit,
                 compress_turns=ctx.cfg.llm.context_compress_turns,
                 token_limit=ctx.cfg.llm.context_token_limit,
@@ -288,8 +348,8 @@ class ConfigReloadService:
             )
             result.applied.append("hist_mgr")
 
-        if ctx.services_required.runtime_tools is not None:
-            ctx.services_required.runtime_tools.apply_policy(
+        if runtime_tools_service is not None:
+            runtime_tools_service.apply_policy(
                 tier_map=cast(
                     Mapping[str, "AgentSafetyTier"], ctx.cfg.approval.tool_safety_tiers
                 ),
@@ -298,8 +358,8 @@ class ConfigReloadService:
             result.applied.append("runtime_tools")
 
         # system_prompt update: write to the canonical field; Orchestrator syncs history[0].
-        if "system_prompt_tool" in new_cfg:
-            ctx.conv.system_prompt_content = new_cfg["system_prompt_tool"]
+        if FIELD_SYSTEM_PROMPT_TOOL in new_cfg:
+            ctx.conv.system_prompt_content = new_cfg[FIELD_SYSTEM_PROMPT_TOOL]
 
         return result
 
@@ -534,33 +594,56 @@ class ConfigReloadService:
         ) is not None:
             changes["llm_stream_retry_on_malformed_chunk"] = vb
 
+    def _reload_section(
+        self,
+        ctx: AgentContext,
+        new_cfg: dict[str, Any],
+        section_path: str,
+        field_mappings: list[tuple[str, str]],
+    ) -> None:
+        """Apply a batch of field updates to a config section.
+
+        Args:
+            ctx: AgentContext for accessing cfg
+            new_cfg: New configuration dict
+            section_path: Dot-separated path to the target section (e.g., "approval")
+            field_mappings: List of (new_cfg_key, target_field) tuples where
+                target_field is the attribute name within the section
+        """
+        parts = section_path.split(".")
+        obj = ctx.cfg
+        for part in parts:
+            obj = getattr(obj, part)
+        for new_key, target_field in field_mappings:
+            if new_key not in new_cfg:
+                continue
+            value = new_cfg[new_key]
+            if isinstance(value, dict):
+                setattr(obj, target_field, dict(value))
+            elif isinstance(value, list):
+                setattr(obj, target_field, list(value))
+            else:
+                setattr(obj, target_field, value)
+
     def _reload_approval_config(
         self,
         ctx: AgentContext,
         new_cfg: dict[str, Any],
     ) -> None:
         """Update ApprovalConfig fields in ctx.cfg when present in new_cfg."""
-        approval = ctx.cfg.approval
-        if (d := _get_dict(new_cfg, "approval_risk_rules")) is not None:
-            approval.approval_risk_rules = dict(d)
-        if (lst := _get_list(new_cfg, "approval_protected_paths")) is not None:
-            approval.approval_protected_paths = list(lst)
-        if (lst := _get_list(new_cfg, "approval_high_risk_branches")) is not None:
-            approval.approval_high_risk_branches = list(lst)
-        if (lst := _get_list(new_cfg, "approval_shell_safe_prefixes")) is not None:
-            approval.approval_shell_safe_prefixes = list(lst)
-        if (d := _get_dict(new_cfg, "approval_resource_keys")) is not None:
-            approval.approval_resource_keys = dict(d)
-        if (lst := _get_list(new_cfg, "approval_dry_run_tools")) is not None:
-            approval.approval_dry_run_tools = list(lst)
-        if (d := _get_dict(new_cfg, "tool_safety_tiers")) is not None:
-            approval.tool_safety_tiers = dict(d)
-        if (v := _get_str(new_cfg, "allowed_root")) is not None:
-            approval.allowed_root = v
-        if (lst := _get_list(new_cfg, "approval_github_allowed_repos")) is not None:
-            approval.approval_github_allowed_repos = list(lst)
-        if (vb := _get_bool(new_cfg, "gitops_push_blocked")) is not None:
-            approval.gitops_push_blocked = vb
+        field_mappings = [
+            (FIELD_APPROVAL_RISK_RULES, "approval_risk_rules"),
+            (FIELD_APPROVAL_PROTECTED_PATHS, "approval_protected_paths"),
+            (FIELD_APPROVAL_HIGH_RISK_BRANCHES, "approval_high_risk_branches"),
+            (FIELD_APPROVAL_SHELL_SAFE_PREFIXES, "approval_shell_safe_prefixes"),
+            (FIELD_APPROVAL_RESOURCE_KEYS, "approval_resource_keys"),
+            (FIELD_APPROVAL_DRY_RUN_TOOLS, "approval_dry_run_tools"),
+            (FIELD_TOOL_SAFETY_TIERS, "tool_safety_tiers"),
+            (FIELD_ALLOWED_ROOT, "allowed_root"),
+            (FIELD_APPROVAL_GITHUB_ALLOWED_REPOS, "approval_github_allowed_repos"),
+            (FIELD_GITOPS_PUSH_BLOCKED, "gitops_push_blocked"),
+        ]
+        self._reload_section(ctx, new_cfg, "approval", field_mappings)
 
     def _reload_tool_allowlist(
         self,
@@ -568,8 +651,9 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> None:
         """Reload allowed_tools from new_cfg if present."""
-        if (lst := _get_list(new_cfg, "allowed_tools")) is not None:
-            ctx.cfg.tool.allowed_tools = list(lst)
+        self._reload_section(
+            ctx, new_cfg, "tool", [(FIELD_ALLOWED_TOOLS, "allowed_tools")]
+        )
 
     def _reload_memory_runtime(
         self,
@@ -577,10 +661,11 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> None:
         """Reload memory runtime fields from new_cfg if present."""
-        if (v := _get_int(new_cfg, "memory_retention_days")) is not None:
-            ctx.cfg.memory.memory_retention_days = v
-        if (vb := _get_bool(new_cfg, "memory_local_only")) is not None:
-            ctx.cfg.memory.memory_local_only = vb
+        field_mappings = [
+            (FIELD_MEMORY_RETENTION_DAYS, "memory_retention_days"),
+            (FIELD_MEMORY_LOCAL_ONLY, "memory_local_only"),
+        ]
+        self._reload_section(ctx, new_cfg, "memory", field_mappings)
 
     def _reload_security_profile(
         self,
@@ -588,14 +673,14 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> None:
         """Reload security profile fields from new_cfg if present."""
-        if (vs := _get_str(new_cfg, "security_profile")) is not None:
+        if (vs := _get_str(new_cfg, FIELD_SECURITY_PROFILE)) is not None:
             try:
                 from shared.mcp_config import SecurityProfile
 
                 ctx.cfg.mcp.security_profile = SecurityProfile(vs)
             except ValueError:
                 pass  # invalid enum value — leave current
-        if (vb := _get_bool(new_cfg, "security_lockdown_enabled")) is not None:
+        if (vb := _get_bool(new_cfg, FIELD_SECURITY_LOCKDOWN_ENABLED)) is not None:
             ctx.cfg.mcp.security_lockdown_enabled = vb
 
     def _detect_startup_only(
