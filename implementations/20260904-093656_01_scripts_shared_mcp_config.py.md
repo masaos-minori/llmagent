@@ -141,10 +141,10 @@ other `McpServerConfig` field/validator.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Establishes the `${ENV:VAR_NAME}` convention used by rows 2, 7-10 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by row 11 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Plan's Documentation Impact: Yes — MCP/Agent domain mapping docs, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Establishes the `${ENV:VAR_NAME}` convention used by rows 2, 7-10; `_validate_auth_token()` now rejects empty `auth_token` |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Covered by row 11. Adversarial verification found this row's own change breaks any `McpServerConfig(...)` construction across the repo that relied on the empty-string default — fixed 22 test files repo-wide (helper defaults or per-call `auth_token=` additions) beyond this row's originally-scoped target file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean; `tests/shared/test_mcp_config.py` (32 passed), `tests/shared/test_mcp_config_validation.py` (38 passed) and the 22 repo-wide files fixed per step 2's Notes all pass; `git stash` A/B confirmed no failure count regression vs. pristine anywhere touched |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | `docs/00_index.md`'s "TransportType / StartupMode / HealthcheckMode enums (mcp_config.py)" row maps to `04_mcp_06_02_configuration-file-inventory.md` — added an `auth_token` row there |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

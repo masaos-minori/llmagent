@@ -252,6 +252,7 @@ _DUMMY_MCP = {
         "dummy": {
             "transport": "http",
             "url": "http://localhost:3001/mcp",
+            "auth_token": "test-token",
         }
     }
 }

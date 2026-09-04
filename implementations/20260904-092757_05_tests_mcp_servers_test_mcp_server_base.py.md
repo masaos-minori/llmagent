@@ -133,9 +133,9 @@ every non-loopback address class and accepts `127.0.0.1`/`::1`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Coordinate with row 2's own edit; exact call target depends on row 2's implementation shape |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row's target file is itself the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Row 2 inlined the check in `run_http()` (not factored into a separate method) — rejected-host tests call `run_http()` directly (raises before any uvicorn construction); accepted-host tests patch `uvicorn.Server.run` to a no-op (setting `started = True`) to avoid actually binding/blocking, since the validation reaches `uvicorn.Config`/`uvicorn.Server` construction for a valid host |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | This row's target file is itself the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff clean; 33 passed |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: test-only file |
 
 ### Blocker Log

@@ -159,10 +159,10 @@ and the rest of `load_config()`'s TOML-parsing logic.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Coordinate with row 4's test updates |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by row 4 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Plan's Documentation Impact: Yes — EventBus/MCP domain mapping docs, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Verified exact match; no drift |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Covered by row 4 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean; `tests/eventbus/test_eventbus_startup.py` 16 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | `docs/00_index.md`'s "Event Bus (config/ops)" row maps this file to `06_eventbus_05_configuration-and-operations.md` — updated per row 3's own Notes (shared update covering rows 1-3) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

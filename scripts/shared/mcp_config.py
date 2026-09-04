@@ -14,6 +14,8 @@ from enum import StrEnum
 from typing import Any
 from urllib.parse import urlparse
 
+from shared.config_utils import resolve_env_ref
+from shared.logger import register_secret
 from shared.mcp_health import (  # noqa: F401
     McpServerHealthRegistry,
     McpServerHealthState,
@@ -173,11 +175,13 @@ class McpServerConfig:
             raise ValueError(f"{key_prefix}: duplicate tool_names: {dupes}")
 
     def _validate_auth_token(self, key_prefix: str) -> None:
-        """Validate that auth_token is a str."""
+        """Validate that auth_token is a non-empty str."""
         if not isinstance(self.auth_token, str):
             raise ValueError(
                 f"{key_prefix}: auth_token must be str, got {type(self.auth_token).__name__}"
             )
+        if not self.auth_token:
+            raise ValueError(f"{key_prefix}: auth_token must not be empty")
 
     def _validate_env(self, key_prefix: str) -> None:
         """Validate env is dict[str, str] and contains no denylisted keys."""
@@ -275,6 +279,9 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
     else:
         health_timeout = None
 
+    resolved_auth_token = resolve_env_ref(v.get("auth_token", ""))
+    register_secret(resolved_auth_token)
+
     return McpServerConfig(
         transport=TransportType(transport),
         url=v.get("url", ""),
@@ -284,7 +291,7 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         max_stderr_log_size_mb=float(v.get("max_stderr_log_size_mb", 100.0)),
         max_stderr_log_files=int(v.get("max_stderr_log_files", 3)),
         tool_names=list(v.get("tool_names", [])),
-        auth_token=v.get("auth_token", ""),
+        auth_token=resolved_auth_token,
         call_timeout_sec=float(v.get("call_timeout_sec", 60.0)),
         health_timeout=health_timeout,
         role=v.get("role", ""),

@@ -23,7 +23,10 @@ def _http_cfg(
     url: str = "http://127.0.0.1:8000", call_timeout_sec: float = 60.0
 ) -> McpServerConfig:
     return McpServerConfig(
-        transport=TransportType.HTTP, url=url, call_timeout_sec=call_timeout_sec
+        transport=TransportType.HTTP,
+        url=url,
+        call_timeout_sec=call_timeout_sec,
+        auth_token="test-token",
     )
 
 

@@ -30,6 +30,8 @@ Documents the runtime infrastructure and utilities within `shared/`: configurati
 
 `ConfigLoader` reads TOML/JSON files sequentially and performs a shallow merge using `dict.update`. Keys prefixed with `_` are excluded. `ConfigMissingError`, `ConfigParseError`, and `ConfigReadError` are all subclasses of `ValueError`. If `restrict_to()` is called, any attempt to access files outside the permitted set raises a `ConfigPermissionError`. `load_all()` targets only `agent.toml` and raises an error if mandatory files are missing when `strict=True`.
 
+**Environment-variable secret references:** `shared/config_utils.py`'s `get_str()` resolves any string value matching `"${ENV:VAR_NAME}"` via `resolve_env_ref()`, substituting `os.environ[VAR_NAME]` and raising `ValueError` if that variable is unset. Every `auth_token`/`browser_auth_token` field across `agent.toml`'s `[mcp_servers.*]` and the standalone `git_mcp_server.toml`/`cicd_mcp_server.toml`/`web_search_mcp_server.toml` uses this convention (`MCP_<SERVER_KEY>_AUTH_TOKEN` naming) — no raw secret values are committed to any config file.
+
 ---
 
 ## 2a. Process Separation Policy (Config Isolation Policy)
@@ -68,5 +70,6 @@ class Logger:
 - Context injection: Using `set_context(turn_id="T001", session_id=42)`, subsequent log lines will include these fields. Because `_ContextFilter` uses `contextvars.ContextVar`, context does not leak between concurrent asyncio tasks sharing the same logger.
 - File write errors (`OSError`) $\rightarrow$ A WARNING is logged via the `shared.logger.fallback` logger (displayed on stderr), and execution falls back to `StreamHandler` only; no exception is raised.
 - **Log messages must be in English only** (Japanese is not allowed) — per `rules/coding.md` convention.
+- **Secret redaction:** `register_secret(value)` adds a string to a module-level registry that every configured logger checks via `_RedactionFilter` (applied alongside `_ContextFilter` in `_configure_logger()`). Any `Bearer <token>`-pattern match, or an exact match against a registered value, is redacted from `record.msg` before emission. `shared.mcp_config._build_single_server()` calls `register_secret()` on every resolved MCP `auth_token` immediately after `resolve_env_ref()` resolves it, so a token never reaches a log line even if a caller accidentally logs a raw header or config value.
 
 ---

@@ -21,6 +21,8 @@ browser_max_response_kb = 256
 # browser_timeout_sec: HTTP request timeout in seconds for the outbound browser_fetch request.
 browser_timeout_sec = 15
 
-# browser_auth_token: Bearer token for browser_fetch's auth middleware; empty string = auth
-# disabled.
-browser_auth_token = ""
+# browser_auth_token: Bearer token for browser_fetch's auth middleware,
+# resolved from the MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN environment variable.
+# Distinct from config/agent.toml's [mcp_servers.web_search].auth_token --
+# see that file for the MCP server's own Bearer-token credential.
+browser_auth_token = "${ENV:MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN}"

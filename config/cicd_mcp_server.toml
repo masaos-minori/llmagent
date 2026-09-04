@@ -18,9 +18,10 @@ workflow_allowlist = []
 # max_log_size_kb: maximum log output size in KB (prevents large data dumps)
 max_log_size_kb = 256
 
-# auth_token: Bearer token for MCP server call authentication
-# Empty string = auth disabled (loopback-only default)
-auth_token = ""
+# auth_token: Bearer token for MCP server call authentication, resolved
+# from the MCP_CICD_AUTH_TOKEN environment variable. Must match
+# config/agent.toml's [mcp_servers.cicd].auth_token value.
+auth_token = "${ENV:MCP_CICD_AUTH_TOKEN}"
 
 # github_token: fallback when GITHUB_TOKEN env var is unset (not recommended)
 # Prefer setting GITHUB_TOKEN via environment variable or config file

@@ -274,7 +274,9 @@ class TestMcpServerChangeClassification:
     """_classify_mcp_server_changes reports every MCP definition change as
     restart-required and never mutates ctx.cfg.mcp.mcp_servers (H-1/H-3/H-4/H-5/H-7)."""
 
-    def _make_svc(self, old_auth: str = "", old_startup: str = "persistent") -> object:
+    def _make_svc(
+        self, old_auth: str = "test-token", old_startup: str = "persistent"
+    ) -> object:
         from agent.services.config_reload import ConfigReloadService
         from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
@@ -309,7 +311,10 @@ class TestMcpServerChangeClassification:
 
         svc, old_srv = self._make_svc()
         new_srv = McpServerConfig(
-            transport=TransportType.HTTP, url="http://127.0.0.1:9090", cmd=[]
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9090",
+            cmd=[],
+            auth_token="test-token",
         )
         result = self._run(svc, {"svc": new_srv})
 
@@ -352,6 +357,7 @@ class TestMcpServerChangeClassification:
             url="http://localhost:8080",
             cmd=cmd,
             startup_mode=new_mode,
+            auth_token="test-token",
         )
         result = self._run(svc, {"svc": new_srv})
 
@@ -371,7 +377,10 @@ class TestMcpServerChangeClassification:
 
         svc, old_srv = self._make_svc()
         renamed_srv = McpServerConfig(
-            transport=TransportType.HTTP, url="http://localhost:8080", cmd=[]
+            transport=TransportType.HTTP,
+            url="http://localhost:8080",
+            cmd=[],
+            auth_token="test-token",
         )
         result = self._run(svc, {"renamed_key": renamed_srv})
 
@@ -385,7 +394,10 @@ class TestMcpServerChangeClassification:
 
         svc, old_srv = self._make_svc()
         new_srv = McpServerConfig(
-            transport=TransportType.HTTP, url="http://localhost:9000", cmd=[]
+            transport=TransportType.HTTP,
+            url="http://localhost:9000",
+            cmd=[],
+            auth_token="test-token",
         )
         result = self._run(svc, {"svc": old_srv, "extra": new_srv})
 

@@ -162,6 +162,7 @@ async def test_d05_http_timeout_races_lifecycle_termination() -> None:
         cmd=[],
         tool_names=["_d05_tool"],
         startup_mode=StartupMode.PERSISTENT,
+        auth_token="test-token",
     )
 
     async def _timeout_after_brief_delay(request: httpx.Request) -> httpx.Response:

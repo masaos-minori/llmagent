@@ -26,7 +26,10 @@ from shared.transport_dto import ToolCallResult
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
     return McpServerConfig(
-        transport=TransportType.HTTP, url=url, startup_mode=StartupMode.PERSISTENT
+        transport=TransportType.HTTP,
+        url=url,
+        startup_mode=StartupMode.PERSISTENT,
+        auth_token="test-token",
     )
 
 
@@ -230,7 +233,10 @@ class TestHttpTransportAuthHeader:
 
     @pytest.mark.asyncio
     async def test_no_auth_token_sends_empty_headers(self) -> None:
-        cfg = McpServerConfig(transport=TransportType.HTTP, url="http://127.0.0.1:8000")
+        # A real McpServerConfig can no longer hold an empty auth_token
+        # (mcpauth); a stand-in with just the attribute HttpTransport reads
+        # exercises the same branch.
+        cfg = MagicMock(auth_token="")
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
         mock_resp.content = b'{"result":"ok","is_error":false}'
@@ -334,7 +340,11 @@ class TestSetSessionId:
     @pytest.mark.asyncio
     async def test_session_id_injected_into_http_transport_header(self) -> None:
         """set_session_id() propagates X-Session-Id to all HttpTransport instances."""
-        cfg = McpServerConfig(transport=TransportType.HTTP, url="http://127.0.0.1:8000")
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:8000",
+            auth_token="test-token",
+        )
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
         mock_resp.content = b'{"result":"ok","is_error":false}'
@@ -355,7 +365,11 @@ class TestSetSessionId:
 
     def test_set_session_id_empty_string_does_not_inject_header(self) -> None:
         """Empty session_id must not add X-Session-Id header."""
-        cfg = McpServerConfig(transport=TransportType.HTTP, url="http://127.0.0.1:8000")
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:8000",
+            auth_token="test-token",
+        )
         mock_http = MagicMock(spec=httpx.AsyncClient)
         ex = ToolExecutor(mock_http, server_configs={"srv": cfg})
         ex.set_session_id("")
@@ -488,6 +502,7 @@ class TestToolExecutorStartupModeGate:
             transport=TransportType.HTTP,
             url="http://127.0.0.1:8012",
             startup_mode=StartupMode.NONE,
+            auth_token="test-token",
         )
         ex = _make_executor(configs={"cicd": cfg})
 
@@ -506,6 +521,7 @@ class TestToolExecutorStartupModeGate:
             url="http://127.0.0.1:8000",
             startup_mode=StartupMode.SUBPROCESS,
             cmd=["true"],
+            auth_token="test-token",
         )
         ex = _make_executor(configs={"file_read": cfg})
         mock_transport = AsyncMock()

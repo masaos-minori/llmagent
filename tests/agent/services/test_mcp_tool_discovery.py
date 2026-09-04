@@ -64,7 +64,9 @@ def _resp(status_code: int = 200, json_value: object = None) -> MagicMock:
 
 
 def _server(url: str = "http://127.0.0.1:9000") -> McpServerConfig:
-    return McpServerConfig(transport=TransportType.HTTP, url=url)
+    return McpServerConfig(
+        transport=TransportType.HTTP, url=url, auth_token="test-token"
+    )
 
 
 def _make_ctx(
@@ -734,6 +736,7 @@ class TestDiscoverAllUnreachableServers:
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
             required=False,
+            auth_token="test-token",
         )
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
@@ -754,6 +757,7 @@ class TestDiscoverAllUnreachableServers:
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
             required=False,
+            auth_token="test-token",
         )
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
@@ -774,6 +778,7 @@ class TestDiscoverAllUnreachableServers:
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
             required=True,
+            auth_token="test-token",
         )
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
@@ -812,6 +817,7 @@ class TestDiscoverAllCrossProfileEquivalence:
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
             required=required_value,
+            auth_token="test-token",
         )
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))

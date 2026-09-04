@@ -173,10 +173,10 @@ RAG consistency".
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Coordinate with row 1; confirm reachability relative to row 1's construction-time check at execution time |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by row 12 (`tests/agent/test_startup.py`) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Plan's Documentation Impact: Yes — MCP/Agent domain mapping docs, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Inserted "1b. MCP authentication check" between security audit and service readiness. Confirmed at execution time: with row 1 landed, this check is in practice unreachable via a real `McpServerConfig` (construction itself already rejects an empty `auth_token`) — it only fires for a `ctx` assembled some other way (e.g. directly in a test) |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Covered by row 12 (`tests/agent/test_startup.py`) — 3 of 4 originally-added tests kept; 1 (`test_mcp_auth_blocks_discovery_when_token_missing`) removed after discovering `check_services()` does not short-circuit on an earlier FATAL (all steps run independently; only the final aggregated `has_fatal` decides whether startup aborts) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean; `tests/agent/test_startup.py::TestCheckServicesSeverityClassification` 23/23 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | `docs/00_index.md`'s "Agent startup / verification / troubleshooting" row maps to `05_agent_10_01_operations-and-observability-startup-and-health.md` — added an `mcp_auth` row to the Severity Mapping notes, and corrected an adjacent stale note (`tool_definitions`'s severity rule still referenced the removed `security_profile=PRODUCTION` branch from `localremoval`) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

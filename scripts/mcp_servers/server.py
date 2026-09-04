@@ -97,6 +97,13 @@ def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
     When token is non-empty, requests without a matching Authorization header
     receive a 401 response.  When token is empty, auth is skipped and the
     middleware only injects the X-Request-Id response header.
+
+    An empty token is not a supported production configuration: Agent
+    startup (scripts/agent/startup_validation.py) rejects any MCP server
+    configuration with an empty auth_token before this middleware would ever
+    run for a real Agent-managed server. The accept-all fallback above
+    exists for this function's own standalone testability, not as a
+    supported deployment mode.
     """
     from fastapi import Request  # noqa: F401 — used in closure type annotations below
     from fastapi.responses import JSONResponse
@@ -205,20 +212,51 @@ class MCPServer:
         }, status_code
 
     def run_http(self) -> None:
-        """Launch the HTTP server via uvicorn."""
+        """Launch the HTTP server via uvicorn, enforcing loopback-only binding."""
+        import sys
+
         import uvicorn
+
+        if self.http_host not in ("127.0.0.1", "::1"):
+            raise ValueError(
+                f"{type(self).__name__} bound to non-loopback address "
+                f"{self.http_host}. Internal MCP servers must bind to loopback only."
+            )
 
         if self.own_config_file:
             from shared.config_loader import ConfigLoader
 
             ConfigLoader.restrict_to(self.own_config_file)
 
-        uvicorn.run(
+        class _LoopbackVerifyingServer(uvicorn.Server):
+            """Verifies the actual bound socket address is loopback right
+            after startup, confirming the OS-level bind matches the
+            already-validated `http_host` rather than trusting it blindly."""
+
+            async def startup(self, sockets: list[Any] | None = None) -> None:
+                await super().startup(sockets=sockets)
+                for srv in self.servers:
+                    for sock in srv.sockets or []:
+                        bound_host = sock.getsockname()[0]
+                        if bound_host not in ("127.0.0.1", "::1"):
+                            raise RuntimeError(
+                                "Post-start verification failed: bound socket "
+                                f"address is {bound_host!r}, not loopback."
+                            )
+
+        config = uvicorn.Config(
             self.app_module,
             host=self.http_host,
             port=self.http_port,
             log_level="info",
         )
+        server = _LoopbackVerifyingServer(config=config)
+        try:
+            server.run()
+        except KeyboardInterrupt:  # pragma: no cover — interactive-only path
+            pass
+        if not server.started:
+            sys.exit(1)
 
 
 def build_tools_response(

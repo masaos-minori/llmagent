@@ -193,17 +193,45 @@ async def nack(
 
 def _main() -> None:
     """Start the Event Bus with config-based host binding."""
+    import sys  # noqa: PLC0415
+
     import uvicorn  # noqa: PLC0415
 
     cfg = load_config(get_config_path())
     logger.info("eventbus starting on port=%d host=%s", cfg.port, cfg.host)
-    uvicorn.run(
+
+    class _LoopbackVerifyingServer(uvicorn.Server):
+        """Verifies the actual bound socket address is loopback right after
+        startup — defense-in-depth confirmation that the OS-level bind
+        matches the already-validated `cfg.host`, not a substitute for
+        `EventBusConfig.__post_init__`'s config-time check."""
+
+        async def startup(self, sockets: list[Any] | None = None) -> None:
+            await super().startup(sockets=sockets)
+            for srv in self.servers:
+                for sock in srv.sockets or []:
+                    bound_host = sock.getsockname()[0]
+                    if bound_host not in ("127.0.0.1", "::1"):
+                        raise RuntimeError(
+                            "Post-start verification failed: bound socket "
+                            f"address is {bound_host!r}, not loopback."
+                        )
+            logger.info("eventbus post-start verification: bound socket is loopback")
+
+    config = uvicorn.Config(
         "eventbus.app:app",
         host=cfg.host,
         port=cfg.port,
         log_level="info",
         access_log=True,
     )
+    server = _LoopbackVerifyingServer(config=config)
+    try:
+        server.run()
+    except KeyboardInterrupt:  # pragma: no cover — interactive-only path
+        pass
+    if not server.started:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

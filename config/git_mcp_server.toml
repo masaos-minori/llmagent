@@ -12,8 +12,10 @@ read_only = true
 # max_log_entries: cap for git_log output (prevents large data dumps).
 max_log_entries = 50
 
-# auth_token: Bearer token; empty string = auth disabled.
-auth_token = ""
+# auth_token: Bearer token, resolved from the MCP_GIT_AUTH_TOKEN
+# environment variable. Must match config/agent.toml's
+# [mcp_servers.git].auth_token value.
+auth_token = "${ENV:MCP_GIT_AUTH_TOKEN}"
 
 # NOTE: audit_log_path was removed (2026-07-13). GitConfig.audit_log_path was parsed
 # but never read anywhere else in git-mcp -- no file-writing logic exists for it,

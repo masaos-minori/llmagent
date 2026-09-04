@@ -14,7 +14,9 @@ from shared.mcp_config import (
 
 class TestMcpServerConfigValidation:
     def test_valid_http_config(self) -> None:
-        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
+        cfg = McpServerConfig(
+            TransportType.HTTP, "http://127.0.0.1:8000", auth_token="test-token"
+        )
         assert cfg.transport == TransportType.HTTP
         assert cfg.startup_mode == StartupMode.NONE
 
@@ -28,6 +30,7 @@ class TestMcpServerConfigValidation:
             "http://localhost",
             startup_mode=StartupMode.SUBPROCESS,
             cmd=["server.py"],
+            auth_token="test-token",
         )
         assert cfg.startup_mode == StartupMode.SUBPROCESS
 
@@ -53,11 +56,15 @@ class TestMcpServerConfigValidation:
             )
 
     def test_tool_names_default_empty(self) -> None:
-        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
+        cfg = McpServerConfig(
+            TransportType.HTTP, "http://127.0.0.1:8000", auth_token="test-token"
+        )
         assert cfg.tool_names == []
 
     def test_startup_timeout_default(self) -> None:
-        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
+        cfg = McpServerConfig(
+            TransportType.HTTP, "http://127.0.0.1:8000", auth_token="test-token"
+        )
         assert cfg.startup_timeout_sec == 30
 
     def test_subprocess_http_simple(self) -> None:
@@ -67,6 +74,7 @@ class TestMcpServerConfigValidation:
             "http://127.0.0.1:8000",
             startup_mode=StartupMode.SUBPROCESS,
             cmd=["server.py"],
+            auth_token="test-token",
         )
         assert cfg.startup_mode == StartupMode.SUBPROCESS
 
@@ -76,6 +84,7 @@ class TestMcpServerConfigValidation:
             TransportType.HTTP,
             "http://127.0.0.1:8000",
             startup_mode=StartupMode.PERSISTENT,
+            auth_token="test-token",
         )
         assert cfg.startup_mode == StartupMode.PERSISTENT
 
@@ -121,6 +130,7 @@ class TestBuildMcpServers:
                 "my_server": {
                     "transport": "http",
                     "url": "http://127.0.0.1:9999",
+                    "auth_token": "test-token",
                 }
             }
         }
@@ -135,6 +145,7 @@ class TestBuildMcpServers:
                 "minimal": {
                     "transport": "http",
                     "url": "http://127.0.0.1:8000",
+                    "auth_token": "test-token",
                 }
             }
         }
@@ -145,7 +156,6 @@ class TestBuildMcpServers:
         assert s.call_timeout_sec == 60.0
         assert s.startup_timeout_sec == 30
         assert s.tool_names == []
-        assert s.auth_token == ""
         assert s.role == ""
 
     def test_auth_token_and_role_parsed(self) -> None:
@@ -164,12 +174,15 @@ class TestBuildMcpServers:
         assert s.auth_token == "my-secret"
         assert s.role == "file_write"
 
-    def test_auth_token_default_empty(self) -> None:
-        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
-        assert cfg.auth_token == ""
+    def test_auth_token_default_empty_raises(self) -> None:
+        """mcpauth: an empty auth_token is no longer a valid default (REQ-001)."""
+        with pytest.raises(ValueError, match="auth_token must not be empty"):
+            McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
 
     def test_role_default_empty(self) -> None:
-        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
+        cfg = McpServerConfig(
+            TransportType.HTTP, "http://127.0.0.1:8000", auth_token="test-token"
+        )
         assert cfg.role == ""
 
     def test_subprocess_http_with_cmd_env_parsed(self) -> None:
@@ -182,6 +195,7 @@ class TestBuildMcpServers:
                     "startup_mode": "subprocess",
                     "cmd": ["python3", "server.py"],
                     "env": {"PORT": "9000"},
+                    "auth_token": "test-token",
                 }
             }
         }
@@ -248,7 +262,9 @@ class TestSecurityProfile:
 
 class TestRequiredDefault:
     def test_required_default_true_on_direct_construction(self) -> None:
-        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
+        cfg = McpServerConfig(
+            TransportType.HTTP, "http://127.0.0.1:8000", auth_token="test-token"
+        )
         assert cfg.required is True
 
     def test_required_default_true_from_toml_absent_key(self) -> None:
@@ -258,6 +274,7 @@ class TestRequiredDefault:
                 "minimal": {
                     "transport": "http",
                     "url": "http://127.0.0.1:8000",
+                    "auth_token": "test-token",
                 }
             }
         }

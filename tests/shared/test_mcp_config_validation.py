@@ -12,7 +12,7 @@ def _http_cfg(**kwargs):
         call_timeout_sec=60.0,
         health_timeout=None,
         startup_timeout_sec=30,
-        auth_token="",
+        auth_token="test-token",
         env={},
         key="test_server",
     )
@@ -30,7 +30,7 @@ def _subprocess_cfg(**kwargs):
         call_timeout_sec=60.0,
         health_timeout=None,
         startup_timeout_sec=30,
-        auth_token="",
+        auth_token="test-token",
         env={},
         key="sub_server",
     )
@@ -124,9 +124,27 @@ def test_auth_token_non_string_raises():
         _http_cfg(auth_token=123)  # type: ignore[arg-type]
 
 
-def test_auth_token_empty_string_is_valid():
-    cfg = _http_cfg(auth_token="")
-    assert cfg.auth_token == ""
+def test_auth_token_empty_string_raises():
+    with pytest.raises(ValueError, match="auth_token"):
+        _http_cfg(auth_token="")
+
+
+def test_auth_token_env_ref_resolved(monkeypatch):
+    """`${ENV:VAR_NAME}` auth_token values resolve via the
+    _build_single_server() factory path (McpServerConfig's own constructor,
+    used directly by _http_cfg(), does not itself perform resolution)."""
+    from shared.mcp_config import _build_single_server
+
+    monkeypatch.setenv("TEST_MCP_AUTH_TOKEN_VAR", "resolved-value")
+    cfg = _build_single_server(
+        "test_server",
+        {
+            "transport": "http",
+            "url": "http://localhost:8080",
+            "auth_token": "${ENV:TEST_MCP_AUTH_TOKEN_VAR}",
+        },
+    )
+    assert cfg.auth_token == "resolved-value"
 
 
 # --- new: env check ---

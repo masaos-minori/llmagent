@@ -17,7 +17,9 @@ from shared.transport_dto import ToolCallResult
 
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig(transport=TransportType.HTTP, url=url)
+    return McpServerConfig(
+        transport=TransportType.HTTP, url=url, auth_token="test-token"
+    )
 
 
 def _make_invoker(

@@ -31,7 +31,11 @@ from shared.mcp_config import SecurityProfile
 # so embed_url must be non-empty — mirrors config/agent.toml always supplying embed_url).
 _MIN_CFG: dict = {
     "mcp_servers": {
-        "test-server": {"transport": "http", "url": "http://127.0.0.1:9999"}
+        "test-server": {
+            "transport": "http",
+            "url": "http://127.0.0.1:9999",
+            "auth_token": "test-token",
+        }
     },
     "embed_url": "http://127.0.0.1:9999",
 }

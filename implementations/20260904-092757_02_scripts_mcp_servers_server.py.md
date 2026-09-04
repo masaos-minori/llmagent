@@ -166,10 +166,10 @@ post-start check confirms the live-bound socket address.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Re-confirm uvicorn API surface for post-start verification at execution time |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by row 5 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Plan's Documentation Impact: Yes — EventBus/MCP domain mapping docs, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | uvicorn 0.49.0 confirmed: `run_http()` restructured to construct `uvicorn.Config`/`uvicorn.Server` explicitly (subclassed locally as `_LoopbackVerifyingServer`, overriding `startup()` to inspect `self.servers[*].sockets[*].getsockname()` after `super().startup()`) instead of the `uvicorn.run()` convenience wrapper, preserving `run()`'s own signal handling/exit-code behavior since only `startup()` is overridden, not `run()`/`serve()`. Manually verified end-to-end (real subprocess start + HTTP request + response) in addition to the automated tests |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Covered by row 5 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean; `tests/mcp_servers/test_mcp_server_base.py` 33 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | `docs/00_index.md`'s "MCP server implementation" row maps this file to `04_mcp_02_01_endpoints-and-transport.md` — updated `run_http()`'s method-table entry to document the loopback-only validation and post-start verification; also updated `docs/00_security_01_architecture-and-trust-boundaries.md`'s `allow_public_bind` references (shared with row 1) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

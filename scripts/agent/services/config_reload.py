@@ -99,7 +99,7 @@ _MCP_SERVER_FIELDS = (
     "call_timeout_sec",
     "startup_timeout_sec",
     "tool_names",
-    "auth_token",
+    "auth_token",  # restart-only, intentional: a live credential change must not apply mid-session
     "role",
     "cmd",
     "env",
@@ -515,6 +515,10 @@ class ConfigReloadService:
         HttpTransport are built from them at startup, so mutating
         `ctx.cfg.mcp.mcp_servers` here would desync already-running instances
         from the reported config. This method only compares; it never writes.
+
+        auth_token in particular is restart-only by design: a live /reload must
+        never apply a changed credential to an already-running HttpTransport
+        instance mid-session.
         """
         from agent.config_builders import (
             _build_mcp_servers,  # lazy: avoids circular import at module level

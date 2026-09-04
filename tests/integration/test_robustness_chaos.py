@@ -179,6 +179,7 @@ class TestErrorInjectionChaos:
             cmd=[],
             tool_names=["_chaos_tool_b1"],
             startup_mode=StartupMode.PERSISTENT,
+            auth_token="test-token",
         )
         with respx.mock(
             base_url="http://127.0.0.1:19002", assert_all_called=False
@@ -208,6 +209,7 @@ class TestErrorInjectionChaos:
             cmd=[],
             tool_names=["_chaos_tool_b2a", "_chaos_tool_b2b"],
             startup_mode=StartupMode.PERSISTENT,
+            auth_token="test-token",
         )
 
         def _side_effect(request: httpx.Request) -> httpx.Response:
@@ -245,6 +247,7 @@ class TestErrorInjectionChaos:
             cmd=[],
             tool_names=["_chaos_ok", "_chaos_fail"],
             startup_mode=StartupMode.PERSISTENT,
+            auth_token="test-token",
         )
         call_count = 0
 
@@ -363,6 +366,7 @@ class TestNetworkChaos:
             cmd=[],
             tool_names=["_chaos_d1"],
             startup_mode=StartupMode.PERSISTENT,
+            auth_token="test-token",
         )
         call_count = 0
 
@@ -401,6 +405,7 @@ class TestNetworkChaos:
             cmd=[],
             tool_names=["_chaos_d2"],
             startup_mode=StartupMode.PERSISTENT,
+            auth_token="test-token",
         )
         with respx.mock(
             base_url="http://127.0.0.1:19006", assert_all_called=False
@@ -432,6 +437,7 @@ class TestNetworkChaos:
             cmd=[],
             tool_names=["_chaos_d3"],
             startup_mode=StartupMode.PERSISTENT,
+            auth_token="test-token",
         )
         with respx.mock(
             base_url="http://127.0.0.1:19007", assert_all_called=False

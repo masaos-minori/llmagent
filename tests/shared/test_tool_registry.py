@@ -323,28 +323,45 @@ class TestValidateRoutingAgainstRealConfig:
     file[read/write/delete] register separately) against the real file.
     """
 
-    def test_no_drift_against_real_agent_toml(self) -> None:
+    # agent.toml's [mcp_servers.*].auth_token values are "${ENV:...}" references
+    # (mcpauth) -- set every one to a non-empty placeholder so _build_mcp_servers()
+    # can construct all 10 servers here, without depending on real secrets being
+    # present in this test environment.
+    _REQUIRED_AUTH_TOKEN_ENV_VARS = (
+        "MCP_SHELL_AUTH_TOKEN",
+        "MCP_GIT_AUTH_TOKEN",
+        "MCP_GITHUB_AUTH_TOKEN",
+        "MCP_WEB_SEARCH_AUTH_TOKEN",
+        "MCP_FILE_READ_AUTH_TOKEN",
+        "MCP_FILE_WRITE_AUTH_TOKEN",
+        "MCP_FILE_DELETE_AUTH_TOKEN",
+        "MCP_CICD_AUTH_TOKEN",
+        "MCP_RAG_PIPELINE_AUTH_TOKEN",
+        "MCP_MDQ_AUTH_TOKEN",
+    )
+
+    def _load_real_server_configs(self, monkeypatch: pytest.MonkeyPatch) -> dict:
         import tomllib
 
         from shared.mcp_config import _build_mcp_servers
 
+        for var in self._REQUIRED_AUTH_TOKEN_ENV_VARS:
+            monkeypatch.setenv(var, "test-token")
         agent_toml_path = Path(__file__).parent.parent.parent / "config" / "agent.toml"
         with open(agent_toml_path, "rb") as f:
             raw_cfg = tomllib.load(f)
+        return _build_mcp_servers(raw_cfg)
 
-        server_configs = _build_mcp_servers(raw_cfg)
+    def test_no_drift_against_real_agent_toml(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        server_configs = self._load_real_server_configs(monkeypatch)
         result = validate_routing_against_config(server_configs=server_configs)
         assert result == {}
 
-    def test_real_agent_toml_covers_all_registry_server_keys(self) -> None:
-        import tomllib
-
-        from shared.mcp_config import _build_mcp_servers
-
-        agent_toml_path = Path(__file__).parent.parent.parent / "config" / "agent.toml"
-        with open(agent_toml_path, "rb") as f:
-            raw_cfg = tomllib.load(f)
-
-        server_configs = _build_mcp_servers(raw_cfg)
+    def test_real_agent_toml_covers_all_registry_server_keys(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        server_configs = self._load_real_server_configs(monkeypatch)
         registry = get_registry()
         assert set(registry.get_servers()) <= set(server_configs)

@@ -139,9 +139,9 @@ startup-time rejection.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Confirm existing tests pass unmodified (row 4 is docstring-only) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row's target file is itself the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Confirmed `TestAttachAuthMiddleware`'s existing 8 tests pass unmodified (row 4 is docstring-only) |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Added `test_empty_token_accept_all_is_not_a_supported_mode()` per Design decisions. Also fixed an unrelated pre-existing-format regression discovered adversarially: `TestAppModuleImportability::test_all_server_app_modules_are_importable` began raising `ValueError` (not returning `None` from `find_spec`) once rows 8-10's `${ENV:...}` config values required env vars this test's collection-time import never sets — fixed via `tests/conftest.py` (see row 10's Notes), not this row's own test body |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean; file total 34/34 passed |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: test-only file |
 
 ### Blocker Log

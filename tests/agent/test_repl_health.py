@@ -355,7 +355,7 @@ class TestAuditSecurityDefaults:
         security_profile: str = "production",
     ) -> MagicMock:
         """Build a minimal mocked AgentContext for testing."""
-        from shared.mcp_config import McpServerConfig, SecurityProfile, TransportType
+        from shared.mcp_config import SecurityProfile, TransportType
 
         mcp_servers: dict[str, Any] = {}
         if servers:
@@ -367,7 +367,10 @@ class TestAuditSecurityDefaults:
                     if transport == TransportType.HTTP
                     else ""
                 )
-                mcp_servers[key] = McpServerConfig(
+                # A real McpServerConfig can no longer hold an empty
+                # auth_token (mcpauth); a stand-in with just the attributes
+                # audit_security_defaults() reads exercises the same branch.
+                mcp_servers[key] = MagicMock(
                     transport=transport,
                     url=url,
                     auth_token=vals.get("auth_token", ""),

@@ -160,9 +160,9 @@ stderr-log-rotation, health-timeout tests).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Coordinate with row 1; the shared-helper-default fix affects this file's entire ~40+ test suite |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row's target file is itself the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | `_http_cfg()`/`_subprocess_cfg()` defaults changed to `auth_token="test-token"`; `test_auth_token_empty_string_is_valid` replaced with `test_auth_token_empty_string_raises`; added `test_auth_token_env_ref_resolved()` calling `_build_single_server()` directly |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | This row's target file is itself the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean; 38 passed |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: test-only file |
 
 ### Blocker Log

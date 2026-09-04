@@ -60,8 +60,9 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 
 **Important Notes:**
 - `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
-- `tool_definitions` follows a unified severity scheme: FATAL when in strict mode or `security_profile=PRODUCTION`, WARNING otherwise.
+- `tool_definitions` follows a unified severity scheme: FATAL when in strict mode, WARNING otherwise (the former `security_profile=PRODUCTION` branch was removed when `SecurityProfile.LOCAL` was removed — `security_profile` is always `PRODUCTION` now, so checking it added nothing).
 - Failure in `mcp_tool_discovery` is treated as FATAL regardless of environment. Since tool discovery failure makes all session tool calls impossible, it is critical.
+- `mcp_auth` ("1b. MCP authentication check", runs between the security audit and service-readiness checks): FATAL if any `[mcp_servers.*]` entry has an empty `auth_token`, listing every offending server key in one outcome. In practice this is unreachable via a real `McpServerConfig` — construction itself already rejects an empty `auth_token` (see [04_mcp_06_02](04_mcp_06_02_configuration-file-inventory.md)) — so this check only fires for a `ctx` assembled some other way than the normal config-load path. `check_services()` does not short-circuit on an earlier FATAL: every check listed here always runs and reports independently; only the final aggregated `has_fatal` decides whether startup aborts.
 
 ### Restoration of Pending Post-Execution Approvals
 

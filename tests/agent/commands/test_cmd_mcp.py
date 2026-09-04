@@ -54,7 +54,9 @@ class _Mcp(_McpMixin):
 
 
 def _http(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig(transport=TransportType.HTTP, url=url, cmd=[], auth_token="")
+    return McpServerConfig(
+        transport=TransportType.HTTP, url=url, cmd=[], auth_token="test-token"
+    )
 
 
 def _stdio(
@@ -64,7 +66,7 @@ def _stdio(
         transport=TransportType.HTTP,
         url="http://127.0.0.1:8000",
         cmd=cmd or ["python", "s.py"],
-        auth_token="",
+        auth_token="test-token",
         startup_mode=startup_mode,
     )
 
@@ -154,7 +156,10 @@ class TestCmdMcpStatus:
         mcp = _Mcp(ctx)
 
         new_srv = McpServerConfig(
-            transport=TransportType.HTTP, url="http://127.0.0.1:9999", cmd=[]
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9999",
+            cmd=[],
+            auth_token="test-token",
         )
         reload_svc = ConfigReloadService(ctx)  # type: ignore[arg-type]
         with patch(
@@ -377,7 +382,7 @@ class TestCmdMcpStatusNewColumns:
             transport=TransportType.HTTP,
             url="http://127.0.0.1:8000",
             cmd=[],
-            auth_token="",
+            auth_token="test-token",
             tool_names=["write_file", "edit_file"],
         )
         tiers = {"write_file": "WRITE_SAFE", "edit_file": "WRITE_SAFE"}
@@ -402,7 +407,7 @@ class TestCmdMcpStatusNewColumns:
             transport=TransportType.HTTP,
             url="http://127.0.0.1:8000",
             cmd=[],
-            auth_token="",
+            auth_token="test-token",
             tool_names=["read_text_file", "list_directory"],
         )
         ctx = _Ctx({"reader": cfg})

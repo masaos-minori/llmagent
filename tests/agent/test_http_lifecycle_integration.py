@@ -31,6 +31,7 @@ def _make_cfg(**overrides: object) -> McpServerConfig:
         startup_mode=StartupMode.SUBPROCESS,
         startup_timeout_sec=30,
         cmd=["node", "/fake/server.js"],
+        auth_token="test-token",
     )
     defaults.update(overrides)  # type: ignore[arg-type]
     return McpServerConfig(**defaults)  # type: ignore[arg-type]

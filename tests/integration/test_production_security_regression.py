@@ -2,21 +2,15 @@
 
 Process/integration-level regression suite proving Production-grade policy,
 loopback-only MCP exposure, and MCP authentication -- introduced by
-`localremoval` (plans/20260903-091417_plan.md), `loopbackonly`
-(plans/20260903-091921_plan.md), and `mcpauth` (plans/20260903-092407_plan.md).
+`localremoval` (plans/done/20260903-091417_plan.md), `loopbackonly`
+(plans/done/20260903-091921_plan.md), and `mcpauth`
+(plans/done/20260903-092407_plan.md).
 
-As of this writing none of the three has landed. Several tests below already
-exercise real, currently-existing production code (ProductionConfigValidator,
-McpToolDiscoveryService, RuntimeToolRegistry, attach_auth_middleware) and pass
-today; others are marked `xfail`, naming the specific pending dependency Plan,
-because the behavior they assert does not exist in code yet.
-
-Success criterion for this cycle is "collected and run" (per
-`skills/plan-to-implementation-procedure/workflow.md`'s convention for
-process-level regression tests written ahead of their dependencies), not
-"all passing" -- the `xfail`-marked tests are expected to remain `xfail`
-until their named dependency Plan lands, at which point their marker should
-be removed and the test re-verified to pass for real.
+`localremoval`, `loopbackonly`, and `mcpauth` have all landed (2026-09-04):
+`test_production_only_rejects_local_mode`,
+`test_mcp_server_wildcard_bind_is_rejected`, and
+`test_mcp_auth_token_redacted_in_logs`'s `xfail` markers have all been
+removed and each test rewritten to exercise the real, current behavior.
 """
 
 from __future__ import annotations
@@ -36,26 +30,18 @@ import pytest
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "localremoval (plans/20260903-091417_plan.md) has not landed: "
-        "SecurityProfile.LOCAL still exists and a Local-mode configuration "
-        "currently downgrades strict-mode violations to warnings instead of "
-        "failing startup unconditionally."
-    ),
-    strict=False,
-)
 def test_production_only_rejects_local_mode() -> None:
-    """Once localremoval lands, a Local-mode/retired-key configuration must
-    fail startup (errors), not merely warn."""
+    """localremoval landed (2026-09-04): `SecurityProfile.LOCAL` no longer
+    exists at all -- a config that still requests the retired "local" value
+    is rejected outright at config-construction time, not merely downgraded
+    to warnings the way a pre-landing Local-mode configuration used to be."""
     from shared.mcp_config import SecurityProfile
-    from shared.production_config_validator import ProductionConfigValidator
 
-    config = {"tool_definitions_strict": False, "routing_drift_strict": False}
-    result = ProductionConfigValidator().validate(
-        config, security_profile=SecurityProfile.LOCAL
+    assert not hasattr(SecurityProfile, "LOCAL"), (
+        "SecurityProfile.LOCAL must not exist post-localremoval"
     )
-    assert result.errors, "expected startup-failing errors for Local mode"
+    with pytest.raises(ValueError):
+        SecurityProfile("local")
 
 
 # ---------------------------------------------------------------------------
@@ -143,26 +129,32 @@ async def test_mcp_server_socket_is_loopback_only() -> None:
         await asyncio.wait_for(proc.wait(), timeout=5.0)
 
 
-@pytest.mark.xfail(
-    reason=(
-        "loopbackonly (plans/20260903-091921_plan.md) has not landed: no "
-        "application-level policy exists yet to reject a wildcard/private-LAN "
-        "bind attempt -- the OS itself will happily bind 0.0.0.0 today."
-    ),
-    strict=False,
-)
-@pytest.mark.asyncio
-async def test_mcp_server_wildcard_bind_is_rejected() -> None:
-    """Once loopbackonly lands, attempting to bind an MCP server to a
-    non-loopback address must be rejected before the socket is ever opened."""
-    from shared.mcp_config import McpServerConfig, TransportType
-    from shared.mcp_server_bind_policy import (
-        enforce_loopback_bind,  # not yet implemented
-    )
+def test_mcp_server_wildcard_bind_is_rejected() -> None:
+    """loopbackonly landed (2026-09-04) for `MCPServer` (its EventBus
+    counterpart is covered by `test_mcp_server_socket_is_loopback_only`'s
+    sibling assertions in `tests/eventbus/test_eventbus_startup.py`):
+    attempting to bind an MCP server to a non-loopback address is rejected
+    by `run_http()` before the socket is ever opened. The actual design
+    validates `MCPServer.http_host` directly in `run_http()` rather than
+    through a separate `shared.mcp_server_bind_policy` module -- per the
+    Plan's own Design section, Event Bus and MCP servers are independently
+    validated, with no shared helper module required."""
+    from mcp_servers.dispatch import DispatchResult
+    from mcp_servers.server import MCPServer
 
-    cfg = McpServerConfig(transport=TransportType.HTTP, url="http://0.0.0.0:0")
-    with pytest.raises(ValueError):
-        enforce_loopback_bind(cfg)
+    class _WildcardBoundServer(MCPServer):
+        server_name = "wildcard-regression"
+        server_version = "1.0"
+        http_host = "0.0.0.0"
+        http_port = 0
+        app_module = "wildcard_regression:app"
+        mcp_tools: list = []
+
+        async def dispatch(self, name: str, args: dict) -> DispatchResult:
+            raise NotImplementedError
+
+    with pytest.raises(ValueError, match="non-loopback address"):
+        _WildcardBoundServer().run_http()
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +185,7 @@ async def test_required_mcp_failure_aborts_startup() -> None:
         url="http://127.0.0.1:1",
         startup_mode=StartupMode.NONE,
         required=True,
+        auth_token="test-token",
     )
 
     async with httpx.AsyncClient(timeout=1.0) as http:
@@ -200,7 +193,7 @@ async def test_required_mcp_failure_aborts_startup() -> None:
             cfg=types.SimpleNamespace(
                 mcp=types.SimpleNamespace(
                     mcp_servers={"required_server": unreachable_cfg},
-                    security_profile=SecurityProfile.LOCAL,
+                    security_profile=SecurityProfile.PRODUCTION,
                 ),
                 tool=types.SimpleNamespace(
                     tool_definitions_strict=False, tool_definitions=[]
@@ -233,6 +226,7 @@ async def test_optional_mcp_failure_disables_only_that_tool() -> None:
         url="http://127.0.0.1:1",
         startup_mode=StartupMode.NONE,
         required=False,
+        auth_token="test-token",
     )
 
     async with httpx.AsyncClient(timeout=1.0) as http:
@@ -240,7 +234,7 @@ async def test_optional_mcp_failure_disables_only_that_tool() -> None:
             cfg=types.SimpleNamespace(
                 mcp=types.SimpleNamespace(
                     mcp_servers={"optional_server": optional_cfg},
-                    security_profile=SecurityProfile.LOCAL,
+                    security_profile=SecurityProfile.PRODUCTION,
                 ),
                 tool=types.SimpleNamespace(
                     tool_definitions_strict=False, tool_definitions=[]
@@ -349,20 +343,20 @@ async def test_mcp_auth_missing_invalid_valid_token() -> None:
         await proc.wait()
 
 
-@pytest.mark.xfail(
-    reason=(
-        "mcpauth (plans/20260903-092407_plan.md) has not landed: no log-"
-        "redaction mechanism for MCP auth_token values exists yet anywhere "
-        "under scripts/ (confirmed via repository-wide search for 'redact')."
-    ),
-    strict=False,
-)
 def test_mcp_auth_token_redacted_in_logs(caplog: pytest.LogCaptureFixture) -> None:
-    """Once mcpauth lands, a log line that would otherwise include the raw
-    auth_token must have it redacted."""
-    from shared.logger import Logger
+    """A log line that includes a registered MCP auth_token, or a
+    `Bearer <token>` header value, must have it redacted (mcpauth REQ-004:
+    `shared.logger.register_secret()` / `_RedactionFilter`).
+
+    `shared.mcp_config._build_single_server()` calls `register_secret()` on
+    every resolved auth_token at config-build time; this test calls it
+    directly to exercise the same mechanism without depending on config
+    file state.
+    """
+    from shared.logger import Logger, register_secret
 
     secret = "super-secret-mcp-token"
+    register_secret(secret)
     logger_name = "test_mcp_auth_token_redacted_in_logs"
     logger = Logger(logger_name, "/tmp/does-not-matter.log")
     # Logger sets propagate=False on its underlying stdlib logger, so caplog's
@@ -372,6 +366,7 @@ def test_mcp_auth_token_redacted_in_logs(caplog: pytest.LogCaptureFixture) -> No
     try:
         with caplog.at_level("INFO", logger=logger_name):
             logger.info("Connecting with token=%s", secret)
+            logger.info("Authorization: Bearer %s", secret)
     finally:
         logger._logger.removeHandler(caplog.handler)
     assert caplog.text, "sanity check: the log line must actually be captured"

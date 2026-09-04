@@ -38,7 +38,7 @@ All 10 servers expose these endpoints. The `/health` response varies by server (
 ``` http
 POST /v1/call_tool
 Content-Type: application/json
-Authorization: Bearer <token>   (when auth_token is configured)
+Authorization: Bearer <token>   (production: auth_token is mandatory and non-empty for every MCP server; see attach_auth_middleware() below)
 X-Session-Id: <session_id>      (injected by ToolExecutor)
 
 {"name": "tool_name", "args": {"key": "value"}}
@@ -155,7 +155,8 @@ All MCP servers inherit from `MCPServer`.
 
 The base class `health()` implementation has fixed `deps={}` and always returns `status="ok"`, `ready=True`, `restart_recommended=False`, `operator_action_required=False` unless overridden (Explicit in code). In practice, all 10 MCP servers implement `/health` individually, using either the `mcp_servers/health_response.py` `make_health_response(deps, details)` helper (for file/git/github/shell/rag_pipeline/cicd/web_search series) or custom implementations (for mdq, file-read/write/delete series) (Explicit in code). See [04_mcp_02_02](./04_mcp_02_02_startup-modes-and-health.md) for details.
 
-| `run_http() -> None` | Starts uvicorn HTTP server |
+| `run_http() -> None` | Starts uvicorn HTTP server. Raises `ValueError` before binding if `http_host` is not `"127.0.0.1"` or `"::1"` — every internal MCP server binds to loopback only, with no override. Also verifies the actual bound socket address is loopback immediately after startup (defense-in-depth, independent of the pre-bind check). |
+| `attach_auth_middleware(app, token) -> None` | Wires a Starlette middleware that rejects requests without a matching `Authorization: Bearer <token>` header with HTTP 401. An empty `token` disables enforcement (accept-all) at this middleware level, but this is not a supported production configuration: `McpServerConfig`'s own construction-time validation and `agent.startup_validation`'s "MCP authentication check" both reject an empty `auth_token` before the agent ever calls a server with one. |
 
 ### Entry Point Patterns (All Servers)
 

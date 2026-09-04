@@ -42,7 +42,12 @@ def caplog_at_level(level: int) -> Iterator[None]:
 
 
 def _http(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig(TransportType.HTTP, url, startup_mode=StartupMode.PERSISTENT)
+    return McpServerConfig(
+        TransportType.HTTP,
+        url,
+        startup_mode=StartupMode.PERSISTENT,
+        auth_token="test-token",
+    )
 
 
 def _make_executor(
@@ -296,7 +301,9 @@ class TestDiscoveryToLlmVisibilityEndToEnd:
         http = self._http_with_tools()
         ctx = MagicMock()
         ctx.cfg.mcp.mcp_servers = {
-            "srv": McpServerConfig(TransportType.HTTP, "http://127.0.0.1:9100")
+            "srv": McpServerConfig(
+                TransportType.HTTP, "http://127.0.0.1:9100", auth_token="test-token"
+            )
         }
         ctx.services_required.http = http
 

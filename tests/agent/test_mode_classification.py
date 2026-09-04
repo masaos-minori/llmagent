@@ -24,6 +24,7 @@ def _make_ctx(
         url="http://127.0.0.1:19200",
         tool_names=mdq_tool_names or [],
         startup_mode=StartupMode.PERSISTENT,
+        auth_token="test-token",
     )
     ctx.cfg.mcp.mcp_servers = {"mdq": server_cfg} if mdq_tool_names else {}
     ctx.conv = ConversationState()

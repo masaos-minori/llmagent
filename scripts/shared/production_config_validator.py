@@ -115,7 +115,7 @@ class ProductionConfigValidator:
     def validate(
         self,
         config: Mapping[str, object],
-        security_profile: SecurityProfile | str = "local",
+        security_profile: SecurityProfile | str = "production",
         known_tools: set[str] | None = None,
     ) -> ConfigValidationResult:
         """Validate the full configuration against security profile rules."""

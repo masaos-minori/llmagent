@@ -142,10 +142,10 @@ the rest of this file's request-handling logic.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Re-confirm `lifespan()`'s full body and uvicorn API surface at execution time before finalizing the mechanism |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by row 4 (`tests/eventbus/test_eventbus_startup.py`) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Plan's Documentation Impact: Yes — EventBus/MCP domain mapping docs, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Confirmed `lifespan()` has no access to the raw uvicorn socket (FastAPI ASGI lifespan doesn't expose it) — fell back to the Design decisions' documented alternative: restructured `_main()` to use `uvicorn.Config`/`uvicorn.Server` directly with the same locally-subclassed `_LoopbackVerifyingServer` pattern as row 2, for consistency across the codebase |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Covered by row 4 — added a new real-subprocess integration test (`test_main_post_start_verification_binds_loopback`) beyond row 4's originally-scoped unit tests, since this row's own restructure of `_main()` needed its own dedicated coverage |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean; `tests/eventbus/test_eventbus_startup.py` 16 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | Covered by row 1's shared update to `docs/06_eventbus_05_configuration-and-operations.md` (Bind Address section now documents the post-start verification this row adds) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

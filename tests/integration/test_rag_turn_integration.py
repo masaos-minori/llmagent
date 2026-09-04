@@ -57,6 +57,7 @@ def _make_http_executor(http: httpx.AsyncClient, tool_names: list[str]) -> ToolE
         url=_TEST_URL,
         tool_names=tool_names,
         startup_mode=None,
+        auth_token="test-token",
     )
     executor = ToolExecutor(
         http=http,

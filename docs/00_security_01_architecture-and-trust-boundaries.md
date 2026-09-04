@@ -122,11 +122,20 @@ Audit retention policy:
 
 ## Local-vs-production behavior
 
-Behavior differences between local development and production:
+**Note**: `security_profile=local` no longer exists (removed 2026-09-04 —
+`SecurityProfile` has a single `PRODUCTION` member). The "Local" column
+below is retained only as a historical record of the pre-removal behavior;
+every environment now runs the "Production" column's behavior
+unconditionally. `allow_public_bind` has also been removed entirely — Event
+Bus and every MCP server now bind to loopback (`127.0.0.1`/`::1`) only, with
+no override possible.
 
-| Aspect | Local (`security_profile=local`) | Production (`security_profile=production`) |
+Behavior differences between local development and production (historical,
+pre-2026-09-04):
+
+| Aspect | Local (retired) | Production (now unconditional) |
 |---|---|---|
-| `allow_public_bind` | Default `false`; can be overridden | Must be `false` or explicit `true` with token |
+| `allow_public_bind` | Default `false`; could be overridden | Removed entirely — loopback-only, no override |
 | Bearer token | Optional (defaults to empty) | Required for public bind; enforced at startup |
 | Tool safety tiers | Warning on unknown keys | Fatal on unknown keys |
 | `approval_github_allowed_repos` | Empty = allow all (dev) | Empty = deny all (fail-closed) |
@@ -146,7 +155,7 @@ Fail-open vs fail-closed behavior by component:
 | `approval_github_allowed_repos` empty | Allow all | Deny all | Fail-closed in production |
 | `allowed_dirs` empty | Allow none (fail-closed) | Allow none | Consistent |
 | `allowed_repos` empty | Allow none | Allow none | Consistent |
-| `allow_public_bind` | `false` (fail-closed) | `false` enforced | `true` requires token |
+| `allow_public_bind` | N/A | N/A | Removed 2026-09-04 — loopback-only binding is unconditional, no override key exists |
 | MCP tool approval | `medium` default | Per `approval_risk_rules` | Configurable per tool |
 | Shell command allowlist | Empty = none allowed | Configured explicitly | Fail-closed by default |
 

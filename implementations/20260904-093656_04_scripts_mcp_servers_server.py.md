@@ -121,10 +121,10 @@ validation (owned by `plans/done/20260903-091921_plan.md`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Docstring-only; confirm-only requirement per REQ-003 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by row 13 (`tests/mcp_servers/test_mcp_server_base.py`) — no new test required for this row's docstring change itself |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Plan's Documentation Impact: Yes — MCP authentication reference docs, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Docstring-only; confirm-only requirement per REQ-003 |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Covered by row 13 (`tests/mcp_servers/test_mcp_server_base.py`) — `TestAttachAuthMiddleware`'s existing 8 tests pass unmodified, confirming no logic change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | `docs/00_index.md`'s "MCP server implementation" row maps to `04_mcp_02_01_endpoints-and-transport.md` — added an `attach_auth_middleware()` row to the Methods table and corrected a stale "(when auth_token is configured)" phrasing in the request example |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

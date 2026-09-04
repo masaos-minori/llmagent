@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ipaddress
 import os
 import tomllib
 from dataclasses import dataclass
@@ -23,25 +22,15 @@ def get_schema_path() -> Path:
 
 
 def _is_public_host(host: str) -> bool:
-    """Return True if host is a public/wildcard address (0.0.0.0, ::)."""
-    try:
-        addr = ipaddress.ip_address(host)
-        return (
-            addr.is_unspecified
-            or addr == ipaddress.IPv4Address("0.0.0.0")
-            or addr == ipaddress.IPv6Address("::")
-        )
-    except ValueError:
-        # If it's not a valid IP address, treat as public (e.g., hostname that resolves to 0.0.0.0)
-        return True
+    """Return True unless host is exactly the loopback address 127.0.0.1 or ::1."""
+    return host not in ("127.0.0.1", "::1")
 
 
 @dataclass(frozen=True)
 class EventBusConfig:
     """Immutable configuration for the Event Bus service.
 
-    Validates port range, retry count, and prevents binding to public addresses
-    unless explicitly allowed via allow_public_bind.
+    Validates port range, retry count, and enforces loopback-only binding.
     """
 
     port: int
@@ -51,7 +40,6 @@ class EventBusConfig:
     deadletter_dir: str
     max_retry: int
     host: str = "127.0.0.1"
-    allow_public_bind: bool = False
 
     def __post_init__(self) -> None:
         """Validate configuration values after initialization."""
@@ -59,9 +47,9 @@ class EventBusConfig:
             raise ValueError(f"port must be 1024-65535, got {self.port}")
         if self.max_retry < 1:
             raise ValueError(f"max_retry must be >= 1, got {self.max_retry}")
-        if _is_public_host(self.host) and not self.allow_public_bind:
+        if _is_public_host(self.host):
             raise ValueError(
-                f"Event Bus bound to public address {self.host} without allow_public_bind=true. "
+                f"Event Bus bound to non-loopback address {self.host}. "
                 "The API has no authentication — this is a security risk."
             )
 
@@ -89,5 +77,4 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         deadletter_dir=data["deadletter_dir"],
         max_retry=data["max_retry"],
         host=data.get("host", "127.0.0.1"),
-        allow_public_bind=data.get("allow_public_bind", False),
     )

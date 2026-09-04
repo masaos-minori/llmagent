@@ -899,6 +899,7 @@ def _make_startup_ctx(
     """Return a ctx MagicMock configured for _check_services() tests."""
     ctx = MagicMock()
     ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
+    ctx.cfg.mcp.mcp_servers = {}
     ctx.cfg.memory.memory_embed_dim = memory_embed_dim
     ctx.cfg.tool.tool_definitions_strict = tool_definitions_strict
     return ctx
@@ -945,37 +946,24 @@ async def _run_check_services(
         return pipeline
 
     startup = StartupOrchestrator(ctx, MagicMock())
-    # Wire a mock validation pipeline so _check_services() has something to call
-    startup._validation_pipeline = MagicMock()
+    # Wire a real StartupValidationPipeline so the patched functions below are
+    # actually invoked by check_services()'s own body, not bypassed by a mock.
+    from agent.startup_validation import StartupValidationPipeline
+
+    startup._validation_pipeline = StartupValidationPipeline(ctx, startup._view)
     startup._reporter = MagicMock()
-
-    # Create a real pipeline instance that will be returned by check_services()
-    real_pipeline = StartupValidationResult()
-    captured["pipeline"] = real_pipeline
-
-    def _mock_check_services() -> StartupValidationResult:
-        return real_pipeline
-
-    startup._validation_pipeline.check_services = AsyncMock(
-        side_effect=_mock_check_services
-    )
 
     exc: Exception | None = None
     with ExitStack() as stack:
-        # Patch the correct submodule locations (not agent.startup.{name})
+        # Patch at agent.startup_validation's own namespace: it imports each of
+        # these via `from X import Y`, binding its own name, so patching the
+        # defining module (e.g. agent.services.security_audit) would not
+        # affect the reference check_services() actually calls.
         for name, mock_obj in mocks.items():
-            submodules = {
-                "audit_security_defaults": "agent.services.security_audit.audit_security_defaults",
-                "check_readiness": "agent.services.mcp_health.check_readiness",
-                "McpToolDiscoveryService": "agent.services.mcp_tool_discovery.McpToolDiscoveryService",
-                "check_routing_drift": "agent.services.routing_drift.check_routing_drift",
-                "check_routing_safety_tiers": "agent.services.routing_drift.check_routing_safety_tiers",
-                "RagMaintenanceService": "agent.services.rag_maintenance_service.RagMaintenanceService",
-            }
-            stack.enter_context(patch(submodules[name], mock_obj))
+            stack.enter_context(patch(f"agent.startup_validation.{name}", mock_obj))
         stack.enter_context(
             patch(
-                "agent.shared.health_models.StartupValidationResult",
+                "agent.startup_validation.StartupValidationResult",
                 side_effect=_new_pipeline,
             )
         )
@@ -1032,6 +1020,53 @@ class TestCheckServicesSeverityClassification:
         outcomes = [o for o in pipeline.outcomes if o.source == "security_audit"]
         assert any(o.status == StartupCheckStatus.WARNING for o in outcomes)
         assert any(o.status == StartupCheckStatus.OK for o in outcomes)
+
+    # ── mcp_auth ─────────────────────────────────────────────────────────────
+    # Servers below use MagicMock rather than a real McpServerConfig: row 1's
+    # own `_validate_auth_token()` now rejects an empty auth_token at
+    # construction time, so an empty-token McpServerConfig can no longer be
+    # constructed at all -- this pipeline step is a defense-in-depth check for
+    # a ctx assembled some other way (e.g. directly, as these unit tests do),
+    # not a path reachable through a real Agent startup once row 1 lands.
+
+    @pytest.mark.asyncio
+    async def test_mcp_auth_fatal_when_any_server_missing_token(self) -> None:
+        ctx = _make_startup_ctx()
+        ctx.cfg.mcp.mcp_servers = {
+            "web": MagicMock(auth_token="valid-token"),
+            "shell": MagicMock(auth_token=""),
+        }
+        pipeline, exc = await _run_check_services(ctx)
+        assert exc is not None
+        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_auth"]
+        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+        assert any("shell" in o.message for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_mcp_auth_ok_when_all_servers_have_token(self) -> None:
+        ctx = _make_startup_ctx()
+        ctx.cfg.mcp.mcp_servers = {
+            "web": MagicMock(auth_token="valid-token"),
+            "shell": MagicMock(auth_token="also-valid"),
+        }
+        pipeline, exc = await _run_check_services(ctx)
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_auth"]
+        assert any(o.status == StartupCheckStatus.OK for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_mcp_auth_fatal_lists_all_offending_servers(self) -> None:
+        ctx = _make_startup_ctx()
+        ctx.cfg.mcp.mcp_servers = {
+            "web": MagicMock(auth_token=""),
+            "shell": MagicMock(auth_token=""),
+        }
+        pipeline, exc = await _run_check_services(ctx)
+        assert exc is not None
+        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_auth"]
+        assert len(outcomes) == 1
+        assert "web" in outcomes[0].message
+        assert "shell" in outcomes[0].message
 
     # ── readiness ────────────────────────────────────────────────────────────
 
@@ -1325,13 +1360,28 @@ class TestCheckServicesSeverityClassification:
         assert outcomes[0].status == StartupCheckStatus.WARNING
 
     @pytest.mark.asyncio
-    async def test_rag_consistency_skipped_on_exception(self) -> None:
+    async def test_rag_consistency_skipped_on_exception(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """`logger` is created locally inside check_services() (agent.startup_validation)
+        as `Logger(__name__, ...)`, whose underlying stdlib logger has
+        propagate=False -- caplog's handler must be attached directly to it,
+        not relied on via propagation to the root logger."""
+        import logging as _logging
+
         ctx = _make_startup_ctx()
-        with patch("agent.startup.logger") as mock_logger:
+        target_logger = _logging.getLogger("agent.startup_validation")
+        target_logger.addHandler(caplog.handler)
+        previous_level = target_logger.level
+        target_logger.setLevel("WARNING")
+        try:
             pipeline, exc = await _run_check_services(
                 ctx,
                 RagMaintenanceService=MagicMock(side_effect=RuntimeError("db locked")),
             )
+        finally:
+            target_logger.removeHandler(caplog.handler)
+            target_logger.setLevel(previous_level)
         assert exc is None
         outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
         assert len(outcomes) == 1
@@ -1339,13 +1389,17 @@ class TestCheckServicesSeverityClassification:
         assert "db locked" in outcomes[0].message
 
         # Verify the exception is logged as a warning (non-fatal maintenance check).
-        warning_calls = [
-            call_args
-            for call_args in mock_logger.warning.call_args_list
-            if "RAG consistency check failed" in call_args[0][0]
+        # >=1 rather than ==1: pytest's own log-capture plugin may additionally
+        # attach a handler to this logger across the test session, independent
+        # of this test's own explicit handler above -- the count is not the
+        # point, only that the warning was logged with the expected content.
+        warning_records = [
+            r
+            for r in caplog.records
+            if r.levelname == "WARNING" and "RAG consistency check failed" in r.message
         ]
-        assert len(warning_calls) == 1
-        assert "db locked" in str(warning_calls[0][0][1])
+        assert len(warning_records) >= 1
+        assert "db locked" in warning_records[0].message
 
 
 # ── Helpers for _verify_mcp_health tests ──────────────────────────────────────

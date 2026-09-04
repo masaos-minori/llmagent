@@ -16,6 +16,7 @@ Structured log (JSON-lines):
 """
 
 import logging
+import re
 import sys
 from contextvars import ContextVar
 from typing import Any
@@ -26,6 +27,29 @@ _fallback_logger = logging.getLogger("shared.logger.fallback")
 if not _fallback_logger.handlers:
     _fallback_logger.addHandler(logging.StreamHandler(sys.stderr))
     _fallback_logger.setLevel(logging.WARNING)
+
+_BEARER_RE = re.compile(r"Bearer\s+\S+")
+_SECRET_VALUES: set[str] = set()
+
+
+def register_secret(value: str) -> None:
+    """Register a secret value (e.g. an auth_token) for log redaction."""
+    if value:
+        _SECRET_VALUES.add(value)
+
+
+class _RedactionFilter(logging.Filter):
+    """Redacts Bearer-token headers and registered secret values from log records."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Rewrite record.msg with Bearer-header and known-secret values redacted."""
+        text = record.getMessage()
+        text = _BEARER_RE.sub("Bearer ***REDACTED***", text)
+        for secret in _SECRET_VALUES:
+            text = text.replace(secret, "***REDACTED***")
+        record.msg = text
+        record.args = ()
+        return True
 
 
 def _require_str(value: object, name: str) -> None:
@@ -118,6 +142,7 @@ class Logger:
     def _configure_logger(self, log_file: str, structured_log: bool) -> None:
         """Attach FileHandler + StreamHandler and context filter to the named logger."""
         self._logger.addFilter(self._filter)
+        self._logger.addFilter(_RedactionFilter())
         if self._logger.handlers:
             return
         formatter: logging.Formatter = (

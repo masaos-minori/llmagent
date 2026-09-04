@@ -89,10 +89,10 @@ value remains.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Must use the same `MCP_GIT_AUTH_TOKEN` value as row 7's `agent.toml` entry |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | `auth_token = "${ENV:MCP_GIT_AUTH_TOKEN}"`, matching row 7's `agent.toml` entry |
 | 2 | Add or update tests per Validation plan | N/A | — | — | Configuration file, no dedicated test — validated via deploy step |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes the mandatory deploy step |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Plan's Documentation Impact: Yes — deployment secret instructions, sequenced after this Plan lands |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | `tomllib` parse-valid; deployed via `bash deploy/deploy.sh` (see row 7's Notes) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | Covered by row 7's `docs/02_deployment.md` update (single combined edit covering rows 7-10's env var naming) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

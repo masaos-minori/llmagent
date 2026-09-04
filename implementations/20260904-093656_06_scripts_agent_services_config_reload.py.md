@@ -156,10 +156,10 @@ explicitly name `auth_token` as an intentional restart-only field.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Documentation-only; no logic change |
-| 2 | Add or update tests per Validation plan | N/A | — | — | No new test required — existing `test_config_reload.py` coverage already exercises the unchanged logic |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Plan's Documentation Impact: Yes — restart/hot-reload guidance docs, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Documentation-only; no logic change — added a restart-only rationale comment next to `auth_token` in `_MCP_SERVER_FIELDS` and extended `_classify_mcp_server_changes()`'s docstring |
+| 2 | Add or update tests per Validation plan | N/A | — | — | No new test required — existing `test_config_reload.py` coverage already exercises the unchanged logic; separately fixed 5 pre-existing `auth_token=""` construction sites in that file broken by row 1 (out of this row's own scope, discovered during repo-wide validation) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean; `tests/agent/services/test_config_reload.py` matches pristine baseline's pre-existing 14-failure count exactly (`git stash` A/B) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | `docs/00_index.md` has no dedicated "restart/hot-reload guidance" row distinct from `05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`'s existing "MCP Server Reloading Semantics" section, which already lists `auth_token` among the restart-only fields — no change needed there; that same doc's "Production Security Regression Suite" section was updated (see row 5's Notes / this Plan's overall doc pass) to reflect all three dependency Plans landing |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

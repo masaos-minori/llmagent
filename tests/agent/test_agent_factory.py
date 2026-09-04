@@ -333,7 +333,7 @@ def _make_router(server_key: str = "srv") -> _ServerLifecycleRouter:
     cfg = McpServerConfig(
         transport=TransportType.HTTP,
         url="http://localhost:9999",
-        auth_token="",
+        auth_token="test-token",
         startup_mode=StartupMode.SUBPROCESS,
         cmd=["echo", "hi"],
     )
@@ -388,7 +388,7 @@ def _make_router_with_mock_mgr(
     cfg = McpServerConfig(
         transport=TransportType.HTTP,
         url="http://localhost:9999",
-        auth_token="",
+        auth_token="test-token",
         startup_mode=startup_mode,
         cmd=["echo", "hi"],
     )
@@ -539,11 +539,13 @@ class TestGetSubprocessServerConfigs:
                     url="http://127.0.0.1:1111",
                     startup_mode=StartupMode.SUBPROCESS,
                     cmd=["echo", "test"],
+                    auth_token="test-token",
                 ),
                 "persistent": McpServerConfig(
                     transport=TransportType.HTTP,
                     url="http://127.0.0.1:8888",
                     startup_mode=StartupMode.PERSISTENT,
+                    auth_token="test-token",
                 ),
             }
         )
@@ -562,12 +564,14 @@ class TestGetSubprocessServerConfigs:
                     url="http://127.0.0.1:2222",
                     startup_mode=StartupMode.SUBPROCESS,
                     cmd=["python", "-m", "mcp.server.stdio"],
+                    auth_token="test-token",
                 ),
                 "shell": McpServerConfig(
                     transport=TransportType.HTTP,
                     url="http://127.0.0.1:3333",
                     startup_mode=StartupMode.SUBPROCESS,
                     cmd=["python", "-m", "mcp.server.stdio"],
+                    auth_token="test-token",
                 ),
             }
         )

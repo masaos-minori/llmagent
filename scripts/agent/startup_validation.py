@@ -51,6 +51,19 @@ class StartupValidationPipeline:
                 remediation="Fix MCP server auth_token or sandbox config.",
             )
 
+        # 1b. MCP authentication check
+        missing_auth = [
+            key for key, srv in ctx.cfg.mcp.mcp_servers.items() if not srv.auth_token
+        ]
+        if missing_auth:
+            pipeline.add_fatal(
+                "mcp_auth",
+                f"MCP server(s) missing auth_token: {', '.join(sorted(missing_auth))}",
+                remediation="Set a non-empty auth_token (via environment variable) for every MCP server before startup.",
+            )
+        else:
+            pipeline.add_ok("mcp_auth")
+
         # 2. Service readiness
         try:
             result = await check_readiness(ctx)

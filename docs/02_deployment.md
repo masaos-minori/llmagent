@@ -159,7 +159,19 @@ implemented and verified, migrate a deployment to Production-only in this order:
 
 1. **Backup** the current configuration (`config/`, especially `config/agent.toml`).
 2. **Migrate bind addresses** (per `loopbackonly`) and **MCP authentication tokens**
-   (per `mcpauth`) together, in the same maintenance window.
+   (per `mcpauth`) together, in the same maintenance window. Every
+   `config/agent.toml` `[mcp_servers.*]` entry, plus `git_mcp_server.toml`'s
+   `auth_token`, `cicd_mcp_server.toml`'s `auth_token`, and
+   `web_search_mcp_server.toml`'s `browser_auth_token`, hold a
+   `"${ENV:VAR_NAME}"` reference rather than a literal secret — set the
+   corresponding `MCP_<SERVER_KEY_UPPER>_AUTH_TOKEN` environment variable
+   (e.g. `MCP_SHELL_AUTH_TOKEN`, `MCP_GIT_AUTH_TOKEN`,
+   `MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN`) for every server **before** starting
+   the agent or that server process; an unset variable raises `ValueError` at
+   config-load time (fail-closed). `git_mcp_server.toml`/`cicd_mcp_server.toml`
+   must use the same variable value as `agent.toml`'s corresponding entry
+   (shared secret between client and server); `web_search_mcp_server.toml`'s
+   `browser_auth_token` is a distinct credential.
 3. **Verify strict validation**: confirm `ProductionConfigValidator`'s
    now-unconditional strict validation (per `localremoval`) passes against the
    migrated configuration before restarting.
@@ -183,9 +195,9 @@ Local mode" path once a deployment has migrated to Production-only.
 
 ### Prerequisite
 
-This procedure applies only once `localremoval` (`plans/20260903-091417_plan.md`),
-`loopbackonly` (`plans/20260903-091921_plan.md`), and `mcpauth`
-(`plans/20260903-092407_plan.md`) are all implemented and verified — do not execute
+This procedure applies only once `localremoval` (`plans/done/20260903-091417_plan.md`),
+`loopbackonly` (`plans/done/20260903-091921_plan.md`), and `mcpauth`
+(`plans/done/20260903-092407_plan.md`) are all implemented and verified — do not execute
 this procedure against a real deployment before then. Immediately before executing,
 re-run the Current State inspection above rather than relying solely on this
 document's recorded finding.

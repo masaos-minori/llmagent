@@ -58,8 +58,7 @@ Loaded from a TOML file (default: `/opt/llm/config/eventbus.toml`).
 - `offsets_dir` — Consumer offset directory
 - `deadletter_dir` — DLQ directory
 - `max_retry` — Retry threshold before DLQ promotion (startup fails if < 1)
-- `host` — Listening address (default: `127.0.0.1`)
-- `allow_public_bind` — Allow public binding (default: false)
+- `host` — Listening address (default: `127.0.0.1`; must be `127.0.0.1` or `::1` — see Bind Address below)
 
 Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`.
 
@@ -73,14 +72,19 @@ Startup fails if `poll_interval_ms` or `offset_checkpoint_interval` remain in th
 
 ### Bind Address
 
-In production, you should bind to `127.0.0.1`. Binding to `0.0.0.0` poses a security risk as the API becomes publicly accessible without authentication.
+Event Bus enforces loopback-only binding unconditionally — there is no
+override. Binding to anything other than loopback poses a security risk as
+the API has no authentication.
 
-**Address Classification:**
-- Loopback (`127.0.0.1`, `::1`) / Private IP — Allowed
-- Wildcard (`0.0.0.0`, `::`) — Raises `ValueError`
-- Hostname — Treated as public
+**Address Classification** (`_is_public_host()`, `scripts/eventbus/config.py`):
+- Loopback (`127.0.0.1`, `::1`) — Allowed
+- Everything else (private-LAN, wildcard `0.0.0.0`/`::`, other public
+  addresses, hostnames) — Raises `ValueError` at config-construction time
 
-You can bypass validation using `allow_public_bind: true`, but this is not recommended.
+`EventBusConfig` also verifies the actual bound socket address matches
+loopback immediately after startup (`_main()`'s post-start check), as a
+defense-in-depth confirmation independent of the config-time validation
+above.
 
 ### Start Command
 

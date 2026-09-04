@@ -146,10 +146,10 @@ secret value produces redacted output; no unrelated field is masked.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Coordinate with row 1's registration call site |
-| 2 | Add or update tests per Validation plan | Pending | — | — | No dedicated test file confirmed; implementer decides placement |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Plan's Documentation Impact: Yes — security architecture docs, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Added `register_secret()`/`_RedactionFilter`; wired into `_configure_logger()` alongside `_ContextFilter`. Row 1's `_build_single_server()` calls `register_secret()` on every resolved `auth_token` |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | `tests/integration/test_production_security_regression.py::test_mcp_auth_token_redacted_in_logs` — removed its `xfail` marker and rewrote to call `register_secret()` directly, asserting both the `Bearer <token>` pattern match and the exact-value registry match are redacted |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean; also functionally verified via a standalone script |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | `docs/00_index.md`'s "Config / logger / formatters / rag_utils" row maps to `90_shared_03_01_runtime_and_execution-config-and-logging.md` — added a "Secret redaction" bullet under `Logger` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -256,7 +256,10 @@ class TestHttpTransportRetry:
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
     return McpServerConfig(
-        transport=TransportType.HTTP, url=url, startup_mode=StartupMode.PERSISTENT
+        transport=TransportType.HTTP,
+        url=url,
+        startup_mode=StartupMode.PERSISTENT,
+        auth_token="test-token",
     )
 
 
@@ -484,6 +487,7 @@ class TestCheckStartupMode:
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9",
             startup_mode=StartupMode.NONE,
+            auth_token="test-token",
         )
         ex = _make_executor(configs={"disabled_server": cfg})
         result = ex._check_startup_mode("disabled_server")

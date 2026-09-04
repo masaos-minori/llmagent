@@ -99,10 +99,10 @@ no literal empty-string value remains.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Uses a distinct env var from row 7's `MCP_WEB_SEARCH_AUTH_TOKEN` — do not conflate |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | `browser_auth_token = "${ENV:MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN}"` — a distinct env var and field from row 7's `agent.toml` `[mcp_servers.web_search].auth_token`, confirmed not conflated |
 | 2 | Add or update tests per Validation plan | N/A | — | — | Configuration file, no dedicated test — validated via deploy step |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes the mandatory deploy step |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Plan's Documentation Impact: Yes — deployment secret instructions, sequenced after this Plan lands |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | `tomllib` parse-valid; deployed via `bash deploy/deploy.sh` (see row 7's Notes). Adversarial verification found this change (an eagerly-loaded module-level `WebSearchConfig.load()` at import time) broke test collection/execution across `tests/mcp_servers/web_search/*` and `tests/mcp_servers/test_mcp_server_base.py::TestAppModuleImportability` when the referenced env var was unset — fixed via `tests/conftest.py` defaulting `MCP_GIT_AUTH_TOKEN`/`MCP_CICD_AUTH_TOKEN`/`MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN` to `""` (empty, not a real token) so collection succeeds while preserving each server's pre-existing empty-token accept-all test behavior |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | Covered by row 7's `docs/02_deployment.md` update (single combined edit covering rows 7-10's env var naming) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

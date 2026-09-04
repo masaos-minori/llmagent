@@ -43,6 +43,92 @@ class _EmptyServer(MCPServer):
         return DispatchResult("noop", False)
 
 
+class _PublicBoundServer(MCPServer):
+    server_name = "public-mcp"
+    server_version = "1.0"
+    http_host = "192.168.1.1"
+    http_port = 9997
+    app_module = "public:app"
+    mcp_tools = []
+
+    async def dispatch(self, name: str, args: dict) -> DispatchResult:
+        raise NotImplementedError
+
+
+class _LoopbackV6Server(MCPServer):
+    server_name = "loopback-v6-mcp"
+    server_version = "1.0"
+    http_host = "::1"
+    http_port = 9996
+    app_module = "loopback_v6:app"
+    mcp_tools = []
+
+    async def dispatch(self, name: str, args: dict) -> DispatchResult:
+        raise NotImplementedError
+
+
+class _WildcardServer(MCPServer):
+    server_name = "wildcard-mcp"
+    server_version = "1.0"
+    http_host = "0.0.0.0"
+    http_port = 9995
+    app_module = "wildcard:app"
+    mcp_tools = []
+
+    async def dispatch(self, name: str, args: dict) -> DispatchResult:
+        raise NotImplementedError
+
+
+class _OtherPublicServer(MCPServer):
+    server_name = "other-public-mcp"
+    server_version = "1.0"
+    http_host = "8.8.8.8"
+    http_port = 9994
+    app_module = "other_public:app"
+    mcp_tools = []
+
+    async def dispatch(self, name: str, args: dict) -> DispatchResult:
+        raise NotImplementedError
+
+
+class TestBindAddressValidation:
+    """Tests for run_http()'s loopback-only bind-address validation."""
+
+    def test_private_lan_rejected(self) -> None:
+        with pytest.raises(ValueError, match="non-loopback address"):
+            _PublicBoundServer().run_http()
+
+    def test_wildcard_rejected(self) -> None:
+        with pytest.raises(ValueError, match="non-loopback address"):
+            _WildcardServer().run_http()
+
+    def test_other_public_rejected(self) -> None:
+        with pytest.raises(ValueError, match="non-loopback address"):
+            _OtherPublicServer().run_http()
+
+    @staticmethod
+    def _fake_run(self: object) -> None:
+        """Stand-in for uvicorn.Server.run(): marks the server started
+        without actually binding a socket or serving, so tests exercising
+        the accepted-host path don't block or need a real port."""
+        self.started = True  # type: ignore[attr-defined]  — self is typed as object here since this stands in for an unbound uvicorn.Server method
+
+    def test_loopback_v4_accepted(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A loopback http_host passes validation and reaches uvicorn
+        construction — uvicorn.Server.run() is patched to a no-op so this
+        test does not actually start a blocking server."""
+        import uvicorn
+
+        monkeypatch.setattr(uvicorn.Server, "run", self._fake_run)
+        _SimpleServer().run_http()
+
+    def test_loopback_v6_accepted(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import uvicorn
+
+        monkeypatch.setattr(uvicorn.Server, "run", self._fake_run)
+        _LoopbackV6Server().run_http()
+
+
 class TestListTools:
     def test_returns_tool_names(self) -> None:
         srv = _SimpleServer()
@@ -149,6 +235,16 @@ class TestAttachAuthMiddleware:
         client = _make_test_app("")
         ids = {client.get("/ping").headers.get("x-request-id") for _ in range(5)}
         assert len(ids) == 5
+
+    def test_empty_token_accept_all_is_not_a_supported_mode(self) -> None:
+        """Empty-token accept-all (test_no_token_allows_any_request) is
+        retained at this middleware level for unit testability, but is
+        unreachable in a real Agent-managed startup: startup_validation.py
+        rejects any MCP server configuration with an empty auth_token
+        before attach_auth_middleware() would ever run with one."""
+        client = _make_test_app("")
+        resp = client.get("/ping")
+        assert resp.status_code == 200
 
 
 class TestTruncateWithMeta:

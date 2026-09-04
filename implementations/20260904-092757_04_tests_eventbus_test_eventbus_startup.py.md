@@ -156,9 +156,9 @@ None — this entire file is in scope.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Coordinate with row 1's own edit |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row's target file is itself the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Verified exact match; error message wording changed from "bound to public address" to "bound to non-loopback address" per row 1's final implementation — `match=` regexes updated accordingly. Added `test_main_post_start_verification_binds_loopback` for row 3's own restructure |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | This row's target file is itself the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff clean; 16 passed |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: test-only file |
 
 ### Blocker Log

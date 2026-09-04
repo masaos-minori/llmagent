@@ -53,7 +53,9 @@ def _make_mock_proc(exit_code: int | None = None, pid: int = 999999) -> MagicMoc
 
 
 def _http_cfg(url: str = _TEST_HTTP_URL) -> McpServerConfig:
-    return McpServerConfig(transport=TransportType.HTTP, url=url, auth_token="")
+    return McpServerConfig(
+        transport=TransportType.HTTP, url=url, auth_token="test-token"
+    )
 
 
 def _http_subprocess_cfg(
@@ -63,7 +65,7 @@ def _http_subprocess_cfg(
     return McpServerConfig(
         transport=TransportType.HTTP,
         url=url,
-        auth_token="",
+        auth_token="test-token",
         startup_mode=StartupMode.SUBPROCESS,
         startup_timeout_sec=timeout,
         cmd=["uvicorn", "test:app"],
@@ -84,7 +86,7 @@ def _make_test_cfg(
     return McpServerConfig(
         transport=TransportType.HTTP,
         url=url,
-        auth_token="",
+        auth_token="test-token",
         startup_mode=StartupMode.SUBPROCESS,
         startup_timeout_sec=startup_timeout_sec,
         cmd=cmd if cmd is not None else ["true"],
