@@ -120,8 +120,9 @@ Critical constraint: `orjson.dumps()` returns `bytes` (`not str`). If a `str` is
 | `rag.sqlite` | RAG document index + vector + FTS search |
 | `session.sqlite` | Agent conversation state + memory layer |
 | `workflow.sqlite` | Workflow engine task tracking |
+| `eventbus.sqlite` | Event Bus event/offset/delivery/DLQ state |
 
-All three databases use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only for `rag.sqlite` (target=`"rag"`).
+All four databases use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only for `rag.sqlite` (target=`"rag"`). See [ADR-008](adr/ADR-008-sqlite-4db-separation.md) for the rationale behind the separation.
 
 ---
 
@@ -142,7 +143,7 @@ Constraints not already covered above (import direction, JSON library, HTTP clie
 
 `db/` provides typed, WAL-enabled SQLite access with FTS5 and sqlite-vec integration. It is the canonical source for schema definitions. `db/` depends only on `shared/`.
 
-All persistent data resides in three SQLite files: `rag.sqlite` (RAG index), `session.sqlite` (conversation + memory), and `workflow.sqlite` (task tracking).
+All persistent data resides in four SQLite files: `rag.sqlite` (RAG index), `session.sqlite` (conversation + memory), `workflow.sqlite` (task tracking), and `eventbus.sqlite` (event delivery state).
 
 ---
 

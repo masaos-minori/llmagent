@@ -25,59 +25,14 @@ Directory structure at deployment target:
 ├─ db/
 │   ├─ rag.sqlite                     # RAG vector DB (documents/chunks/chunks_vec/chunks_fts) — see 90_shared_04 sections 3-6
 │   ├─ session.sqlite                 # Agent sessions + messages — see 90_shared_04 section 2
-│   └─ workflow.sqlite                # Task tracking + event processing — see 90_shared_04 section 7
-│   # 3-DB split is designed to avoid SQLite lock contention between data with different write frequencies (RAG: only during ingestion, Session: every turn, Workflow: at each event). Each DB operates in WAL mode. See commits `73bd9bb08` / `fa703f346` for details.
+│   ├─ workflow.sqlite                # Task tracking + event processing — see 90_shared_04 section 7
+│   └─ eventbus.sqlite                # Event Bus event/offset/delivery/DLQ state — see 90_shared_04 section 8
+│   # Persistence is separated into four domains (RAG/Session/Workflow/EventBus) to isolate different write patterns, limit failure impact, and clarify ownership. Each DB operates in WAL mode. See ADR-008 for the rationale.
 ├─ scripts/
 │   ├─ db/                                  # DB layer package (see directory for detailed file structure)
 │   │   ├─ __init__.py                      # Module initialization
 │   │   ├─ create_schema.py                 # SQLite schema initialization
-│   │   ├─ schema_sql.py                    # build_rag_schema_sql / build_session_schema_sql / build_workflow_schema_sql
-│   │   ├─ helper.py                        # Connection management (WAL / busy_timeout)
-│   │   ├─ maintenance.py                   # Operational policies
-│   │   ├─ config.py                        # DbConfig dataclass / SQLite path builder
-│   │   ├─ models.py                        # WalCheckpointCounts / PurgeCounts / DbHealthMetrics / DocumentRow / SessionRow / MessageRow
-│   │   ├─ store.py                         # Protocol abstraction layer
-│   │   ├─ store_protocols.py               # VectorStore / DocumentStore / SessionStore Protocol definitions
-│   │   ├─ store_impl.py                    # SQLiteVectorStore / SQLiteDocumentStore / SQLiteSessionStore implementations
-│   │   ├─ rag_consistency.py               # RAG index consistency check
-│   │   ├─ rotation.py                      # Database rotation
-│   │   └─ recovery.py                      # Corrupted DB recovery
-```
-
-## Related Documents
-
-- `01_overview-files-04-shared.md`
-- [01_overview.md](01_overview.md)
-
-## Keywords
-
-shared
-db
-sqlite
-file-structure
-
-# File Structure
-
-Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01-process.md), [`01_overview-arch-02-pipelines.md`](01_overview-arch-02-pipelines.md), [`01_overview-arch-03-features.md`](01_overview-arch-03-features.md)
-
-## 3a. File Structure
-
-Directory structure at deployment target:
-
-``` text
-/opt/llm/
-├─ venv/                              # Python virtual environment
-│   └─ uv.lock                        # Python dependency list (uv managed)
-├─ db/
-│   ├─ rag.sqlite                     # RAG vector DB (documents/chunks/chunks_vec/chunks_fts) — see 90_shared_04 sections 3-6
-│   ├─ session.sqlite                 # Agent sessions + messages — see 90_shared_04 section 2
-│   └─ workflow.sqlite                # Task tracking + event processing — see 90_shared_04 section 7
-│   # 3-DB split is designed to avoid SQLite lock contention between data with different write frequencies (RAG: only during ingestion, Session: every turn, Workflow: at each event). Each DB operates in WAL mode. See commits `73bd9bb08` / `fa703f346` for details.
-├─ scripts/
-│   ├─ db/                                  # DB layer package (see directory for detailed file structure)
-│   │   ├─ __init__.py                      # Module initialization
-│   │   ├─ create_schema.py                 # SQLite schema initialization
-│   │   ├─ schema_sql.py                    # build_rag_schema_sql / build_session_schema_sql / build_workflow_schema_sql
+│   │   ├─ schema_sql.py                    # build_rag_schema_sql / build_session_schema_sql / build_workflow_schema_sql / build_eventbus_schema_sql
 │   │   ├─ helper.py                        # Connection management (WAL / busy_timeout)
 │   │   ├─ maintenance.py                   # Operational policies
 │   │   ├─ config.py                        # DbConfig dataclass / SQLite path builder

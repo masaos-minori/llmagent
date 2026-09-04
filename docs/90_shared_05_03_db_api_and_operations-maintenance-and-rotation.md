@@ -52,10 +52,11 @@ if not result.success:
 
 ## 4. DB Rotation (`db/rotation.py`)
 
-From `db.rotation import rotate_session_db, rotate_workflow_db, rotate_all_dbs, rotate_db`:
+From `db.rotation import rotate_session_db, rotate_workflow_db, rotate_eventbus_db, rotate_all_dbs, rotate_db`:
 - `rotate_session_db(archive_dir=None) \rightarrow Path`: Archives the session database with a timestamp suffix using the SQLite online backup API.
 - `rotate_workflow_db(archive_dir=None) \rightarrow Path`: Archives the workflow database with a timestamp suffix.
-- `rotate_all_dbs(archive_dir=None) \rightarrow tuple[Path, Path, Path]`: Archives all three databases, returning `(rag_dest, session_dest, workflow_dest)`.
+- `rotate_eventbus_db(archive_dir=None) \rightarrow Path`: Archives the event bus database with a timestamp suffix.
+- `rotate_all_dbs(archive_dir=None) \rightarrow tuple[Path, Path, Path, Path]`: Archives all four databases (ADR-008), returning `(rag_dest, session_dest, workflow_dest, eventbus_dest)`.
 - `rotate_db(archive_dir=None) \rightarrow tuple[Path, Path]`: Archives both rag and session databases, returning `(rag_dest, session_dest)`.
 
 The archive directory defaults to `/opt/llm/db/archive` (from `agent.toml::sqlite_archive_dir`). The rotation format is `{stem}_{YYYYMMDD_HHMMSS}{suffix}` in the `archive_dir`. It uses the SQLite online backup API to ensure WAL integrity is preserved during rotation.

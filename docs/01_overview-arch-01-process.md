@@ -50,7 +50,7 @@ User
 #### Implementation Notes
 
 - The entry point is `scripts/agent/__main__.py`, started with `python -m agent`. The `agent.py` in the diagram refers to this module entry. (Source: `__main__.py` docstring)
-- MCP server transport can be configured as both `http` and `stdio`, but currently `ToolExecutor` uses HTTP POST `/v1/call_tool`. (Source: `HttpTransport` in `shared/http_transport.py`; `stdio` transport has been removed)
+- MCP communication uses HTTP exclusively; `stdio` transport is not supported (ADR-007). `ToolExecutor` calls MCP servers via HTTP POST `/v1/call_tool`. (Source: `HttpTransport` in `shared/http_transport.py`)
 - The startup sequence (MCP server startup, health checks, security audit, prompt setup) is separated into `StartupOrchestrator` in `agent/startup.py` and delegated from `AgentREPL.run()`. (Source: `agent/startup.py`)
 
 #### Configuration File Isolation Policy

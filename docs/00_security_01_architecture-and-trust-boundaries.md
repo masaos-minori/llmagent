@@ -76,11 +76,11 @@ The threat model covers the following threat vectors:
 
 | MCP Server | Transport | AuthN | AuthZ | Notes |
 |---|---|---|---|---|
-| file-read | HTTP/stdio | Bearer token (optional) | `allowed_dirs` allowlist | Read-only; path allowlist enforced |
-| file-write | HTTP/stdio | Bearer token (optional) | `allowed_dirs` allowlist + approval | Write requires approval for `WRITE_DANGEROUS` tools |
-| file-delete | HTTP/stdio | Bearer token (optional) | `allowed_dirs` allowlist + approval | Delete requires approval |
-| shell | HTTP/stdio | Bearer token (optional) | Command allowlist + approval | `command_allowlist` restricts executable commands |
-| git | HTTP/stdio | Bearer token (optional) | `allowed_repo_paths` + approval | Git write tools require approval; protected branches enforced |
+| file-read | HTTP | Bearer token (optional) | `allowed_dirs` allowlist | Read-only; path allowlist enforced |
+| file-write | HTTP | Bearer token (optional) | `allowed_dirs` allowlist + approval | Write requires approval for `WRITE_DANGEROUS` tools |
+| file-delete | HTTP | Bearer token (optional) | `allowed_dirs` allowlist + approval | Delete requires approval |
+| shell | HTTP | Bearer token (optional) | Command allowlist + approval | `command_allowlist` restricts executable commands |
+| git | HTTP | Bearer token (optional) | `allowed_repo_paths` + approval | Git write tools require approval; protected branches enforced |
 | github | HTTP | Bearer token (required) | `allowed_repos` + `protected_branches` | `protected_branches` escalate to high risk |
 | cicd | HTTP | Bearer token (optional) | Workflow allowlist | Workflow execution restricted to allowlisted workflows |
 | mdq | HTTP | Bearer token (optional) | `allowed_dirs` equivalent | Path traversal prevention via `Path.resolve()` |
