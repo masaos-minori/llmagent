@@ -42,7 +42,7 @@ There is **no authentication or ACL** for the Event Bus API.
 - **Design Assumption**: Intended for single-node operation on internal networks/trusted hosts.
 - **Access Control**: Should be enforced at the network boundary (firewall, Docker network).
 - **Exposure Warning**: The Event Bus must NOT be directly accessible from the internet.
-- **Startup Guard**: Binding to public/wildcard addresses (0.0.0.0, ::) is rejected by configuration validation unless `allow_public_bind=true` is set in the TOML config. If bound to a public address without authentication, a WARNING is logged.
+- **Startup Guard**: Binding to any non-loopback address (anything other than `127.0.0.1`/`::1`, including `0.0.0.0`/`::`) is rejected unconditionally at config-load time (`EventBusConfig.__post_init__()`, `scripts/eventbus/config.py`) — `ValueError` is raised, and startup does not proceed. `allow_public_bind` (the former override) was removed entirely (2026-09-04, `plans/done/20260903-091921_plan.md`); no configuration value can permit a public bind.
 
 ## Future Integration
 

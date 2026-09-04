@@ -377,10 +377,10 @@ them, are preserved here rather than lost:
 - **First Found**: Unconfirmed
 - **Target**: N/A: no current target document
 - **Related**: EVENTBUS-001
-- **Summary**: The Event Bus HTTP API (`/publish`, `/subscribe`, `/events/{event_id}/ack`, `/nack`, `/health`, `/dlq`, `/replay`) lacks production-grade authentication/authorization, currently controlled only by loopback-only binding and `allow_public_bind=false`.
-- **Current Description**: No authentication middleware is implemented; the only control is network-level bind restriction. Setting `allow_public_bind=true` makes every endpoint completely open.
-- **Observed Implementation**: Explicit in code — no auth middleware exists; only the `allow_public_bind` gate in `config.py`.
-- **Impact**: If `allow_public_bind=true` is set, all endpoints are publicly accessible without authentication. Workaround: keep `allow_public_bind=false` and bind to loopback only; use SSH tunnels for remote access.
+- **Summary**: The Event Bus HTTP API (`/publish`, `/subscribe`, `/events/{event_id}/ack`, `/nack`, `/health`, `/dlq`, `/replay`) lacks production-grade authentication/authorization; the only control is unconditional loopback-only binding.
+- **Current Description (updated 2026-09-04)**: No authentication middleware is implemented. `allow_public_bind` (the former escape hatch allowing a non-loopback bind) was removed entirely by `plans/done/20260903-091921_plan.md` ("loopbackonly") — `EventBusConfig.__post_init__()` (`scripts/eventbus/config.py`) now raises `ValueError` unconditionally for any host other than `127.0.0.1`/`::1`, with no configuration override possible.
+- **Observed Implementation**: Explicit in code — no auth middleware exists; `scripts/eventbus/config.py`'s `_is_public_host()` check is now a fail-fast `ValueError` in `__post_init__()`, not a togglable gate.
+- **Impact**: The Event Bus HTTP API remains reachable without authentication to any process on the same host (or via SSH tunnel), since loopback-only binding is the sole control and cannot be relaxed. This is a narrower residual risk than before `allow_public_bind`'s removal (public exposure is no longer possible via configuration), but same-host/tunneled access still has no authentication layer.
 - **Recommended Action**: Implement static bearer-token validation in the Event Bus process; add auth middleware to route handlers.
 
 #### SHARED-002

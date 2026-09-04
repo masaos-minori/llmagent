@@ -23,36 +23,38 @@ When set to `true`: `git_add`, `git_commit`, `git_checkout`, `git_pull`, and `gi
 
 ## Authentication (`auth_token`)
 
+**Note (2026-09-04)**: a non-empty `auth_token` is mandatory, unconditionally, for
+every HTTP MCP server — there is no environment or profile in which an empty
+token is accepted (`plans/done/20260903-092407_plan.md`, "mcpauth").
+`McpServerConfig._validate_auth_token()` (`scripts/shared/mcp_config.py`) raises
+`ValueError` at config-load time if `auth_token` is empty for any server using
+`transport="http"`.
+
 ```toml
 # In server config or McpServerConfig
-auth_token = ""   # empty = no auth
+auth_token = "${ENV:MCP_SHELL_AUTH_TOKEN}"   # required; non-empty for every HTTP server
 ```
 
-If not empty: The server requires an `Authorization: Bearer <token>` header.
+The server requires an `Authorization: Bearer <token>` header.
 Missing or mismatched token $\rightarrow$ HTTP 401.
 Applies to: All servers (configured per server via `McpServerConfig.auth_token`).
-
-**Local/Development Compatibility:** Setting `auth_token=""` (no Bearer authentication) is an intentional behavior for local/development compatibility and is not an oversight. **Do not use an empty `auth_token` in production** — enforcement during startup is described in the [Security Profile](#security-profile-security_profile) section below.
+Use environment-variable injection (`"${ENV:VAR_NAME}"`) rather than a literal
+secret in the TOML file — see
+[`02_deployment.md`'s Production-Only Migration Procedure](02_deployment.md#production-only-migration-procedure)
+for the current setup steps.
 
 ---
 
-## Security Profile (`security_profile`)
+## Security Profile (`security_profile`) — retired
 
-### Security profile (security_profile)
+**Removed 2026-09-04**: `security_profile` no longer distinguishes `local` from
+`production` — `SecurityProfile` has a single `PRODUCTION` member
+(`plans/done/20260903-091417_plan.md`, "localremoval"). The
+authentication-mandatory behavior described above under
+[Authentication](#authentication-auth_token) applies unconditionally in every
+environment; there is no profile value that relaxes it.
 
-```toml
-# In config/agent.toml [mcp_servers] section
-security_profile = "local"   # or "production"
-```
-
-Controls whether Bearer token authentication is mandatory for HTTP MCP servers.
-
-| Profile | Behavior |
-|---|---|
-| `local` (default) | Authentication is optional. If `auth_token` is missing on an HTTP server, a warning is issued at startup. |
-| `production` | Authentication is mandatory. If any HTTP server lacks an `auth_token`, startup fails with a `RuntimeError`. |
-
-**Enforcement Point:** `agent/services/security_audit.py::audit_security_defaults()` raises an exception at startup if `security_profile == "production"` and an HTTP server has an empty `auth_token`. It also raises an exception, regardless of environment, if `shell_sandbox_backend == "none"`; it separately warns about empty `tool.allowed_tools`.
+**Enforcement Point:** `agent/services/security_audit.py::audit_security_defaults()` raises `RuntimeError` unconditionally if any HTTP MCP server has an empty `auth_token` — this check no longer branches on `security_profile`. It also raises an exception, regardless of environment, if `shell_sandbox_backend == "none"`; it separately warns about empty `tool.allowed_tools`.
 
 **Reload Boundary:** `/reload` does not re-run these checks nor apply `auth_token` changes to running MCP servers — token changes always require a restart (see [Configuration: Hot-reload eligibility](./05_agent_08_01_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility)). Production authentication validation is performed only at startup; there are no runtime paths to weaken or bypass this.
 

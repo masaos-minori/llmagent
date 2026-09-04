@@ -399,10 +399,10 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Impact**: コードの複雑さ
 - **Resolution Target**: リファクタリング時に削除
 
-- **Known Issue**: EVENTBUS-008 — Production deployment requires an authentication model. The recommended workaround is keeping `allow_public_bind=false` and binding to loopback only, using SSH tunnels for remote access. Static bearer token validation is planned but not implemented.
+- **Known Issue（2026-09-04更新）**: EVENTBUS-008 — Production deployment requires an authentication model. `allow_public_bind`（旧・回避策）は完全に撤廃済み（`plans/done/20260903-091921_plan.md`）——`EventBusConfig.__post_init__()`が`127.0.0.1`/`::1`以外のhostを無条件に`ValueError`で拒否するため、公開バインド自体が設定不可能になった。ただし、認証ミドルウェア自体は依然として未実装であり、loopbackまたはSSHトンネル経由の同一Host内アクセスには認証層が存在しない状態が残る。Static bearer token validation is planned but not implemented.
 - **Type**: Security Gap
-- **Summary**: 認証モデルが未実装
-- **Impact**: 外部公開時のセキュリティリスク
+- **Summary**: 認証モデルが未実装(公開バインド自体は撤廃済み)
+- **Impact**: 同一Host内/SSHトンネル経由のアクセスに認証層がない(外部への直接公開は設定上不可能)
 - **Resolution Target**: 認証の実装が必要
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
