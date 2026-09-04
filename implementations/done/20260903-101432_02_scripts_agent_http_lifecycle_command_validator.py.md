@@ -233,10 +233,10 @@ class CommandValidator:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Created http_lifecycle_errors.py, updated imports in http_lifecycle.py and http_lifecycle_command_validator.py |
+| 2 | Add or update tests per Validation plan | Done | — | — | Added 15 unit tests covering HttpStartupError, StartupFailure, and CommandValidator |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | ruff check passed after fixes, mypy showed pre-existing errors unrelated to changes |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | Updated docs/01_overview-files-03-scripts.md with new module names |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

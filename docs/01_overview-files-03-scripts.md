@@ -37,7 +37,7 @@ Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01
 | Write boundaries | `repository_gateway.py` |
 | Output formatting | `output_tags.py`, `tool_output.py`, `tool_result_formatter.py` |
 | Error handling | `llm_transport_errors.py`, `tool_exceptions.py`, `error_injection_service.py` |
-| Lifecycle | `lifecycle.py`, `lifecycle_protocol.py`, `http_lifecycle.py`, `repl_health.py`, `services/routing_drift.py`, `services/security_audit.py` |
+| Lifecycle | `lifecycle.py`, `lifecycle_protocol.py`, `http_lifecycle.py`, `http_lifecycle_errors.py`, `http_lifecycle_command_validator.py`, `http_lifecycle_stderr_log.py`, `http_lifecycle_process_snapshot.py`, `http_lifecycle_shutdown_coordinator.py`, `repl_health.py`, `services/routing_drift.py`, `services/security_audit.py` |
 | CLI | `cli_view.py` |
 | Component construction | `factory.py` |
 | Diagnostics | `diagnostic_store.py` |
