@@ -6,7 +6,7 @@ SignalHandler — platform-specific signal handling for graceful shutdown.
 Responsibilities:
   - Registering SIGTERM/SIGINT handlers on Unix (loop.add_signal_handler)
   - Registering Windows console control handler fallback
-  - Cancelling input coroutine during shutdown
+  - Coordinating shutdown with ReplInputLoop via shutdown_event
 """
 
 from __future__ import annotations
@@ -14,6 +14,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +28,23 @@ logger = logging.getLogger(__name__)
 class SignalHandler:
     """Encapsulates platform-specific signal handling for graceful shutdown.
 
-    Encapsulates the signal registration logic extracted from AgentREPL.run().
+    Responsibilities:
+      - Registering SIGTERM/SIGINT handlers on Unix (loop.add_signal_handler)
+      - Registering Windows console control handler fallback
+      - Setting shutdown_event to coordinate with ReplInputLoop shutdown watcher
     """
 
     def __init__(
         self,
-        ctx: object,
+        ctx: AgentContext,
         shutdown_event: asyncio.Event | None,
     ) -> None:
-        """Initialize with AgentContext and shutdown event references."""
+        """Initialize with AgentContext and shutdown event references.
+
+        Precondition: ctx must be an AgentContext instance. Passing other types
+        will result in type checker errors but will not raise at runtime due to
+        Python's dynamic typing.
+        """
         self._ctx = ctx
         self._shutdown_event = shutdown_event
         self._turn_active: bool = False
@@ -42,19 +54,10 @@ class SignalHandler:
         """Register signal handlers for SIGTERM and SIGINT."""
 
         def _sigterm_handler() -> None:
-            """Handle SIGTERM by cancelling input and setting shutdown flag."""
-            self._ctx.conv.shutdown_requested = True  # type: ignore[attr-defined]  # — shutdown_requested is a dynamic flag not declared on ConversationState's dataclass fields
+            """Handle SIGTERM by setting shutdown flag and coordinating with ReplInputLoop."""
+            self._ctx.conv.shutdown_requested = True
             if self._shutdown_event is not None:
                 self._shutdown_event.set()
-            if (
-                not self._turn_active
-                and self._input_coro is not None
-                and not self._input_coro.done()
-            ):
-                try:
-                    self._input_coro.cancel()
-                except RuntimeError:
-                    pass
             logger.info("SIGTERM received; graceful shutdown initiated")
 
         for sig in (signal.SIGTERM, signal.SIGINT):

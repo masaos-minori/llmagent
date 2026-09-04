@@ -9,6 +9,7 @@ to replace the default terminal implementation without touching callers.
 """
 
 import asyncio
+import concurrent.futures
 import logging
 import readline
 from abc import ABC
@@ -19,6 +20,7 @@ from agent.output_tags import OutputTag
 
 logger = logging.getLogger(__name__)
 
+_INPUT_TIMEOUT_S = 30
 _SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
 
@@ -143,6 +145,13 @@ class CLIView(WriterBase):
         self._slash_commands = slash_commands
         self._spinner_task: asyncio.Task[None] | None = None
         self._stop_spinner_event: asyncio.Event | None = None
+        self._input_executor: concurrent.futures.ThreadPoolExecutor | None = None
+
+    def __del__(self) -> None:
+        """Clean up the input executor on garbage collection."""
+        if self._input_executor is not None:
+            self._input_executor.shutdown(wait=False)
+            self._input_executor = None
 
     def setup_readline(self) -> None:
         """Configure readline for bash-equivalent editing and tab completion."""
@@ -259,11 +268,26 @@ class CLIView(WriterBase):
 
         Strips the trailing backslash and joins all parts with newlines.
         Stops on a line without trailing backslash, an empty line, or EOF.
+
+        Timeout protection: wraps the executor submission with asyncio.wait_for()
+        to prevent indefinite hangs when the default ThreadPoolExecutor is
+        saturated during shutdown. On TimeoutError, raises KeyboardInterrupt
+        to allow user interruption rather than silently swallowing the error.
         """
         parts = [first_line[:-1]]
         while True:
             try:
-                cont = await loop.run_in_executor(None, lambda: input("... "))
+                if self._input_executor is None:
+                    self._input_executor = concurrent.futures.ThreadPoolExecutor(
+                        max_workers=1
+                    )
+                future = self._input_executor.submit(lambda: input("... "))
+                cont = await asyncio.wait_for(
+                    asyncio.wrap_future(future), timeout=_INPUT_TIMEOUT_S
+                )
+            except TimeoutError:
+                logger.warning("Multiline input timed out")
+                raise KeyboardInterrupt
             except (EOFError, KeyboardInterrupt):
                 break
             if not cont:

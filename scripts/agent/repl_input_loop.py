@@ -28,6 +28,17 @@ class ReplInputLoop:
 
     Owns the main input/dispatch loop, readline integration, multiline
     continuation, shutdown event racing, and command routing.
+
+    Shutdown coordination:
+        - shutdown_event is the single source of truth for shutdown signaling
+        - _shutdown_watcher sets shutdown_done when shutdown_event fires
+        - _read_input checks shutdown_done to decide whether to abort input
+        - Signal handler delegates cancellation to shutdown_event.set() (see signal_handler.py)
+
+    _cmds lifecycle:
+        - Set once during initialization via _init_components()
+        - Immutable after initialization — never reassigned
+        - Checked in _repl_loop as the single authoritative precondition
     """
 
     _GRACEFUL_TIMEOUT_S: float = 10.0
@@ -127,8 +138,7 @@ class ReplInputLoop:
                 input_coro.cancel()
                 shutdown_coro.cancel()
                 raise
-            for t in pending:
-                t.cancel()
+            # Cancellation handled by shutdown watcher — do not cancel here
             if shutdown_done or shutdown_coro in done:
                 self._abort_input()
                 return None
@@ -167,11 +177,12 @@ class ReplInputLoop:
 
     async def _dispatch_line(self, line: str, ctx: "AgentContext") -> None:
         """Dispatch a non-empty, non-exit line to commands or the orchestrator."""
-        if self._cmds is None:
-            raise RuntimeError("_dispatch_line called before _init_components()")
         if self._orchestrator is None:
             raise RuntimeError("_dispatch_line called before _init_components()")
         if line.startswith("/"):
+            if self._cmds is None:
+                self._view.write_fatal("Command registry not initialized")
+                return
             matched = await self._cmds.dispatch(line)
             if not matched:
                 self._view.write_warning(

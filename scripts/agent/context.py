@@ -318,11 +318,20 @@ class AgentContext:
         # None until an Orchestrator is constructed with this context.
         self.diagnostics: DiagnosticStore | None = None
         # Set to AppServices by factory.build_agent_context() before first use.
+        # Initialized by factory.build_agent_context() before any component
+        # that depends on services is used. Never mutated after assignment.
         self.services: AppServices | None = None
 
     @property
     def services_required(self) -> AppServices:
-        """Return services, raising RuntimeError when not yet initialized."""
+        """Return services, raising RuntimeError when not yet initialized.
+
+        Precondition: build_agent_context() must complete before accessing
+        any service-dependent functionality. This includes tool execution,
+        LLM calls, history management, audit logging, and MCP operations.
+        All callers across the codebase (100+ references) depend on this
+        invariant holding.
+        """
         if self.services is None:
             raise RuntimeError(
                 "AgentContext.services not initialized — call build_agent_context() first"

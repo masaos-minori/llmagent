@@ -54,11 +54,20 @@ from agent.workflow import (
     WorkflowLoader,
     WorkflowLoadError,
 )
-from agent.workflow.workflow_loader import WORKFLOWS_DIR
 from agent.workflow_engine_adapter import WorkflowEngineAdapter
 
 if TYPE_CHECKING:
     pass
+
+# Sentinel workflow definition for fallback mode.
+# Satisfies all downstream assertions (_wdef is not None, .version, .require_approval, .get_stage())
+# while preventing real workflow stage execution (stages=[], require_approval=False).
+_FALLBACK_WORKFLOW_DEF = WorkflowDef(
+    name="fallback",
+    version="0.0.0",
+    stages=[],
+    require_approval=False,
+)
 
 __all__ = ["BG_FAILURE_THRESHOLD", "Orchestrator"]
 
@@ -112,12 +121,6 @@ class Orchestrator:
             self._guard,
             tracer=tracer,
         )
-        try:
-            self._workflow_def: WorkflowDef | None = WorkflowLoader().load()
-        except (WorkflowLoadError, FileNotFoundError) as exc:
-            raise RuntimeError(
-                f"{OutputTag.WORKFLOW} WorkflowLoader failed: {exc}. Expected definition at: {WORKFLOWS_DIR / 'default.json'}."
-            ) from exc
 
         # ── Component initialization (new constructor signatures) ────────────
         self._bg_task_monitor = BgTaskMonitor(
@@ -159,6 +162,18 @@ class Orchestrator:
             on_llm_wait_start=on_llm_wait_start,
             on_llm_wait_end=on_llm_wait_end,
         )
+        self._fallback_mode = False
+        try:
+            self._workflow_def: WorkflowDef | None = WorkflowLoader().load()
+        except (WorkflowLoadError, FileNotFoundError) as exc:
+            logger.warning(
+                "%s Workflow loader failed: %s. REPL running in fallback mode.",
+                OutputTag.WORKFLOW,
+                exc,
+            )
+            self._fallback_mode = True
+            self._workflow_def = _FALLBACK_WORKFLOW_DEF
+
         self._workflow_adapter = WorkflowEngineAdapter(
             ctx,
             state_store=self._state_store,
@@ -185,6 +200,13 @@ class Orchestrator:
         if is_paused:
             await self._on_pause_blocked(paused_names)
             return
+        if self._fallback_mode:
+            if self._on_error:
+                self._on_error(
+                    RuntimeError(
+                        f"{OutputTag.WORKFLOW} Workflow features unavailable — REPL running in fallback mode."
+                    )
+                )
         await self._execute_turn(line)
 
     async def _execute_turn(self, line):

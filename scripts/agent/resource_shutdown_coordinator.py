@@ -4,7 +4,7 @@
 ResourceShutdownCoordinator — resource cleanup and shutdown coordination.
 
 Responsibilities:
-  - Cancelling pending tasks
+  - Cancelling pending tasks in LIFO order (last-created-first-cancelled)
   - WAL checkpoint and backup during shutdown
   - Service lifecycle shutdown (HTTP client, lifecycle manager)
   - Graceful timeout enforcement
@@ -34,6 +34,16 @@ class ResourceShutdownCoordinator:
 
     Encapsulates the shutdown sequence extracted from AgentREPL._close_resources:
     task cancellation, WAL checkpoint/backup, and service lifecycle shutdown.
+
+    Cancellation ordering:
+        Tasks are cancelled in LIFO (last-created-first-cancelled) order
+        to ensure deterministic shutdown behavior. This prevents cascading
+        failures when dependent tasks are still running.
+
+    Settlement period:
+        After cancelling pending tasks, waits up to _GRACEFUL_TIMEOUT_S
+        seconds for cancellation state to propagate through dependent
+        tasks before finalizing shutdown.
     """
 
     def __init__(
@@ -53,7 +63,10 @@ class ResourceShutdownCoordinator:
         errors: list[tuple[str, str]] = []
         loop = asyncio.get_running_loop()
 
-        # 1. Cancel all pending tasks (except this one)
+        # 1. Cancel all pending tasks in LIFO order (last-created-first-cancelled)
+        #    This ensures deterministic shutdown behavior: the most recently
+        #    created task is cancelled first, preventing cascading failures
+        #    when dependent tasks are still running.
         pending_tasks = [
             t for t in asyncio.all_tasks(loop) if t is not asyncio.current_task()
         ]
@@ -61,7 +74,8 @@ class ResourceShutdownCoordinator:
             logger.info(
                 "Cancelling %d pending tasks during shutdown", len(pending_tasks)
             )
-            for t in pending_tasks:
+            # Cancel in reverse order (LIFO) for deterministic shutdown
+            for t in reversed(pending_tasks):
                 t.cancel()
 
             results = await asyncio.gather(*pending_tasks, return_exceptions=True)
@@ -123,8 +137,14 @@ class ResourceShutdownCoordinator:
         else:
             logger.debug("No services available to shut down")
 
+        # Wait for pending operations to settle after cancellation.
+        # All operations have been cancelled above; this period allows
+        # cancellation state to propagate through dependent tasks.
         try:
-            await asyncio.wait_for(asyncio.sleep(0), timeout=_GRACEFUL_TIMEOUT_S)
+            await asyncio.wait_for(
+                asyncio.sleep(_GRACEFUL_TIMEOUT_S),
+                timeout=_GRACEFUL_TIMEOUT_S,
+            )
         except TimeoutError:
             errors.append(
                 (

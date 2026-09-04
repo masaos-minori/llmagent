@@ -80,6 +80,15 @@ class SessionPersister:
                     workflow_count = store.get_workflow_count(sid)
                     approval_events = store.get_approval_count(sid)
                     execute_attempts = store.get_execute_attempt_count(sid)
+                    # Defensive: _scalar_count() always returns int, but guard against
+                    # future modifications that might change this contract.
+                    if execute_attempts is None:
+                        logger.warning(
+                            "get_execute_attempt_count returned None for session %s; "
+                            "defaulting retry_count to 0",
+                            sid,
+                        )
+                        execute_attempts = 0
                     retry_count = max(0, execute_attempts - task_count)
                     artifacts = store.get_artifact_uris(sid)
                 except (RuntimeError, sqlite3.Error):

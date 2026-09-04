@@ -231,7 +231,12 @@ class StateStore:
         )
 
     def get_execute_attempt_count(self, session_id: str) -> int:
-        """Return the number of execute-stage attempts for tasks in a session."""
+        """Return the number of execute-stage attempts for tasks in a session.
+
+        Returns:
+            Non-negative integer. Always returns a valid int even if no matching
+            rows exist (defaults to 0 via _scalar_count). Never returns None.
+        """
         return self._scalar_count(
             "SELECT COUNT(*) as cnt FROM attempts"
             " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)"

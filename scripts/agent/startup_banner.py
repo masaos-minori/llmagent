@@ -24,6 +24,10 @@ class StartupBanner:
 
     Encapsulates ``_print_startup_banner``, ``_get_chunk_count``,
     and ``_get_workflow_status`` extracted from AgentREPL.
+
+    Initialization ordering:
+        Must be created after build_agent_context() completes, ensuring
+        AgentContext.services is initialized before any property access.
     """
 
     def __init__(self, ctx: AgentContext, view: CLIView) -> None:
@@ -33,7 +37,18 @@ class StartupBanner:
 
     @property
     def n_tools(self) -> int:
-        """Number of tools available at runtime (excludes unavailable/degraded servers)."""
+        """Number of tools available at runtime (excludes unavailable/degraded servers).
+
+        Requires AgentContext.services to be initialized before use. If called
+        before initialization, logs a warning and returns 0 instead of raising
+        RuntimeError. This prevents crashes but may hide misconfiguration issues.
+        """
+        if self._ctx.services is None:
+            logger.warning(
+                "StartupBanner.n_tools called before services initialized — "
+                "returning 0; call build_agent_context() first"
+            )
+            return 0
         rt = self._ctx.services_required.runtime_tools
         return len(rt.all_tools()) if rt else 0
 

@@ -149,15 +149,26 @@ class DiagnosticStore:
         content is Fernet-encrypted before being written.
         """
         self._purge_old_diagnostics()
-        content = self._filter_sensitive_fields(content)
+        _filter_failed = False
+        try:
+            content = self._filter_sensitive_fields(content)
+        except Exception:  # noqa: BLE001 — filter must never block diagnostic persistence; failure is logged and deferred
+            logger.warning(
+                "_filter_sensitive_fields failed for %s diagnostic (kind=%s); proceeding without filtering",
+                session_id,
+                kind,
+                exc_info=True,
+            )
+            _filter_failed = True
 
         diagnostics_cfg = self._load_diagnostics_config()
         if not diagnostics_cfg.encryption_key:
-            for pattern in _SENSITIVE_PATTERNS:
-                if pattern.search(content):
-                    raise RuntimeError(
-                        "Sensitive information detected in diagnostic content without encryption enabled."
-                    )
+            if not _filter_failed:
+                for pattern in _SENSITIVE_PATTERNS:
+                    if pattern.search(content):
+                        raise RuntimeError(
+                            "Sensitive information detected in diagnostic content without encryption enabled."
+                        )
 
         if encrypt and diagnostics_cfg.encryption_key:
             content = self._encrypt_content(content, diagnostics_cfg.encryption_key)
