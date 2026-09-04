@@ -82,7 +82,11 @@ class RepositoryState:
         return is_instance_schema(cls)
 
     @classmethod
-    def snapshot(cls, repo_path: str | os.PathLike[str]) -> RepositoryState:
+    def snapshot(
+        cls,
+        repo_path: str | os.PathLike[str],
+        protected_branches: list[str] | None = None,
+    ) -> RepositoryState:
         """Capture full state from a single git.Repo query."""
         path_str = str(repo_path)
         repo = git.Repo(path_str, search_parent_directories=False)
@@ -105,7 +109,7 @@ class RepositoryState:
             head_type="detached" if repo.head.is_detached else "branch",
             active_branch=branch_name,
             untracked_file_count=untracked,
-            protected_branch=_is_protected_branch(repo),
+            protected_branch=_is_protected_branch(repo, protected_branches),
             ref_valid=True,
             _repo=repo,
         )
@@ -749,7 +753,7 @@ __all__ = [
 # ── Module-level helpers ────────────────────────────────────────────────────────
 
 
-def _is_protected_branch(repo: git.Repo) -> bool:
+def _is_protected_branch(repo: git.Repo, protected_branches: list[str] | None = None) -> bool:
     """Check if HEAD points to a protected branch."""
     # Read protected branches from GitConfig or environment
     # For now, return False as placeholder
