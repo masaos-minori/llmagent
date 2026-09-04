@@ -28,34 +28,20 @@ T = TypeVar("T")
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
-def _load_audit_config_or_warn[T](
-    loader: Callable[[], T],
-    production_mode: bool,
-    warnings: list[str],
-) -> T | None:
-    """Call *loader*; on RuntimeError, raise in production mode or append a warning.
-
-    Returns the loaded config, or None when the load failed (non-production mode).
-    """
+def _load_audit_config_or_raise[T](loader: Callable[[], T]) -> T:
+    """Call *loader*; raise RuntimeError if it fails to load."""
     try:
         return loader()
     except RuntimeError as exc:
-        msg = str(exc)
-        if production_mode:
-            logger.error(msg)
-            raise
-        logger.warning(msg)
-        warnings.append(msg)
-        return None
+        logger.error(str(exc))
+        raise
 
 
-def audit_security_defaults(
-    ctx: AgentContext, production_mode: bool = False
-) -> list[str]:
+def audit_security_defaults(ctx: AgentContext) -> list[str]:
     """Audit security-related configuration defaults and return warning strings.
 
-    In production mode (production_mode=True), HTTP servers without auth_token
-    raise RuntimeError instead of returning a warning.
+    HTTP servers without auth_token raise RuntimeError instead of returning
+    a warning.
 
     Checks for risky settings such as:
       - auth_token disabled (empty) on servers that support it
@@ -65,14 +51,6 @@ def audit_security_defaults(
     Returns a list of warning messages; empty list means no issues.
     """
     warnings: list[str] = []
-
-    profile_label = "PRODUCTION" if production_mode else "LOCAL"
-    auth_required = "yes" if production_mode else "no"
-    logger.info(
-        "Security profile: %s — auth required for HTTP servers: %s",
-        profile_label,
-        auth_required,
-    )
 
     # Check auth_token settings
     violations: list[str] = []
@@ -85,15 +63,11 @@ def audit_security_defaults(
             msg = f"{key}: no auth_token configured (auth disabled)"
             violations.append(msg)
 
-    if production_mode and violations:
+    if violations:
         servers_str = "; ".join(violations)
         raise RuntimeError(
-            f"Production mode requires auth_token on all HTTP MCP servers. Violations: {servers_str}"
+            f"auth_token is required on all HTTP MCP servers. Violations: {servers_str}"
         )
-
-    for v in violations:
-        logger.warning("Security: %s", v)
-        warnings.append(f"Security: {v}")
 
     fail_closed_empty: list[str] = []  # deny access when empty (safe default)
     fail_open_empty: list[str] = []  # allow all access when empty (risky default)
@@ -106,10 +80,8 @@ def audit_security_defaults(
         )
 
     # Check shell sandbox and command_allowlist.
-    # If configuration is missing or cannot be loaded, skip shell-related security checks.
-    shell_cfg = _load_audit_config_or_warn(
-        load_shell_audit_config, production_mode, warnings
-    )
+    # None means shell-mcp is not installed (skip); a malformed config raises.
+    shell_cfg = _load_audit_config_or_raise(load_shell_audit_config)
 
     if shell_cfg is not None:
         import shutil as _shutil
@@ -161,9 +133,7 @@ def audit_security_defaults(
         except Exception:  # noqa: BLE001 — tool registry lookup is best-effort; fall back to unrestricted set rather than abort startup
             known_tools = None
 
-    github_cfg = _load_audit_config_or_warn(
-        load_github_audit_config, production_mode, warnings
-    )
+    github_cfg = _load_audit_config_or_raise(load_github_audit_config)
 
     result = ProductionConfigValidator().validate(
         {
@@ -174,23 +144,17 @@ def audit_security_defaults(
             "tool_safety_tiers": tool_safety_tiers,
             "allowed_tools": allowed_tools,
         },
-        security_profile="production" if production_mode else "local",
+        security_profile="production",
         known_tools=known_tools,
     )
     if result.errors:
-        for msg in result.errors:
-            if production_mode:
-                raise RuntimeError(msg)
-            logger.warning("Security: %s", msg)
-            warnings.append(f"Security: {msg}")
+        raise RuntimeError(result.errors[0])
     for warning in result.warnings:
         logger.warning("Security: %s", warning)
         warnings.append(warning)
 
     # Check git allowed_repo_paths
-    git_cfg = _load_audit_config_or_warn(
-        load_git_audit_config, production_mode, warnings
-    )
+    git_cfg = _load_audit_config_or_raise(load_git_audit_config)
 
     if git_cfg is not None and not git_cfg.allowed_repo_paths and not lockdown:
         fail_closed_empty.append("git.allowed_repo_paths")
@@ -214,9 +178,7 @@ def audit_security_defaults(
         warnings.append(msg)
 
     # Check cicd workflow_allowlist (fail-closed — empty = deny all workflow triggers)
-    cicd_cfg = _load_audit_config_or_warn(
-        load_cicd_audit_config, production_mode, warnings
-    )
+    cicd_cfg = _load_audit_config_or_raise(load_cicd_audit_config)
 
     if cicd_cfg is not None and not cicd_cfg.workflow_allowlist and not lockdown:
         fail_closed_empty.append("cicd.workflow_allowlist")

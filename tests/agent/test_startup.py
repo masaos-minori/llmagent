@@ -45,7 +45,7 @@ from shared.mcp_config import (
 
 def _make_startup(
     mcp_servers: dict[str, McpServerConfig],
-    security_profile: SecurityProfile = SecurityProfile.LOCAL,
+    security_profile: SecurityProfile = SecurityProfile.PRODUCTION,
     shutdown_event: asyncio.Event | None = None,
 ) -> StartupOrchestrator:
     """Return a StartupOrchestrator with mocked ctx/view for _start_servers() tests."""
@@ -79,7 +79,9 @@ class TestStartupOrchestratorStartServers:
     @pytest.mark.asyncio
     async def test_http_subprocess_calls_lifecycle(self) -> None:
         cfg = _http_subprocess_cfg()
-        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
 
         await startup._start_servers()
 
@@ -90,7 +92,9 @@ class TestStartupOrchestratorStartServers:
     @pytest.mark.asyncio
     async def test_http_subprocess_failure_is_swallowed(self) -> None:
         cfg = _http_subprocess_cfg()
-        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
         startup._ctx.services_required.lifecycle.start_http_subprocess.side_effect = (
             RuntimeError("port busy")
         )
@@ -132,7 +136,9 @@ class TestStartupOrchestratorStartServers:
         the retried proc onto self._spawned_subprocesses, not just the first-attempt
         success path."""
         cfg = _http_subprocess_cfg()
-        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
         retried_proc = MagicMock(spec=subprocess.Popen)
         startup._ctx.services_required.lifecycle.start_http_subprocess = AsyncMock(
             side_effect=[RuntimeError("port busy"), retried_proc]
@@ -148,7 +154,9 @@ class TestStartupOrchestratorStartServers:
         """start_http_subprocess() returning None (e.g. server already running)
         must not be treated as a spawned process."""
         cfg = _http_subprocess_cfg()
-        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
         startup._ctx.services_required.lifecycle.start_http_subprocess = AsyncMock(
             return_value=None
         )
@@ -166,7 +174,7 @@ class TestStartupOrchestratorStartServers:
         shutdown_event.set()
         startup = _make_startup(
             {"first": cfg, "second": cfg},
-            security_profile=SecurityProfile.LOCAL,
+            security_profile=SecurityProfile.PRODUCTION,
             shutdown_event=shutdown_event,
         )
 
@@ -186,7 +194,7 @@ class TestStartupOrchestratorStartServers:
         shutdown_event = asyncio.Event()
         startup = _make_startup(
             {"web": cfg},
-            security_profile=SecurityProfile.LOCAL,
+            security_profile=SecurityProfile.PRODUCTION,
             shutdown_event=shutdown_event,
         )
         startup._ctx.services_required.lifecycle.start_http_subprocess.side_effect = (
@@ -214,7 +222,7 @@ class TestStartupOrchestratorStartServers:
         shutdown_event = asyncio.Event()
         startup = _make_startup(
             {"web": cfg},
-            security_profile=SecurityProfile.LOCAL,
+            security_profile=SecurityProfile.PRODUCTION,
             shutdown_event=shutdown_event,
         )
 
@@ -763,27 +771,16 @@ class TestStartupRollback:
         mock_lifecycle.shutdown_all.assert_awaited_once()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "security_profile",
-        [SecurityProfile.PRODUCTION, SecurityProfile.LOCAL],
-    )
-    async def test_rollback_on_partial_multi_server_failure(
-        self, security_profile: SecurityProfile
-    ) -> None:
+    async def test_rollback_on_partial_multi_server_failure(self) -> None:
         """run() rolls back via shutdown_all() after a two-server startup where the
         first server starts successfully and the second fails on both the first
-        attempt and the retry.
-
-        In PRODUCTION, the second server's retry failure makes `_start_servers()`
-        itself raise mid-loop (after `first_proc` was already appended). In a
-        non-production profile, `_start_servers()` swallows the retry failure and
-        returns normally with only `first_proc` recorded, so `_check_services()` is
-        mocked to fail instead to drive `run()` into its rollback path — both cases
-        exercise "one subprocess already started before the failure that triggers
-        rollback" from the plan's Goal.
+        attempt and the retry — the second server's retry failure makes
+        `_start_servers()` itself raise mid-loop (after `first_proc` was already
+        appended), exercising "one subprocess already started before the failure
+        that triggers rollback" from the plan's Goal.
         """
         ctx = MagicMock()
-        ctx.cfg.mcp.security_profile = security_profile
+        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         ctx.cfg.mcp.mcp_servers = {
             "first": _http_subprocess_cfg(),
             "second": _http_subprocess_cfg(),
@@ -896,15 +893,12 @@ class TestStartupRollback:
 
 def _make_startup_ctx(
     *,
-    production_mode: bool = False,
     memory_embed_dim: int = 768,
     tool_definitions_strict: bool = False,
 ) -> MagicMock:
     """Return a ctx MagicMock configured for _check_services() tests."""
     ctx = MagicMock()
-    ctx.cfg.mcp.security_profile = (
-        SecurityProfile.PRODUCTION if production_mode else SecurityProfile.LOCAL
-    )
+    ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
     ctx.cfg.memory.memory_embed_dim = memory_embed_dim
     ctx.cfg.tool.tool_definitions_strict = tool_definitions_strict
     return ctx
@@ -1009,7 +1003,7 @@ class TestCheckServicesSeverityClassification:
     async def test_security_audit_fatal_when_audit_raises(self) -> None:
         """FATAL when audit_security_defaults() raises RuntimeError (e.g. production_mode
         with a missing auth_token)."""
-        ctx = _make_startup_ctx(production_mode=True)
+        ctx = _make_startup_ctx()
         pipeline, exc = await _run_check_services(
             ctx,
             audit_security_defaults=MagicMock(
@@ -1027,7 +1021,7 @@ class TestCheckServicesSeverityClassification:
         """WARNING per issue AND an unconditional OK are both recorded when
         audit_security_defaults() returns warnings without raising — OK here does not
         mean 'no issues', only 'the audit function completed without raising'."""
-        ctx = _make_startup_ctx(production_mode=False)
+        ctx = _make_startup_ctx()
         pipeline, exc = await _run_check_services(
             ctx,
             audit_security_defaults=MagicMock(
@@ -1047,7 +1041,7 @@ class TestCheckServicesSeverityClassification:
         message carries the 'Readiness check failed:' prefix added by that except clause,
         proving it did NOT come from the (unreachable) result.error_messages() loop, which
         would add the raw message with no such prefix."""
-        ctx = _make_startup_ctx(production_mode=True)
+        ctx = _make_startup_ctx()
         pipeline, exc = await _run_check_services(
             ctx,
             check_readiness=AsyncMock(
@@ -1064,7 +1058,7 @@ class TestCheckServicesSeverityClassification:
 
     @pytest.mark.asyncio
     async def test_readiness_warning_when_issues_and_not_production(self) -> None:
-        ctx = _make_startup_ctx(production_mode=False)
+        ctx = _make_startup_ctx()
         result = HealthCheckResult(
             warnings=[
                 ServiceWarning(
@@ -1270,7 +1264,7 @@ class TestCheckServicesSeverityClassification:
         """When discover_all() raises and production_mode=True, the outer except clause reports
         FATAL (not SKIPPED), since a discovery-call failure means all tool calls fail this
         session."""
-        ctx = _make_startup_ctx(production_mode=True)
+        ctx = _make_startup_ctx()
         pipeline, exc = await _run_check_services(
             ctx,
             McpToolDiscoveryService=MagicMock(
@@ -1287,7 +1281,7 @@ class TestCheckServicesSeverityClassification:
         """When discover_all() raises and production_mode=False, the outer except clause reports
         FATAL (instead of SKIPPED), since a discovery-call failure means all tool calls fail this
         session."""
-        ctx = _make_startup_ctx(production_mode=False)
+        ctx = _make_startup_ctx()
         pipeline, exc = await _run_check_services(
             ctx,
             McpToolDiscoveryService=MagicMock(
@@ -1392,7 +1386,9 @@ class TestStartupVerifyMcpHealth:
     @pytest.mark.asyncio
     async def test_health_check_passes_for_all_servers(self) -> None:
         cfg = _http_subprocess_cfg()
-        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
 
         mock_resp = _make_http_mock(200)
         mock_client = _AsyncClientMock(get_return=mock_resp)
@@ -1403,7 +1399,9 @@ class TestStartupVerifyMcpHealth:
     @pytest.mark.asyncio
     async def test_health_check_failure_non_production_warns(self) -> None:
         cfg = _http_subprocess_cfg()
-        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
 
         mock_resp_fail = _make_http_mock(503)
 
@@ -1434,7 +1432,9 @@ class TestStartupVerifyMcpHealth:
     @pytest.mark.asyncio
     async def test_health_check_passes_after_retry(self) -> None:
         cfg = _http_subprocess_cfg()
-        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
 
         mock_resp_fail = _make_http_mock(503)
         mock_resp_ok = _make_http_mock(200)
@@ -1461,7 +1461,7 @@ class TestStartupVerifyMcpHealth:
             cmd=["echo", "persistent"],
         )
         startup = _make_startup(
-            {"persistent": cfg_persistent}, security_profile=SecurityProfile.LOCAL
+            {"persistent": cfg_persistent}, security_profile=SecurityProfile.PRODUCTION
         )
 
         with patch("agent.startup.httpx.AsyncClient") as MockClient:
@@ -1473,7 +1473,7 @@ class TestStartupVerifyMcpHealth:
     async def test_tools_service_none_raises(self) -> None:
         cfg = _http_subprocess_cfg()
         ctx = MagicMock()
-        ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
+        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         ctx.cfg.mcp.mcp_servers = {"web": cfg}
         ctx.services_required.tools = None
         ctx.services_required.lifecycle = AsyncMock()
@@ -1487,7 +1487,7 @@ class TestStartupVerifyMcpHealth:
     async def test_lifecycle_service_none_raises(self) -> None:
         cfg = _http_subprocess_cfg()
         ctx = MagicMock()
-        ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
+        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         ctx.cfg.mcp.mcp_servers = {"web": cfg}
         ctx.services_required.tools = MagicMock()
         ctx.services_required.lifecycle = None
@@ -1508,7 +1508,7 @@ class TestStartupVerifyMcpHealth:
         shutdown_event = asyncio.Event()
         startup = _make_startup(
             {"web": cfg},
-            security_profile=SecurityProfile.LOCAL,
+            security_profile=SecurityProfile.PRODUCTION,
             shutdown_event=shutdown_event,
         )
         mock_resp_fail = _make_http_mock(503)
@@ -1597,7 +1597,7 @@ class TestStartupMemoryFailures:
             required=False,
         )
         ctx = MagicMock()
-        ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
+        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         ctx.cfg.mcp.mcp_servers = {"srv1": srv1_cfg, "srv2": srv2_cfg}
         ctx.services_required.tools = MagicMock()
         ctx.services_required.lifecycle = AsyncMock()

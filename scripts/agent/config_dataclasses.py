@@ -275,7 +275,7 @@ class MCPConfig:
 
     mcp_servers: dict[str, McpServerConfig] = field(default_factory=dict)
     # Deployment security profile: "local" (auth optional) or "production" (auth required for HTTP).
-    security_profile: SecurityProfile = SecurityProfile.LOCAL
+    security_profile: SecurityProfile = SecurityProfile.PRODUCTION
     # Set to True to suppress deny-all startup warnings when deny-all is intentional.
     security_lockdown_enabled: bool = False
 

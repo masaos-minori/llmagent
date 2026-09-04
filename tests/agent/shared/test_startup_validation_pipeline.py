@@ -14,10 +14,11 @@ from agent.shared.health_models import (
     StartupValidationResult,
 )
 from agent.startup import StartupOrchestrator
+from agent.startup_validation import StartupValidationPipeline
 from shared.config_errors import ConfigLoadError, ConfigMissingError
 from shared.mcp_config import SecurityProfile
 
-MODULE = "agent.startup"
+MODULE = "agent.startup_validation"
 
 
 # --- StartupValidationResult unit tests ---
@@ -67,7 +68,7 @@ def test_validation_result_skipped_not_fatal() -> None:
 @pytest.fixture()
 def mock_ctx():
     ctx = MagicMock()
-    ctx.cfg.mcp.security_profile = "local"
+    ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
     ctx.cfg.tool.tool_definitions_strict = False
     return ctx
 
@@ -124,6 +125,9 @@ async def test_routing_drift_strict_false_warns_only(startup_instance) -> None:
 
 @pytest.mark.asyncio
 async def test_skipped_live_routing_no_raise(startup_instance) -> None:
+    startup_instance._validation_pipeline = StartupValidationPipeline(
+        startup_instance._ctx, startup_instance._view
+    )
     with (
         patch(f"{MODULE}.audit_security_defaults", return_value=[]),
         patch(
@@ -164,6 +168,8 @@ async def test_validation_pipeline_reports_fatal_when_config_missing() -> None:
     instance = StartupOrchestrator.__new__(StartupOrchestrator)
     instance._ctx = ctx
     instance._view = MagicMock()
+    instance._reporter = MagicMock()
+    instance._validation_pipeline = StartupValidationPipeline(ctx, instance._view)
 
     # Act & Assert: when a check fails, pipeline should report FATAL
     with (

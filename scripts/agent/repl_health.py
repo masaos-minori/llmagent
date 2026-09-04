@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from agent.services.security_audit import (
-    _load_audit_config_or_warn,
-    audit_security_defaults,
-)
 from agent.services.mcp_health import (
     _probe_mcp_health_detail,
     check_readiness,
     check_service_health,
+)
+from agent.services.routing_drift import (
+    check_routing_drift,
+    check_routing_safety_tiers,
+)
+from agent.services.security_audit import (
+    _load_audit_config_or_raise,
+    audit_security_defaults,
 )
 from agent.services.tool_validation import (
     _check_tool_definitions,
@@ -18,14 +22,9 @@ from agent.services.tool_validation import (
     check_tool_definitions_runtime,
 )
 from agent.services.workflow_schema import (
-    REQUIRED_WORKFLOW_TABLES,
     SchemaCheckResult,
     check_workflow_definition,
     check_workflow_schema,
-)
-from agent.services.routing_drift import (
-    check_routing_drift,
-    check_routing_safety_tiers,
 )
 
 __all__ = [
@@ -41,6 +40,6 @@ __all__ = [
     "check_workflow_schema",
     "check_routing_drift",
     "check_routing_safety_tiers",
-    "_load_audit_config_or_warn",
+    "_load_audit_config_or_raise",
     "audit_security_defaults",
 ]

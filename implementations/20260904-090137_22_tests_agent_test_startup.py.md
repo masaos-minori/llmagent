@@ -24,9 +24,34 @@ to match rows 5/6/9/11's unconditional-FATAL, parameter-removed signatures.
 - **Largest reference count of any file in this Plan (40+ matches).** This
   file tests `StartupOrchestrator`/`_make_startup()`'s integration surface
   across the entire refactor series discovered during this Plan's
-  revalidation (rows 5-8). Must execute after rows 1, 2, 5, 6, 7, 8, 9, and
-  11 all land, since this file's tests exercise the combined end-to-end
-  behavior of all of them.
+  revalidation (rows 5-8). Executed after rows 2, 5, 6, 7, 8, 9, and 11
+  landed (row 1 does not need to land first — removing a `SecurityProfile.LOCAL`
+  reference from a test does not require the enum member to already be
+  gone, same reasoning applied to rows 17/19).
+- **Corrected 2026-09-04** (`code-implementation` Step 3 adversarial
+  verification, major finding): confirmed via `git stash`/diff against the
+  unmodified original file that **all 55 of this file's pre-edit test
+  failures are pre-existing and unrelated to this Plan** — identical
+  failure sets before and after this row's edits. Three broken clusters,
+  none caused by `production_mode`/`security_profile`:
+  (1) `TestStartupRollback` (11 tests) — `test_rollback_on_partial_multi_server_failure`
+  and its siblings never mock `orch._initialize`, so `run()` falls through
+  to a real `ComponentInitializer.initialize()` that chokes on a `MagicMock`
+  passed as a log file path;
+  (2) `TestCheckServicesSeverityClassification` (18 of 20 tests) —
+  `_run_check_services()` mocks `startup._validation_pipeline.check_services`
+  wholesale with a trivial side effect, so the individually-patched
+  `audit_security_defaults`/`check_readiness`/etc. functions it also sets up
+  are never actually invoked — a non-functional test harness, not a
+  `security_profile`-specific bug;
+  (3) `TestStartupOrchestratorStartServers`/`TestStartupOrchestratorRecoverPendingApprovals`/
+  `TestStartupMemoryFailures`/`TestStartupWorkflowPreflight` (26 tests) —
+  patch stale `agent.startup.check_workflow_definition`/`agent.repl_health.*`
+  paths left over from the unrelated upstream refactor. All three clusters
+  are out of this Plan's scope (REQ-005/REQ-006 only) and are left
+  unmodified beyond the mechanical `SecurityProfile.LOCAL`/`production_mode`
+  syntax cleanup this row performs (required so these files remain
+  collection-valid once row 1 lands).
 - The comment at line 1623 ("REQ-002 consequence...") refers to a *different*
   Plan's own internal REQ-002 numbering (the upstream refactor's own
   requirement ID, unrelated to this Plan's REQ-002) — re-read this comment's
@@ -166,9 +191,9 @@ confirmed at execution time via a full file read.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Largest reference count in this Plan (40+); must land last, after all coupled rows |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row's target file is itself the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Mechanically replaced all `SecurityProfile.LOCAL`→`PRODUCTION` (15 sites) and stripped `production_mode=` (6 sites) via scripted regex; collapsed 1 redundant parametrize table (`test_rollback_on_partial_multi_server_failure`) |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | This row's target file is itself the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff clean; 20/74 passed — 54 pre-existing failures confirmed via `git stash` to be byte-identical before/after this row's edits (3 unrelated broken clusters, see Assumptions), left unmodified |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: test-only file |
 
 ### Blocker Log

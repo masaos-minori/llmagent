@@ -25,10 +25,13 @@ class TestProductionConfigValidatorStrictKeys:
         "strict_key",
         ["tool_definitions_strict", "routing_drift_strict"],
     )
-    def test_strict_key_false_produces_warning_in_local(self, strict_key: str) -> None:
+    def test_strict_key_false_produces_error_even_with_local_profile(
+        self, strict_key: str
+    ) -> None:
         config = {strict_key: False}
         result = ProductionConfigValidator().validate(config, security_profile="local")
-        assert any(strict_key in warn for warn in result.warnings)
+        assert any(strict_key in err for err in result.errors)
+        assert result.warnings == []
 
     @pytest.mark.parametrize(
         "strict_key",
@@ -58,11 +61,13 @@ class TestProductionConfigValidatorStrictKeys:
         )
         assert len(result.errors) == 2
 
-    def test_all_strict_keys_absent_produces_warnings_in_local(self) -> None:
+    def test_all_strict_keys_absent_produces_errors_even_with_local_profile(
+        self,
+    ) -> None:
         config: dict[str, bool] = {}
         result = ProductionConfigValidator().validate(config, security_profile="local")
-        assert len(result.warnings) == 2
-        assert result.errors == []
+        assert len(result.errors) == 2
+        assert result.warnings == []
 
 
 class TestProductionConfigValidatorSafetyTiers:
@@ -79,7 +84,7 @@ class TestProductionConfigValidatorSafetyTiers:
         )
         assert any("'file_read'" in err for err in result.errors)
 
-    def test_missing_safety_tier_produces_warning_in_local(self) -> None:
+    def test_missing_safety_tier_produces_error_even_with_local_profile(self) -> None:
         known_tools = {"shell_execute", "file_read"}
         config = {
             "tool_safety_tiers": {"shell_execute": "low"},
@@ -88,7 +93,8 @@ class TestProductionConfigValidatorSafetyTiers:
         result = ProductionConfigValidator().validate(
             config, security_profile="local", known_tools=known_tools
         )
-        assert any("'file_read'" in warn for warn in result.warnings)
+        assert any("'file_read'" in err for err in result.errors)
+        assert result.warnings == []
 
     def test_unknown_safety_tier_key_produces_error_in_production(self) -> None:
         known_tools = {"shell_execute", "file_read"}
@@ -101,7 +107,9 @@ class TestProductionConfigValidatorSafetyTiers:
         )
         assert any("unknown_tool" in err for err in result.errors)
 
-    def test_unknown_safety_tier_key_produces_warning_in_local(self) -> None:
+    def test_unknown_safety_tier_key_produces_error_even_with_local_profile(
+        self,
+    ) -> None:
         known_tools = {"shell_execute", "file_read"}
         config = {
             "tool_safety_tiers": {"unknown_tool": "high"},
@@ -110,7 +118,8 @@ class TestProductionConfigValidatorSafetyTiers:
         result = ProductionConfigValidator().validate(
             config, security_profile="local", known_tools=known_tools
         )
-        assert any("unknown_tool" in warn for warn in result.warnings)
+        assert any("unknown_tool" in err for err in result.errors)
+        assert result.warnings == []
 
     def test_both_missing_and_unknown_produce_errors_in_production(self) -> None:
         known_tools = {"shell_execute", "file_read", "github_search"}
@@ -184,10 +193,11 @@ class TestProductionConfigValidatorAllowedTools:
         )
         assert any("allowed_tools" in err and "[]" in err for err in result.errors)
 
-    def test_allowed_tools_empty_produces_warning_in_local(self) -> None:
+    def test_allowed_tools_empty_produces_error_even_with_local_profile(self) -> None:
         config: dict[str, object] = {"allowed_tools": []}
         result = ProductionConfigValidator().validate(config, security_profile="local")
-        assert any("allowed_tools" in warn and "[]" in warn for warn in result.warnings)
+        assert any("allowed_tools" in err and "[]" in err for err in result.errors)
+        assert result.warnings == []
 
     def test_allowed_tools_nonempty_no_issue(self) -> None:
         config = {"allowed_tools": ["shell_execute"]}
@@ -214,13 +224,7 @@ class TestProductionConfigValidatorSecurityProfileEnum:
             config, security_profile=SecurityProfile.PRODUCTION
         )
         assert any("tool_definitions_strict" in err for err in result.errors)
-
-    def test_local_enum_produces_warning(self) -> None:
-        config = {"tool_definitions_strict": False}
-        result = ProductionConfigValidator().validate(
-            config, security_profile=SecurityProfile.LOCAL
-        )
-        assert any("tool_definitions_strict" in warn for warn in result.warnings)
+        assert result.warnings == []
 
 
 class TestProductionConfigValidatorApprovalRiskFloor:
@@ -257,7 +261,7 @@ class TestProductionConfigValidatorApprovalRiskFloor:
             for err in result.errors
         )
 
-    def test_one_git_tool_medium_produces_warning_in_local(self) -> None:
+    def test_one_git_tool_medium_produces_error_even_with_local_profile(self) -> None:
         config = {
             "approval_risk_rules": {
                 "git_checkout": "medium",
@@ -269,9 +273,10 @@ class TestProductionConfigValidatorApprovalRiskFloor:
             config, security_profile="local", known_tools=self.GIT_TOOLS
         )
         assert any(
-            "Effective risk below HIGH" in warn and "git_checkout" in warn
-            for warn in result.warnings
+            "Effective risk below HIGH" in err and "git_checkout" in err
+            for err in result.errors
         )
+        assert result.warnings == []
 
     def test_one_git_tool_invalid_value_produces_error_in_production(self) -> None:
         """'low' is not a valid RiskLevel — classify_risk() would raise ValueError

@@ -234,18 +234,13 @@ class TestBuildMcpServers:
 
 
 class TestSecurityProfile:
-    def test_local_value(self) -> None:
-        assert SecurityProfile.LOCAL == "local"
-
     def test_production_value(self) -> None:
         assert SecurityProfile.PRODUCTION == "production"
 
-    def test_invalid_value_raises(self) -> None:
+    @pytest.mark.parametrize("value", ["invalid", "local"])
+    def test_invalid_value_raises(self, value: str) -> None:
         with pytest.raises(ValueError):
-            SecurityProfile("invalid")
-
-    def test_str_to_enum_local(self) -> None:
-        assert SecurityProfile("local") == SecurityProfile.LOCAL
+            SecurityProfile(value)
 
     def test_str_to_enum_production(self) -> None:
         assert SecurityProfile("production") == SecurityProfile.PRODUCTION

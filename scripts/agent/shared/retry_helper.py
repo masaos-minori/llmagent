@@ -10,10 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, TypeVar
-
-if TYPE_CHECKING:
-    from agent.cli_view import CLIView
+from typing import TypeVar
 
 T = TypeVar("T")
 
@@ -24,16 +21,11 @@ async def retry_once_with_delay[T](
     shutdown_event: asyncio.Event | None,
     interrupt_msg: str,
     *,
-    production_mode: bool,
     fatal_prefix: str,
-    non_fatal_prefix: str,
-    view: CLIView | None = None,
 ) -> T:
     """Execute *fn* once; if it raises, wait *delay* seconds and retry once.
 
-    On second failure:
-    - production_mode=True: raise RuntimeError with *fatal_prefix*.
-    - production_mode=False: log warning and display via *view* with *non_fatal_prefix*.
+    On second failure, raises RuntimeError with *fatal_prefix*.
 
     Always races against *shutdown_event*; raises StartupInterrupted if shutdown
     fires during the retry delay.
@@ -61,15 +53,10 @@ async def retry_once_with_delay[T](
     try:
         return await fn()
     except Exception as retry_err:
-        if production_mode:
-            msg = f"{fatal_prefix} {_mask_secrets(str(retry_err))}"
-            masked_msg = _mask_secrets(msg)
-            logger.error(masked_msg)
-            raise RuntimeError(masked_msg) from retry_err
-        logger.warning("%s %s", non_fatal_prefix, _mask_secrets(str(retry_err)))
-        if view is not None:
-            view.write_warning(f"{non_fatal_prefix} {_mask_secrets(str(retry_err))}")
-        raise  # Re-raise so caller can decide what to do
+        msg = f"{fatal_prefix} {_mask_secrets(str(retry_err))}"
+        masked_msg = _mask_secrets(msg)
+        logger.error(masked_msg)
+        raise RuntimeError(masked_msg) from retry_err
 
 
 async def _interruptible_sleep(

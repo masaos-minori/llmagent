@@ -123,10 +123,10 @@ raise/warn branch now always raises.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Coordinate with row 5's call-site edit |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by row 20 (`tests/agent/test_agent_negative_paths.py`)'s own edit |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation impact owned by `adrprodonly`, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | mypy caught a self-introduced regression: `is not None` guards on `shell_cfg`/`git_cfg`/`github_cfg`/`cicd_cfg` were initially removed too aggressively — these loaders legitimately return `None` for "not installed" (ImportError), distinct from the removed "malformed config → warn" RuntimeError path; guards restored. Renamed `_load_audit_config_or_warn` to `_load_audit_config_or_raise` (no longer warns). **Additional-target-file ripple found at row 1's mypy check**: `scripts/agent/repl_health.py` (a backward-compat re-export shim, not a row in this Plan's table) re-exports `_load_audit_config_or_warn` by name — updated its import/`__all__` entry to the new name, the minimal mechanical fix required to avoid leaving `mypy scripts/` broken |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Covered by row 20/21's own edits |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean; `tests/agent/test_agent_negative_paths.py` 14 passed, `tests/agent/test_repl_health.py` 57 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: confirmed via `docs/00_index.md`'s Document References by Task table during code-implementation Step 5 — the only `mcp_config.py`-matching row covers `TransportType`/`StartupMode`/`HealthcheckMode`, not `SecurityProfile`; no changed file in this cycle has a matching task-scope row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

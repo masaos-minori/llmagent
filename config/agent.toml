@@ -100,7 +100,6 @@ otel_service_name = "llm-agent"
 
 # ── Security ──────────────────────────────────────────────────────────────────
 
-security_profile = "local"
 masked_fields = ["file_content"]
 plan_blocked_tools = [
   "write_file",

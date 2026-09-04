@@ -4,12 +4,23 @@ add regression coverage confirming every violation is now an unconditional
 error, matching row 4's edit to `ProductionConfigValidator`.
 
 ## Scope
-- **In-Scope**: `TestProductionConfigValidatorSecurityProfile`'s (or
-  equivalent) `test_local_enum_produces_warning` and
-  `test_production_enum_produces_error` tests.
-- **Out-of-Scope**: `TestProductionConfigValidatorApprovalRiskFloor` and any
-  other test class in this file unrelated to `security_profile` (confirmed
-  by direct read to not reference `SecurityProfile.LOCAL`).
+- **In-Scope**: **Corrected 2026-09-04** (`code-implementation` Step 3
+  adversarial verification): this row's scope was under-identified at
+  plan-to-implementation-procedure time — the original scope named only
+  `TestProductionConfigValidatorSecurityProfileEnum`'s
+  `test_local_enum_produces_warning`/`test_production_enum_produces_error`,
+  but 6 additional tests across 4 other classes also asserted the
+  now-removed `security_profile="local"` → warning behavior:
+  `TestProductionConfigValidatorStrictKeys.test_strict_key_false_produces_warning_in_local`,
+  `.test_all_strict_keys_absent_produces_warnings_in_local`,
+  `TestProductionConfigValidatorSafetyTiers.test_missing_safety_tier_produces_warning_in_local`,
+  `.test_unknown_safety_tier_key_produces_warning_in_local`,
+  `TestProductionConfigValidatorAllowedTools.test_allowed_tools_empty_produces_warning_in_local`,
+  `TestProductionConfigValidatorApprovalRiskFloor.test_one_git_tool_medium_produces_warning_in_local`.
+  All 8 (2 original + 6 newly found) are in scope.
+- **Out-of-Scope**: every other test in this file (confirmed by direct read
+  to assert `security_profile="production"` outcomes or unrelated
+  behavior, unaffected by row 4's edit).
 
 ## Assumptions
 - Must execute together with, or after, row 4's edit to
@@ -21,10 +32,20 @@ error, matching row 4's edit to `ProductionConfigValidator`.
   repurposing it — once row 4 lands, `security_profile=SecurityProfile.LOCAL`
   is no longer a constructible value (row 1 removes the enum member), so
   this test cannot be adapted, only removed.
-- Rename/extend `test_production_enum_produces_error()` to confirm the
-  *unconditional* nature explicitly (e.g. assert `result.warnings` is empty
-  for the same violation), since the previous test's only counterpart
-  (asserting the Local path produces a warning) is gone.
+- Extend `test_production_enum_produces_error()` to confirm the
+  *unconditional* nature explicitly (assert `result.warnings == []` for the
+  same violation).
+- For the 6 newly-found `_in_local` tests (all pass the still-constructible
+  string `security_profile="local"`, not the removed enum member): rename
+  each to an `_error_even_with_local_profile` variant and flip its
+  assertion from `result.warnings` to `result.errors`, plus an added
+  `assert result.warnings == []` — these remain meaningful regression tests
+  proving the string `"local"` no longer downgrades severity, rather than
+  becoming redundant duplicates of their `_in_production` siblings, since
+  they specifically guard against reintroducing profile-conditional
+  behavior via the string path (which row 4 does not remove — only its
+  effect is removed, see row 4's own Assumptions on `security_profile`
+  remaining an inert parameter).
 
 ## Alternatives considered
 - Keeping `test_local_enum_produces_warning()` but changing its assertion to
@@ -100,9 +121,9 @@ classes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Coordinate with row 4's own edit |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row's target file is itself the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Adversarial verification found 6 additional `_in_local` tests beyond the 2 originally scoped — Scope/Design decisions corrected accordingly |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | This row's target file is itself the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff clean; 33 passed (up from 33 pre-existing minus 2 removed/renamed plus corrections). Full-suite diff deferred to end of batch |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: test-only file |
 
 ### Blocker Log

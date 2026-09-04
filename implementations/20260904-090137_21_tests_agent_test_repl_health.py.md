@@ -158,9 +158,9 @@ confirmed at execution time via a full file read.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Largest test file in this Plan by call-site count (~30); coordinate with rows 6, 11 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row's target file is itself the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Mechanically stripped `production_mode=` from ~36 call sites via scripted regex, then ran the file to find only 6 actual failures (fewer than the ~13 estimated `production_mode=False` sites — most were already `production_mode=True` and needed no behavior change); deleted 5 now-redundant `_local`/`_dev_mode`-flavored duplicate tests and renamed their `_production`/`_in_production_mode` siblings |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | This row's target file is itself the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff clean; 57 passed (62 - 5 removed duplicates). Full-suite diff deferred to end of batch |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: test-only file |
 
 ### Blocker Log

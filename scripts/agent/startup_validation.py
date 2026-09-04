@@ -34,15 +34,13 @@ class StartupValidationPipeline:
         from shared.logger import Logger
 
         logger = Logger(__name__, "/opt/llm/logs/agent.log")
-        from shared.mcp_config import SecurityProfile
 
         ctx = self._ctx
-        production_mode = ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION
         pipeline = StartupValidationResult()
 
         # 1. Security audit
         try:
-            warnings = audit_security_defaults(ctx, production_mode=production_mode)
+            warnings = audit_security_defaults(ctx)
             for msg in warnings:
                 pipeline.add_warning("security_audit", msg)
             pipeline.add_ok("security_audit")
@@ -55,7 +53,7 @@ class StartupValidationPipeline:
 
         # 2. Service readiness
         try:
-            result = await check_readiness(ctx, production_mode=production_mode)
+            result = await check_readiness(ctx)
             for msg in result.warning_messages():
                 pipeline.add_warning("readiness", msg)
             for msg in result.error_messages():
@@ -67,8 +65,8 @@ class StartupValidationPipeline:
 
         # 4. MCP tool discovery and validation (consolidated)
         # ADR-004 Decision #14: a FATAL discovery finding always routes through
-        # pipeline.add_fatal() unconditionally, regardless of production_mode —
-        # environment name must not weaken this safety/integrity Fail-Fast path.
+        # pipeline.add_fatal() unconditionally — this safety/integrity Fail-Fast
+        # path is not weakened by any environment/profile distinction.
         try:
             discovery = await McpToolDiscoveryService(ctx).discover_all()
             ctx.services_required.runtime_tools = discovery.registry

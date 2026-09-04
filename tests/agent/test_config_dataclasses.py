@@ -304,7 +304,7 @@ class TestMCPConfigValidation:
         from shared.mcp_config import SecurityProfile
 
         cfg = MCPConfig()
-        assert cfg.security_profile == SecurityProfile.LOCAL
+        assert cfg.security_profile == SecurityProfile.PRODUCTION
 
     def test_string_profile_coerced_to_enum(self) -> None:
         from shared.mcp_config import SecurityProfile

@@ -16,7 +16,6 @@ import httpx
 from shared.logger import Logger
 from shared.mcp_config import (
     McpServerConfig,
-    SecurityProfile,
     StartupMode,
     TransportType,
 )
@@ -99,12 +98,7 @@ class McpServerStarter:
                         delay=RETRY_DELAY_SEC,
                         shutdown_event=self._shutdown_event,
                         interrupt_msg=f"shutdown requested during startup retry delay for {key!r}",
-                        production_mode=(
-                            ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION
-                        ),
                         fatal_prefix=f"{OutputTag.FATAL} MCP subprocess {key!r} failed to start after retry:",
-                        non_fatal_prefix=f"MCP subprocess {key!r} failed to start after retry:",
-                        view=self._view,
                     )
                     if result is not None:
                         last_startup_time = result
@@ -146,12 +140,7 @@ class McpServerStarter:
                     delay=RETRY_DELAY_SEC,
                     shutdown_event=self._shutdown_event,
                     interrupt_msg=f"shutdown requested during post-startup health check retry delay for {server_key!r}",
-                    production_mode=(
-                        ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION
-                    ),
                     fatal_prefix=f"{OutputTag.FATAL} MCP subprocess {server_key!r} failed post-startup health check:",
-                    non_fatal_prefix=f"Post-startup health check failed for {server_key!r}: ",
-                    view=self._view,
                 )
                 # If we got here, retry succeeded — nothing more to do
 

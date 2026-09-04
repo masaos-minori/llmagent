@@ -87,7 +87,6 @@ FIELD_APPROVAL_GITHUB_ALLOWED_REPOS = "approval_github_allowed_repos"
 FIELD_GITOPS_PUSH_BLOCKED = "gitops_push_blocked"
 FIELD_MEMORY_RETENTION_DAYS = "memory_retention_days"
 FIELD_MEMORY_LOCAL_ONLY = "memory_local_only"
-FIELD_SECURITY_PROFILE = "security_profile"
 FIELD_SECURITY_LOCKDOWN_ENABLED = "security_lockdown_enabled"
 FIELD_USE_MEMORY_LAYER = "use_memory_layer"
 FIELD_ROUTING_DRIFT_STRICT = "routing_drift_strict"
@@ -182,7 +181,7 @@ class ConfigReloadService:
         self._reload_approval_config(ctx, new_cfg)
         self._reload_tool_allowlist(ctx, new_cfg)
         self._reload_memory_runtime(ctx, new_cfg)
-        self._reload_security_profile(ctx, new_cfg)
+        self._reload_security_lockdown(ctx, new_cfg)
         if "masked_fields" in new_cfg:
             ctx.cfg.tool.masked_fields = list(new_cfg["masked_fields"])
         result = self._classify_mcp_server_changes(ctx, new_cfg)
@@ -667,19 +666,12 @@ class ConfigReloadService:
         ]
         self._reload_section(ctx, new_cfg, "memory", field_mappings)
 
-    def _reload_security_profile(
+    def _reload_security_lockdown(
         self,
         ctx: AgentContext,
         new_cfg: dict[str, Any],
     ) -> None:
-        """Reload security profile fields from new_cfg if present."""
-        if (vs := _get_str(new_cfg, FIELD_SECURITY_PROFILE)) is not None:
-            try:
-                from shared.mcp_config import SecurityProfile
-
-                ctx.cfg.mcp.security_profile = SecurityProfile(vs)
-            except ValueError:
-                pass  # invalid enum value — leave current
+        """Reload the security-lockdown-enabled field from new_cfg if present."""
         if (vb := _get_bool(new_cfg, FIELD_SECURITY_LOCKDOWN_ENABLED)) is not None:
             ctx.cfg.mcp.security_lockdown_enabled = vb
 

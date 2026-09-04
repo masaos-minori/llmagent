@@ -115,10 +115,10 @@ callers (row 3).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by row 13 (`tests/shared/test_production_config_validator.py`)'s own edit |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation impact owned by `adrprodonly`, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Found 6 call sites, not 7 as originally estimated (lines 131,137,150,159,179,185); simplified `_format_error_or_warning` to `return [msg], []` |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Covered by row 13's own edit, executed in the same cycle |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff clean; 33 tests passed. Full-suite diff deferred to end of batch |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: confirmed via `docs/00_index.md`'s Document References by Task table during code-implementation Step 5 — the only `mcp_config.py`-matching row covers `TransportType`/`StartupMode`/`HealthcheckMode`, not `SecurityProfile`; no changed file in this cycle has a matching task-scope row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

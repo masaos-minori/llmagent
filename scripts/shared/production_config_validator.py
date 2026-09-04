@@ -122,19 +122,17 @@ class ProductionConfigValidator:
         errors: list[str] = []
         warnings: list[str] = []
 
-        is_production = security_profile == "production"
-
         # Strict keys: default false is an error
         for key in _REQUIRED_STRICT_KEYS:
             if not config.get(key, False):
                 msg = f"{key}=false — strict mode is required in production"
-                self._record(errors, warnings, msg, is_production)
+                self._record(errors, warnings, msg)
 
         # Not-false keys: explicit false is an error (absent is acceptable)
         for key in _REQUIRED_NOT_FALSE_KEYS:
             if config.get(key) is False:
                 msg = f"{key}=false — strict mode is required in production"
-                self._record(errors, warnings, msg, is_production)
+                self._record(errors, warnings, msg)
 
         # Bidirectional tool_safety_tiers validation
         raw_tiers = config.get("tool_safety_tiers")
@@ -147,21 +145,14 @@ class ProductionConfigValidator:
             )
             if missing_tiers:
                 tier_msg = "; ".join(missing_tiers)
-                self._record(
-                    errors, warnings, f"Missing safety tiers: {tier_msg}", is_production
-                )
+                self._record(errors, warnings, f"Missing safety tiers: {tier_msg}")
 
             unknown_tiers = _check_unknown_tool_safety_tiers(
                 tool_safety_tiers, known_tools=known_tools
             )
             if unknown_tiers:
                 tier_msg = "; ".join(unknown_tiers)
-                self._record(
-                    errors,
-                    warnings,
-                    f"Unknown safety tier keys: {tier_msg}",
-                    is_production,
-                )
+                self._record(errors, warnings, f"Unknown safety tier keys: {tier_msg}")
 
         # Approval risk floor check for git write tools. Runs even when
         # approval_risk_rules is absent so the tool_safety_tiers fallback
@@ -176,13 +167,13 @@ class ProductionConfigValidator:
         if low_risk_tools:
             tool_list = "; ".join(low_risk_tools)
             msg = f"Effective risk below HIGH for git tools: {tool_list}"
-            self._record(errors, warnings, msg, is_production)
+            self._record(errors, warnings, msg)
 
         # allowed_tools visibility
         allowed_tools = config.get("allowed_tools")
         if isinstance(allowed_tools, (list, tuple)) and len(allowed_tools) == 0:
             msg = "allowed_tools=[] (all tools allowed; use allowlist to restrict)"
-            self._record(errors, warnings, msg, is_production)
+            self._record(errors, warnings, msg)
 
         return ConfigValidationResult(errors=errors, warnings=warnings)
 
@@ -202,24 +193,15 @@ class ProductionConfigValidator:
         errors: list[str],
         warnings: list[str],
         msg: str,
-        is_production: bool,
     ) -> None:
-        """Format `msg` as an error or warning and append it to the matching list."""
-        e, w = cls._format_error_or_warning(msg, is_production)
+        """Format `msg` as an error and append it to the matching list."""
+        e, w = cls._format_error_or_warning(msg)
         errors.extend(e)
         warnings.extend(w)
 
     @staticmethod
-    def _format_error_or_warning(
-        msg: str, is_production: bool
-    ) -> tuple[list[str], list[str]]:
-        errors: list[str] = []
-        warnings: list[str] = []
-        if is_production:
-            errors.append(msg)
-        else:
-            warnings.append(f"[local/development] {msg}")
-        return errors, warnings
+    def _format_error_or_warning(msg: str) -> tuple[list[str], list[str]]:
+        return [msg], []
 
 
 __all__ = ["ConfigValidationResult", "ProductionConfigValidator"]

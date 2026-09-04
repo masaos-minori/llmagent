@@ -331,7 +331,7 @@ class TestDiscoveryToLlmVisibilityEndToEnd:
         http.get = AsyncMock(return_value=resp)
         ctx = MagicMock()
         ctx.cfg.mcp.mcp_servers = {"srv": _http()}
-        ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
+        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         ctx.services_required.http = http
 
         result = await McpToolDiscoveryService(ctx).discover_all()

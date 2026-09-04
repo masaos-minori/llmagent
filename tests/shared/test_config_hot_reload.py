@@ -18,13 +18,13 @@ class TestReloadScope:
         """load_all() loads agent.toml and makes all flat keys accessible."""
         _write_toml(
             tmp_path / "agent.toml",
-            'security_profile = "local"\ntool_cache_ttl = 300\n',
+            "tool_cache_ttl = 300\nsemantic_cache_threshold = 0.9\n",
         )
 
         cfg = ConfigLoader(config_dir=tmp_path).load_all()
 
-        assert cfg.get("security_profile") == "local"
         assert cfg.get("tool_cache_ttl") == 300
+        assert cfg.get("semantic_cache_threshold") == 0.9
 
     def test_reload_loads_mcp_servers_section(self, tmp_path: Path) -> None:
         """load_all() exposes [mcp_servers.*] entries from agent.toml."""

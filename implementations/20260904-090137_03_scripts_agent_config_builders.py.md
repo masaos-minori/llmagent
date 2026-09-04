@@ -88,10 +88,10 @@ dataclass-level default (row 2).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Must execute before row 1 (`scripts/shared/mcp_config.py`) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by row 21 (`tests/agent/test_repl_health.py`)'s own edit |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation impact owned by `adrprodonly`, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Verified exact match to cited line 447; no drift |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | No test change needed yet — `SecurityProfile.LOCAL` still exists at this point in the batch, so existing tests pass unmodified; test-file rows (13/20/21) still land later in this batch |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff clean; `tests/agent/test_repl_health.py` 62 passed. Full-suite diff deferred to end of batch (see row 22) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: confirmed via `docs/00_index.md`'s Document References by Task table during code-implementation Step 5 — the only `mcp_config.py`-matching row covers `TransportType`/`StartupMode`/`HealthcheckMode`, not `SecurityProfile`; no changed file in this cycle has a matching task-scope row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

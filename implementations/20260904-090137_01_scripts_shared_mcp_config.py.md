@@ -96,9 +96,9 @@ Any consumer file's own edit (rows 2-11); `FailurePolicy`; deciding whether
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Must execute last (Phase 3) — all consumer rows (2-11) must land first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by row 15 (`tests/shared/test_mcp_config.py`)'s own edit |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Executed last as designed, after all consumer rows landed. `mypy scripts/` surfaced one additional-target-file ripple: `scripts/agent/repl_health.py` (backward-compat re-export shim, not a row in this table) re-exported row 11's renamed `_load_audit_config_or_warn` by name — fixed as part of row 11's cycle (see that doc's Notes), not a `SecurityProfile.LOCAL` issue itself |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Covered by row 15's own edit |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff clean; `mypy scripts/` clean (399 files); `tests/shared/test_mcp_config.py` 32 passed. Repository-wide `rg -rn "SecurityProfile.LOCAL" scripts/ tests/` returns zero matches in `scripts/`; one known, out-of-scope match remains in `tests/integration/test_production_security_regression.py` — a forward-looking regression suite written ahead of this Plan (and `loopbackonly`/`mcpauth`) landing, using `xfail(strict=False)` markers that safely tolerate the resulting `AttributeError` without breaking the suite (confirmed: 6 passed, 1 skipped, 2 xfailed, 1 xpassed). That file's own docstring documents that its markers should be removed and re-verified once each named dependency Plan lands — flagged as a recommended follow-up, not fixed in this cycle (not a row in this Plan's frozen table) |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation impact owned by `adrprodonly` (`plans/20260903-093353_plan.md`), sequenced after this Plan lands |
 
 ### Blocker Log

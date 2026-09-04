@@ -62,7 +62,6 @@ class StartupMode(StrEnum):
 class SecurityProfile(StrEnum):
     """Deployment security profile for MCP auth enforcement."""
 
-    LOCAL = "local"
     PRODUCTION = "production"
 
 

@@ -11,7 +11,18 @@ only) and remove the file's dependency on constructing
   outcome differs by profile (lines 795-882, 1610-1770 — the
   `_is_fatal_severity()`-equivalent behavior tests), and every standalone
   `security_profile=SecurityProfile.LOCAL` construction (lines 1368, 1453,
-  1525, 1594).
+  1525, 1594). **Corrected 2026-09-04** (`code-implementation` Step 3): the
+  doc's cited "1610-1623" matrix turned out to be
+  `test_severity_unified_for_duplicates`'s table (always-FATAL regardless of
+  strict/profile, unrelated to `_is_fatal_severity()`'s formula — duplicates
+  have their own hardcoded-FATAL rule) — narrowed its profile axis only,
+  not collapsed by strict; the WARNING/FATAL collapse described in Design
+  decisions actually applies to `test_severity_unified_for_tool_definitions_has_issues`
+  (1672-1724) and the module-level `test_tool_definitions_check_surfaces_as_outcome_not_exception`
+  (1730-1771). Also found and fixed: `test_missing_schema_version_rejected`
+  and `test_unsupported_schema_version_rejected` fail, but confirmed via
+  `git stash` to fail identically against unmodified source — pre-existing,
+  unrelated to this Plan, left untouched.
 - **Out-of-Scope**: `test_classification_equivalent_across_security_profiles()`
   (~line 805) and its `_dup_ctx()` helper (~line 829) if their assertion is
   that behavior is *equivalent* across profiles (not `_is_fatal_severity()`-
@@ -157,9 +168,9 @@ read).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Coordinate with row 9's own edit; largest test file in this Plan (34 references) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row's target file is itself the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Also narrowed `TestDiscoverAllCrossProfileEquivalence`'s profile parametrize to `[PRODUCTION]` and deleted `test_duplicate_name_local_is_warning_and_still_excluded` (exact duplicate of its `_production_` sibling) |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | This row's target file is itself the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff clean; 70/72 passed — 2 pre-existing, unrelated failures left as-is (see row 9's Notes) |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: test-only file |
 
 ### Blocker Log

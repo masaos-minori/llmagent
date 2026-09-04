@@ -352,7 +352,7 @@ class TestAuditSecurityDefaults:
     def _make_ctx(
         self,
         servers: dict[str, dict] | None = None,
-        security_profile: str = "local",
+        security_profile: str = "production",
     ) -> MagicMock:
         """Build a minimal mocked AgentContext for testing."""
         from shared.mcp_config import McpServerConfig, SecurityProfile, TransportType
@@ -385,32 +385,8 @@ class TestAuditSecurityDefaults:
         ctx.cfg.approval.tool_safety_tiers = {}
         return ctx
 
-    def test_local_mode_no_auth_returns_warnings(self) -> None:
-        """Local mode with missing auth_token returns warnings, no exception."""
-        from shared.mcp_config import SecurityProfile
-
-        ctx = self._make_ctx(
-            servers={"web_search": {"auth_token": ""}},
-            security_profile="local",
-        )
-        ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
-        shell_cfg = ShellAuditConfig(
-            sandbox_backend="firejail", command_allowlist=["ls"]
-        )
-        with patch(
-            "agent.services.security_audit.load_shell_audit_config",
-            return_value=shell_cfg,
-        ):
-            with patch(
-                "agent.services.security_audit.load_git_audit_config", return_value=None
-            ):
-                with patch("shutil.which", return_value="/usr/bin/firejail"):
-                    warnings = audit_security_defaults(ctx, production_mode=False)
-        auth_warnings = [w for w in warnings if "web_search" in w]
-        assert len(auth_warnings) == 1
-
-    def test_production_mode_no_auth_raises(self) -> None:
-        """Production mode with missing auth_token raises RuntimeError."""
+    def test_no_auth_raises(self) -> None:
+        """Missing auth_token raises RuntimeError."""
         from shared.mcp_config import SecurityProfile
 
         ctx = self._make_ctx(
@@ -418,11 +394,11 @@ class TestAuditSecurityDefaults:
             security_profile="production",
         )
         ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
-        with pytest.raises(RuntimeError, match="Production mode requires auth_token"):
-            audit_security_defaults(ctx, production_mode=True)
+        with pytest.raises(RuntimeError, match="auth_token is required"):
+            audit_security_defaults(ctx)
 
-    def test_production_mode_all_authed_no_error(self) -> None:
-        """Production mode with all HTTP servers having auth_token → no error."""
+    def test_all_authed_no_error(self) -> None:
+        """All HTTP servers having auth_token → no error."""
         from shared.mcp_config import SecurityProfile
 
         ctx = self._make_ctx(
@@ -453,27 +429,12 @@ class TestAuditSecurityDefaults:
                         return_value=cicd_cfg,
                     ):
                         with patch("shutil.which", return_value="/usr/bin/firejail"):
-                            warnings = audit_security_defaults(
-                                ctx, production_mode=True
-                            )
+                            warnings = audit_security_defaults(ctx)
         auth_warnings = [w for w in warnings if "auth_token" in w]
         assert len(auth_warnings) == 0
 
-    def test_shell_config_load_failure_returns_warning_in_local_mode(self) -> None:
-        """load_shell_audit_config() raising RuntimeError in local mode → warning returned, no raise."""
-        ctx = self._make_ctx()
-        with patch(
-            "agent.services.security_audit.load_shell_audit_config",
-            side_effect=RuntimeError(
-                "Security audit: failed to load shell config: no file"
-            ),
-        ):
-            warnings = audit_security_defaults(ctx, production_mode=False)
-        shell_warnings = [w for w in warnings if "shell config" in w.lower()]
-        assert len(shell_warnings) == 1
-
-    def test_shell_config_load_failure_raises_in_production_mode(self) -> None:
-        """load_shell_audit_config() raising RuntimeError in production mode must re-raise."""
+    def test_shell_config_load_failure_raises(self) -> None:
+        """load_shell_audit_config() raising RuntimeError must re-raise."""
         ctx = self._make_ctx()
         with (
             patch(
@@ -484,14 +445,10 @@ class TestAuditSecurityDefaults:
             ),
             pytest.raises(RuntimeError, match="shell config"),
         ):
-            audit_security_defaults(ctx, production_mode=True)
+            audit_security_defaults(ctx)
 
-    def test_github_config_load_failure_raises_in_production_mode(self) -> None:
-        """load_github_audit_config() raising RuntimeError in production mode must re-raise.
-
-        Covers the pre-initialized-to-None variant of the load-or-warn pattern
-        (github_cfg = None set before the try, unlike shell_cfg/git_cfg/cicd_cfg).
-        """
+    def test_github_config_load_failure_raises(self) -> None:
+        """load_github_audit_config() raising RuntimeError must re-raise."""
         ctx = self._make_ctx()
         with (
             patch(
@@ -506,7 +463,7 @@ class TestAuditSecurityDefaults:
             ),
             pytest.raises(RuntimeError, match="github config"),
         ):
-            audit_security_defaults(ctx, production_mode=True)
+            audit_security_defaults(ctx)
 
     def test_git_config_empty_allowed_repo_paths_warns(self) -> None:
         """git.allowed_repo_paths empty triggers a fail-closed warning."""
@@ -519,7 +476,7 @@ class TestAuditSecurityDefaults:
                 "agent.services.security_audit.load_git_audit_config",
                 return_value=empty_git,
             ):
-                warnings = audit_security_defaults(ctx, production_mode=False)
+                warnings = audit_security_defaults(ctx)
         assert any("git.allowed_repo_paths" in w for w in warnings)
 
     def test_shell_sandbox_none_warns(self) -> None:
@@ -536,7 +493,7 @@ class TestAuditSecurityDefaults:
                 with pytest.raises(
                     RuntimeError, match="shell_sandbox_backend=none is not permitted"
                 ):
-                    audit_security_defaults(ctx, production_mode=False)
+                    audit_security_defaults(ctx)
 
     def test_shell_sandbox_none_raises_in_production(self) -> None:
         """shell_sandbox_backend=none raises RuntimeError regardless of environment."""
@@ -552,7 +509,7 @@ class TestAuditSecurityDefaults:
                 with pytest.raises(
                     RuntimeError, match="shell_sandbox_backend=none is not permitted"
                 ):
-                    audit_security_defaults(ctx, production_mode=True)
+                    audit_security_defaults(ctx)
 
     def test_shell_sandbox_non_firejail_warns(self) -> None:
         """shell_sandbox_backend not 'firejail' and not 'none' → warning about firejail."""
@@ -565,7 +522,7 @@ class TestAuditSecurityDefaults:
             with patch(
                 "agent.services.security_audit.load_git_audit_config", return_value=None
             ):
-                warnings = audit_security_defaults(ctx, production_mode=False)
+                warnings = audit_security_defaults(ctx)
         assert any("firejail" in w for w in warnings)
 
     def test_firejail_binary_missing_raises(self) -> None:
@@ -583,7 +540,7 @@ class TestAuditSecurityDefaults:
             ):
                 with patch("shutil.which", return_value=None):
                     with pytest.raises(RuntimeError, match="firejail binary not found"):
-                        audit_security_defaults(ctx, production_mode=False)
+                        audit_security_defaults(ctx)
 
     def test_firejail_binary_present_no_error(self) -> None:
         """shell_sandbox_backend=firejail and firejail found → no sandbox error."""
@@ -599,7 +556,7 @@ class TestAuditSecurityDefaults:
                 "agent.services.security_audit.load_git_audit_config", return_value=None
             ):
                 with patch("shutil.which", return_value="/usr/bin/firejail"):
-                    warnings = audit_security_defaults(ctx, production_mode=False)
+                    warnings = audit_security_defaults(ctx)
         assert not any("firejail binary not found" in w for w in warnings)
 
     def test_security_posture_summary_included(self) -> None:
@@ -613,7 +570,7 @@ class TestAuditSecurityDefaults:
                 "agent.services.security_audit.load_git_audit_config",
                 return_value=empty_git,
             ):
-                warnings = audit_security_defaults(ctx, production_mode=False)
+                warnings = audit_security_defaults(ctx)
         summary_lines = [w for w in warnings if "Security posture summary" in w]
         assert len(summary_lines) == 1
         assert "fail-closed" in summary_lines[0]
@@ -639,7 +596,7 @@ class TestAuditSecurityDefaults:
                 return_value=empty_cicd,
             ),
         ):
-            warnings_dev = audit_security_defaults(ctx, production_mode=False)
+            warnings_dev = audit_security_defaults(ctx)
         assert any("cicd.workflow_allowlist" in w for w in warnings_dev)
         assert any("DENY-ALL" in w for w in warnings_dev)
 
@@ -668,7 +625,7 @@ class TestAuditSecurityDefaults:
                 return_value=None,
             ),
         ):
-            warnings = audit_security_defaults(ctx, production_mode=False)
+            warnings = audit_security_defaults(ctx)
         assert any("allow_force_push=true" in w for w in warnings)
 
     def test_github_require_pr_review_false_warns(self) -> None:
@@ -696,7 +653,7 @@ class TestAuditSecurityDefaults:
                 return_value=None,
             ),
         ):
-            warnings = audit_security_defaults(ctx, production_mode=False)
+            warnings = audit_security_defaults(ctx)
         assert any("require_pr_review=false" in w for w in warnings)
 
     def test_github_fail_closed_no_error_in_production(self) -> None:
@@ -725,7 +682,7 @@ class TestAuditSecurityDefaults:
                 return_value=None,
             ),
         ):
-            audit_security_defaults(ctx, production_mode=True)  # must not raise
+            audit_security_defaults(ctx)  # must not raise
 
     def test_production_config_tool_definitions_strict_false_raises(self) -> None:
         ctx = self._make_ctx(
@@ -751,7 +708,7 @@ class TestAuditSecurityDefaults:
             ),
         ):
             with pytest.raises(RuntimeError, match="tool_definitions_strict"):
-                audit_security_defaults(ctx, production_mode=True)
+                audit_security_defaults(ctx)
 
     def test_production_config_routing_drift_strict_false_raises(self) -> None:
         ctx = self._make_ctx(
@@ -777,31 +734,7 @@ class TestAuditSecurityDefaults:
             ),
         ):
             with pytest.raises(RuntimeError, match="routing_drift_strict"):
-                audit_security_defaults(ctx, production_mode=True)
-
-    def test_production_config_false_warns_in_local(self) -> None:
-        ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
-        ctx.cfg.tool.tool_definitions_strict = False
-        ctx.cfg.tool.routing_drift_strict = False
-        with (
-            patch(
-                "agent.services.security_audit.load_shell_audit_config",
-                return_value=None,
-            ),
-            patch(
-                "agent.services.security_audit.load_git_audit_config", return_value=None
-            ),
-            patch(
-                "agent.services.security_audit.load_github_audit_config",
-                return_value=None,
-            ),
-            patch(
-                "agent.services.security_audit.load_cicd_audit_config",
-                return_value=None,
-            ),
-        ):
-            warnings = audit_security_defaults(ctx, production_mode=False)
-        assert any("tool_definitions_strict" in w for w in warnings)
+                audit_security_defaults(ctx)
 
     def test_production_config_all_true_no_error(self) -> None:
         ctx = self._make_ctx(
@@ -826,32 +759,9 @@ class TestAuditSecurityDefaults:
                 return_value=None,
             ),
         ):
-            audit_security_defaults(ctx, production_mode=True)  # must not raise
+            audit_security_defaults(ctx)  # must not raise
 
-    def test_unknown_tool_safety_tiers_local_warns(self) -> None:
-        ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
-        ctx.cfg.approval.tool_safety_tiers = {"nonexistent_tool": "READ_ONLY"}
-        with (
-            patch(
-                "agent.services.security_audit.load_shell_audit_config",
-                return_value=None,
-            ),
-            patch(
-                "agent.services.security_audit.load_git_audit_config", return_value=None
-            ),
-            patch(
-                "agent.services.security_audit.load_github_audit_config",
-                return_value=None,
-            ),
-            patch(
-                "agent.services.security_audit.load_cicd_audit_config",
-                return_value=None,
-            ),
-        ):
-            warnings = audit_security_defaults(ctx, production_mode=False)
-        assert any("nonexistent_tool" in w for w in warnings)
-
-    def test_unknown_tool_safety_tiers_production_raises(self) -> None:
+    def test_unknown_tool_safety_tiers_raises(self) -> None:
         ctx = self._make_ctx(
             servers={"svc": {"auth_token": "tok"}}, security_profile="production"
         )
@@ -874,7 +784,7 @@ class TestAuditSecurityDefaults:
             ),
         ):
             with pytest.raises(RuntimeError):
-                audit_security_defaults(ctx, production_mode=True)
+                audit_security_defaults(ctx)
 
     def test_unknown_tool_safety_tiers_known_keys_no_error(self) -> None:
         ctx = self._make_ctx(
@@ -897,7 +807,7 @@ class TestAuditSecurityDefaults:
                 return_value=None,
             ),
         ):
-            audit_security_defaults(ctx, production_mode=True)  # must not raise
+            audit_security_defaults(ctx)  # must not raise
 
 
 # ── check_readiness() — production vs development mode ───────────────────────
@@ -920,7 +830,7 @@ class TestCheckReadiness:
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = _async_result(resp)
         ctx = self._make_ctx(http)
-        result = await check_readiness(ctx, production_mode=True)
+        result = await check_readiness(ctx)
         assert not result.has_issues
 
     @pytest.mark.asyncio
@@ -929,7 +839,7 @@ class TestCheckReadiness:
         http.get = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
         ctx = self._make_ctx(http)
         with pytest.raises(RuntimeError, match="Startup readiness check failed"):
-            await check_readiness(ctx, production_mode=True)
+            await check_readiness(ctx)
 
     @pytest.mark.asyncio
     async def test_production_non_200_raises(self) -> None:
@@ -939,16 +849,7 @@ class TestCheckReadiness:
         http.get = _async_result(resp)
         ctx = self._make_ctx(http)
         with pytest.raises(RuntimeError, match="Startup readiness check failed"):
-            await check_readiness(ctx, production_mode=True)
-
-    @pytest.mark.asyncio
-    async def test_dev_mode_service_down_warns_only(self) -> None:
-        http = AsyncMock(spec=httpx.AsyncClient)
-        http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
-        ctx = self._make_ctx(http)
-        result = await check_readiness(ctx, production_mode=False)
-        assert result.has_issues
-        assert len(result.warning_messages()) > 0
+            await check_readiness(ctx)
 
     @pytest.mark.asyncio
     async def test_dev_mode_healthy_no_issues(self) -> None:
@@ -957,7 +858,7 @@ class TestCheckReadiness:
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = _async_result(resp)
         ctx = self._make_ctx(http)
-        result = await check_readiness(ctx, production_mode=False)
+        result = await check_readiness(ctx)
         assert not result.has_issues
 
     @pytest.mark.asyncio
@@ -966,7 +867,7 @@ class TestCheckReadiness:
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
         ctx = self._make_ctx(http)
         with pytest.raises(RuntimeError) as exc_info:
-            await check_readiness(ctx, production_mode=True)
+            await check_readiness(ctx)
         assert "llm" in str(exc_info.value)
 
 

@@ -70,9 +70,9 @@ All other tests/fixtures in this file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | |
 | 2 | Add or update tests per Validation plan | N/A | — | — | This row's target file is itself the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff clean; 14/15 passed — 1 pre-existing, unrelated failure (`ToolExecutor.__init__() got an unexpected keyword argument 'cache_ttl'`) confirmed via `git stash` to fail identically on unmodified source, left as-is |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: test-only file |
 
 ### Blocker Log

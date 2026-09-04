@@ -6,11 +6,24 @@ its implicit dependency on `production_mode` being computed from
 ## Scope
 - **In-Scope**: `ctx.cfg.mcp.security_profile = "local"` (verified
   2026-09-04, line 70) and `ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION`
-  (line 160), plus any test asserting divergent FATAL/WARNING behavior
-  between these two fixture setups.
-- **Out-of-Scope**: any test in this file whose assertions are unrelated to
-  severity gating (confirm at execution time by reading the full file, not
-  yet inspected beyond the 3 grep matches).
+  (line 160). **Corrected 2026-09-04** (`code-implementation` Step 3
+  adversarial verification, full file read): the actual blocking issue was
+  `MODULE = "agent.startup"` (line 20) — stale from before the unrelated
+  upstream refactor moved `audit_security_defaults`/`check_readiness`/
+  `McpToolDiscoveryService`/`check_routing_drift`/`check_routing_safety_tiers`/
+  `RagMaintenanceService` out of `agent.startup` and into
+  `agent.startup_validation`. `test_skipped_live_routing_no_raise` and
+  `test_validation_pipeline_reports_fatal_when_config_missing` both patch
+  `f"{MODULE}.<symbol>"` and raised `AttributeError: <module 'agent.startup'>
+  does not have the attribute 'audit_security_defaults'` at collection/
+  patch time — unrelated to `security_profile` at all. Both tests also
+  constructed a bare `StartupOrchestrator.__new__(...)` without setting
+  `_validation_pipeline`/`_reporter`, pre-dating the `StartupValidationPipeline`
+  extraction.
+- **Out-of-Scope**: `test_validation_result_*` (lines 26-61, pure
+  `StartupValidationResult` unit tests, no `agent.startup`/module-path
+  dependency); `test_build_agent_config_requires_agent_toml()`,
+  `test_check_routing_safety_tiers_context()` (unrelated to this row).
 
 ## Assumptions
 - Must execute after rows 5, 6, and 11 land — this file tests
@@ -103,9 +116,9 @@ execution time.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Coordinate with rows 5, 6, 11's own edits; full file read still needed at execution time |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row's target file is itself the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Root cause was `MODULE = "agent.startup"` (stale pre-refactor path), not `security_profile` alone — corrected to `"agent.startup_validation"`; wired a real `StartupValidationPipeline` into the two integration tests that previously used a bare `__new__()` orchestrator |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | This row's target file is itself the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff clean; 12 passed. Full-suite diff deferred to end of batch |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: test-only file |
 
 ### Blocker Log

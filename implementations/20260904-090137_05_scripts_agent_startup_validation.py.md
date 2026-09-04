@@ -113,10 +113,10 @@ body (row 6); the rest of the validation pipeline's stages.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Coordinate with rows 6 and 11's own signature changes |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by row 19's own edit |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation impact owned by `adrprodonly`, sequenced after this Plan lands |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Also updated a stale ADR-004 comment referencing `production_mode` (line 68) |
+| 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Covered by row 19's own edit, executed in the same cycle |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean; implemented together with rows 6,7,8,11 (coupled cluster) — `tests/agent/shared/test_startup_validation_pipeline.py` 12 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: confirmed via `docs/00_index.md`'s Document References by Task table during code-implementation Step 5 — the only `mcp_config.py`-matching row covers `TransportType`/`StartupMode`/`HealthcheckMode`, not `SecurityProfile`; no changed file in this cycle has a matching task-scope row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

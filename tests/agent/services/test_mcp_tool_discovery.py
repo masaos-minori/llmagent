@@ -70,7 +70,7 @@ def _server(url: str = "http://127.0.0.1:9000") -> McpServerConfig:
 def _make_ctx(
     servers: dict[str, object],
     http: AsyncMock,
-    security_profile: SecurityProfile = SecurityProfile.LOCAL,
+    security_profile: SecurityProfile = SecurityProfile.PRODUCTION,
     tool_definitions_strict: bool = False,
 ) -> MagicMock:
     """Build a minimal mocked AgentContext (mirrors tests/test_repl_health.py's style)."""
@@ -793,7 +793,7 @@ class TestDiscoverAllCrossProfileEquivalence:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "security_profile",
-        [SecurityProfile.LOCAL, SecurityProfile.PRODUCTION],
+        [SecurityProfile.PRODUCTION],
     )
     @pytest.mark.parametrize(
         "required_value,expected_status",
@@ -863,17 +863,6 @@ class TestDiscoverAllDuplicates:
     @pytest.mark.asyncio
     async def test_duplicate_name_production_is_fatal_and_excluded(self) -> None:
         ctx = self._dup_ctx(SecurityProfile.PRODUCTION)
-
-        result = await McpToolDiscoveryService(ctx).discover_all()
-
-        assert result.registry.all_tools() == []
-        dup_findings = [f for f in result.findings if "duplicate" in f.message]
-        assert len(dup_findings) == 1
-        assert dup_findings[0].status == StartupCheckStatus.FATAL
-
-    @pytest.mark.asyncio
-    async def test_duplicate_name_local_is_warning_and_still_excluded(self) -> None:
-        ctx = self._dup_ctx(SecurityProfile.LOCAL)
 
         result = await McpToolDiscoveryService(ctx).discover_all()
 
@@ -1365,7 +1354,6 @@ class TestDriftDetection:
                 "srv2": _server("http://srv2:9000"),
             },
             http,
-            security_profile=SecurityProfile.LOCAL,
         )
         ctx.cfg.tool.tool_definitions_strict = False
 
@@ -1450,7 +1438,6 @@ class TestDriftDetection:
                 "srv2": _server("http://srv2:9000"),
             },
             http,
-            security_profile=SecurityProfile.LOCAL,
         )
         ctx.cfg.tool.tool_definitions_strict = True
 
@@ -1522,7 +1509,6 @@ class TestDriftDetection:
                     "srv2": _server("http://srv2:9000"),
                 },
                 http,
-                security_profile=SecurityProfile.LOCAL,
             )
             ctx.cfg.tool.tool_definitions_strict = False
 
@@ -1591,7 +1577,6 @@ class TestDriftDetection:
                     "srv2": _server("http://srv2:9000"),
                 },
                 http,
-                security_profile=SecurityProfile.LOCAL,
             )
             ctx.cfg.tool.tool_definitions_strict = False
 
@@ -1614,21 +1599,11 @@ class TestDriftDetection:
 
 
 class TestUnifiedSeverity:
-    @pytest.mark.parametrize(
-        "strict, profile, expected_status",
-        [
-            (False, SecurityProfile.LOCAL, StartupCheckStatus.FATAL),
-            (False, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),
-            (True, SecurityProfile.LOCAL, StartupCheckStatus.FATAL),
-            (True, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),
-        ],
-    )
+    @pytest.mark.parametrize("strict", [False, True])
     @pytest.mark.asyncio
     async def test_severity_unified_for_duplicates(
         self,
         strict: bool,
-        profile: SecurityProfile,
-        expected_status: StartupCheckStatus,
     ) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
 
@@ -1658,7 +1633,6 @@ class TestUnifiedSeverity:
                 "srv2": _server("http://srv2:9000"),
             },
             http,
-            security_profile=profile,
         )
         ctx.cfg.tool.tool_definitions_strict = strict
 
@@ -1667,15 +1641,13 @@ class TestUnifiedSeverity:
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         dup_findings = [f for f in mcp_findings if "duplicate" in f.message.lower()]
         assert len(dup_findings) == 1
-        assert dup_findings[0].status == expected_status
+        assert dup_findings[0].status == StartupCheckStatus.FATAL
 
     @pytest.mark.parametrize(
-        "strict, profile, expected_status",
+        "strict, expected_status",
         [
-            (False, SecurityProfile.LOCAL, StartupCheckStatus.WARNING),
-            (False, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),
-            (True, SecurityProfile.LOCAL, StartupCheckStatus.FATAL),
-            (True, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),
+            (False, StartupCheckStatus.WARNING),
+            (True, StartupCheckStatus.FATAL),
         ],
     )
     @pytest.mark.asyncio
@@ -1683,11 +1655,10 @@ class TestUnifiedSeverity:
         self,
         monkeypatch: pytest.MonkeyPatch,
         strict: bool,
-        profile: SecurityProfile,
         expected_status: StartupCheckStatus,
     ) -> None:
         """tool_definitions findings follow the unified severity scheme:
-        FATAL iff strict or security_profile==PRODUCTION, else WARNING."""
+        FATAL iff strict, else WARNING."""
         monkeypatch.setattr(
             "agent.services.mcp_tool_discovery._check_tool_definitions",
             AsyncMock(
@@ -1713,7 +1684,7 @@ class TestUnifiedSeverity:
             )
 
         http.get = AsyncMock(side_effect=_get)
-        ctx = _make_ctx({"srv": _server()}, http, security_profile=profile)
+        ctx = _make_ctx({"srv": _server()}, http)
         ctx.cfg.tool.tool_definitions_strict = strict
 
         result = await McpToolDiscoveryService(ctx).discover_all()
@@ -1728,19 +1699,16 @@ class TestUnifiedSeverity:
 
 
 @pytest.mark.parametrize(
-    "strict, profile, expected_status",
+    "strict, expected_status",
     [
-        (False, SecurityProfile.LOCAL, StartupCheckStatus.WARNING),
-        (False, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),
-        (True, SecurityProfile.LOCAL, StartupCheckStatus.FATAL),
-        (True, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),
+        (False, StartupCheckStatus.WARNING),
+        (True, StartupCheckStatus.FATAL),
     ],
 )
 @pytest.mark.asyncio
 async def test_tool_definitions_check_surfaces_as_outcome_not_exception(
     monkeypatch: pytest.MonkeyPatch,
     strict: bool,
-    profile: SecurityProfile,
     expected_status: StartupCheckStatus,
 ) -> None:
     monkeypatch.setattr(
@@ -1760,7 +1728,7 @@ async def test_tool_definitions_check_surfaces_as_outcome_not_exception(
         )
 
     http.get = AsyncMock(side_effect=_get)
-    ctx = _make_ctx({"srv": _server()}, http, security_profile=profile)
+    ctx = _make_ctx({"srv": _server()}, http)
     ctx.cfg.tool.tool_definitions_strict = strict
 
     result = await McpToolDiscoveryService(ctx).discover_all()

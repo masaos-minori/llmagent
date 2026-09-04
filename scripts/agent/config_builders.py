@@ -444,7 +444,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
     """
     cfg = cfg_override if cfg_override is not None else load_config()
     system_prompt_tool = cfg.get("system_prompt_tool", "")
-    security_profile_val = SecurityProfile(cfg.get("security_profile", "local"))
+    security_profile_val = SecurityProfile(cfg.get("security_profile", "production"))
     # Production config validation (before REPL becomes available)
     results = ProductionConfigValidator().validate(
         cfg,
