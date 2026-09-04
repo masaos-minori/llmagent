@@ -899,7 +899,6 @@ def _make_startup_ctx(
     """Return a ctx MagicMock configured for _check_services() tests."""
     ctx = MagicMock()
     ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
-    ctx.cfg.mcp.mcp_servers = {}
     ctx.cfg.memory.memory_embed_dim = memory_embed_dim
     ctx.cfg.tool.tool_definitions_strict = tool_definitions_strict
     return ctx

@@ -87,6 +87,7 @@ FIELD_APPROVAL_GITHUB_ALLOWED_REPOS = "approval_github_allowed_repos"
 FIELD_GITOPS_PUSH_BLOCKED = "gitops_push_blocked"
 FIELD_MEMORY_RETENTION_DAYS = "memory_retention_days"
 FIELD_MEMORY_LOCAL_ONLY = "memory_local_only"
+FIELD_SECURITY_PROFILE = "security_profile"
 FIELD_SECURITY_LOCKDOWN_ENABLED = "security_lockdown_enabled"
 FIELD_USE_MEMORY_LAYER = "use_memory_layer"
 FIELD_ROUTING_DRIFT_STRICT = "routing_drift_strict"
@@ -181,7 +182,7 @@ class ConfigReloadService:
         self._reload_approval_config(ctx, new_cfg)
         self._reload_tool_allowlist(ctx, new_cfg)
         self._reload_memory_runtime(ctx, new_cfg)
-        self._reload_security_lockdown(ctx, new_cfg)
+        self._reload_security_profile(ctx, new_cfg)
         if "masked_fields" in new_cfg:
             ctx.cfg.tool.masked_fields = list(new_cfg["masked_fields"])
         result = self._classify_mcp_server_changes(ctx, new_cfg)
@@ -205,8 +206,8 @@ class ConfigReloadService:
         result.always_live = self._detect_diagnostics_live_fields(new_cfg)
         return result
 
-    @staticmethod
     def _collect_field_changes(
+        self,
         new_cfg: dict[str, Any],
         llm_changes: dict[str, Any],
         rag_changes: dict[str, Any],
@@ -394,6 +395,8 @@ class ConfigReloadService:
             # Re-validate after replacement
             from agent.services.config_validators import (
                 validate_llm_context_char_limit,
+                validate_llm_context_token_limit,
+                validate_llm_http_timeout,
                 validate_llm_max_retries,
                 validate_llm_max_tokens,
                 validate_llm_retry_base_delay,
@@ -403,14 +406,19 @@ class ConfigReloadService:
                 validate_llm_temperature,
             )
 
-            validate_llm_temperature(new_llm)
-            validate_llm_max_tokens(new_llm)
-            validate_llm_context_char_limit(new_llm)
-            validate_llm_max_retries(new_llm)
-            validate_llm_retry_base_delay(new_llm)
-            validate_llm_sse_heartbeat_timeout(new_llm)
-            validate_llm_sse_malformed_retry(new_llm)
-            validate_llm_sse_reconnect_max(new_llm)
+            try:
+                validate_llm_temperature(new_llm)
+                validate_llm_max_tokens(new_llm)
+                validate_llm_context_char_limit(new_llm)
+                validate_llm_http_timeout(new_llm)
+                validate_llm_context_token_limit(new_llm)
+                validate_llm_max_retries(new_llm)
+                validate_llm_retry_base_delay(new_llm)
+                validate_llm_sse_heartbeat_timeout(new_llm)
+                validate_llm_sse_malformed_retry(new_llm)
+                validate_llm_sse_reconnect_max(new_llm)
+            except ValueError as e:
+                raise ConfigReloadValidationError(str(e)) from e
             cfg.llm = new_llm
 
         if rag_changes:
@@ -429,9 +437,12 @@ class ConfigReloadService:
                     validate_rag_refiner_timeout,
                 )
 
-                validate_rag_refiner_max_tokens(new_rag)
-                validate_rag_refiner_timeout(new_rag)
-                validate_rag_refiner_max_chars_per_chunk(new_rag)
+                try:
+                    validate_rag_refiner_max_tokens(new_rag)
+                    validate_rag_refiner_timeout(new_rag)
+                    validate_rag_refiner_max_chars_per_chunk(new_rag)
+                except ValueError as e:
+                    raise ConfigReloadValidationError(str(e)) from e
                 cfg.rag = new_rag
 
         if tool_changes:
@@ -445,13 +456,20 @@ class ConfigReloadService:
                 validate_tool_dedup_max_repeats,
                 validate_tool_error_max_consecutive,
                 validate_tool_error_retry_max,
+                validate_tool_max_tool_turns,
+                validate_tool_result_max_llm_chars,
             )
 
-            validate_tool_dedup_max_repeats(new_tool)
-            validate_tool_cycle_detect_window(new_tool)
-            validate_tool_error_max_consecutive(new_tool)
-            validate_tool_error_retry_max(new_tool)
-            validate_progress_stagnation_window(new_tool)
+            try:
+                validate_tool_dedup_max_repeats(new_tool)
+                validate_tool_cycle_detect_window(new_tool)
+                validate_tool_error_max_consecutive(new_tool)
+                validate_tool_error_retry_max(new_tool)
+                validate_progress_stagnation_window(new_tool)
+                validate_tool_max_tool_turns(new_tool)
+                validate_tool_result_max_llm_chars(new_tool)
+            except ValueError as e:
+                raise ConfigReloadValidationError(str(e)) from e
             cfg.tool = new_tool
 
         return result
@@ -464,6 +482,8 @@ class ConfigReloadService:
             changes["context_char_limit"] = v
         if (v := _get_int(new_cfg, "context_compress_turns")) is not None:
             changes["context_compress_turns"] = v
+        if (v := _get_int(new_cfg, FIELD_CONTEXT_TOKEN_LIMIT)) is not None:
+            changes[FIELD_CONTEXT_TOKEN_LIMIT] = v
 
     def _apply_tool_params(
         self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
@@ -670,12 +690,19 @@ class ConfigReloadService:
         ]
         self._reload_section(ctx, new_cfg, "memory", field_mappings)
 
-    def _reload_security_lockdown(
+    def _reload_security_profile(
         self,
         ctx: AgentContext,
         new_cfg: dict[str, Any],
     ) -> None:
-        """Reload the security-lockdown-enabled field from new_cfg if present."""
+        """Reload the security-profile and security-lockdown fields from new_cfg."""
+        if (vs := _get_str(new_cfg, FIELD_SECURITY_PROFILE)) is not None:
+            try:
+                from shared.mcp_config import SecurityProfile
+
+                ctx.cfg.mcp.security_profile = SecurityProfile(vs)
+            except ValueError:
+                pass
         if (vb := _get_bool(new_cfg, FIELD_SECURITY_LOCKDOWN_ENABLED)) is not None:
             ctx.cfg.mcp.security_lockdown_enabled = vb
 

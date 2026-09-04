@@ -4,6 +4,7 @@ Error-path tests for ConfigReloadService.apply_config().
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -19,6 +20,13 @@ from shared.mcp_config import StartupMode
 
 @pytest.fixture()
 def svc() -> object:
+    """Fixture providing ConfigReloadService after _sync_services() refactor.
+
+    Post-refactor, _sync_services() takes explicit parameters:
+    (new_cfg, llm_service, hist_mgr_service, runtime_tools_service).
+    This fixture does not exercise that path directly; it provides the service
+    instance for apply_config() error-path tests.
+    """
     from agent.services.config_reload import ConfigReloadService
 
     llm_cfg = LLMConfig(
@@ -194,17 +202,17 @@ class TestApplyConfig:
     ) -> None:
         svc, ctx = svc_with_ctx
         ctx.cfg.llm.llm_temperature = 0.2
-        ctx.cfg.tool.tool_cache_ttl = 60.0
+        ctx.cfg.tool.serial_tool_calls = False
         ctx.cfg.rag.use_semantic_cache = False
         svc.apply_config_dict(
             {
                 "llm_temperature": 0.5,
-                "tool_cache_ttl": 120.0,
+                "serial_tool_calls": True,
                 "use_semantic_cache": True,
             }
         )
         assert ctx.cfg.llm.llm_temperature == 0.5
-        assert ctx.cfg.tool.tool_cache_ttl == 120.0
+        assert ctx.cfg.tool.serial_tool_calls is True
         assert ctx.cfg.rag.use_semantic_cache is True
 
 
@@ -455,7 +463,7 @@ class TestRuntimeToolPolicyReapplication:
 
     def test_apply_policy_called_with_current_tier_map_and_allowed_tools(self) -> None:
         svc, ctx = self._make_svc()
-        svc._sync_services({})
+        svc._sync_services({}, None, None, ctx.services_required.runtime_tools)  # type: ignore[attr-defined]
         ctx.services_required.runtime_tools.apply_policy.assert_called_once_with(
             tier_map=ctx.cfg.approval.tool_safety_tiers,
             allowed_tools=ctx.cfg.tool.allowed_tools,
@@ -463,19 +471,19 @@ class TestRuntimeToolPolicyReapplication:
 
     def test_runtime_tools_reported_in_applied(self) -> None:
         svc, ctx = self._make_svc()
-        result = svc._sync_services({})
+        result = svc._sync_services({}, None, None, ctx.services_required.runtime_tools)
         assert "runtime_tools" in result.applied
 
     def test_no_runtime_tools_registry_is_noop(self) -> None:
         svc, ctx = self._make_svc(with_registry=False)
-        result = svc._sync_services({})
+        result = svc._sync_services({}, None, None, None)
         assert "runtime_tools" not in result.applied
 
     def test_reload_does_not_fetch_tools_over_http(self, svc: object) -> None:
         # Regression guard: _sync_services must never trigger HTTP calls
         # Uses direct _sync_services call to avoid MCP discovery complexity
         svc._ctx.services_required.http = MagicMock()  # type: ignore[attr-defined]
-        svc._sync_services({})  # type: ignore[attr-defined]
+        svc._sync_services({}, None, None, None)  # type: ignore[attr-defined]
         svc._ctx.services_required.http.get.assert_not_called()  # type: ignore[attr-defined]
 
 
@@ -611,3 +619,195 @@ class TestApprovalGitopsPushBlocked:
         req = ConfigReloadRequest(llm={"context_token_limit": -1})
         with pytest.raises(ConfigReloadValidationError):
             svc.apply_config(req)  # type: ignore[attr-defined]
+
+
+class TestCollectFieldChangesConsolidation:
+    """Regression tests for _collect_field_changes() consolidation.
+
+    After refactor, _collect_field_changes() replaces _collect_request_values()
+    and _apply_llm_prompt_params(), populating one unified set of change dicts.
+    These tests verify it collects all expected fields across LLM/RAG/tool buckets.
+    """
+
+    @pytest.fixture()
+    def reload_svc(self) -> object:
+        from agent.services.config_reload import ConfigReloadService
+
+        llm_cfg = LLMConfig(
+            llm_url="",
+            http_timeout=30.0,
+            llm_max_retries=3,
+            llm_retry_base_delay=1.0,
+            llm_temperature=0.7,
+            llm_max_tokens=1000,
+            title_llm_temperature=0.5,
+            title_llm_max_tokens=50,
+            sse_heartbeat_timeout=30.0,
+            sse_malformed_retry=1,
+            sse_reconnect_max=5,
+            llm_stream_retry_on_heartbeat_timeout=True,
+            llm_stream_retry_on_malformed_chunk=False,
+        )
+        rag_cfg = RAGConfig(
+            embed_url="http://localhost:8080/embed",
+            use_semantic_cache=False,
+            semantic_cache_threshold=0.92,
+            semantic_cache_max_size=100,
+            use_refiner=False,
+            refiner_max_tokens=512,
+            refiner_timeout=30.0,
+            refiner_max_chars_per_chunk=300,
+        )
+        tool_cfg = ToolConfig(
+            system_prompts={},
+            masked_fields=[],
+        )
+        ctx = MagicMock()
+        ctx.cfg = AgentConfig(llm=llm_cfg, rag=rag_cfg, tool=tool_cfg)
+        ctx.cfg.memory = MemoryConfig(memory_embed_enabled=False)
+        ctx.cfg.approval = MagicMock()
+        ctx.cfg.approval.tool_safety_tiers = {}
+        ctx.cfg.approval.require_approval_for = []
+        ctx.cfg.approval.plan_mode_enabled = False
+        ctx.cfg.mcp = MagicMock()
+        ctx.cfg.mcp.mcp_servers = {}
+        ctx.services_required = MagicMock()
+        ctx.services_required.memory = None
+        ctx.services_required.embedding = None
+        ctx.services_required.retriever = None
+        ctx.services_required.llm = None
+        svc = ConfigReloadService(ctx)
+        return svc
+
+    def test_consolidated_method_collects_all_llm_fields(
+        self, reload_svc: object
+    ) -> None:
+        new_cfg: dict[str, Any] = {
+            "http_timeout": 60.0,
+            "context_token_limit": 8000,
+            "llm_temperature": 0.8,
+            "llm_max_tokens": 2000,
+            "llm_url": "https://api.example.com",
+            "llm_max_retries": 5,
+            "llm_retry_base_delay": 2.0,
+            "sse_heartbeat_timeout": 45.0,
+            "sse_malformed_retry": 3,
+            "sse_reconnect_max": 10,
+            "llm_stream_retry_on_heartbeat_timeout": True,
+            "llm_stream_retry_on_malformed_chunk": False,
+        }
+        llm_changes: dict[str, Any] = {}
+        rag_changes: dict[str, Any] = {}
+        tool_changes: dict[str, Any] = {}
+        reload_svc._collect_field_changes(  # type: ignore[attr-defined]
+            new_cfg, llm_changes, rag_changes, tool_changes
+        )
+        assert len(llm_changes) == 12
+        assert "http_timeout" in llm_changes
+        assert "context_token_limit" in llm_changes
+        assert "llm_temperature" in llm_changes
+        assert "llm_max_tokens" in llm_changes
+        assert "llm_url" in llm_changes
+        assert "llm_max_retries" in llm_changes
+        assert "llm_retry_base_delay" in llm_changes
+        assert "sse_heartbeat_timeout" in llm_changes
+        assert "sse_malformed_retry" in llm_changes
+        assert "sse_reconnect_max" in llm_changes
+        assert "llm_stream_retry_on_heartbeat_timeout" in llm_changes
+        assert "llm_stream_retry_on_malformed_chunk" in llm_changes
+
+    def test_consolidated_method_collects_all_rag_fields(
+        self, reload_svc: object
+    ) -> None:
+        new_cfg: dict[str, Any] = {
+            "embed_url": "http://localhost:8080/embed",
+            "use_semantic_cache": True,
+            "web_search_url": "https://search.example.com",
+            "semantic_cache_threshold": 0.95,
+            "semantic_cache_max_size": 200,
+            "use_refiner": True,
+            "refiner_max_tokens": 1024,
+            "refiner_timeout": 45.0,
+            "refiner_max_chars_per_chunk": 500,
+        }
+        llm_changes: dict[str, Any] = {}
+        rag_changes: dict[str, Any] = {}
+        tool_changes: dict[str, Any] = {}
+        reload_svc._collect_field_changes(  # type: ignore[attr-defined]
+            new_cfg, llm_changes, rag_changes, tool_changes
+        )
+        assert len(rag_changes) == 9
+        assert "embed_url" in rag_changes
+        assert "use_semantic_cache" in rag_changes
+        assert "web_search_url" in rag_changes
+        assert "semantic_cache_threshold" in rag_changes
+        assert "semantic_cache_max_size" in rag_changes
+        assert "use_refiner" in rag_changes
+        assert "refiner_max_tokens" in rag_changes
+        assert "refiner_timeout" in rag_changes
+        assert "refiner_max_chars_per_chunk" in rag_changes
+
+    def test_consolidated_method_collects_all_tool_fields(
+        self, reload_svc: object
+    ) -> None:
+        new_cfg: dict[str, Any] = {
+            "max_tool_turns": 10,
+            "tool_result_max_llm_chars": 4096,
+            "tool_definitions": ["def1", "def2"],
+            "system_prompt_tool": "prompt_tool",
+            "system_prompts": {"default": "Hello"},
+            "serial_tool_calls": True,
+            "tool_definitions_strict": False,
+            "plan_blocked_tools": ["dangerous_tool"],
+        }
+        llm_changes: dict[str, Any] = {}
+        rag_changes: dict[str, Any] = {}
+        tool_changes: dict[str, Any] = {}
+        reload_svc._collect_field_changes(  # type: ignore[attr-defined]
+            new_cfg, llm_changes, rag_changes, tool_changes
+        )
+        assert len(tool_changes) == 8
+        assert "max_tool_turns" in tool_changes
+        assert "tool_result_max_llm_chars" in tool_changes
+        assert "tool_definitions" in tool_changes
+        assert "system_prompt_tool" in tool_changes
+        assert "system_prompts" in tool_changes
+        assert "serial_tool_calls" in tool_changes
+        assert "tool_definitions_strict" in tool_changes
+        assert "plan_blocked_tools" in tool_changes
+
+    def test_consolidated_method_skips_missing_fields(self, reload_svc: object) -> None:
+        new_cfg: dict[str, Any] = {}
+        llm_changes: dict[str, Any] = {}
+        rag_changes: dict[str, Any] = {}
+        tool_changes: dict[str, Any] = {}
+        reload_svc._collect_field_changes(  # type: ignore[attr-defined]
+            new_cfg, llm_changes, rag_changes, tool_changes
+        )
+        assert llm_changes == {}
+        assert rag_changes == {}
+        assert tool_changes == {}
+
+    def test_consolidated_method_handles_partial_updates(
+        self, reload_svc: object
+    ) -> None:
+        new_cfg: dict[str, Any] = {
+            "llm_temperature": 0.9,
+            "use_semantic_cache": False,
+            "max_tool_turns": 5,
+        }
+        llm_changes: dict[str, Any] = {}
+        rag_changes: dict[str, Any] = {}
+        tool_changes: dict[str, Any] = {}
+        reload_svc._collect_field_changes(  # type: ignore[attr-defined]
+            new_cfg, llm_changes, rag_changes, tool_changes
+        )
+        assert len(llm_changes) == 1
+        assert "llm_temperature" in llm_changes
+        assert llm_changes["llm_temperature"] == 0.9
+        assert len(rag_changes) == 1
+        assert "use_semantic_cache" in rag_changes
+        assert rag_changes["use_semantic_cache"] is False
+        assert len(tool_changes) == 1
+        assert "max_tool_turns" in tool_changes
+        assert tool_changes["max_tool_turns"] == 5
