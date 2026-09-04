@@ -87,25 +87,53 @@ If SIGINT/SIGTERM is received during the startup sequence, a `ShutdownInterrupte
 
 ### Manual Recovery: workflow.sqlite / eventbus.sqlite
 
-When `workflow.sqlite` or `eventbus.sqlite` becomes corrupted (e.g., disk failure, unexpected shutdown), the agent cannot restore its state automatically. Follow these steps to recover:
+When `workflow.sqlite` or `eventbus.sqlite` becomes corrupted (e.g., disk failure, unexpected shutdown), `recover_corruption()` returns `action="no_recovery_allowed"` for both — ADR-008 INV-18 prohibits automatic restoration for these two domains. Recovery is an operator action. Prefer restoring from a rotation-archive backup (below); fall back to the empty-state procedure only when no valid backup exists.
 
-1. Stop the agent process completely (ensure no remaining subprocesses).
-2. Back up the corrupted database files:
-   ```bash
-   cp workflow.sqlite workflow.sqlite.corrupted
-   cp eventbus.sqlite eventbus.sqlite.corrupted
-   ```
-3. Create fresh databases:
-   ```bash
-   sqlite3 workflow.sqlite ".dump" > workflow.sql 2>/dev/null || true
-   sqlite3 eventbus.sqlite ".dump" > eventbus.sql 2>/dev/null || true
-   rm -f workflow.sqlite eventbus.sqlite
-   sqlite3 workflow.sqlite < workflow.sql 2>/dev/null || touch workflow.sqlite
-   sqlite3 eventbus.sqlite < eventbus.sql 2>/dev/null || touch eventbus.sqlite
-   ```
-4. Start the agent process again. It will initialize with empty state.
+**Step 1 — Stop the agent process completely** (ensure no remaining subprocesses).
 
-**Warning**: This procedure clears all pending approvals and workflow state. Only use when automatic recovery fails.
+**Step 2 — Preserve the corrupted files for forensics:**
+```bash
+cp workflow.sqlite workflow.sqlite.corrupted
+cp eventbus.sqlite eventbus.sqlite.corrupted
+```
+
+**Step 3 — Locate available backups.** `rotate_all_dbs()` (`scripts/db/rotation.py`) archives `workflow.sqlite`/`eventbus.sqlite` alongside `rag.sqlite`/`session.sqlite` via the SQLite online backup API, writing WAL-consistent copies to the configured archive directory (`sqlite_archive_dir` in `agent.toml`; defaults to `/opt/llm/db/archive` when unset) named `{stem}_{timestamp}{suffix}` (e.g. `workflow_20260901-063000.sqlite`):
+```bash
+ARCHIVE_DIR="${SQLITE_ARCHIVE_DIR:-/opt/llm/db/archive}"
+ls -lt "$ARCHIVE_DIR"/workflow_*.sqlite 2>/dev/null
+ls -lt "$ARCHIVE_DIR"/eventbus_*.sqlite 2>/dev/null
+```
+List is sorted newest-first (`-t`); if none are listed, skip to Step 6 (No backup available).
+
+**Note on retention**: archives written by `rotate_all_dbs()`/`rotate_workflow_db()`/`rotate_eventbus_db()` have no automatic cleanup — they accumulate indefinitely in the archive directory unless an operator or external job removes them. This is distinct from `scripts/db/maintenance.py`'s `CorruptArchiveRetentionConfig` (`max_files`/`max_age_days`), which governs only the timestamped `*_corrupt_*` pre-restore safety copies `recover_corruption()` creates for `rag`/`session` — it does not apply to these workflow/eventbus rotation archives.
+
+**Step 4 — Validate a candidate backup**, starting with the most recent and working backward until one passes:
+```bash
+sqlite3 "$ARCHIVE_DIR/workflow_<timestamp>.sqlite" "PRAGMA integrity_check;"
+sqlite3 "$ARCHIVE_DIR/eventbus_<timestamp>.sqlite" "PRAGMA integrity_check;"
+```
+Each must print exactly `ok`. Reject and try the next-older archive otherwise.
+
+**Step 5 — Apply the validated backup, then re-verify:**
+```bash
+cp "$ARCHIVE_DIR/workflow_<timestamp>.sqlite" workflow.sqlite
+cp "$ARCHIVE_DIR/eventbus_<timestamp>.sqlite" eventbus.sqlite
+sqlite3 workflow.sqlite "PRAGMA integrity_check;"
+sqlite3 eventbus.sqlite "PRAGMA integrity_check;"
+```
+Both must print `ok` again post-copy before starting the agent. Data committed after the backup's timestamp is lost — this is expected; note the gap when escalating if it matters operationally.
+
+**Step 6 — No valid backup available (all candidates missing or failing integrity check).** Fall back to reinitializing empty state — this is a last resort, not the default path:
+```bash
+sqlite3 workflow.sqlite ".dump" > workflow.sql 2>/dev/null || true
+sqlite3 eventbus.sqlite ".dump" > eventbus.sql 2>/dev/null || true
+rm -f workflow.sqlite eventbus.sqlite
+sqlite3 workflow.sqlite < workflow.sql 2>/dev/null || touch workflow.sqlite
+sqlite3 eventbus.sqlite < eventbus.sql 2>/dev/null || touch eventbus.sqlite
+```
+This clears all pending approvals and workflow state. If the data loss is significant, escalate before proceeding — this step is irreversible once the corrupted files are removed (Step 2's `.corrupted` copies are the only remaining record).
+
+**Step 7 — Start the agent process again** and confirm normal startup (see Severity Mapping above).
 
 ## Known Limitations / Unresolved Issues
 
