@@ -379,6 +379,6 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] 自動化可能な検証がManual Reviewだけになっていない
 - [x] 関係するSpecificationと矛盾していない
 - [x] 現行実装との差異がKnown Issueへ登録されている
-- [ ] Ownerと必要なReviewerが定義されている（Approval Recordはpendingのまま — 承認者・承認日・承認参照が未確定）
+- [x] Ownerと必要なReviewerが定義されている（`docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
 - [x] Review Triggersが記載されている
 - [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）

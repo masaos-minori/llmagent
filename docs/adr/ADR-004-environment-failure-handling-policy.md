@@ -553,6 +553,6 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] 既存ADRとの関係が記載されている
 - [x] 関係するSpecificationと矛盾していない（コンポーネント必須性分類を記録するSpecificationが整備済み）
 - [x] 現行実装との差異がKnown Issueへ登録されている（一部は新規登録が必要、Known Deviations参照）
-- [ ] Ownerと必要なReviewerが定義されている（Approval Recordはpendingのまま）
+- [x] Ownerと必要なReviewerが定義されている（`docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
 - [x] Review Triggersが記載されている
 - [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）
