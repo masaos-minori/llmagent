@@ -22,7 +22,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Import here to avoid circular imports
-from rag.ingestion.crawler_utils import url_to_slug  # noqa: E402 — local import for circular dependency avoidance
+from rag.ingestion.crawler_utils import (
+    url_to_slug,  # noqa: E402 — local import for circular dependency avoidance
+)
 
 
 class CrawlPersister:

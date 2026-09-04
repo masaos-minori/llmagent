@@ -20,14 +20,16 @@ Reorganize `tests/agent/shared/test_startup_validation_pipeline.py` to align tes
   - `test_validation_result_skipped_not_fatal` → stays (StartupValidationResult unit test)
   - `mock_ctx` fixture → stays (shared fixture for validation pipeline tests)
   - `startup_instance` fixture → stays (shared fixture for validation pipeline tests)
-  - `test_all_checks_pass_no_raise` → should move to `test_startup_validation_pipeline.py`
-  - `test_single_fatal_readiness_raises` → should move to `test_startup_validation_pipeline.py`
-  - `test_security_audit_fatal_remaining_checks_still_run` → should move to `test_startup_validation_pipeline.py`
-  - `test_multiple_fatals_all_in_error_message` → should move to `test_startup_validation_pipeline.py`
-  - `test_warnings_only_no_raise` → should move to `test_startup_validation_pipeline.py`
-  - `test_routing_drift_strict_true_raises_fatal` → should move to `test_startup_validation_pipeline.py`
-  - `test_routing_drift_strict_false_warns_only` → should move to `test_startup_validation_pipeline.py`
-  - `test_skipped_live_routing_no_raise` → should move to `test_startup_validation_pipeline.py`
+  - `test_warnings_only_no_raise` → stays (integration test, uses startup_instance fixture)
+  - `test_routing_drift_strict_true_raises_fatal` → stays (integration test, uses startup_instance fixture)
+  - `test_routing_drift_strict_false_warns_only` → stays (integration test, uses startup_instance fixture)
+  - `test_skipped_live_routing_no_raise` → stays (integration test, uses startup_instance fixture)
+  - `test_validation_pipeline_reports_fatal_when_config_missing` → stays (REQ-001 integration test)
+  - `test_build_agent_config_requires_agent_toml` → stays (REQ-002 integration test)
+  - `test_check_routing_safety_tiers_context` → stays (routing safety tiers test)
+  - `TestSafetyTiers` class → stays (safety tiers test class)
+- Note: 4 tests (`test_all_checks_pass_no_raise`, `test_single_fatal_readiness_raises`, `test_security_audit_fatal_remaining_checks_still_run`, `test_multiple_fatals_all_in_error_message`) were removed in a prior commit and no longer exist in the codebase.
+- The procedure's Phase 4 step 1 and step 3 are contradictory: step 1 says to remove integration tests, step 3 says to keep them. Current state resolves this: integration tests stay because they depend on `startup_instance` fixture and test the pipeline aggregation behavior.
 
 ## Design decisions
 
@@ -58,22 +60,16 @@ File modification (move sections).
 
 **Phase 4: Test Reorganization** (REQ-015)
 
-1. In `test_startup_validation_pipeline.py`, remove the following test classes/functions (they will be moved to separate files):
-   - `test_all_checks_pass_no_raise` (lines 82–104)
-   - `test_single_fatal_readiness_raises` (lines 108–135)
-   - `test_security_audit_fatal_remaining_checks_still_run` (lines 139–165)
-   - `test_multiple_fatals_all_in_error_message` (lines 169–202)
-   - `test_warnings_only_no_raise` (lines 206–228)
-   - `test_routing_drift_strict_true_raises_fatal` (lines 232–259)
-   - `test_routing_drift_strict_false_warns_only` (lines 263–289)
-   - `test_skipped_live_routing_no_raise` (lines 293–313)
+Current state (as of HEAD):
+- 4 tests already removed in prior commit (no longer exist)
+- 4 integration tests remain with rewritten signatures (use mock pipeline instead of real service calls)
+- StartupValidationResult unit tests + fixtures + REQ-001/REQ-002 tests + Safety Tiers tests remain
 
-2. Keep in `test_startup_validation_pipeline.py`:
-   - Helper functions (`mock_ctx`, `startup_instance` fixtures)
-   - Any imports needed by remaining tests
+Action: No changes required. The procedure's Phase 4 step 1 is outdated — those tests were already removed. Step 3 correctly states that integration tests belong in `test_startup_validation_pipeline.py`.
 
-3. Create/move test classes/functions to corresponding files:
-   - Startup validation pipeline integration tests → `tests/agent/shared/test_startup_validation_pipeline.py`
+Verification:
+1. Run `uv run pytest tests/agent/shared/test_startup_validation_pipeline.py` — expect 15 passed
+2. Run `ruff check tests/agent/shared/test_startup_validation_pipeline.py` — expect clean
 
 ## Compatibility considerations
 
@@ -118,15 +114,15 @@ File modification (move sections).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Complete | — | — | Source file already in correct state; 4 tests moved previously, 4 removed during AgentContext refactor, remaining 4 tests verified passing |
-| 2 | Add or update tests per Validation plan | Complete | — | — | All 12 affected tests pass |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | — | — | ruff format ✓, mypy ✓, bandit ✓, pytest (affected modules) ✓ |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | — | — | Not applicable — pure test reorganization, no user-facing API changes |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Complete | — | — | No changes needed; procedure was outdated |
+| 2 | Add or update tests per Validation plan | Pending | — | — | Verify existing tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff + pytest |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| — | Procedure was outdated — tests it references were already removed or rewritten | Yes | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -12,12 +12,12 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from agent.shared.health_models import HealthCheckResult, ServiceWarning
 from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 # ── Workflow definition check ──────────────────────────────────────────────────
+
 
 def check_workflow_definition(workflows_dir: Path | None = None) -> None:
     """Raise RuntimeError if the workflow definition file is missing."""
@@ -31,6 +31,7 @@ def check_workflow_definition(workflows_dir: Path | None = None) -> None:
         raise RuntimeError(
             f"Workflow definition file not found: {workflow_file}. Deploy config/workflows/default.json to fix this."
         )
+
 
 # ── Workflow schema constants ─────────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ _WORKFLOW_SCHEMA_READ_ONLY = True
 
 # ── SchemaCheckResult ─────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class SchemaCheckResult:
     """Result of a workflow schema check."""
@@ -54,7 +56,9 @@ class SchemaCheckResult:
     valid: bool
     error: str | None = None
 
+
 # ── Workflow schema validation ────────────────────────────────────────────────
+
 
 def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
     """Return SchemaCheckResult indicating whether the workflow DB schema is valid."""

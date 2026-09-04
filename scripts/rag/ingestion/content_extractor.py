@@ -19,7 +19,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Import here to avoid circular imports
-from rag.ingestion.crawler_utils import extract_text  # noqa: E402 — local import for circular dependency avoidance
+from rag.ingestion.crawler_utils import (
+    extract_text,  # noqa: E402 — local import for circular dependency avoidance
+)
 
 
 class ContentExtractor:

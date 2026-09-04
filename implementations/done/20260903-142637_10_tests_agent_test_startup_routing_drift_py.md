@@ -1,26 +1,30 @@
-# Implementation Procedure: tests/agent/test_startup_consistency.py
+# Implementation Procedure: tests/agent/test_startup_routing_drift.py
 
 ## Goal
 
-Reorganize `tests/agent/test_startup_consistency.py` to align test functions alongside their corresponding new modules/classes, matching the module layout established by the six extracted concerns.
+Reorganize `tests/agent/test_startup_routing_drift.py` to align test functions alongside their corresponding new modules/classes, matching the module layout established by the six extracted concerns.
 
 ## Scope
 
-- Move test functions in `test_startup_consistency.py` to match the new module structure
+- Move test functions in `test_startup_routing_drift.py` to match the new module structure
 - Preserve all existing test behavior — no behavioral changes to test assertions
 - Align test function names with the new module/class naming convention
 
 ## Assumptions
 
-- The following test functions exist in `test_startup_consistency.py`:
-  - `test_write_warning_on_inconsistency` → should move to `test_startup_validation_pipeline.py`
-  - `test_no_warning_on_consistent` → should move to `test_startup_validation_pipeline.py`
-  - `test_no_crash_on_exception` → should move to `test_startup_validation_pipeline.py`
+- The following test functions exist in `test_startup_routing_drift.py`:
+  - `test_routing_drift_non_strict_returns_warnings` → should move to `test_startup_mcp_starter.py`
+  - `test_routing_drift_strict_raises` → should move to `test_startup_mcp_starter.py`
+  - `test_routing_drift_no_drift_returns_empty` → should move to `test_startup_mcp_starter.py`
+  - `test_safety_tiers_missing_tools_reported` → should move to `test_startup_validation_pipeline.py`
+  - `test_safety_tiers_all_present_returns_empty` → should move to `test_startup_validation_pipeline.py`
+  - `test_safety_tiers_empty_config_skips_check` → should move to `test_startup_validation_pipeline.py`
+  - `test_check_routing_safety_tiers_context` → should move to `test_startup_validation_pipeline.py`
 
 ## Design decisions
 
 - **One test file per new module**: Each extracted module gets its own dedicated test file.
-- **Preserve helper functions**: `_make_orchestrator` stays in appropriate files based on usage.
+- **Preserve helper functions**: `_make_ctx`, `_reset_registry_for_testing` stay in appropriate files based on usage.
 - **No test logic changes**: Only move code, do not modify test assertions or behavior.
 
 ## Alternatives considered
@@ -32,7 +36,7 @@ Reorganize `tests/agent/test_startup_consistency.py` to align test functions alo
 
 ### Target file
 
-`tests/agent/test_startup_consistency.py`
+`tests/agent/test_startup_routing_drift.py`
 
 ### Procedure
 
@@ -46,23 +50,28 @@ File modification (move sections).
 
 **Phase 4: Test Reorganization** (REQ-015)
 
-1. In `test_startup_consistency.py`, remove the following test functions (they will be moved to separate files):
-   - `test_write_warning_on_inconsistency` (lines 24–49)
-   - `test_no_warning_on_consistent` (lines 53–75)
-   - `test_no_crash_on_exception` (lines 79–102)
+1. In `test_startup_routing_drift.py`, remove the following test functions (they will be moved to separate files):
+   - `test_routing_drift_non_strict_returns_warnings` (lines 34–44)
+   - `test_routing_drift_strict_raises` (lines 47–55)
+   - `test_routing_drift_no_drift_returns_empty` (lines 58–66)
+   - `test_safety_tiers_missing_tools_reported` (lines 72–80)
+   - `test_safety_tiers_all_present_returns_empty` (lines 83–89)
+   - `test_safety_tiers_empty_config_skips_check` (lines 92–96)
+   - `test_check_routing_safety_tiers_context` (lines 102–107)
 
-2. Keep in `test_startup_consistency.py`:
-   - Helper functions (`_make_orchestrator`)
+2. Keep in `test_startup_routing_drift.py`:
+   - Helper functions (`_make_ctx`)
    - Any imports needed by remaining tests
 
 3. Create/move test functions to corresponding files:
-   - Consistency check tests → `tests/agent/shared/test_startup_validation_pipeline.py`
+   - Routing drift tests → `tests/agent/test_startup_mcp_starter.py`
+   - Safety tier tests → `tests/agent/shared/test_startup_validation_pipeline.py`
 
 ## Compatibility considerations
 
 - **Critical**: All test assertions must remain identical. No behavioral changes to test outcomes.
 - **Import paths**: After moving test functions, update imports to reference new module locations.
-- **Helper function placement**: `_make_orchestrator` may need to be duplicated or imported into moved test files depending on which tests use it.
+- **Helper function placement**: `_make_ctx` may need to be duplicated or imported into moved test files depending on which tests use it.
 
 ## Security considerations
 
@@ -72,13 +81,14 @@ File modification (move sections).
 
 ## Rollback considerations
 
-- If reorganization breaks test discovery, revert to original `test_startup_consistency.py` structure.
-- Restore all removed test functions to `test_startup_consistency.py`.
+- If reorganization breaks test discovery, revert to original `test_startup_routing_drift.py` structure.
+- Restore all removed test functions to `test_startup_routing_drift.py`.
 
 ## Validation plan
 
 | Target | Strategy | Tool / Command | Expected Outcome |
 |--------|----------|----------------|------------------|
+| `tests/agent/test_startup_mcp_starter.py` | Unit — MCP starter tests | `uv run pytest tests/agent/test_startup_mcp_starter.py` | All pass |
 | `tests/agent/shared/test_startup_validation_pipeline.py` | Integration — validation pipeline tests | `uv run pytest tests/agent/shared/test_startup_validation_pipeline.py` | No new failures |
 
 ## Completion criteria
@@ -101,7 +111,7 @@ File modification (move sections).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | In Progress | 20260903-142637 | — | |
 | 2 | Add or update tests per Validation plan | Pending | — | — | |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
@@ -125,4 +135,4 @@ File modification (move sections).
 - **Source plan**: plans/20260902-073153_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260903-142637
-- **Related target files**: tests/agent/test_startup_consistency.py
+- **Related target files**: tests/agent/test_startup_routing_drift.py

@@ -13,8 +13,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Import here to avoid circular imports
-from rag.ingestion.crawler_utils import detect_lang  # noqa: E402 — local import for circular dependency avoidance
-from rag.utils import MIN_TEXT_LENGTH_FOR_DETECTION  # noqa: E402 — local import for circular dependency avoidance
+from rag.ingestion.crawler_utils import (
+    detect_lang,  # noqa: E402 — local import for circular dependency avoidance
+)
+from rag.utils import (
+    MIN_TEXT_LENGTH_FOR_DETECTION,  # noqa: E402 — local import for circular dependency avoidance
+)
 
 
 class LanguageResolver:

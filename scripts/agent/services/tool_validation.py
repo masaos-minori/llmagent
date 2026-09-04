@@ -9,15 +9,18 @@ from __future__ import annotations
 from http import HTTPStatus
 
 import httpx
-from agent.context import AgentContext
-from agent.shared.health_models import HealthCheckResult, ServiceWarning
 from shared.logger import Logger
 from shared.mcp_config import TransportType
+
+from agent.context import AgentContext
+from agent.shared.health_models import HealthCheckResult, ServiceWarning
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
-def _validate_tools_response(server_key: str, body: object) -> tuple[list[str], str | None]:
+def _validate_tools_response(
+    server_key: str, body: object
+) -> tuple[list[str], str | None]:
     """Validate /v1/tools response body. Returns (tool_names, error_msg).
 
     error_msg is None on success; a descriptive string if the response is malformed.

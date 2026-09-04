@@ -20,9 +20,9 @@ from shared.mcp_config import (
 )
 
 from agent.lifecycle import LifecycleState
-from agent.services.mcp_health import _probe_mcp_health_detail
 from agent.services.enums import McpAvailability, McpTier
 from agent.services.exceptions import McpProbeError
+from agent.services.mcp_health import _probe_mcp_health_detail
 from agent.services.models import McpProbeResult
 from agent.shared.health_models import McpHealthProbeResult, interpret_health_body
 

@@ -21,12 +21,24 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Import here to avoid circular imports
-from rag.ingestion.content_extractor import ContentExtractor  # noqa: E402 — local import for circular dependency avoidance
-from rag.ingestion.crawl_persister import CrawlPersister  # noqa: E402 — local import for circular dependency avoidance
-from rag.ingestion.crawler_utils import normalize_url  # noqa: E402 — local import for circular dependency avoidance
-from rag.ingestion.http_fetcher import HttpFetcher  # noqa: E402 — local import for circular dependency avoidance
-from rag.ingestion.language_resolver import LanguageResolver  # noqa: E402 — local import for circular dependency avoidance
-from rag.ingestion.link_discovery import LinkDiscovery  # noqa: E402 — local import for circular dependency avoidance
+from rag.ingestion.content_extractor import (
+    ContentExtractor,  # noqa: E402 — local import for circular dependency avoidance
+)
+from rag.ingestion.crawl_persister import (
+    CrawlPersister,  # noqa: E402 — local import for circular dependency avoidance
+)
+from rag.ingestion.crawler_utils import (
+    normalize_url,  # noqa: E402 — local import for circular dependency avoidance
+)
+from rag.ingestion.http_fetcher import (
+    HttpFetcher,  # noqa: E402 — local import for circular dependency avoidance
+)
+from rag.ingestion.language_resolver import (
+    LanguageResolver,  # noqa: E402 — local import for circular dependency avoidance
+)
+from rag.ingestion.link_discovery import (
+    LinkDiscovery,  # noqa: E402 — local import for circular dependency avoidance
+)
 
 
 class CrawlOrchestrator:

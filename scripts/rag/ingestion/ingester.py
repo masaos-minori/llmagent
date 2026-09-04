@@ -26,7 +26,6 @@ from rag.ingestion.file_routing import FileRouter
 from rag.ingestion.pipeline_utils import read_chunk_json
 from rag.ingestion.transaction_commit import TransactionManager
 from rag.models_data import ChunkDocument
-from rag.utils import validate_url
 from shared.config_loader import ConfigLoader
 from shared.llm_client import build_embed_url
 from shared.logger import Logger
