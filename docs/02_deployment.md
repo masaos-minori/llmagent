@@ -202,6 +202,14 @@ this procedure against a real deployment before then. Immediately before executi
 re-run the Current State inspection above rather than relying solely on this
 document's recorded finding.
 
+**Note (2026-09-04)**: as of this writing, the four dependency Plans above (plus
+`localcleanup`, `plans/done/20260903-092746_plan.md`) have all landed, making this
+the current, canonical migration procedure. For authentication-specific
+troubleshooting after following the steps above, see
+[`04_mcp_06_17_local-to-production-auth-migration.md`](04_mcp_06_17_local-to-production-auth-migration.md)'s
+Troubleshooting section — that document's own Migration Steps are historical and
+superseded by this procedure.
+
 ---
 
 ## 3. DB Initialization

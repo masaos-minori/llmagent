@@ -15,13 +15,23 @@ source:
 
 ## Migrating from local to production environments
 
-When migrating from a local development environment to a production environment, authentication settings must be changed. Please follow these steps carefully.
+**Note (2026-09-04)**: `security_profile=local` no longer exists — `SecurityProfile`
+has a single `PRODUCTION` member (`plans/done/20260903-091417_plan.md`, "localremoval").
+Every environment now enforces the authentication requirements below
+unconditionally; there is no profile switch to perform. The canonical, current
+migration procedure for an existing deployment (bind-address migration together
+with MCP authentication token setup) is
+[`02_deployment.md`'s "Production-Only Migration Procedure"](02_deployment.md#production-only-migration-procedure) —
+follow that document for a step-by-step deployment migration. This document's
+Migration Steps below are retained as a historical record of the pre-removal
+procedure and as a focused authentication-only reference; its Troubleshooting
+section below remains current and applicable to any deployment.
 
-### Migration Steps
+### Migration Steps (historical — see `02_deployment.md` for the current procedure)
 
-1. Switch `security_profile` from `local` to `production` in `config/agent.toml`
-   - This enables mandatory authentication requirement checks at startup.
-   - While `security_profile="local"` allows an empty `auth_token_env=""`, `security_profile="production"` will reject startup if it is empty.
+1. ~~Switch `security_profile` from `local` to `production` in `config/agent.toml`~~ —
+   no longer applicable; mandatory authentication requirement checks now run
+   unconditionally at startup for every environment.
 
 2. Set non-empty authentication secrets for all HTTP MCP servers
    - For each `[mcp_servers.*]` entry using `transport="http"` in `config/agent.toml`, a non-empty `auth_token_env` or `auth_token_file` is required.
@@ -43,9 +53,9 @@ When migrating from a local development environment to a production environment,
 
 #### `auth_token_env` / `auth_token_file` is empty
 
-**Symptom:** The agent fails to start due to authentication errors when `security_profile="production"`.
+**Symptom:** The agent fails to start due to authentication errors.
 
-**Cause:** Despite `security_profile="production"`, at least one HTTP MCP server has `auth_token_env=""` or `auth_token_file` unset.
+**Cause:** At least one HTTP MCP server has `auth_token_env=""` or `auth_token_file` unset. The historical local-mode allowance for an empty token was removed unconditionally (`plans/done/20260903-092407_plan.md`), not only gated by a "production" profile.
 
 **Solution:** Set a valid `auth_token_env` or `auth_token_file` for each relevant server in `config/agent.toml`.
 

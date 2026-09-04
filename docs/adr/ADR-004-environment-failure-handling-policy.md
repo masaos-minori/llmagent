@@ -466,11 +466,14 @@ With REQ-001's fix (strict-default behavior), the Fail-Fast requirements of INV-
 2. **INV-02**: All processes enforce fail-closed behavior regardless of environment.
 3. **No environment-based relaxation**: The strict-default applies uniformly across all environments.
 
-- **Known Issue**: ADR-004-D1-profile-config-model-still-present — `scripts/shared/mcp_config.py`の`McpServerConfig`と`scripts/agent/services/mcp_tool_discovery.py`は、`security_profile`（環境）の値に基づいて`required_in_production`／`required_in_local`のいずれを参照するか分岐していた。**部分解決**: REQ-001およびREQ-002により、`required_in_production`/`required_in_local`を統合した単一の`required`フィールドに置換し、`McpToolDiscoveryService.discover_all()`の分類分岐を`cfg.required`直接読み取りに置き換え。環境に基づく分岐ロジックは削除され、必須性の決定が環境非依存となった。**残課題**: REQ-002のクロスプロファイル等価テスト（`tests/agent/services/test_mcp_tool_discovery.py`、`security_profile`を第2パラメータ軸として追加）のみ。**影響**: INV-01, INV-02, INV-09 → 解消済み。INV-14 → テストカバレッジ未完了のため保留中。
+- **Known Issue（解消済み、2026-09-04確認）**: ADR-004-D1-profile-config-model-still-present — `scripts/shared/mcp_config.py`の`McpServerConfig`と`scripts/agent/services/mcp_tool_discovery.py`は、`security_profile`（環境）の値に基づいて`required_in_production`／`required_in_local`のいずれを参照するか分岐していた。**解決**: `plans/done/20260903-091417_plan.md`（`localremoval`）により`SecurityProfile.LOCAL`自体が削除され、`SecurityProfile`は`PRODUCTION`のみを保持するenumとなった（`scripts/shared/mcp_config.py`確認済み）。`required_in_production`/`required_in_local`の環境分岐は解消され、必須性の決定が環境非依存となった。クロスプロファイル等価テストという概念自体が`SecurityProfile.LOCAL`の削除により不要化したため、当該残課題はNot Applicableとして解消。**影響**: INV-01, INV-02, INV-09, INV-10, INV-14 → 解消済み。
+- **Known Issue（解消済み、2026-09-04確認）**: `scripts/shared/production_config_validator.py`の`is_production`条件によるstrictモード違反の警告への格下げ（`docs/adr-index.md` INV-010で指摘された、上記D1とは別個の逸脱）。**解決**: `plans/done/20260903-091417_plan.md` REQ-004により`is_production`条件分岐が削除され（`scripts/shared/production_config_validator.py`確認済み、該当分岐は現存しない）、Production-grade検証がすべての環境で無条件に適用されるようになった。
 - **報告のみ（Known Issue未登録）**: 非必須コンポーネントの可用性障害による起動継続（Decision #18、INV-09）を検証する自動テストは、`tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers` にて既に検証済み（上記Verificationセクション参照）。この部分のステータスは更新済み。
 - **報告のみ（Known Issue未登録）**: 未定義の必須性による起動継続禁止（Decision #12、INV-14）を検証する自動テストが現行では存在しない。コンポーネント単位の必須／非必須分類を記録するSpecificationは`05_agent_08_04_configuration-mcp-approval-obs.md`のComponent Criticality Classification節に整備済み（Decision #13が要求する分類記録の主体を充足）。これらは新規Known Issueとして別途登録することを推奨する。
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+
+**改訂記録（2026-09-04）**: 2026-09-03のアーキテクチャオーナー承認に基づき、`SecurityProfile.LOCAL`を完全に撤廃し、Production-grade検証をすべての通常起動で無条件化する方針を確定（新規ADRによる置き換えではなく、本ADRを直接改訂）。関連する4計画（`plans/done/20260903-091417_plan.md`「localremoval」、`plans/done/20260903-091921_plan.md`「loopbackonly」、`plans/done/20260903-092407_plan.md`「mcpauth」、`plans/done/20260903-092746_plan.md`「localcleanup」）がすべて実装完了したことを確認し、上記Known Deviationsの該当2件を解消済みとして更新した。Decision Group 1の「単一の共通障害処理方針」記述はこの改訂以前から既に環境非依存の記述だったため、Decision本文自体の書き換えは不要だった。
 
 ## Review Triggers
 

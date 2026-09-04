@@ -321,6 +321,23 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
     promote `--check-removed-names` from opt-in to default-on once
     `plans/done/20260903-090104_plan.md` (toolroutedoc)'s corpus fix lands, per
     `check_compat_shims.py`'s own "report-only until compliant" convention.
+    **Extended 2026-09-04** (`plans/done/20260903-093353_plan.md`, REQ-007):
+    `_REMOVED_NAME_PATTERNS` now also flags `SecurityProfile.LOCAL`,
+    `security_profile="local"`, `allow_public_bind`, and an unconditionally-permitted
+    empty `auth_token`/`auth_token_env` as retired runtime-profile terms (all three
+    removed by `localremoval`/`loopbackonly`/`mcpauth`,
+    `plans/done/20260903-091417_plan.md`/`20260903-091921_plan.md`/`20260903-092407_plan.md`).
+    `_is_historical_context`'s marker set was extended with Japanese equivalents
+    (解消/解決/廃止/撤廃/削除済み/確認済み) at the same time, since this repository's
+    docs mix English and Japanese prose and the English-only marker set previously
+    produced false positives on Japanese historical/resolved notes. An unrelated
+    "local" meaning (filesystem, Git, RAG, database, process, localhost paths) is
+    unaffected — the new patterns match only the specific retired identifiers above,
+    not the word "local" itself. Running `--check-removed-names` against the current
+    corpus after this extension found 14 pre-existing findings outside this Plan's own
+    scope (`docs/00_governance_03`, `00_security_02`, `06_eventbus_01`, ADR-006,
+    ADR-008, and others still describing `allow_public_bind` as current) — these are
+    tracked as a follow-up documentation-drift cleanup, not fixed by this Plan.
 
 ## Change Impact Assessment
 

@@ -178,12 +178,41 @@ DEFAULT_ALLOWLIST = {
 # above already looks for the removed identifiers themselves).
 
 _HISTORICAL_CONTEXT_MARKERS: frozenset[str] = frozenset(
-    {"legacy", "historical", "archive only", "resolved", "was:", "removed"}
+    {
+        "legacy",
+        "historical",
+        "archive only",
+        "resolved",
+        "was:",
+        "removed",
+        # Japanese equivalents — this repository's docs mix English and
+        # Japanese prose, and the English-only marker set above previously
+        # produced false positives on Japanese-language historical/resolved
+        # notes (found while extending _REMOVED_NAME_PATTERNS below).
+        "解消",
+        "解決",
+        "廃止",
+        "撤廃",
+        "削除済み",
+        "確認済み",
+    }
 )
 
 _REMOVED_NAME_PATTERNS: dict[str, re.Pattern[str]] = {
     "_update_null_fill (confirmed removed from scripts/rag/ingestion/, per "
     "plans/20260903-085718_plan.md)": re.compile(r"_update_null_fill\b"),
+    "SecurityProfile.LOCAL (confirmed removed, per "
+    "plans/done/20260903-091417_plan.md — localremoval)": re.compile(
+        r"SecurityProfile\.LOCAL\b|security_profile\s*=\s*[\"']local[\"']"
+    ),
+    "allow_public_bind (confirmed removed, per "
+    "plans/done/20260903-091921_plan.md — loopbackonly)": re.compile(
+        r"\ballow_public_bind\b"
+    ),
+    "empty auth_token permitted (confirmed removed — mandatory MCP "
+    "authentication, per plans/done/20260903-092407_plan.md — mcpauth)": re.compile(
+        r"auth_token(?:_env)?\s*=\s*[\"']{2}|empty\s+auth_token"
+    ),
 }
 
 _TOOL_ROUTE_RESOLVER_RE = re.compile(r"\bToolRouteResolver\b")
