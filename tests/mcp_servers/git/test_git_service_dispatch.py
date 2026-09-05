@@ -272,6 +272,7 @@ class TestSiblingPathRejection:
         mock_repo = MagicMock()
         mock_repo.iter_commits.return_value = []
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/opt/repos"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -289,6 +290,7 @@ class TestSiblingPathRejection:
         mock_repo = MagicMock()
         mock_repo.iter_commits.return_value = []
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/opt/repos/proj"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
