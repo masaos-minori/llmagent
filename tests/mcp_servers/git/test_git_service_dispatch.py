@@ -49,6 +49,7 @@ class TestGitLog:
         mock_repo = MagicMock()
         mock_repo.iter_commits.return_value = []
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -77,6 +78,7 @@ class TestGitDiff:
         mock_repo = MagicMock()
         mock_repo.git.diff.return_value = ""
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -106,6 +108,7 @@ class TestGitBranch:
         mock_repo.active_branch.name = "main"
         mock_repo.branches = []
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.active_branch = "main"
         snap.is_dirty = False
@@ -135,6 +138,7 @@ class TestGitShow:
         mock_repo = MagicMock()
         mock_repo.git.show.return_value = "commit abc123\n\ndiff --git a b"
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -163,6 +167,7 @@ class TestGitPull:
         mock_repo = MagicMock()
         mock_repo.git.fetch.return_value = "up to date"
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap._repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -186,6 +191,7 @@ class TestGitPull:
         mock_repo.git.pull.return_value = "Already up to date."
         mock_repo.index.unmerged_blobs.return_value = []
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap._repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -217,6 +223,7 @@ class TestGitStatus:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -300,6 +307,7 @@ class TestSiblingPathRejection:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -318,6 +326,7 @@ class TestSiblingPathRejection:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -408,6 +417,7 @@ class TestAuditRecordFields:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -426,6 +436,7 @@ class TestAuditRecordFields:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False

@@ -146,10 +146,10 @@ CI-015, and MCP-001, MCP-002 above.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-05 | 2026-09-05 | MCP-001 and MCP-002 entries added with status "resolved" |
 | 2 | Add or update tests per Validation plan | N/A | — | — | Documentation-only change |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-05 | 2026-09-05 | Summary line updated to include MCP-001, MCP-002 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

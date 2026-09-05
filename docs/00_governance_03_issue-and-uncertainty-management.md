@@ -706,9 +706,47 @@ them, are preserved here rather than lost:
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for duplicate-tool detection.
 
+#### MCP-001
+
+- **ID**: MCP-001
+- **Title**: `verify_postcondition()` returns unconditional success regardless of operation outcome
+- **Status**: resolved
+- **Severity**: High
+- **Area**: MCP
+- **Type**: implementation-bug
+- **Source**: `scripts/mcp_servers/git/repository_state.py::WriteProtectionPipeline.verify_postcondition()`
+- **Owner**: Unassigned
+- **First Found**: 2026-09-04
+- **Target**: `scripts/mcp_servers/git/repository_state.py`
+- **Related**: REQ-003, REQ-004, REQ-005, REQ-006
+- **Summary**: `verify_postcondition()` always returned `(True, "")`, making it impossible for the pipeline to reject operations based on their actual outcomes.
+- **Current Description**: The method was a placeholder that returned unconditional success. It did not inspect the post-operation state (e.g., whether the branch actually changed, whether pull resolved conflicts, whether push succeeded).
+- **Observed Implementation**: Explicit in code — `verify_postcondition()` body was `return True, ""` with no conditional logic.
+- **Impact**: A failed checkout/pull/push could be silently accepted by the pipeline, violating the security requirement that postcondition failures prevent unsafe operations.
+- **Recommended Action**: Implement proper postcondition verification: for checkout, compare `active_branch` to requested branch; for pull, check `repo.index.unmerged_blobs()`; for push, parse result string for rejection markers.
+
+#### MCP-002
+
+- **ID**: MCP-002
+- **Title**: `PipelineResult` lacks `post_state` field for post-operation snapshot comparison
+- **Status**: resolved
+- **Severity**: Medium
+- **Area**: MCP
+- **Type**: design-gap
+- **Source**: `scripts/mcp_servers/git/repository_state.py::PipelineResult`
+- **Owner**: Unassigned
+- **First Found**: 2026-09-04
+- **Target**: `scripts/mcp_servers/git/repository_state.py`
+- **Related**: REQ-002, REQ-008
+- **Summary**: `PipelineResult` had no `post_state` attribute, so callers could not compare pre-operation and post-operation repository states.
+- **Current Description**: The `PipelineResult` class stored only `repository_state` (pre-operation snapshot) and `output`; there was no mechanism to capture the post-operation state.
+- **Observed Implementation**: `PipelineResult.__init__()` accepted `repository_state` and `output` parameters; no `post_state` parameter existed.
+- **Impact**: Audit trails lacked the ability to show what changed during an operation; postcondition checks could not independently verify results against the expected state.
+- **Recommended Action**: Add `post_state: RepositoryState | None` parameter to `PipelineResult.__init__()`, store it as `self.post_state`, and populate it in `ok_result()` when the operation is mutating.
+
 No other active Known Issues beyond RAG-003, RAG-004, RAG-005, DESIGN-1, DESIGN-2,
-EVENTBUS-001 through EVENTBUS-008, SHARED-002, SHARED-003, and CI-001 through
-CI-015 above.
+EVENTBUS-001 through EVENTBUS-008, SHARED-002, SHARED-003, CI-001 through
+CI-015, and MCP-001, MCP-002 above.
 
 ## Part 2: Needs Confirmation Inventory
 

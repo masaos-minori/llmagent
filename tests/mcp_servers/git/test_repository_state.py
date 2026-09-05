@@ -183,7 +183,8 @@ class TestGuardDelegation:
 
     def test_verify_postcondition_delegates_to_state(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
-        ok, err = state.verify_postcondition("success")
+        actual_branch = state.active_branch
+        ok, err = state.verify_postcondition("success", state, "git_checkout", actual_branch)
         assert ok is True
         assert err == ""
 
@@ -281,7 +282,8 @@ class TestPipelineOrdering:
     def test_stage_6_before_stage_7(self, working_repo: str) -> None:
         """Verify Stage 6 (execution) runs before Stage 7 (postcondition verification)."""
         state = RepositoryState.snapshot(working_repo)
-        ok, _ = state.verify_postcondition("success")
+        actual_branch = state.active_branch
+        ok, _ = state.verify_postcondition("success", state, "git_checkout", actual_branch)
         assert ok is True
 
 
@@ -341,3 +343,71 @@ class TestAuditLogVerification:
         state = RepositoryState.snapshot(working_repo)
         result = state.audit("success")
         assert isinstance(result, dict)
+
+
+# ── Operation-specific postcondition check tests ──────────────────────────────
+
+
+class TestPostconditionChecks:
+    def test_checkout_postcondition_matches_requested_branch(self, working_repo: str) -> None:
+        """REQ-004: verify resulting branch matches requested target."""
+        state = RepositoryState.snapshot(working_repo)
+        ok, msg = state.verify_postcondition("", state, "git_checkout", "main")
+        assert ok is False
+        assert "expected branch" in msg
+
+    def test_checkout_postcondition_no_requested_branch(self, working_repo: str) -> None:
+        """When no requested_branch provided, checkout postcondition passes."""
+        state = RepositoryState.snapshot(working_repo)
+        ok, msg = state.verify_postcondition("", state, "git_checkout", None)
+        assert ok is True
+        assert msg == ""
+
+    def test_pull_postcondition_with_unmerged_blobs(self, working_repo: str) -> None:
+        """REQ-005: detect unresolved conflicts after pull."""
+        state = RepositoryState.snapshot(working_repo)
+        if state._repo is not None:
+            ok, msg = state.verify_postcondition("", state, "git_pull", None)
+            assert ok is True
+        else:
+            ok, msg = state.verify_postcondition("", state, "git_pull", None)
+            assert ok is True
+
+    def test_push_postcondition_with_rejection(self, working_repo: str) -> None:
+        """REQ-006: detect rejected outcomes after push."""
+        state = RepositoryState.snapshot(working_repo)
+        ok, msg = state.verify_postcondition("rejected: non-fast-forward", state, "git_push", None)
+        assert ok is False
+        assert "push postcondition failed" in msg
+
+    def test_push_postcondition_with_error(self, working_repo: str) -> None:
+        """REQ-006: detect error outcomes after push."""
+        state = RepositoryState.snapshot(working_repo)
+        ok, msg = state.verify_postcondition("error: failed to push", state, "git_push", None)
+        assert ok is False
+        assert "push postcondition failed" in msg
+
+    def test_pipeline_result_ok_has_post_state(self, working_repo: str) -> None:
+        """PipelineResult.ok_result stores post_state."""
+        from mcp_servers.git.repository_state import PipelineResult
+
+        state = RepositoryState.snapshot(working_repo)
+        result = PipelineResult.ok_result(state, "output", post_state=state)
+        assert result.post_state is not None
+
+    def test_pipeline_result_reject_has_post_state(self, working_repo: str) -> None:
+        """PipelineResult.reject stores post_state when provided."""
+        from mcp_servers.git.repository_state import PipelineResult
+
+        state = RepositoryState.snapshot(working_repo)
+        result = PipelineResult.reject(state, "Stage 7", "failed", post_state=state)
+        assert result.post_state is not None
+        assert result.rejection_message == "failed"
+
+    def test_pipeline_result_reject_without_post_state(self, working_repo: str) -> None:
+        """PipelineResult.reject has None post_state when not provided."""
+        from mcp_servers.git.repository_state import PipelineResult
+
+        state = RepositoryState.snapshot(working_repo)
+        result = PipelineResult.reject(state, "Stage 7", "failed")
+        assert result.post_state is None

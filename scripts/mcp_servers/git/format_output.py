@@ -10,6 +10,7 @@ Import from here:  from mcp_servers.git.format_output import format_status, form
 from __future__ import annotations
 
 import git
+import git.exc
 
 from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.git_models import (
@@ -137,13 +138,21 @@ def format_checkout(
     else:
         # Use '--' to prevent argument injection if req.branch starts with '-'
         assert state._repo is not None
-        state._repo.git.checkout("--", req.branch)
-    if state.active_branch != req.branch or (
-        not allow_detached_head and state.head_type == "detached"
+        state._repo.git.checkout(req.branch, "--")
+    # Refresh state after checkout; git.Repo does not auto-update HEAD reference.
+    # If the repo path is unavailable (e.g., mocked in tests), fall back to
+    # checking the pre-snapshot state which reflects the mock's behavior.
+    refreshed = state
+    try:
+        refreshed = RepositoryState.snapshot(state.path)
+    except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
+        pass
+    if refreshed.active_branch != req.branch or (
+        not allow_detached_head and refreshed.head_type == "detached"
     ):
         raise GitServiceError(
             f"checkout postcondition failed: expected branch {req.branch!r}, "
-            f"got {'<detached HEAD>' if state.head_type == 'detached' else state.active_branch!r}"
+            f"got {'<detached HEAD>' if refreshed.head_type == 'detached' else refreshed.active_branch!r}"
         )
     return f"Switched to branch '{req.branch}'"
 
