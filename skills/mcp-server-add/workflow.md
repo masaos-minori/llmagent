@@ -58,17 +58,21 @@ and the init script in `init.d/file-mcp`.
 
 ## Step 1: Verify generated files
 
-Confirm:
+Confirm each item below. On failure, apply the fix in the same row, then re-check that row
+before moving to the next.
 
-- `scripts/mcp_servers/<name>/server.py` follows the module structure:
-  - Inherits from `MCPServer` base class (`mcp/server.py`)
-  - Uses models defined in `scripts/mcp_servers/<name>/models.py` (Pydantic `BaseModel` subclasses)
-  - Uses `ConfigLoader().load('<name>_mcp_server.toml')` (not `json.load()`)
-  - Uses `logger = logging.getLogger(__name__)` (standard library logging)
-  - Comments and log messages in English
-- `config/<name>_mcp_server.toml` is valid TOML: `python3 -c "import tomllib; tomllib.load(open('config/<name>_mcp_server.toml','rb'))"`
-- `init.d/<name>` includes the correct `--port` argument
-- Syntax check: `python3 -m compileall -q scripts/mcp_servers/<name>/`
+| Check | On failure |
+|---|---|
+| `server.py` inherits from `MCPServer` base class (`mcp/server.py`) | Add the missing base class import and inheritance |
+| Uses models defined in `scripts/mcp_servers/<name>/models.py` (Pydantic `BaseModel` subclasses) | Move inline request/response types into `models.py` |
+| Uses `ConfigLoader().load('<name>_mcp_server.toml')` (not `json.load()`) | Replace the `json.load()` call — see `SKILL.md` Required behavior |
+| Uses `logger = logging.getLogger(__name__)` (standard library logging) | Add the standard logger declaration |
+| Comments and log messages are in English | Translate non-English comments/log messages |
+| `config/<name>_mcp_server.toml` is valid TOML | Run `python3 -c "import tomllib; tomllib.load(open('config/<name>_mcp_server.toml','rb'))"`; fix the reported syntax error |
+| `init.d/<name>` includes the correct `--port` argument | Add or correct the `--port` argument to match Prerequisites' assigned port |
+| Syntax check passes | Run `python3 -m compileall -q scripts/mcp_servers/<name>/`; fix the reported file |
+
+**Completed when**: every row above passes.
 
 ---
 
@@ -120,38 +124,67 @@ bash deploy/deploy.sh
 
 ## Step 6: Start the service (first time)
 
+`startup_mode="subprocess"` MCP servers are spawned by the agent itself — no separate start
+command exists. Starting the agent (`bash deploy/start_agent.sh`, see `skills/deploy/workflow.md`
+Phase 3 Step 3b) starts every configured MCP server, including the one just added.
+
+For subsequent deploys after code changes to an already-running server: there is no
+dedicated restart command — kill the process by its port and the agent's `ensure_ready()`
+(`agent/factory.py`) restarts it automatically on the next tool call to that server (see
+`docs/04_mcp_06_12_watchdog-configuration-monitoring.md`):
+
 ```bash
-# MCP servers are managed as subprocesses by the agent
+lsof -ti :<PORT> | xargs -r kill
 ```
 
-For subsequent deploys after code changes:
-
-```bash
-# Restart via agent REPL or direct process management
-```
+**Completed when**: the process for the new server's port is running (first time), or has
+been killed and the next `/mcp` check (Step 8) shows it respawned (subsequent deploys).
 
 ---
 
-## Step 7: Add API key (if required)
+## Step 7: Add API key
 
-API keys can be passed via environment variables or config files.
+Run this step only when the new server calls an external API that requires authentication;
+otherwise skip directly to Step 8.
+
+Check whether an existing MCP server config uses a `[secrets]` section
+(`rg '\[secrets\]' config/*.toml`). If one does, follow that same pattern for consistency.
+If none does, read the key from an environment variable via `ConfigLoader().load(...)`,
+named `<NAME>_API_KEY` (uppercase server name).
+
+**Completed when**: the new server can read its API key through `ConfigLoader().load(...)` —
+confirmed by `rg` showing no `os.environ[...]` or `json.load()` access to the key.
 
 ---
 
 ## Step 8: Verify end-to-end
 
+Three checks, in order — stop at the first that fails and fix it before continuing.
+
+### Step 8a: Health endpoint
+
 ```bash
 curl -s http://localhost:<PORT>/health
+```
+On failure: go to Step 6's restart command, then re-check.
 
-# From agent REPL:
+### Step 8b: Agent-side discovery
+
+```
 /mcp
 ```
+in the agent REPL. On failure (server missing or unhealthy in the listing): re-verify
+Step 3's `[mcp_servers.<name>]` section with `rg`.
 
-Check logs:
+### Step 8c: Logs
 
 ```bash
 tail -20 /opt/llm/logs/agent.log
 ```
+On any new error mentioning `<name>`: diagnose from the error message before proceeding to
+Step 9.
+
+**Completed when**: 8a, 8b, and 8c all pass with no unresolved error.
 
 ---
 

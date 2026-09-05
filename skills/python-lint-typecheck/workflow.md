@@ -15,6 +15,16 @@
 | `libcst` | semantic refactor safety | CST-based transforms preserving comments |
 | `pre-commit` | — | Aggregated hook runner; final gate |
 
+## Step failure handling
+
+Applies to every Step below: if a Step's tool reports an error this task's change did not
+cause (pre-existing failure), record it and continue to the next Step — do not fix
+out-of-scope failures (`AGENTS.md` Global Rule 5). If a Step's tool is not installed, apply
+`skills/DESIGN.md` Tool availability guard and continue with the remaining Steps. If a
+Step's tool reports an error caused by this task's change, fix it before proceeding — Per
+AGENTS.md Attempt Limit, at most 3 attempts per distinct error before stopping and reporting
+`Blocked: {step} — {error}`.
+
 ---
 
 ## Step 1: Identify Failure Source
@@ -45,7 +55,11 @@ See `rules/toolchain.md` section 1 for the standard format/lint sequence. To nar
 ruff check scripts/<file>.py --select E,W,F,I,UP
 ```
 
-After auto-fix, review the diff. Only accept changes that are correct — do not trust auto-fix blindly on complex expressions.
+After auto-fix, review the diff. For each changed hunk, confirm the fixed line evaluates
+to the same result as the original for every input the surrounding code handles — accept
+it only then. A hunk touching a lambda, a chained comprehension, or an expression with
+more than one boolean operator needs this check most; a simple import-sort or
+whitespace-only hunk needs no such re-derivation.
 
 #### ast-grep — structural pattern enforcement
 
@@ -68,9 +82,9 @@ If `lint-imports` reports a violation:
 1. Read the failing contract in `.importlinter`
 2. Determine if the import is intentional or accidental
 3. If accidental: remove the import and refactor
-4. If intentional: update the contract definition in `.importlinter`
-
-Never suppress a `lint-imports` violation without updating the contract definition.
+4. If intentional: update the contract definition in `.importlinter` — this is the only
+   way to resolve a `lint-imports` violation without removing the import; a suppression
+   comment does not apply to this checker.
 
 Cross-reference with ast-grep to find all call sites before removing an import:
 
@@ -84,7 +98,10 @@ ast-grep --pattern 'import $MOD' --lang python scripts/agent/commands/registry.p
 ## Step 4: Suppression Governance
 
 Audit all existing suppressions using the commands and required format defined in
-`rules/coding.md` Suppression governance. Fix the root cause rather than suppress when feasible.
+`rules/coding.md` Suppression governance. Fix the root cause rather than suppress, unless
+doing so would require a breaking public-API change or touch a file outside the current
+task's scope (`AGENTS.md` Global Rule 5) — in either of those two cases, suppress with the
+Mandatory Audit Log Template instead.
 
 ---
 
@@ -133,6 +150,14 @@ def parse(line: str) -> str:
 ```
 
 #### pyright — cross-validation
+
+Check availability first (per `skills/DESIGN.md` Tool availability guard):
+
+```bash
+command -v pyright || echo "pyright not installed — skip this sub-step, mypy's result stands alone"
+```
+
+If available:
 
 ```bash
 pyright scripts/

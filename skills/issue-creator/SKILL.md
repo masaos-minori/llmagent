@@ -36,9 +36,11 @@ Do not use this skill for:
 
 - direct code implementation
 - speculative issues without evidence or context
-- creating issues from unclear requirements without marking assumptions
 - bulk issue generation that mixes unrelated concerns
 - writing long implementation manuals inside issues
+
+When requirements are unclear, use this skill, but follow `workflow.md` Phase 1: mark
+assumptions and open questions instead of inventing missing requirements.
 
 ---
 
@@ -87,8 +89,8 @@ Format: `{timestamp}_{id}_{slug}.md`
 - **`{id}`** — Short alphanumeric identifier derived from the issue's domain or component.
   Examples: `nc019` (NC-019), `mcp003` (MCP-003), `doc005` (DOC-005), `refactor_001`.
   Must be unique within the project.
-- **`{slug}`** — Lowercase-with-dashes slug derived from the issue title. Keep it concise
-  but readable.
+- **`{slug}`** — Lowercase-with-dashes slug derived from the issue title, at most 6 words
+  (drop articles and filler words first if the title exceeds that).
 
 Example: `20260828-155804_nc019_git_mcp_command_specific_guards.md`
 

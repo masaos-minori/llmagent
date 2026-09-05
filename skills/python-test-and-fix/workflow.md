@@ -67,6 +67,19 @@ Before reading any test file, classify:
 
 Classification determines which steps to run. Do not run the full sequence for every task.
 
+**Completed when**: the task is classified as bug / new test / fix broken / regression /
+flaky, and the matching Path (A/B/C/D, see `SKILL.md` Task Routing) is selected.
+**Stop and ask the user before Step 2 when**: the task fits none of the five
+classifications above (e.g. no failing test, no code change, and no coverage gap can be
+identified) — there is nothing for this skill to act on.
+
+Step failure handling for every later Step: if a Step's tool is not installed, apply
+`skills/DESIGN.md` Tool availability guard and use that Step's documented fallback (or
+skip it if none applies) — do not stop the whole task for a missing optional tool. If a
+Step's check fails for a reason this task's change caused, fix it before the next Step in
+the Path; if it fails for a pre-existing, unrelated reason, record it and continue (do not
+fix out-of-scope failures — `AGENTS.md` Global Rule 5).
+
 ---
 
 ## Step 2: Inspect Before Changing
@@ -88,7 +101,8 @@ Read the existing tests before writing any new ones. Understand:
 
 ## Step 3: Flaky Detection
 
-If the failure is intermittent:
+If the failure is intermittent, run the three commands below in order — each narrows the
+cause further, so stop as soon as one produces a clear answer:
 
 ```bash
 pytest tests/test_<module>.py --randomly-seed=1234 -v
@@ -96,7 +110,9 @@ pytest tests/test_<module>.py --randomly-seed=0 -v
 pytest tests/test_<module>.py --reruns 10 --reruns-delay 0.2
 ```
 
-Confirm flakiness by reproducing with at least 3 different seeds.
+The first two seeds check for an ordering dependency; the third checks for true
+non-determinism (timing, external state) independent of seed. Confirm flakiness by
+reproducing with at least 3 different seeds.
 If the test fails only on certain seeds: the test has an ordering dependency.
 
 Identify the dependency:
@@ -274,7 +290,11 @@ Add `@pytest.mark.timeout(5)` to individual tests that involve LLM calls or netw
 
 ## Step 10: Impact-Based Execution
 
-For fast dev feedback — do not commit `.testmondata`:
+Use `pytest --testmon` while iterating on a fix within this same session (running the
+full suite after every small edit is slow); run the repository's full, non-testmon `pytest`
+suite once before considering the task complete (Step 11) regardless of testmon results —
+testmon narrows what to re-run during iteration, it does not replace the final full run.
+Do not commit `.testmondata`:
 
 ```bash
 pytest --testmon tests/                   # only tests affected by changed files
@@ -350,11 +370,17 @@ Cross-check against each Step's stated criteria above — do not re-derive them,
 
 ---
 
-## Prohibited behavior
+## Required behavior
 
-- do not mock internal helpers — mock only at true boundaries
-- do not write tests that pass only with a specific execution order
-- do not commit `.testmondata`
-- do not add `time.sleep()` in tests — use `freezegun` or `asyncio.timeout()`
-- do not write overspecified tests that assert on implementation details
-- do not change test and implementation in the same commit when diagnosing a failure
+- Mock only at true I/O boundaries (network, subprocess, filesystem) — call internal
+  helpers directly, per Step 6.
+- Write each test so it passes under any execution order — verify with
+  `pytest -p no:randomly` vs. the default randomized order (Step 3).
+- Do not commit `.testmondata`.
+- Use `freezegun` or `asyncio.timeout()` for timing-dependent tests, per Step 5 — never
+  `time.sleep()`.
+- Assert on the function's public contract (return value, raised exception, observable
+  side effect) — never on an internal variable name, private attribute, or call count to
+  a helper that isn't the boundary under test.
+- Change test and implementation in the same commit only when Step 12 explicitly plans
+  both (e.g. the test itself had a bug) — otherwise change one, verify, then the other.

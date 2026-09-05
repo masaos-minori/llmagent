@@ -8,7 +8,9 @@
 python3 -m compileall -q scripts/
 ```
 
-If any file reports `SyntaxError`: fix the error before proceeding (see `SKILL.md` Prohibited behavior).
+If any file reports `SyntaxError`: fix the error before proceeding (see `SKILL.md` Required behavior).
+
+**Completed when**: `compileall` reports no `SyntaxError` and the copy-list diff below is empty.
 
 Confirm `deploy/deploy.sh` copy list is up to date if any script or config file was added or removed:
 
@@ -38,15 +40,21 @@ If `deploy/deploy.sh` fails:
 3. Fix the missing file or update the copy list in `deploy/deploy.sh`
 4. Re-run `bash deploy/deploy.sh`
 
+**Completed when**: `bash deploy/deploy.sh` exits 0.
+**Stop and report to the user when**: the re-run at step 4 fails with the same error as the
+first attempt — a repeat failure means steps 1–3 did not address the actual cause; do not
+repeat this recovery loop a third time.
+
 ---
 
 ## Phase 3: Service restart
 
 **Gate: port health check returns OK**
 
-Restart **only** the services whose code or config changed.
+Restart **only** the services whose code or config changed. This phase runs in four
+sub-steps: identify (3a) → restart (3b) → verify (3c) → recover on failure (3d).
 
-### Agent restart decision criteria
+### Step 3a: Identify affected services (decision criteria)
 
 Restart `llama-agent` ONLY if changes are in:
 - `agent/repl.py`, `agent/context.py`, `agent/config.py`, or any file under `agent/commands/`
@@ -56,25 +64,40 @@ Restart `llama-agent` ONLY if changes are in:
   `/reload` does not apply these fields; see the MCP configuration doc's Reload vs. restart section
 
 Do NOT restart `llama-agent` if:
-- Only MCP server files changed → restart the MCP server instead
+- Only MCP server files changed → restart the MCP server instead (Step 3b)
 - Only hot-reloadable `agent.toml` fields changed → use `/reload` in the REPL instead
 
-### Service restart commands
+**Completed when**: every changed file/config key has been matched against the criteria
+above and assigned to exactly one outcome — restart agent, restart one MCP server,
+restart an LLM inference server, or `/reload` only.
+
+### Step 3b: Restart
 
 For service names and ports, see `rules/env.md`.
 
 ```bash
-# Agent (stops REPL session — apply restart decision criteria above first)
-# Restart via subprocess management
+# MCP servers (startup_mode="subprocess"; safe to restart, tool calls will retry) —
+# there is no dedicated restart command: kill the process by its port and
+# ensure_ready() (agent/factory.py) restarts it automatically on the next tool call
+# to that server (see docs/04_mcp_06_12_watchdog-configuration-monitoring.md).
+lsof -ti :<PORT> | xargs -r kill
 
-# MCP servers (safe to restart; tool calls will retry)
-# Restart via subprocess management
+# LLM inference servers (embed-llm :8081 / agent-llm :8080; 10-30 seconds to load model) —
+# deploy/setup_services.sh's own startup commands for these are not yet implemented
+# (placeholder `echo` lines as of this writing); confirm the script actually starts the
+# process before relying on it, then:
+lsof -ti :<PORT> | xargs -r kill
+bash deploy/setup_services.sh
 
-# LLM inference servers (10–30 seconds to load model)
-# Restart via subprocess management
+# Agent (stops the current REPL session — apply the restart decision criteria above first).
+# start_agent.sh runs the REPL in the foreground: stop the running process
+# (Ctrl+C in its terminal, or `kill <pid>` if run detached), then:
+bash deploy/start_agent.sh
 ```
 
-Check status after restart:
+**Completed when**: the restart command for every service identified in Step 3a has been run.
+
+### Step 3c: Verify health
 
 ```bash
 curl -s http://127.0.0.1:<PORT>/health
@@ -83,7 +106,10 @@ curl -s http://127.0.0.1:<PORT>/health
 # /mcp status must show every MCP server's PID updated to the post-restart value
 ```
 
-### Failure recovery (service fails to start)
+**Completed when**: every restarted service's `/health` endpoint returns OK.
+**If a service does not return OK within 30 seconds of restart**: proceed to Step 3d.
+
+### Step 3d: Failure recovery (service fails to start)
 
 If a service fails to start:
 
@@ -94,6 +120,11 @@ If a service fails to start:
 2. Common causes: syntax error in a newly deployed file; missing dependency; port conflict
 3. If a syntax error slipped through: fix the file, re-run `bash deploy/deploy.sh`, restart the service
 4. If port conflict: `lsof -i :<PORT>` to identify the conflicting process
+
+**Completed when**: the service's `/health` endpoint returns OK after recovery.
+**Stop and report to the user when**: none of the three common causes above explain the
+failure, or the same failure recurs after applying the matching fix — do not retry the
+same restart command a third time.
 
 ---
 

@@ -36,6 +36,15 @@ truth and is kept in sync with `tools/`.
 - Minimal diff: see `SKILL.md` "Minimal diff" and `AGENTS.md` Global Rule 5.
 - Separate facts from assumptions
 
+## Gate failure handling
+
+Every Phase below ends with a `### Gate` checklist. This rule applies to all of them and is
+not repeated per Phase: if any Gate item is unchecked, redo the `### Do` action that item
+depends on and re-check the Gate before starting the next Phase — do not proceed with a
+known-unmet Gate item. If the missing evidence cannot be obtained (the repository genuinely
+does not expose it), record it as an Open Question (Phase 10) instead of leaving the Gate
+item silently unchecked.
+
 ---
 
 ## Phase 1. Scope
@@ -85,7 +94,9 @@ Build a repository map before writing anything.
 
 ### Read in order
 
-Unless the task scope requires otherwise, read in this order:
+Read in this order, unless the existing documentation's own table of contents groups
+topics in a different order than below — in that case, follow the existing document's
+order instead, so review proceeds section-by-section against the doc being updated:
 
 1. existing target documentation
 2. `README` or project overview
@@ -225,20 +236,22 @@ Document how the code is verified and delivered.
 ### Goal
 Convert analysis into maintainable documentation.
 
-### Rules
-- use evidence-based wording; keep docs concise and maintainable; avoid duplication
+This phase has three sub-steps: writing policy (8a), removing implementation-derived
+detail (8b), then separating uncertainty (8c).
+
+### Step 8a: Writing policy
+
+- use evidence-based wording; state a claim once and reference it elsewhere rather than
+  restating it (see Step 8b for what to drop); avoid duplication
 - do not hide uncertainty; keep changes minimal if docs already exist
 - preserve useful existing context
 - Output language: see `skills/DESIGN.md` §Output language.
-- avoid implementation-reference duplication — no source-code line numbers, no concrete
-  config values, no implementation counts (see `skills/DESIGN.md` Avoid implementation-reference
-  duplication, No source-code line numbers, No concrete configuration values, No implementation
-  counts; detailed remove/keep list below)
-- keep important invariants explicit; separate current behavior from design intent where useful
-- move unresolved uncertainty to Needs Confirmation, unresolved conflicts to Known Issues
 - keep changes small and reviewable
 
-### Remove or compress implementation-derived details
+**Completed when**: the draft follows the rules above, in whatever order is natural for
+the document being written.
+
+### Step 8b: Remove or compress implementation-derived details
 
 Documentation SHOULD NOT copy details mechanically confirmable from source code, command help,
 configuration, or generated schemas.
@@ -279,6 +292,17 @@ Replace removed content with a concise source reference, e.g.:
 
 - Full configuration keys and default values are documented in the implementation's config definitions and actual config files.
 - This design document covers only config ownership, change impact, restart requirements, failure behavior, and operational notes.
+
+**Completed when**: none of the "Normally remove" categories above appear in the draft
+outside of a "Keep" category or a source reference.
+
+### Step 8c: Separate uncertainty
+
+- keep important invariants explicit; separate current behavior from design intent where useful
+- move unresolved uncertainty to Needs Confirmation, unresolved conflicts to Known Issues
+
+**Completed when**: every item identified during Phases 1–7 as uncertain or conflicting
+has been placed in Needs Confirmation or Known Issues — none remain stated as plain fact.
 
 ### Gate
 - [ ] required docs are covered
@@ -366,14 +390,19 @@ evidence label, open questions, and target document.
 See `SKILL.md` "Respect boundaries" for scope, secrets, long code blocks, `requirements.txt`
 inference, README trust, and private-API documentation boundaries.
 
-- Do not require `requirements.txt` when another verified dependency-management workflow is
-  used.
-- Do not edit generated dependency exports (e.g. a generated `requirements.txt`) directly.
-- Do not regenerate lockfiles during documentation-only work.
-- Only modify a lockfile when dependency maintenance is explicitly in scope.
-- Do not classify a dependency as unused only because a static import search finds no reference.
-- Do not infer direct usage or production inclusion from lockfile membership alone.
-- Do not change dependency declarations merely to simplify documentation.
+- Require `requirements.txt` only when Phase 2's inventory found no other verified
+  dependency-management workflow.
+- Treat a generated dependency export (e.g. a generated `requirements.txt`) as read-only
+  evidence — edit the authoritative declaration or lockfile instead, per Phase 2's findings.
+- Leave lockfiles as-is during documentation-only work; regenerate one only when dependency
+  maintenance is explicitly in scope for the current task.
+- When a static import search finds no reference to a dependency, record it as
+  `Needs Confirmation` (see Evidence and Source of Truth) rather than classifying it Unused —
+  a static search alone cannot confirm dynamic or optional usage.
+- Base a "direct usage" or "production inclusion" claim on Phase 2's declared/operational
+  evidence categories, not on lockfile membership alone.
+- Change dependency declarations only when the task's scope explicitly includes dependency
+  maintenance — never merely to simplify documentation.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
 ---

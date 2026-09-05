@@ -30,11 +30,11 @@ Do not state the assigned port number in `docs/*.md` once it is deployed — see
 
 ## Phase overview
 
-| Phase | Steps | Goal |
-|---|---|---|
-| 1 Generate | Option A or B → Step 1 verify | Skeleton files exist and are valid |
-| 2 Wire | Steps 2–4 | deploy.sh, service map, tool routing updated |
-| 3 Run | Steps 5–8 | Service deployed, started, and reachable |
+| Phase | Steps | Goal | Gate |
+|---|---|---|---|
+| 1 Generate | Option A or B → Step 1 verify | Skeleton files exist and are valid | Step 1's structure checklist fully passes |
+| 2 Wire | Steps 2–4 | deploy.sh, service map, tool routing updated | `rg` confirms the new `cp` line, `[mcp_servers.<name>]` section, and (if needed) `tool_names` entry all exist |
+| 3 Run | Steps 5–8 | Service deployed, started, and reachable | `/mcp` in agent REPL shows the new server healthy |
 
 See `workflow.md` for detailed step content, failure recovery, and idempotency notes.
 
@@ -56,12 +56,13 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 
 - `issue-to-plan` — when a plan includes adding a new MCP server
 
-## Prohibited behavior
+## Required behavior
 
-- Do not reuse a port already assigned to an existing server
-- Do not use `json.load()` in the new server module (a specific instance of
-  `rules/coding.md`'s general `config_loader.py`-only `json.load()` rule — see
-  Constraint checks)
+- Use the port computed in Prerequisites, and re-run its `grep` command immediately before
+  assigning it — a server added by another change since this task started may have taken it.
+- Use `ConfigLoader().load(...)` to read the new server's config module, per `workflow.md`
+  Step 1's structure check (a specific instance of `rules/coding.md`'s general
+  `config_loader.py`-only `json.load()` rule — see Constraint checks).
 
 See `rules/coding.md` Mandatory conventions ("Module addition", "MCP server addition"
 rows) for the `deploy/deploy.sh` `cp` line and `config/agent.toml

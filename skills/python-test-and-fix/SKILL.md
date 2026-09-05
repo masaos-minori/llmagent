@@ -79,7 +79,10 @@ Before committing any fix for a broken or failing test, the AI must explicitly d
 ### [Test Fix Strategy Record]
 - **Failure Symptom**: (Paste the exact error message or stack trace here)
 - **Root Cause Analysis**: (Is the failure due to a broken implementation, a stale test expectation, or environmental factors?)
-- **Scope of Change**: (List specific files and lines modified. Ensure it adheres to the "Minimal Fix Strategy")
+- **Scope of Change**: (List specific files and lines modified. Confirm each listed file is
+  required to make the failing test pass — if a file could be removed from the list without
+  the fix breaking, remove it; see `AGENTS.md` Global Rule 5 for the broader unrelated-change
+  prohibition)
 - **Contract Verification**: (Explain how the fix aligns with the application's structural contract rather than just making the test pass)
 
 ---

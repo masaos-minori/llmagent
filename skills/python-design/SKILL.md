@@ -11,8 +11,8 @@ description: |
 
 ## Purpose
 
-Design first — do not modify source code or implement unless the user explicitly requests it
-(see `skills/DESIGN.md` Analysis-only phase constraint).
+Design first: produce design output only, and implement only when the user explicitly
+requests implementation (see `skills/DESIGN.md` Analysis-only phase constraint).
 
 Produce output that is clear and structured, minimal and YAGNI-compliant, type-safe,
 testable, and focused on design decisions, responsibility boundaries, constraints, and

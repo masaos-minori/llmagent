@@ -60,8 +60,11 @@ See `workflow.md` for detailed phase content and tooling.
 ## Core Review Rules (Strictly Enforced for AI)
 
 - Classify findings using the Evidence labels and Confidence levels in `skills/DESIGN.md` Shared Vocabulary; do not introduce a separate fact/interpretation/issue/question system.
-- Do not trust README or old docs without implementation verification.
-- Do not over-report style-only issues.
+- Verify a README or doc claim against the current implementation (Phase 7) before citing it
+  as evidence for a finding.
+- Report a style-only issue (naming, formatting, import order) as Low or Informational only —
+  never as Medium or above, and never in a count that exceeds the number of Medium+ findings
+  in the same review.
 - Respect project conventions and explain trade-offs.
 - Protect secrets and sensitive data.
 - Keep recommendations actionable; for tests, specify the behavior or failure mode to verify.

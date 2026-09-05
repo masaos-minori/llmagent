@@ -68,9 +68,11 @@ Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benc
 - Prefer typed, explicit, maintainable code
 - Prefer small, reviewable diffs
 - Scope discipline: see `AGENTS.md` Global Rule 5.
-- Do not treat uncertainty as approval; inspect the repository first
-- Do not assume conventions; extract them from nearby code
-- Do not consider the task complete until validation (`pytest`, `ruff`, `mypy`) is finished
+- When a requirement is uncertain, inspect the repository (Phase 2) before writing code —
+  uncertainty is a signal to investigate, not a signal that any interpretation is approved
+- Extract naming, typing, and error-handling conventions from nearby code (Phase 4) rather
+  than assuming a convention applies
+- Treat the task as complete only after Phase 9 validation (`pytest`, `ruff`, `mypy`) passes
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
 ### Pythonic Code Quality & Safety Constraints

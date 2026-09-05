@@ -8,7 +8,15 @@ Read the task description and extract:
 - **Input/output**: what data enters and leaves each boundary
 - **Constraints**: performance, security, compatibility, deployment
 
-If the task is vague, list specific questions. Do not guess.
+If any of Goal/Actor/Input-output/Constraints cannot be determined from the task
+description and available code, list specific questions for it instead of guessing.
+
+**Completed when**: all four items are recorded, each either as a confirmed value or as
+an explicit question.
+**Stop and ask the user before Step 2 when**: Goal cannot be determined even provisionally
+— every later step depends on it, so continuing would design against an assumed goal.
+For the other three items, record the open question and continue to Step 2 with them
+marked `UNKNOWN`.
 
 ---
 
@@ -22,11 +30,19 @@ List:
 
 If any requirement is ambiguous, flag it as `UNKNOWN` with the information needed to resolve.
 
+**Completed when**: Functional requirements, Non-functional requirements, Assumptions, and
+Dependencies are each recorded — either as concrete items or as `UNKNOWN` entries.
+**Stop and ask the user before Step 3 when**: zero functional requirements can be
+determined even provisionally — there is nothing left to design against. Any other
+ambiguity is recorded as `UNKNOWN` and design continues.
+
 ---
 
 ## Step 3: Define Architecture
 
-Read existing code to understand the current architecture:
+Read existing code to understand the current architecture. Run both command groups below,
+always, in this order — layer contracts first, since module decomposition is read in light
+of the contract they must respect:
 
 ```bash
 # Layer contracts
@@ -44,10 +60,16 @@ Define:
 - **Control flow**: how requests or events move through the system
 - **Data flow**: what data is read, written, and transformed at each step
 
-Keep the architecture minimal. Do not over-engineer.
+Keep the component count at or below the number of distinct use cases identified in Step 2:
+if a proposed component's responsibility can be merged into an existing one without
+violating one-way dependency direction (Core Design Rules), merge it instead of adding
+a new component.
 
 Include a concurrency model when relevant: synchronous, asynchronous (`asyncio`), threaded,
 multi-processed, or hybrid. State the boundary between sync and async code explicitly.
+
+**Completed when**: Components, Boundaries, Control flow, and Data flow are all defined and
+the component count is justified against Step 2's use cases.
 
 ---
 
@@ -64,11 +86,17 @@ public contracts, caller-visible behavior, input/output type boundaries for majo
 Apply `skills/DESIGN.md` Avoid implementation-reference duplication — list a file, function,
 or method only when the boundary itself is a design decision.
 
-Validate with:
+Run this validation only when the module design introduces a new `Protocol`, `abc.ABC`, or
+a new base-class hierarchy — check the design against existing patterns before finalizing it.
+Skip it when the design reuses an existing base class or introduces no new abstraction.
 ```bash
 ast-grep --pattern 'class $NAME(BaseModel): $$$' --lang python scripts/   # existing patterns
 ast-grep --pattern 'class $NAME(MCPServer): $$$' --lang python scripts/   # server patterns
 ```
+
+**Completed when**: every module has a package path, one-sentence responsibility, public API,
+and dependency direction recorded, and (if applicable) the ast-grep check above found no
+conflicting existing pattern.
 
 ---
 
@@ -121,15 +149,36 @@ For each module:
 
 ## Step 8: Produce an Implementation Plan
 
-List implementation phases in dependency order:
+### Step 8a: List phases in dependency order
 
 1. Phase N: <name>
    - Files to create or modify
    - Key change
-   - Verification step
 
-Each phase must be independently testable and revertable. Note migration path, rollback
-strategy, and documentation update points if relevant.
+A phase depends on another phase only when it imports, calls, or otherwise requires a
+symbol the other phase introduces. Order phases so no phase precedes one it depends on.
+
+### Step 8b: Verify independent testability
+
+For each phase, state the verification step that confirms it in isolation (unit test,
+type check, or manual check). If a phase cannot be verified without a later phase also
+being in place, merge the two phases — they are not actually independent.
+
+### Step 8c: Define rollback strategy
+
+For each phase, state what reverting it requires (revert the commit, remove a feature
+flag, restore a config value). If a phase has no clean revert path (e.g. it runs a
+data migration), say so explicitly and name the phase as a rollback risk in Step 9's
+Risks and Open Questions.
+
+### Step 8d: Note migration path and documentation update points
+
+If the design changes a public contract, data format, or configuration key, state the
+migration path for existing data/callers. List which `docs/*.md` files this change would
+require updating, if any.
+
+**Completed when**: every phase has passed Step 8a–8d — dependency-ordered, independently
+verifiable, with a stated rollback path (or documented risk), and migration/doc impact noted.
 
 ---
 
@@ -148,6 +197,23 @@ Check:
 - [ ] design complies with `skills/DESIGN.md` Import layer contract and Pythonic safety constraints
 
 If a section is not relevant, omit it instead of filling it with generic text.
+
+**Completed when**: every checked item above is true.
+**On an unchecked item**: return to the step that owns it (see mapping below), fix the gap,
+then re-run this checklist from the top — do not proceed to Final Output with a known gap.
+
+| Unchecked item | Return to |
+|---|---|
+| requirement/module or interface mismatch | Step 2 or Step 4 |
+| non-functional requirement unaddressed | Step 2 |
+| unvalidated external input | Step 5 |
+| secret in logs | Step 6 |
+| infeasible test | Step 7 |
+| unjustified abstraction / oversized design | Step 4 |
+| untested or contradictory assumption | Step 2 |
+| implementation plan gap | Step 8 |
+| missing open question | Evidence and Assumptions (below) |
+| Import layer contract / Pythonic safety violation | Step 3, Step 4, or Step 6 |
 
 ---
 

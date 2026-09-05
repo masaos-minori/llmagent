@@ -145,6 +145,12 @@ on filling sections for how to apply `skills/python-design/SKILL.md` +
 the few relevant bullets from that skill's broader 12-section template; do not produce
 its full architecture output here.
 
+This step has four sub-steps, applied in order per target-file row: verify the Plan's
+claims (3a), prepare the shared timestamp once per pass (3b), process the row (3c), then
+record progress (3d).
+
+### Step 3a: Verify the Plan's claims (adversarial verification)
+
 Treat the Plan's descriptions of current source-code behavior as claims, not
 confirmed present-tense fact — it may have gone stale since approval. Before writing
 Procedure/Method/Details for a row, perform **adversarial verification**: don't
@@ -183,6 +189,12 @@ the progress report and the Plan's Execution Status as needing re-verification b
 Step 4's move — do not silently leave a stale earlier document unflagged. Scope this
 check to the corrected claim only, not a full re-verification of every prior row.
 
+**Completed when**: for the current row, the target file, its direct dependencies, and its
+related tests have each been checked once against the Plan's claim about them, and any
+disconfirming finding has been corrected in the Plan document.
+
+### Step 3b: Prepare the shared pass timestamp
+
 Files read only to confirm current behavior or dependencies are not additional target
 files — a file belongs under `Target file` only if it is a row in the Plan's
 `Implementation Target Files` table (revalidated in Step 2). A file in `Reference
@@ -209,6 +221,11 @@ silently regenerate with a new value: a still-pending row's later
 `generate_workitem.py` call would then mint a different timestamp than earlier rows in
 the same pass, breaking the "one shared timestamp per pass" guarantee this Step
 otherwise depends on.
+
+**Completed when**: one timestamp value is set (manually or via the tool's marker
+mechanism) and will be reused for every document this pass creates.
+
+### Step 3c: Process each target file row
 
 For each row in `Implementation Target Files`, in the order they appear in that table
 — **one target file = one implementation procedure document** (see `SKILL.md` Core
@@ -294,7 +311,11 @@ Execution Rules):
   generated document (see `templates/implementation-procedure.md`) — do not paste the
   Plan's full Requirement description text.
 
-### Progress recording during Step 3
+**Completed when**: every row has been classified and assigned exactly one outcome —
+skipped (`Already implemented`), a scoped document created (`Partially implemented` or
+`Not implemented`), or reported (`Needs confirmation`, `Blocked`, or `Plan Gap`).
+
+### Step 3d: Progress recording
 
 **Chat-facing reporting** (frequency-gated): report an interim update only when a
 row's outcome is Blocked, Partially implemented, fails verification, produces a Plan

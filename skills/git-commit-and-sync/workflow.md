@@ -61,8 +61,15 @@ Use `git add -A` only when the user says "all changes":
 git add -A
 ```
 
-Do not use `git add .` — it stages relative to the current directory, which may be unexpected.
-Do not stage files unrelated to the task.
+Use explicit paths (or `git add -A` per the rule above) — never `git add .`, since it
+stages relative to the current directory and can pick up files outside the intended scope.
+
+Stage only files that implement the current instruction's change. A file `git status`
+shows as modified but that this instruction did not touch stays unstaged, unless the user
+has said "all changes" (see the `git add -A` rule above).
+
+**Completed when**: every file the current instruction changed is identified as a path to
+stage (or the `-A` condition applies).
 
 ---
 
@@ -79,7 +86,10 @@ git diff --cached --stat
 git diff --cached --name-only
 ```
 
-Confirm the staged set matches the intended scope.
+**Completed when**: `git diff --cached --name-only`'s output exactly matches the file set
+chosen in Phase 2.
+**Stop and report when**: it does not match (a Phase 2 file is missing from the staged
+list, or an extra file appears) — do not proceed to Phase 4 with an unexplained mismatch.
 
 ---
 
@@ -94,15 +104,30 @@ Report:
 
 ## Phase 5: Make Commit Message
 
-Read staged diff only. Derive the message from what is actually staged.
+Three sub-steps, applied in order: classify the staged diff (5a), flag mixed concerns if
+any (5b), then write the message (5c).
+
+### Step 5a: Classify the staged diff by type
+
+Read staged diff only — never unstaged changes. Classify what the staged diff actually
+does against the Allowed types below:
+
+`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `build`, `ci`, `perf`, `style`
+
+### Step 5b: Flag mixed concerns
+
+If the staged diff matches more than one type above (e.g. a `feat` change and an unrelated
+`docs` fix staged together), report this to the user before committing — do not silently
+pick one type and omit the other's intent from the summary. Proceed to 5c with the user's
+choice (one combined message, or split into separate commits) once acknowledged.
+
+### Step 5c: Write the message
 
 Format:
 
 ```
 <type>: <summary>
 ```
-
-Allowed types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `build`, `ci`, `perf`, `style`
 
 Examples:
 - `docs: update Git workflow skill`
@@ -111,6 +136,9 @@ Examples:
 
 Do not reference filenames in the summary unless unavoidable.
 Do not fabricate content from unstaged changes.
+
+**Completed when**: the message's `<type>` matches 5a's classification (or the user's 5b
+choice) and its summary describes only what is actually staged.
 
 ---
 

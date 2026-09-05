@@ -34,11 +34,25 @@ Before reading any code, classify the task:
 - **Interface impact**: does this change a public function signature, a config key, or a DB schema?
 
 If requirements are ambiguous, state what is unknown and proceed conservatively.
-Do not proceed to implementation until task type and target scope are clear.
+
+**Completed when**: task type, target scope, blast radius, and interface impact are all
+recorded — each either as a determined value or as an explicit unknown.
+**Stop and ask the user before Phase 2 when**: the target scope cannot be determined even
+provisionally (no candidate files or call path can be identified from the task description
+and a first-pass `rg`/`grep` of the repository) — proceeding without any scope would mean
+guessing which files to change. Any other ambiguity is recorded as unknown and Phase 2
+proceeds to resolve it with repository evidence.
 
 ---
 
 ## Phase 2: Repository Intelligence
+
+Run in this order: `rg` first (always — locates the symbols and call sites in scope),
+`ast-grep` next only if a structurally-valid match is needed (a pattern `rg` cannot express,
+e.g. matching a class body or an async signature), `pydeps` only when the target is a shared
+utility (`llm_client`, `rag_utils`, `formatters`, or anything with more than one importer per
+`rg "import <module>"`), and `git` last, only when the current behavior's origin or recent
+change history is relevant to the task.
 
 #### rg — text search
 
@@ -80,6 +94,9 @@ git diff HEAD
 git diff HEAD~1 -- scripts/
 ```
 
+**Completed when**: every symbol/module identified in Phase 1's target scope has a confirmed
+set of usages (`rg`/`ast-grep`), and blast radius is assessed for any shared utility touched.
+
 ---
 
 ## Phase 3: Architecture Boundary Analysis
@@ -105,13 +122,23 @@ rg 'cfg\["' scripts/ | sed 's/.*cfg\["\([^"]*\)".*/\1/' | sort -u
 rg '\.info\("|\.warning\("|\.error\("|\.debug\("' scripts/ | grep -oP '(?<=")[^"]+' | sort -u
 ```
 
-Do not introduce a new pattern unless the existing pattern is demonstrably insufficient.
+Implement the task using the pattern the commands above surface. Introduce a new pattern
+only when applying the existing one would violate a concrete requirement from Phase 1/2
+(e.g. the existing exception-handling pattern swallows an error the task requires to
+propagate) — cite that requirement when deviating.
+
+**Completed when**: the conventions above (exception handling, config-key access, typed
+signatures, log message format) have each been confirmed present in nearby code, or the
+requirement that justifies deviating from them has been cited.
 
 ---
 
 ## Phase 5: Semantic Safe Modification
 
-#### Implementation rules
+This phase has four sub-steps, applied in order: write the code (5a), handle its errors
+(5b), scope the diff (5c), then run any required CST transform (5d).
+
+#### Step 5a: Implementation rules
 
 - prefer explicit, readable code over compact clever code
 - add type annotations where the project already uses them; do not omit return types
@@ -122,32 +149,36 @@ Do not introduce a new pattern unless the existing pattern is demonstrably insuf
 - prefer dependency injection over implicit coupling
 - preserve backward compatibility unless the task explicitly allows interface changes
 
-#### Error handling rules
+#### Step 5b: Error handling rules
 
 Applies `skills/DESIGN.md` Pythonic safety constraints (specific exceptions, no bare
 `except Exception` without re-raising, fail-fast) to this phase:
 
-- add context to errors when it improves diagnosis:
+- add context to an error when the raw exception does not already identify which value or
+  call site failed — name the function and the invalid value, as below:
   ```python
   raise ValueError(f"floats_to_blob: expected list[float], got {type(v).__name__}")
   ```
 - trust internal invariants; validate only at public boundaries
 - log errors with sufficient context before re-raising
 
-#### File editing rules
+#### Step 5c: File editing rules
 
 - Scope discipline: see `AGENTS.md` Global Rule 5.
 - keep diffs small and intentional
 - when adding/removing a module: `deploy/deploy.sh` does not need a change for this — `scripts/` is rsynced wholesale (see `rules/env.md` Architecture); only a new `config/*.toml` file needs a `cp` line added there
 - when renaming a symbol: update all call sites confirmed by `rg` or `ast-grep`
 
-#### LibCST — CST-based refactor transforms
+#### Step 5d: LibCST — CST-based refactor transforms
 
-If a change within this task must preserve comments, formatting, or docstrings during a
-rename/structural edit, use the LibCST transform recipe in
-`skills/python-refactoring/workflow.md` Step 6 (Transformation).
+Run this step only when the task includes a rename or structural edit that must preserve
+comments, formatting, or docstrings; otherwise skip directly to Phase 6.
 
-After any LibCST transform: run `ruff format scripts/` and `ruff check scripts/ --fix`.
+If required, use the LibCST transform recipe in `skills/python-refactoring/workflow.md`
+Step 6 (Transformation), then run `ruff format scripts/` and `ruff check scripts/ --fix`.
+
+**Completed when**: 5a–5c have been applied to every file in scope, and (if 5d ran)
+`ruff format`/`ruff check --fix` have been re-run after the transform.
 
 ---
 
@@ -187,7 +218,9 @@ This project uses `logging.getLogger(__name__)` in library modules.
 structlog and OpenTelemetry are not currently adopted project-wide — skip this phase
 unless the task explicitly requests OTel instrumentation.
 
-For new I/O-bound or cross-service code paths, ensure log output is filterable:
+For new I/O-bound or cross-service code paths, make log output filterable: use
+`key=value` pairs in the message (not free-form prose) so `grep`/log-aggregator queries can
+match on a specific field, as in the examples below:
 
 ```python
 logger = logging.getLogger(__name__)
@@ -213,6 +246,15 @@ Priority findings: see `rules/coding.md` Bandit priority findings.
 
 See `rules/toolchain.md` for the full sequence and `rules/coding.md` Constraint checks for
 the `ast-grep` commands.
+
+**Completed when**: `pytest`, `ruff check`, and `mypy`/`pyright` all pass, and
+`tools/check_compat_shims.py` reports no new backward-compatibility leftovers.
+**On a failure caused by this task's change**: delegate to `python-test-and-fix` (test
+failures) or `python-lint-typecheck` (lint/type failures) per `SKILL.md` Composition rules
+— do not proceed to Phase 10 with a known failure.
+**On a pre-existing failure unrelated to this task's change**: record it in Output
+expectations' "unresolved questions or known limitations" and proceed; do not fix
+out-of-scope failures (see `AGENTS.md` Global Rule 5).
 
 ---
 
@@ -275,12 +317,16 @@ When removing a module: remove its entry from the above, delete the file, run `r
 
 ---
 
-## Prohibited behavior
+## Required behavior
 
 (Unrelated-change prohibition: see `AGENTS.md` Global Rule 5 — not repeated here.)
-- do not introduce speculative architecture
-- do not invent requirements that are not present
-- do not change public APIs silently
-- do not disable validation, tests, or type checking to make the task appear complete
+- Build architecture only for the requirements recorded in Phase 1/2 — if a broader need is
+  suspected, record it as an open question in Output expectations rather than building for it.
+- Implement only requirements stated in the task or confirmed in Phase 1/2 — record anything
+  else as an open question instead of adding it.
+- If a public API must change, state the change and its impact explicitly in the
+  implementation summary (Output expectations) — never leave it undocumented.
+- Fix the cause of a validation/test/type-check failure per Phase 9 — never disable the
+  check itself to make the task appear complete.
 
 See also `rules/coding.md` for project-wide prohibitions (suppression governance, commit hygiene).

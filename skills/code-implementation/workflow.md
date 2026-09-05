@@ -133,6 +133,12 @@ Apply `rules/ai-execution.md`, section 'Required File Validation'.
 
 ## Step 3: Implement the Feature
 
+This step has five sub-steps, applied in order: verify the procedure's claims (3a),
+correct the procedure on a finding (3b), check for cross-file conflicts (3c), implement
+(3d), then validate (3e).
+
+### Step 3a: Verify the procedure's claims (adversarial verification)
+
 Before implementing, perform **adversarial verification** of the procedure's claims
 about current source: do not assume its Procedure/Method/Details are still
 accurate — check via `rg`/Read whether the target file, symbol, line numbers, and
@@ -146,11 +152,21 @@ source, in that order — a disconfirming finding ends investigation for that sp
 finding (the procedure document must be corrected, per the paragraph below, not
 further researched) rather than triggering deeper search.
 
+**Completed when**: the target file, its specific symbol/line/call-path claims, and its
+stated dependencies have each been checked once against current source.
+
+### Step 3b: Correct the procedure document on a finding
+
 If verification finds an unconfirmed item or an inconsistency, correct the
 implementation procedure document itself (`implementations/{filename}.md`, via Edit)
 to reflect the corrected understanding before proceeding, and note the correction in
 the Execution Status table's Notes. Do not implement around a stale description —
 implement against the corrected, source-verified understanding.
+
+**Completed when**: no unconfirmed item or inconsistency from Step 3a remains
+unaddressed in the procedure document (or Step 3a found none).
+
+### Step 3c: Check for cross-file conflicts
 
 If adversarial verification, or the implementation itself, reveals that the current
 file's required change conflicts with, or invalidates an assumption of, an
@@ -158,14 +174,27 @@ already-processed file's change in the same Multi-file-processing batch, stop an
 report `Blocked: cross-file conflict with {earlier file} — {description}` rather than
 proceeding. Do not implement around the conflict silently.
 
+**Completed when**: no unresolved conflict with an already-processed file in this batch
+is outstanding.
+
+### Step 3d: Implement
+
 Implement the feature per the (possibly corrected) procedure, applying the guidance
 loaded in Step 0 from `skills/python-implementation/SKILL.md` and
 `skills/python-lint-typecheck/SKILL.md`.
 
-After implementing:
-- Run repository-defined non-test validation: formatting, linting, type checking,
-  architecture/import-boundary checks, security checks.
-- Fix all errors before proceeding to Step 4. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt must be recorded (approach, error, reason) before trying a different approach.
+**Completed when**: the change described in the (possibly corrected) procedure is applied.
+
+### Step 3e: Validate
+
+Run repository-defined non-test validation: formatting, linting, type checking,
+architecture/import-boundary checks, security checks.
+
+**Completed when**: all of the above pass.
+**On a failure**: fix it before proceeding to Step 4. Per AGENTS.md Attempt Limit, each
+distinct error/failure may be attempted at most 3 times before stopping. Per AGENTS.md
+Failure Log, each failed attempt must be recorded (approach, error, reason) before trying
+a different approach. If the Attempt Limit is reached, apply Rollback on Failure below.
 
 ## Step 4: Test the Feature
 
@@ -177,7 +206,7 @@ failure's cause is not immediately obvious, load and apply
   selection, see `skills/python-test-and-fix/workflow.md` Step 10) when available;
   otherwise use tests under the same module path as each changed file, plus any test
   found via `rg` to import a changed symbol.
-- Run targeted tests during implementation; fix all related failures. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt must be recorded (approach, error, reason) before trying a different approach.
+- Run targeted tests during implementation; fix all related failures. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt must be recorded (approach, error, reason) before trying a different approach. If the Attempt Limit is reached without a passing fix, stop and apply Rollback on Failure (below) — do not proceed to the full-suite run with a known-failing targeted test.
 - Run the repository-defined full test suite exactly once, after targeted tests
   pass — the only full-suite run for this cycle; Step 6 MUST NOT run tests again.
   If Step 3 reported a cross-file conflict with an already-processed earlier file (see

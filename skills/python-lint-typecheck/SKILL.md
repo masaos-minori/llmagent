@@ -6,7 +6,8 @@ description: |
   Covers: repository convention enforcement, architecture integrity, suppression governance,
   semantic refactor safety, type flow analysis, static security validation,
   diff scope enforcement, CI consistency validation, and repository knowledge compression.
-  Do NOT add broad suppression comments unless explicitly justified.
+  Add a suppression comment only with the Step 4 justification format; otherwise fix the
+  underlying issue.
 ---
 
 # Lint Typecheck Skill

@@ -12,9 +12,16 @@
 | `bandit` | 5 | Confirm security findings with static analysis where available |
 | `pytest` | 6 | Confirm claimed test coverage or failure actually reproduces |
 
-Prefer `Bash (grep)` + `Read` for targeted lookups before spawning `Agent (Explore)`.
+Use `Bash (grep)` + `Read` when the search needs fewer than 3 queries; spawn `Agent
+(Explore)` once a review needs 3 or more queries or spans more than one package (same
+threshold as `skills/python-documentation/workflow.md` Tool selection rules).
 Run a tool to confirm a finding before reporting it; do not present a suspected issue as
 confirmed without evidence.
+
+Within a Phase, run its listed tools in the order they appear in the Phase's own `Do` list
+(each tool confirms the check immediately above it). If a tool is unavailable in the current
+environment, record the affected checks as `Needs Confirmation` (per `skills/DESIGN.md`
+Shared Vocabulary) and continue with the remaining checks — do not stop the review.
 
 ---
 
@@ -26,6 +33,12 @@ Do:
 - determine the diff boundary (`git diff <base>...<head>` or the stated file list)
 - identify the change's stated intent (PR description, commit message, or user request)
 - identify out-of-scope files per `skills/DESIGN.md` Out-of-scope paths (generated code, vendored code, build outputs)
+
+**Completed when**: the diff boundary and stated intent are both recorded.
+**Stop and ask the user before Phase 2 when**: no diff boundary can be determined (no PR,
+diff, or file list is identifiable) — there is nothing to review. Every later Phase's
+"tool unavailable" case (see Toolchain above) is handled by recording `Needs Confirmation`
+and continuing, not by stopping here.
 
 ---
 
@@ -108,8 +121,27 @@ behavior or failure mode to verify.
 
 ## Phase 10: GitHub Issue Conversion
 
-When converting findings into GitHub issues:
-- use one issue per actionable task; group related findings only when they must be fixed together
-- include reason for change, implementation intent, acceptance criteria, out of scope, and testing expectations
-- avoid Markdown that breaks when copied
-- do not include secrets or unnecessary code blocks
+Run this phase only when the user requests issue conversion; otherwise Phase 9's report is
+the final output. Three sub-steps, applied in order: group findings (10a), draft each issue
+(10b), then check for sensitive content (10c). Delegate the actual issue authoring to
+`skills/issue-creator/SKILL.md`, which owns the grouping/splitting criteria and the field
+list — this phase only decides which findings feed it.
+
+### Step 10a: Group findings into issues
+
+Use one issue per actionable task; group findings only when they meet
+`skills/issue-creator/workflow.md` Phase 2's "Group tasks into one issue only when" criteria
+(e.g. same file, must be tested together) — otherwise split them.
+
+### Step 10b: Draft each issue
+
+Include reason for change, implementation intent, acceptance criteria, out of scope, and
+testing expectations, per `skills/issue-creator/SKILL.md` Issue Structure.
+
+### Step 10c: Check for sensitive content
+
+Avoid Markdown that breaks when copied (see `skills/issue-creator/workflow.md` Step 9b
+Markdown safety rules). Do not include secrets or unnecessary code blocks.
+
+**Completed when**: every grouped finding from 10a has a drafted issue from 10b that has
+passed the 10c check.

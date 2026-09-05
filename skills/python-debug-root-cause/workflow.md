@@ -41,11 +41,26 @@ Before any tool use, identify:
 - affected input or environment
 - whether the issue is deterministic, intermittent, or unknown
 
-State unknowns explicitly. Do not proceed to tools until the failure is framed.
+State unknowns explicitly.
+
+**Completed when**: observed behavior, expected behavior, affected input/environment, and
+reproducibility are all recorded — each either as a confirmed value or an explicit unknown.
+**Stop and ask the user before Phase 2 when**: neither an exact error message/symptom nor
+a way to reproduce or observe it (a log, a failing test, a user-reported trace) is
+available — there is no evidence to investigate from. Any other unknown is recorded and
+Phase 2 proceeds to gather evidence for it.
 
 ---
 
 ## Phase 2: Initial Observability
+
+Use `structlog`+`jq` first — it answers "what happened" from structured fields without an
+interactive session. Reach for `lnav` only when `jq` filtering alone cannot narrow the
+window (e.g. correlating across log files by time). Reach for `multitail` only when
+several services must be watched live as the failure reproduces (not for a
+already-occurred, historical failure). Use `sentry-sdk` only if `SENTRY_DSN` is already
+configured — it is a capture mechanism for future occurrences, not a tool for analyzing
+a failure that already produced a log.
 
 #### structlog + jq
 
@@ -71,8 +86,8 @@ multitail /opt/llm/logs/agent.log /opt/llm/logs/file-mcp.log /opt/llm/logs/web-s
 
 #### sentry-sdk (optional — requires DSN in environment)
 
-Only use if `SENTRY_DSN` is configured in `/etc/conf.d/llama-agent`.
-Do not add a hardcoded DSN to any script.
+Only use if `SENTRY_DSN` is configured in `/etc/conf.d/llama-agent`; read the DSN from
+`os.environ["SENTRY_DSN"]` only — never hardcode it into a script.
 
 ```python
 import os, sentry_sdk
@@ -242,6 +257,11 @@ import stackprinter; stackprinter.set_excepthook(style="plaintext")
 
 ## Phase 6: Hypothesis Validation
 
+Two sub-steps: build the hypothesis table (6a), then falsify each entry with its matching
+tool (6b).
+
+### Phase 6a: Build the hypothesis table
+
 | Hypothesis | How to falsify |
 |---|---|
 | ConfigLoader path mismatch | Print `ConfigLoader().load(...)` output |
@@ -255,6 +275,11 @@ import stackprinter; stackprinter.set_excepthook(style="plaintext")
 | `None` propagation | `assert x is not None` at boundary + pytest |
 | Wire format mismatch | `mitmproxy` to capture actual request/response |
 | Performance regression | `py-spy record` + `viztracer` |
+
+**Completed when**: every plausible hypothesis for the classified failure domain (Phase 3)
+has a row above, using `SKILL.md`'s Hypothesis Analysis Matrix format.
+
+### Phase 6b: Falsify each hypothesis with its matching tool
 
 #### hypothesis
 
@@ -313,6 +338,9 @@ pytest --reruns 10 --reruns-delay 0.2 tests/test_<module>.py
 pytest --timeout=10 tests/
 ```
 
+**Completed when**: every row in 6a's table is marked Validated or Invalidated with an
+observed result (per `SKILL.md`'s Mandatory Output Template) — not left blank.
+
 ---
 
 ## Phase 7: Regression Localization
@@ -359,18 +387,41 @@ Delegate to composed skills when appropriate:
 
 ## Phase 9: Validation + Cleanup
 
+Three sub-steps, applied in order: run tests (9a), restart services if needed (9b), then
+remove debug artifacts (9c).
+
+### Phase 9a: Run tests
+
 ```bash
 pytest tests/test_<module>.py -v
 pytest -v
 ruff check scripts/
-# Restart MCP server via agent REPL or direct process management if production code changed
 ```
+
+**Completed when**: both pytest runs and `ruff check` pass.
+
+### Phase 9b: Restart services
+
+Run only if production code changed:
+
+```bash
+# Restart only the service(s) whose code changed (per skills/deploy/workflow.md
+# Phase 3 Step 3a decision criteria) — see skills/deploy/workflow.md Phase 3 Step 3b
+# for the actual restart commands
+```
+
+**Completed when**: every service selected by the decision criteria above is restarted
+and healthy, or this sub-step was skipped because no production code changed.
+
+### Phase 9c: Remove debug artifacts
 
 Before committing:
 - remove `import ipdb` and all `ipdb.set_trace()` calls
 - remove temporary `structlog` debug calls
 - remove `viztracer` / `tracemalloc` instrumentation
 - confirm Sentry DSN is not in any committed file
+
+**Completed when**: `git diff` shows none of the artifacts above remain.
 
 ---
 

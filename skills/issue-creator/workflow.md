@@ -14,6 +14,12 @@ If requirements are incomplete, mark assumptions and open questions instead of i
 missing requirements — record them in the issue's `Unresolved Questions` section
 (per `templates/issue.md`), not only in this phase's internal reasoning.
 
+**Completed when**: source, scope, and completeness (complete vs. needs assumptions) are all
+recorded, and any incomplete requirement has a corresponding assumption or open question.
+**Stop and ask the user before Phase 2 when**: the scope of the work cannot be determined
+even provisionally — there is nothing to group or draft against. Any other incompleteness is
+recorded as an assumption/open question and framing continues.
+
 ---
 
 ## Phase 2: Task Grouping
@@ -28,13 +34,17 @@ Decide whether to split work into multiple issues or group it into one.
 - they share the same acceptance criteria
 - they must be tested together
 
-### Do not group tasks when
+### Split into separate issues when
 
 - they affect unrelated areas
 - they have different owners
 - one can be completed safely without the other
 - they require different validation strategies
 - grouping would make review harder
+
+**Completed when**: every task from Phase 1's scope has been assigned to exactly one issue
+group, using the criteria above (grouping and splitting are mutually exclusive per pair of
+tasks — a pair matching a "Group" criterion is not also split, and vice versa).
 
 ---
 
@@ -52,7 +62,10 @@ user or developer impact.
 
 **Implementation Intent** — explain how the work should be approached at a high level.
 Focus on responsibility boundaries, minimal change, expected design direction, what should be
-preserved, and what should not be changed. Do not include excessive implementation details.
+preserved, and what should not be changed. Name a specific file, function, or line number
+only when the boundary itself is the design decision (see `skills/DESIGN.md` Avoid
+implementation-reference duplication) — otherwise describe the responsibility, not the
+location.
 
 ---
 
@@ -137,7 +150,10 @@ out-of-scope items.
 
 ## Phase 9: Evidence, Markdown Safety, and Final Checklist
 
-### Evidence and assumptions
+This phase has three sub-steps, applied in order: verify evidence (9a), verify markdown
+safety (9b), then run the final checklist (9c).
+
+### Step 9a: Evidence and assumptions
 
 When the issue is based on code review or investigation, apply `skills/DESIGN.md` Evidence
 labels and Confidence levels — do not invent a parallel confirmed/assumption/unknown scheme.
@@ -147,7 +163,10 @@ When the issue is based on a user request only:
 - include open questions if requirements are incomplete
 - do not invent missing requirements
 
-### Markdown safety rules
+**Completed when**: every claim in the issue is either backed by cited evidence (code
+review/investigation) or explicitly marked as an assumption/open question.
+
+### Step 9b: Markdown safety rules
 
 - Emit each issue as a separate Markdown block when requested.
 - Avoid nested triple-backtick blocks inside issue bodies.
@@ -157,7 +176,9 @@ When the issue is based on a user request only:
 - Keep headings consistent.
 - Ensure every opened list, quote, or block is closed.
 
-### Final checklist
+**Completed when**: every rule above has been checked against the drafted issue body.
+
+### Step 9c: Final checklist
 
 Before finalizing issues, verify:
 - [ ] each issue is actionable
@@ -167,9 +188,13 @@ Before finalizing issues, verify:
 - [ ] Constraints, Out of Scope, and Dependencies are explicit (or `N/A`), per Phase 4
 - [ ] Unresolved Questions reflects every open assumption from Phase 1 (or is `N/A: none`)
 - [ ] grouping follows Phase 2 criteria
-- [ ] Markdown safety follows Phase 9
+- [ ] Markdown safety follows Step 9b
 - [ ] no secrets or sensitive data are included (see `SKILL.md` Core Principles)
 - [ ] the issue follows `templates/issue.md`'s field order and names exactly
+
+**Completed when**: every checked item above is true.
+**On an unchecked item**: return to the phase that owns it (Phase 1–8, or Step 9a/9b above),
+fix the gap, then re-run this checklist — do not proceed to Phase 10 with a known gap.
 
 ---
 

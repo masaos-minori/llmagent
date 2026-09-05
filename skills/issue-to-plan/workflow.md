@@ -175,7 +175,10 @@ Classify the Issue as Path A or Path B per `SKILL.md`'s Routing (AI Task Size
 Assessment) section, **before** inspecting.
 
 - **Path A**: limit this step to direct verification of the target files and their
-  immediate dependencies:
+  immediate dependencies. Derive `<module>` from the Issue's target files (its
+  repository-relative path with `/` replaced by `.` and the `.py` suffix removed, e.g.
+  `scripts/agent/foo.py` → `agent.foo`) — run the commands below once per target file,
+  not once for the whole Issue:
 
   ```bash
   rg "^from|^import" scripts/<module>.py | sort -u
@@ -194,8 +197,10 @@ Assessment) section, **before** inspecting.
   is consistent with `workflow-path-b.md`'s own existing "once all four analyses above
   are complete" gate, not a change to it.
 
-Read only relevant sections unless the full file is required for an accurate
-conclusion. Record the Path A/B decision for reuse in Step 5.
+Read only the section(s) located via `rg`/grep for the target symbol or claim, unless
+that section alone omits context the claim depends on (e.g. a decorator, base class, or
+module-level state defined elsewhere in the same file) — in that case read the full file.
+Record the Path A/B decision for reuse in Step 5.
 
 Track files inspected only for evidence separately from files planned for
 modification. Only modification-target files belong in the Plan's `Implementation
@@ -331,6 +336,11 @@ raising it to ≥ 90%.
   mitigation and needs separate follow-up.
 - Do not create either file with placeholder or empty content — if the Plan's inline
   table fully captures every Unknown/Risk, do not also file a separate issue for it.
+- **Completed when**: every Unknown surfaced in Step 2/3/5 is resolved (backed by
+  repository evidence) or recorded in the Unknowns table with a Resolution Path, and every
+  Risk has a mitigation or is filed to `issues/{timestamp}_risks.md`. Do not keep
+  investigating a non-blocking Unknown once a plausible Resolution Path is recorded —
+  further confirmation belongs to the implementation phase, not this Step.
 - When an Unknown/Risk issue file (or the Step 7 Requirement Traceability table)
   references a Requirement, cite its ID (e.g. `REQ-003`) — do not re-quote the full
   description text.
@@ -368,6 +378,11 @@ raising it to ≥ 90%.
 
 ## Step 8: Validate Information Completeness
 
+This step has three sub-steps, applied in order: verify completeness and traceability
+(8a), validate and freeze the target-file inventory (8b), then report the outcome (8c).
+
+### Step 8a: Verify information completeness and traceability
+
 Verify the Plan preserves: title/priority, target files, background, problem, reason for
 change, implementation intent, implementation instructions, acceptance criteria, tests,
 documentation impact, constraints/out-of-scope items, dependencies, assumptions,
@@ -380,12 +395,21 @@ from Step 2.
 Verify every Requirement ID is traceable to its Issue source/evidence, an implementation
 step, an acceptance criterion, and a test/validation item.
 
+**Completed when**: every item in the preserved-information list above is present in the
+Plan, and every Requirement ID is traceable to all four of its required links.
+
+### Step 8b: Validate and freeze Implementation Target Files
+
 Apply `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) — Initial validation, to every row of `Implementation Target Files`. Mark the
 section `Frozen` only when every row is `Verified` and the section's additional checks
 (no directory/glob/component/group/vague-phrase row, no file listed in both
 `Implementation Target Files` and `Reference Files`) pass. Do not report `Pass` while
 any row remains `Needs confirmation` or the section is not `Frozen`.
+
+**Completed when**: every row is `Verified` and the section is marked `Frozen`.
+
+### Step 8c: Report the outcome and re-entry
 
 Report one of: `Pass` / `Fail` / `Partial` / `Blocked`. If any requirement information
 is unmapped or untraceable, or `Implementation Target Files` is not `Frozen`, do not

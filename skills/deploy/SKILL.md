@@ -38,7 +38,7 @@ See `workflow.md` for detailed phase content including failure recovery procedur
 
 - syntax check passed before deploy
 - `deploy/deploy.sh` ran successfully
-- only affected services were restarted (apply agent restart decision criteria)
+- only affected services were restarted (apply `workflow.md` Phase 3 Step 3a decision criteria)
 - all restarted services show running state
 - no new errors in logs
 - if agent was restarted: new REPL session verified with `/mcp`
@@ -51,17 +51,29 @@ See `workflow.md` for detailed phase content including failure recovery procedur
 
 ## Scope notes
 
-- **Config-only change** (no `scripts/` change): Phase 3 (Restart) may be skipped if the service reads config at request time. Verify by checking whether the service caches config at startup.
+- **Config-only change** (no `scripts/` change): Phase 3 (Restart) may be skipped only if the
+  changed field appears in the affected service's `/reload`-eligible field list (see
+  `docs/05_agent_08_01_configuration-loading-agent-config.md`'s hot-reload table for the
+  agent; for an MCP server, check whether `ConfigLoader().load(...)` is called at module
+  import / `__init__` time — if so, it is startup-only and requires Phase 3; if it is called
+  inside a request handler, `/reload` suffices and Phase 3 may be skipped).
 - **Rollback**: `deploy/deploy.sh` only copies files; rollback by re-running the skill with the previous commit checked out (`git checkout <prev-sha>` then Phase 2 onward). Service state is not rolled back automatically.
 
-## Prohibited behavior
+## Required behavior
 
-- Do not restart all services when only one is affected
-- Do not run `deploy/init_db.sh` on a production DB with existing data without confirming idempotency
-- Do not run `deploy/setup_services.sh` on a system where services are already registered without checking first
-- Do not skip the pre-deploy syntax check
-- Do not deploy with known syntax errors in `scripts/`
-- Do not use `/reload` as a substitute for deploying changed files — `/reload` only re-reads config, it does not copy new code
+- Restart only the services identified by Phase 3's Agent restart decision criteria — never
+  restart a service the criteria did not select for the current change.
+- Before running `deploy/init_db.sh` on a production DB, confirm idempotency by checking
+  whether the target tables already exist (see Phase overview Gate for Phase 1 and
+  `deploy/init_db.sh`'s own `IF NOT EXISTS` guards).
+- Before running `deploy/setup_services.sh`, check whether the services it starts are
+  already registered (`curl` each health endpoint per `rules/env.md`) — run it only when at
+  least one target service is not already running.
+- Run the Phase 1 pre-deploy syntax check before every deploy; if it reports a `SyntaxError`,
+  fix the error and re-run the check before proceeding to Phase 2.
+- Use `/reload` only for hot-reloadable config fields (see Phase 3 Agent restart decision
+  criteria); use a full deploy (Phase 2 onward) whenever `scripts/` files changed, since
+  `/reload` never copies code.
 
 ## Improvement feedback
 
