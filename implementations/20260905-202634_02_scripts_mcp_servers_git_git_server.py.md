@@ -125,10 +125,10 @@ new import needed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extract `dry_run` from `req.args` and pass it plus `_cfg.allow_detached_head` into `pipeline.run(...)` | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (tracked in the `test_git_security_compliance.py` sibling document) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A here — doc update deferred per Plan's Documentation Impact |
+| 1 | Extract `dry_run` from `req.args` and pass it plus `_cfg.allow_detached_head` into `pipeline.run(...)` | Completed | 20260905-213500 | 20260905-214700 | Implemented exactly as specified |
+| 2 | Add or update tests per Validation plan (tracked in the `test_git_security_compliance.py` sibling document) | Completed | 20260905-213500 | 20260905-214700 | N/A here — test additions tracked in `implementations/20260905-202634_05_...test_git_security_compliance.py.md`; existing 228 tests under `tests/mcp_servers/git/` pass unchanged |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260905-213500 | 20260905-214700 | ruff format/check, mypy: pass. Full suite: 3179 passed/415 failed/10 skipped — all failures under `tests/agent`, `tests/integration`, and one unrelated `tests/mcp_servers/github` (missing `GITHUB_TOKEN` env var) test; zero failures under `tests/mcp_servers/git` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260905-213500 | 20260905-214700 | N/A here — doc update deferred per Plan's Documentation Impact; no `docs/00_index.md` task-scope row matches this file for this change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

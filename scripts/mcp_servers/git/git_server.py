@@ -263,7 +263,8 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     if handler is None:
         return CallToolResponse(result=f"Unknown tool: {req.name}", is_error=True)
     pipeline = WriteProtectionPipeline(pre_state)
-    result = pipeline.run(req.name, handler)
+    dry_run = cast(bool, req.args.get("dry_run", False))
+    result = pipeline.run(req.name, handler, dry_run, _cfg.allow_detached_head)
     post_state = RepositoryState.snapshot(
         resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
     )
