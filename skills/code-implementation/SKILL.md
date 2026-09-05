@@ -29,7 +29,7 @@ not document-only.
 | 1 | Identify the target implementation procedure file(s) | Confirm every specified `implementations/{filename}.md` path exists before processing. |
 | 2 | Read the current implementation procedure file | Read in full; extract its Traceability values for reuse in the Final Report. |
 | 3 | Implement the feature | Apply `python-implementation` + `python-lint-typecheck` guidance; fix all validation errors. |
-| 4 | Test the feature | Determine targeted test scope, run it, then run the full suite exactly once. |
+| 4 | Test the feature | Determine targeted test scope, run it, then run the full suite once (retry on failure within Attempt Limit). |
 | 5 | Update documentation | Update only `docs/*.md` sections matched by `docs/00_index.md`'s Document References by Task table. |
 | 6 | Validate documentation | Check the sections edited in Step 5, or skip if none were edited. |
 | 7 | Move the completed implementation procedure file | `git mv` only, once Steps 3/4/6 pass; no human approval required. |
@@ -50,8 +50,9 @@ structure.
 - **Documentation is routed, not guessed**: only update a `docs/*.md` section that
   `docs/00_index.md`'s "Document References by Task" table maps a changed file to — a
   changed file with no matching row is a normal, non-blocking outcome.
-- **One test suite run**: run the repository-defined full test suite exactly once per
-  cycle, after targeted tests pass — see `workflow.md` Step 4.
+- **One test suite run per attempt**: run the repository-defined full test suite once
+  per cycle after targeted tests pass; a failure may be fixed and the suite re-run
+  within Attempt Limit (3 attempts) — see `workflow.md` Step 4.
 - **One procedure file at a time**: see `workflow.md` Multi-file processing.
 - **Move is required**: see `workflow.md` Step 7. The move MUST NOT be skipped.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.

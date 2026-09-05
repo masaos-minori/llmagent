@@ -15,13 +15,26 @@ operations below.
 
 ## Toolchain
 
-Repository archival tool relevant to this workflow (see `tools/TOOL_DESCRIPTIONS.md`
-for full usage): `tools/manage_workitem_stage.py close-implementation` (Step 1's
-all-steps-completed check, and Step 7) — a `git mv`-based archival move that refuses
-(non-zero exit, no move) if the target's `## Execution Status` table still has a
-`Pending` row, without `--force --reason`. Per `rules/ai-execution.md` Repository
-Tool Usage, prefer it over a direct `git mv` when it covers the need; Step 1 and
-Step 7 below state the fallback to use if the tool is unavailable.
+Tools this workflow's Steps use, satisfying `rules/ai-execution.md` Repository Tool
+Usage #1's inspection obligation for the needs named here (a new need not covered
+below still requires the full inspection that rule describes):
+
+| Tool | Step | Role |
+|---|---|---|
+| `tools/manage_workitem_stage.py close-implementation` | 1, 7 | `git mv`-based archival move (see below for its refusal condition) |
+| `ruff format`, `ruff check` | 3e | Formatting and lint |
+| `mypy` / `pyright` | 3e | Type checking |
+| `lint-imports` | 3e | Architecture/import-boundary check |
+| `bandit` | 3e | Security check |
+| `pytest` (targeted, then full suite), `pytest --testmon` | 4 | Test execution and impact-based selection |
+| `tools/check_docs_quality.py`, `tools/check_docs_structure.py`, `tools/check_docs_consistency.py --domain <domain>` | 6 | Documentation validation |
+
+`tools/manage_workitem_stage.py close-implementation` (see `tools/TOOL_DESCRIPTIONS.md`
+for full usage) is a `git mv`-based archival move that refuses (non-zero exit, no move)
+if the target's `## Execution Status` table still has a `Pending` row, without
+`--force --reason`. Per `rules/ai-execution.md` Repository Tool Usage, prefer it over a
+direct `git mv` when it covers the need; Step 1 and Step 7 below state the fallback to
+use if the tool is unavailable.
 
 ## Allowed file operations
 
@@ -59,12 +72,18 @@ cadence.
 
 ### Progress recording during Steps 3-6
 
-**Chat-report frequency** (when to tell the user something): report status when a
-sub-task's outcome differs from expected, or when moving between artifact types
-(code → test → doc):
+**Chat-report frequency** (when to tell the user something): "differs from expected"
+means one of these concrete conditions — a Step reports `Blocked`, an Attempt Limit
+retry occurred, a Rollback was applied, or a Step's outcome is `N/A`/skipped. Report
+status only on one of these, or when moving between artifact types (code → test →
+doc):
 - Note the current artifact (code, test, or documentation)
 - Record status (In Progress / Blocked / Completed) per sub-task
 - If blocked, describe the blocker and whether it requires user intervention
+
+A chat report is informational only — reporting a status never itself restarts, retries,
+or re-verifies a Step; only the Step's own defined trigger conditions (Attempt Limit,
+Adversarial Verification finding, etc.) do that.
 
 **Execution Status file write** (unconditional, independent of the chat-report
 frequency gate above): update the implementation procedure file's own
@@ -72,7 +91,9 @@ frequency gate above): update the implementation procedure file's own
 Completed at every Step transition or completion within Steps 3-6, regardless of
 whether a chat report is also made for that transition — this is the persisted
 record if the session is interrupted before Step 7's move. Also update the final
-report's Execution Status table.
+report's Execution Status table. This Edit targets only the `## Execution Status`
+section — it is never itself a claim about current source that Step 3a's Adversarial
+Verification would need to re-check on a later cycle.
 
 ## Step 0: Load Required Instructions
 
@@ -119,6 +140,12 @@ Apply `rules/ai-execution.md`, section 'Required File Validation'.
   `Moved to done: {filename} — all steps Completed, no further action needed`.
   If this move fails, the same continuation policy applies: report `Blocked` for this
   file only and continue to the next target file in the batch (see Step 7).
+- **Partial-completion resume**: if at least one row is `Completed` but not all
+  (a resumed, previously-interrupted cycle), resume from the first Step whose row is
+  not `Completed` — do not re-run a Step already marked `Completed` in this table
+  unless a later Step's Adversarial Verification (Step 3a) specifically finds that
+  Step's output is now stale. Do not re-derive or re-verify a `Completed` Step's
+  conclusion merely because the cycle is resuming.
 
 ## Step 2: Read the Current Implementation Procedure File
 
@@ -144,7 +171,9 @@ the procedure's claims about current source: do not assume its Procedure/Method/
 are still accurate — check via `rg`/Read whether the target file, symbol, line numbers,
 and call path it describes still match current source, and whether any stated
 assumption or scope boundary is stale or inconsistent with a sibling procedure document
-or the source Plan.
+or the source Plan. Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule:
+do not re-run a `rg`/Read check already performed against this same file at its current
+content within this cycle.
 
 **Completed when**: the target file, its specific symbol/line/call-path claims, and its
 stated dependencies have each been checked once against current source.
@@ -157,6 +186,14 @@ to reflect the corrected understanding before proceeding, and note the correctio
 the Execution Status table's Notes. Do not implement around a stale description —
 implement against the corrected, source-verified understanding.
 
+This file's procedure tolerates at most 3 consecutive correction-and-recheck cycles
+(re-running Step 3a against the corrected document, per `AGENTS.md` Loop Prevention >
+Attempt Limit — the same 3-attempt bound, applied to procedure-correction cycles
+specifically). If a clean Step 3a pass (no new finding) is not reached within that
+bound, stop and report `Blocked: implementation procedure requires more than 3
+correction cycles — {summary of all remaining unresolved findings}` rather than
+continuing to patch.
+
 **Completed when**: no unconfirmed item or inconsistency from Step 3a remains
 unaddressed in the procedure document (or Step 3a found none).
 
@@ -166,7 +203,10 @@ If adversarial verification, or the implementation itself, reveals that the curr
 file's required change conflicts with, or invalidates an assumption of, an
 already-processed file's change in the same Multi-file-processing batch, stop and
 report `Blocked: cross-file conflict with {earlier file} — {description}` rather than
-proceeding. Do not implement around the conflict silently.
+proceeding. Do not implement around the conflict silently. This is a per-file `Blocked`
+outcome, not a batch-wide stop — the current file's cycle ends here, its Execution
+Status row for this Step is marked `Blocked`, and Multi-file processing continues with
+the next target file in the batch (same continuation policy as Step 7's move failure).
 
 **Completed when**: no unresolved conflict with an already-processed file in this batch
 is outstanding.
@@ -175,20 +215,27 @@ is outstanding.
 
 Implement the feature per the (possibly corrected) procedure, applying the guidance
 loaded in Step 0 from `skills/python-implementation/SKILL.md` and
-`skills/python-lint-typecheck/SKILL.md`.
+`skills/python-lint-typecheck/SKILL.md`. Record the changed file list in this Step's
+Execution Status Notes as it is produced — this is the list Final Report's `{files}`
+reads back (see Final Report below), not a list recomputed from `git diff` at report
+time.
 
-**Completed when**: the change described in the (possibly corrected) procedure is applied.
+**Completed when**: the change described in the (possibly corrected) procedure is
+applied and its file list is recorded.
 
 ### Step 3e: Validate
 
 Run repository-defined non-test validation: formatting, linting, type checking,
 architecture/import-boundary checks, security checks.
 
-**Completed when**: all of the above pass.
-**On a failure**: fix it before proceeding to Step 4. Per AGENTS.md Attempt Limit, each
-distinct error/failure may be attempted at most 3 times before stopping. Per AGENTS.md
-Failure Log, each failed attempt must be recorded (approach, error, reason) before trying
-a different approach. If the Attempt Limit is reached, apply Rollback on Failure below.
+**Completed when**: all of the above pass — for a tool with countable output (e.g.
+`pytest`'s collected-item count), confirm it actually ran against a non-empty target,
+not merely that its exit code was 0 (per `rules/ai-execution.md` Repository Tool Usage #8).
+**On a failure**: fix the code and re-run this same Step 3e (not Step 3a-3d) until it
+passes. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at
+most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt must be
+recorded (approach, error, reason) before trying a different approach. If the Attempt
+Limit is reached, apply Rollback on Failure below.
 
 ## Step 4: Test the Feature
 
@@ -200,13 +247,27 @@ failure's cause is not immediately obvious, load and apply
   selection, see `skills/python-test-and-fix/workflow.md` Step 10) when available;
   otherwise use tests under the same module path as each changed file, plus any test
   found via `rg` to import a changed symbol.
-- Run targeted tests during implementation; fix all related failures. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt must be recorded (approach, error, reason) before trying a different approach. If the Attempt Limit is reached without a passing fix, stop and apply Rollback on Failure (below) — do not proceed to the full-suite run with a known-failing targeted test.
-- Run the repository-defined full test suite exactly once, after targeted tests
-  pass — the only full-suite run for this cycle; Step 6 MUST NOT run tests again.
+- Run targeted tests during implementation; confirm the run actually collected at least
+  one test (a 0-collected, exit-0 run is not a pass — per `rules/ai-execution.md`
+  Repository Tool Usage #8) before treating it as evidence either way; fix all related
+  failures. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at
+  most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt must be
+  recorded (approach, error, reason) before trying a different approach. If the Attempt
+  Limit is reached without a passing fix, stop and apply Rollback on Failure (below) —
+  do not proceed to the full-suite run with a known-failing targeted test. If a fix here
+  touched formatting, typing, or imports, re-run Step 3e before returning to this Step's
+  targeted tests — do not treat Step 3e as satisfied by its earlier pass.
+- Run the repository-defined full test suite exactly once per cycle, after targeted
+  tests pass and confirmed to have collected at least one test — the only full-suite
+  run for this cycle; Step 6 MUST NOT run tests again. If it fails, fixing and re-running
+  the full suite is subject to the same Attempt Limit (3 attempts) and Failure Log as
+  targeted tests above — this re-run is the one exception to "exactly once" for an
+  ordinary failure; reaching the Attempt Limit without a passing full-suite run means
+  applying Rollback on Failure (below), not a fourth attempt.
   If Step 3 reported a cross-file conflict with an already-processed earlier file (see
   Step 3), re-run the full test suite for that earlier file's implementation procedure
-  cycle before continuing the batch — this is a required exception to "exactly once,"
-  scoped strictly to the conflict-detected case, not a routine re-run.
+  cycle before continuing the batch — this is a second, independent exception to
+  "exactly once," scoped strictly to the conflict-detected case.
 - Check the repository-defined coverage threshold if one exists.
 - Continue to documentation only after required tests pass.
 
@@ -264,7 +325,10 @@ scope row's content (e.g. a `check_docs_consistency.py --domain` drift finding t
 traces back to what Step 5 actually changed), in which case Step 5's matching
 procedure applies to that row as well. After fixing, re-run only the specific
 checker(s) that failed to confirm the fix — not the full Step 6 checklist — then
-proceed to Step 7.
+proceed to Step 7. This fix-and-recheck loop is subject to AGENTS.md Attempt Limit (3
+attempts per distinct failing checker); if a checker still fails after 3 fix attempts,
+stop and report `Blocked: {checker} still failing after 3 attempts` rather than
+continuing to patch.
 
 ## Step 7: Move the Completed Implementation Procedure File
 
@@ -275,6 +339,11 @@ proceed once Steps 3, 4, and 6 pass, without stopping to ask the user for approv
 `rules/workflow-lifecycle.md` is scoped to `issue-to-plan`/`plan-to-impl-procedure`
 only and does not apply to this workflow at all.
 
+- Before attempting the move, check whether the destination
+  `implementations/done/{filename}.md` already exists. If it does (e.g. Step 1's
+  All-steps-completed check already moved this file earlier in the same session), do
+  not attempt a second move — verify the source no longer exists at
+  `implementations/{filename}.md` and treat the cycle as already archived.
 - Do not perform this step before Step 5 (documentation update) and Step 6
   (documentation validation) are complete.
 - Before proceeding, verify that:
@@ -292,9 +361,13 @@ only and does not apply to this workflow at all.
 - Direct command (fallback): `git mv implementations/{filename}.md
   implementations/done/{filename}.md`. Do not use `mv`, `cp` + `rm`, or any other
   fallback beyond these two.
-- Verify the file exists in `implementations/done/` after the move.
-- **If the move fails, stop and report `Blocked: move failed — {reason}`. Do not
-  fall back to another method beyond the two above.**
+- Verify both: the file exists in `implementations/done/`, and the source no longer
+  exists at `implementations/{filename}.md` — a move that leaves the file in both
+  locations (a partial `git mv` failure) is not a completed move; treat it the same as
+  a failed move below.
+- **If the move fails, or leaves the file in both locations, stop and report
+  `Blocked: move failed — {reason}`. Do not fall back to another method beyond the two
+  above.**
   Report `Blocked` for this specific file only — its code/test/doc changes remain
   applied and validated, and its implementation procedure document remains generated
   but unarchived — then continue Multi-file processing with the next target file in
@@ -303,9 +376,24 @@ only and does not apply to this workflow at all.
 ## Rollback on Failure
 
 If implementation breaks existing functionality, revert changes immediately and
-report `Blocked: {description}`. Per AGENTS.md Failure Log, record the failure details (approach, error, reason) before considering a different approach. If reaching Attempt Limit (3 attempts for the same error), the revert-and-report action is required — do not proceed until the issue is resolved.
+report `Blocked: {description}`. Per AGENTS.md Failure Log, record the failure details
+(approach, error, reason) before considering a different approach. If reaching Attempt
+Limit (3 attempts for the same error), the revert-and-report action is required.
+
+After reverting, do not start a new implementation attempt for this same procedure
+document in this session — a revert following 3 exhausted attempts is not itself a
+"new approach" that resets the Attempt Limit (see `AGENTS.md` Loop Prevention >
+Prohibit Repeating Failed Approaches). Stop this file's cycle here and wait for the
+user to provide new information, approve a different scope, or explicitly direct a
+retry — do not resume automatically once reverted.
 
 ## Final Report
+
+**This cycle is complete when, and only when**: Step 7's move has succeeded and been
+verified (both locations checked, per Step 7), or this file's cycle ended in a
+per-file `Blocked` state per Step 3c/3e/4/6/7's own stop conditions (or Rollback on
+Failure) — in either case, emit this Final Report once, then (per Multi-file
+processing) begin Step 1 for the next target file, or end the batch if none remain.
 
 Include the following in the final report:
 
@@ -314,7 +402,9 @@ Include the following in the final report:
 
 `{source_issue}`, `{source_plan}`, and `{related_target_files}` are the values
 extracted from the implementation procedure's own Traceability section in Step 2 —
-carried forward, not re-derived.
+carried forward, not re-derived. `{files}` is the changed-file list recorded in Step
+3d's Execution Status Notes — read back from there, not recomputed from `git diff` at
+report time.
 
 This phase edits existing code and `docs/*.md` files rather than producing a
 standalone generated document, so do not insert a `## Traceability` section into
