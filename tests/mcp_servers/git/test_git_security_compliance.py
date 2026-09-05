@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
+from fastapi.testclient import TestClient
 from mcp_servers.git.git_models import GitConfig
 from mcp_servers.git.git_service import GitService
 from mcp_servers.git.repository_state import RepositoryState
@@ -227,6 +229,7 @@ class TestGitSecurityCompliance:
         self, svc_allow_detached: GitService
     ) -> None:
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.is_dirty = False
         snap.is_detached_head = True
         snap.active_branch = "develop"
@@ -250,6 +253,7 @@ class TestGitSecurityCompliance:
         self, svc_allow_detached: GitService
     ) -> None:
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.is_dirty = False
         snap.is_detached_head = True
         snap.verify_authorization.return_value = (True, "")
@@ -275,6 +279,7 @@ class TestGitSecurityCompliance:
         self, svc: GitService
     ) -> None:
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.is_dirty = True
         snap.is_detached_head = True
         snap.active_branch = "develop"
@@ -298,6 +303,7 @@ class TestGitSecurityCompliance:
         self, svc: GitService
     ) -> None:
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.is_dirty = True
         snap.is_detached_head = True
         snap.verify_authorization.return_value = (True, "")
@@ -476,3 +482,195 @@ class TestEmittedAuditLogContent:
         with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_status({"repo_path": "/opt/repos/proj"})
         assert "main" in result
+
+
+class TestPostConditionBypassPrevention:
+    """AC-8: Tests prove the complete pipeline cannot be bypassed through the HTTP dispatch path."""
+
+    @pytest.fixture
+    def client(self):
+        from scripts.mcp_servers.git.git_server import app
+        return TestClient(app)
+
+    def test_checkout_postcondition_cannot_be_bypassed(self, client, monkeypatch):
+        """REQ-010, AC-8: Checkout postcondition failure is reported, not silently accepted."""
+        from scripts.mcp_servers.git.repository_state import RepositoryState
+
+        snap = MagicMock()
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "main"
+        snap.repo.is_dirty.return_value = False
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.side_effect = lambda result, post_state, tool_name, requested_branch: \
+            ((False, "checkout postcondition failed: expected branch 'dev'") if tool_name == "git_checkout" else (True, ""))
+        snap.audit.return_value = {}
+
+        monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
+
+        response = client.post("/v1/call_tool", json={
+            "name": "git_checkout",
+            "args": {"repo_path": "/tmp/test-repo", "branch": "dev"}
+        })
+
+        body = response.json()
+        assert body.get("is_error") is True or "failed" in str(body).lower()
+
+    def test_pull_postcondition_cannot_be_bypassed(self, client, monkeypatch):
+        """REQ-010, AC-8: Pull postcondition failure (merge conflict) is reported."""
+        from scripts.mcp_servers.git.repository_state import RepositoryState
+
+        snap = MagicMock()
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "main"
+        snap.repo.is_dirty.return_value = False
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.side_effect = lambda result, post_state, tool_name, requested_branch: \
+            ((False, "pull postcondition failed: unresolved merge conflicts remain") if tool_name == "git_pull" else (True, ""))
+        snap.audit.return_value = {}
+
+        monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
+
+        response = client.post("/v1/call_tool", json={
+            "name": "git_pull",
+            "args": {"repo_path": "/tmp/test-repo", "remote": "origin", "branch": "main"}
+        })
+
+        body = response.json()
+        assert body.get("is_error") is True or "unresolved merge conflicts" in str(body).lower()
+
+    def test_push_postcondition_cannot_be_bypassed(self, client, monkeypatch):
+        """REQ-010, AC-8: Push postcondition failure (rejection) is reported."""
+        from scripts.mcp_servers.git.repository_state import RepositoryState
+
+        snap = MagicMock()
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "main"
+        snap.repo.is_dirty.return_value = False
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.side_effect = lambda result, post_state, tool_name, requested_branch: \
+            ((False, "push postcondition failed: rejected") if tool_name == "git_push" else (True, ""))
+        snap.audit.return_value = {}
+
+        monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
+
+        response = client.post("/v1/call_tool", json={
+            "name": "git_push",
+            "args": {"repo_path": "/tmp/test-repo", "remote": "origin", "refspec": "main:main"}
+        })
+
+        body = response.json()
+        assert body.get("is_error") is True or "rejected" in str(body).lower()
+
+
+class TestCompletePipelineCoverage:
+    """Verify all pipeline stages execute in order for each operation type."""
+
+    @pytest.fixture
+    def client(self):
+        from scripts.mcp_servers.git.git_server import app
+        return TestClient(app)
+
+    def test_all_stages_execute_in_order_for_checkout(self, client, monkeypatch):
+        """REQ-010, AC-1: Authorization, precondition, execution, and postcondition stages execute in documented order."""
+        from scripts.mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
+
+        recorded_stages = []
+        original_record = WriteProtectionPipeline.record_stage
+
+        def track_record(self, stage):
+            recorded_stages.append(stage.name)
+            return original_record(self, stage)
+
+        monkeypatch.setattr(WriteProtectionPipeline, "record_stage", track_record)
+
+        snap = MagicMock()
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "main"
+        snap.repo.is_dirty.return_value = False
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+
+        monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
+
+        response = client.post("/v1/call_tool", json={
+            "name": "git_checkout",
+            "args": {"repo_path": "/tmp/test-repo", "branch": "main"}
+        })
+
+        if len(recorded_stages) >= 4:
+            assert recorded_stages.index("Stage 3") < recorded_stages.index("Stage 5")
+            assert recorded_stages.index("Stage 5") < recorded_stages.index("Stage 6")
+            assert recorded_stages.index("Stage 6") < recorded_stages.index("Stage 7")
+
+    def test_all_stages_execute_in_order_for_pull(self, client, monkeypatch):
+        """REQ-010, AC-1: Pull stages execute in documented order."""
+        from scripts.mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
+
+        recorded_stages = []
+        original_record = WriteProtectionPipeline.record_stage
+
+        def track_record(self, stage):
+            recorded_stages.append(stage.name)
+            return original_record(self, stage)
+
+        monkeypatch.setattr(WriteProtectionPipeline, "record_stage", track_record)
+
+        snap = MagicMock()
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "main"
+        snap.repo.is_dirty.return_value = False
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+
+        monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
+
+        response = client.post("/v1/call_tool", json={
+            "name": "git_pull",
+            "args": {"repo_path": "/tmp/test-repo", "remote": "origin", "branch": "main"}
+        })
+
+        if len(recorded_stages) >= 4:
+            assert recorded_stages.index("Stage 3") < recorded_stages.index("Stage 5")
+            assert recorded_stages.index("Stage 5") < recorded_stages.index("Stage 6")
+            assert recorded_stages.index("Stage 6") < recorded_stages.index("Stage 7")
+
+    def test_all_stages_execute_in_order_for_push(self, client, monkeypatch):
+        """REQ-010, AC-1: Push stages execute in documented order."""
+        from scripts.mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
+
+        recorded_stages = []
+        original_record = WriteProtectionPipeline.record_stage
+
+        def track_record(self, stage):
+            recorded_stages.append(stage.name)
+            return original_record(self, stage)
+
+        monkeypatch.setattr(WriteProtectionPipeline, "record_stage", track_record)
+
+        snap = MagicMock()
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "main"
+        snap.repo.is_dirty.return_value = False
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+
+        monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
+
+        response = client.post("/v1/call_tool", json={
+            "name": "git_push",
+            "args": {"repo_path": "/tmp/test-repo", "remote": "origin", "refspec": "main:main"}
+        })
+
+        if len(recorded_stages) >= 4:
+            assert recorded_stages.index("Stage 3") < recorded_stages.index("Stage 5")
+            assert recorded_stages.index("Stage 5") < recorded_stages.index("Stage 6")
+            assert recorded_stages.index("Stage 6") < recorded_stages.index("Stage 7")

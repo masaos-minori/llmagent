@@ -9,6 +9,8 @@ refactor of this module can be verified not to change behavior.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -347,7 +349,7 @@ class TestFormatCheckout:
             repo_path=REPO_PATH, branch="main", create=False, dry_run=False
         )
         result = format_checkout(state, req)
-        mock_repo.git.checkout.assert_called_once_with("--", "main")
+        mock_repo.git.checkout.assert_called_once_with("main", "--")
         assert result == "Switched to branch 'main'"
 
     def test_detached_head_denied_by_default(self) -> None:
@@ -537,3 +539,33 @@ class TestFormatPush:
         )
         result = format_push(state, req)
         assert result == "Pushed 'main' to 'origin'"
+
+
+# ── Regression tests with real git.Repo ────────────────────────────────────────
+
+
+class TestRealRepoRegression:
+    def test_checkout_switches_branch_in_real_repo(self, tmp_path: Path) -> None:
+        """REQ-004: verify checkout actually switches branch in a real repo."""
+        import git
+
+        repo_dir = tmp_path / "regression_repo"
+        repo_dir.mkdir()
+        repo = git.Repo.init(str(repo_dir))
+        f = repo_dir / "README.md"
+        f.write_text("# test")
+        repo.index.add([str(f)])
+        repo.index.commit("initial")
+
+        # Create a new branch
+        repo.create_head("feature")
+
+        state = RepositoryState.snapshot(repo_dir)
+        req = GitCheckoutRequest(
+            repo_path=str(repo_dir), branch="feature", create=False, dry_run=False
+        )
+        result = format_checkout(state, req)
+        assert result == "Switched to branch 'feature'"
+        # Re-snapshot after checkout because RepositoryState is frozen (immutable)
+        state_after = RepositoryState.snapshot(repo_dir)
+        assert state_after.active_branch == "feature"

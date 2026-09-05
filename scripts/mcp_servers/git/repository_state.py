@@ -159,13 +159,33 @@ class RepositoryState:
             )
         return True, ""
 
-    def verify_postcondition(self, result: object) -> tuple[bool, str]:
-        """Stage 7: Postcondition verification.
-
-        Compares postcondition against state captured at Stage 4.
-        """
-        # Placeholder — actual postcondition depends on operation type.
-        # For now we assume success if no exception was raised during execution.
+    def verify_postcondition(
+        self,
+        result: object,
+        post_state: RepositoryState,
+        tool_name: str,
+        requested_branch: str | None = None,
+    ) -> tuple[bool, str]:
+        """Stage 7: Postcondition verification — operation-specific checks."""
+        if tool_name == "git_checkout":
+            if (
+                requested_branch is not None
+                and post_state.active_branch != requested_branch
+            ):
+                return (
+                    False,
+                    f"expected branch {requested_branch!r}, got {post_state.active_branch!r}",
+                )
+        elif tool_name == "git_pull":
+            if post_state._repo is not None and post_state._repo.index.unmerged_blobs():
+                return (
+                    False,
+                    "pull postcondition failed: unresolved merge conflicts remain",
+                )
+        elif tool_name == "git_push":
+            if isinstance(result, str):
+                if "rejected" in result.lower() or "error" in result.lower():
+                    return False, f"push postcondition failed: {result}"
         return True, ""
 
     def audit(self, result: object) -> dict[str, object]:
@@ -469,26 +489,38 @@ class PipelineResult:
     rejection_message: str = ""
     output: str = ""
     repository_state: RepositoryState | None = None
+    post_state: RepositoryState | None = None
     audit_record: dict[str, object] | None = None
 
     @classmethod
     def reject(
-        cls, state: RepositoryState, stage_name: str, message: str
+        cls,
+        state: RepositoryState,
+        stage_name: str,
+        message: str,
+        post_state: RepositoryState | None = None,
     ) -> PipelineResult:
         return cls(
             ok=False,
             rejected_at_stage=stage_name,
             rejection_message=message,
             repository_state=state,
+            post_state=post_state,
             audit_record=state.audit(state),
         )
 
     @classmethod
-    def ok_result(cls, state: RepositoryState, output: str) -> PipelineResult:
+    def ok_result(
+        cls,
+        state: RepositoryState,
+        output: str,
+        post_state: RepositoryState | None = None,
+    ) -> PipelineResult:
         return cls(
             ok=True,
             output=output,
             repository_state=state,
+            post_state=post_state,
             audit_record=state.audit(state),
         )
 
@@ -512,17 +544,26 @@ class WriteProtectionPipeline:
     def state(self) -> RepositoryState:
         return self._state
 
-    def run(self, tool_name: str, op: Callable[[], str]) -> PipelineResult:
+    def run(
+        self,
+        tool_name: str,
+        op: Callable[[], str],
+        requested_branch: str | None = None,
+        protected_branches: list[str] | None = None,
+        active_ref: str = "",
+    ) -> PipelineResult:
         """Execute the pipeline: precondition check → operation → postcondition check."""
         # Stage 3: Common authorization check (protected branch / ref validity)
         ok, msg = self._state.verify_authorization()
         if not ok:
             return PipelineResult.reject(self._state, "Stage 3", msg)
+        self.record_stage(PipelineStage(name="Stage 3", index=3, result=(True, "")))
 
         # Stage 5: Verify preconditions (dirty worktree, detached HEAD)
         ok, msg = self._state.verify_preconditions(tool_name)
         if not ok:
             return PipelineResult.reject(self._state, "Stage 5", msg)
+        self.record_stage(PipelineStage(name="Stage 5", index=5, result=(True, "")))
 
         # Stage 6: Execute the operation
         try:
@@ -533,12 +574,26 @@ class WriteProtectionPipeline:
             logger.error("%s execution error: %s", tool_name, e)
             raise GitServiceError(f"{tool_name} failed: {e}") from e
 
-        # Stage 7: Verify postcondition
-        ok, msg = self._state.verify_postcondition(output)
-        if not ok:
-            return PipelineResult.reject(self._state, "Stage 7", msg)
+        # Capture fresh post-state for postcondition checks
+        if protected_branches is None:
+            protected_branches = []
+        post_state = self._state.snapshot(
+            self._state.path,
+            protected_branches=protected_branches,
+            active_ref=active_ref,
+        )
 
-        return PipelineResult.ok_result(self._state, output)
+        # Stage 7: Verify postcondition
+        ok, msg = self._state.verify_postcondition(
+            output, post_state, tool_name, requested_branch
+        )
+        if not ok:
+            return PipelineResult.reject(
+                self._state, "Stage 7", msg, post_state=post_state
+            )
+
+        self.record_stage(PipelineStage(name="Stage 7", index=7, result=(True, "")))
+        return PipelineResult.ok_result(post_state, output, post_state=post_state)
 
     def record_stage(self, stage: PipelineStage) -> None:
         """Record a completed pipeline stage."""

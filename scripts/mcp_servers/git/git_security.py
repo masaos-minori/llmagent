@@ -28,7 +28,9 @@ def _resolve_repo_path(repo_path: str) -> tuple[bool, str, str]:
     return True, "", resolved
 
 
-def is_within_allowed_paths(repo_path: str, allowed_repo_paths: list[str]) -> tuple[bool, str]:
+def is_within_allowed_paths(
+    repo_path: str, allowed_repo_paths: list[str]
+) -> tuple[bool, str]:
     """Check whether repo_path is within one of the allowed repository roots.
 
     Uses PurePosixPath.relative_to() for component-aware containment,

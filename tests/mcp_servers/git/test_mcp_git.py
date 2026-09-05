@@ -113,6 +113,7 @@ class TestAuditTargetResolution:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -170,6 +171,7 @@ class TestGitStatus:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -200,6 +202,7 @@ class TestGitAdd:
         mock_repo.untracked_files = ["a.py"]
         mock_repo.index.diff.return_value = []
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -233,6 +236,7 @@ class TestGitCommit:
         mock_repo = MagicMock()
         mock_repo.index.diff.return_value = [staged]
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -270,6 +274,7 @@ class TestGitCheckout:
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -289,6 +294,7 @@ class TestGitCheckout:
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
@@ -319,6 +325,7 @@ class TestGitPush:
         mock_repo = MagicMock()
         mock_repo.active_branch.name = "main"
         snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.active_branch = "main"
         snap.is_dirty = False
