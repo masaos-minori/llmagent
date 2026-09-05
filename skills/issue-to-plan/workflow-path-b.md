@@ -28,6 +28,12 @@ Step 3 and Step 5's Validation quality analysis baseline.
 Lightweight alternatives are always available; heavy tools only if installed — see
 `skills/DESIGN.md` Tool availability guard.
 
+Per `rules/ai-execution.md` Repository Tool Usage #8: for every command below, a
+zero-result/empty output is evidence of "nothing found" only after confirming the
+command actually targeted an existing file/path (e.g. the `<module>`/`<PID>`/`<PORT>`
+placeholder was resolved to a real value) — not proof by itself, since an empty result
+from a mistyped or non-existent target looks identical.
+
 ---
 
 ## Architecture analysis

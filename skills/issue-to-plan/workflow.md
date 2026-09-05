@@ -128,6 +128,9 @@ duplicate plans when multiple agents process the same Issue concurrently.
   files/symbols/line numbers still exist as stated, whether a claimed dependency or
   side effect is missing or overstated, and whether two claims within the same Issue
   (or against a related `plans/`/`implementations/` document) contradict each other.
+  Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: do not re-run a
+  check already performed against the same file/claim at its current content within
+  this cycle.
   Stop once every field extracted per `templates/issue.md` (Step 2's own extraction list,
   below) has been checked against at least one concrete source (a file, test, or existing
   Plan/Implementation document), and no new disconfirming evidence was found in the last
@@ -146,7 +149,10 @@ duplicate plans when multiple agents process the same Issue concurrently.
   the Issue and current source, do not silently reconcile it — classify it per the
   rule above (`Needs confirmation` if unresolved; `Confirmed by repository evidence` /
   `Derived from confirmed evidence` if resolved) and write the corrected understanding
-  into the Plan (Step 5), not the Issue's original, possibly stale claim.
+  into the Plan (Step 5), not the Issue's original, possibly stale claim. After
+  reclassifying, re-check only the specific field(s) the finding affects against this
+  same evidence — do not restart Step 2's full field-by-field pass over
+  `templates/issue.md`'s extraction list.
   A single Issue's Plan tolerates at most 3 consecutive correction-and-recheck cycles
   (matching `AGENTS.md` Loop Prevention > Attempt Limit — this is the same 3-attempt
   bound, applied to Plan-correction cycles specifically, not a separate workflow-specific
@@ -180,6 +186,11 @@ Assessment) section, **before** inspecting.
   rg "^from|^import" scripts/<module>.py | sort -u
   rg "from <module> import\|import <module>" scripts/ | sort -u
   ```
+
+  Zero matches from the first command means the target file itself has no imports —
+  confirm this by checking the file exists and is non-empty (per Repository Tool Usage
+  #8) before treating it as evidence of "no dependencies," rather than a failed
+  pattern match against the wrong path.
 
 - **Path B**: perform the full inspection — source files, tests, configuration,
   documentation, callers and callees, dependencies, data ownership, side effects, error
@@ -257,6 +268,10 @@ radon cc scripts/<module>.py -s
 vulture scripts/ --min-confidence 80
 bandit -r scripts/ -c pyproject.toml
 ```
+
+Per `rules/ai-execution.md` Repository Tool Usage #8, an exit-0 run reporting zero
+findings is evidence only if the target path was actually scanned — confirm the target
+file/directory exists before recording "no findings" as a baseline value.
 
 See `rules/toolchain.md` section 7 for the diff-cover baseline command sequence (run
 without `--fail-under` here, just to record the current number). The Plan must include
@@ -481,6 +496,12 @@ failure rule.
   issues/done/{filename}.md`. No `mv`, `cp` + `rm`, file-copy APIs, or other
   fallback beyond these two.
 - Report `Completed` only after successful verification.
+
+**This cycle is complete when, and only when**: the move above has succeeded and been
+verified (both locations checked, per Archival Move), or this Issue's cycle ended in a
+`Blocked` state per Step 2/3/8's own stop conditions — in either case, emit this
+cycle's Step 9 report once, then (per Multi-file processing) begin Step 1 for the next
+target Issue, or end the batch if none remain.
 
 ---
 
