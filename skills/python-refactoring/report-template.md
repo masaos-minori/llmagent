@@ -8,8 +8,9 @@ complete.
 
 ## Report Structure (Step 10)
 
-Keep diffs minimal. For each file (or approved atomic migration group, per `path-c.md`),
-report:
+Keep diffs minimal. Populate every field below from what Steps 2-9 already recorded —
+do not re-run `mutmut` or any other check merely to produce this report. For each file
+(or approved atomic migration group, per `path-c.md`), report:
 
 - The Step 2 refactoring intent declaration.
 - The Path A/B/C classification decided in Step 2 and its rationale.

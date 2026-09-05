@@ -235,6 +235,13 @@ stop, record as proposal" pattern.
 
 - Run `ruff format` and `ruff check --fix` after each transformation.
 - Ensure no legacy symbol names remain — verify with `rg "OldName" <scope>`.
+- If `ruff check --fix` leaves unfixed violations, or `rg` still finds a legacy symbol
+  name, fix the specific remaining item and re-run only that check (not the whole
+  Transformation step) before proceeding. Per `AGENTS.md` Loop Prevention > Attempt
+  Limit, at most 3 fix-and-recheck attempts per file in this step; if violations or
+  legacy references remain after 3 attempts, stop and report `Blocked: {file} still
+  has {violation/legacy reference} after 3 attempts` rather than continuing to patch —
+  do not proceed to Step 7 with a known-unresolved item.
 
 ---
 
@@ -291,6 +298,15 @@ Refer to `rules/toolchain.md` for the full validation sequence. At minimum:
 - Review changes with `git log` and `git diff`.
 - Ensure no legacy symbol names remain.
 
+**On a failure**: return to Step 6 (Transformation) to fix the specific violation
+reported — do not re-derive the Step 2 intent or Step 4 behavior lock again — then
+re-run only this Step 9 CI gate, not Steps 1-8. Per `AGENTS.md` Loop Prevention >
+Attempt Limit, at most 3 Step 6/Step 9 round-trips for the same file (or atomic
+migration group); if the gate still fails after 3 attempts, stop and apply Rollback
+(see `AGENTS.md` Loop Prevention > Rollback Directive) and report `Blocked: {file}
+still fails the CI gate after 3 attempts — {summary of each attempt}` rather than
+starting a fourth attempt.
+
 ---
 
 ## Step 10: Report Results
@@ -304,6 +320,10 @@ C Completion Requirements.
 
 ## Refactoring-Specific Guidance
 
+- Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: do not
+  re-run `mypy`/`pyright`/`ruff`/`pydeps`/`import-linter`/`mutmut`/`rg` against an
+  unchanged target expecting a different result — only re-run a check after the
+  specific fix it depends on (see Step 6/Step 9's fix-and-recheck rules above).
 - Perform Step 3 (preparation/investigation) sequentially; `rg` and the `deploy.sh`
   reference check MUST run every time regardless of Path, and `pydeps`/`import-linter`/
   `ast-grep` only when Path B or C applies (see `path-a.md`/`path-b.md`), retaining only

@@ -30,6 +30,11 @@
 | `git bisect run` | Regression Localization | Automated regression commit search |
 | `rg` | — | Fast text search |
 
+Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: do not
+re-run a log/trace command against the same file at the same offset without new evidence
+motivating it (e.g. do not re-run the same `tail`/`jq` filter twice expecting a different
+result).
+
 ---
 
 ## Phase 1: Problem Framing
@@ -340,6 +345,11 @@ pytest --timeout=10 tests/
 
 **Completed when**: every row in 6a's table is marked Validated or Invalidated with an
 observed result (per `SKILL.md`'s Mandatory Output Template) — not left blank.
+**If every row is Invalidated**: return to Phase 6a and add new hypotheses informed by
+what was ruled out — do not re-test an already-Invalidated row. Per `AGENTS.md` Attempt
+Limit, at most 3 Phase 6a/6b round-trips; if no hypothesis validates within that bound,
+stop and report `Blocked: no hypothesis validated after 3 rounds — {all ruled-out
+hypotheses}` rather than continuing to add rows indefinitely.
 
 ---
 
@@ -398,7 +408,13 @@ pytest -v
 ruff check scripts/
 ```
 
-**Completed when**: both pytest runs and `ruff check` pass.
+**Completed when**: both pytest runs collected at least one test and passed (a 0-collected,
+exit-0 run is not a pass — per `rules/ai-execution.md` Repository Tool Usage #8), and
+`ruff check` passes.
+**On a failure**: return to Phase 8 and revise the fix — do not re-run this Phase 9a
+against an unchanged fix hoping for a different result. Per `AGENTS.md` Attempt Limit,
+at most 3 Phase 8/9a cycles for the same failure; if a clean pass is not reached within
+that bound, stop and report `Blocked: fix requires more than 3 attempts — {summary}`.
 
 ### Phase 9b: Restart services
 
@@ -425,6 +441,9 @@ behavior (`import ipdb`/`ipdb.set_trace()` calls, temporary `structlog` debug ca
 
 ## Completion checklist
 
+**This investigation is complete when, and only when**: every item below is true, or the
+cycle ended in a `Blocked` state per Phase 6b or Phase 9a's own stop condition.
+
 - observations stated separately from hypotheses
 - failure classified (reproducibility / execution model / domain)
 - most likely root cause stated with confidence level (see `skills/DESIGN.md` Confidence levels)
@@ -438,6 +457,9 @@ behavior (`import ipdb`/`ipdb.set_trace()` calls, temporary `structlog` debug ca
 ---
 
 ## Output format
+
+Populate every item below from what earlier Phases already recorded — do not re-derive or
+re-run a check merely to produce this report.
 
 1. symptom (exact error or behavior)
 2. failure classification (reproducibility / sync-async / domain)

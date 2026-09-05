@@ -40,6 +40,9 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 
 ## Completion checklist
 
+**This task is complete when, and only when**: every item below is confirmed true, or
+execution stopped in a `Blocked` state per `workflow.md` Step 1/Step 8's own bound.
+
 - `scripts/mcp_servers/<name>/server.py` syntax check passes
 - `deploy/deploy.sh` updated with a `cp` line for the new server's `config/<name>_mcp_server.toml` (see `workflow.md` Step 2 for why)
 - `config/agent.toml` section `[mcp_servers.<name>]` added (verified with `rg`)

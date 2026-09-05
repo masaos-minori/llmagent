@@ -91,6 +91,12 @@ Module ownership, entry points, and lifecycle ownership are manual-capture field
 no established repository tooling — record them explicitly as such rather than
 applying an inconsistent ad hoc method across runs.
 
+Per `rules/ai-execution.md` Repository Tool Usage #8, a zero-match `rg` result for any
+field above (entry points, lifecycle ownership, routing/registration, configuration
+dependencies) is evidence of absence only after confirming `rg` actually searched the
+intended scope — a wrong path or pattern producing zero matches is not the same as
+confirming the repository has none.
+
 Do not start a Path C transformation (`workflow.md` Step 6) if any required Architecture
 Baseline field is missing or its capture is incomplete.
 
