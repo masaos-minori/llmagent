@@ -53,6 +53,12 @@ Per `rules/ai-execution.md` Repository Tool Usage, prefer these over the equival
 manual command when they cover the need; Step 3 and Step 4 above state the
 fallback to use if a tool is unavailable or refuses.
 
+Step 3's narrow delegation to `skills/python-design/SKILL.md` (for the
+Design-decisions-family fields only, per Step 3 above) inspects `skills/python-design/
+workflow.md` Toolchain for its own tool needs (`lint-imports`, `ast-grep`) — this
+workflow's own Repository Tool Usage inspection obligation (Step 0) does not extend to
+that skill's tools beyond the delegation itself.
+
 ## Multi-file processing
 
 Apply `rules/ai-execution.md` Sequential Target Processing (Base): each cycle covers
@@ -155,7 +161,9 @@ Procedure/Method/Details for a row: look for reasons the Plan's claims about the
 target file, symbol, call path, or test might be wrong — shifted line numbers, an
 already renamed/removed symbol, a dependency the Plan did not account for, a
 Requirement duplicating/contradicting another Plan, or a code path the Plan's
-Background never checked — verifying each via `rg`/Read.
+Background never checked — verifying each via `rg`/Read. Apply `rules/ai-execution.md`
+Tool Usage's idempotent-command rule: do not re-run a `rg`/Read check already performed
+against this same file at its current content within this cycle.
 
 If adversarial verification finds an unconfirmed item or an inconsistency (a stale
 claim, a missing Requirement, a newly discovered dead-code reference, a duplicate or
@@ -165,7 +173,18 @@ Requirements, Acceptance criteria, Assumptions, Risks, Requirement Traceability,
 Execution Status) rather than silently working around the discrepancy — and reflect
 the corrected understanding in the generated document(s). Record what was found and
 corrected in the progress report; do not report a row `Completed` while a
-Plan-level inconsistency it surfaced remains unresolved.
+Plan-level inconsistency it surfaced remains unresolved. After correcting, re-run this
+same Step 3a's verification against the corrected Plan text for this row before
+proceeding to Step 3c — do not proceed on the assumption that one correction resolved
+everything.
+
+This row's verification tolerates at most 3 consecutive correction-and-recheck cycles
+(re-running Step 3a against the corrected Plan, per `rules/workflow-lifecycle.md`
+Plan-Document Correction Handling and `AGENTS.md` Loop Prevention > Attempt Limit — the
+same 3-attempt bound, applied to Plan-correction cycles specifically). If a clean Step
+3a pass (no new finding) is not reached within that bound, stop and report `Blocked:
+Plan requires more than 3 correction cycles for {row} — {summary of all remaining
+unresolved findings}` rather than continuing to patch.
 
 If this correction requires reverting a prior edit to `plans/{filename}_plan.md`, see
 `rules/workflow-lifecycle.md` Plan-Document Correction Handling for whether `AGENTS.md`
@@ -291,7 +310,9 @@ Execution Rules):
   row until the Plan has been amended (the new file added as its own `Implementation
   Target Files` row, with evidence and a Requirement link) and revalidated/re-frozen
   per `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
-  Freeze).
+  Freeze). Once re-frozen, resume this same session's cycle from Step 3c at the row
+  that discovered the gap — do not restart from Step 2's Revalidation (already
+  satisfied by the re-freeze just performed) or from row 1.
 - If investigation instead reveals that this row's approach needs to change but no
   additional file is involved, do not add the change to the generated document.
   Report it as `Plan Gap: {description}` — the scope decision belongs to a Plan
@@ -318,7 +339,9 @@ Status table in the output document every time a row's status changes, regardles
 whether an interim chat report is also made for that row. This persisted record is
 the recovery mechanism if the session is interrupted mid-pass — it must not be
 skipped merely because the chat-report frequency gate above did not trigger for that
-row.
+row. This Edit targets only the generated document's own `## Execution Status`
+section — it is never itself a claim about current source that a later cycle's Step
+3a Adversarial Verification would need to re-check.
 
 ---
 
@@ -331,7 +354,10 @@ This workflow's move to `plans/done/` does not require human approval, per
 completes and the checks below pass, without stopping to ask the user for
 approval.
 
-Before proceeding, verify that:
+Read these values back from each row's Step 3c/3d outcome as already recorded — do not
+recount by rescanning `implementations/`; the in-memory listing `Procedure-Specific
+Guidance` describes maintaining through Step 3 already reflects every document this
+cycle created. Verify that:
 - every `Implementation Target Files` row in the Plan has been accounted for
   (`Already implemented`, `Partially implemented`, newly created this cycle, or
   explicitly reported as `Needs confirmation` / `Blocked` / `Plan Gap`);
@@ -363,6 +389,12 @@ Execution Status section.
 Apply `rules/workflow-lifecycle.md` Archival Move (`plan-to-impl-procedure` row) and
 Completion Criteria in full. This workflow's move: `plans/{filename}_plan.md` to
 `plans/done/{filename}_plan.md`, using `git mv` only.
+
+**This cycle is complete when, and only when**: the move above has succeeded and been
+verified (both locations checked, per Archival Move), or this Plan's cycle ended in a
+`Blocked` state per Step 3's own stop conditions — in either case, emit this cycle's
+progress report once, then (per Multi-file processing) begin Step 1 for the next
+target Plan, or end the batch if none remain.
 
 Prefer `uv run python tools/manage_workitem_stage.py close-plan
 plans/{filename}_plan.md` over a direct `git mv` — it performs the same move and
