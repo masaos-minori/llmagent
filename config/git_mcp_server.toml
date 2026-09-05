@@ -27,3 +27,8 @@ auth_token = "${ENV:MCP_GIT_AUTH_TOKEN}"
 # Empty list = no protection (all branches allow automated writes).
 # Parity with config/agent.toml::approval_high_risk_branches when activated.
 protected_branches = ["main", "master", "release"]
+
+# allow_detached_head: when true, permits git_checkout/git_pull/git_push to proceed
+# while the repository is in a detached HEAD state (subject to dry_run and the
+# dirty-worktree/protected-branch checks above). Default false (fail-closed).
+allow_detached_head = false

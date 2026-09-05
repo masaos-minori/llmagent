@@ -96,10 +96,10 @@ allow_detached_head = false
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `allow_detached_head` comment + key to `config/git_mcp_server.toml` | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: no test file targets config comments directly; covered by full-suite regression run |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A here — `docs/04_mcp_04_05_git.md` update deferred per Plan's Documentation Impact |
+| 1 | Add the `allow_detached_head` comment + key to `config/git_mcp_server.toml` | Completed | 20260905-220500 | 20260905-221800 | Implemented exactly as specified; source unchanged since doc authoring (29 lines, key absent) |
+| 2 | Add or update tests per Validation plan | Completed | 20260905-220500 | 20260905-221800 | N/A: no test file targets config comments directly; covered by full-suite regression run — 228/228 `tests/mcp_servers/git/` tests pass unchanged |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260905-220500 | 20260905-221800 | No Python changed (toml only), so ruff/mypy/lint-imports/bandit N/A for this file. Full suite (`uv run pytest tests/ -q`, with one pre-existing, unrelated test deselected — see below): 572 failed/6302 passed/14 skipped/3 errors, zero failures under `tests/mcp_servers/git/`. All failures are pre-existing and unrelated (tests/agent, tests/integration, tests/rag, etc.). Notable unrelated discovery: `tests/agent/test_repl.py::TestReplLoop::test_keyboard_interrupt_breaks_loop` raises an uncaught `KeyboardInterrupt` that aborts the entire pytest session rather than being caught by the REPL's input loop — this made a plain `uv run pytest tests/` run terminate early at a random point (pytest-randomly reorders tests each run). Deselected only for this validation run; out of scope for this git-config change (unrelated module) — not fixed here, flagged for separate follow-up |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260905-220500 | 20260905-221800 | N/A: `docs/00_index.md` Document References by Task has no git-mcp-specifics row (only a generic "Any MCP server (catalog only)" row pointing to an unrelated doc) — no matching task-scope row for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
