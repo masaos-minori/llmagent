@@ -68,8 +68,12 @@ phase type bounds what it may do, regardless of what seems convenient in the mom
 
 If an Analysis step (2, 5-8) reveals a genuine need to run something that Step 3/4 did
 not already run, do not execute it inline — record it as a gap and route it back to a
-new Step 2-4 cycle. Do not modify production code in any step unless the user
-explicitly requested it.
+new Step 2-4 cycle, scoped to only the newly-identified command(s), not a full re-run
+of everything Step 3 already executed. This audit tolerates at most 3 such Step 2-4
+re-entry cycles in one run (per `AGENTS.md` Loop Prevention > Attempt Limit); if a 4th
+genuine need surfaces, stop routing back and instead record it as an unexecuted gap in
+the Step 8 report — do not continue re-entering Step 2-4 indefinitely. Do not modify
+production code in any step unless the user explicitly requested it.
 
 ---
 

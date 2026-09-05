@@ -4,6 +4,23 @@
 
 See `SKILL.md` Prerequisites.
 
+## Toolchain
+
+| Tool | Step | Role |
+|---|---|---|
+| `Bash` (`ls`) | Idempotency note, Step 1, Failure recovery | check for existing/partial files before (re-)creating |
+| `Bash` (`/mcp install`, agent REPL) | Option A | generate skeleton files |
+| `Write`/`Edit` | Option B, Step 1 fixes, Steps 2-4 | create/fix skeleton files, deploy.sh, agent.toml |
+| `Bash` (`python3 -m compileall -q`, `tomllib`) | Step 1 | syntax/TOML validity check |
+| `Bash` (`bash deploy/deploy.sh`) | Step 5 | deploy (delegates to `deploy` skill) |
+| `Bash` (`curl`) | Step 8a | health endpoint check |
+| `Bash` (`rg`) | Step 3 verification, Step 7, Step 8b | confirm config sections/secrets pattern exist |
+| `Bash` (`tail`) | Step 8c | log inspection |
+
+Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: do not
+re-run the same `rg`/`curl`/`tail` check against an unchanged target expecting a
+different result — only re-run a check after the specific fix it depends on.
+
 ## Idempotency note
 
 The wizard does NOT check for existing files and will overwrite them.
@@ -44,7 +61,10 @@ If `/mcp install` fails partway through:
    ```bash
    rm -rf scripts/mcp_servers/<name>/ config/<name>_mcp_server.toml init.d/<name>
    ```
-3. Retry the wizard or switch to Option B
+3. Retry the wizard or switch to Option B. Per `AGENTS.md` Loop Prevention > Attempt Limit,
+   at most 3 wizard retries for the same server name; if it still fails after 3 attempts,
+   switch to Option B (do not retry the wizard a 4th time) and report
+   `Blocked: /mcp install <name> failed 3 times — {last error}`.
 
 ---
 
@@ -58,8 +78,11 @@ and the init script in `init.d/file-mcp`.
 
 ## Step 1: Verify generated files
 
-Confirm each item below. On failure, apply the fix in the same row, then re-check that row
-before moving to the next.
+Confirm each item below. On failure, apply the fix in the same row, then re-check only that
+row (not the earlier rows already passed) before moving to the next. Per `AGENTS.md` Loop
+Prevention > Attempt Limit, at most 3 fix-and-recheck attempts per row; if a row still
+fails after 3 attempts, stop and report `Blocked: {row} still failing after 3 attempts —
+{last error}` rather than continuing to patch it.
 
 | Check | On failure |
 |---|---|
@@ -71,6 +94,9 @@ before moving to the next.
 | `config/<name>_mcp_server.toml` is valid TOML | Run `python3 -c "import tomllib; tomllib.load(open('config/<name>_mcp_server.toml','rb'))"`; fix the reported syntax error |
 | `init.d/<name>` includes the correct `--port` argument | Add or correct the `--port` argument to match Prerequisites' assigned port |
 | Syntax check passes | Run `python3 -m compileall -q scripts/mcp_servers/<name>/`; fix the reported file |
+
+Per `rules/ai-execution.md` Repository Tool Usage #8, `compileall -q`'s empty stdout is
+evidence of success only together with an exit code of 0 — check both, not stdout alone.
 
 **Completed when**: every row above passes.
 
@@ -147,20 +173,27 @@ If none does, read the key from an environment variable via `ConfigLoader().load
 named `<NAME>_API_KEY` (uppercase server name).
 
 **Completed when**: the new server can read its API key through `ConfigLoader().load(...)` —
-confirmed by `rg` showing no `os.environ[...]` or `json.load()` access to the key.
+confirmed by `rg` showing no `os.environ[...]` or `json.load()` access to the key. Per
+`rules/ai-execution.md` Repository Tool Usage #8, a zero-match `rg` result is evidence
+only after confirming `rg` actually searched the new server's file (e.g. the path exists
+and `rg` exited 0, not 1-for-"no file") — a zero match caused by a wrong/missing path is
+not evidence of absence.
 
 ---
 
 ## Step 8: Verify end-to-end
 
-Three checks, in order — stop at the first that fails and fix it before continuing.
+Three checks, in order — stop at the first that fails and fix it before continuing. Each
+fix routes back to only the specific earlier step named below, not to Step 1 or a full
+restart of the whole sequence; re-run only Step 8a/8b/8c itself after the fix, not the
+other two checks that already passed.
 
 ### Step 8a: Health endpoint
 
 ```bash
 curl -s http://localhost:<PORT>/health
 ```
-On failure: go to Step 6's restart command, then re-check.
+On failure: go to Step 6's restart command, then re-check 8a only.
 
 ### Step 8b: Agent-side discovery
 
@@ -168,7 +201,7 @@ On failure: go to Step 6's restart command, then re-check.
 /mcp
 ```
 in the agent REPL. On failure (server missing or unhealthy in the listing): re-verify
-Step 3's `[mcp_servers.<name>]` section with `rg`.
+Step 3's `[mcp_servers.<name>]` section with `rg`, then re-check 8b only.
 
 ### Step 8c: Logs
 
@@ -178,7 +211,13 @@ tail -20 /opt/llm/logs/agent.log
 On any new error mentioning `<name>`: diagnose from the error message before proceeding to
 Step 9.
 
-**Completed when**: 8a, 8b, and 8c all pass with no unresolved error.
+Per `AGENTS.md` Loop Prevention > Attempt Limit, at most 3 fix-and-recheck round-trips
+across 8a-8c combined for the same server; if end-to-end verification still fails after 3
+rounds, stop and report `Blocked: <name> failed end-to-end verification after 3 rounds —
+{last failing check and error}` rather than continuing to cycle through 8a-8c.
+
+**Completed when, and only when**: 8a, 8b, and 8c all pass with no unresolved error, or
+the cycle above ended in a `Blocked` report.
 
 ---
 

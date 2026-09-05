@@ -131,7 +131,11 @@ mutmut results
 mutmut show <id>                           # inspect surviving mutant
 ```
 
-A surviving mutant means the test suite does not catch a one-line code change.
+A surviving mutant means the test suite does not catch a one-line code change. Before
+treating "0 surviving mutants" as evidence the suite is reliable, confirm `mutmut
+results` reports a non-zero total mutant count for the target — per `rules/ai-execution.md`
+Repository Tool Usage #8, 0 surviving mutants out of 0 total mutants means the target
+was not mutated, not that the suite is strong.
 Add targeted tests to kill surviving mutants before declaring the suite reliable.
 
 For a bug fix path: run mutmut specifically on the changed lines after the fix.
@@ -291,6 +295,8 @@ Use `pytest --testmon` while iterating on a fix within this same session (runnin
 full suite after every small edit is slow); run the repository's full, non-testmon `pytest`
 suite once before considering the task complete (Step 11) regardless of testmon results —
 testmon narrows what to re-run during iteration, it does not replace the final full run.
+Per `rules/ai-execution.md` Tool Usage's idempotent-command rule, do not re-run `pytest
+--testmon` again with no source change since the last run — its result is unchanged.
 Do not commit `.testmondata`:
 
 ```bash
@@ -317,10 +323,22 @@ Document the outcome using `SKILL.md` Mandatory Record Template.
 When a test fails:
 
 1. determine if the test reflects the correct contract
-2. if the test is correct: fix the implementation (smallest change)
-3. if the test is wrong: fix the test to match the intended contract, then verify the impl is correct
+2. if the test is correct: fix the implementation (smallest change), then re-run only
+   this test to confirm — do not re-derive the contract judgment from step 1 again
+3. if the test is wrong: fix the test to match the intended contract, then verify the
+   impl is correct by re-running the corrected test — do not re-open the contract
+   judgment unless the re-run surfaces new evidence
 
 Do not change both the test and the implementation in the same commit.
+
+If the re-run after a fix still fails, return to step 1 and re-derive the contract
+judgment from that new failure (it may indicate step 1's original classification was
+wrong) — do not simply try the other branch of step 2/3 on the same judgment. Per
+`AGENTS.md` Attempt Limit, at most 3 iterations of this step 1→2/3→re-run cycle for the
+same failing test; if it still fails after 3 attempts, stop and apply Rollback (see
+`AGENTS.md` Loop Prevention > Rollback Directive) and report `Blocked: {test} still
+failing after 3 fix attempts — {summary of each attempt}` — do not start a fourth
+attempt as if it were a fresh judgment.
 
 Smallest effective change rules:
 
@@ -355,6 +373,9 @@ def client():  # ambiguous — which client?
 ---
 
 ## Completion checklist
+
+**This task is complete when, and only when**: every item below is confirmed true, or the
+task ended in a `Blocked` state per Step 12's own stop condition.
 
 Cross-check against each Step's stated criteria above — do not re-derive them, just confirm:
 

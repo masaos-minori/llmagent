@@ -94,6 +94,12 @@ ast-grep --pattern 'class $NAME(BaseModel): $$$' --lang python scripts/   # exis
 ast-grep --pattern 'class $NAME(MCPServer): $$$' --lang python scripts/   # server patterns
 ```
 
+Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: do not re-run the
+same `ast-grep` pattern against an unchanged target expecting a different result. Per
+`rules/ai-execution.md` Repository Tool Usage #8, no matches from `ast-grep` is evidence
+of "no conflicting pattern" only after confirming the pattern actually searched
+`scripts/` (a typo'd pattern or path also yields no matches).
+
 **Completed when**: every module has a package path, one-sentence responsibility, public API,
 and dependency direction recorded, and (if applicable) the ast-grep check above found no
 conflicting existing pattern.
@@ -200,7 +206,11 @@ If a section is not relevant, omit it instead of filling it with generic text.
 
 **Completed when**: every checked item above is true.
 **On an unchecked item**: return to the step that owns it (see mapping below), fix the gap,
-then re-run this checklist from the top — do not proceed to Final Output with a known gap.
+then re-check only the item(s) that gap affects — not the full checklist from the top —
+before proceeding. Per `AGENTS.md` Loop Prevention > Attempt Limit, at most 3
+fix-and-recheck round-trips per item; if it still cannot be checked after 3 attempts,
+record it as an Open Question (Step 9's Risks and Open Questions) instead of leaving it
+silently unchecked or retrying indefinitely.
 
 | Unchecked item | Return to |
 |---|---|
@@ -214,6 +224,7 @@ then re-run this checklist from the top — do not proceed to Final Output with 
 | implementation plan gap | Step 8 |
 | missing open question | Evidence and Assumptions (below) |
 | Import layer contract / Pythonic safety violation | Step 3, Step 4, or Step 6 |
+| ast-grep found a conflicting existing pattern | Step 4 |
 
 ---
 
@@ -253,8 +264,10 @@ Verification Item.
 
 ## Final Output
 
-Produce these sections when relevant. Omit sections that do not apply to the task; do not
-fill irrelevant sections just to satisfy the template.
+Produce these sections when relevant. Populate each from what Steps 1-9 already
+recorded — do not re-derive or re-run a check merely to produce this output. Omit
+sections that do not apply to the task; do not fill irrelevant sections just to satisfy
+the template.
 
 1. **Goal** — what the program or change is intended to do, what problem it solves, what value it provides.
 2. **Scope** — in scope, out of scope, assumptions, explicit non-goals.

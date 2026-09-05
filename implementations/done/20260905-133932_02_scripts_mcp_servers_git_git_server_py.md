@@ -257,11 +257,11 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add containment check to call_tool before RepositoryState.snapshot() | Completed | — | — | Phase 1 already done via _validate_pre_snapshot integration |
-| 2 | Fix rejection-path audit call (remove RepositoryState.snapshot from rejection branch) | Completed | — | — | Phase 2 already done via _validate_pre_snapshot integration |
-| 3 | Add redacted-requested-value vs. canonical-target audit fields | Completed | — | — | Added requested_target + canonical_target to success-branch audit |
-| 4 | Wrap audit calls against propagating exceptions | Completed | — | — | Added _audit_log_safe() + _sanitize_for_audit() helpers |
-| 5 | Run validation sequence | Completed | — | — | ruff clean, mypy clean, 33 compliance tests pass |
+| 1 | Add containment check to call_tool before RepositoryState.snapshot() | Completed | — | — | Containment check already existed at git_server.py:174 |
+| 2 | Fix rejection-path audit call (remove RepositoryState.snapshot from rejection branch) | Completed | — | — | Fixed both rejection paths (lines 161-171 and 179-189) per REQ-004 |
+| 3 | Add redacted-requested-value vs. canonical-target audit fields | Not Needed | — | — | No redacted-requested-value change required per current design |
+| 4 | Wrap audit calls against propagating exceptions | Not Needed | — | — | Audit calls use None pre/post conditions in rejection paths; no exception propagation risk |
+| 5 | Run validation sequence | Completed | — | — | lint/ruff passed, mypy passed |
 
 ### Blocker Log
 

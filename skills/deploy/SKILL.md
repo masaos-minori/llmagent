@@ -57,7 +57,7 @@ See `workflow.md` for detailed phase content including failure recovery procedur
   agent; for an MCP server, check whether `ConfigLoader().load(...)` is called at module
   import / `__init__` time — if so, it is startup-only and requires Phase 3; if it is called
   inside a request handler, `/reload` suffices and Phase 3 may be skipped).
-- **Rollback**: `deploy/deploy.sh` only copies files; rollback by re-running the skill with the previous commit checked out (`git checkout <prev-sha>` then Phase 2 onward). Service state is not rolled back automatically.
+- **Rollback**: `deploy/deploy.sh` only copies files; rollback by re-running the skill with the previous commit checked out (`git checkout <prev-sha>` then Phase 2 onward). Service state is not rolled back automatically. A rollback-and-redeploy is not itself a "new approach" that resets any Phase's Attempt Limit count for the error that triggered it (see `AGENTS.md` Loop Prevention > Prohibit Repeating Failed Approaches) — if the same failure recurs after rollback, stop and report it rather than deploying forward again on the assumption the rollback fixed it.
 
 ## Required behavior
 

@@ -39,16 +39,16 @@ def is_within_allowed_paths(
     """
     from pathlib import PurePosixPath
 
+    # Fail-closed-empty-list convention: callers must enforce non-empty
+    # allowed_repo_paths before calling this function.
+    if not allowed_repo_paths:
+        return False, "[DENIED] allowed_repo_paths is empty"
+
     ok, err, resolved = _resolve_repo_path(repo_path)
     if not ok:
         return False, err
 
     normalized = os.path.normpath(resolved)
-
-    # Fail-closed-empty-list convention: callers must enforce non-empty
-    # allowed_repo_paths before calling this function.
-    if not allowed_repo_paths:
-        return True, ""
 
     for allowed in allowed_repo_paths:
         try:

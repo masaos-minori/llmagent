@@ -24,8 +24,25 @@ truth and is kept in sync with `tools/`.
 - Apply `skills/DESIGN.md` Agent (Explore) threshold.
 - Use `Edit` over `Write` whenever the doc file already exists — preserve existing content.
 - `WebFetch` is a last resort; most behavior SHOULD be confirmable from the local codebase.
+- Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: do not re-run the
+  same `grep`/`find` query against unchanged files expecting a different result.
+- Per `rules/ai-execution.md` Repository Tool Usage #8, a `grep`/`find` command returning
+  no matches is not proof that something doesn't exist — record it as `Needs Confirmation`
+  (see Boundaries' static-import-search rule below) rather than asserting absence from
+  empty output alone.
 
 ---
+
+## Multi-file processing
+
+When the current task names more than one target document (directly, or via a caller
+such as `prompts/08_document-sync.md` Step 1), apply `rules/ai-execution.md` Sequential
+Target Processing (Base): process one document's Phases 1-10 completely (through Phase
+10's Final Report) before starting Phase 1 for the next — do not batch-inventory
+(Phase 2) or batch-write (Phase 8) several documents before finishing any one of them.
+This also prevents two documents processed in the same batch from producing
+conflicting Known Issues/Needs Confirmation entries for the same underlying code, since
+each document's Phase 9 Consistency Review sees the prior document's completed edits.
 
 ## Core Principles
 - Observe before writing
@@ -39,10 +56,12 @@ truth and is kept in sync with `tools/`.
 
 Every Phase below ends with a `### Gate` checklist. This rule applies to all of them and is
 not repeated per Phase: if any Gate item is unchecked, redo the `### Do` action that item
-depends on and re-check the Gate before starting the next Phase — do not proceed with a
-known-unmet Gate item. If the missing evidence cannot be obtained (the repository genuinely
-does not expose it), record it as an Open Question (Phase 10) instead of leaving the Gate
-item silently unchecked.
+depends on and re-check only that item (not the full Gate) before starting the next
+Phase — do not proceed with a known-unmet Gate item. Per `AGENTS.md` Loop Prevention >
+Attempt Limit, at most 3 redo-and-recheck attempts per Gate item; if it still cannot be
+checked after 3 attempts, or the missing evidence cannot be obtained (the repository
+genuinely does not expose it), record it as an Open Question (Phase 10) instead of
+leaving the Gate item silently unchecked or retrying indefinitely.
 
 ---
 
@@ -409,6 +428,12 @@ inference, README trust, and private-API documentation boundaries.
 ## Phase 10. Final Report
 ### Goal
 Return results in a strict final format.
+
+**This documentation task is complete when, and only when**: the Final Gate below is
+fully checked (or its unmet items are recorded as Open Questions per Gate failure
+handling's Attempt Limit), and every section of the Final Report Format is populated
+from what Phases 1-9 already recorded — do not re-derive or re-run a check merely to
+produce this report.
 
 ### Final Report Format
 #### Updated / Created Files

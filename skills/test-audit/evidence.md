@@ -12,7 +12,10 @@ Classify every executed or attempted command using exactly one of these five res
 the vocabulary defined in `rules/ai-execution.md` Repository Tool Usage rule 11, used
 consistently in Steps 2-4 and in `report-template.md`'s Report Template Section 2:
 
-- **Pass** — ran to completion with no failures.
+- **Pass** — ran to completion with no failures, and collected at least one test case
+  (per `rules/ai-execution.md` Repository Tool Usage #8, a 0-collected, exit-0 run is
+  not evidence of a passing suite — reclassify it as `Blocked` or `Not available` with
+  the collection error as the reason instead).
 - **Fail** — ran to completion with one or more failures.
 - **Partial** — ran, but some sub-cases were skipped, xfail, or otherwise incomplete;
   state exactly what was skipped and why.

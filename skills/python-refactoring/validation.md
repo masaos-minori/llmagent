@@ -46,6 +46,11 @@ At minimum:
 - Run `ruff`.
 - Run characterization tests.
 
+Per `rules/ai-execution.md` Repository Tool Usage #8, empty output/exit 0 alone is not
+proof of success for any of the above — confirm each actually analyzed/collected the
+target file(s) (e.g. a test run that collected zero tests, or a `mypy`/`ruff` invocation
+that silently matched no files due to a path typo, is not evidence of a clean result).
+
 In addition, perform and record the following checks:
 
 - **Public API stability check** — verify before/after equality of:
@@ -118,3 +123,7 @@ stage or commit unless the user explicitly requests it. Report suggested commit
 boundaries in the final report (`report-template.md`).
 
 If mutation testing is not configured, report `Not run`. Do not invent mutation results.
+Per `rules/ai-execution.md` Repository Tool Usage #8, 0 surviving mutants out of 0 total
+mutants generated means the target paths were not mutated (e.g. an empty
+`--paths-to-mutate` match), not that the refactored code is behavior-locked — confirm a
+non-zero total mutant count before treating a mutation run as evidence.

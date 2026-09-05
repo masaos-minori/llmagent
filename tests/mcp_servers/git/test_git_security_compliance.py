@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import stat
+import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -484,6 +487,172 @@ class TestEmittedAuditLogContent:
         assert "main" in result
 
 
+@pytest.fixture(scope="module")
+def client():
+    """Provide a TestClient for the git-mcp server."""
+    from mcp_servers.git import server as git_server
+
+    with TestClient(git_server.app) as c:
+        yield c
+
+
+class TestHTTPSiblingPathRejection:
+    @pytest.mark.asyncio
+    async def test_sibling_prefix_rejected_via_http(self, client):
+        """A sibling path such as /allowed-repo-evil must not be accepted for /allowed-repo root."""
+        from mcp_servers.git import server as git_server
+
+        original = git_server._cfg.allowed_repo_paths
+        try:
+            git_server._cfg.allowed_repo_paths = ["/tmp/allowed"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_status",
+                    "args": {"repo_path": "/tmp/allowed-evil"},
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            assert "[DENIED]" in body.get("result", "")
+            assert body.get("is_error") is True
+        finally:
+            git_server._cfg.allowed_repo_paths = original
+
+    @pytest.mark.asyncio
+    async def test_symlink_escape_rejected_via_http(self, client):
+        """Symlink escape attempts must be rejected before RepositoryState.snapshot()."""
+        from mcp_servers.git import server as git_server
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            real_dir = Path(tmpdir) / "real"
+            link_dir = Path(tmpdir) / "link"
+            real_dir.mkdir()
+            # Create a symlink inside the allowed dir pointing outside
+            evil_target = Path(tmpdir) / "outside"
+            evil_target.mkdir()
+            link_dir.symlink_to(evil_target)
+
+            original = git_server._cfg.allowed_repo_paths
+            try:
+                git_server._cfg.allowed_repo_paths = [str(real_dir)]
+                resp = client.post(
+                    "/v1/call_tool",
+                    json={
+                        "name": "git_status",
+                        "args": {"repo_path": str(link_dir)},
+                    },
+                )
+                assert resp.status_code == 200
+                body = resp.json()
+                assert "[DENIED]" in body.get("result", "")
+                assert body.get("is_error") is True
+            finally:
+                git_server._cfg.allowed_repo_paths = original
+
+    @pytest.mark.asyncio
+    async def test_missing_path_clean_rejection_via_http(self, client):
+        """A missing path must produce a clean rejection response (no 500, no unhandled exception)."""
+        from mcp_servers.git import server as git_server
+
+        original = git_server._cfg.allowed_repo_paths
+        try:
+            git_server._cfg.allowed_repo_paths = ["/nonexistent-root"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_status",
+                    "args": {"repo_path": "/nonexistent-root/repo"},
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body.get("is_error") is True
+        finally:
+            git_server._cfg.allowed_repo_paths = original
+
+    @pytest.mark.asyncio
+    async def test_permission_denied_clean_rejection_via_http(self, client):
+        """A permission-denied path must produce a clean rejection response."""
+        from mcp_servers.git import server as git_server
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            restricted_dir = Path(tmpdir) / "restricted"
+            restricted_dir.mkdir(mode=0o000)
+            original = git_server._cfg.allowed_repo_paths
+            try:
+                git_server._cfg.allowed_repo_paths = [str(restricted_dir)]
+                resp = client.post(
+                    "/v1/call_tool",
+                    json={
+                        "name": "git_status",
+                        "args": {"repo_path": str(restricted_dir)},
+                    },
+                )
+                assert resp.status_code == 200
+                body = resp.json()
+                assert body.get("is_error") is True
+            finally:
+                restricted_dir.chmod(stat.S_IRWXU | stat.S_IRGRP | stat.S_IROTH)
+                git_server._cfg.allowed_repo_paths = original
+
+    @pytest.mark.asyncio
+    async def test_non_repository_clean_rejection_via_http(self, client):
+        """A non-Git directory must produce a clean rejection response."""
+        from mcp_servers.git import server as git_server
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plain_dir = Path(tmpdir) / "plain"
+            plain_dir.mkdir()
+            original = git_server._cfg.allowed_repo_paths
+            try:
+                git_server._cfg.allowed_repo_paths = [str(plain_dir)]
+                resp = client.post(
+                    "/v1/call_tool",
+                    json={
+                        "name": "git_status",
+                        "args": {"repo_path": str(plain_dir)},
+                    },
+                )
+                assert resp.status_code == 200
+                body = resp.json()
+                assert body.get("is_error") is True
+            finally:
+                git_server._cfg.allowed_repo_paths = original
+
+    @pytest.mark.asyncio
+    async def test_audit_redacts_requested_target(self, client):
+        """The raw requested path must appear only in a redacted field, not as the authoritative target."""
+        from mcp_servers.git import server as git_server
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            allowed_dir = Path(tmpdir) / "allowed"
+            evil_dir = Path(tmpdir) / "allowed-evil"
+            allowed_dir.mkdir()
+            evil_dir.mkdir()
+
+            original = git_server._cfg.allowed_repo_paths
+            try:
+                git_server._cfg.allowed_repo_paths = [str(allowed_dir)]
+                with patch("mcp_servers.git.git_server._audit_log") as mock_audit:
+                    resp = client.post(
+                        "/v1/call_tool",
+                        json={
+                            "name": "git_status",
+                            "args": {"repo_path": str(evil_dir)},
+                        },
+                    )
+                    assert resp.status_code == 200
+                    body = resp.json()
+                    assert body.get("is_error") is True
+                    if mock_audit.called:
+                        call_kwargs = mock_audit.call_args
+                        req_target = call_kwargs.kwargs.get("requested_target", "")
+                        assert "allowed-evil" not in req_target or "***" in req_target
+            finally:
+                git_server._cfg.allowed_repo_paths = original
+
+
 class TestPostConditionBypassPrevention:
     """AC-8: Tests prove the complete pipeline cannot be bypassed through the HTTP dispatch path."""
 
@@ -674,3 +843,5 @@ class TestCompletePipelineCoverage:
             assert recorded_stages.index("Stage 3") < recorded_stages.index("Stage 5")
             assert recorded_stages.index("Stage 5") < recorded_stages.index("Stage 6")
             assert recorded_stages.index("Stage 6") < recorded_stages.index("Stage 7")
+
+

@@ -19,7 +19,9 @@
 
 Apply `rules/ai-execution.md` Step-Level Failure Triage (Base) to every Step below. On a
 task-caused failure, stop and report `Blocked: {step} — {error}` once Attempt Limit (3
-attempts) is reached.
+attempts) is reached. Apply `rules/ai-execution.md` Tool Usage's idempotent-command
+rule: do not re-run a Step's validation command against a file whose content has not
+changed since that command last ran in this cycle.
 
 ---
 
@@ -35,6 +37,10 @@ mypy scripts/
 lint-imports
 bandit -r scripts/ -c pyproject.toml
 ```
+
+Per `rules/ai-execution.md` Repository Tool Usage #8: a clean (0-finding) result from any
+of the above is evidence only after confirming `scripts/` exists and is non-empty — not
+proof by itself, since a mistyped path or an empty target produces the same output.
 
 Classify the failure type: lint / type error / import boundary / security finding / suppression violation.
 Do not fix any issue until you know which tool found it and why.
@@ -55,7 +61,10 @@ After auto-fix, review the diff. For each changed hunk, confirm the fixed line e
 to the same result as the original for every input the surrounding code handles — accept
 it only then. A hunk touching a lambda, a chained comprehension, or an expression with
 more than one boolean operator needs this check most; a simple import-sort or
-whitespace-only hunk needs no such re-derivation.
+whitespace-only hunk needs no such re-derivation. If a hunk fails this check, revert only
+that hunk (`git diff` shows it in isolation) and fix the line by hand instead — do not
+accept a semantically-changed auto-fix and do not re-run `ruff check --fix` hoping for a
+different result on the same input.
 
 #### ast-grep — structural pattern enforcement
 
@@ -100,6 +109,11 @@ doing so would require a breaking public-API change or touch a file outside the 
 task's scope (`AGENTS.md` Global Rule 5) — in either of those two cases, suppress with the
 Mandatory Audit Log Template instead.
 
+After adding a new suppression comment, run `tools/check_suppression_justification.py`
+(see `rules/coding.md` Suppression governance) against the changed file to confirm the
+justification format itself is accepted — do not assume the format is correct because it
+matches the template by eye.
+
 ---
 
 ## Step 5: Semantic Refactor Safety
@@ -119,6 +133,10 @@ mypy scripts/
 mypy scripts/<file>.py --strict
 mypy scripts/ --show-error-codes   # always include error codes
 ```
+
+A 0-error result is evidence of a clean type-check only after confirming the target file
+exists and mypy actually visited it (e.g. its path appears in a run with `--verbose`, or
+the file is confirmed non-empty) — per `rules/ai-execution.md` Repository Tool Usage #8.
 
 For each mypy error:
 
@@ -179,6 +197,11 @@ pyre stop
 
 For standard application code: mypy + pyright are sufficient. Do not run pyre by default.
 
+If a type fix here changed a function signature, an import, or introduced a new
+annotation import (e.g. `from typing import ...`), re-run Step 2's `ruff check` on the
+changed file before proceeding to Step 7 — a type-driven edit can introduce an unused
+import or formatting violation Step 2 would otherwise miss.
+
 ---
 
 ## Step 7: Static Security Validation
@@ -214,6 +237,11 @@ If using tox (requires tox.ini to be configured — not in the default dev workf
 tox -e lint && tox -e typecheck && tox -e tests
 ```
 
+An exit-0 result is proof of a passing environment only after confirming each `tox -e
+<env>` actually ran its configured commands (check the printed summary line for the
+environment name and a non-zero test/check count) — per `rules/ai-execution.md`
+Repository Tool Usage #8.
+
 ---
 
 ## Step 10: Minimal Change Principle
@@ -245,6 +273,10 @@ After resolving issues, update project knowledge files if anything changed:
 ---
 
 ## Completion checklist
+
+**This task is complete when, and only when**: `rules/toolchain.md` "Completion checklist
+(common to all tasks)" is satisfied in full, the item below also holds, and no Step above
+ended in an unresolved `Blocked` state.
 
 Satisfy `rules/toolchain.md` "Completion checklist (common to all tasks)" in full. In addition:
 

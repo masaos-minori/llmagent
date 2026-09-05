@@ -85,7 +85,7 @@ class RepositoryState:
     def snapshot(
         cls,
         repo_path: str | os.PathLike[str],
-        protected_branches: list[str] = [],
+        protected_branches: list[str] | None = None,
         active_ref: str = "",
     ) -> RepositoryState:
         """Capture full state from a single git.Repo query."""
