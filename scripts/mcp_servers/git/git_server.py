@@ -40,7 +40,7 @@ from mcp_servers.git.git_models import (
     GitPullRequest,
     GitPushRequest,
 )
-from mcp_servers.git.git_security import _resolve_repo_path
+from mcp_servers.git.git_security import _resolve_repo_path, is_within_allowed_paths
 from mcp_servers.git.git_service import build_service
 from mcp_servers.git.git_tools import TOOL_LIST
 from mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
@@ -174,6 +174,28 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
             post_condition=None,
         )
         return CallToolResponse(result=f"Validation error: {err}", is_error=True)
+    # Enforce allowed_repo_paths containment using component-aware checking.
+    within, deny_err = is_within_allowed_paths(resolved, _cfg.allowed_repo_paths)
+    if not within:
+        logger.info(
+            fmt_kvlog("call_tool", tool=req.name, ms=f"{time.perf_counter() - t0:.0f}")
+        )
+        _audit_log(
+            logger,
+            session_id=session_id,
+            request_id=request_id,
+            action=req.name,
+            target="",
+            outcome="rejected",
+            server_key="git",
+            pre_condition=_serialize_state(
+                RepositoryState.snapshot(
+                    repo_path, protected_branches=_cfg.protected_branches
+                )
+            ),
+            post_condition=None,
+        )
+        return CallToolResponse(result=deny_err, is_error=True)
     active_ref = cast(str, req.args.get("branch", "")) or ""
     pre_state = RepositoryState.snapshot(
         resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref

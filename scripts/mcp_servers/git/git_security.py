@@ -6,9 +6,10 @@ Shared security guards for GitService: repo-path allowlist, read-only check, and
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
-from mcp_servers.git.repository_state import RepositoryState
+from mcp_servers.git import repository_state
 
 
 def _resolve_repo_path(repo_path: str) -> tuple[bool, str, str]:
@@ -27,6 +28,36 @@ def _resolve_repo_path(repo_path: str) -> tuple[bool, str, str]:
     return True, "", resolved
 
 
+def is_within_allowed_paths(repo_path: str, allowed_repo_paths: list[str]) -> tuple[bool, str]:
+    """Check whether repo_path is within one of the allowed repository roots.
+
+    Uses PurePosixPath.relative_to() for component-aware containment,
+    rejecting sibling paths like /allowed-repo-evil for an /allowed-repo root.
+    Returns (ok, error) where ok=True means the path is authorized.
+    """
+    from pathlib import PurePosixPath
+
+    ok, err, resolved = _resolve_repo_path(repo_path)
+    if not ok:
+        return False, err
+
+    normalized = os.path.normpath(resolved)
+
+    # Fail-closed-empty-list convention: callers must enforce non-empty
+    # allowed_repo_paths before calling this function.
+    if not allowed_repo_paths:
+        return True, ""
+
+    for allowed in allowed_repo_paths:
+        try:
+            PurePosixPath(normalized).relative_to(PurePosixPath(allowed))
+            return True, ""
+        except ValueError:
+            continue
+
+    return False, "[DENIED] repo_path not in allowed paths"
+
+
 class GitSecurityGuards:
     """Repository access and write-permission guards.
     Mixed into GitService via inheritance so tests can still call
@@ -35,7 +66,7 @@ class GitSecurityGuards:
 
     def __init__(
         self,
-        repo_state: RepositoryState,
+        repo_state: repository_state.RepositoryState,
         read_only: bool,
     ) -> None:
         """Initialize the security mixin with repository state and read-only flag."""
