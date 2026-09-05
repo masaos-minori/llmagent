@@ -192,10 +192,10 @@ document's revalidation (line numbers in this document are current as of
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `dry_run`/`allow_detached_head` params to `verify_preconditions()`; implement skip/permit logic; correct docstring/error text; update `run()`'s signature and Stage 5 call site | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (tracked in the `test_repository_state.py` sibling document) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A here — doc update deferred per Plan's Documentation Impact |
+| 1 | Add `dry_run`/`allow_detached_head` params to `verify_preconditions()`; implement skip/permit logic; correct docstring/error text; update `run()`'s signature and Stage 5 call site | Completed | 20260905-211000 | 20260905-211500 | Step 3a: line numbers (144, 209, 215, 547-566) and both callers (git_server.py:266, git_service.py:234) confirmed current, no drift found — no procedure correction needed |
+| 2 | Add or update tests per Validation plan (tracked in the `test_repository_state.py` sibling document) | N/A | — | — | Out of scope for this document — tracked in sibling `implementations/20260905-202634_04_...test_repository_state.py.md` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260905-211500 | 20260905-211700 | ruff format/check, mypy, pytest (targeted 228 passed) all pass on this file/module; bandit (format_output.py B101) and lint-imports (shared→agent) findings are pre-existing and unrelated to this change (confirmed via grep — neither touches repository_state.py); full suite run once via testmon (3960 passed, 367 failed — all in tests/agent, tests/rag, confirmed unrelated to mcp_servers.git via grep, pre-existing) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: no docs/00_index.md task-scope mapping for scripts/mcp_servers/git/repository_state.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

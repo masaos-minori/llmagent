@@ -141,23 +141,25 @@ class RepositoryState:
             return False, f"[DENIED] Ref {self.active_branch!r} looks like a CLI option"
         return True, ""
 
-    def verify_preconditions(self, command: str) -> tuple[bool, str]:
+    def verify_preconditions(
+        self,
+        command: str,
+        dry_run: bool = False,
+        allow_detached_head: bool = False,
+    ) -> tuple[bool, str]:
         """Stage 5: Command-specific precondition checks.
 
         dirty-worktree and detached-HEAD guards apply only to write commands
-        when dry_run is False.
+        when dry_run is False. When dry_run is False, the detached-HEAD guard
+        is skipped only when allow_detached_head is True; the dirty-worktree
+        guard remains unconditional.
         """
-        if self.is_dirty:
-            return (
-                False,
-                "[DENIED] worktree has uncommitted changes (dirty worktree) — commit, stash, or discard changes first",
-            )
-        if self.is_detached_head:
-            return (
-                False,
-                "[DENIED] repository is in a detached HEAD state — checkout a branch first, or set allow_detached_head=true in git_mcp_server.toml",
-            )
-        return True, ""
+        if dry_run:
+            return True, ""
+        ok, msg = self.check_dirty_worktree()
+        if not ok:
+            return ok, msg
+        return self.check_detached_head(allow_detached_head)
 
     def verify_postcondition(
         self,
@@ -548,6 +550,8 @@ class WriteProtectionPipeline:
         self,
         tool_name: str,
         op: Callable[[], str],
+        dry_run: bool = False,
+        allow_detached_head: bool = False,
         requested_branch: str | None = None,
         protected_branches: list[str] | None = None,
         active_ref: str = "",
@@ -560,7 +564,9 @@ class WriteProtectionPipeline:
         self.record_stage(PipelineStage(name="Stage 3", index=3, result=(True, "")))
 
         # Stage 5: Verify preconditions (dirty worktree, detached HEAD)
-        ok, msg = self._state.verify_preconditions(tool_name)
+        ok, msg = self._state.verify_preconditions(
+            tool_name, dry_run, allow_detached_head
+        )
         if not ok:
             return PipelineResult.reject(self._state, "Stage 5", msg)
         self.record_stage(PipelineStage(name="Stage 5", index=5, result=(True, "")))
