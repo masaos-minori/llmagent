@@ -25,7 +25,9 @@ def make_eventbus_client(
         max_retry=max_retry,
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
-    schema_path = Path(__file__).parent.parent / "schemas" / "event_envelope.json"
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
     monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
@@ -48,7 +50,7 @@ def make_eventbus_client(
         finally:
             loop.close()
 
-    client._cleanup = _cleanup  # type: ignore[attr-defined]
+    client._cleanup = _cleanup  # type: ignore[attr-defined] — TestClient has no _cleanup attribute; attached here only for this test helper's own teardown call
     return client
 
 
@@ -59,7 +61,9 @@ async def _init_state(cfg: Any) -> None:
 
     eb_app.app.state.config = cfg
     eb_app.app.state.db = eb_app.open_db(cfg.db_path)
-    schema_path = Path(__file__).parent.parent / "schemas" / "event_envelope.json"
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
     eb_app.app.state.envelope_schema = eb_app.orjson.loads(schema_path.read_bytes())
     pathlib.Path(cfg.storage_dir).mkdir(parents=True, exist_ok=True)
     eb_app.app.state.broker = eb_app.EventBroker()

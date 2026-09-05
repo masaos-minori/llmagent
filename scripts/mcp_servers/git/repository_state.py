@@ -782,7 +782,7 @@ def _is_protected_branch(
         return False
     try:
         branch_name = repo.active_branch.name if not repo.head.is_detached else None
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — any GitPython lookup failure means "no active branch", handled below by returning False
         branch_name = None
     if branch_name is None:
         return False
