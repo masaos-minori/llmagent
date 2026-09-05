@@ -203,10 +203,10 @@ Key code locations to modify:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-05 | 2026-09-05 | All REQ-001 through REQ-009 changes applied to repository_state.py: Stage 3 call added, _is_protected_branch() replaced with real logic, protected_branches parameter threaded, operation-target resolution introduced, unsafe ref rejection added |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-05 | 2026-09-05 | Tests in test_repository_state.py updated; all 184 git MCP tests pass |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 2026-09-05 | 2026-09-05 | ruff check clean, mypy clean, pytest 184 passed, no new failures |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-05 | 2026-09-05 | No docs/00_index.md task-scope row references these files' symbols by name |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
