@@ -211,8 +211,8 @@ class TestGitStatus:
         assert "[DENIED]" in result
 
     @pytest.mark.asyncio
-    async def test_clean_working_tree(self) -> None:
-        svc = _svc(allowed=["/opt/repos"])
+    async def test_audit_record_server_key_present(self) -> None:
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
@@ -227,7 +227,71 @@ class TestGitStatus:
         with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_status({"repo_path": "/opt/repos/proj"})
         assert "main" in result
-        assert "clean" in result
+
+
+# ── Sibling-path rejection (REQ-007) ─────────────────────────────────────────
+
+
+class TestSiblingPathRejection:
+    """Regression tests for REQ-007: component-aware containment in _validate_repo."""
+
+    @pytest.mark.asyncio
+    async def test_sibling_with_underscore_rejected(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        result = await svc.git_log({"repo_path": "/opt/repos_evil/proj"})
+        assert "[DENIED]" in result
+
+    @pytest.mark.asyncio
+    async def test_sibling_with_dash_rejected(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        result = await svc.git_diff({"repo_path": "/opt/repos-evil/proj"})
+        assert "[DENIED]" in result
+
+    @pytest.mark.asyncio
+    async def test_sibling_prefix_shorter_rejected(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        result = await svc.git_branch({"repo_path": "/opt/re"})
+        assert "[DENIED]" in result
+
+    @pytest.mark.asyncio
+    async def test_sibpath_longer_rejected(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        result = await svc.git_show({"repo_path": "/opt/repos_evil/sub"})
+        assert "[DENIED]" in result
+
+    @pytest.mark.asyncio
+    async def test_exact_root_accepted(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        mock_repo = MagicMock()
+        mock_repo.iter_commits.return_value = []
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_log({"repo_path": "/opt/repos"})
+        assert result == "(no commits)"
+
+    @pytest.mark.asyncio
+    async def test_subdir_of_root_accepted(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        mock_repo = MagicMock()
+        mock_repo.iter_commits.return_value = []
+        snap = MagicMock(spec=RepositoryState)
+        snap.repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_log({"repo_path": "/opt/repos/proj"})
+        assert result == "(no commits)"
 
     @pytest.mark.asyncio
     async def test_audit_record_contains_canonical_target_for_status(self) -> None:

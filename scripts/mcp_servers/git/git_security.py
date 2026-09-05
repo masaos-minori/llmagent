@@ -28,7 +28,9 @@ def _resolve_repo_path(repo_path: str) -> tuple[bool, str, str]:
     return True, "", resolved
 
 
-def is_within_allowed_paths(repo_path: str, allowed_repo_paths: list[str]) -> tuple[bool, str]:
+def is_within_allowed_paths(
+    repo_path: str, allowed_repo_paths: list[str]
+) -> tuple[bool, str]:
     """Check whether repo_path is within one of the allowed repository roots.
 
     Uses PurePosixPath.relative_to() for component-aware containment,
@@ -37,16 +39,16 @@ def is_within_allowed_paths(repo_path: str, allowed_repo_paths: list[str]) -> tu
     """
     from pathlib import PurePosixPath
 
+    # Fail-closed-empty-list convention: callers must enforce non-empty
+    # allowed_repo_paths before calling this function.
+    if not allowed_repo_paths:
+        return False, "[DENIED] allowed_repo_paths is empty"
+
     ok, err, resolved = _resolve_repo_path(repo_path)
     if not ok:
         return False, err
 
     normalized = os.path.normpath(resolved)
-
-    # Fail-closed-empty-list convention: callers must enforce non-empty
-    # allowed_repo_paths before calling this function.
-    if not allowed_repo_paths:
-        return True, ""
 
     for allowed in allowed_repo_paths:
         try:

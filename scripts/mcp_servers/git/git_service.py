@@ -109,10 +109,9 @@ class GitService:
         self, req_repo_path: str, tool_name: str
     ) -> RepoValidationResult:
         """Check repo_path and write guard; return result with error_message (empty on success)."""
-        if not any(req_repo_path.startswith(p) for p in self._allowed_repo_paths):
-            return RepoValidationResult(
-                error_message="[DENIED] repo_path not in allowed paths"
-            )
+        ok, err = self._is_within_allowed_paths(req_repo_path)
+        if not ok:
+            return RepoValidationResult(error_message=err)
         if tool_name in _WRITE_TOOLS and self._read_only:
             return RepoValidationResult(
                 error_message="[DENIED] git-mcp is configured with read_only=true"
@@ -157,6 +156,35 @@ class GitService:
             except ValueError:
                 continue
         return False, "[DENIED] repo_path not in allowed paths", ""
+
+    def _is_within_allowed_paths(self, repo_path: str) -> tuple[bool, str]:
+        """Check whether repo_path is within one of the allowed repository roots.
+
+        Uses PurePosixPath.relative_to() for component-aware containment,
+        rejecting sibling paths like /allowed-repo-evil for an /allowed-repo root.
+        Returns (ok, error) where ok=True means the path is authorized.
+        """
+        from pathlib import PurePosixPath
+
+        # Fail-closed-empty-list convention: callers must enforce non-empty
+        # allowed_repo_paths before calling this method.
+        if not self._allowed_repo_paths:
+            return False, "[DENIED] allowed_repo_paths is empty"
+
+        ok, err, resolved = _resolve_repo_path(repo_path)
+        if not ok:
+            return False, err
+
+        normalized = os.path.normpath(resolved)
+
+        for allowed in self._allowed_repo_paths:
+            try:
+                PurePosixPath(normalized).relative_to(PurePosixPath(allowed))
+                return True, ""
+            except ValueError:
+                continue
+
+        return False, "[DENIED] repo_path not in allowed paths"
 
     def _check_write(self) -> tuple[bool, str]:
         """Return (ok, error); ok=True when write operations are permitted."""
