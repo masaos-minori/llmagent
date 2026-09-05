@@ -1415,3 +1415,53 @@ class TestLiveCallToolAuthorization:
         finally:
             server_cfg.read_only = original_read_only
             server_cfg.allowed_repo_paths = original_allowed
+
+
+class TestGitServiceErrorHandlerIdentity:
+    """REQ-008: Tests prove GitServiceError raised on the live HTTP dispatch path is caught by the registered exception handler."""
+
+    @pytest.fixture
+    def client(self):
+        from scripts.mcp_servers.git.git_server import app
+
+        return TestClient(app)
+
+    def test_gitservice_error_on_dispatch_path_is_caught_by_registered_handler(self, client, monkeypatch):
+        """REQ-008, AC-3, AC-6: GitServiceError raised inside Stage-6 op() callback is caught by the FastAPI handler, producing structured 500 response — not an unhandled 500."""
+        from scripts.mcp_servers.git.repository_state import RepositoryState
+        from mcp_servers.git.errors import GitServiceError
+        from mcp_servers.git import server as git_server
+
+        snap = MagicMock()
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "develop"
+        snap.repo.is_dirty.return_value = False
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.audit.return_value = {}
+
+        monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
+
+        def raise_git_service_error(*args, **kwargs):
+            raise GitServiceError("handler identity proof")
+
+        monkeypatch.setattr("scripts.mcp_servers.git.git_server.format_checkout", raise_git_service_error)
+
+        original_allowed_paths = git_server._cfg.allowed_repo_paths
+        try:
+            git_server._cfg.allowed_repo_paths = ["/tmp"]
+            # Mock _git_tool_availability to enable the tool (bypass global disable check)
+            monkeypatch.setattr(git_server, "_git_tool_availability", lambda cfg, name: (True, ""))
+            # Mock _is_within_allowed_paths to bypass the allowed_repo_paths check
+            # because the service's _allowed_repo_paths was set at construction time
+            monkeypatch.setattr(git_server._service, "_is_within_allowed_paths", lambda self, path: (True, ""))
+            response = client.post("/v1/call_tool", json={
+                "name": "git_checkout",
+                "args": {"repo_path": "/tmp/test-repo", "branch": "develop"}
+            })
+            print(f"DEBUG: response.status_code={response.status_code}, body={response.text}")
+            assert response.status_code == 500
+            body = response.json()
+            assert body == {"detail": "handler identity proof"}
+        finally:
+            git_server._cfg.allowed_repo_paths = original_allowed_paths

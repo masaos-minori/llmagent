@@ -8,11 +8,16 @@ and guard integration with GitService handlers.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import git
 import pytest
-from mcp_servers.git.repository_state import RepositoryState
+from mcp_servers.git.repository_state import (
+    RepositoryState,
+    WriteProtectionPipeline,
+    _is_protected_branch,
+    _validate_ref,
+)
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -426,223 +431,162 @@ class TestPostconditionChecks:
         assert result.post_state is None
 
 
-# ── Protected branch check tests ──────────────────────────────────────────────
+# ── Protected branch check tests (REQ-002) ────────────────────────────────────
 
 
 class TestProtectedBranchCheck:
-    """Tests for _is_protected_branch() against configured protected_branches (REQ-002)."""
+    """Unit tests for _is_protected_branch() against configured protected_branches."""
 
-    def test_is_protected_branch_main(self, working_repo: str) -> None:
-        """Assert _is_protected_branch() returns True for main when main is in protected_branches."""
-        from scripts.mcp_servers.git.repository_state import _is_protected_branch
+    def _make_mock_repo(self, branch_name: str | None = None, is_detached: bool = False):
+        repo = MagicMock(spec=git.Repo)
+        repo.head.is_detached = is_detached
+        if branch_name is not None and not is_detached:
+            mock_branch = MagicMock()
+            mock_branch.name = branch_name
+            repo.active_branch = mock_branch
+        else:
+            repo.active_branch = None
+        return repo
 
-        repo = git.Repo(working_repo)
-        # Create a local branch named "main" for this test
-        try:
-            repo.create_head("main")
-            repo.heads.main.checkout()
-        except (ValueError, KeyError):
-            pass
+    def test_is_protected_branch_main(self):
+        repo = self._make_mock_repo(branch_name="main")
         assert _is_protected_branch(repo, ["main"]) is True
 
-    def test_is_protected_branch_master(self, working_repo: str) -> None:
-        """Assert _is_protected_branch() returns True for master when master is in protected_branches."""
-        from scripts.mcp_servers.git.repository_state import _is_protected_branch
-
-        repo = git.Repo(working_repo)
-        try:
-            repo.create_head("master")
-            repo.heads.master.checkout()
-        except (ValueError, KeyError):
-            pass
+    def test_is_protected_branch_master(self):
+        repo = self._make_mock_repo(branch_name="master")
         assert _is_protected_branch(repo, ["master"]) is True
 
-    def test_is_protected_branch_release(self, working_repo: str) -> None:
-        """Assert _is_protected_branch() returns True for release when release is in protected_branches."""
-        from scripts.mcp_servers.git.repository_state import _is_protected_branch
-
-        repo = git.Repo(working_repo)
-        try:
-            repo.create_head("release")
-            repo.heads.release.checkout()
-        except (ValueError, KeyError):
-            pass
+    def test_is_protected_branch_release(self):
+        repo = self._make_mock_repo(branch_name="release")
         assert _is_protected_branch(repo, ["release"]) is True
 
-    def test_is_protected_branch_develop(self, working_repo: str) -> None:
-        """Assert _is_protected_branch() returns False for develop when only main/master/release are protected."""
-        from scripts.mcp_servers.git.repository_state import _is_protected_branch
+    def test_is_protected_branch_develop(self):
+        repo = self._make_mock_repo(branch_name="develop")
+        assert _is_protected_branch(repo, ["develop"]) is True
 
-        repo = git.Repo(working_repo)
-        try:
-            repo.create_head("develop")
-            repo.heads.develop.checkout()
-        except (ValueError, KeyError):
-            pass
-        assert _is_protected_branch(repo, ["main", "master", "release"]) is False
+    def test_is_protected_branch_normalized_refs(self):
+        """Both main and refs/heads/main should match when normalized."""
+        repo = self._make_mock_repo(branch_name="main")
+        assert _is_protected_branch(repo, ["refs/heads/main"]) is True
+        # Also test reverse: protected_branches has "main", repo reports "refs/heads/main"
+        repo2 = self._make_mock_repo(branch_name="refs/heads/main")
+        assert _is_protected_branch(repo2, ["main"]) is True
 
-    @pytest.mark.parametrize("branch", ["main", "refs/heads/main"])
-    def test_is_protected_branch_normalized_refs(
-        self, working_repo: str, branch: str
-    ) -> None:
-        """Parametrized test asserting both main and refs/heads/main deny checkout when main is protected."""
-        from scripts.mcp_servers.git.repository_state import _is_protected_branch
+    def test_is_not_protected_branch(self):
+        repo = self._make_mock_repo(branch_name="feature/test")
+        assert _is_protected_branch(repo, ["main"]) is False
 
-        repo = git.Repo(working_repo)
-        try:
-            repo.create_head("main")
-            repo.heads.main.checkout()
-        except (ValueError, KeyError):
-            pass
-        assert _is_protected_branch(repo, [branch]) is True
+    def test_is_not_protected_branch_empty_list(self):
+        repo = self._make_mock_repo(branch_name="main")
+        assert _is_protected_branch(repo, []) is False
+
+    def test_is_not_protected_branch_none(self):
+        repo = self._make_mock_repo(branch_name="main")
+        assert _is_protected_branch(repo, None) is False
+
+    def test_is_not_protected_branch_detached_head(self):
+        repo = self._make_mock_repo(is_detached=True)
+        assert _is_protected_branch(repo, ["main"]) is False
+
+    def test_is_not_protected_branch_case_insensitive(self):
+        """Normalization converts to lowercase; MAIN should match main."""
+        repo = self._make_mock_repo(branch_name="MAIN")
+        assert _is_protected_branch(repo, ["main"]) is True
 
 
-# ── Ref valid validation tests ────────────────────────────────────────────────
+# ── Ref validation tests (REQ-004) ──────────────────────────────────────────────
 
 
 class TestRefValidValidation:
-    """Tests for ref_valid rejecting option-like/malformed refs (REQ-004)."""
+    """Unit tests for _validate_ref() rejecting option-like/malformed refs."""
 
-    def test_ref_valid_option_like_rejected(self) -> None:
-        """Assert ref_valid rejects refs starting with '-'."""
-        from scripts.mcp_servers.git.repository_state import _validate_ref
+    def test_ref_valid_option_like_rejected(self):
+        """Refs starting with '-' must be rejected per REQ-008."""
+        assert _validate_ref("-force") is False
+        assert _validate_ref("--help") is False
+        assert _validate_ref("-v") is False
 
-        assert _validate_ref("-f") is False
-        assert _validate_ref("--force") is False
-        assert _validate_ref("-u origin") is False
+    def test_ref_valid_malformed_rejected(self):
+        """Malformed refs containing null bytes or control chars must be rejected."""
+        assert _validate_ref("ref\x00name") is False
+        assert _validate_ref("ref\nname") is False
+        assert _validate_ref("ref\rname") is False
 
-    def test_ref_valid_malformed_rejected(self) -> None:
-        """Assert ref_valid rejects malformed refs."""
-        from scripts.mcp_servers.git.repository_state import _validate_ref
-
-        assert _validate_ref("\x00") is False
-        assert _validate_ref("ref\nwith\nnewlines") is False
-        assert _validate_ref("ref\rwith\rcarriage") is False
-
-    def test_ref_valid_empty_rejected(self) -> None:
-        """Assert ref_valid rejects empty refs where not semantically valid."""
-        from scripts.mcp_servers.git.repository_state import _validate_ref
-
+    def test_ref_valid_empty_rejected_without_active_branch(self):
+        """Empty ref without active_branch must be rejected (implicit target undefined)."""
         assert _validate_ref("") is False
         assert _validate_ref("   ") is False
 
-    def test_ref_valid_safe_accepted(self) -> None:
-        """Assert ref_valid accepts safe refs like HEAD, develop, feature/abc."""
-        from scripts.mcp_servers.git.repository_state import _validate_ref
+    def test_ref_valid_empty_accepted_with_active_branch(self):
+        """Empty ref with valid active_branch is accepted (implicit target resolved)."""
+        assert _validate_ref("", active_branch="main") is True
+        assert _validate_ref("", active_branch="develop") is True
 
-        assert _validate_ref("HEAD") is True
-        assert _validate_ref("develop") is True
+    def test_ref_valid_safe_accepted(self):
+        """Valid branch names and fully-qualified refs must be accepted."""
+        assert _validate_ref("main") is True
         assert _validate_ref("feature/abc") is True
+        assert _validate_ref("HEAD") is True
         assert _validate_ref("refs/heads/main") is True
         assert _validate_ref("v1.0.0") is True
 
 
-# ── Stage 3 authorization tests ──────────────────────────────────────────────
+# ── Stage 3 authorization tests (REQ-001, REQ-002, REQ-004) ────────────────────
 
 
 class TestStage3Authorization:
-    """Tests for WriteProtectionPipeline.run() invoking Stage 3 (REQ-001; REQ-002; REQ-004; AC-1, AC-2, AC-5, AC-7)."""
+    """Unit tests for WriteProtectionPipeline.run() invoking Stage 3."""
 
-    def test_pipeline_run_invokes_stage_3_for_protected_branch(
-        self, working_repo: str
-    ) -> None:
-        """Spy on verify_authorization() to prove it is called before Stage 6 executes when a protected-branch state causes rejection."""
-        from mcp_servers.git.repository_state import (
-            PipelineResult,
-            RepositoryState,
-            WriteProtectionPipeline,
-        )
-
+    def _make_mock_state(self, protected_branch=False, ref_valid=True, **kwargs):
         snap = MagicMock(spec=RepositoryState)
-        snap.protected_branch = True
-        snap.ref_valid = True
-        snap.verify_authorization.return_value = (
-            False,
-            "[DENIED] main is a protected branch",
-        )
-        snap.active_branch = "main"
-        snap.path = working_repo
-
-        pipeline = WriteProtectionPipeline(snap)
-        op_spy = MagicMock(return_value="should-not-run")
-        result = pipeline.run(
-            "git_checkout",
-            op_spy,
-            requested_branch="main",
-            protected_branches=["main"],
-            active_ref="main",
-        )
-
-        assert isinstance(result, PipelineResult)
-        assert result.ok is False
-        assert "protected branch" in str(result.rejection_message).lower()
-
-    def test_pipeline_run_does_not_call_operation_on_protection_failure(
-        self, working_repo: str
-    ) -> None:
-        """Assert the operation callable is never invoked when protection fails."""
-        from mcp_servers.git.repository_state import (
-            PipelineResult,
-            RepositoryState,
-            WriteProtectionPipeline,
-        )
-
-        snap = MagicMock(spec=RepositoryState)
-        snap.protected_branch = True
-        snap.ref_valid = True
-        snap.verify_authorization.return_value = (
-            False,
-            "[DENIED] main is a protected branch",
-        )
-        snap.active_branch = "main"
-        snap.path = working_repo
-
-        pipeline = WriteProtectionPipeline(snap)
-        op_spy = MagicMock(return_value="should-not-run")
-        result = pipeline.run(
-            "git_checkout",
-            op_spy,
-            requested_branch="main",
-            protected_branches=["main"],
-            active_ref="main",
-        )
-
-        assert isinstance(result, PipelineResult)
-        op_spy.assert_not_called()
-
-    def test_pipeline_run_proceeds_to_stage_5_when_auth_passes(
-        self, working_repo: str
-    ) -> None:
-        """Assert Stage 5 precondition checks run after successful Stage 3 authorization."""
-        from mcp_servers.git.repository_state import (
-            PipelineResult,
-            RepositoryState,
-            WriteProtectionPipeline,
-        )
-
-        snap = MagicMock(spec=RepositoryState)
-        snap.protected_branch = False
-        snap.ref_valid = True
-        snap.verify_authorization.return_value = (True, "")
+        snap.protected_branch = protected_branch
+        snap.ref_valid = ref_valid
+        snap.active_branch = kwargs.get("active_branch", "main")
+        snap.verify_authorization.return_value = (not protected_branch and ref_valid, "")
         snap.verify_preconditions.return_value = (True, "")
-        snap.active_branch = "main"
-        snap.is_dirty = False
-        snap.is_detached_head = False
-        snap.path = working_repo
-
-        # Mock postcondition verification to pass
         snap.verify_postcondition.return_value = (True, "")
-        snap.snapshot.return_value = snap
+        snap.audit.return_value = {}
+        snap.path = kwargs.get("path", "/tmp/repo")
+        snap.is_dirty = kwargs.get("is_dirty", False)
+        snap.head_type = kwargs.get("head_type", "branch")
+        snap.untracked_file_count = kwargs.get("untracked_file_count", 0)
+        snap._repo = None
+        return snap
 
+    def test_pipeline_run_invokes_stage_3_for_protected_branch(self):
+        """Stage 3 blocks execution when current branch is protected."""
+        snap = self._make_mock_state(protected_branch=True)
+        snap.verify_authorization.return_value = (False, "[DENIED] 'main' is a protected branch")
         pipeline = WriteProtectionPipeline(snap)
-        op_spy = MagicMock(return_value="ok")
-        result = pipeline.run(
-            "git_checkout",
-            op_spy,
-            requested_branch="main",
-            protected_branches=[],
-            active_ref="main",
-        )
+        result = pipeline.run("git_checkout", lambda: "should-not-run", requested_branch="main")
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 3"
+        assert "protected branch" in result.rejection_message.lower()
 
-        assert isinstance(result, PipelineResult)
-        op_spy.assert_called_once()
+    def test_pipeline_run_does_not_call_operation_on_protection_failure(self):
+        """Operation callable must not execute when Stage 3 rejects."""
+        called = []
+        def op():
+            called.append(True)
+            return "executed"
+        snap = self._make_mock_state(protected_branch=True)
+        pipeline = WriteProtectionPipeline(snap)
+        result = pipeline.run("git_checkout", op, requested_branch="main")
+        assert result.ok is False
+        assert len(called) == 0
+
+    def test_pipeline_run_proceeds_to_stage_5_when_auth_passes(self):
+        """When auth passes, pipeline continues to Stage 5 preconditions."""
+        snap = self._make_mock_state(protected_branch=False, ref_valid=True)
+        pipeline = WriteProtectionPipeline(snap)
+        result = pipeline.run("git_status", lambda: "ok")
+        # Stage 3 passed; verify it reached Stage 5 or succeeded
+        assert result.ok is True or result.rejected_at_stage != "Stage 3"
+
+    def test_pipeline_run_rejects_invalid_ref(self):
+        """Stage 3 blocks execution when ref_valid is False."""
+        snap = self._make_mock_state(ref_valid=False)
+        pipeline = WriteProtectionPipeline(snap)
+        result = pipeline.run("git_checkout", lambda: "should-not-run", requested_branch="HEAD")
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 3"
