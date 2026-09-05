@@ -88,10 +88,10 @@ same-process HTTP endpoint being removed in this same Plan.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: deletion only, no new test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation deferred to `semcachedocs` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: deletion only, no new test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | All checks pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: documentation deferred to `semcachedocs` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

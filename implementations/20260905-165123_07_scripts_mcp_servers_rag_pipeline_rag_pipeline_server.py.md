@@ -100,10 +100,10 @@ internal endpoint entirely rather than altering its access control.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by procedure document `15` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation deferred to `semcachedocs` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-05T16:51:23+09:00 | 2026-09-05T16:51:23+09:00 | /rag_invalidate_cache HTTP endpoint removed |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-05T16:51:23+09:00 | 2026-09-05T16:51:23+09:00 | Covered by procedure document `15` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-05T16:51:23+09:00 | 2026-09-05T16:51:23+09:00 | rg zero invalidate_cache matches; pytest 551 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-05T16:51:23+09:00 | 2026-09-05T16:51:23+09:00 | N/A: documentation deferred to `semcachedocs` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

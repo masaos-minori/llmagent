@@ -10,7 +10,7 @@ Pipeline order:
   [4] Rerank  — RagLLM.cross_encoder_rerank
 
 Module layout:
-  rag/repository.py  — RagRepository, RagScorer, SemanticCache, FTS helpers
+   rag/repository.py  — RagRepository, RagScorer, FTS helpers
   rag/llm_client.py  — RagLLM, get_embedding, summarize_tool_result
   rag/pipeline_service.py — External RAG service delegation
   rag/pipeline_refiner.py — Context refiner (chunk compression)
@@ -35,7 +35,6 @@ from shared.types import (
 )
 
 from rag.augment import AugmentRefiner
-from rag.cache import SemanticCache
 from rag.http_augment import _map_http_result_kind
 from rag.llm_client import RagLLM, get_embedding
 from rag.models_config import RagConfigImpl
@@ -177,11 +176,6 @@ class RagPipeline:
                     f"RAG config validation failed: {validation_result.errors}"
                 )
             self._cfg = cast(RagConfig, RagConfigImpl(**_raw_cfg))
-        self.semantic_cache: SemanticCache = SemanticCache(
-            max_size=self._cfg.semantic_cache_max_size,
-            threshold=self._cfg.semantic_cache_threshold,
-        )
-
         self._llm = RagLLM(
             self._http,
             build_llm_url(self._cfg.llm_url),
@@ -440,18 +434,6 @@ class RagPipeline:
             self.last_stage_results = list(self._augment_refiner.last_stage_results)
             if result is not None:
                 return result
-        # Semantic cache lookup (in-process mode only)
-        emb: list[float] | None = None
-        if self._cfg.use_semantic_cache and self._embed_url:
-            try:
-                emb = await get_embedding(query, self._http, self._embed_url)
-            except (httpx.HTTPError, OSError, TimeoutError):
-                emb = None
-            if emb is not None:
-                cached = self.semantic_cache.lookup(emb, history_context)
-                if cached is not None:
-                    result422: str = cached
-                    return result422
         try:
             if self._rag_db_path:
                 db = SQLiteHelper(
@@ -493,11 +475,6 @@ class RagPipeline:
                 refined_text: str = refined.text
                 return refined_text
         context_block: str = _augment_format_chunks(pipeline_result.reranked)
-        if self._cfg.use_semantic_cache and emb is not None and context_block:
-            if not self.semantic_cache.put(emb, history_context, context_block):
-                logger.warning(
-                    "Failed to store embedding in semantic cache (dimension mismatch)"
-                )
         return context_block
 
     def get_diagnostics(self) -> dict:
@@ -567,13 +544,3 @@ class RagPipeline:
                 ),
             },
         }
-
-    def invalidate_cache(self) -> None:
-        """Clear all cached semantic-search entries.
-
-        Call after any corpus-changing operation this pipeline instance is aware
-        of (e.g. MCP rag_delete_document) so subsequent queries don't return
-        context for a document that no longer exists. Delegates to
-        SemanticCache.invalidate(), which is thread-safe.
-        """
-        self.semantic_cache.invalidate()

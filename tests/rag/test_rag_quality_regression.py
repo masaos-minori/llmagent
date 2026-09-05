@@ -204,24 +204,6 @@ class TestRagQualityRegression:
         assert chunk_ids == [3, 1, 2]
         assert all(h.rrf_score > 0.0 for h in result.merged)
 
-    async def test_semantic_cache_generation_invalidation(self) -> None:
-        """Semantic cache generation bumps on invalidate; stale entries are evicted."""
-        from rag.cache import SemanticCache
-
-        cache = SemanticCache(max_size=10, threshold=0.9)
-        # Put entries and verify generation
-        cache.put([0.1] * 384, "ctx1", "result_A")
-        assert cache.generation == 0
-        cache.put([0.2] * 384, "ctx2", "result_B")
-        assert cache.generation == 0
-        # Invalidate and verify generation bumps
-        cache.invalidate()
-        assert cache.generation == 1
-        # Verify entries are evicted after invalidation
-        assert cache.lookup([0.1] * 384) is None
-        assert cache.lookup([0.2] * 384) is None
-        assert cache.size == 0
-
     async def test_diagnostics_fusion_mode(self) -> None:
         """Diagnostics correctly report fusion_mode for RRF and dedup_only modes."""
         fixed_hits = [
@@ -252,15 +234,6 @@ class TestRagQualityRegression:
             await pipeline_no_rrf.run("query", db=mock_db)
 
         assert pipeline_no_rrf.get_diagnostics()["fusion_mode"] == "dedup_only"
-
-    async def test_diagnostics_semantic_cache_hits(self) -> None:
-        """Diagnostics correctly report semantic cache hits when cache is enabled."""
-        from rag.cache import SemanticCache
-
-        cache = SemanticCache(max_size=10, threshold=0.0)
-        cache.put([1.0] * 384, "", "cached_result")
-        hit = cache.lookup([1.0] * 384, "")
-        assert hit == "cached_result"
 
     async def test_diagnostics_fts_error_counts(self) -> None:
         """Diagnostics correctly report FTS error counts when FTS fails."""
@@ -437,24 +410,6 @@ class TestRagQualityRegression:
             result = await _make_pipeline(cfg).run("query", db=mock_db)
         assert len(result.reranked) == 3
         assert len(result.merged) == 5
-
-    async def test_semantic_cache_hit_returns_cached_result(self) -> None:
-        """SemanticCache lookup returns stored context on hit."""
-        from rag.cache import SemanticCache
-
-        cache = SemanticCache(max_size=10, threshold=0.9)
-        vec = [1.0] * 384
-        cache.put(vec, "", "expected_context")
-        assert cache.lookup(vec, "") == "expected_context"
-        assert cache.size == 1
-
-    async def test_semantic_cache_miss_below_threshold(self) -> None:
-        """SemanticCache lookup returns None when cosine similarity < threshold."""
-        from rag.cache import SemanticCache
-
-        cache = SemanticCache(max_size=10, threshold=0.99)
-        cache.put([1.0] * 384, "", "ctx")
-        assert cache.lookup([-1.0] * 384, "") is None
 
     async def test_rrf_merged_order_is_descending(self) -> None:
         """RRF merged hits are sorted in descending rrf_score order."""

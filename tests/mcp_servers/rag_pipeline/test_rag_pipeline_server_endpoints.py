@@ -6,7 +6,6 @@ FastAPI wiring:
   - RagPipelineServiceError exception handler (503)
   - POST /rag_run_pipeline
   - POST /rag_debug_pipeline
-  - POST /rag_invalidate_cache (success and failure)
   - GET  /v1/tools
   - POST /v1/call_tool (known and unknown tool)
   - RagPipelineMCPServer.dispatch()
@@ -22,7 +21,7 @@ to close the coverage gap on rag_pipeline_server.py's own route/dispatch/lifespa
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -44,9 +43,6 @@ class _FakeService:
         self.stop = AsyncMock()
         self.run_pipeline = AsyncMock()
         self.run_debug_pipeline = AsyncMock()
-        self.invalidate_cache = (
-            MagicMock()
-        )  # sync method: called without await in server.py
         self._dispatch_table: dict[str, Any] = {}
 
     def get_dispatch_table(self) -> dict[str, Any]:
@@ -140,28 +136,6 @@ class TestHealthEndpoint:
         assert resp.status_code == 503
         body = resp.json()
         assert body["dependencies"] == {"config": "check failed"}
-
-
-class TestRagInvalidateCacheEndpoint:
-    def test_success_returns_ok(
-        self, client: TestClient, fake_service: _FakeService
-    ) -> None:
-        fake_service.invalidate_cache.return_value = None
-        resp = client.post("/rag_invalidate_cache")
-        assert resp.status_code == 200
-        assert resp.json() == {
-            "status": "ok",
-            "message": "Semantic cache invalidated",
-        }
-        fake_service.invalidate_cache.assert_called_once()
-
-    def test_failure_returns_500(
-        self, client: TestClient, fake_service: _FakeService
-    ) -> None:
-        fake_service.invalidate_cache.side_effect = RuntimeError("not started")
-        resp = client.post("/rag_invalidate_cache")
-        assert resp.status_code == 500
-        assert resp.json() == {"error": "not started"}
 
 
 class TestToolsListEndpoint:
