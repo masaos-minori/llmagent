@@ -188,6 +188,52 @@ are themselves part of the technical contract (e.g. a retry limit, a schema vers
 are configuration values, not commentary, and are governed by the "No concrete configuration
 values" rule above.
 
+### Docs content policy — remove
+
+A `docs/*.md` document MUST NOT contain the following five categories of
+implementation-detail content — each goes stale the moment the underlying code
+changes, and duplicates what `grep`/code/git already answer authoritatively:
+
+- **Full file tree**: a literal ASCII directory tree (e.g. `├─`, `│`, `└─` characters).
+  Example: a "## File Structure" section drawing out an entire directory listing.
+- **Per-file one-line description embedded in a tree or table**: a description
+  attached inline to a file-tree entry or table row instead of left to the file
+  itself. Example: `├─ ingester.py  # moves files into DB` inside a file tree.
+- **Class/function/method signature-and-description index table**: a table
+  cataloging symbols and their signatures. Example: a `| Function | Signature |
+  Description |` table listing a module's public functions.
+- **Implementation-location mapping**: a statement that a behavior "is
+  implemented in `{file}`" or "lives in this `.py`". Example: an inline comment
+  such as `# Files ingested into DB (moved by ingester.py)`.
+- **Literal port number**: a port number stated in a heading, table, or prose.
+  Example: a section heading reading "## file-write-mcp (Port 8007)". A short,
+  explicitly-labeled illustrative port number inside a worked example is exempt,
+  mirroring the "No concrete configuration values" carve-out above — it is not a
+  claim about the current deployed configuration.
+
+### Docs content policy — retain
+
+A `docs/*.md` document SHOULD contain the following five categories of
+design-intent content instead — this is what is genuinely hard to recover from
+code alone:
+
+- **Component responsibility**: what each component (Agent, MCP, RAG, EventBus,
+  Shared/DB) is responsible for.
+- **State each component owns**: which data or runtime state belongs to which
+  component.
+- **Allowed dependency direction**: which components may depend on which — see
+  Import layer contract above for the enforced form of this.
+- **Reason for process separation**: why a concern runs as its own process
+  rather than in-process.
+- **Reason for per-process configuration separation**: why a setting is scoped
+  to one process's configuration rather than shared.
+- **Design boundaries requiring joint consideration on change**: which
+  boundaries cannot be changed unilaterally without affecting another
+  component.
+
+For the concrete allowed dependency directions and layer structure themselves,
+see `rules/env.md` Architecture — do not restate that content here.
+
 ### Out-of-scope paths
 
 `__pycache__/`, `.venv/`, vendored/generated code, and build outputs are always out of scope for

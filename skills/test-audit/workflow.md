@@ -43,8 +43,8 @@ If not already loaded, read the following before starting:
 - `rules/toolchain.md`
 - `rules/env.md`
 - `rules/ai-execution.md`
-- `skills/DESIGN.md` (Evidence labels, No source-code line numbers — needed for
-  `evidence.md`'s Step 4 procedure)
+- `skills/DESIGN.md` (Evidence labels, No source-code line numbers, Docs content
+  policy — remove — needed for `evidence.md`'s Step 4 procedure)
 - `SKILL.md` (this skill)
 - this file
 - `discovery.md`

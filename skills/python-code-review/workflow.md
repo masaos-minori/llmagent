@@ -85,7 +85,7 @@ Do:
 Do:
 - identify documentation that now contradicts the changed behavior
 - ground every mismatch claim in the current implementation, not in memory of prior versions
-- avoid implementation-reference duplication: see `skills/DESIGN.md` Avoid implementation-reference duplication
+- avoid implementation-reference duplication: see `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy — remove
 
 ---
 

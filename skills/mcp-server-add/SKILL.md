@@ -20,6 +20,8 @@ Module paths follow the pattern `mcp_servers/<name>/server.py` (e.g. `mcp_server
 
 New servers must use the next free port above every port currently assigned — derive it at
 task time (see Prerequisites), per `skills/DESIGN.md` No concrete configuration values.
+Do not state the assigned port number in `docs/*.md` once it is deployed — see
+`skills/DESIGN.md` Docs content policy — remove.
 
 ## Prerequisites
 

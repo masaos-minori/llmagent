@@ -55,7 +55,17 @@ Checks consistency between documentation and source code for each domain.
 **Checks performed per domain:**
 - Schema drift (DB schema vs documented schema)
 - Config key presence (documented config keys exist in actual config)
-- Port drift (documented ports match actual configuration)
+- Port drift (documented ports match actual configuration). Decision under
+  the docs content policy (`skills/DESIGN.md` Docs content policy —
+  remove, "literal port number" category): `check_port_drift()` and
+  `check_port_range_claim()` remain active pending a documented, explicit
+  exemption list. `GV-021`'s corpus run found 62 literal-port-number
+  findings still present across 13 `docs/*.md` files as of 2026-09-05
+  (content-migration work removing port numbers from those files has not
+  started) — deprecating or narrowing either function now would silently
+  stop catching real port-configuration drift in files that still
+  legitimately state a port number pending that migration. Re-evaluate
+  once the migration work lands.
 - Tool name drift (documented tool names match actual implementations)
 - Crawler config drift (documented crawler configs match actual configs)
 - Debug output existence (documented debug outputs exist)
@@ -149,6 +159,20 @@ Validates structural conventions for `docs/*.md`:
 ```bash
 uv run python tools/check_docs_structure.py [glob ...]
 uv run python tools/check_docs_structure.py docs/05_agent_*.md --category agent
+```
+
+### 15. Docs Content Policy Check (`check_docs_content_policy.py`)
+
+Checks all `docs/*.md` for implementation-detail content the docs content
+policy prohibits: full file trees, per-file descriptions embedded in a tree
+or table, class/function/method index tables, implementation-location
+mappings, and literal port numbers (see `skills/DESIGN.md` Docs content
+policy — remove). Report-only (Warning) — findings never block CI; see
+`GV-021` below.
+
+**Usage:**
+```bash
+uv run python tools/check_docs_content_policy.py
 ```
 
 ## Manual Checks
@@ -288,6 +312,7 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 | GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
 | GV-019 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
 | GV-020 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Implement the context-aware (retained-but-superseded) detection case; promote to default-on once the corpus is compliant |
+| GV-021 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py` | PR | Warning | Partial | Run against the current corpus and scope follow-up content-migration issues from the violation inventory; promote to default-on once the corpus is compliant |
 
 ### Follow-up Work Needed
 

@@ -97,8 +97,8 @@ For documentation-related issues, focus on: design intent, responsibility bounda
 constraints, design decisions, operational notes, failure behavior, Known Issues, Needs
 Confirmation items.
 
-Apply `skills/DESIGN.md` Avoid implementation-reference duplication to what implementers are
-asked to add.
+Apply `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy —
+remove to what implementers are asked to add.
 
 If implementation-derived details are currently present, prefer in this order: remove,
 compress, replace with source reference, move to Known Issues, move to Needs Confirmation.

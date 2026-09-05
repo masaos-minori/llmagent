@@ -179,7 +179,7 @@ Verification Item.
 - Keep modules small and explicit; avoid monolithic files or dumping unrelated behavior into `utils.py`.
 - Prefer simple functions over classes when state is not required. Use classes for state, lifecycle, dependency injection, polymorphism, or a stable public concept.
 - Include failure paths explicitly — timeouts, disconnected states, partial failures, malformed inputs, invalid configuration, and resource cleanup.
-- Apply `skills/DESIGN.md` Avoid implementation-reference duplication to generated or mechanically discoverable details (CLI help, configuration schemas, DTO fields, file trees).
+- Apply `skills/DESIGN.md` Avoid implementation-reference duplication to generated or mechanically discoverable details (CLI help, configuration schemas, DTO fields, file trees — see also `skills/DESIGN.md` Docs content policy — remove for the "full file tree" category specifically).
 - Respect project-specific constraints: if a general rule conflicts with an existing project convention, document the exception and explain why it is acceptable.
 - Separate current design from future extensions.
 

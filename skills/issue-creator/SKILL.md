@@ -70,7 +70,7 @@ rules, markdown safety rules, and the final checklist.
 - Acceptance criteria must be concrete and verifiable.
 - Out-of-scope items must be explicit.
 - Testing expectations must be included when code behavior may change.
-- Documentation-related issues must follow `skills/DESIGN.md` Avoid implementation-reference duplication.
+- Documentation-related issues must follow `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy — remove.
 - Follow `skills/DESIGN.md` No secrets in output.
 
 ## Issue Filename Generation

@@ -259,11 +259,17 @@ Normally remove, compress, or replace with source references:
   contents
 - exact resolved dependency versions, unless needed to explain a verified compatibility
   constraint, migration issue, or operational problem
+- full ASCII file trees, per-file descriptions embedded in a tree or table,
+  class/function/method index tables, implementation-location mappings ("this behavior is
+  implemented in `{file}`"), and literal port numbers (see `skills/DESIGN.md` Docs content
+  policy — remove)
 
 Keep: design intent, responsibility boundaries, architectural constraints, non-negotiable
 invariants, failure behavior (fail-fast/fail-open), security and operational constraints,
 data consistency rules, Known Issues, Needs Confirmation items, deprecated behavior relevant
 to migration/compatibility, behavior verified by tests, operationally observed behavior,
+component responsibility, state ownership, allowed dependency direction, and reasons for
+process/configuration separation (see `skills/DESIGN.md` Docs content policy — retain),
 the dependency source-of-truth decision, dependency ownership, supported Python-version
 constraints when operationally relevant, dependency-group boundaries, lockfile update and
 validation policy, compatibility constraints, external export requirements, known dependency
