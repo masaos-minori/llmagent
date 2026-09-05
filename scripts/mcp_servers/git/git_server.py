@@ -283,7 +283,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         canonical_target=resolved,
     )
     return CallToolResponse(
-        result=result.output,
+        result=result.output or result.rejection_message,
         is_error=not result.ok,
     )
 
