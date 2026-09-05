@@ -1,5 +1,15 @@
 # Issue Creator — Detailed Workflow
 
+## Multi-file processing
+
+When Phase 2 decides to split the work into multiple issues, apply `rules/ai-execution.md`
+Sequential Target Processing (Base): draft, verify (Phase 9), and generate the filename
+(Phase 10) for one issue completely before starting Phase 3 for the next — do not batch-draft
+several issues' Phase 3-8 content before running Phase 9/10 on any of them. This also
+prevents two issues drafted in the same batch from colliding on the same generated filename,
+since Phase 10's uniqueness check (below) sees each prior issue's file already written before
+checking the next.
+
 ## Phase 1: Classify and Frame
 
 Identify the source of the work:
@@ -193,8 +203,12 @@ Before finalizing issues, verify:
 - [ ] the issue follows `templates/issue.md`'s field order and names exactly
 
 **Completed when**: every checked item above is true.
-**On an unchecked item**: return to the phase that owns it (Phase 1–8, or Step 9a/9b above),
-fix the gap, then re-run this checklist — do not proceed to Phase 10 with a known gap.
+**On an unchecked item**: return to the phase that owns it (Phase 1–8, or Step 9a/9b above)
+and fix only the gap the item identifies — do not redo the whole phase's output. Then
+re-check only that item, not the full checklist, before proceeding to Phase 10.
+Per `AGENTS.md` Loop Prevention > Attempt Limit, this fix-and-recheck loop tolerates at most
+3 attempts per distinct unchecked item; if it still fails to clear after 3 attempts, stop and
+report `Blocked: {item} still unresolved after 3 attempts` rather than continuing to patch.
 
 ---
 
@@ -209,6 +223,19 @@ After the issue body is finalized, generate the filename using the convention de
 3. Derive `{slug}` from the issue title: lowercase, replace spaces with dashes, remove
    non-alphanumeric characters except dashes.
 4. Assemble: `{timestamp}_{id}_{slug}.md`
-5. Verify uniqueness against existing files in `issues/` before writing.
+5. Verify uniqueness against existing files in `issues/` before writing — check via `ls
+   issues/{timestamp}_*` or equivalent; an empty result means no collision only if the
+   command actually targeted the `issues/` directory (confirm it exists first), not proof
+   by itself.
+6. If a collision is found, regenerate with the next available disambiguator (e.g. a
+   numeric suffix on `{id}` or `{slug}`) and re-check uniqueness. Per `AGENTS.md` Loop
+   Prevention > Attempt Limit, retry up to 3 times; after 3 collisions, stop and report
+   `Blocked: repeated filename collision — {path}` rather than continuing to increment.
 
 Do NOT create issues without following this naming convention.
+
+**This task is complete when, and only when**: the issue file has been written to
+`issues/` at its verified-unique filename, or the cycle ended in a `Blocked` state per
+Phase 9c or this Phase's own stop condition — in either case, for a Multi-file batch (see
+Multi-file processing above), proceed to Phase 3 for the next issue only after this one's
+outcome (written or `Blocked`) is settled.
