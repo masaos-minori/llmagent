@@ -1,4 +1,6 @@
-"""Shutdown coordinator for graceful HTTP server lifecycle management."""
+"""scripts/agent/http_lifecycle_shutdown_coordinator.py
+
+Shutdown coordinator for graceful HTTP server lifecycle management."""
 
 from __future__ import annotations
 

@@ -1,4 +1,6 @@
-"""Audit logging integration."""
+"""scripts/shared/security/audit.py
+
+Audit logging integration."""
 
 import logging
 

@@ -1,4 +1,6 @@
-"""Routing-drift validation."""
+"""scripts/agent/services/routing_drift.py
+
+Routing-drift validation."""
 
 from __future__ import annotations
 

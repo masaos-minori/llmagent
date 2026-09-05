@@ -1,4 +1,6 @@
-"""Tool-definition runtime validation.
+"""scripts/agent/services/tool_validation.py
+
+Tool-definition runtime validation.
 
 Extracted from scripts/agent/repl_health.py to isolate tool-definition
 validation concerns from MCP health monitoring.

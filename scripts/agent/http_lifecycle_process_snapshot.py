@@ -1,4 +1,6 @@
-"""Process snapshot provider using /proc filesystem (no psutil dependency)."""
+"""scripts/agent/http_lifecycle_process_snapshot.py
+
+Process snapshot provider using /proc filesystem (no psutil dependency)."""
 
 from __future__ import annotations
 

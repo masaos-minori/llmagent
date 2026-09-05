@@ -1,4 +1,6 @@
-"""MCP service health checks."""
+"""scripts/agent/services/mcp_health.py
+
+MCP service health checks."""
 
 from __future__ import annotations
 

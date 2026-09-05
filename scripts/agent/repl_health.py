@@ -1,4 +1,6 @@
-"""Backward-compatibility re-exports for repl_health consumers."""
+"""scripts/agent/repl_health.py
+
+Backward-compatibility re-exports for repl_health consumers."""
 
 from __future__ import annotations
 

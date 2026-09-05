@@ -1,4 +1,6 @@
-"""Security policy definitions."""
+"""scripts/shared/security/policy.py
+
+Security policy definitions."""
 
 from enum import StrEnum
 

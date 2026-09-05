@@ -1,4 +1,6 @@
-"""Unified security module for the agent system."""
+"""scripts/shared/security/__init__.py
+
+Unified security module for the agent system."""
 
 from .audit import AuditLogger
 from .policy import HighRiskToolPolicy, SecurityMode

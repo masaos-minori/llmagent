@@ -1,4 +1,6 @@
-"""HTTP health check for verifying server readiness."""
+"""scripts/agent/http_lifecycle_health_checker.py
+
+HTTP health check for verifying server readiness."""
 
 from __future__ import annotations
 
