@@ -134,15 +134,15 @@ N/A: documentation-only change; no secrets or credentials are involved.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacherm`/`semcacheconfig` implementations land — see Assumptions |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document's Implementation IS the documentation update |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Done |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | Done |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | This document's Implementation IS the documentation update |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on `semcacherm`/`semcacheconfig` implementations landing first | No | — |
+| 1 | Depends on `semcacherm`/`semcacheconfig` implementations landing first | Yes | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

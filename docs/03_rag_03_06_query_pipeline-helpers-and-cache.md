@@ -2,7 +2,6 @@
 title: "RAG Query Pipeline - Helpers and Cache"
 area: rag
 tags:
-  - semantic-cache
   - rag-repository
   - rag-scorer
   - rag-llm
@@ -28,33 +27,9 @@ source:
 
 ---
 
-## 6. SemanticCache (`scripts/rag/cache.py`)
+## 6. Retrieval Freshness
 
-`SemanticCache` implements the `CacheService` protocol (also defined in `rag/cache.py`). This protocol declares only `lookup()` and `put()`; where substitutability is important, callers should type against `CacheService` rather than `SemanticCache` directly.
-
-```python
-from rag.cache import SemanticCache  # defined in SemanticCache class; imported by rag.pipeline
-
-cache = SemanticCache(max_size=100, threshold=0.92)
-```
-
-"`SemanticCache` implements the `CacheService` protocol and provides `lookup()` and `put()` methods. It also features `prune()` using a FIFO policy for eviction, a `size` property, and an `invalidate()` method that atomically clears all entries and increments the `generation` counter. See `scripts/rag/cache.py` for detailed signatures."
-
-**Behavior verified in tests (`tests/test_rag_quality_regression.py::test_semantic_cache_generation_invalidation`):** Calling `invalidate()` increments `generation` by 1, and all existing entries immediately stop hitting on `lookup()` (`size == 0`).
-
-### RagPipeline.invalidate_cache()
-
-```python
-RagPipeline.invalidate_cache(self) -> None
-```
-
-Delegates to `self.semantic_cache.invalidate()`. Called only when the MCP `rag_pipeline` service's `fmt_delete_document()` succeeds.
-
-**Implementation Intent:** To discard the cache known to this pipeline instance after corpus-changing operations (e.g., MCP `rag_delete_document`), ensuring subsequent queries do not return context for deleted documents. `SemanticCache.invalidate()` is implemented thread-safely using `threading.RLock` (see `scripts/rag/cache.py`).
-
-### Cache Freshness After CLI Ingestion
-
-The MCP `rag_delete_document` invalidates the `RagPipeline.semantic_cache` within the caller's MCP process via `invalidate_cache()` — this clears the cache **within a single process only**. CLI ingestion (`uv run python -m rag.ingestion.ingester`) runs in a **separate process** and cannot access the memory cache of the MCP service. **If immediate query freshness is required after CLI ingestion, you must restart the rag-pipeline-mcp service (or the agent process, or the MCP server in subprocess mode)** — this is an operational procedure and is not performed automatically by CLI ingestion. Without a restart, cached entries created before ingestion may return stale context for a limited window until they naturally expire through the cache's own Eviction/TTL ([see cache configuration]).
+Every query executes the full retrieval pipeline (`SearchStage`, via `RagPipeline.augment()`) — including repeated identical queries. No query-result cache exists. Committed document additions, updates, and deletions are reflected in the very next query with no cache-invalidation action or service/process restart required. This guarantee is verified by `tests/rag/test_rag_pipeline_no_cache_freshness.py`.
 
 ---
 
@@ -72,7 +47,6 @@ The MCP `rag_delete_document` invalidates the `RagPipeline.semantic_cache` withi
 
 ## Keywords
 
-semantic-cache
 rag-repository
 rag-scorer
 rag-llm

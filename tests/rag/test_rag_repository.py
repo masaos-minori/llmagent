@@ -1,5 +1,5 @@
 """tests/test_rag_repository.py
-Unit tests for rag/repository.py — RagScorer, SemanticCache, cosine_sim,
+Unit tests for rag/repository.py — RagScorer, cosine_sim,
 deduplicate_chunks, _dedup_hits, and FTS query building.
 """
 

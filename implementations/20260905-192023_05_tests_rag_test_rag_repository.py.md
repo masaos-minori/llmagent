@@ -100,15 +100,15 @@ N/A: no security-sensitive code path is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacherm` implementation lands — see Assumptions |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: this document itself is a test-removal change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Done |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: this document itself is a test-removal change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | Done |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on `semcacherm`'s implementation (deletes `scripts/rag/cache.py`) landing first | No | — |
+| 1 | Depends on `semcacherm`'s implementation (deletes `scripts/rag/cache.py`) landing first | Yes | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
