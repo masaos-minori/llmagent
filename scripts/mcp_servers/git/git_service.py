@@ -197,7 +197,11 @@ class GitService:
         result = await self._validate_repo(repo_path, tool_name)
         if result.error_message:
             return result.error_message
-        state = RepositoryState.snapshot(repo_path, active_ref=active_ref)
+        state = RepositoryState.snapshot(
+            repo_path,
+            protected_branches=self._protected_branches,
+            active_ref=active_ref,
+        )
         pipeline = WriteProtectionPipeline(state)
         pipeline_result = pipeline.run(tool_name, lambda: op(state.repo, state))
         if pipeline_result.ok:
