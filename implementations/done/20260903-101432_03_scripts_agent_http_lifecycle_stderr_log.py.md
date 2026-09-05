@@ -230,15 +230,15 @@ class StderrLogManager:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260905 | File existed from a prior session with two regressions vs. the original inline behavior, fixed this cycle: (1) `_DEFAULT_STDERR_TAIL_BYTES` was 512 instead of the original 64KiB (`64 * 1024`), truncating stderr tails far more aggressively than intended; (2) the facade's `_read_stderr_tail`/`_open_stderr_log` were calling into this module's own `_log_paths` dict while the facade also maintained its own separate `_stderr_log_paths` dict, so a test (or caller) writing directly to the facade's dict was invisible to `read_tail()` — resolved by having the facade own `_read_stderr_tail` directly against its own `_stderr_log_paths` dict (synced from this module's `open_log()` return path) rather than delegating the read to `StderrLogManager.read_tail()` |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260905 | `tests/agent/test_http_lifecycle_stderr_log.py` (16 tests) already existed and continues to pass unchanged — it asserts `read_tail()` returns `bytes`, which this module's design correctly does; the `str` conversion happens in the facade's `_read_stderr_tail` wrapper instead |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260905 | `ruff check`/`mypy scripts/` clean; `uv run pytest tests/agent/test_http_lifecycle_stderr_log.py tests/agent/test_lifecycle.py` all pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260905 | No doc-mapped rows reference this module |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | `_DEFAULT_STDERR_TAIL_BYTES = 512` (this file's original value) caused `tests/agent/test_lifecycle.py::TestHttpStartupError::test_str_includes_truncated_stderr_tail` to fail once the facade's stderr-tail path was reconnected — the original constant was `64 * 1024`. Corrected in this cycle. | Yes | 20260905 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -220,10 +220,10 @@ class HealthChecker:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260905 | File existed from a prior session. `compute_health_check_timeout()` is wired into the facade (`verify_running_async`, `start()`); `startup_poll()`/`verify_running_async()` remain unwired per this procedure's Rollback considerations ("keep this module importable even if temporarily unused") — the facade's own inline health-poll loop in `start()` is the behavior characterized by the existing test suite, so it was not replaced this cycle. Fixed: removed unused `IO` import, added `# noqa: BLE001` with rationale to the intentional catch-all in `verify_running_async` |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260905 | No dedicated unit test file exists for this module (`tests/agent/test_http_lifecycle_health_checker.py` was never created); `compute_health_check_timeout()` is exercised indirectly via `tests/agent/test_lifecycle.py`/`test_http_lifecycle_integration.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260905 | `ruff check`/`mypy scripts/` clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260905 | No doc-mapped rows reference this module |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

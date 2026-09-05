@@ -254,15 +254,15 @@ await self._health_checker.startup_poll(...)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260905 | Composition facade already existed on disk from a prior session (commit 403e0c086), but was integrated incorrectly — see Blocker Log. Corrected in this cycle: restored `_wait_exited`/`_terminate_with_timeout` on the facade itself (delegation to `ProcessTerminator` broke because `terminate()` was a sync method awaited by the facade), restored `_snapshot_fields`/`get_process_info`/`get_process_snapshot`/`list_processes` to operate on the facade's own `_http_procs`/`_http_pgids`/`_stderr_log_paths` dicts using `agent.services.models.ProcessInfoSnapshot` (the module had been wired to a wrong, independently-defined 22-field `ProcessInfoSnapshot` in `http_lifecycle_process_snapshot.py`), restored `_read_stderr_tail`/`_STDERR_TAIL_BYTES` (64KiB) and `HttpStartupError.__str__` (512-byte tail, space-joined) to their original values, restored the `_ALLOWED_COMMANDS` class attribute (tests patch it directly), removed the orphaned `_rotate_log` facade method (dead code with an incompatible call signature) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260905 | No new tests added — existing `tests/agent/test_lifecycle.py`, `test_http_lifecycle_integration.py`, `test_http_lifecycle_warning.py` already provide full coverage of facade behavior and were used as the correctness oracle for this cycle's fixes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260905 | `ruff check` and `mypy scripts/` clean for all http_lifecycle_*.py files; full `uv run pytest tests/agent/test_lifecycle.py tests/agent/test_http_lifecycle_integration.py tests/agent/test_http_lifecycle_warning.py tests/agent/test_http_lifecycle_command_validator.py tests/agent/test_http_lifecycle_process_terminator.py tests/agent/test_http_lifecycle_stderr_log.py` → 274 passed, 3 skipped (was 29 failed / 45 passed before this cycle's fixes). Confirmed via `git stash` that the ~474 unrelated failures elsewhere in `tests/agent/` pre-date this cycle and are unaffected by these changes |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260905 | No doc-mapped rows in `docs/00_index.md` reference this module; no doc updates required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | On resuming this batch, `uv run pytest` showed 29/48 failures in `test_http_lifecycle_integration.py`/`test_http_lifecycle_warning.py`, including a live `TypeError: object NoneType can't be used in 'await' expression` (facade awaited `ProcessTerminator.terminate()`, a plain `def`). Root cause: procedures #01/#03/#04/#06/#07 were each implemented in isolation against their own sample code without integration-testing the facade against its six components or against the pre-existing test suite that characterizes original behavior. Fixed as described in Step 1 above. | Yes | 20260905 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

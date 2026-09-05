@@ -6,13 +6,12 @@ import logging
 import os
 import subprocess
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from scripts.agent.http_lifecycle import HttpServerLifecycleManager
+    from agent.http_lifecycle import HttpServerLifecycleManager
 
 
 @dataclass(frozen=True)
@@ -115,7 +114,7 @@ class ProcessInfoSnapshot:
         """Read process name from /proc/[pid]/comm."""
         path = f"/proc/{pid}/comm"
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 return f.read().strip()
         except OSError:
             return ""
@@ -149,7 +148,7 @@ class ProcessInfoSnapshot:
         path = f"/proc/{pid}/status"
         result: dict[str, str] = {}
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 for line in f:
                     if ":" in line:
                         key, _, value = line.partition(":")
@@ -182,7 +181,7 @@ class ProcessInfoSnapshot:
         for net_file in ("tcp", "tcp6"):
             path = f"/proc/{pid}/net/{net_file}"
             try:
-                with open(path, "r") as f:
+                with open(path) as f:
                     next(f)  # skip header
                     for line in f:
                         parts = line.strip().split()
@@ -201,7 +200,7 @@ class ProcessInfoSnapshot:
         path = f"/proc/{pid}/statm"
         result: dict[str, int] = {}
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 values = f.read().strip().split()
                 keys = ["size", "resident", "shared", "text", "lib", "data", "dt"]
                 for i, val in enumerate(values):
@@ -217,7 +216,7 @@ class ProcessInfoSnapshot:
         path = f"/proc/{pid}/io"
         result: dict[str, int] = {}
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 for line in f:
                     if ":" in line:
                         key, _, value = line.partition(":")
@@ -237,12 +236,12 @@ class ProcessInfoSnapshot:
                 pass
         path = f"/proc/{pid}/stat"
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 content = f.read()
             start = content.find("(") + 1
             end = content.rfind(")")
             if start > 0 and end > start:
-                fields_after_comm = content[end + 2:].split()
+                fields_after_comm = content[end + 2 :].split()
                 if len(fields_after_comm) >= 19:
                     return int(fields_after_comm[19])
         except OSError:
@@ -256,7 +255,7 @@ class ProcessInfoSnapshot:
         if starttime_str:
             try:
                 clk_tck = os.sysconf(os.sysconf_names["SC_CLK_TCK"])
-                uptime = os.times().tms_utime + os.times().tms_stime
+                uptime = os.times().user + os.times().system
                 create_time = uptime - (float(starttime_str) / clk_tck)
                 return create_time
             except (ValueError, KeyError, AttributeError):
@@ -269,15 +268,19 @@ class ProcessInfoSnapshot:
         path = f"/proc/{pid}/stat"
         result: dict[str, float] = {"user": 0.0, "system": 0.0}
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 content = f.read()
             start = content.find("(") + 1
             end = content.rfind(")")
             if start > 0 and end > start:
-                fields_after_comm = content[end + 2:].split()
+                fields_after_comm = content[end + 2 :].split()
                 if len(fields_after_comm) >= 13:
-                    result["user"] = float(fields_after_comm[13]) / os.sysconf(os.sysconf_names["SC_CLK_TCK"])
-                    result["system"] = float(fields_after_comm[14]) / os.sysconf(os.sysconf_names["SC_CLK_TCK"])
+                    result["user"] = float(fields_after_comm[13]) / os.sysconf(
+                        os.sysconf_names["SC_CLK_TCK"]
+                    )
+                    result["system"] = float(fields_after_comm[14]) / os.sysconf(
+                        os.sysconf_names["SC_CLK_TCK"]
+                    )
         except OSError:
             pass
         return result
@@ -293,7 +296,9 @@ class ProcessInfoSnapshot:
             for part in raw.split(b"\x00"):
                 if b"=" in part:
                     key, _, value = part.partition(b"=")
-                    result[key.decode("utf-8", errors="replace")] = value.decode("utf-8", errors="replace")
+                    result[key.decode("utf-8", errors="replace")] = value.decode(
+                        "utf-8", errors="replace"
+                    )
         except OSError:
             pass
         return result
@@ -304,7 +309,7 @@ class ProcessInfoSnapshot:
         path = f"/proc/{pid}/maps"
         result: list[tuple[str, str, str, str, str]] = []
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 for line in f:
                     parts = line.strip().split()
                     if len(parts) >= 5:
@@ -312,7 +317,6 @@ class ProcessInfoSnapshot:
                         perms = parts[1]
                         offset = parts[2]
                         dev = parts[3]
-                        pathname = parts[4] if len(parts) > 4 else ""
                         start, end = addr_range.split("-")
                         result.append((start, end, perms, offset, dev))
         except OSError:
@@ -325,7 +329,7 @@ class ProcessInfoSnapshot:
         path = f"/proc/{pid}/cgroup"
         result: list[tuple[int, str, str]] = []
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 for line in f:
                     parts = line.strip().split(":")
                     if len(parts) == 3:
@@ -345,7 +349,7 @@ class ProcessInfoSnapshot:
         """Read OOM score from /proc/[pid]/oom_score."""
         path = f"/proc/{pid}/oom_score"
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 return int(f.read().strip())
         except OSError:
             return 0
@@ -355,7 +359,7 @@ class ProcessInfoSnapshot:
         """Read OOM score adjustment from /proc/[pid]/oom_score_adj."""
         path = f"/proc/{pid}/oom_score_adj"
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 return int(f.read().strip())
         except OSError:
             return 0
@@ -365,7 +369,7 @@ class ProcessInfoSnapshot:
         """Read scheduling statistics from /proc/[pid]/schedstat."""
         path = f"/proc/{pid}/schedstat"
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 values = f.read().strip().split()
                 return (int(values[0]), int(values[1]), int(values[2]))
         except (OSError, IndexError):
@@ -377,7 +381,7 @@ class ProcessInfoSnapshot:
         path = f"/proc/{pid}/numa_maps"
         result: dict[str, dict[str, int]] = {}
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 for line in f:
                     parts = line.strip().split()
                     if len(parts) >= 2:
@@ -401,7 +405,7 @@ class ProcessInfoSnapshot:
         path = f"/proc/{pid}/syscall"
         result: dict[str, int] = {}
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 values = f.read().strip().split()
                 if len(values) >= 3:
                     result["nr"] = int(values[0])
@@ -417,14 +421,14 @@ class ProcessInfoSnapshot:
         path = f"/proc/{pid}/stack"
         result: list[tuple[str, str]] = []
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 for line in f:
                     stripped = line.strip()
                     if stripped.startswith("[") and "]" in stripped:
                         func_start = stripped.index("[") + 1
                         func_end = stripped.index("]")
                         func_name = stripped[func_start:func_end]
-                        rest = stripped[func_end + 1:].strip()
+                        rest = stripped[func_end + 1 :].strip()
                         result.append((func_name, rest))
         except OSError:
             pass
@@ -436,7 +440,7 @@ class ProcessInfoSnapshot:
         path = f"/proc/{pid}/limits"
         result: list[tuple[str, str, str, str]] = []
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 header_skipped = False
                 for line in f:
                     if not header_skipped:
@@ -518,14 +522,15 @@ class ProcessSnapshotProvider:
         return asdict(info)
 
     @staticmethod
-    def list_processes(manager: HttpServerLifecycleManager) -> list[ProcessInfoSnapshot]:
+    def list_processes(
+        manager: HttpServerLifecycleManager,
+    ) -> list[ProcessInfoSnapshot]:
         """Return snapshots for every managed server whose process is alive."""
         results: list[ProcessInfoSnapshot] = []
-        for server_key in manager._servers:
-            proc = manager._servers[server_key].get("proc")
+        for server_key, proc in manager._http_procs.items():
             if proc is None:
                 continue
-            pgid = getattr(proc, "pgid", None) or getattr(proc, "pgrp", None)
+            pgid = manager._http_pgids.get(server_key)
             if pgid is None:
                 try:
                     pgid = os.getpgid(proc.pid)

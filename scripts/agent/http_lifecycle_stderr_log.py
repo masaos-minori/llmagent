@@ -12,10 +12,9 @@ import logging
 import os
 from typing import IO
 
-
 logger = logging.getLogger(__name__)
 
-_DEFAULT_STDERR_TAIL_BYTES: int = 512
+_DEFAULT_STDERR_TAIL_BYTES: int = 64 * 1024
 
 
 class StderrLogManager:

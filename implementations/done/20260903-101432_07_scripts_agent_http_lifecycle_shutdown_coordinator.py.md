@@ -222,10 +222,10 @@ class ShutdownCoordinator:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260905 | File existed from a prior session, unwired — the facade's `shutdown_all()` keeps its own inline SIGINT-absorption/termination logic (characterized by `tests/agent/test_lifecycle.py::TestSignalHandling`/`TestShutdownSequence`, which patch `HttpServerLifecycleManager._absorb_sigint_during_shutdown` directly), consistent with this procedure's Rollback considerations. Fixed this cycle: `shutdown_all(manager)` referenced a non-existent `manager._servers` attribute (`AttributeError` if ever called) — corrected to iterate `manager._http_procs`/`manager._http_pgids`; `_get_pgid` had an untyped `Any` return path flagged by mypy — added explicit `int | None` annotation |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260905 | No dedicated unit test file exists for this module (`tests/agent/test_http_lifecycle_shutdown_coordinator.py` was never created); the facade's own `shutdown_all()` (which does not use this module) is covered by `tests/agent/test_lifecycle.py` and `test_http_lifecycle_integration.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260905 | `ruff check`/`mypy scripts/` clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260905 | No doc-mapped rows reference this module |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

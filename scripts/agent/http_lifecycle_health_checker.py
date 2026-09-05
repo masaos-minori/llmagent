@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import IO
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,7 @@ class HealthChecker:
         and the configured *startup_timeout* so that no individual request can
         block longer than the shorter interval.
         """
-        from scripts.agent.http_lifecycle import MCPSERVER_HEALTH_TIMEOUT
+        from agent.http_lifecycle import MCPSERVER_HEALTH_TIMEOUT
 
         return min(MCPSERVER_HEALTH_TIMEOUT, startup_timeout)
 
@@ -59,7 +58,7 @@ class HealthChecker:
         except __import__("httpx").RequestError as exc:
             logger.debug("Health check failed at %s: %s", target_url, exc)
             return False
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — health check must never propagate an unexpected error to the caller
             logger.warning("Unexpected error during health check: %s", exc)
             return False
 
@@ -83,7 +82,9 @@ class HealthChecker:
                 server_key, cfg, url=url, timeout=timeout
             )
             if healthy:
-                logger.info("%s became healthy after %d attempt(s)", server_key, attempt + 1)
+                logger.info(
+                    "%s became healthy after %d attempt(s)", server_key, attempt + 1
+                )
                 return True
             logger.debug(
                 "%s health check attempt %d/%d failed, retrying in %.1fs...",
@@ -95,5 +96,7 @@ class HealthChecker:
             if attempt < max_retries - 1:
                 await asyncio.sleep(interval)
 
-        logger.warning("%s did not become healthy after %d attempts", server_key, max_retries)
+        logger.warning(
+            "%s did not become healthy after %d attempts", server_key, max_retries
+        )
         return False

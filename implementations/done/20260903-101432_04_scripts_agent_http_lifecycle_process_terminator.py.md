@@ -271,7 +271,7 @@ class ProcessTerminator:
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | 2026-09-05 follow-up (implementations/20260903-101432_01, Step 1): `terminate`/`wait_exited`/`terminate_with_timeout` were implemented as plain `def` methods using blocking `time.sleep()`, while the facade (`http_lifecycle.py`) awaited all three as coroutines — a live `TypeError: object NoneType can't be used in 'await' expression` at runtime, confirmed via `uv run pytest`. `wait_exited` also had no timeout (infinite loop if the process never exits). Fixed: all three methods are now `async def` using `await asyncio.sleep(...)`, and `wait_exited` takes a `timeout` parameter with a bounded deadline. Note re: Step 2's "Test file created with 136 tests" / Step 3's "All checks passed" — `tests/agent/test_http_lifecycle_process_terminator.py`'s 136 tests are exclusively `ProcessTerminator.__init__` type-acceptance cases; none exercise `terminate`/`wait_exited`/`terminate_with_timeout`, so this defect was never caught by this procedure's own validation. The facade ultimately does not delegate to this class (see procedure #01's Blocker Log) — these fixes bring the module itself to a correct, self-consistent state for future wiring. | Yes | 20260905 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

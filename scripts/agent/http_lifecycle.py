@@ -20,33 +20,32 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import re
-import shutil
+import shutil  # noqa: F401 — kept for tests patching agent.http_lifecycle.shutil.which (shared module object also used by CommandValidator)
 import signal
 import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
 import time
-from dataclasses import dataclass
 from http import HTTPStatus
-from pathlib import Path
 from typing import IO
 
 import httpx
 from shared.mcp_config import McpServerConfig
 
 from agent.secrets_masker import _mask_secrets
-from .http_lifecycle_process_snapshot import ProcessInfoSnapshot
+from agent.services.models import ProcessInfoSnapshot
 
 from .http_lifecycle_command_validator import CommandValidator
 from .http_lifecycle_errors import HttpStartupError, StartupFailure
 from .http_lifecycle_health_checker import HealthChecker
-from .http_lifecycle_process_terminator import ProcessTerminator
 from .http_lifecycle_process_snapshot import ProcessSnapshotProvider
+from .http_lifecycle_process_terminator import ProcessTerminator
 from .http_lifecycle_shutdown_coordinator import ShutdownCoordinator
 from .http_lifecycle_stderr_log import StderrLogManager
 
 logger = logging.getLogger(__name__)
 
 MCPSERVER_HEALTH_TIMEOUT: float = 5.0
+_TERMINATE_POLL_INTERVAL_SEC: float = 0.05
+_STDERR_TAIL_BYTES: int = 64 * 1024
 
 
 class HttpServerLifecycleManager:
@@ -59,6 +58,10 @@ class HttpServerLifecycleManager:
     start_new_session=True and terminated via os.killpg() to include child processes.
     """
 
+    _ALLOWED_COMMANDS: frozenset[str] = frozenset(
+        {"node", "npm", "npx", "uvx", "python", "pipx", "uvicorn"}
+    )
+
     def __init__(
         self,
         *,
@@ -70,7 +73,9 @@ class HttpServerLifecycleManager:
         shutdown_coordinator: ShutdownCoordinator | None = None,
     ) -> None:
         """Initialize HttpServerLifecycleManager with injected components."""
-        self._command_validator = command_validator or CommandValidator()
+        self._command_validator = command_validator or CommandValidator(
+            allowed_commands=type(self)._ALLOWED_COMMANDS
+        )
         self._stderr_log_manager = stderr_log_manager or StderrLogManager()
         self._process_terminator = process_terminator or ProcessTerminator()
         self._health_checker = health_checker or HealthChecker()
@@ -84,15 +89,85 @@ class HttpServerLifecycleManager:
 
     def _open_stderr_log(self, server_key: str, cfg: McpServerConfig) -> IO[bytes]:
         """Open an append-mode file for the server's stderr output and track its path."""
-        return self._stderr_log_manager.open_log(server_key, cfg)
+        fh = self._stderr_log_manager.open_log(server_key, cfg)
+        self._stderr_log_paths[server_key] = self._stderr_log_manager._log_paths.get(
+            server_key, ""
+        )
+        return fh
 
     def _read_stderr_tail(self, server_key: str) -> str:
         """Read the last N bytes from a server's stderr log file."""
-        return self._stderr_log_manager.read_tail(server_key)
+        log_path = self._stderr_log_paths.get(server_key)
+        if not log_path:
+            return ""
+        try:
+            with open(log_path, "rb") as f:
+                f.seek(0, 2)
+                size = f.tell()
+                f.seek(max(0, size - _STDERR_TAIL_BYTES))
+                return f.read().decode(errors="replace")
+        except OSError:
+            return ""
 
-    def _rotate_log(self, log_dir: Path, safe_key: str, cfg: McpServerConfig) -> None:
-        """Rotate stderr log file by shifting numbered backups."""
-        self._stderr_log_manager.rotate_log(log_dir, safe_key, cfg)
+    async def _wait_exited(self, proc: subprocess.Popen[bytes], timeout: float) -> bool:
+        """Poll proc.poll() (non-blocking) until it exits or timeout elapses.
+
+        Deliberately avoids asyncio.to_thread: wrapping a blocking proc.wait() in a
+        thread cannot be cancelled once asyncio.wait_for's timeout fires, so a
+        process stuck in an uninterruptible (D) state leaves a live, non-daemon
+        ThreadPoolExecutor worker that CPython's interpreter-shutdown atexit hook
+        (concurrent.futures.thread._python_exit) then blocks on indefinitely.
+        """
+        deadline = time.monotonic() + timeout
+        while proc.poll() is None:
+            if time.monotonic() >= deadline:
+                return False
+            await asyncio.sleep(_TERMINATE_POLL_INTERVAL_SEC)
+        return True
+
+    async def _terminate_with_timeout(
+        self,
+        proc: subprocess.Popen[bytes],
+        server_key: str,
+        timeout: float = 3.0,
+    ) -> None:
+        """Terminate proc; escalate to kill if terminate times out."""
+        if proc.poll() is not None:
+            return
+        pgid = self._http_pgids.get(server_key)
+        used_pgid = False
+        if pgid is not None:
+            try:
+                os.killpg(pgid, signal.SIGTERM)  # nosec B603
+                used_pgid = True
+            except (ProcessLookupError, OSError):
+                proc.terminate()
+        else:
+            proc.terminate()
+        if await self._wait_exited(proc, timeout):
+            if not used_pgid:
+                logger.warning(
+                    "Lifecycle: %r terminated, but children may remain (no pgid available)",
+                    server_key,
+                )
+            return
+        logger.warning(
+            "Lifecycle: force-killing %r (terminate timed out)",
+            server_key,
+        )
+        pgid = self._http_pgids.get(server_key)
+        if pgid is not None:
+            try:
+                os.killpg(pgid, signal.SIGKILL)  # nosec B603
+            except (ProcessLookupError, OSError):
+                proc.kill()
+        else:
+            proc.kill()
+        if not await self._wait_exited(proc, timeout):
+            logger.warning(
+                "Lifecycle: %r still not terminated after kill",
+                server_key,
+            )
 
     def verify_running(self, server_key: str) -> bool:
         """Return True if the HTTP subprocess server is running, False if missing or exited."""
@@ -113,7 +188,9 @@ class HttpServerLifecycleManager:
         if time.monotonic() - last_check < 10.0:
             return True
         try:
-            hc_timeout = self._health_checker.compute_health_check_timeout(cfg.startup_timeout_sec)
+            hc_timeout = self._health_checker.compute_health_check_timeout(
+                cfg.startup_timeout_sec
+            )
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout=hc_timeout)
             ) as client:
@@ -134,25 +211,58 @@ class HttpServerLifecycleManager:
         self._last_health_check.pop(server_key, None)
         return stderr_content
 
-    def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
-        """Return a read-only snapshot for a managed subprocess, or None if unknown."""
+    def _snapshot_fields(
+        self, server_key: str
+    ) -> tuple[subprocess.Popen[bytes], bool, int | None, int | None, str] | None:
+        """Return (proc, running, last_exit_code, pgid, stderr_log), or None if unknown."""
         proc = self._http_procs.get(server_key)
         if proc is None:
             return None
+        running = proc.poll() is None
+        last_exit_code = proc.poll() if not running else None
         pgid = self._http_pgids.get(server_key)
-        return self._snapshot_provider.get_info(server_key, proc, pgid)
+        stderr_log = self._stderr_log_paths.get(server_key, "")
+        return proc, running, last_exit_code, pgid, stderr_log
+
+    def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
+        """Return a read-only snapshot for a managed subprocess, or None if unknown."""
+        fields = self._snapshot_fields(server_key)
+        if fields is None:
+            return None
+        proc, running, last_exit_code, pgid, stderr_log = fields
+        return ProcessInfoSnapshot(
+            server_key=server_key,
+            managed=True,
+            pid=proc.pid,
+            pgid=pgid,
+            running=running,
+            last_exit_code=last_exit_code,
+            stderr_log=stderr_log,
+        )
 
     def get_process_snapshot(self, server_key: str) -> dict | None:
         """Return a dict snapshot for a managed subprocess, or None if unknown."""
-        proc = self._http_procs.get(server_key)
-        if proc is None:
+        fields = self._snapshot_fields(server_key)
+        if fields is None:
             return None
-        pgid = self._http_pgids.get(server_key)
-        return self._snapshot_provider.get_snapshot(server_key, proc, pgid)
+        proc, running, last_exit_code, pgid, stderr_log = fields
+        return {
+            "server_key": server_key,
+            "managed": True,
+            "pid": proc.pid,
+            "pgid": pgid,
+            "running": running,
+            "last_exit_code": last_exit_code,
+            "stderr_log": stderr_log,
+        }
 
     def list_processes(self) -> list[ProcessInfoSnapshot]:
         """Return snapshots for all currently managed subprocess servers."""
-        return self._snapshot_provider.list_processes(self)
+        return [
+            snap
+            for key in list(self._http_procs.keys())
+            if (snap := self.get_process_info(key)) is not None
+        ]
 
     async def _interruptible_poll_sleep(
         self, delay: float, shutdown_event: asyncio.Event | None
@@ -219,7 +329,7 @@ class HttpServerLifecycleManager:
 
         # Validate command using CommandValidator
         try:
-            cmd_executable = self._command_validator.validate(server_key, cfg.cmd[0])
+            self._command_validator.validate(server_key, cfg.cmd[0])
         except ValueError as e:
             stderr_fh.close()
             self._stderr_files.pop(server_key, None)
@@ -254,7 +364,7 @@ class HttpServerLifecycleManager:
                 proc.pid,
             )
             try:
-                await self._process_terminator.terminate(proc, server_key, timeout=5.0)
+                await self._terminate_with_timeout(proc, server_key, timeout=5.0)
                 poll_result = proc.poll()
                 if poll_result is not None and poll_result != 0:
                     logger.info(
@@ -276,7 +386,9 @@ class HttpServerLifecycleManager:
         health_url = cfg.url.rstrip("/") + "/health"
         if cfg.startup_timeout_sec > 0:
             deadline = time.monotonic() + cfg.startup_timeout_sec
-            hc_timeout = self._health_checker.compute_health_check_timeout(cfg.startup_timeout_sec)
+            hc_timeout = self._health_checker.compute_health_check_timeout(
+                cfg.startup_timeout_sec
+            )
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout=hc_timeout)
             ) as client:
@@ -322,7 +434,7 @@ class HttpServerLifecycleManager:
                         raise HttpStartupError(failure)
 
             stderr_full = self._cleanup_server_resources(server_key)
-            await self._process_terminator.terminate(proc, server_key, timeout=5.0)
+            await self._terminate_with_timeout(proc, server_key, timeout=5.0)
             timeout_failure = StartupFailure(
                 server_key=server_key,
                 reason=f"did not become healthy within {cfg.startup_timeout_sec}s",
@@ -350,7 +462,7 @@ class HttpServerLifecycleManager:
         proc = self._http_procs.pop(server_key, None)
         if proc is not None and proc.poll() is None:
             logger.info("Lifecycle: terminating %r for restart", server_key)
-            await self._process_terminator.terminate(proc, server_key)
+            await self._terminate_with_timeout(proc, server_key)
         self._http_pgids.pop(server_key, None)
         await self.start(server_key, cfg)
 
@@ -399,7 +511,7 @@ class HttpServerLifecycleManager:
                     logger.debug("Lifecycle: %r already exited; removing entry", key)
                 else:
                     try:
-                        await self._process_terminator.terminate(proc, key, timeout=5.0)
+                        await self._terminate_with_timeout(proc, key, timeout=5.0)
                     except (OSError, TimeoutError) as e:
                         logger.warning(
                             "Lifecycle: error stopping HTTP subprocess %r: %s", key, e

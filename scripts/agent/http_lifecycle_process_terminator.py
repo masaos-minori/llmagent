@@ -8,14 +8,11 @@ Enables independent unit testing of process termination behavior.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import signal
 import time
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +33,9 @@ class ProcessTerminator:
             else _DEFAULT_TERMINATE_POLL_INTERVAL_SEC
         )
 
-    def terminate(self, proc: object, server_key: str, timeout: float = 5.0) -> None:
+    async def terminate(
+        self, proc: object, server_key: str, timeout: float = 5.0
+    ) -> None:
         """Terminate a process group with SIGTERM → SIGKILL escalation.
 
         Args:
@@ -49,6 +48,8 @@ class ProcessTerminator:
         """
         pgid = getattr(proc, "pid", None)
         if pgid is None:
+            from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
+
             raise HttpStartupError(
                 StartupFailure(
                     server_key=server_key,
@@ -59,7 +60,7 @@ class ProcessTerminator:
 
         # Send SIGTERM to process group
         try:
-            os.killpg(pgid, signal.SIGTERM)  # nosec B603
+            os.killpg(pgid, signal.SIGTERM)  # nosec B603 — process-group signal to terminate an admin-started MCP server subprocess, not user input
         except ProcessLookupError:
             logger.warning("Process group %d already terminated", pgid)
             return
@@ -74,14 +75,14 @@ class ProcessTerminator:
         while time.monotonic() < deadline:
             try:
                 os.killpg(pgid, 0)  # Check if process exists
-                time.sleep(self._terminate_poll_interval_sec)
+                await asyncio.sleep(self._terminate_poll_interval_sec)
             except ProcessLookupError:
                 logger.info("Process group %d exited gracefully", pgid)
                 return
 
         # Escalate to SIGKILL
         try:
-            os.killpg(pgid, signal.SIGKILL)  # nosec B603
+            os.killpg(pgid, signal.SIGKILL)  # nosec B603 — process-group signal to force-kill an admin-started MCP server subprocess after a graceful-termination timeout
             logger.warning("Escalated to SIGKILL for process group %d", pgid)
         except ProcessLookupError:
             logger.info("Process group %d already exited after SIGTERM timeout", pgid)
@@ -90,31 +91,38 @@ class ProcessTerminator:
                 "Permission denied when sending SIGKILL to process group %d", pgid
             )
 
-    def wait_exited(
-        self, proc: object, server_key: str, poll_interval: float = 0.1
+    async def wait_exited(
+        self,
+        proc: object,
+        server_key: str,
+        poll_interval: float = 0.1,
+        timeout: float = 5.0,
     ) -> bool:
-        """Wait for a process to exit.
+        """Wait for a process to exit, up to `timeout` seconds.
 
         Args:
             proc: subprocess.Popen instance representing the process.
             server_key: Unique identifier for the server.
             poll_interval: Time between polls.
+            timeout: Maximum time to wait before giving up.
 
         Returns:
-            True if process has exited, False otherwise.
+            True if process has exited, False if `timeout` elapsed first.
         """
         pgid = getattr(proc, "pid", None)
         if pgid is None:
             return False
 
-        while True:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
             try:
                 os.killpg(pgid, 0)  # Check if process exists
-                time.sleep(poll_interval)
+                await asyncio.sleep(poll_interval)
             except ProcessLookupError:
                 return True
+        return False
 
-    def terminate_with_timeout(
+    async def terminate_with_timeout(
         self, proc: object, server_key: str, timeout: float = 5.0
     ) -> None:
         """Terminate a process with a strict timeout.
@@ -129,6 +137,8 @@ class ProcessTerminator:
         """
         pgid = getattr(proc, "pid", None)
         if pgid is None:
+            from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
+
             raise HttpStartupError(
                 StartupFailure(
                     server_key=server_key,
@@ -139,7 +149,7 @@ class ProcessTerminator:
 
         # Send SIGTERM
         try:
-            os.killpg(pgid, signal.SIGTERM)  # nosec B603
+            os.killpg(pgid, signal.SIGTERM)  # nosec B603 — process-group signal to terminate an admin-started MCP server subprocess, not user input
         except ProcessLookupError:
             logger.warning("Process group %d already terminated", pgid)
             return
@@ -149,14 +159,14 @@ class ProcessTerminator:
         while time.monotonic() < deadline:
             try:
                 os.killpg(pgid, 0)  # Check if process exists
-                time.sleep(self._terminate_poll_interval_sec)
+                await asyncio.sleep(self._terminate_poll_interval_sec)
             except ProcessLookupError:
                 logger.info("Process group %d exited within timeout", pgid)
                 return
 
         # Escalate to SIGKILL
         try:
-            os.killpg(pgid, signal.SIGKILL)  # nosec B603
+            os.killpg(pgid, signal.SIGKILL)  # nosec B603 — process-group signal to force-kill an admin-started MCP server subprocess after a graceful-termination timeout
             logger.warning("Escalated to SIGKILL for process group %d", pgid)
         except ProcessLookupError:
             logger.info("Process group %d already exited after timeout")

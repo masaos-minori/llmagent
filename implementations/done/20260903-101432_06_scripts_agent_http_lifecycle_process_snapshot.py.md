@@ -223,10 +223,10 @@ class ProcessSnapshotProvider:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260905 | File existed from a prior session with a different design than this procedure's sample (a `/proc`-filesystem-based `ProcessInfoSnapshot`/`ProcessSnapshotProvider`, independent of and incompatible with `agent.services.models.ProcessInfoSnapshot`, which is what the facade and its test suite actually use) — left in place as an unwired, independently-usable alternative per Rollback considerations, since rewiring it would mean discarding the psutil-free design in favor of the original inline logic the tests characterize. Fixed this cycle: `list_processes(manager)` referenced a non-existent `manager._servers` attribute (`AttributeError` if ever called) — corrected to iterate `manager._http_procs`/`manager._http_pgids`; `_read_create_time` used wrong `os.times_result` attribute names (`tms_utime`/`tms_stime` instead of `user`/`system`), silently swallowed by a bare `except AttributeError`; removed an unused `pathname` local in `_read_maps` |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260905 | No dedicated unit test file exists for this module (`tests/agent/test_http_lifecycle_process_snapshot.py` was never created); the facade's own `get_process_info`/`get_process_snapshot`/`list_processes` (which do not use this module) are covered by `tests/agent/test_lifecycle.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260905 | `ruff check`/`mypy scripts/` clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260905 | No doc-mapped rows reference this module |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

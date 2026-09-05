@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from scripts.agent.http_lifecycle import HttpServerLifecycleManager
+    from agent.http_lifecycle import HttpServerLifecycleManager
 
 _SHUTDOWN_TIMEOUT_SEC = 30.0
 _KILL_TIMEOUT_SEC = 5.0
@@ -22,7 +22,7 @@ _KILL_ERRORS = (OSError, ProcessLookupError, ChildProcessError)
 
 def _get_pgid(proc: subprocess.Popen[bytes]) -> int | None:
     """Return the process-group ID of *proc*, or ``None``."""
-    pgid = getattr(proc, "pgid", None)
+    pgid: int | None = getattr(proc, "pgid", None)
     if pgid is not None:
         return pgid
     try:
@@ -54,15 +54,14 @@ class ShutdownCoordinator:
     async def shutdown_all(manager: HttpServerLifecycleManager) -> None:
         """Gracefully shut down every managed server.
 
-        Iterates over all entries in ``manager._servers``, sends SIGTERM to each
+        Iterates over all entries in ``manager._http_procs``, sends SIGTERM to each
         process group, and falls back to SIGKILL when the timeout expires.
         """
-        servers = manager._servers
-        for server_key, entry in list(servers.items()):
-            proc = entry.get("proc")
+        procs = manager._http_procs
+        for server_key, proc in list(procs.items()):
             if proc is None:
                 continue
-            pgid = _get_pgid(proc)
+            pgid = manager._http_pgids.get(server_key) or _get_pgid(proc)
             logger.info("Shutting down %s...", server_key)
             try:
                 if pgid is not None:
@@ -76,11 +75,17 @@ class ShutdownCoordinator:
             while asyncio.get_event_loop().time() < deadline:
                 poll_result = proc.poll()
                 if poll_result is not None:
-                    logger.info("%s terminated gracefully with code %d", server_key, poll_result)
+                    logger.info(
+                        "%s terminated gracefully with code %d", server_key, poll_result
+                    )
                     break
                 await asyncio.sleep(0.05)
             else:
-                logger.warning("%s did not stop within %.1fs, sending SIGKILL", server_key, _SHUTDOWN_TIMEOUT_SEC)
+                logger.warning(
+                    "%s did not stop within %.1fs, sending SIGKILL",
+                    server_key,
+                    _SHUTDOWN_TIMEOUT_SEC,
+                )
                 try:
                     if pgid is not None:
                         _kill_pg_force(pgid)
