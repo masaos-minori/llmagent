@@ -184,7 +184,9 @@ class TestGuardDelegation:
     def test_verify_postcondition_delegates_to_state(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
         actual_branch = state.active_branch
-        ok, err = state.verify_postcondition("success", state, "git_checkout", actual_branch)
+        ok, err = state.verify_postcondition(
+            "success", state, "git_checkout", actual_branch
+        )
         assert ok is True
         assert err == ""
 
@@ -283,8 +285,71 @@ class TestPipelineOrdering:
         """Verify Stage 6 (execution) runs before Stage 7 (postcondition verification)."""
         state = RepositoryState.snapshot(working_repo)
         actual_branch = state.active_branch
-        ok, _ = state.verify_postcondition("success", state, "git_checkout", actual_branch)
+        ok, _ = state.verify_postcondition(
+            "success", state, "git_checkout", actual_branch
+        )
         assert ok is True
+
+
+# ── verify_preconditions dry_run / allow_detached_head matrix ───────────────
+
+
+@pytest.fixture()
+def dirty_repo(working_repo: str) -> str:
+    Path(working_repo, "README.md").write_text("# test\nuncommitted change\n")
+    return working_repo
+
+
+@pytest.fixture()
+def detached_repo(working_repo: str) -> str:
+    repo = git.Repo(working_repo)
+    repo.git.checkout(repo.head.commit.hexsha)
+    return working_repo
+
+
+class TestVerifyPreconditionsDryRunAndDetachedHead:
+    def test_dirty_worktree_dry_run_true_is_allowed(self, dirty_repo: str) -> None:
+        state = RepositoryState.snapshot(dirty_repo)
+        ok, err = state.verify_preconditions("checkout", dry_run=True)
+        assert ok is True
+        assert err == ""
+
+    @pytest.mark.parametrize("allow_detached_head", [False, True])
+    def test_dirty_worktree_dry_run_false_is_denied(
+        self, dirty_repo: str, allow_detached_head: bool
+    ) -> None:
+        state = RepositoryState.snapshot(dirty_repo)
+        ok, err = state.verify_preconditions(
+            "checkout", dry_run=False, allow_detached_head=allow_detached_head
+        )
+        assert ok is False
+        assert "dirty worktree" in err
+
+    def test_detached_head_dry_run_true_is_allowed(self, detached_repo: str) -> None:
+        state = RepositoryState.snapshot(detached_repo)
+        ok, err = state.verify_preconditions("checkout", dry_run=True)
+        assert ok is True
+        assert err == ""
+
+    def test_detached_head_dry_run_false_allow_false_is_denied(
+        self, detached_repo: str
+    ) -> None:
+        state = RepositoryState.snapshot(detached_repo)
+        ok, err = state.verify_preconditions(
+            "checkout", dry_run=False, allow_detached_head=False
+        )
+        assert ok is False
+        assert "detached HEAD" in err
+
+    def test_detached_head_dry_run_false_allow_true_is_allowed(
+        self, detached_repo: str
+    ) -> None:
+        state = RepositoryState.snapshot(detached_repo)
+        ok, err = state.verify_preconditions(
+            "checkout", dry_run=False, allow_detached_head=True
+        )
+        assert ok is True
+        assert err == ""
 
 
 # ── Guard integration tests ──────────────────────────────────────────────────
@@ -349,14 +414,18 @@ class TestAuditLogVerification:
 
 
 class TestPostconditionChecks:
-    def test_checkout_postcondition_matches_requested_branch(self, working_repo: str) -> None:
+    def test_checkout_postcondition_matches_requested_branch(
+        self, working_repo: str
+    ) -> None:
         """REQ-004: verify resulting branch matches requested target."""
         state = RepositoryState.snapshot(working_repo)
         ok, msg = state.verify_postcondition("", state, "git_checkout", "main")
         assert ok is False
         assert "expected branch" in msg
 
-    def test_checkout_postcondition_no_requested_branch(self, working_repo: str) -> None:
+    def test_checkout_postcondition_no_requested_branch(
+        self, working_repo: str
+    ) -> None:
         """When no requested_branch provided, checkout postcondition passes."""
         state = RepositoryState.snapshot(working_repo)
         ok, msg = state.verify_postcondition("", state, "git_checkout", None)
@@ -376,14 +445,18 @@ class TestPostconditionChecks:
     def test_push_postcondition_with_rejection(self, working_repo: str) -> None:
         """REQ-006: detect rejected outcomes after push."""
         state = RepositoryState.snapshot(working_repo)
-        ok, msg = state.verify_postcondition("rejected: non-fast-forward", state, "git_push", None)
+        ok, msg = state.verify_postcondition(
+            "rejected: non-fast-forward", state, "git_push", None
+        )
         assert ok is False
         assert "push postcondition failed" in msg
 
     def test_push_postcondition_with_error(self, working_repo: str) -> None:
         """REQ-006: detect error outcomes after push."""
         state = RepositoryState.snapshot(working_repo)
-        ok, msg = state.verify_postcondition("error: failed to push", state, "git_push", None)
+        ok, msg = state.verify_postcondition(
+            "error: failed to push", state, "git_push", None
+        )
         assert ok is False
         assert "push postcondition failed" in msg
 
