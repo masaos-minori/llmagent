@@ -100,6 +100,24 @@ def _serialize_state(state: RepositoryState | None) -> dict[str, object] | None:
     }
 
 
+def _sanitize_for_audit(value: str) -> str:
+    """Redact sensitive portions of a path for audit logging."""
+    if not value:
+        return ""
+    parts = value.split("/")
+    if len(parts) <= 2:
+        return value
+    return "/".join(["***"] + parts[-2:])
+
+
+def _audit_log_safe(logger: logging.Logger, **kwargs: Any) -> None:
+    """Wrap _audit_log so its own failure cannot mask the original response."""
+    try:
+        _audit_log(logger, **kwargs)
+    except Exception:  # noqa: BLE001 — audit failure must never propagate
+        logger.error("audit_log failed: %s", kwargs.get("action", "unknown"))
+
+
 app = FastAPI(
     title="git-mcp",
     version="1.0.0",
@@ -182,7 +200,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         logger.info(
             fmt_kvlog("call_tool", tool=req.name, ms=f"{time.perf_counter() - t0:.0f}")
         )
-        _audit_log(
+        _audit_log_safe(
             logger,
             session_id=session_id,
             request_id=request_id,
@@ -192,6 +210,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
             server_key="git",
             pre_condition=None,
             post_condition=None,
+            requested_target=_sanitize_for_audit(repo_path),
         )
         return CallToolResponse(result=f"Validation error: {err}", is_error=True)
     # Enforce allowed_repo_paths containment using component-aware checking.
@@ -200,7 +219,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         logger.info(
             fmt_kvlog("call_tool", tool=req.name, ms=f"{time.perf_counter() - t0:.0f}")
         )
-        _audit_log(
+        _audit_log_safe(
             logger,
             session_id=session_id,
             request_id=request_id,
@@ -218,7 +237,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         logger.info(
             fmt_kvlog("call_tool", tool=req.name, ms=f"{time.perf_counter() - t0:.0f}")
         )
-        _audit_log(
+        _audit_log_safe(
             logger,
             session_id=session_id,
             request_id=request_id,
@@ -228,6 +247,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
             server_key="git",
             pre_condition=None,
             post_condition=None,
+            requested_target=_sanitize_for_audit(repo_path),
         )
         return CallToolResponse(result=err, is_error=True)
     active_ref = cast(str, req.args.get("branch", "")) or ""
@@ -249,7 +269,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     )
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
-    _audit_log(
+    _audit_log_safe(
         logger,
         session_id=session_id,
         request_id=request_id,
@@ -259,6 +279,8 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         server_key="git",
         pre_condition=_serialize_state(pre_state),
         post_condition=_serialize_state(post_state),
+        requested_target=_sanitize_for_audit(repo_path),
+        canonical_target=resolved,
     )
     return CallToolResponse(
         result=result.output,

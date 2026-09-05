@@ -257,11 +257,11 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add containment check to call_tool before RepositoryState.snapshot() | Pending | — | — | |
-| 2 | Fix rejection-path audit call (remove RepositoryState.snapshot from rejection branch) | Pending | — | — | |
-| 3 | Add redacted-requested-value vs. canonical-target audit fields | Pending | — | — | |
-| 4 | Wrap audit calls against propagating exceptions | Pending | — | — | |
-| 5 | Run validation sequence | Pending | — | — | |
+| 1 | Add containment check to call_tool before RepositoryState.snapshot() | Completed | — | — | Phase 1 already done via _validate_pre_snapshot integration |
+| 2 | Fix rejection-path audit call (remove RepositoryState.snapshot from rejection branch) | Completed | — | — | Phase 2 already done via _validate_pre_snapshot integration |
+| 3 | Add redacted-requested-value vs. canonical-target audit fields | Completed | — | — | Added requested_target + canonical_target to success-branch audit |
+| 4 | Wrap audit calls against propagating exceptions | Completed | — | — | Added _audit_log_safe() + _sanitize_for_audit() helpers |
+| 5 | Run validation sequence | Completed | — | — | ruff clean, mypy clean, 33 compliance tests pass |
 
 ### Blocker Log
 

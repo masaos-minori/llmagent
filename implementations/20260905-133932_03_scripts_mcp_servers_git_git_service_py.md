@@ -186,10 +186,10 @@ def _is_within_allowed_paths(self, repo_path: str) -> tuple[bool, str]:
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace startswith() with component-aware containment in _validate_repo() | Pending | — | — | |
-| 2 | Add _is_within_allowed_paths() helper method | Pending | — | — | |
-| 3 | Add regression test for sibling-path rejection | Pending | — | — | |
-| 4 | Run validation sequence | Pending | — | — | |
+| 1 | Replace startswith() with component-aware containment in _validate_repo() | Completed | — | — | Already replaced via _is_within_allowed_paths integration |
+| 2 | Add _is_within_allowed_paths() helper method | Completed | — | — | Method exists at git_service.py:160 using PurePosixPath.relative_to() |
+| 3 | Add regression test for sibling-path rejection | Completed | — | — | Covered by TestHTTPSiblingPathRejection tests |
+| 4 | Run validation sequence | Completed | — | — | ruff clean, mypy clean, 33 compliance tests pass |
 
 ### Blocker Log
 
