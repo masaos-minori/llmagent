@@ -143,6 +143,7 @@ class TestGitSecurityCompliance:
         snap = MagicMock(spec=RepositoryState)
         snap.is_dirty = True
         snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (
             False,
             "[DENIED] worktree has uncommitted changes",
@@ -163,6 +164,7 @@ class TestGitSecurityCompliance:
         snap = MagicMock(spec=RepositoryState)
         snap.is_dirty = True
         snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (
             False,
             "[DENIED] worktree has uncommitted changes",
@@ -183,6 +185,7 @@ class TestGitSecurityCompliance:
         snap = MagicMock(spec=RepositoryState)
         snap.is_dirty = False
         snap.is_detached_head = True
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (
             False,
             "[DENIED] repository is in a detached HEAD state",
@@ -203,6 +206,7 @@ class TestGitSecurityCompliance:
         snap = MagicMock(spec=RepositoryState)
         snap.is_dirty = False
         snap.is_detached_head = True
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (
             False,
             "[DENIED] repository is in a detached HEAD state",
@@ -226,6 +230,7 @@ class TestGitSecurityCompliance:
         snap.is_dirty = False
         snap.is_detached_head = True
         snap.active_branch = "develop"
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
@@ -247,6 +252,7 @@ class TestGitSecurityCompliance:
         snap = MagicMock(spec=RepositoryState)
         snap.is_dirty = False
         snap.is_detached_head = True
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
@@ -272,6 +278,7 @@ class TestGitSecurityCompliance:
         snap.is_dirty = True
         snap.is_detached_head = True
         snap.active_branch = "develop"
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
@@ -293,6 +300,7 @@ class TestGitSecurityCompliance:
         snap = MagicMock(spec=RepositoryState)
         snap.is_dirty = True
         snap.is_detached_head = True
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
@@ -398,6 +406,7 @@ class TestAuditTargetResolution:
         snap.repo = MagicMock()
         snap.repo.active_branch.name = "main"
         snap.repo.is_dirty.return_value = False
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
@@ -460,6 +469,7 @@ class TestEmittedAuditLogContent:
         snap.repo = MagicMock()
         snap.repo.active_branch.name = "main"
         snap.repo.is_dirty.return_value = False
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}

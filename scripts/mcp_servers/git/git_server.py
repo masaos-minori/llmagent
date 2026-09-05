@@ -166,11 +166,18 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
             target="",
             outcome="rejected",
             server_key="git",
-            pre_condition=_serialize_state(RepositoryState.snapshot(repo_path, protected_branches=_cfg.protected_branches)),
+            pre_condition=_serialize_state(
+                RepositoryState.snapshot(
+                    repo_path, protected_branches=_cfg.protected_branches
+                )
+            ),
             post_condition=None,
         )
         return CallToolResponse(result=f"Validation error: {err}", is_error=True)
-    pre_state = RepositoryState.snapshot(resolved, protected_branches=_cfg.protected_branches)
+    active_ref = cast(str, req.args.get("branch", "")) or ""
+    pre_state = RepositoryState.snapshot(
+        resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
+    )
     handlers: dict[str, Callable[[], str]] = {
         "git_checkout": lambda: GitMCPServer._format_checkout(pre_state, req),
         "git_pull": lambda: GitMCPServer._format_pull(pre_state, req),
@@ -181,7 +188,9 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         return CallToolResponse(result=f"Unknown tool: {req.name}", is_error=True)
     pipeline = WriteProtectionPipeline(pre_state)
     result = pipeline.run(req.name, handler)
-    post_state = RepositoryState.snapshot(resolved, protected_branches=_cfg.protected_branches)
+    post_state = RepositoryState.snapshot(
+        resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
+    )
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
     _audit_log(

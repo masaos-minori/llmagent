@@ -187,6 +187,7 @@ class GitService:
         tool_name: str,
         repo_path: str,
         op: Callable[[git.Repo, RepositoryState], str],
+        active_ref: str = "",
     ) -> str:
         """Validate repo/write guards, open the repo, and run op with error wrapping.
 
@@ -196,7 +197,7 @@ class GitService:
         result = await self._validate_repo(repo_path, tool_name)
         if result.error_message:
             return result.error_message
-        state = RepositoryState.snapshot(repo_path)
+        state = RepositoryState.snapshot(repo_path, active_ref=active_ref)
         pipeline = WriteProtectionPipeline(state)
         pipeline_result = pipeline.run(tool_name, lambda: op(state.repo, state))
         if pipeline_result.ok:
@@ -311,7 +312,9 @@ class GitService:
                 state, req, allow_detached_head=self._allow_detached_head
             )
 
-        return await self._run_tool("git_checkout", req.repo_path, _checkout_op)
+        return await self._run_tool(
+            "git_checkout", req.repo_path, _checkout_op, active_ref=req.branch
+        )
 
     async def git_pull(self, args: ToolArgs) -> str:
         """Fetch and merge changes from a remote repository."""
@@ -339,7 +342,9 @@ class GitService:
                     return "[DENIED] repository is in a detached HEAD state"
             return format_pull(state, req)
 
-        return await self._run_tool("git_pull", req.repo_path, _pull_op)
+        return await self._run_tool(
+            "git_pull", req.repo_path, _pull_op, active_ref=req.branch
+        )
 
     async def git_push(self, args: ToolArgs) -> str:
         """Push local commits to a remote repository."""
@@ -367,7 +372,9 @@ class GitService:
                     return "[DENIED] repository is in a detached HEAD state"
             return format_push(state, req)
 
-        return await self._run_tool("git_push", req.repo_path, _push_op)
+        return await self._run_tool(
+            "git_push", req.repo_path, _push_op, active_ref=req.branch
+        )
 
     # ── Dispatch table ────────────────────────────────────────────────────────
     def get_dispatch_table(

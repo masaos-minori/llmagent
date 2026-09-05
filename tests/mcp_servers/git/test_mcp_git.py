@@ -116,6 +116,7 @@ class TestAuditTargetResolution:
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
@@ -172,6 +173,7 @@ class TestGitStatus:
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
@@ -201,6 +203,7 @@ class TestGitAdd:
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
@@ -233,6 +236,7 @@ class TestGitCommit:
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
@@ -269,6 +273,7 @@ class TestGitCheckout:
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
@@ -287,6 +292,7 @@ class TestGitCheckout:
         snap.repo = mock_repo
         snap.is_dirty = False
         snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
@@ -317,6 +323,7 @@ class TestGitPush:
         snap.active_branch = "main"
         snap.is_dirty = False
         snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}

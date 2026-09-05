@@ -85,7 +85,8 @@ class RepositoryState:
     def snapshot(
         cls,
         repo_path: str | os.PathLike[str],
-        protected_branches: list[str] | None = None,
+        protected_branches: list[str] = [],
+        active_ref: str = "",
     ) -> RepositoryState:
         """Capture full state from a single git.Repo query."""
         path_str = str(repo_path)
@@ -110,7 +111,7 @@ class RepositoryState:
             active_branch=branch_name,
             untracked_file_count=untracked,
             protected_branch=_is_protected_branch(repo, protected_branches),
-            ref_valid=True,
+            ref_valid=_validate_ref(active_ref, branch_name),
             _repo=repo,
         )
 
@@ -513,6 +514,11 @@ class WriteProtectionPipeline:
 
     def run(self, tool_name: str, op: Callable[[], str]) -> PipelineResult:
         """Execute the pipeline: precondition check → operation → postcondition check."""
+        # Stage 3: Common authorization check (protected branch / ref validity)
+        ok, msg = self._state.verify_authorization()
+        if not ok:
+            return PipelineResult.reject(self._state, "Stage 3", msg)
+
         # Stage 5: Verify preconditions (dirty worktree, detached HEAD)
         ok, msg = self._state.verify_preconditions(tool_name)
         if not ok:
@@ -753,13 +759,69 @@ __all__ = [
 # ── Module-level helpers ────────────────────────────────────────────────────────
 
 
-def _is_protected_branch(repo: git.Repo, protected_branches: list[str] | None = None) -> bool:
-    """Check if HEAD points to a protected branch."""
-    # Read protected branches from GitConfig or environment
-    # For now, return False as placeholder
+def _normalize_branch_name(branch: str) -> str:
+    """Normalize a branch name to refs/heads/<name> form for consistent comparison."""
+    stripped = branch.strip()
+    if not stripped:
+        return ""
+    if stripped.startswith("refs/heads/"):
+        return stripped.lower()
+    return f"refs/heads/{stripped}".lower()
+
+
+def _is_protected_branch(
+    repo: git.Repo, protected_branches: list[str] | None = None
+) -> bool:
+    """Check if HEAD points to a protected branch.
+
+    Compares the active branch (normalized to refs/heads/<name>) against
+    the configured protected_branches list (also normalized). Returns True
+    when any match is found.
+    """
+    if not protected_branches:
+        return False
+    try:
+        branch_name = repo.active_branch.name if not repo.head.is_detached else None
+    except Exception:  # noqa: BLE001
+        branch_name = None
+    if branch_name is None:
+        return False
+    normalized_head = _normalize_branch_name(branch_name)
+    if not normalized_head:
+        return False
+    for protected in protected_branches:
+        if _normalize_branch_name(protected) == normalized_head:
+            return True
     return False
 
 
 def _is_safe_ref(ref: str) -> bool:
     """Return True if ref does not look like a CLI option."""
     return not ref.startswith("-")
+
+
+def _validate_ref(ref: str, active_branch: str | None = None) -> bool:
+    """Validate a ref according to tool semantics.
+
+    Returns True when the ref is safe to operate on:
+    - Empty ref: valid only when there is a current branch to resolve to (implicit target).
+    - Option-like ref (starts with '-'): invalid — reject immediately.
+    - Malformed/ref-like patterns: invalid per git conventions.
+    - Valid branch name or fully-qualified ref: valid.
+
+    When the ref cannot be determined (indeterminate), fail-closed by returning False.
+    """
+    stripped = ref.strip()
+    if not stripped:
+        # Empty ref: valid only when we can resolve to a current branch.
+        # This handles operations like 'git pull' where no branch is specified
+        # and the implicit target is the current branch.
+        return active_branch is not None and bool(active_branch.strip())
+    if not _is_safe_ref(stripped):
+        # Ref looks like a CLI option — reject immediately per REQ-008.
+        return False
+    # Check for malformed ref patterns (e.g., containing null bytes, control chars).
+    if any(c in stripped for c in ("\x00", "\n", "\r")):
+        return False
+    # Valid branch name or fully-qualified ref — accept.
+    return True
