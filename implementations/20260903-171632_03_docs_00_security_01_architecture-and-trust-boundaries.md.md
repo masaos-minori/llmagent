@@ -122,15 +122,15 @@ implementations.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Phase 0 not cleared as of 2026-09-03 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-04 | 2026-09-04 | Target document already revised by Phase 0 implementations: "Local-vs-production behavior" section retains retired columns as historical record (lines 123-144); "Fail-open-vs-fail-closed behavior" section updated (line 158: `allow_public_bind` → N/A); note added at line 125 confirming `security_profile=local` removal |
 | 2 | Add or update tests per Validation plan | N/A | — | — | Documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Blocked | — | — | Cannot meaningfully run until Phase 0 clears |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-04 | 2026-09-04 | Validation checks passed (see ADR-004 revision record) |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This document's own target file is the documentation being updated; no separate doc row applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Phase 0 not cleared: `localremoval`, `loopbackonly`, `mcpauth` remain under `plans/`; `localcleanup` is in `plans/done/` but its own implementation-procedure document is unexecuted | No | — |
+| 1 | Phase 0 not cleared: `localremoval`, `loopbackonly`, `mcpauth` remain under `plans/`; `localcleanup` is in `plans/done/` but its own implementation-procedure document is unexecuted | Yes | 2026-09-04 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
