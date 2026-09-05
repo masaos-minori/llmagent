@@ -107,10 +107,10 @@ Any other file. Rewriting the existing bullet list's already-covered entries.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on `implementations/20260905-112342_01` landing first (heading-name dependency) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Manual grep review only, per Validation plan |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row's target file is itself the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260905 | 20260905 | Added remove-categories to the existing "Normally remove..." bullet list (citing "Docs content policy — remove"), and added retain-categories to the "Keep:" prose (citing "Docs content policy — retain"), both in "### Remove or compress implementation-derived details". |
+| 2 | Add or update tests per Validation plan | Completed | 20260905 | 20260905 | N/A: documentation-only, no test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260905 | 20260905 | `grep -n "Docs content policy" skills/python-documentation/workflow.md` returns matches |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260905 | 20260905 | N/A: this row's target file is itself the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

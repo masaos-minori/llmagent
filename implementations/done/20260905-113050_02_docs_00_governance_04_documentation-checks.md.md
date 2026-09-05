@@ -119,15 +119,15 @@ file, including the separate `docscope2`-owned new entry/Matrix row.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked pending `implementations/20260905-113050_01`'s option confirmation |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `check_docs_quality.py` self-check, per Validation plan |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row's target file is itself the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260905 | 20260905 | `implementations/done/20260905-113050_01` confirmed option (c). Added the decision and rationale (13 files / 62 findings still affected, per `GV-021`'s corpus run) immediately after the existing "Port drift" bullet in "### 2. Domain Consistency Check". |
+| 2 | Add or update tests per Validation plan | Completed | 20260905 | 20260905 | N/A: documentation-only, no test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260905 | 20260905 | `check_docs_quality.py` — 0 issues; `check_docs_structure.py` — all checks passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260905 | 20260905 | N/A: this row's target file is itself the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on `implementations/20260905-113050_01`'s option confirmation, which itself is blocked on sibling Plans `docscope1`/`docscope2` | No | — |
+| 1 | Depends on `implementations/20260905-113050_01`'s option confirmation, which itself is blocked on sibling Plans `docscope1`/`docscope2` | Yes | 20260905 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

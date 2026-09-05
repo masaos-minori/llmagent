@@ -112,10 +112,10 @@ directly (see Alternatives considered).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked on `implementations/20260905-112812_01` landing first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row IS the test addition |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test file only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260905 | 20260905 | `implementations/done/20260905-112812_01` landed first, confirmed 5 detection function names via `grep -n "^def "` before writing tests. Created 7 tests (one per remove-category, one for the illustrative-port exemption, one retain-category-only false-positive check) using small in-line fixtures via a `DocFile` helper. |
+| 2 | Add or update tests per Validation plan | Completed | 20260905 | 20260905 | This row IS the test addition |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260905 | 20260905 | `ruff format`/`ruff check`/`mypy` clean; `uv run pytest tests/tools/test_check_docs_content_policy.py` — 7 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260905 | 20260905 | N/A: test file only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

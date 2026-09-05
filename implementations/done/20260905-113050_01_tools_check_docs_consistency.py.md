@@ -156,15 +156,15 @@ drift, etc.).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked pending sibling Plans `docscope1` (`plans/done/20260905-101850_plan.md`) and `docscope2` (`plans/done/20260905-102139_plan.md`) landing — re-confirmed neither has landed this cycle |
-| 2 | Add or update tests per Validation plan | Pending | — | — | New tests only, per Plan REQ-006 correction — no prior test suite exists to update |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation update is a separate row, `implementations/20260905-113050_02` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260905 | 20260905 | Both sibling Plans confirmed landed: `docscope1` (`skills/DESIGN.md` remove-categories present) and `docscope2` (`tools/check_docs_content_policy.py` run against the corpus, 276 findings). Re-read the violation inventory: 62 of the 276 findings are literal-port-number, spanning 13 files (`04_mcp_01_tool_ownership_matrix.md` alone has 26). Content-migration work has not started on any of these files. Confirmed option (c) (keep pending exemption list) — options (a)/(b)'s preconditions are not met. No code change made to `check_port_drift()`/`check_port_range_claim()`. |
+| 2 | Add or update tests per Validation plan | Completed | 20260905 | 20260905 | Added `tests/tools/test_check_docs_consistency_port.py` (5 tests: config-parsing sanity, port-drift detect/no-false-positive, port-range-claim detect/no-false-positive) confirming both functions run unchanged — no prior test suite existed for either function. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260905 | 20260905 | `uv run pytest tests/tools/test_check_docs_consistency_port.py` — 5 passed; `ruff format`/`ruff check`/`mypy` clean on both the new test file and `tools/check_docs_consistency.py` (unchanged) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260905 | 20260905 | N/A: documentation update is a separate row, `implementations/20260905-113050_02` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Sibling Plans `docscope1` and `docscope2` not yet implemented — the option choice (deprecate/narrow/keep pending) cannot be finalized without `docscope2`'s actual violation inventory | No | — |
+| 1 | Sibling Plans `docscope1` and `docscope2` not yet implemented — the option choice (deprecate/narrow/keep pending) cannot be finalized without `docscope2`'s actual violation inventory | Yes | 20260905 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

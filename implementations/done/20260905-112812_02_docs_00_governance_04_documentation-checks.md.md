@@ -56,8 +56,19 @@ that the check exists and runs, but the corpus it scans is not yet clean.
    Checks entries 1-8 still occupy lines 19-153 (confirmed this cycle,
    `check_docs_structure.py` still entry 8), and the Governance Verification
    Matrix's highest row is still `GV-020` at line 290 (confirmed this cycle).
-2. Add a new "### 9. Docs Content Policy Check
-   (`check_docs_content_policy.py`)" entry after entry 8, describing what it
+2. **Corrected during this cycle's Step 3 adversarial verification**: heading
+   numbers in this file are a single sequence spanning both "## Automated
+   Checks" (1-8) and "## Manual Checks" (9-14, confirmed via
+   `check_docs_quality.py`'s duplicate-heading-number check, which flagged
+   `### 9.` colliding with the existing "### 9. Canonical Source
+   Verification") — not two independently-numbered sections as this
+   procedure originally assumed. Renumbering the existing Manual Checks
+   entries (9→10 ... 14→15) was rejected: `docs/00_governance_03_issue-and-uncertainty-management.md`
+   cites `### 13. Merge Condition Validation` by that exact heading text in
+   two places, and renumbering would require editing that file too — outside
+   this row's Target file scope. Instead, add a new "### 15. Docs Content
+   Policy Check (`check_docs_content_policy.py`)" entry (next available
+   number in the whole-document sequence) after entry 8, describing what it
    detects (the five remove-categories) and its report-only status,
    following entry 1's descriptive style (confirmed present: "Checks all
    documents under `docs/*.md` for quality issues." plus a "**Core checks:**"
@@ -132,15 +143,15 @@ entry or Matrix row.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Sequenced after `implementations/20260905-112812_01` per Plan Phase 3 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `check_docs_quality.py` self-check, per Validation plan |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row's target file is itself the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260905 | 20260905 | Added "### 15. Docs Content Policy Check" (renumbered from planned "9" — see Blocker Log) and Governance Verification Matrix row `GV-021` (re-checked immediately before insertion: `GV-020` still highest). |
+| 2 | Add or update tests per Validation plan | Completed | 20260905 | 20260905 | N/A: documentation-only, no test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260905 | 20260905 | `check_docs_quality.py` — 0 issues (after renumbering fix); `check_docs_structure.py` — all checks passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260905 | 20260905 | N/A: this row's target file is itself the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | Adversarial verification found this procedure's planned "### 9." heading collides with the existing "### 9. Canonical Source Verification" — heading numbers span both Automated Checks and Manual Checks as one sequence, not two independent ones. Renumbering Manual Checks (9→15) was rejected since `docs/00_governance_03_issue-and-uncertainty-management.md` cites `### 13. Merge Condition Validation` by exact text in 2 places, outside this row's file scope. Used "### 15." (next available in the whole-document sequence) instead. | Yes | 20260905 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -87,10 +87,10 @@ Any other file. The retain-categories citation (not relevant to this file).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on `implementations/20260905-112342_01` landing first (heading-name dependency) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Manual grep review only, per Validation plan |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row's target file is itself the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260905 | 20260905 | Extended the existing parenthetical citation list at line 46 to also cite "Docs content policy — remove". |
+| 2 | Add or update tests per Validation plan | Completed | 20260905 | 20260905 | N/A: documentation-only, no test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260905 | 20260905 | Corrected: the citation wraps across lines 46-47 ("Docs content" / "policy — remove"), so a single-line `grep -n "Docs content policy"` does not match — confirmed present instead via `grep -Pzo "Docs content\s*\n?\s*policy"` and direct read (line 46: "`skills/DESIGN.md` (Evidence labels, No source-code line numbers, Docs content", line 47: "policy — remove — needed for `evidence.md`'s Step 4 procedure)") |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260905 | 20260905 | N/A: this row's target file is itself the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
