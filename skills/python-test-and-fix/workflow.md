@@ -73,12 +73,9 @@ flaky, and the matching Path (A/B/C/D, see `SKILL.md` Task Routing) is selected.
 classifications above (e.g. no failing test, no code change, and no coverage gap can be
 identified) — there is nothing for this skill to act on.
 
-Step failure handling for every later Step: if a Step's tool is not installed, apply
-`skills/DESIGN.md` Tool availability guard and use that Step's documented fallback (or
-skip it if none applies) — do not stop the whole task for a missing optional tool. If a
-Step's check fails for a reason this task's change caused, fix it before the next Step in
-the Path; if it fails for a pre-existing, unrelated reason, record it and continue (do not
-fix out-of-scope failures — `AGENTS.md` Global Rule 5).
+Apply `rules/ai-execution.md` Step-Level Failure Triage (Base) to every later Step —
+when the unavailable tool has a documented fallback in that Step, use it (or skip the
+Step if none applies) instead of stopping the whole task.
 
 ---
 
@@ -372,11 +369,11 @@ Cross-check against each Step's stated criteria above — do not re-derive them,
 
 ## Required behavior
 
-- Mock only at true I/O boundaries (network, subprocess, filesystem) — call internal
-  helpers directly, per Step 6.
+- Mock only at true I/O boundaries, per Step 6 (network, subprocess, filesystem — call
+  internal helpers directly).
 - Write each test so it passes under any execution order — verify with
   `pytest -p no:randomly` vs. the default randomized order (Step 3).
-- Do not commit `.testmondata`.
+- Do not commit `.testmondata`, per Step 10.
 - Use `freezegun` or `asyncio.timeout()` for timing-dependent tests, per Step 5 — never
   `time.sleep()`.
 - Assert on the function's public contract (return value, raised exception, observable

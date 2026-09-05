@@ -59,10 +59,8 @@ Additional context-hygiene guidance specific to this workflow:
   identical read-only command against a file confirmed unchanged — see
   `rules/ai-execution.md` Tool Usage for when such a command may be skipped instead of
   re-run.
-- Do not summarize shared rules or template content in chat — reference them by file
-  name instead.
 
-Apply `rules/ai-execution.md` Progress Reporting (Base) for the per-step report
+Apply `rules/ai-execution.md` Context Reading and Progress Reporting (Base) for the per-step report
 cadence.
 
 ### Progress recording during Steps 3-6
@@ -125,13 +123,11 @@ duplicate plans when multiple agents process the same Issue concurrently.
 - Read the current Issue file in full.
 - Verify any factual claims against current source (affected files, whether the
   described problem still reproduces).
-- **Adversarial verification**: do not stop at confirming the Issue's claims — actively
-  look for evidence that would refute or narrow them: whether the described problem has
-  already been fixed elsewhere, whether the named files/symbols/line numbers still
-  exist as stated, whether a claimed dependency or side effect is missing or
-  overstated, and whether two claims within the same Issue (or against a related
-  `plans/`/`implementations/` document) contradict each other. Treat this as a search
-  for disconfirming evidence, not reconfirmation of prior findings.
+- Apply `rules/ai-execution.md` Adversarial Verification (Base) to the Issue's claims:
+  whether the described problem has already been fixed elsewhere, whether the named
+  files/symbols/line numbers still exist as stated, whether a claimed dependency or
+  side effect is missing or overstated, and whether two claims within the same Issue
+  (or against a related `plans/`/`implementations/` document) contradict each other.
   Stop once every field extracted per `templates/issue.md` (Step 2's own extraction list,
   below) has been checked against at least one concrete source (a file, test, or existing
   Plan/Implementation document), and no new disconfirming evidence was found in the last
@@ -202,10 +198,10 @@ that section alone omits context the claim depends on (e.g. a decorator, base cl
 module-level state defined elsewhere in the same file) — in that case read the full file.
 Record the Path A/B decision for reuse in Step 5.
 
-Track files inspected only for evidence separately from files planned for
-modification. Only modification-target files belong in the Plan's `Implementation
-Target Files` table (Step 5); evidence-only files belong in `Reference Files` (also
-Step 5) — do not merely cite them in prose.
+Apply `rules/workflow-lifecycle.md` Evidence-Only vs. Target Files: only
+modification-target files belong in the Plan's `Implementation Target Files` table
+(Step 5); evidence-only files belong in `Reference Files` (also Step 5) — do not merely
+cite them in prose.
 
 ---
 
@@ -341,9 +337,8 @@ raising it to ≥ 90%.
   Risk has a mitigation or is filed to `issues/{timestamp}_risks.md`. Do not keep
   investigating a non-blocking Unknown once a plausible Resolution Path is recorded —
   further confirmation belongs to the implementation phase, not this Step.
-- When an Unknown/Risk issue file (or the Step 7 Requirement Traceability table)
-  references a Requirement, cite its ID (e.g. `REQ-003`) — do not re-quote the full
-  description text.
+- Apply `rules/workflow-lifecycle.md` Requirement Reference Format when an Unknown/Risk
+  issue file (or the Step 7 Requirement Traceability table) references a Requirement.
 - Reuse the base timestamp from Step 5 (`date +%Y%m%d-%H%M%S`) for both files — do not
   regenerate.
 - If either path already exists, apply the same lowest-available zero-padded sequence

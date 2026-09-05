@@ -21,8 +21,7 @@ truth and is kept in sync with `tools/`.
 | `WebFetch` | 3 Runtime, 6 Config | fetch external library or framework docs (only when necessary) |
 
 ### Tool selection rules
-- `Bash (grep/find)` + `Read` SHOULD be preferred for targeted lookups before spawning `Agent (Explore)`.
-- Spawn `Agent (Explore)` only when the search spans many directories or requires 3+ queries.
+- Apply `skills/DESIGN.md` Agent (Explore) threshold.
 - Use `Edit` over `Write` whenever the doc file already exists — preserve existing content.
 - `WebFetch` is a last resort; most behavior SHOULD be confirmable from the local codebase.
 

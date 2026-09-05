@@ -10,7 +10,7 @@ Enforced by ruff, mypy, and ast-grep. Do not violate.
 | Comments and log output | English only |
 | String formatting | f-strings preferred; plain literals when no variables |
 | Import order | enforced by ruff `I` rules (isort-compatible) |
-| Module addition | update copy list in `deploy/deploy.sh` (see `rules/env.md` Architecture) |
+| Module addition | no `deploy/deploy.sh` change needed — `scripts/` is rsynced wholesale (see `rules/env.md` Architecture); only a new `config/*.toml` file needs a `cp` line there |
 | MCP server addition | create `config/<key>_mcp_server.toml` with app config and `[mcp_servers.<key>]` transport section |
 
 ## Deprecation policy
@@ -157,12 +157,11 @@ code that the discrepancy it describes no longer applies.
 
 ## Prohibited behavior (all tasks)
 
-- do not write comments or log messages in Japanese
-- do not use `git add -A` or `git add .` — stage files individually. Exception:
-  `skills/git-commit-and-sync` may use `git add -A` only when the user explicitly
-  requests staging all changes (see that skill's Core rules).
+- comments and log messages: see Mandatory conventions above (English only)
+- staging: see `skills/git-commit-and-sync/SKILL.md` Core rules (explicit paths by
+  default; `git add -A` only when the user explicitly requests staging all changes)
 - do not commit with `--no-verify`
-- do not add `# noqa` / `# type: ignore` / `# nosec` without an inline explanation
+- suppression justification: see Suppression governance above
 - do not add global ignores to `pyproject.toml` without justification
 - do not suppress `lint-imports` violations without updating the contract definition
 - do not commit `import ipdb`, temporary `structlog` debug calls, viztracer/tracemalloc instrumentation, or Sentry DSN

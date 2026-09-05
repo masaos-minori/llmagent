@@ -415,13 +415,11 @@ and healthy, or this sub-step was skipped because no production code changed.
 
 ### Phase 9c: Remove debug artifacts
 
-Before committing:
-- remove `import ipdb` and all `ipdb.set_trace()` calls
-- remove temporary `structlog` debug calls
-- remove `viztracer` / `tracemalloc` instrumentation
-- confirm Sentry DSN is not in any committed file
+Before committing, remove every debug artifact listed in `rules/coding.md` Prohibited
+behavior (`import ipdb`/`ipdb.set_trace()` calls, temporary `structlog` debug calls,
+`viztracer`/`tracemalloc` instrumentation, Sentry DSN).
 
-**Completed when**: `git diff` shows none of the artifacts above remain.
+**Completed when**: `git diff` shows none of those artifacts remain.
 
 ---
 

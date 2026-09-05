@@ -42,8 +42,8 @@ If `deploy/deploy.sh` fails:
 
 **Completed when**: `bash deploy/deploy.sh` exits 0.
 **Stop and report to the user when**: the re-run at step 4 fails with the same error as the
-first attempt — a repeat failure means steps 1–3 did not address the actual cause; do not
-repeat this recovery loop a third time.
+first attempt — a repeat failure means steps 1–3 did not address the actual cause. Per
+`AGENTS.md` Loop Prevention > Attempt Limit, do not repeat this recovery loop a third time.
 
 ---
 
@@ -123,8 +123,8 @@ If a service fails to start:
 
 **Completed when**: the service's `/health` endpoint returns OK after recovery.
 **Stop and report to the user when**: none of the three common causes above explain the
-failure, or the same failure recurs after applying the matching fix — do not retry the
-same restart command a third time.
+failure, or the same failure recurs after applying the matching fix. Per `AGENTS.md`
+Loop Prevention > Attempt Limit, do not retry the same restart command a third time.
 
 ---
 

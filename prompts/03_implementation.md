@@ -12,14 +12,9 @@ phase's allowed create/modify/move operations — unlike the two upstream pipeli
 phases, this phase legitimately modifies source code and `docs/*.md`.
 
 Read the target implementation procedure file, then implement the feature per the
-rules and skills below.
-
-- The implementation procedure file MUST be moved to `implementations/done/` in
-  Step 7, after Step 6 (documentation updated and validated) — see Step 7. Skipping
-  this step is a failure condition. It MUST NOT be moved before documentation is
-  updated and validated.
-- Do not modify files outside the scope specified in the plan.
-- Do not edit documentation before Step 5.
+rules and skills below (Allowed file operations above already covers the required
+Step 7 move, its Step 6 precondition, the scope restriction, and the documentation
+edit ordering).
 
 ## Shared Rules
 

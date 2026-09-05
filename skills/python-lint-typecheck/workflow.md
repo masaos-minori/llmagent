@@ -17,13 +17,9 @@
 
 ## Step failure handling
 
-Applies to every Step below: if a Step's tool reports an error this task's change did not
-cause (pre-existing failure), record it and continue to the next Step — do not fix
-out-of-scope failures (`AGENTS.md` Global Rule 5). If a Step's tool is not installed, apply
-`skills/DESIGN.md` Tool availability guard and continue with the remaining Steps. If a
-Step's tool reports an error caused by this task's change, fix it before proceeding — Per
-AGENTS.md Attempt Limit, at most 3 attempts per distinct error before stopping and reporting
-`Blocked: {step} — {error}`.
+Apply `rules/ai-execution.md` Step-Level Failure Triage (Base) to every Step below. On a
+task-caused failure, stop and report `Blocked: {step} — {error}` once Attempt Limit (3
+attempts) is reached.
 
 ---
 
@@ -82,9 +78,10 @@ If `lint-imports` reports a violation:
 1. Read the failing contract in `.importlinter`
 2. Determine if the import is intentional or accidental
 3. If accidental: remove the import and refactor
-4. If intentional: update the contract definition in `.importlinter` — this is the only
-   way to resolve a `lint-imports` violation without removing the import; a suppression
-   comment does not apply to this checker.
+4. If intentional: update the contract definition in `.importlinter` (see
+   `rules/coding.md` Prohibited behavior) — this is the only way to resolve a
+   `lint-imports` violation without removing the import; a suppression comment does
+   not apply to this checker.
 
 Cross-reference with ast-grep to find all call sites before removing an import:
 

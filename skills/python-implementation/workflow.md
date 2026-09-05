@@ -249,12 +249,11 @@ the `ast-grep` commands.
 
 **Completed when**: `pytest`, `ruff check`, and `mypy`/`pyright` all pass, and
 `tools/check_compat_shims.py` reports no new backward-compatibility leftovers.
-**On a failure caused by this task's change**: delegate to `python-test-and-fix` (test
-failures) or `python-lint-typecheck` (lint/type failures) per `SKILL.md` Composition rules
-— do not proceed to Phase 10 with a known failure.
-**On a pre-existing failure unrelated to this task's change**: record it in Output
-expectations' "unresolved questions or known limitations" and proceed; do not fix
-out-of-scope failures (see `AGENTS.md` Global Rule 5).
+Apply `rules/ai-execution.md` Step-Level Failure Triage (Base): on a task-caused
+failure, delegate to `python-test-and-fix` (test failures) or `python-lint-typecheck`
+(lint/type failures) per `SKILL.md` Composition rules — do not proceed to Phase 10 with
+a known failure. On a pre-existing failure, record it in Output expectations'
+"unresolved questions or known limitations" and proceed.
 
 ---
 

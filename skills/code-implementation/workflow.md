@@ -139,18 +139,12 @@ correct the procedure on a finding (3b), check for cross-file conflicts (3c), im
 
 ### Step 3a: Verify the procedure's claims (adversarial verification)
 
-Before implementing, perform **adversarial verification** of the procedure's claims
-about current source: do not assume its Procedure/Method/Details are still
-accurate — check via `rg`/Read whether the target file, symbol, line numbers, and
-call path it describes still match current source, and whether any stated assumption
-or scope boundary is stale or inconsistent with a sibling procedure document or the
-source Plan.
-
-Stop once the target file, the specific symbol/line/call-path claims the procedure
-makes, and its stated dependencies have each been checked once against current
-source, in that order — a disconfirming finding ends investigation for that specific
-finding (the procedure document must be corrected, per the paragraph below, not
-further researched) rather than triggering deeper search.
+Before implementing, apply `rules/ai-execution.md` Adversarial Verification (Base) to
+the procedure's claims about current source: do not assume its Procedure/Method/Details
+are still accurate — check via `rg`/Read whether the target file, symbol, line numbers,
+and call path it describes still match current source, and whether any stated
+assumption or scope boundary is stale or inconsistent with a sibling procedure document
+or the source Plan.
 
 **Completed when**: the target file, its specific symbol/line/call-path claims, and its
 stated dependencies have each been checked once against current source.

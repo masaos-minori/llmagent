@@ -11,13 +11,8 @@ See `skills/plan-to-implementation-procedure/workflow.md` Allowed file operation
 this document-only phase's allowed and forbidden file operations.
 
 Read the target plan file, then produce file-level implementation procedure documents
-per the rules below.
-
-- The plan file MUST be moved to `plans/done/` in Step 4 once Step 3 validation
-  passes — no human approval is required for this move (see Step 4). Skipping this
-  step is a failure condition.
-- Do not implement anything — this workflow creates documents only.
-- Do not modify source files.
+per the rules below (Allowed file operations above already covers the required Step 4
+move and the analysis-only constraint).
 
 ## Shared Rules
 

@@ -82,6 +82,24 @@ active behavior.
 - **Medium** — strongly implied
 - **Low** — plausible but requires confirmation
 
+### Severity levels
+
+Use when a skill classifies a finding by impact (a review finding, a discovered defect,
+a gap in test coverage). Do not introduce a parallel severity scheme.
+
+**Critical** (data loss, security exposure, destructive unintended action, production
+startup failure, silent corruption), **High** (normal-use runtime failure, incorrect
+result, broken workflow, major operational risk, missing validation at trust
+boundaries), **Medium** (maintainability risk, unclear ownership, type-safety
+degradation, incomplete failure handling, fragile tests, ambiguous config behavior),
+**Low** (naming, localized duplication, minor typing or documentation cleanup),
+**Informational** (observation with no immediate action).
+
+### Agent (Explore) threshold
+
+Use `Bash`/`grep`/`Read` for a targeted lookup; spawn `Agent (Explore)` once a search
+needs 3 or more queries, or spans more than one directory/package.
+
 ### Tool availability guard
 
 Applies whenever a phase calls for an optional/advanced tool (e.g. `ast-grep`, `LibCST`,

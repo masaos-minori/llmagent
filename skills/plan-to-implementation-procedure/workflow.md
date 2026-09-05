@@ -66,10 +66,7 @@ timestamp-marker mechanism described in `Allowed file operations` and Step 3 (ke
 resumed pass's generated-document timestamp consistent). See those sections for the
 mechanisms themselves — this note only points to them.
 
-Do not summarize shared rules or template content in chat — reference them by file
-name instead.
-
-Apply `rules/ai-execution.md` Progress Reporting (Base) for the per-step report
+Apply `rules/ai-execution.md` Context Reading and Progress Reporting (Base) for the per-step report
 cadence, using this line format:
 `Step {N} | {state} | Plan: {path} | Generated: {files or None} | Blockers: {items or None}`
 
@@ -152,19 +149,13 @@ record progress (3d).
 ### Step 3a: Verify the Plan's claims (adversarial verification)
 
 Treat the Plan's descriptions of current source-code behavior as claims, not
-confirmed present-tense fact — it may have gone stale since approval. Before writing
-Procedure/Method/Details for a row, perform **adversarial verification**: don't
-merely confirm the Plan's claims — look for reasons they might be wrong (shifted line
-numbers, an already renamed/removed symbol, a dependency the Plan did not account
-for, a Requirement duplicating/contradicting another Plan, or a code path the Plan's
-Background never checked). Verify via `rg`/Read that the target file, symbol, call
-path, and test currently exist and behave as described. Investigate in this order:
-the target file itself, its direct dependencies (immediate imports/importers), then
-related tests — expand beyond this order only when evidence remains insufficient.
-Stop once the target file, its direct dependencies, and its related tests have each
-been checked once against the Plan's claim about them. A disconfirming finding at any
-stage ends investigation for that finding — correct the Plan (see below), rather than
-researching further to double-confirm it.
+confirmed present-tense fact — it may have gone stale since approval. Apply
+`rules/ai-execution.md` Adversarial Verification (Base) before writing
+Procedure/Method/Details for a row: look for reasons the Plan's claims about the
+target file, symbol, call path, or test might be wrong — shifted line numbers, an
+already renamed/removed symbol, a dependency the Plan did not account for, a
+Requirement duplicating/contradicting another Plan, or a code path the Plan's
+Background never checked — verifying each via `rg`/Read.
 
 If adversarial verification finds an unconfirmed item or an inconsistency (a stale
 claim, a missing Requirement, a newly discovered dead-code reference, a duplicate or
@@ -195,12 +186,10 @@ disconfirming finding has been corrected in the Plan document.
 
 ### Step 3b: Prepare the shared pass timestamp
 
-Files read only to confirm current behavior or dependencies are not additional target
-files — a file belongs under `Target file` only if it is a row in the Plan's
-`Implementation Target Files` table (revalidated in Step 2). A file in `Reference
-Files`, or any other file read only for context, MUST be mentioned only as a reference
-or verification dependency in the generated document, never as a second modification
-target — see `templates/implementation-procedure.md` Notes on filling sections.
+Apply `rules/workflow-lifecycle.md` Evidence-Only vs. Target Files: a file belongs under
+`Target file` only if it is a row in the Plan's `Implementation Target Files` table
+(revalidated in Step 2) — see `templates/implementation-procedure.md` Notes on filling
+sections for how a `Reference Files` entry is mentioned in the generated document.
 
 Before iterating, set one shared timestamp for this Step 3 pass: run
 `date +%Y%m%d-%H%M%S` once and reuse that exact value for every document created in
@@ -307,9 +296,8 @@ Execution Rules):
   additional file is involved, do not add the change to the generated document.
   Report it as `Plan Gap: {description}` — the scope decision belongs to a Plan
   revision, not this workflow.
-- Reference the source Requirement by ID and a short (one-clause) purpose in the
-  generated document (see `templates/implementation-procedure.md`) — do not paste the
-  Plan's full Requirement description text.
+- Apply `rules/workflow-lifecycle.md` Requirement Reference Format in the generated
+  document (see `templates/implementation-procedure.md`).
 
 **Completed when**: every row has been classified and assigned exactly one outcome —
 skipped (`Already implemented`), a scoped document created (`Partially implemented` or

@@ -107,6 +107,22 @@ procedure document until the Plan has been amended (the new row added, with evid
 and a requirement link) and this validation has been re-run and the section re-marked
 `Frozen`.
 
+## Requirement Reference Format
+
+When a generated document (an Unknown/Risk issue file, an implementation procedure
+document, or any other downstream artifact) needs to point back to a Plan Requirement,
+cite its Requirement ID (e.g. `REQ-003`) and a short, one-clause purpose — do not paste
+the Plan's full Requirement description text.
+
+## Evidence-Only vs. Target Files
+
+A file read only to confirm current behavior or a dependency — never modified — is not
+a target file, regardless of which downstream artifact is being produced. It belongs in
+that artifact's evidence/reference-file listing (e.g. a Plan's `Reference Files`), never
+in its modification-target listing (e.g. a Plan's `Implementation Target Files`, or an
+implementation procedure document's `Target file`) — mention it only as a reference or
+verification dependency.
+
 ## Output Validation
 
 - Determine timestamp by running: `date +%Y%m%d-%H%M%S`

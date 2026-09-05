@@ -54,8 +54,9 @@ For this workflow, inspect repository tools relevant to: document-to-source mapp
 public-symbol discovery; configuration and test discovery; evidence extraction;
 Markdown, link, metadata, encoding, and size validation.
 
-Do not treat a check that was not run, only partially run, failed, or blocked as Pass.
-If a required validation is Fail or Blocked, do not report the synchronization work as
+Apply `rules/ai-execution.md` Repository Tool Usage #12 and Command Results: an
+unavailable, unexecuted, partial, blocked, or failed check is never Pass, and a
+required validation reporting Fail or Blocked means the synchronization work is not
 complete.
 
 ### Context efficiency
@@ -314,10 +315,12 @@ Style:
   - Mentions of private symbols
   - Changes to out-of-scope files
 - For each validation, record the exact command run, the target file, its purpose, and the result (see Tool Result Classification).
-- Even when a tool run exits successfully, re-check whether the expected artifact or validation result was actually produced.
-- Do not treat empty stdout alone as success.
+- Even when a tool run exits successfully, re-check whether the expected artifact or
+  validation result was actually produced — per `rules/ai-execution.md` Repository Tool
+  Usage #8, empty stdout alone is not success.
 - Do not report a document that failed validation as Complete.
-- Do not modify source code or out-of-scope documents in order to make validation pass.
+- Fix a validation failure per `AGENTS.md` Global Rule 5's scope — do not modify source
+  code or an out-of-scope document merely to make validation pass.
 
 #### Step 6: Classify evidence
 

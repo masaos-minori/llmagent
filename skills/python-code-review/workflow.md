@@ -12,9 +12,7 @@
 | `bandit` | 5 | Confirm security findings with static analysis where available |
 | `pytest` | 6 | Confirm claimed test coverage or failure actually reproduces |
 
-Use `Bash (grep)` + `Read` when the search needs fewer than 3 queries; spawn `Agent
-(Explore)` once a review needs 3 or more queries or spans more than one package (same
-threshold as `skills/python-documentation/workflow.md` Tool selection rules).
+Apply `skills/DESIGN.md` Agent (Explore) threshold.
 Run a tool to confirm a finding before reporting it; do not present a suspected issue as
 confirmed without evidence.
 
@@ -107,7 +105,7 @@ Do:
 For every finding, attach:
 - concrete evidence: file path, class/function/method/route/command/config key, test name, or CI workflow, and the observed current behavior
 - an evidence label and confidence level per `skills/DESIGN.md` Shared Vocabulary
-- a severity per `SKILL.md` Severity
+- a severity per `skills/DESIGN.md` Severity levels
 
 ---
 

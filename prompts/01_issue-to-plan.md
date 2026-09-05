@@ -14,13 +14,9 @@ separate phase.
 See `skills/issue-to-plan/workflow.md` Allowed file operations for this document-only
 phase's allowed and forbidden file operations.
 
-Read the target Issue file, then create a concrete work plan per the rules below.
-
-- After Step 9 validation passes, the Issue file MUST be moved to `issues/done/`
-  in Step 10 — no human approval is required for this move (see Step 9 and Step 10).
-  Skipping this step is a failure condition.
-- Do not implement anything — this workflow creates plan documents only.
-- Do not modify source files.
+Read the target Issue file, then create a concrete work plan per the rules below
+(Allowed file operations above already covers the required Step 10 move and the
+analysis-only constraint).
 
 ## Shared Rules
 

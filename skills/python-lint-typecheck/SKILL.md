@@ -14,7 +14,8 @@ description: |
 
 ## Purpose
 
-Resolve Python code quality issues; fix root causes rather than suppressing warnings; maintain a minimal, clean diff scope.
+Resolve Python code quality issues; maintain a minimal, clean diff scope (see Core
+Quality Rules below for the root-cause-first requirement).
 
 ---
 

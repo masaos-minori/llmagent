@@ -80,13 +80,7 @@ Use the evidence labels and confidence levels defined in `skills/DESIGN.md` Shar
 
 ## Severity
 
-Use these severities: **Critical** (data loss, security exposure, destructive unintended
-action, production startup failure, silent corruption), **High** (normal-use runtime failure,
-incorrect result, broken workflow, major operational risk, missing validation at trust
-boundaries), **Medium** (maintainability risk, unclear ownership, type-safety degradation,
-incomplete failure handling, fragile tests, ambiguous config behavior), **Low** (naming,
-localized duplication, minor typing or documentation cleanup), **Informational** (observation
-with no immediate action).
+See `skills/DESIGN.md` Severity levels.
 
 ---
 

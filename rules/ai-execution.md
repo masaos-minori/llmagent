@@ -7,6 +7,7 @@
 - Read other files only in relevant sections, unless a full read is needed to understand behavior, dependencies, lifecycle, ownership, side effects, error handling, configuration, tests, or document consistency.
 - Do not omit necessary evidence to save context.
 - Reuse a verified fact only while its source file is unchanged. Store the source path and evidence location with each cached fact, and recheck it after the source changes.
+- Do not summarize shared rules or template content in chat — reference them by file name instead.
 
 ## Required File Validation
 
@@ -61,6 +62,40 @@ heading or Rule ID). An exception MUST NOT be inferred from silence or omission.
    contradictory repository rules), stop and report `Blocked`.
 6. State the exact conflicting instructions and the decision needed.
 7. Conflicting requirements MUST NOT be silently merged into a compromise.
+
+## Adversarial Verification (Base)
+
+Applies to any workflow step that must verify an upstream document's claims about
+current source (code, config, tests) before acting on them or generating a downstream
+document from them.
+
+- Treat the upstream document's factual claims as unverified, not confirmed —
+  actively search for evidence that would refute or narrow them (a claim that is
+  already stale, a symbol that no longer exists, a dependency the document did not
+  account for, a contradiction with another document), rather than merely confirming
+  what it already asserts.
+- Investigate in this order: the target file itself, its direct dependencies
+  (immediate imports/importers), then related tests — expand beyond this order only
+  when evidence remains insufficient.
+- Stop investigating a specific claim once it has been checked once against a
+  concrete source; a disconfirming finding ends investigation for that finding (correct
+  the upstream document, per the workflow's own correction procedure) rather than
+  researching further to double-confirm it.
+- A workflow that applies this section states so with a short reference — it does not
+  restate this procedure inline.
+
+## Step-Level Failure Triage (Base)
+
+Applies to any workflow step that runs a tool or check as part of a larger sequence
+(lint, type-check, test, validation) and must decide whether to continue.
+
+- If the tool is not installed or otherwise unavailable, apply `skills/DESIGN.md` Tool
+  availability guard and continue with the remaining steps — do not stop the whole
+  task for a missing optional tool.
+- If the check fails for a reason the current task's change caused, fix it before the
+  next step, subject to Loop Prevention > Attempt Limit above.
+- If the check fails for a pre-existing, unrelated reason, record it and continue —
+  do not fix an out-of-scope failure (see `AGENTS.md` Global Rule 5).
 
 ## Tool Usage
 

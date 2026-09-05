@@ -125,17 +125,11 @@ bash deploy/deploy.sh
 ## Step 6: Start the service (first time)
 
 `startup_mode="subprocess"` MCP servers are spawned by the agent itself — no separate start
-command exists. Starting the agent (`bash deploy/start_agent.sh`, see `skills/deploy/workflow.md`
-Phase 3 Step 3b) starts every configured MCP server, including the one just added.
+command exists. Starting the agent (`bash deploy/start_agent.sh`) starts every configured
+MCP server, including the one just added.
 
-For subsequent deploys after code changes to an already-running server: there is no
-dedicated restart command — kill the process by its port and the agent's `ensure_ready()`
-(`agent/factory.py`) restarts it automatically on the next tool call to that server (see
-`docs/04_mcp_06_12_watchdog-configuration-monitoring.md`):
-
-```bash
-lsof -ti :<PORT> | xargs -r kill
-```
+For subsequent deploys after code changes to an already-running server, use the restart
+command in `skills/deploy/workflow.md` Phase 3 Step 3b.
 
 **Completed when**: the process for the new server's port is running (first time), or has
 been killed and the next `/mcp` check (Step 8) shows it respawned (subsequent deploys).

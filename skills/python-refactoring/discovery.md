@@ -58,8 +58,7 @@ observations in these six categories only:
 Every Finding MUST record all six fields:
 - **ID**: a short unique identifier for this Finding within the cycle
 - **Category**: one of the six categories above
-- **Severity**: `Critical` / `High` / `Medium` / `Low` / `Informational`, per
-  `skills/python-code-review/SKILL.md` Severity
+- **Severity**: per `skills/DESIGN.md` Severity levels
 - **Evidence**: a concrete repository location — file path and line range, or a command and
   its output. A Finding with no populated evidence field MUST NOT be recorded.
 - **Impact**: the concrete consequence if left unaddressed
