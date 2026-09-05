@@ -101,10 +101,10 @@ N/A: no security-sensitive code path is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: this document itself is a test-removal change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-06 | All rag_invalidate_cache references removed; rg returns zero matches |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-06 | 2026-09-06 | N/A: this document itself is a test-removal change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-06 | 2026-09-06 | pytest passes with zero regressions |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-06 | 2026-09-06 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
