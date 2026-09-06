@@ -66,7 +66,7 @@ See `workflow.md` for detailed phase content and tooling.
   never as Medium or above, and never in a count that exceeds the number of Medium+ findings
   in the same review.
 - Respect project conventions and explain trade-offs.
-- Protect secrets and sensitive data.
+- Follow `skills/DESIGN.md` No secrets in output.
 - Keep recommendations actionable; for tests, specify the behavior or failure mode to verify.
 
 ---

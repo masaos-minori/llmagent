@@ -139,7 +139,8 @@ testing expectations, per `skills/issue-creator/SKILL.md` Issue Structure.
 ### Step 10c: Check for sensitive content
 
 Avoid Markdown that breaks when copied (see `skills/issue-creator/workflow.md` Step 9b
-Markdown safety rules). Do not include secrets or unnecessary code blocks.
+Markdown safety rules). Follow `skills/DESIGN.md` No secrets in output; also avoid
+unnecessary code blocks in drafted issues.
 
 **Completed when**: every grouped finding from 10a has a drafted issue from 10b that has
 passed the 10c check.
