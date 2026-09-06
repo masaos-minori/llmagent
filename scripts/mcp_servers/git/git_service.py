@@ -19,6 +19,7 @@ from collections.abc import Awaitable, Callable
 
 import git
 import git.exc
+from shared.tool_constants import GIT_READ_TOOLS
 
 from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.git_models import (
@@ -221,20 +222,26 @@ class GitService:
 
         Shared by every git_* handler below: build the request model, then
         delegate validation + repo opening + error wrapping to this helper.
+        Raises ValueError for a policy/validation rejection (read by dispatch_tool()
+        to set is_error=True) rather than returning the rejection message as a
+        plain string, which dispatch_tool() cannot distinguish from a successful
+        result.
         """
         result = await self._validate_repo(repo_path, tool_name)
         if result.error_message:
-            return result.error_message
+            raise ValueError(result.error_message)
         state = RepositoryState.snapshot(
             repo_path,
             protected_branches=self._protected_branches,
             active_ref=active_ref,
         )
+        if tool_name in GIT_READ_TOOLS:
+            return self._wrap_git_op(tool_name, lambda: op(state.repo, state))
         pipeline = WriteProtectionPipeline(state)
         pipeline_result = pipeline.run(tool_name, lambda: op(state.repo, state))
         if pipeline_result.ok:
             return pipeline_result.output
-        return pipeline_result.rejection_message
+        raise ValueError(pipeline_result.rejection_message)
 
     # ── Read-only tools ───────────────────────────────────────────────────────
 
@@ -254,7 +261,7 @@ class GitService:
         )
         ok, err = self._validate_ref(req.branch)
         if not ok:
-            return err
+            raise ValueError(err)
         return await self._run_tool(
             "git_log",
             req.repo_path,
@@ -270,7 +277,7 @@ class GitService:
         )
         ok, err = self._validate_ref(req.commit)
         if not ok:
-            return err
+            raise ValueError(err)
         return await self._run_tool(
             "git_diff", req.repo_path, lambda repo, _state: format_diff(repo, req)
         )
@@ -290,7 +297,7 @@ class GitService:
         )
         ok, err = self._validate_ref(req.ref)
         if not ok:
-            return err
+            raise ValueError(err)
         return await self._run_tool(
             "git_show", req.repo_path, lambda repo, _state: format_show(repo, req)
         )
@@ -329,10 +336,10 @@ class GitService:
         )
         ok, err = self._validate_ref(req.branch)
         if not ok:
-            return err
+            raise ValueError(err)
         ok, err = self._validate_protected(req.branch)
         if not ok:
-            return err
+            raise ValueError(err)
 
         def _checkout_op(repo: git.Repo, state: RepositoryState) -> str:
             if not req.dry_run:
@@ -358,13 +365,13 @@ class GitService:
         )
         ok, err = self._validate_ref(req.branch)
         if not ok:
-            return err
+            raise ValueError(err)
         ok, err = self._validate_protected(req.branch)
         if not ok:
-            return err
+            raise ValueError(err)
         ok, err = self._validate_ref(req.remote)
         if not ok:
-            return err
+            raise ValueError(err)
 
         def _pull_op(repo: git.Repo, state: RepositoryState) -> str:
             if not req.dry_run:
@@ -388,13 +395,13 @@ class GitService:
         )
         ok, err = self._validate_ref(req.branch)
         if not ok:
-            return err
+            raise ValueError(err)
         ok, err = self._validate_protected(req.branch)
         if not ok:
-            return err
+            raise ValueError(err)
         ok, err = self._validate_ref(req.remote)
         if not ok:
-            return err
+            raise ValueError(err)
 
         def _push_op(repo: git.Repo, state: RepositoryState) -> str:
             if not req.dry_run:

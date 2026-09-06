@@ -51,9 +51,8 @@ class TestGitSecurityCompliance:
         }
 
         # It should fail due to protected branch
-        result = await svc.git_checkout(args)
-        assert "[DENIED]" in result
-        assert "protected branch" in result
+        with pytest.raises(ValueError, match="protected branch"):
+            await svc.git_checkout(args)
 
     @pytest.mark.asyncio
     async def test_git_push_protected_branch(self, svc: GitService) -> None:
@@ -65,9 +64,8 @@ class TestGitSecurityCompliance:
             "dry_run": False,
         }
 
-        result = await svc.git_push(args)
-        assert "[DENIED]" in result
-        assert "protected branch" in result
+        with pytest.raises(ValueError, match="protected branch"):
+            await svc.git_push(args)
 
     @pytest.mark.asyncio
     async def test_git_pull_protected_branch(self, svc: GitService) -> None:
@@ -79,9 +77,8 @@ class TestGitSecurityCompliance:
             "dry_run": False,
         }
 
-        result = await svc.git_pull(args)
-        assert "[DENIED]" in result
-        assert "protected branch" in result
+        with pytest.raises(ValueError, match="protected branch"):
+            await svc.git_pull(args)
 
     @pytest.mark.asyncio
     async def test_git_pull_unsafe_remote(self, svc: GitService) -> None:
@@ -94,18 +91,16 @@ class TestGitSecurityCompliance:
             "dry_run": False,
         }
 
-        result = await svc.git_pull(args)
-        assert "[DENIED]" in result
-        assert "CLI option" in result
+        with pytest.raises(ValueError, match="CLI option"):
+            await svc.git_pull(args)
 
     @pytest.mark.asyncio
     async def test_git_show_unsafe_ref(self, svc: GitService) -> None:
         svc._open_repo = MagicMock(return_value=MagicMock())
         args = {"repo_path": "/tmp/repo", "ref": "--help"}
 
-        result = await svc.git_show(args)
-        assert "[DENIED]" in result
-        assert "CLI option" in result
+        with pytest.raises(ValueError, match="CLI option"):
+            await svc.git_show(args)
 
     @pytest.fixture
     def svc_allow_detached(self) -> GitService:
@@ -139,9 +134,8 @@ class TestGitSecurityCompliance:
             "create": False,
             "dry_run": False,
         }
-        result = await svc_from_shipped_config.git_checkout(args)
-        assert "[DENIED]" in result
-        assert "protected branch" in result
+        with pytest.raises(ValueError, match="protected branch"):
+            await svc_from_shipped_config.git_checkout(args)
 
     @pytest.mark.asyncio
     async def test_git_checkout_dirty_worktree_denied(self, svc: GitService) -> None:
@@ -160,9 +154,8 @@ class TestGitSecurityCompliance:
                 "create": False,
                 "dry_run": False,
             }
-            result = await svc.git_checkout(args)
-        assert "[DENIED]" in result
-        assert "worktree has uncommitted changes" in result
+            with pytest.raises(ValueError, match="worktree has uncommitted changes"):
+                await svc.git_checkout(args)
 
     @pytest.mark.asyncio
     async def test_git_pull_dirty_worktree_denied(self, svc: GitService) -> None:
@@ -181,9 +174,8 @@ class TestGitSecurityCompliance:
                 "branch": "develop",
                 "dry_run": False,
             }
-            result = await svc.git_pull(args)
-        assert "[DENIED]" in result
-        assert "worktree has uncommitted changes" in result
+            with pytest.raises(ValueError, match="worktree has uncommitted changes"):
+                await svc.git_pull(args)
 
     @pytest.mark.asyncio
     async def test_git_checkout_detached_head_denied(self, svc: GitService) -> None:
@@ -202,9 +194,8 @@ class TestGitSecurityCompliance:
                 "create": False,
                 "dry_run": False,
             }
-            result = await svc.git_checkout(args)
-        assert "[DENIED]" in result
-        assert "detached HEAD" in result
+            with pytest.raises(ValueError, match="detached HEAD"):
+                await svc.git_checkout(args)
 
     @pytest.mark.asyncio
     async def test_git_pull_detached_head_denied(self, svc: GitService) -> None:
@@ -223,9 +214,8 @@ class TestGitSecurityCompliance:
                 "branch": "develop",
                 "dry_run": False,
             }
-            result = await svc.git_pull(args)
-        assert "[DENIED]" in result
-        assert "detached HEAD" in result
+            with pytest.raises(ValueError, match="detached HEAD"):
+                await svc.git_pull(args)
 
     @pytest.mark.asyncio
     async def test_git_checkout_detached_head_allowed(
@@ -336,9 +326,8 @@ class TestGitSecurityCompliance:
             "branch": "",  # Empty branch — the bypass scenario
             "dry_run": False,
         }
-        result = await svc.git_push(args)
-        assert "[DENIED]" in result
-        assert "branch must not be empty" in result.lower()
+        with pytest.raises(ValueError, match="(?i)branch must not be empty"):
+            await svc.git_push(args)
 
     @pytest.mark.asyncio
     async def test_git_pull_with_empty_branch_returns_denied(
@@ -352,9 +341,8 @@ class TestGitSecurityCompliance:
             "branch": "",  # Empty branch — the bypass scenario
             "dry_run": False,
         }
-        result = await svc.git_pull(args)
-        assert "[DENIED]" in result
-        assert "branch must not be empty" in result.lower()
+        with pytest.raises(ValueError, match="(?i)branch must not be empty"):
+            await svc.git_pull(args)
 
 
 class TestCheckRepoPathResolvedPath:
@@ -430,13 +418,13 @@ class TestAuditTargetResolution:
             read_only=True,
             max_log_entries=50,
         )
-        result = await svc.git_checkout(
-            {
-                "repo_path": "/opt/repos/proj",
-                "branch": "main",
-            }
-        )
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_checkout(
+                {
+                    "repo_path": "/opt/repos/proj",
+                    "branch": "main",
+                }
+            )
 
 
 class TestPreDispatchRejectionAudit:
@@ -453,15 +441,16 @@ class TestPreDispatchRejectionAudit:
         mock_repo = MagicMock()
         mock_repo.active_branch.name = "develop"
         mock_repo.is_dirty.return_value = False
-        with patch.object(svc, "_open_repo", return_value=mock_repo):
-            result = await svc.git_checkout(
+        with (
+            patch.object(svc, "_open_repo", return_value=mock_repo),
+            pytest.raises(ValueError, match="protected branch"),
+        ):
+            await svc.git_checkout(
                 {
                     "repo_path": "/opt/repos/proj",
                     "branch": "main",
                 }
             )
-        assert "[DENIED]" in result
-        assert "protected branch" in result
 
 
 class TestEmittedAuditLogContent:

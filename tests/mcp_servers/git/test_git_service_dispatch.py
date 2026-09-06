@@ -40,8 +40,8 @@ class TestGitLog:
     @pytest.mark.asyncio
     async def test_denied_when_allowed_empty(self) -> None:
         svc = _svc(allowed=[])
-        result = await svc.git_log({"repo_path": "/opt/repos/proj"})
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_log({"repo_path": "/opt/repos/proj"})
 
     @pytest.mark.asyncio
     async def test_no_commits(self) -> None:
@@ -69,8 +69,8 @@ class TestGitDiff:
     @pytest.mark.asyncio
     async def test_denied_when_allowed_empty(self) -> None:
         svc = _svc(allowed=[])
-        result = await svc.git_diff({"repo_path": "/opt/repos/proj"})
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_diff({"repo_path": "/opt/repos/proj"})
 
     @pytest.mark.asyncio
     async def test_no_diff(self) -> None:
@@ -98,8 +98,8 @@ class TestGitBranch:
     @pytest.mark.asyncio
     async def test_denied_when_allowed_empty(self) -> None:
         svc = _svc(allowed=[])
-        result = await svc.git_branch({"repo_path": "/opt/repos/proj"})
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_branch({"repo_path": "/opt/repos/proj"})
 
     @pytest.mark.asyncio
     async def test_no_branches(self) -> None:
@@ -129,8 +129,8 @@ class TestGitShow:
     @pytest.mark.asyncio
     async def test_denied_when_allowed_empty(self) -> None:
         svc = _svc(allowed=[])
-        result = await svc.git_show({"repo_path": "/opt/repos/proj"})
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_show({"repo_path": "/opt/repos/proj"})
 
     @pytest.mark.asyncio
     async def test_shows_commit(self) -> None:
@@ -158,8 +158,8 @@ class TestGitPull:
     @pytest.mark.asyncio
     async def test_denied_by_read_only(self) -> None:
         svc = _svc(allowed=["/opt/repos"], read_only=True)
-        result = await svc.git_pull({"repo_path": "/opt/repos/proj", "branch": "main"})
-        assert "read_only" in result
+        with pytest.raises(ValueError, match="read_only"):
+            await svc.git_pull({"repo_path": "/opt/repos/proj", "branch": "main"})
 
     @pytest.mark.asyncio
     async def test_dry_run_fetch(self) -> None:
@@ -213,8 +213,8 @@ class TestGitStatus:
     @pytest.mark.asyncio
     async def test_denied_when_allowed_empty(self) -> None:
         svc = _svc(allowed=[])
-        result = await svc.git_status({"repo_path": "/opt/repos/proj"})
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_status({"repo_path": "/opt/repos/proj"})
 
     @pytest.mark.asyncio
     async def test_audit_record_server_key_present(self) -> None:
@@ -245,26 +245,26 @@ class TestSiblingPathRejection:
     @pytest.mark.asyncio
     async def test_sibling_with_underscore_rejected(self) -> None:
         svc = _svc(allowed=["/opt/repos"])
-        result = await svc.git_log({"repo_path": "/opt/repos_evil/proj"})
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_log({"repo_path": "/opt/repos_evil/proj"})
 
     @pytest.mark.asyncio
     async def test_sibling_with_dash_rejected(self) -> None:
         svc = _svc(allowed=["/opt/repos"])
-        result = await svc.git_diff({"repo_path": "/opt/repos-evil/proj"})
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_diff({"repo_path": "/opt/repos-evil/proj"})
 
     @pytest.mark.asyncio
     async def test_sibling_prefix_shorter_rejected(self) -> None:
         svc = _svc(allowed=["/opt/repos"])
-        result = await svc.git_branch({"repo_path": "/opt/re"})
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_branch({"repo_path": "/opt/re"})
 
     @pytest.mark.asyncio
     async def test_sibpath_longer_rejected(self) -> None:
         svc = _svc(allowed=["/opt/repos"])
-        result = await svc.git_show({"repo_path": "/opt/repos_evil/sub"})
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_show({"repo_path": "/opt/repos_evil/sub"})
 
     @pytest.mark.asyncio
     async def test_exact_root_accepted(self) -> None:
@@ -348,21 +348,19 @@ class TestGitCheckoutDenied:
     @pytest.mark.asyncio
     async def test_denied_when_allowed_empty(self) -> None:
         svc = _svc(allowed=[])
-        result = await svc.git_checkout(
-            {"repo_path": "/opt/repos/proj", "branch": "main"}
-        )
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_checkout({"repo_path": "/opt/repos/proj", "branch": "main"})
 
     @pytest.mark.asyncio
     async def test_audit_record_empty_target_for_denied_call(self) -> None:
         svc = _svc(allowed=[])
-        result = await svc.git_checkout(
-            {
-                "repo_path": "/opt/repos/proj",
-                "branch": "main",
-            }
-        )
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_checkout(
+                {
+                    "repo_path": "/opt/repos/proj",
+                    "branch": "main",
+                }
+            )
 
 
 # ── _wrap_git_op error branch ────────────────────────────────────────────────

@@ -11,13 +11,79 @@ no dependency on this file's change).
 - In scope: `_run_tool()` (lines 213-237) — branch on whether `tool_name` is in
   `GIT_READ_TOOLS` vs `GIT_WRITE_TOOLS` before deciding whether to construct a
   `WriteProtectionPipeline`.
+- **In scope (added 2026-09-06, code-implementation cycle, per user decision — see
+  "Added scope: rejection signaling contract fix" below)**: every "[DENIED] ..." /
+  validation-failure early-return site in this file (`_validate_repo()`'s
+  `error_message` check in `_run_tool()`, `_run_tool()`'s own pipeline-rejection
+  branch, and each handler method's own `_validate_ref()`/`_validate_protected()`
+  early returns) — convert from `return err` to `raise ValueError(err)`.
 - Out of scope: any individual `git_*` handler method's own per-tool validation
-  (`_validate_ref`, `_validate_protected`, dry-run handling in `git_checkout`/
-  `git_pull`/`git_push`) — these already call `_run_tool()` correctly and need no
-  change; `get_dispatch_table()` (lines 412-423, already correctly maps all 10 tools,
-  confirmed unchanged); `WriteProtectionPipeline` internals
-  (`scripts/mcp_servers/git/repository_state.py`, `gitauth`/`gitpipeline`/`gitdryrun`'s
-  scope).
+  logic itself (`_validate_ref`, `_validate_protected`, dry-run handling in
+  `git_checkout`/`git_pull`/`git_push`) — only *how a failure is signaled* changes
+  (return → raise), not the validation logic itself; `get_dispatch_table()` (lines
+  412-423, already correctly maps all 10 tools, confirmed unchanged);
+  `WriteProtectionPipeline` internals (`scripts/mcp_servers/git/repository_state.py`,
+  `gitauth`/`gitpipeline`/`gitdryrun`'s scope) — `PipelineResult.ok`/
+  `.rejection_message`'s own fields are unchanged, only how `_run_tool()` reads them
+  changes; `scripts/mcp_servers/dispatch.py` (shared infra, unchanged — this fix
+  works entirely within its existing `except ValueError` handling, already used by
+  every other MCP server in this codebase for policy/validation rejections, e.g.
+  `scripts/mcp_servers/shell/shell_service.py`'s `ShellValidationError(ValueError)`).
+
+### Added scope: rejection signaling contract fix (BLOCKING finding from sibling file)
+`implementations/20260905-203805_01_..._git_server.py.md`'s Step 3a adversarial
+verification (code-implementation cycle, 2026-09-06) found that this Plan's
+`git_server.py` document cannot switch `call_tool()` to
+`dispatch_tool()`/`GitService.get_dispatch_table()` without a live regression: every
+"[DENIED] ..." string this file's methods currently `return` (rather than raise) is
+wrapped by `dispatch_tool()` as `DispatchResult(output=<string>, is_error=False)` —
+a policy-rejected write reported as a 200 "success". The user selected fixing this
+file's contract (raise `ValueError` for every rejection, since `dispatch_tool()`
+already converts a raised `ValueError` into `DispatchResult(is_error=True, ...)` —
+no change to shared `dispatch.py` needed) over the alternative (a `shell-mcp`-style
+raised+typed-exception-with-dedicated-HTTP-status design, which would itself change
+this Plan's response-shape compatibility guarantee).
+
+Sites requiring `return err` → `raise ValueError(err)` (verified against current
+source, 2026-09-06):
+- `_run_tool()` line 226-227: `if result.error_message: return result.error_message`
+- `_run_tool()` line 236-237: `return pipeline_result.rejection_message` (the `if
+  pipeline_result.ok: return pipeline_result.output` line above it is unchanged)
+- `git_log()` lines 256-257, `git_diff()` lines 272-273, `git_show()` lines 292-293
+  (each a single `_validate_ref()` early return)
+- `git_checkout()` lines 331-332 (`_validate_ref`) and 334-335 (`_validate_protected`)
+- `git_pull()` lines 360-361 (`_validate_ref` branch), 363-364 (`_validate_protected`),
+  366-367 (`_validate_ref` remote) — line numbers per current source, three checks
+- `git_push()` — same three-check shape as `git_pull()`, own line numbers
+- **`_checkout_op()`/`_pull_op()`/`_push_op()`'s inline `if not req.dry_run: if
+  state.is_dirty: return "[DENIED]..."` / `if state.is_detached_head...: return
+  "[DENIED]..."` (each op closure, e.g. `git_checkout()` lines 344-349) are
+  EXCLUDED from this conversion — do not raise here.** These closures run as
+  `WriteProtectionPipeline.run()`'s Stage 6 `op()` callable
+  (`repository_state.py`'s `run()`), which wraps any non-`GitServiceError`
+  exception from `op()` into a re-raised `GitServiceError` (Stage 6's own
+  try/except) — `git_server.py` has a registered `@app.exception_handler(
+  GitServiceError)` returning **HTTP 500**, not this fix's intended 200+
+  `is_error=True` shape. Raising `ValueError` here would be silently wrong if this
+  code were ever reached. It is provably unreachable today regardless (Stage 5's
+  `RepositoryState.verify_preconditions()` already performs the identical
+  dirty/detached check and rejects via a normal `PipelineResult.reject(...)` return
+  *before* Stage 6/this closure ever runs) — leave it as `return "[DENIED]...")`
+  unchanged; removing this dead code is a separate, out-of-scope cleanup.
+
+This changes `GitService`'s own public method contract: existing direct-unit-test
+callers (`tests/mcp_servers/git/test_git_security_compliance.py`'s
+`TestGitSecurityCompliance` class, e.g. `test_git_checkout_protected_branch`,
+`test_git_push_protected_branch`, `test_git_pull_protected_branch`,
+`test_git_pull_unsafe_remote`, `test_git_show_unsafe_ref`,
+`test_git_checkout_dirty_worktree_denied`, `test_git_pull_dirty_worktree_denied`,
+`test_git_checkout_detached_head_denied`, `test_git_pull_detached_head_denied`, and
+the parametrized `test_write_tools_reject_shipped_protected_branches`) currently
+assert `"[DENIED]" in result` against a returned string — each must change to
+`with pytest.raises(ValueError, match=...` instead. This file
+(`test_git_security_compliance.py`) is itself this Plan's own target-file row 5
+(`implementations/20260905-203805_05_..._test_git_security_compliance.py.md`) — the
+required update is in-scope there, not a new additional-target-file discovery.
 
 ## Assumptions
 - `GIT_READ_TOOLS` (`git_status`/`git_log`/`git_diff`/`git_branch`/`git_show`) and
@@ -55,6 +121,14 @@ no dependency on this file's change).
 3. Confirm `_wrap_git_op()`'s return type (`str`, same as `op()`'s return type) matches
    what `_run_tool()`'s callers already expect (each `git_*` handler method returns
    `_run_tool()`'s return value directly) — no caller-side change needed if so.
+4. **(Added scope)** Convert every "[DENIED] ..." early-return site listed in "Added
+   scope: rejection signaling contract fix" above from `return err` to
+   `raise ValueError(err)`: `_run_tool()`'s `_validate_repo()`-error branch and
+   pipeline-rejection branch; `git_log`/`git_diff`/`git_show`'s single `_validate_ref`
+   early return each; `git_checkout`/`git_pull`/`git_push`'s `_validate_ref`/
+   `_validate_protected` early returns; and `_checkout_op`/`_pull_op`/`_push_op`'s
+   inline dirty/detached-HEAD checks. Re-run `rg '"\[DENIED\]'` against this file
+   after editing to confirm no `return "[DENIED]...")` site remains unconverted.
 
 ### Method
 `_run_tool()` currently unconditionally does: validate repo → snapshot state → wrap in
@@ -87,12 +161,16 @@ preconditions, dirty-worktree postconditions), none of which apply to a read.
   anywhere, since it skips the postcondition stage that would have used it.
 
 ## Compatibility considerations
-- The 5 write-tool handler methods' behavior (`git_add`/`git_commit`/`git_checkout`/
-  `git_pull`/`git_push`) is byte-for-byte unchanged — same pipeline construction, same
-  stages, same return shape.
+- The 5 write-tool handler methods' *validation logic and pipeline construction* are
+  unchanged — same stages, same conditions. **Superseded by the Added scope above**:
+  the *signaling shape* of a rejection changes from `return "[DENIED]..."` to
+  `raise ValueError("[DENIED]...")`, an intentional, in-scope contract change (see
+  "Added scope: rejection signaling contract fix") — existing direct-unit-test
+  callers must be updated accordingly (this Plan's own `test_git_security_
+  compliance.py` target-file row).
 - `get_dispatch_table()` (lines 412-423) needs no change — it already maps all 10
   tool names to their respective handler methods; only what happens *inside*
-  `_run_tool()` changes.
+  `_run_tool()` and each handler's early-validation sites changes.
 
 ## Security considerations
 - Read-only tools bypassing `WriteProtectionPipeline` is the intended behavior change
@@ -111,23 +189,36 @@ preconditions, dirty-worktree postconditions), none of which apply to a read.
   read-only tools in a way that requires modifying `_validate_repo()` itself, this
   stays within this same target file (`git_service.py`) — not an additional-target-file
   discovery, since `_validate_repo()` is defined in this file too.
+- The Added-scope rejection-signaling change is revertible together with this file's
+  commit; it must land in the same commit as `test_git_security_compliance.py`'s
+  updated `TestGitSecurityCompliance` assertions (row 5) — reverting one without the
+  other breaks that test class.
 
 ## Validation plan
 - `uv run pytest tests/mcp_servers/git/test_git_service_dispatch.py -v` — this file's
   own procedure document adds the read-only-bypass-vs-write-pipeline unit tests
   (`REQ-003`, `REQ-004`); this document's implementation must make those tests pass.
+- `uv run pytest tests/mcp_servers/git/test_git_security_compliance.py -v` — the
+  `TestGitSecurityCompliance` class's rejection tests must be updated (row 5) to
+  expect a raised `ValueError` instead of a returned string, and pass against this
+  change.
 - `uv run pytest tests/mcp_servers/git/ -v` (full suite) — no new failures, especially
   the existing write-tool pipeline tests in `test_git_security_compliance.py`
-  (dirty-worktree/detached-HEAD denial tests for checkout/pull/push must still pass
-  unchanged).
+  (dirty-worktree/detached-HEAD denial tests for checkout/pull/push must still pass,
+  once updated to the raise-based contract).
 - `uv run mypy scripts/mcp_servers/git/`, `uv run ruff check scripts/mcp_servers/git/`.
 
 ## Completion criteria
 - `GIT_READ_TOOLS` calls to `_run_tool()` do not construct a `WriteProtectionPipeline`
   and are not rejected by dirty-worktree/detached-HEAD checks (AC-3).
 - `GIT_WRITE_TOOLS` calls continue through `WriteProtectionPipeline` with identical
-  behavior to today (AC-2).
-- Full git-mcp test suite passes with no regressions.
+  validation behavior to today (AC-2), signaled via a raised `ValueError` instead of
+  a returned string on rejection.
+- No "[DENIED] ..." string is `return`ed by this file on a rejection path — confirmed
+  via `rg '"\[DENIED\]' scripts/mcp_servers/git/git_service.py` showing only `raise
+  ValueError(...)` call sites.
+- Full git-mcp test suite passes with no regressions (post-update to
+  `test_git_security_compliance.py`).
 
 ## Out of scope
 - `WriteProtectionPipeline`'s internal stage logic (`gitauth`/`gitpipeline`/
@@ -142,10 +233,11 @@ preconditions, dirty-worktree postconditions), none of which apply to a read.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import `GIT_READ_TOOLS` and branch `_run_tool()` on read vs. write (Procedure steps 1-2) | Pending | — | — | |
-| 2 | Confirm `_wrap_git_op()` return shape matches caller expectations (Procedure step 3) | Pending | — | — | |
-| 3 | Run validation plan (unit tests, full suite, static checks) | Pending | — | — | |
-| 4 | Update `docs/04_mcp_04_05_git.md`, if in scope per Documentation Impact | Pending | — | — | |
+| 1 | Import `GIT_READ_TOOLS` and branch `_run_tool()` on read vs. write (Procedure steps 1-2) | Completed | 20260906-092000 | 20260906-095500 | Implemented as specified |
+| 2 | Confirm `_wrap_git_op()` return shape matches caller expectations (Procedure step 3) | Completed | 20260906-092000 | 20260906-095500 | No caller-side change needed; `str` return preserved |
+| 3 | Convert every "[DENIED] ..." early-return site to `raise ValueError(err)` (Procedure step 4, Added scope) | Completed | 20260906-092000 | 20260906-095500 | All sites converted except `_checkout_op`/`_pull_op`/`_push_op`'s inline dirty/detached checks — excluded (see doc's "Added scope" note: raising there would be miscaught as `GitServiceError`→HTTP 500 by `WriteProtectionPipeline.run()`'s Stage 6 try/except; provably unreachable dead code, left as-is). Also required updating existing rejection-assertion tests broken by this contract change in `tests/mcp_servers/git/test_git_security_compliance.py` (this Plan's row 5), `tests/mcp_servers/git/test_mcp_git.py` and `tests/mcp_servers/git/test_git_service_dispatch.py` (this Plan's row 4 and row 3 respectively) — all updated from `assert "[DENIED]" in result` to `pytest.raises(ValueError, ...)` |
+| 4 | Run validation plan (unit tests, full suite, static checks) | Completed | 20260906-095500 | 20260906-101500 | `tests/mcp_servers/git/`: 238/238 passed. ruff format/check, mypy (`scripts/`), lint-imports, bandit: pass (pre-existing unrelated findings unchanged vs. baseline). Full suite (`--deselect` the known unrelated `test_keyboard_interrupt_breaks_loop` bug): 6309 passed/575 failed/14 skipped/3 errors — zero failures under `tests/mcp_servers/git/` |
+| 5 | Update `docs/04_mcp_04_05_git.md`, if in scope per Documentation Impact | Completed | 20260906-101500 | 20260906-101500 | N/A: `docs/00_index.md`'s Document References by Task table has no row naming `docs/04_mcp_04_05_git.md` at all; this file matches the generic "MCP server implementation" row instead, whose reference docs (`04_mcp_02_01_endpoints-and-transport.md`, `04_mcp_03_01_dispatch-and-routing.md`) contain no claim about `git_service.py`/`_run_tool()`/`GIT_READ_TOOLS` requiring correction (confirmed via `rg`) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -128,13 +128,13 @@ class TestAuditTargetResolution:
     @pytest.mark.asyncio
     async def test_audit_target_empty_for_denied_call(self) -> None:
         svc = _svc(allowed=[], read_only=True)
-        result = await svc.git_checkout(
-            {
-                "repo_path": "/opt/repos/proj",
-                "branch": "main",
-            }
-        )
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_checkout(
+                {
+                    "repo_path": "/opt/repos/proj",
+                    "branch": "main",
+                }
+            )
 
 
 # ── _check_write ──────────────────────────────────────────────────────────────
@@ -161,8 +161,8 @@ class TestGitStatus:
     @pytest.mark.asyncio
     async def test_denied_when_allowed_empty(self) -> None:
         svc = _svc(allowed=[])
-        result = await svc.git_status({"repo_path": "/opt/repos/proj"})
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_status({"repo_path": "/opt/repos/proj"})
 
     @pytest.mark.asyncio
     async def test_clean_working_tree(self) -> None:
@@ -192,8 +192,8 @@ class TestGitAdd:
     @pytest.mark.asyncio
     async def test_denied_by_read_only(self) -> None:
         svc = _svc(allowed=["/opt/repos"], read_only=True)
-        result = await svc.git_add({"repo_path": "/opt/repos/proj", "paths": ["a.py"]})
-        assert "read_only" in result
+        with pytest.raises(ValueError, match="read_only"):
+            await svc.git_add({"repo_path": "/opt/repos/proj", "paths": ["a.py"]})
 
     @pytest.mark.asyncio
     async def test_dry_run_shows_would_stage(self) -> None:
@@ -220,8 +220,8 @@ class TestGitAdd:
     @pytest.mark.asyncio
     async def test_denied_path_not_in_allowed(self) -> None:
         svc = _svc(allowed=["/opt/repos"], read_only=False)
-        result = await svc.git_add({"repo_path": "/home/user/proj", "paths": ["a.py"]})
-        assert "[DENIED]" in result
+        with pytest.raises(ValueError, match="\\[DENIED\\]"):
+            await svc.git_add({"repo_path": "/home/user/proj", "paths": ["a.py"]})
 
 
 # ── git_commit ────────────────────────────────────────────────────────────────
@@ -259,10 +259,8 @@ class TestGitCommit:
     @pytest.mark.asyncio
     async def test_denied_by_read_only(self) -> None:
         svc = _svc(allowed=["/opt/repos"], read_only=True)
-        result = await svc.git_commit(
-            {"repo_path": "/opt/repos/proj", "message": "msg"}
-        )
-        assert "read_only" in result
+        with pytest.raises(ValueError, match="read_only"):
+            await svc.git_commit({"repo_path": "/opt/repos/proj", "message": "msg"})
 
 
 # ── git_checkout ──────────────────────────────────────────────────────────────
@@ -345,5 +343,5 @@ class TestGitPush:
     @pytest.mark.asyncio
     async def test_denied_by_read_only(self) -> None:
         svc = _svc(allowed=["/opt/repos"], read_only=True)
-        result = await svc.git_push({"repo_path": "/opt/repos/proj", "branch": "main"})
-        assert "read_only" in result
+        with pytest.raises(ValueError, match="read_only"):
+            await svc.git_push({"repo_path": "/opt/repos/proj", "branch": "main"})
