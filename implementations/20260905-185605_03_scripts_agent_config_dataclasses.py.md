@@ -18,8 +18,12 @@ in `_validate_cross_field()`, in `scripts/agent/config_dataclasses.py` (`REQ-001
   `refiner_max_tokens`, etc.) — confirmed unrelated.
 
 ## Assumptions
-- Same hard ordering dependency as procedure documents `01`/`02`: this change must not
-  be applied until `semcacherm` has landed.
+- `semcacherm` core is complete (confirmed: `scripts/rag/cache.py` and
+  `scripts/rag/ingestion/cache_invalidation.py` deleted; zero references to
+  `SemanticCache`/`CacheEntry`/`CacheService`/`invalidate_cache`/`rag_invalidate_cache`).
+  This change must not be applied until `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004)
+  lands — removing fields without validator rejection wired in would silently accept
+  obsolete config values.
 - `_validate_semantic_cache_url()`'s sole caller is `_validate_cross_field()` (line
   454) — confirmed by `grep -n "_validate_semantic_cache_url"
   scripts/agent/config_dataclasses.py`, matching only the definition and this one call
@@ -109,7 +113,7 @@ N/A: no security-sensitive code path is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacherm` lands — see Assumptions |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004) lands — see Blocker Log; `semcacherm` core is complete |
 | 2 | Add or update tests per Validation plan | Pending | — | — | Covered by procedure document for `tests/agent/test_config_dataclasses.py` |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation deferred to `semcachedocs` |
@@ -117,7 +121,7 @@ N/A: no security-sensitive code path is touched.
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on `semcacherm`'s implementation landing first | No | — |
+| 1 | Depends on `semcacheconfig` Plan (plans/done/20260904-141001_plan.md) Phase 1 (REQ-003: `RagConfigValidator` rejection wiring) landing first — `semcacherm` core is complete; `semcacheconfig` Phase 1 is prerequisite for Phase 2 (this document) | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
