@@ -114,10 +114,10 @@ incompatibly — low risk, single-method, 1-line addition.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Field already present at line 63 |
+| 2 | Add or update tests per Validation plan | Done | — | — | No dedicated tests needed (per doc) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | ruff OK, mypy errors pre-existing in other files |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | Out of scope per doc |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
