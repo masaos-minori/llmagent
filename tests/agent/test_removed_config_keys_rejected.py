@@ -27,10 +27,13 @@ _MIN_CFG_EQUIVALENT: dict = {
     "embed_url": "http://127.0.0.1:9999",
 }
 
-REMOVED_KEYS = frozenset(("use_semantic_cache", "semantic_cache_threshold", "semantic_cache_max_size"))
+REMOVED_KEYS = frozenset(
+    ("use_semantic_cache", "semantic_cache_threshold", "semantic_cache_max_size")
+)
 
 for _k in REMOVED_KEYS:
-    _MIN_CFG_EQUIVALENT[_k] = True  # type: ignore[literal-required]
+    _MIN_CFG_EQUIVALENT[_k] = True  # type: ignore[literal-required] — literal-required false positive on dynamic dict assignment in loop
+
 
 @pytest.mark.parametrize(
     "key,value",
@@ -47,11 +50,12 @@ def test_individual_removed_key_rejected(key: str, value: object) -> None:
         with pytest.raises(ValueError, match=key):
             build_agent_config(merged)
 
+
 def test_all_three_removed_keys_rejected() -> None:
     """All three removed keys together also raise ValueError."""
     merged = {**_MIN_CFG_EQUIVALENT}
     for k in REMOVED_KEYS:
-        merged[k] = True  # type: ignore[literal-required]
+        merged[k] = True  # type: ignore[literal-required] — literal-required false positive on dynamic dict assignment in loop
     with patch("agent.config_builders.sys.exit"):
         with pytest.raises(ValueError):
             build_agent_config(merged)
