@@ -180,9 +180,9 @@ New test, additive only — no existing test body changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestGitServiceErrorHandlerIdentity` class with a class-scoped `client` fixture | Pending | — | — | |
-| 2 | Add the test mocking `RepositoryState.snapshot` + `format_checkout` and asserting the handler's response shape | Pending | — | — | |
-| 3 | Run this file's suite and the full git-mcp suite | Pending | — | — | |
+| 1 | Add `TestGitServiceErrorHandlerIdentity` class with a class-scoped `client` fixture | Completed | 20260906-192500 | 20260906-194000 | Added, following this file's more recent (post-gitdispatch) `client`/`enabled` fixture pattern (`scripts.mcp_servers.git.git_server` monkeypatching real repo/config) rather than `RepositoryState.snapshot` mocking, for a genuinely reliable path to Stage 6 |
+| 2 | Add the test mocking `RepositoryState.snapshot` + `format_checkout` and asserting the handler's response shape | Completed | 20260906-192500 | 20260906-194500 | Step 3a correction: `format_checkout` is no longer imported into `git_server.py` — gitdispatch's dispatch-unification (already landed) moved its call site into `mcp_servers.git.git_service`; patched `git_service.format_checkout` instead of `git_server.format_checkout` as this document originally assumed. Also found `GitServiceError` was not imported anywhere in this test file (a bare raise inside the monkeypatch hit `NameError`, wrapped by the pipeline into a *different* message) — added a local import in the test |
+| 3 | Run this file's suite and the full git-mcp suite | Completed | 20260906-194500 | 20260906-200500 | ruff format/check, mypy (`scripts/`): pass. This file: 58/58 passed. `tests/mcp_servers/git/`: 281/281 passed. Full suite (`--ignore=tests/eventbus`): 6187 passed/570 failed/14 skipped/3 errors — zero failures under `tests/mcp_servers/git/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
