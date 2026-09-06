@@ -5,6 +5,17 @@ Performs the `issues/` -> `issues/done/`, `plans/` -> `plans/done/`, and
 `implementations/` -> `implementations/done/` archival move for one workitem file at
 a time, using GitPython so the move is recorded as a Git rename.
 
+Every subcommand shares these pre-move safety checks (`move_to_done()`): the source
+file must exist, the destination must not already exist, the destination's `done/`
+directory must already exist, and the source file itself must have no uncommitted
+local changes (untracked, staged, or modified-since-commit — other files' uncommitted
+changes elsewhere in the repository are ignored). If `origin` is configured as a
+remote, the move also fetches it and refuses when the destination path already exists
+on the remote-tracking branch (a concurrent session likely already archived this file
+there); a fetch failure (no network, no `origin`, detached HEAD) degrades to a no-op
+rather than blocking the move. `git status`/`git mv` invocations retry a bounded
+number of times on `.git/index.lock` contention from a concurrent git process.
+
 `close-implementation` additionally parses the target file's `### Execution Status`
 table (see `templates/execution-status.md`) and refuses the move while any row's
 `Status` column is `Pending`, unless both `--force` and `--reason` are supplied.
@@ -28,10 +39,22 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import git
 
 EXECUTION_STATUS_HEADING = "### Execution Status"
+
+# `.git/index.lock` contention markers seen in GitCommandError messages when a
+# concurrent git process (e.g. another session) holds the index lock.
+_LOCK_CONTENTION_MARKERS = ("index.lock", "Unable to create")
+_LOCK_RETRY_ATTEMPTS = 3
+_LOCK_RETRY_DELAY_SECONDS = 0.2
 
 
 @dataclass(frozen=True)
@@ -43,12 +66,87 @@ class MoveResult:
     error: str | None = None
 
 
+def _run_with_lock_retry[T](operation: Callable[[], T]) -> T:
+    """Retry `operation` when it fails on git index-lock contention.
+
+    Concurrent git invocations against the same working tree (e.g. two sessions
+    archiving different files at once) can race on `.git/index.lock`. Retries a
+    bounded number of times with a short delay before propagating the last error.
+    Any other `GitCommandError` is propagated immediately, without retrying.
+    """
+    import git.exc
+
+    for attempt in range(_LOCK_RETRY_ATTEMPTS):
+        try:
+            return operation()
+        except git.exc.GitCommandError as e:
+            if not any(marker in str(e) for marker in _LOCK_CONTENTION_MARKERS):
+                raise
+            if attempt == _LOCK_RETRY_ATTEMPTS - 1:
+                raise
+            time.sleep(_LOCK_RETRY_DELAY_SECONDS * (attempt + 1))
+    raise AssertionError("unreachable: loop above always returns or raises")
+
+
+def _find_remote_conflict(repo: git.Repo, destination_abs: Path) -> str | None:
+    """Check whether `destination_abs` already exists on `origin`'s tracking branch.
+
+    A hit means another session likely already archived this file there. Returns a
+    conflict description, or `None` when: no remote is configured, the remote cannot
+    be reached (network/auth unavailable — the check degrades to a no-op rather than
+    blocking the move), the repository is in a detached-HEAD state, or no conflict was
+    found.
+    """
+    import git.exc
+
+    if not repo.remotes:
+        return None
+    try:
+        remote = repo.remote("origin")
+    except ValueError:
+        return None
+
+    try:
+        remote.fetch()
+    except git.exc.GitCommandError:
+        return None
+
+    try:
+        branch = repo.active_branch.name
+    except TypeError:
+        return None
+
+    if repo.working_tree_dir is None:
+        return None  # bare repository — no working tree to relativize against
+
+    tracking_ref = f"{remote.name}/{branch}"
+    try:
+        rel_path = destination_abs.relative_to(
+            Path(repo.working_tree_dir).resolve()
+        ).as_posix()
+    except ValueError:
+        return None
+
+    try:
+        repo.git.cat_file("-e", f"{tracking_ref}:{rel_path}")
+    except git.exc.GitCommandError:
+        return None
+
+    return (
+        f"destination already exists on {tracking_ref}: {rel_path} — another "
+        "session may have already archived this file; fetch and reconcile before "
+        "retrying"
+    )
+
+
 def move_to_done(source: Path) -> MoveResult:
     """Move `source` into its sibling `done/` directory as a Git rename.
 
     Refuses (returns a failure `MoveResult`, performs no move) when the source is
-    missing, the destination already exists, the source is outside a Git
-    repository, or the source has uncommitted local changes.
+    missing, the destination already exists, the destination's `done/` directory
+    does not exist, the source is outside a Git repository, the source has
+    uncommitted local changes, or the destination already exists on `origin`'s
+    remote-tracking branch (see `_find_remote_conflict`).
     """
     if not source.is_file():
         return MoveResult(success=False, error=f"source file not found: {source}")
@@ -57,6 +155,11 @@ def move_to_done(source: Path) -> MoveResult:
     if destination.exists():
         return MoveResult(
             success=False, error=f"destination already exists: {destination}"
+        )
+    if not destination.parent.is_dir():
+        return MoveResult(
+            success=False,
+            error=f"archive directory does not exist: {destination.parent}",
         )
 
     try:
@@ -74,7 +177,9 @@ def move_to_done(source: Path) -> MoveResult:
         return MoveResult(success=False, error=f"not inside a git repository: {source}")
 
     try:
-        status = repo.git.status("--porcelain", str(source_abs))
+        status = _run_with_lock_retry(
+            lambda: repo.git.status("--porcelain", str(source_abs))
+        )
     except git.exc.GitCommandError as e:
         return MoveResult(success=False, error=f"git status failed: {e}")
 
@@ -84,8 +189,12 @@ def move_to_done(source: Path) -> MoveResult:
             error=f"source file has uncommitted changes, refusing to move: {source}",
         )
 
+    conflict = _find_remote_conflict(repo, destination_abs)
+    if conflict:
+        return MoveResult(success=False, error=conflict)
+
     try:
-        repo.git.mv(str(source_abs), str(destination_abs))
+        _run_with_lock_retry(lambda: repo.git.mv(str(source_abs), str(destination_abs)))
     except git.exc.GitCommandError as e:
         return MoveResult(success=False, error=f"git mv failed: {e}")
 
@@ -95,10 +204,13 @@ def move_to_done(source: Path) -> MoveResult:
 def parse_execution_status_rows(content: str) -> list[dict[str, str]] | None:
     """Parse the `### Execution Status` Markdown table's data rows.
 
-    Returns `None` when the heading itself cannot be found (a structural
-    problem, distinct from an empty table). Each returned row maps the header's
-    column names (`Step`, `Description`, `Status`, `Started`, `Completed`,
-    `Notes`) to that row's cell values.
+    Returns `None` when the heading itself cannot be found, or when the table's
+    header row does not include a `Status` column (both a structural problem,
+    distinct from an empty table) — a renamed or missing `Status` column would
+    otherwise silently disable `close-implementation`'s Pending-row block instead
+    of surfacing an error. Each returned row maps the header's column names
+    (`Step`, `Description`, `Status`, `Started`, `Completed`, `Notes`) to that
+    row's cell values.
     """
     lines = content.splitlines()
     heading_idx = next(
@@ -120,6 +232,8 @@ def parse_execution_status_rows(content: str) -> list[dict[str, str]] | None:
         cells = [cell.strip() for cell in stripped.strip("|").split("|")]
         if header is None:
             header = cells
+            if "Status" not in header:
+                return None
             continue
         if not separator_seen:
             separator_seen = True
@@ -178,7 +292,8 @@ def cmd_close_implementation(args: argparse.Namespace) -> int:
     rows = parse_execution_status_rows(source.read_text(encoding="utf-8"))
     if rows is None:
         print(
-            f"ERROR: no '{EXECUTION_STATUS_HEADING}' table found in {source}",
+            f"ERROR: '{EXECUTION_STATUS_HEADING}' table missing or malformed "
+            f"(no 'Status' column) in {source}",
             file=sys.stderr,
         )
         return 1
