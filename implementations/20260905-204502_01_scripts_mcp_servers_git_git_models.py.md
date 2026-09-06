@@ -94,10 +94,10 @@ pattern).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260906-120000 | 20260906-121000 | Field added after `allow_detached_head`, parsing added after that block, constructor arg added — exactly as specified |
+| 2 | Add or update tests per Validation plan | Completed | 20260906-120000 | 20260906-121000 | `test_allowed_remote_urls_parsed_from_dict`, `test_allowed_remote_urls_missing_uses_default` added to `TestGitConfigFromDict` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260906-121000 | 20260906-122500 | ruff format/check, mypy (`scripts/`), lint-imports, bandit: pass (pre-existing unrelated findings unchanged). `test_git_models.py`: 11/11 passed. `tests/mcp_servers/git/`: 257/257 passed. Full suite: 6329 passed/574 failed/14 skipped/3 errors (1 deselected known bug) — zero failures under `tests/mcp_servers/git/` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260906-122500 | 20260906-122500 | N/A: no `docs/00_index.md` task-scope row matches `scripts/mcp_servers/git/git_models.py` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

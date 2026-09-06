@@ -64,6 +64,23 @@ class TestGitConfigFromDict:
                 {"allowed_repo_paths": [], "read_only": True, "max_log_entries": "50"}
             )
 
+    def test_allowed_remote_urls_parsed_from_dict(self) -> None:
+        cfg = GitConfig.from_dict(
+            {
+                "allowed_repo_paths": [],
+                "read_only": True,
+                "max_log_entries": 50,
+                "allowed_remote_urls": ["https://example.com/repo.git"],
+            }
+        )
+        assert cfg.allowed_remote_urls == ["https://example.com/repo.git"]
+
+    def test_allowed_remote_urls_missing_uses_default(self) -> None:
+        cfg = GitConfig.from_dict(
+            {"allowed_repo_paths": [], "read_only": True, "max_log_entries": 50}
+        )
+        assert cfg.allowed_remote_urls == []
+
 
 class TestGitConfigDefaults:
     def test_default_construction(self) -> None:

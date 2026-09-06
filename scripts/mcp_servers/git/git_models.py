@@ -34,6 +34,7 @@ class GitConfig:
     protected_branches: list[str] = dataclasses.field(default_factory=list)
     audit_log_path: str = ""
     allow_detached_head: bool = False
+    allowed_remote_urls: list[str] = dataclasses.field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> GitConfig:
@@ -49,6 +50,9 @@ class GitConfig:
         allow_detached_head = get_typed(
             d, "allow_detached_head", bool, "a boolean", default=False
         )
+        allowed_remote_urls = get_typed(
+            d, "allowed_remote_urls", list, "a list", default=[]
+        )
         return cls(
             allowed_repo_paths=list(allowed),
             read_only=read_only,
@@ -57,6 +61,7 @@ class GitConfig:
             audit_log_path=audit_log_path,
             protected_branches=list(protected_branches),
             allow_detached_head=allow_detached_head,
+            allowed_remote_urls=list(allowed_remote_urls),
         )
 
     @classmethod
