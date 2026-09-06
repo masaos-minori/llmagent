@@ -1126,3 +1126,112 @@ class TestDryRunAndDetachedHeadLivePath:
         assert pull_response.json().get("is_error") is not True
         assert push_response.json().get("is_error") is not True
         assert git.Repo(str(repo_dir)).is_dirty()  # unchanged: still dirty, no mutation
+
+
+class TestNewlyReachableToolsViaHTTP:
+    """REQ-002/003/004: the 7 tools gitdispatch's dispatch-unification makes
+    newly reachable via POST /v1/call_tool (git_status/git_log/git_diff/
+    git_branch/git_show/git_add/git_commit)."""
+
+    @pytest.fixture
+    def client(self):
+        # This file's module-scoped `client` fixture (top of file) imports the
+        # app via `mcp_servers.git.server` — a distinct module object from
+        # `scripts.mcp_servers.git.git_server` (dual import paths resolve to
+        # separate sys.modules entries), so patching one's `_cfg`/`_service`
+        # does not affect the other's live app instance. This class's `enabled`
+        # fixture patches via `scripts.mcp_servers.git.git_server`, matching
+        # this file's more recent `client` fixtures (e.g. line ~905) — define
+        # a class-local `client` on the same import path instead of reusing
+        # the outer one.
+        from scripts.mcp_servers.git.git_server import app
+
+        return TestClient(app)
+
+    @pytest.fixture
+    def repo_dir(self, tmp_path):
+        d = tmp_path / "repo"
+        d.mkdir()
+        repo = git.Repo.init(str(d))
+        (d / "README.md").write_text("# test")
+        repo.index.add(["README.md"])
+        repo.index.commit("initial")
+        return d
+
+    @pytest.fixture
+    def enabled(self, repo_dir):
+        from scripts.mcp_servers.git import git_server
+
+        original_paths = git_server._cfg.allowed_repo_paths
+        original_read_only = git_server._cfg.read_only
+        original_svc_paths = git_server._service._allowed_repo_paths
+        original_svc_read_only = git_server._service._read_only
+        git_server._cfg.allowed_repo_paths = [str(repo_dir)]
+        git_server._cfg.read_only = False
+        git_server._service._allowed_repo_paths = [str(repo_dir)]
+        git_server._service._read_only = False
+        try:
+            yield
+        finally:
+            git_server._cfg.allowed_repo_paths = original_paths
+            git_server._cfg.read_only = original_read_only
+            git_server._service._allowed_repo_paths = original_svc_paths
+            git_server._service._read_only = original_svc_read_only
+
+    @pytest.mark.parametrize(
+        ("tool_name", "extra_args"),
+        [
+            ("git_status", {}),
+            ("git_log", {}),
+            ("git_diff", {}),
+            ("git_branch", {}),
+            ("git_show", {}),
+            ("git_add", {"paths": ["README.md"]}),
+            ("git_commit", {"message": "probe"}),
+        ],
+    )
+    def test_newly_reachable_tool_not_unknown(
+        self, client, enabled, repo_dir, tool_name, extra_args
+    ):
+        """AC-1: each of the 7 tools now executes instead of 'Unknown tool'."""
+        response = client.post(
+            "/v1/call_tool",
+            json={
+                "name": tool_name,
+                "args": {"repo_path": str(repo_dir), **extra_args},
+            },
+        )
+        assert response.json().get("result") != f"Unknown tool: {tool_name}"
+
+    @pytest.mark.parametrize(
+        ("tool_name", "extra_args"),
+        [
+            ("git_add", {"paths": ["README.md"]}),
+            ("git_commit", {"message": "probe"}),
+        ],
+    )
+    def test_newly_reachable_write_tool_denied_under_dirty_worktree(
+        self, client, enabled, repo_dir, tool_name, extra_args
+    ):
+        """AC-2: git_add/git_commit still go through WriteProtectionPipeline —
+        denied under the same dirty-worktree condition as the pre-existing
+        write tools (git_checkout/git_pull/git_push)."""
+        (repo_dir / "README.md").write_text("# test\nuncommitted\n")  # dirty
+        response = client.post(
+            "/v1/call_tool",
+            json={
+                "name": tool_name,
+                "args": {"repo_path": str(repo_dir), **extra_args},
+            },
+        )
+        assert response.json().get("is_error") is True
+
+    def test_read_tool_bypasses_dirty_worktree_denial(self, client, enabled, repo_dir):
+        """AC-3: a read-only tool (git_status) is not denied under the same
+        dirty-worktree condition that denies git_add/git_commit above."""
+        (repo_dir / "README.md").write_text("# test\nuncommitted\n")  # dirty
+        response = client.post(
+            "/v1/call_tool",
+            json={"name": "git_status", "args": {"repo_path": str(repo_dir)}},
+        )
+        assert response.json().get("is_error") is not True

@@ -121,10 +121,10 @@ what checkout/pull/push tests in this same file already use.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add 7 "newly reachable" `/v1/call_tool` tests (Procedure step 1, AC-1) | Pending | — | — | |
-| 2 | Add write-tool dirty/detached-HEAD denial test for `git_add`/`git_commit` (Procedure step 2, AC-2) | Pending | — | — | |
-| 3 | Add read-tool dirty/detached-HEAD bypass test (Procedure step 3, AC-3) | Pending | — | — | |
-| 4 | Run validation plan (this file + full suite) | Pending | — | — | |
+| 1 | Add 7 "newly reachable" `/v1/call_tool` tests (Procedure step 1, AC-1) | Completed | 20260906-112000 | 20260906-113500 | Parametrized single test across the 7 tool names in new `TestNewlyReachableToolsViaHTTP` class |
+| 2 | Add write-tool dirty/detached-HEAD denial test for `git_add`/`git_commit` (Procedure step 2, AC-2) | Completed | 20260906-112000 | 20260906-113500 | Parametrized across `git_add`/`git_commit` |
+| 3 | Add read-tool dirty/detached-HEAD bypass test (Procedure step 3, AC-3) | Completed | 20260906-112000 | 20260906-113500 | `test_read_tool_bypasses_dirty_worktree_denial` using `git_status` |
+| 4 | Run validation plan (this file + full suite) | Completed | 20260906-113500 | 20260906-114500 | Step 3a finding: this file's module-scoped `client` fixture (top of file) imports the app via `mcp_servers.git.server`, a distinct module object from `scripts.mcp_servers.git.git_server` used by this file's more recent `client` fixtures and by this new class's `enabled` fixture — patching one's `_cfg`/`_service` does not affect the other's live app instance. Added a class-local `client` fixture on the matching import path instead of reusing the outer one. This file: 53/53 passed. `tests/mcp_servers/git/`: 255/255 passed. Full suite: 6329 passed/572 failed/14 skipped/3 errors (1 deselected known bug) — zero failures under `tests/mcp_servers/git/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
