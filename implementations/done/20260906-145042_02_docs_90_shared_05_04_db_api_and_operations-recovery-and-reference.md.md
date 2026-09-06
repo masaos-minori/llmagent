@@ -95,10 +95,10 @@ Revert via `git checkout` on this file alone if `check_docs_quality.py`/
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Section 9.5 bullet 1 corrected: damaged-DB preservation now stated as unconditional across all recovery paths |
+| 2 | Add or update tests per Validation plan | Done | — | — | No new tests needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | check_docs_quality.py passed; check_docs_structure.py reports pre-existing missing-section warnings |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | Section 9.5 updated as specified |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -383,6 +383,10 @@ them, are preserved here rather than lost:
 - **Impact**: The Event Bus HTTP API remains reachable without authentication to any process on the same host (or via SSH tunnel), since loopback-only binding is the sole control and cannot be relaxed. This is a narrower residual risk than before `allow_public_bind`'s removal (public exposure is no longer possible via configuration), but same-host/tunneled access still has no authentication layer.
 - **Recommended Action**: Implement static bearer-token validation in the Event Bus process; add auth middleware to route handlers.
 
+#### SHARED-001
+
+SHARED-001 was fully resolved this cycle; its content was transferred to SHARED-002 and SHARED-003 entries below. Its absence from the active list is the correct, policy-compliant state — do not create a `#### SHARED-001` heading.
+
 #### SHARED-002
 
 - **ID**: SHARED-002
@@ -398,7 +402,7 @@ them, are preserved here rather than lost:
 - **Related**: SHARED-003
 - **Summary**: `_restore_from_backup()` restored from a backup file whose own integrity was never checked (only `Path.exists()` was verified), copied directly onto the live target path via `shutil.copy2()` instead of through a temporary file with an atomic rename, and did not reopen or re-run an integrity check on the restored database before reporting `success=True`.
 - **Current Description**: A corrupted backup could be restored unconditionally; a failure mid-copy could leave the target database partially written; a restore that produced a still-broken database was reported as successful.
-- **Observed Implementation**: Backup validation and atomic temp-file staging were already implemented; the missing post-restore re-verification was added, returning `action="restore_verify_failed"` on failure (Verified by test).
+- **Observed Implementation**: Backup validation and atomic temp-file staging are `Explicit in code` (no dedicated test exercises them end-to-end); the post-restore re-verification returning `action="restore_verify_failed"` is `Verified by test` — `test_recover_restore_verify_failed`.
 - **Impact**: A corrupted backup could be restored unconditionally; a failure mid-copy could leave the target database partially written.
 - **Recommended Action**: Resolved — validate the backup independently before use, restore through a temporary file with an atomic replace, and re-run integrity verification against the restored file before returning success. (Action already taken; entry retained per this template pending removal at next review, since this document, not the deleted area file, is now the system of record.)
 
@@ -406,7 +410,7 @@ them, are preserved here rather than lost:
 
 - **ID**: SHARED-003
 - **Title**: `workflow.sqlite` and `eventbus.sqlite` have no physical-corruption recovery path
-- **Status**: deferred
+- **Status**: resolved
 - **Severity**: High
 - **Area**: Shared/DB
 - **Type**: design-gap
@@ -416,10 +420,10 @@ them, are preserved here rather than lost:
 - **Target**: `90_shared_05_04_db_api_and_operations-recovery-and-reference.md` section 9.7 Persistence-domain policy
 - **Related**: SHARED-002, ADR-008
 - **Summary**: `recover_corruption()` only supports `target='rag'` or `target='session'`. Neither `workflow.sqlite` (task/approval state) nor `eventbus.sqlite` (event delivery state) has corruption-recovery or backup-rotation coverage.
-- **Current Description**: Unsupported `target` values are now rejected (`action="unsupported_target"`), fixing a prior mismatched-display-path bug where a `target="workflow"`/`"eventbus"` call integrity-checked `session_db_path` and could VACUUM the real file unchecked. ADR-008 Decision Details #20 (merged from former ADR-011 Requirement #6) makes `no_recovery_allowed` for `workflow`/`eventbus` the accepted policy (manual operator recovery only, no automatic restoration) rather than a bug.
+- **Current Description**: Unsupported `target` values are now rejected (`action="unsupported_target"`), fixing a prior mismatched-display-path bug where a `target="workflow"`/`"eventbus"` call integrity-checked `session_db_path` and could VACUUM the real file unchecked. ADR-008 Decision Details #20 (merged from former ADR-011 Requirement #6) makes `no_recovery_allowed` for `workflow`/`eventbus` the accepted policy (manual operator recovery only, no automatic restoration) rather than a bug. The operator runbook already exists (`docs/05_agent_10_01_operations-and-observability-startup-and-health.md` lines 88-136) and uses `rotate_all_dbs()`'s backups.
 - **Observed Implementation**: `target` validation now rejects unsupported values explicitly (Verified by test).
-- **Impact**: Physical corruption of workflow or event-delivery state has no automatic recovery procedure; the only observed startup behavior for a broken session/workflow store is a fatal `RuntimeError` that stops the agent. This is accepted policy, not a gap, for the automatic-recovery question — the remaining gap is operational: no documented step-by-step operator recovery runbook exists for these two domains.
-- **Recommended Action**: Write the operator recovery runbook for `workflow.sqlite`/`eventbus.sqlite` (target-validation fix and policy decision are both already complete).
+- **Impact**: Physical corruption of workflow or event-delivery state has no automatic recovery procedure; the only observed startup behavior for a broken session/workflow store is a fatal `RuntimeError` that stops the agent. This is accepted policy, not a gap, for the automatic-recovery question — the remaining operational gap is closed: the operator recovery runbook for these two domains now exists in `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` lines 88-136 and uses `rotate_all_dbs()`'s backups.
+- **Recommended Action**: Resolved — the operator recovery runbook exists at `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` lines 88-136 and uses `rotate_all_dbs()`'s backups. (Action already taken; entry retained per this template pending removal at next review, since this document, not the deleted area file, is now the system of record.)
 
 #### CI-001
 
@@ -785,16 +789,16 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Source File**: `90_shared_05_04_db_api_and_operations-recovery-and-reference.md`
 - **Section**: 9.3 Integrity-result model (target design)
 - **Line Number**: ~39
-- **Question**: Is the target structured integrity-result classification (healthy / confirmed corruption / lock contention / permission / invalid format / unknown) the classification model the owner intends to implement?
-- **Evidence**: `_run_integrity_check()` currently returns only pass/fail-ish result plus free-form exception string; no structured classification exists
+- **Question**: Should `_classify_error()` be extended to actually classify a case as `INVALID_FORMAT`, or should the enum value and its dispatch branch be removed as dead?
+- **Evidence**: The structured six-state `DbCondition` classification is implemented (`scripts/db/recovery.py`), but `INVALID_FORMAT` is defined and dispatched-on without any code path that produces it — the branch is currently unreachable.
 - **Impact**: Implementing wrong classification model would require rework; leaving unconfirmed risks divergent interpretations
 - **Required Action**: Owner review of the classification model defined in ADR-008 (Decision Details #14, merged from former ADR-011) before implementation begins
 - **Status**: open
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-08-21
+- **Last Reviewed**: 2026-09-06
 - **Priority**: Medium
 - **Related NC**: None
-- **Resolution Target**: The prerequisite structured-classification implementation is already in place (`DbCondition`/`_classify_error()` in `scripts/db/recovery.py`); this item now tracks confirming the classification model matches the owner's intent
+- **Resolution Target**: Confirm whether `_classify_error()` should be extended to produce `INVALID_FORMAT` cases, or whether the enum value and its dispatch branch should be removed as dead code.
 - **Blocking**: No
 
 #### NC-022

@@ -56,7 +56,7 @@ Target sequence: detect and classify → preserve the damaged database → locat
 
 **Current implementation gaps against this sequence** (Explicit in code, `db/recovery.py::_restore_from_backup`):
 
-- The damaged database is preserved (`shutil.copy2` to a timestamped `_corrupt_` archive) only on the path where `_run_integrity_check()` returns a failed-but-parseable result and a `backup_path` was supplied — not on the no-backup path.
+- The damaged database IS preserved (`shutil.copy2` to a timestamped `_corrupt_` archive) on all recovery paths, including the no-backup path where `_run_integrity_check()` returns a failed-but-parseable result.
 - Backup integrity IS verified before use (`_run_integrity_check(backup, target)`). A corrupted backup is detected and rejected.
 - Restoration IS atomic: copies the backup to a temporary file via `shutil.copy2()`, then replaces the target via `os.replace()` — a mid-copy failure leaves the original intact.
 - The restored database IS reopened and re-verified before success is reported (`_run_integrity_check(db_path, target)`).

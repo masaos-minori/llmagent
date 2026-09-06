@@ -544,7 +544,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 ### Known Issues
 
 - [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — SHARED-003（workflow/eventbus復旧手続きの実務Runbook未整備）、CI-002（本ADRの現行内容と対応しない旧記述の疑い）
+- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — SHARED-003（workflow/eventbus復旧手続きの実務Runbook整備済み、resolved）、CI-002（本ADRの現行内容と対応しない旧記述の疑い）
 
 ### Implementation References
 

@@ -86,10 +86,10 @@ issue.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | SHARED-003 cross-reference parenthetical updated: 「workflow/eventbus復旧手続きの実務Runbook未整備」→「workflow/eventbus復旧手続きの実務Runbook整備済み、resolved」 |
+| 2 | Add or update tests per Validation plan | Done | — | — | No new tests needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | check_docs_structure.py reports pre-existing warnings (size limit, broken links, missing sections) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | Related Documents entry updated as specified |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

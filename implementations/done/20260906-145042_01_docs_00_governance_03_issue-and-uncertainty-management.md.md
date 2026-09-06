@@ -134,10 +134,10 @@ the edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | SHARED-001 absence note added; SHARED-002 Observed Implementation updated with explicit test name and evidence labels; SHARED-003 status changed to resolved with runbook citation; NC-021 narrowed to INVALID_FORMAT-unreachable question |
+| 2 | Add or update tests per Validation plan | Done | — | — | No new tests needed; existing `test_recover_restore_verify_failed` passes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | check_docs_quality.py passed; check_docs_structure.py reports pre-existing file-size warning; all 17 db_recovery tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | All four entries updated as specified |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
