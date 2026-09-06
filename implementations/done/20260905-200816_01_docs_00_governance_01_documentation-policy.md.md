@@ -85,10 +85,10 @@ A single `git revert` of the commit containing this change fully restores the pr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only change, no automated test targets this section's prose (Plan's own Tests note) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Scoped to `check_docs_quality.py`/`check_docs_structure.py` per Validation plan, not the full code validation sequence (documentation-only change) |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's Target file IS the documentation being updated (Step 1 covers it) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260905-200816 | 20260906-140000 | No-op: "Claim Type Taxonomy" section and cross-reference sentence already present in docs/00_governance_01_documentation-policy.md |
+| 2 | Add or update tests per Validation plan | Completed | 20260906-140000 | 20260906-140000 | N/A: documentation-only change, no automated test targets this section's prose (Plan's own Tests note) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260906-140000 | 20260906-140000 | Scoped to `check_docs_quality.py`/`check_docs_structure.py` per Validation plan, not the full code validation sequence (documentation-only change) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260906-140000 | 20260906-140000 | N/A: this document's Target file IS the documentation being updated (Step 1 covers it) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

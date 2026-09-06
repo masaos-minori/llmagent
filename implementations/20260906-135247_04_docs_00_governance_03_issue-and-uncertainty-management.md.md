@@ -103,10 +103,10 @@ byte-for-byte (only on this Plan's ADR-012 row, seq 03, referencing it by name).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-06 | MCP-001/MCP-002 reconfirmed sufficient; no edit required |
+| 2 | Add or update tests per Validation plan | N/A | — | — | No code change |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No edit made |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

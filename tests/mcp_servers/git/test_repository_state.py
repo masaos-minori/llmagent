@@ -225,34 +225,6 @@ class TestGuardDelegation:
         assert state.ref_valid is True
 
 
-# ── Backward-compat shim tests ──────────────────────────────────────────────
-
-
-class TestBackwardCompatShims:
-    def test_open_repo_shim(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-        repo = state.open_repo(working_repo)
-        assert isinstance(repo, git.Repo)
-
-    def test_wrap_git_op_shim(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-
-        def op() -> str:
-            return "ok"
-
-        result = state.wrap_git_op("test", op)
-        assert result == "ok"
-
-    def test_run_tool_shim(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-
-        def tool_op(repo: git.Repo) -> str:
-            return "tool_ok"
-
-        result = state.run_tool("git_test", working_repo, tool_op)
-        assert result == "tool_ok"
-
-
 # ── Pipeline ordering tests ──────────────────────────────────────────────────
 
 
