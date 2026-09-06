@@ -105,10 +105,10 @@ N/A.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Field substitution is part of this document's own scope |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-05 | 2026-09-06 | Already applied before this cycle; no-op |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-05 | 2026-09-06 | Field substitution is part of this document's own scope |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-05 | 2026-09-06 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-05 | 2026-09-06 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
