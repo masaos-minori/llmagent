@@ -13,7 +13,6 @@ import logging
 import os
 import re
 import threading
-import warnings
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -29,22 +28,6 @@ from mcp_servers.git.errors import GitServiceError
 
 # Alias for dispatch table signatures (same as dispatch.ToolArgs)
 ToolArgs = dict[str, Any]
-
-
-# Local shim for legacy callers until they migrate away from RepoValidationResult.
-# New code should use RepositoryState directly.
-class RepoValidationResult:
-    """Result of repo path and write guard validation."""
-
-    error_message: str
-
-    def __init__(self, error_message: str) -> None:
-        warnings.warn(
-            "RepoValidationResult is deprecated; use RepositoryState instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.error_message = error_message
 
 
 logger = logging.getLogger(__name__)
@@ -254,12 +237,6 @@ class RepositoryState:
             return False, f"[DENIED] Ref {ref!r} looks like a CLI option"
         return True, ""
 
-    def validate_repo(self, repo_path: str, tool_name: str) -> RepoValidationResult:
-        """Delegates to RepositoryState properties for callers expecting RepoValidationResult."""
-        # This method exists only for callers that still expect RepoValidationResult.
-        # New code should use RepositoryState directly.
-        return RepoValidationResult(error_message="")
-
     def open_repo(self, repo_path: str) -> git.Repo:
         """Open a git.Repo at repo_path; raises git.InvalidGitRepositoryError on failure."""
         return git.Repo(repo_path, search_parent_directories=False)
@@ -427,31 +404,6 @@ class RepositoryState:
         except (git.exc.GitError, OSError, ValueError) as e:
             logger.error("%s error: %s", tool_name, e)
             raise GitServiceError(f"{tool_name} failed: {e}") from e
-
-    def _run_tool(self, tool_name: str, repo_path: str, op):
-        """Validate repo/write guards, open the repo, and run op with error wrapping."""
-        result = self._validate_repo(repo_path, tool_name)
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(repo_path)
-        return self._wrap_git_op(tool_name, lambda: op(repo))
-
-    def _validate_repo(self, repo_path: str, tool_name: str):
-        """Check repo_path and write guard; return result with error_message (empty on success)."""
-        ok, err, _resolved = self._check_repo_path(repo_path)
-        if not ok:
-            return RepoValidationResult(error_message=err)
-        if tool_name in {
-            "git_add",
-            "git_commit",
-            "git_checkout",
-            "git_pull",
-            "git_push",
-        }:
-            ok, err = self._check_write()
-            if not ok:
-                return RepoValidationResult(error_message=err)
-        return RepoValidationResult(error_message="")
 
     def _open_repo(self, repo_path: str) -> git.Repo:
         """Open a git.Repo at repo_path; raises git.InvalidGitRepositoryError on failure."""
@@ -811,33 +763,6 @@ class WriteProtectionPipeline:
             logger.error("%s error: %s", tool_name, e)
             raise GitServiceError(f"{tool_name} failed: {e}") from e
 
-    def _run_tool(
-        self, tool_name: str, repo_path: str, op: Callable[[git.Repo], str]
-    ) -> str:
-        """Validate repo/write guards, open the repo, and run op with error wrapping."""
-        result = self._validate_repo(repo_path, tool_name)
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(repo_path)
-        return self._wrap_git_op(tool_name, lambda: op(repo))
-
-    def _validate_repo(self, repo_path: str, tool_name: str) -> RepoValidationResult:
-        """Check repo_path and write guard; return result with error_message (empty on success)."""
-        ok, err, _resolved = self._check_repo_path(repo_path)
-        if not ok:
-            return RepoValidationResult(error_message=err)
-        if tool_name in {
-            "git_add",
-            "git_commit",
-            "git_checkout",
-            "git_pull",
-            "git_push",
-        }:
-            ok, err = self._check_write()
-            if not ok:
-                return RepoValidationResult(error_message=err)
-        return RepoValidationResult(error_message="")
-
     def _open_repo(self, repo_path: str) -> git.Repo:
         """Open a git.Repo at repo_path; raises git.InvalidGitRepositoryError on failure."""
         return git.Repo(repo_path, search_parent_directories=False)
@@ -868,7 +793,6 @@ __all__ = [
     "WriteProtectionPipeline",
     "PipelineStage",
     "PipelineResult",
-    "RepoValidationResult",
 ]
 
 # ── Module-level helpers ────────────────────────────────────────────────────────

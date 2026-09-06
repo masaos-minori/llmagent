@@ -210,9 +210,9 @@ callers (`_validate_repo()` ×2, `_run_tool()` ×2, confirmed by `rg`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove `import warnings`, `RepoValidationResult` class, `validate_repo()`, both `_validate_repo()`/`_run_tool()` pairs, and the `__all__` export entry | Pending | — | — | Sequence after the `test_repository_state.py` migration lands |
-| 2 | Run `tests/mcp_servers/git/test_repository_state.py` and the full git-mcp suite | Pending | — | — | |
-| 3 | Run the validation sequence (ruff, mypy, bandit, lint-imports) | Pending | — | — | |
+| 1 | Remove `import warnings`, `RepoValidationResult` class, `validate_repo()`, both `_validate_repo()`/`_run_tool()` pairs, and the `__all__` export entry | Completed | 20260906-181000 | 20260906-182500 | Sequenced after the sibling `test_repository_state.py` migration (row 3) landed, per this row's own Assumptions. Line numbers had drifted from earlier cycles' unrelated edits to this file — re-verified each block's content before deleting |
+| 2 | Run `tests/mcp_servers/git/test_repository_state.py` and the full git-mcp suite | Completed | 20260906-182500 | 20260906-184000 | `rg -nE "_run_tool\(\|_validate_repo\("` and `rg -n "RepoValidationResult"` on this file: zero matches. `test_repository_state.py`: 67/67 passed. `tests/mcp_servers/git/`: 280/280 passed (the remaining `DeprecationWarning: RepoValidationResult is deprecated` warning originates from `git_service.py`'s own, separate `RepoValidationResult` class — out of this row's scope) |
+| 3 | Run the validation sequence (ruff, mypy, bandit, lint-imports) | Completed | 20260906-184000 | 20260906-191500 | ruff format/check, mypy (`scripts/`), lint-imports: pass (pre-existing unrelated finding unchanged). bandit: Low count unchanged at 7. Full suite (`--ignore=tests/eventbus`): 6179 passed/577 failed/14 skipped/3 errors — zero failures under `tests/mcp_servers/git/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
