@@ -172,10 +172,10 @@ N/A: no security-sensitive code path is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's Implementation IS the test rewrite/addition |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260905-185605 | 20260906-140000 | No-op: `use_semantic_cache`/`semantic_cache_threshold` already absent; confirmed via rg |
+| 2 | Add or update tests per Validation plan | Completed | 20260906-140000 | 20260906-140000 | This document's Implementation IS the test rewrite/addition |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260906-140000 | 20260906-140000 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260906-140000 | 20260906-140000 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

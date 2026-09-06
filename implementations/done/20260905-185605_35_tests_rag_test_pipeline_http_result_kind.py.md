@@ -109,10 +109,10 @@ N/A.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Check for `semcacherm` procedure `17` overlap first — see Assumptions |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: fixture cleanup only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260905-185605 | 20260906-140000 | No-op: `cfg.use_semantic_cache = False` already absent; confirmed via rg |
+| 2 | Add or update tests per Validation plan | Completed | 20260906-140000 | 20260906-140000 | N/A: fixture cleanup only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260906-140000 | 20260906-140000 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260906-140000 | 20260906-140000 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

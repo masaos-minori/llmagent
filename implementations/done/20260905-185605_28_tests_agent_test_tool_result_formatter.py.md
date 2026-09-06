@@ -1,16 +1,16 @@
 ## Goal
 Remove `use_semantic_cache`/`semantic_cache_threshold` fixture-dict keys from
-`tests/agent/test_tool_runner.py`, made obsolete by procedure documents `01`/`04`
-(`REQ-009`).
+`tests/agent/test_tool_result_formatter.py`, made obsolete by procedure documents
+`01`/`04` (`REQ-009`).
 
 ## Scope
-- **In-Scope**: remove `"use_semantic_cache": False,` (line 48) and
-  `"semantic_cache_threshold": 0.92,` (line 49).
+- **In-Scope**: remove `"use_semantic_cache": False,` (line 36) and
+  `"semantic_cache_threshold": 0.92,` (line 37).
 - **Out-of-Scope**: every other key in the same dict and every test in this file —
   confirmed unrelated by reading the surrounding lines.
 
 ## Assumptions
-- This dict is a raw-config-dict fixture analogous to procedure documents `25`-`28`'s.
+- This dict is a raw-config-dict fixture analogous to procedure documents `25`-`27`'s.
 
 ## Design decisions
 (per `skills/python-design/SKILL.md` Final Output §7, narrow bullet only)
@@ -22,18 +22,18 @@ N/A: straightforward removal of two now-rejected fixture keys.
 
 ## Implementation
 ### Target file
-`tests/agent/test_tool_runner.py`
+`tests/agent/test_tool_result_formatter.py`
 
 ### Procedure
-1. Remove `"use_semantic_cache": False,` (line 48).
-2. Remove `"semantic_cache_threshold": 0.92,` (line 49).
+1. Remove `"use_semantic_cache": False,` (line 36).
+2. Remove `"semantic_cache_threshold": 0.92,` (line 37).
 
 ### Method
 Direct removal via `Edit`.
 
 ### Details
-- Confirm after editing: `rg -n "semantic_cache" tests/agent/test_tool_runner.py`
-  returns zero matches.
+- Confirm after editing: `rg -n "semantic_cache"
+  tests/agent/test_tool_result_formatter.py` returns zero matches.
 
 ## Compatibility considerations
 N/A: test-only file.
@@ -46,8 +46,8 @@ N/A.
   procedure document `04`.
 
 ## Validation plan
-- `uv run pytest tests/agent/test_tool_runner.py -v` — all tests pass.
-- `rg -n "semantic_cache" tests/agent/test_tool_runner.py` — zero matches.
+- `uv run pytest tests/agent/test_tool_result_formatter.py -v` — all tests pass.
+- `rg -n "semantic_cache" tests/agent/test_tool_result_formatter.py` — zero matches.
 
 ## Completion criteria
 - No reference to either removed key remains in this file (Plan `AC-8`).
@@ -60,10 +60,10 @@ N/A.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: fixture cleanup only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260905-185605 | 20260906-140000 | No-op: lines 36-37 already absent; confirmed via rg |
+| 2 | Add or update tests per Validation plan | Completed | 20260906-140000 | 20260906-140000 | N/A: fixture cleanup only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260906-140000 | 20260906-140000 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260906-140000 | 20260906-140000 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -83,4 +83,4 @@ N/A.
 - **Source plan**: plans/20260904-141001_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260905-185605
-- **Related target files**: tests/agent/test_tool_runner.py
+- **Related target files**: tests/agent/test_tool_result_formatter.py
