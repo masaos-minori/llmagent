@@ -45,8 +45,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "use_two_stage_fetch": False,
         "two_stage_max_docs": 2,
         "  serial_tool_calls": False,
-        "use_semantic_cache": False,
-        "semantic_cache_threshold": 0.92,
         "tool_result_max_llm_chars": 4000,
         "masked_fields": [],
         "allowed_tools": [],

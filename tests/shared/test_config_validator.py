@@ -29,23 +29,6 @@ class TestRagConfigValidator:
         )
         assert len(result.warnings) == 0
 
-    def test_semantic_cache_threshold_low_warning(self) -> None:
-        result = self.validator.validate(
-            {
-                "rag": {"semantic_cache_threshold": 0.3},
-            }
-        )
-        assert len(result.warnings) == 1
-        assert "semantic_cache_threshold=0.3" in result.warnings[0]
-
-    def test_semantic_cache_threshold_normal_no_warning(self) -> None:
-        result = self.validator.validate(
-            {
-                "rag": {"semantic_cache_threshold": 0.92},
-            }
-        )
-        assert len(result.warnings) == 0
-
     def test_multiple_errors(self) -> None:
         result = self.validator.validate(
             {
@@ -55,9 +38,11 @@ class TestRagConfigValidator:
                 },
             }
         )
-        assert result.ok is True
-        assert len(result.errors) == 0
-        assert len(result.warnings) == 2
+        assert result.ok is False
+        assert len(result.errors) == 1
+        assert len(result.warnings) == 1
+        assert "semantic_cache_threshold" in result.errors[0]
+        assert "use_rrf" in result.warnings[0]
 
     def test_no_rag_key(self) -> None:
         result = self.validator.validate({})
@@ -70,30 +55,21 @@ class TestRagConfigValidator:
                 "semantic_cache_threshold": 0.2,
             }
         )
-        assert result.ok is True
-        assert len(result.errors) == 0
-        assert len(result.warnings) == 2
+        assert result.ok is False
+        assert len(result.errors) == 1
+        assert len(result.warnings) == 1
+        assert "semantic_cache_threshold" in result.errors[0]
+        assert "use_rrf" in result.warnings[0]
 
-    def test_flat_config_negative_max_size_error(self) -> None:
+    def test_flat_config_semantic_cache_max_size_present_error(self) -> None:
         result = self.validator.validate(
             {
-                "semantic_cache_max_size": -1,
+                "semantic_cache_max_size": 100,
             }
         )
         assert result.ok is False
         assert len(result.errors) == 1
-        assert (
-            "semantic_cache_max_size=-1 is negative; must be >= 0" in result.errors[0]
-        )
-
-    def test_flat_config_max_size_zero_no_error(self) -> None:
-        result = self.validator.validate(
-            {
-                "semantic_cache_max_size": 0,
-            }
-        )
-        assert result.ok is True
-        assert len(result.errors) == 0
+        assert "semantic_cache_max_size" in result.errors[0]
 
     def test_flat_config_use_rrf_false_warning(self) -> None:
         result = self.validator.validate(
@@ -104,14 +80,46 @@ class TestRagConfigValidator:
         assert len(result.warnings) == 1
         assert "use_rrf=false" in result.warnings[0]
 
-    def test_nested_config_negative_max_size_error(self) -> None:
+    def test_nested_config_semantic_cache_max_size_present_error(self) -> None:
         result = self.validator.validate(
             {
-                "rag": {"semantic_cache_max_size": -1},
+                "rag": {"semantic_cache_max_size": 100},
             }
         )
         assert result.ok is False
         assert len(result.errors) == 1
-        assert (
-            "semantic_cache_max_size=-1 is negative; must be >= 0" in result.errors[0]
+        assert "semantic_cache_max_size" in result.errors[0]
+
+    def test_use_semantic_cache_present_error(self) -> None:
+        result = self.validator.validate(
+            {
+                "rag": {"use_semantic_cache": True},
+            }
         )
+        assert result.ok is False
+        assert "use_semantic_cache" in result.errors[0]
+
+    def test_semantic_cache_threshold_present_error(self) -> None:
+        result = self.validator.validate(
+            {
+                "rag": {"semantic_cache_threshold": 0.92},
+            }
+        )
+        assert result.ok is False
+        assert "semantic_cache_threshold" in result.errors[0]
+
+    def test_all_three_removed_keys_produce_one_combined_error(self) -> None:
+        result = self.validator.validate(
+            {
+                "rag": {
+                    "use_semantic_cache": True,
+                    "semantic_cache_threshold": 0.92,
+                    "semantic_cache_max_size": 100,
+                },
+            }
+        )
+        assert result.ok is False
+        assert len(result.errors) == 1
+        assert "use_semantic_cache" in result.errors[0]
+        assert "semantic_cache_threshold" in result.errors[0]
+        assert "semantic_cache_max_size" in result.errors[0]

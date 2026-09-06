@@ -24,12 +24,9 @@ def _make_rag_cfg(
     use_mqe: bool = False,
     use_refiner: bool = False,
     use_search: bool = True,
-    use_semantic_cache: bool = True,
 ) -> SimpleNamespace:
     """Build a RagConfig-compatible SimpleNamespace for pipeline construction."""
     return SimpleNamespace(
-        semantic_cache_max_size=100,
-        semantic_cache_threshold=0.85,
         use_mqe=use_mqe,
         top_k_search=5,
         use_rerank=use_rerank,
@@ -46,7 +43,6 @@ def _make_rag_cfg(
         refiner_max_tokens=256,
         refiner_max_chars_per_chunk=500,
         refiner_timeout=10.0,
-        use_semantic_cache=use_semantic_cache,
         llm_url="http://localhost:8000/v1/chat/completions",
         embed_url="http://localhost:8000/v1/embeddings",
         rag_db_path=":memory:",

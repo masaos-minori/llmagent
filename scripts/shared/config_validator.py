@@ -33,9 +33,9 @@ class RagConfigValidator:
         if use_rrf_warning is not None:
             warnings.append(use_rrf_warning)
 
-        unknown_keys = self._check_unknown_rag_keys(rag)
-        for key in unknown_keys:
-            errors.append(f"unknown RAG config key: {key}")
+        removed_key_error = self._check_removed_semantic_cache_keys(rag)
+        if removed_key_error is not None:
+            errors.append(removed_key_error)
 
         return ConfigValidationResult(errors=errors, warnings=warnings)
 
@@ -52,7 +52,16 @@ class RagConfigValidator:
         return None
 
     @staticmethod
-    def _check_unknown_rag_keys(rag: Mapping[str, Any]) -> list[str]:
-        """Return a list of unknown RAG config keys that were removed from RagConfigImpl."""
+    def _check_removed_semantic_cache_keys(rag: Mapping[str, Any]) -> str | None:
+        """Return a migration error message when any removed semantic cache key is present."""
         REMOVED_KEYS = frozenset(("semantic_cache_max_size", "semantic_cache_threshold", "use_semantic_cache"))
-        return [k for k in rag if k in REMOVED_KEYS]
+        found = [k for k in rag if k in REMOVED_KEYS]
+        if found:
+            keys_str = ", ".join(sorted(found))
+            return (
+                f"Configuration key(s) {keys_str} are no longer supported -- "
+                "the semantic cache feature was removed (see issues/done/20260902-150339_semcacherm_..."
+                " and issues/20260902-150341_semcachedocs_...); "
+                f"remove {keys_str} from your configuration."
+            )
+        return None

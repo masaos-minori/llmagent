@@ -15,6 +15,7 @@ from typing import Any, TypedDict, cast
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
+from shared.config_validator import RagConfigValidator
 from shared.types import RagConfig
 
 logger = logging.getLogger(__name__)
@@ -56,9 +57,6 @@ class RagPipelineConfig:
     rag_top_k: int = 5
     rag_min_score: float = 2.0
     max_chunks_per_doc: int = 3
-    semantic_cache_max_size: int = 100
-    semantic_cache_threshold: float = 0.92
-    use_semantic_cache: bool = False
     refiner_max_tokens: int = 512
     refiner_max_chars_per_chunk: int = 300
     refiner_timeout: float = 30.0
@@ -87,9 +85,6 @@ class RagPipelineConfig:
             rag_top_k=int(d.get("rag_top_k", 5)),
             rag_min_score=float(d.get("rag_min_score", 2.0)),
             max_chunks_per_doc=int(d.get("max_chunks_per_doc", 3)),
-            semantic_cache_max_size=int(d.get("semantic_cache_max_size", 100)),
-            semantic_cache_threshold=float(d.get("semantic_cache_threshold", 0.92)),
-            use_semantic_cache=bool(d.get("use_semantic_cache", False)),
             refiner_max_tokens=int(d.get("refiner_max_tokens", 512)),
             refiner_max_chars_per_chunk=int(d.get("refiner_max_chars_per_chunk", 300)),
             refiner_timeout=float(d.get("refiner_timeout", 30.0)),
@@ -99,7 +94,18 @@ class RagPipelineConfig:
     @classmethod
     def load(cls) -> RagPipelineConfig:
         """Load from rag_pipeline_mcp_server.toml; raises on failure (fail-fast)."""
-        return cls.from_dict(ConfigLoader().load("rag_pipeline_mcp_server.toml"))
+        raw_cfg = ConfigLoader().load("rag_pipeline_mcp_server.toml")
+        validator = RagConfigValidator()
+        validation_result = validator.validate(raw_cfg)
+        for warning in validation_result.warnings:
+            logger.warning("rag_pipeline_mcp_server config warning: %s", warning)
+        for error in validation_result.errors:
+            logger.error("rag_pipeline_mcp_server config error: %s", error)
+        if not validation_result.ok:
+            raise ValueError(
+                f"RAG pipeline MCP config validation failed: {validation_result.errors}"
+            )
+        return cls.from_dict(raw_cfg)
 
 
 def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> RagConfig:
@@ -126,9 +132,6 @@ def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> RagConfig:
             rag_top_k=int(cfg.rag_top_k),
             rag_min_score=float(cfg.rag_min_score),
             max_chunks_per_doc=int(cfg.max_chunks_per_doc),
-            semantic_cache_max_size=int(cfg.semantic_cache_max_size),
-            semantic_cache_threshold=float(cfg.semantic_cache_threshold),
-            use_semantic_cache=bool(cfg.use_semantic_cache),
             refiner_max_tokens=int(cfg.refiner_max_tokens),
             refiner_max_chars_per_chunk=int(cfg.refiner_max_chars_per_chunk),
             refiner_timeout=float(cfg.refiner_timeout),

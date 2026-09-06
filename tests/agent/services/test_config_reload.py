@@ -46,9 +46,6 @@ def svc() -> object:
     )
     rag_cfg = RAGConfig(
         embed_url="http://localhost:8080/embed",
-        use_semantic_cache=False,
-        semantic_cache_threshold=0.92,
-        semantic_cache_max_size=100,
         use_refiner=False,
         refiner_max_tokens=512,
         refiner_timeout=30.0,
@@ -100,9 +97,6 @@ def svc_with_ctx() -> tuple[object, MagicMock]:
     )
     rag_cfg = RAGConfig(
         embed_url="http://localhost:8080/embed",
-        use_semantic_cache=False,
-        semantic_cache_threshold=0.92,
-        semantic_cache_max_size=100,
         use_refiner=False,
         refiner_max_tokens=512,
         refiner_timeout=30.0,
@@ -203,17 +197,14 @@ class TestApplyConfig:
         svc, ctx = svc_with_ctx
         ctx.cfg.llm.llm_temperature = 0.2
         ctx.cfg.tool.serial_tool_calls = False
-        ctx.cfg.rag.use_semantic_cache = False
         svc.apply_config_dict(
             {
                 "llm_temperature": 0.5,
                 "serial_tool_calls": True,
-                "use_semantic_cache": True,
             }
         )
         assert ctx.cfg.llm.llm_temperature == 0.5
         assert ctx.cfg.tool.serial_tool_calls is True
-        assert ctx.cfg.rag.use_semantic_cache is True
 
 
 class TestDiffMcpServerConfig:
@@ -650,9 +641,6 @@ class TestCollectFieldChangesConsolidation:
         )
         rag_cfg = RAGConfig(
             embed_url="http://localhost:8080/embed",
-            use_semantic_cache=False,
-            semantic_cache_threshold=0.92,
-            semantic_cache_max_size=100,
             use_refiner=False,
             refiner_max_tokens=512,
             refiner_timeout=30.0,
@@ -721,10 +709,7 @@ class TestCollectFieldChangesConsolidation:
     ) -> None:
         new_cfg: dict[str, Any] = {
             "embed_url": "http://localhost:8080/embed",
-            "use_semantic_cache": True,
             "web_search_url": "https://search.example.com",
-            "semantic_cache_threshold": 0.95,
-            "semantic_cache_max_size": 200,
             "use_refiner": True,
             "refiner_max_tokens": 1024,
             "refiner_timeout": 45.0,
@@ -736,12 +721,9 @@ class TestCollectFieldChangesConsolidation:
         reload_svc._collect_field_changes(  # type: ignore[attr-defined]
             new_cfg, llm_changes, rag_changes, tool_changes
         )
-        assert len(rag_changes) == 9
+        assert len(rag_changes) == 6
         assert "embed_url" in rag_changes
-        assert "use_semantic_cache" in rag_changes
         assert "web_search_url" in rag_changes
-        assert "semantic_cache_threshold" in rag_changes
-        assert "semantic_cache_max_size" in rag_changes
         assert "use_refiner" in rag_changes
         assert "refiner_max_tokens" in rag_changes
         assert "refiner_timeout" in rag_changes
@@ -793,7 +775,7 @@ class TestCollectFieldChangesConsolidation:
     ) -> None:
         new_cfg: dict[str, Any] = {
             "llm_temperature": 0.9,
-            "use_semantic_cache": False,
+            "embed_url": "http://localhost:8080/embed",
             "max_tool_turns": 5,
         }
         llm_changes: dict[str, Any] = {}
@@ -806,8 +788,8 @@ class TestCollectFieldChangesConsolidation:
         assert "llm_temperature" in llm_changes
         assert llm_changes["llm_temperature"] == 0.9
         assert len(rag_changes) == 1
-        assert "use_semantic_cache" in rag_changes
-        assert rag_changes["use_semantic_cache"] is False
+        assert "embed_url" in rag_changes
+        assert rag_changes["embed_url"] == "http://localhost:8080/embed"
         assert len(tool_changes) == 1
         assert "max_tool_turns" in tool_changes
         assert tool_changes["max_tool_turns"] == 5

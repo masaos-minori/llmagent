@@ -27,7 +27,6 @@ class TestRagPipelineConfigFromDict:
         assert cfg.top_k_search == 20
         assert cfg.top_k_rerank == 15
         assert cfg.rag_min_score == 2.0
-        assert cfg.semantic_cache_max_size == 100
         assert cfg.refiner_max_chars_per_chunk == 300
 
     def test_custom_values_are_mapped(self) -> None:
@@ -51,9 +50,6 @@ class TestRagPipelineConfigFromDict:
             "rag_top_k": 4,
             "rag_min_score": 0.5,
             "max_chunks_per_doc": 2,
-            "semantic_cache_max_size": 64,
-            "semantic_cache_threshold": 0.8,
-            "use_semantic_cache": True,
             "refiner_max_tokens": 128,
             "refiner_max_chars_per_chunk": 400,
             "refiner_timeout": 12.5,
@@ -79,9 +75,6 @@ class TestRagPipelineConfigFromDict:
         assert cfg.rag_top_k == 4
         assert cfg.rag_min_score == 0.5
         assert cfg.max_chunks_per_doc == 2
-        assert cfg.semantic_cache_max_size == 64
-        assert cfg.semantic_cache_threshold == 0.8
-        assert cfg.use_semantic_cache is True
         assert cfg.refiner_max_tokens == 128
         assert cfg.refiner_max_chars_per_chunk == 400
         assert cfg.refiner_timeout == 12.5

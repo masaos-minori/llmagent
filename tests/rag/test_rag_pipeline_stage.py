@@ -20,9 +20,6 @@ from rag.stages.search import SearchStage
 
 @dataclasses.dataclass
 class _RagCfg:
-    semantic_cache_max_size: int = 0
-    semantic_cache_threshold: float = 0.0
-    use_semantic_cache: bool = False
     use_mqe: bool = False
     top_k_search: int = 5
     use_rerank: bool = False
@@ -55,9 +52,6 @@ class _RagCfg:
 
 def _make_rag_cfg(**overrides) -> RagConfigImpl:
     base = RagConfigImpl(
-        semantic_cache_max_size=0,
-        semantic_cache_threshold=0.0,
-        use_semantic_cache=False,
         use_mqe=False,
         top_k_search=5,
         use_rerank=False,

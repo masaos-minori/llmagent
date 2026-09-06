@@ -46,7 +46,6 @@ from agent.services.typed_validators import (
 FIELD_HTTP_TIMEOUT = "http_timeout"
 FIELD_CONTEXT_TOKEN_LIMIT = "context_token_limit"
 FIELD_EMBED_URL = "embed_url"
-FIELD_USE_SEMANTIC_CACHE = "use_semantic_cache"
 FIELD_MAX_TOOL_TURNS = "max_tool_turns"
 FIELD_TOOL_RESULT_MAX_LLM_CHARS = "tool_result_max_llm_chars"
 FIELD_CONTEXT_CHAR_LIMIT = "context_char_limit"
@@ -68,8 +67,6 @@ FIELD_LLML_STREAM_RETRY_ON_MALFORMED_CHUNK = "llm_stream_retry_on_malformed_chun
 FIELD_SYSTEM_PROMPT_TOOL = "system_prompt_tool"
 FIELD_SYSTEM_PROMPTS = "system_prompts"
 FIELD_TOOL_DEFINITIONS = "tool_definitions"
-FIELD_SEMANTIC_CACHE_THRESHOLD = "semantic_cache_threshold"
-FIELD_SEMANTIC_CACHE_MAX_SIZE = "semantic_cache_max_size"
 FIELD_USE_REFINER = "use_refiner"
 FIELD_REFINER_MAX_TOKENS = "refiner_max_tokens"
 FIELD_REFINER_TIMEOUT = "refiner_timeout"
@@ -253,14 +250,8 @@ class ConfigReloadService:
         # RAG fields
         if (embed_url := _get_str(new_cfg, FIELD_EMBED_URL)) is not None:
             rag_changes[FIELD_EMBED_URL] = embed_url
-        if (vb := _get_bool(new_cfg, FIELD_USE_SEMANTIC_CACHE)) is not None:
-            rag_changes[FIELD_USE_SEMANTIC_CACHE] = vb
         if (web_search_url := _get_str(new_cfg, FIELD_WEB_SEARCH_URL)) is not None:
             rag_changes[FIELD_WEB_SEARCH_URL] = web_search_url
-        if (vf := _get_float(new_cfg, FIELD_SEMANTIC_CACHE_THRESHOLD)) is not None:
-            rag_changes[FIELD_SEMANTIC_CACHE_THRESHOLD] = vf
-        if (vi := _get_int(new_cfg, FIELD_SEMANTIC_CACHE_MAX_SIZE)) is not None:
-            rag_changes[FIELD_SEMANTIC_CACHE_MAX_SIZE] = vi
         if (vb := _get_bool(new_cfg, FIELD_USE_REFINER)) is not None:
             rag_changes[FIELD_USE_REFINER] = vb
         if (v := _get_int(new_cfg, FIELD_REFINER_MAX_TOKENS)) is not None:
@@ -500,12 +491,6 @@ class ConfigReloadService:
         self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
     ) -> None:
         """Collect RAG setting changes."""
-        if (vb := _get_bool(new_cfg, "use_semantic_cache")) is not None:
-            changes["use_semantic_cache"] = vb
-        if (v := _get_float(new_cfg, "semantic_cache_threshold")) is not None:
-            changes["semantic_cache_threshold"] = v
-        if (v := _get_int(new_cfg, "semantic_cache_max_size")) is not None:
-            changes["semantic_cache_max_size"] = v
         if (vb := _get_bool(new_cfg, "use_refiner")) is not None:
             changes["use_refiner"] = vb
         if (v := _get_int(new_cfg, "refiner_max_tokens")) is not None:

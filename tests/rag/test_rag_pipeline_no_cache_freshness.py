@@ -41,10 +41,8 @@ DEL_HIT = RawHit(
 
 
 def _make_no_cache_cfg() -> SimpleNamespace:
-    """Build a RagConfig-compatible SimpleNamespace with semantic_cache disabled."""
+    """Build a RagConfig-compatible SimpleNamespace for pipeline construction."""
     return SimpleNamespace(
-        semantic_cache_max_size=0,
-        semantic_cache_threshold=0.0,
         use_mqe=False,
         top_k_search=5,
         use_rerank=False,
@@ -61,7 +59,6 @@ def _make_no_cache_cfg() -> SimpleNamespace:
         refiner_max_tokens=256,
         refiner_max_chars_per_chunk=500,
         refiner_timeout=10.0,
-        use_semantic_cache=False,
         llm_url="http://localhost:8000/v1/chat/completions",
         embed_url="http://localhost:8000/v1/embeddings",
         rag_db_path=":memory:",

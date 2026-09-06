@@ -90,8 +90,6 @@ class RagPipelineMCPService:
             "mqe_prompt_template": cfg.mqe_prompt_template,
             "rerank_prompt_template": cfg.rerank_prompt_template,
             "use_rrf": cfg.use_rrf,
-            "semantic_cache_max_size": cfg.semantic_cache_max_size,
-            "semantic_cache_threshold": cfg.semantic_cache_threshold,
         }
 
     async def start(self) -> None:

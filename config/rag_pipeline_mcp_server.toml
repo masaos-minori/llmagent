@@ -53,10 +53,6 @@ rag_min_score = 2.0
 # Maximum chunks selected from the same document
 max_chunks_per_doc = 3
 
-# Semantic cache settings
-semantic_cache_max_size   = 100
-semantic_cache_threshold  = 0.92
-
 # Refiner settings
 refiner_max_tokens          = 512
 refiner_max_chars_per_chunk = 300

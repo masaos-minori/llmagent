@@ -40,8 +40,6 @@ class TestBuildRagCfgAdapter:
         assert ns.rag_top_k == 5
         assert ns.rag_min_score == 2.0
         assert ns.max_chunks_per_doc == 3
-        assert ns.semantic_cache_max_size == 100
-        assert ns.semantic_cache_threshold == 0.92
         assert ns.refiner_max_tokens == 512
         assert ns.refiner_max_chars_per_chunk == 300
         assert ns.refiner_timeout == 30.0
@@ -57,8 +55,6 @@ class TestBuildRagCfgAdapter:
             rag_top_k=3,
             rag_min_score=5.0,
             max_chunks_per_doc=1,
-            semantic_cache_max_size=64,
-            semantic_cache_threshold=0.85,
             refiner_max_tokens=256,
             refiner_max_chars_per_chunk=400,
             refiner_timeout=15.0,
@@ -73,8 +69,6 @@ class TestBuildRagCfgAdapter:
         assert ns.rag_top_k == 3
         assert ns.rag_min_score == 5.0
         assert ns.max_chunks_per_doc == 1
-        assert ns.semantic_cache_max_size == 64
-        assert ns.semantic_cache_threshold == 0.85
         assert ns.refiner_max_tokens == 256
         assert ns.refiner_max_chars_per_chunk == 400
         assert ns.refiner_timeout == 15.0
@@ -104,9 +98,6 @@ class TestBuildRagCfgAdapter:
             rag_top_k=5,
             rag_min_score=1.5,
             max_chunks_per_doc=2,
-            semantic_cache_max_size=64,
-            semantic_cache_threshold=0.85,
-            use_semantic_cache=True,
             refiner_max_tokens=256,
             refiner_max_chars_per_chunk=400,
             refiner_timeout=15.0,
@@ -115,8 +106,6 @@ class TestBuildRagCfgAdapter:
         adapter = build_rag_cfg_adapter(cfg)
 
         required_fields: list[str] = [
-            "semantic_cache_max_size",
-            "semantic_cache_threshold",
             "use_mqe",
             "top_k_search",
             "use_rerank",
@@ -133,7 +122,6 @@ class TestBuildRagCfgAdapter:
             "refiner_max_tokens",
             "refiner_max_chars_per_chunk",
             "refiner_timeout",
-            "use_semantic_cache",
         ]
 
         for field in required_fields:
@@ -150,9 +138,6 @@ class TestBuildRagCfgAdapter:
         assert adapter.rag_top_k == 5
         assert adapter.rag_min_score == 1.5
         assert adapter.max_chunks_per_doc == 2
-        assert adapter.semantic_cache_max_size == 64
-        assert adapter.semantic_cache_threshold == 0.85
-        assert adapter.use_semantic_cache is True
         assert adapter.refiner_max_tokens == 256
         assert adapter.refiner_max_chars_per_chunk == 400
         assert adapter.refiner_timeout == 15.0
@@ -499,8 +484,6 @@ class TestBuildModuleCfg:
             mqe_prompt_template="mqe {query}",
             rerank_prompt_template="rerank {query}",
             use_rrf=False,
-            semantic_cache_max_size=64,
-            semantic_cache_threshold=0.5,
         )
         module_cfg = RagPipelineMCPService._build_module_cfg(cfg)
         assert module_cfg["rag_db_path"] == "/tmp/rag.db"
@@ -511,8 +494,6 @@ class TestBuildModuleCfg:
         assert module_cfg["mqe_prompt_template"] == "mqe {query}"
         assert module_cfg["rerank_prompt_template"] == "rerank {query}"
         assert module_cfg["use_rrf"] is False
-        assert module_cfg["semantic_cache_max_size"] == 64
-        assert module_cfg["semantic_cache_threshold"] == 0.5
         assert "http://llm" in module_cfg["llm_url"]
         assert "http://embed" in module_cfg["embed_url"]
 
