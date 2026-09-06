@@ -116,9 +116,9 @@ availability guard".
 - Report `Blocked` only if the missing check is required to prove behavior preservation.
 - Otherwise, continue and record the check as `Not run`.
 
-Do not require interactive Git commands. Use non-interactive `git diff` commands. Do not
-stage or commit unless the user explicitly requests it. Report suggested commit
-boundaries in the final report (`report-template.md`).
+Do not require interactive Git commands. Use non-interactive `git diff` commands. See
+`workflow.md` Step 8 for the staging/commit policy (opt-in only; report suggested commit
+boundaries there).
 
 If mutation testing is not configured, report `Not run`. Do not invent mutation results.
 Per `rules/ai-execution.md` Repository Tool Usage #8, 0 surviving mutants out of 0 total
