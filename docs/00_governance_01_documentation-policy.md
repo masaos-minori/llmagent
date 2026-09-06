@@ -92,42 +92,42 @@ canonical source within that area — this matrix provides cross-cutting guidanc
 | Document | Authority | Status |
 |----------|-----------|--------|
 | docs/00_index.md | Primary | Active |
-| docs/architecture.md | Secondary | Active |
+| docs/architecture.md | Secondary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 
 ### Deployment
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/deployment_guide.md | Primary | Active |
-| deploy.sh | Operational | Active |
+| docs/deployment_guide.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
+| deploy.sh | Operational | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 
 ### RAG
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/rag/specification.md | Primary | Active |
+| docs/rag/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 | scripts/rag/embedding.py | Runtime | Active |
 
 ### MCP
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/mcp/specification.md | Primary | Active |
+| docs/mcp/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 | scripts/mcp_servers/*.py | Runtime | Active |
 
 ### Agent
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/agent/specification.md | Primary | Active |
+| docs/agent/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 | scripts/agent/*.py | Runtime | Active |
 
 ### EventBus
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/eventbus/specification.md | Primary | Active |
+| docs/eventbus/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 | scripts/eventbus/*.py | Runtime | Active |
 
 ### Shared/DB
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/shared/specification.md | Primary | Active |
+| docs/shared/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 | scripts/shared/*.py | Runtime | Active |
 
 ### Governance
@@ -175,6 +175,26 @@ From detection to record-keeping:
 3. Apply the appropriate resolution rule based on classification
 4. Update affected documents or code to eliminate the conflict
 5. Record the resolution in the relevant Known Issues document if applicable
+
+### Routing Rules
+
+When a canonical source conflict is detected, route it to exactly one destination:
+
+1. **design-vs-code** → Known Issue — Design intent conflicts with current implementation behavior
+2. **functional-requirement-vs-implementation** → Known Issue — Functional requirements contradict actual implementation
+3. **Specification-vs-acceptance-test** → blocking Canonical Source Conflict — Specification claims conflict with acceptance test outcomes
+4. **deployed-vs-approved config** → Configuration Drift — Deployed operational value differs from approved value
+5. **undetermined intent** → Needs Confirmation — Cannot determine whether discrepancy reflects intentional design or omission
+6. **missing canonical source** → design/governance gap — No authoritative source exists for the claim
+7. **multiple normative sources** → blocking Canonical Source Conflict — Two or more normative sources disagree on the same decision target
+8. **stale non-canonical wording only** → documentation-correction task — Only non-canonical documentation is stale; no code/config change needed
+
+### Merge Conditions Extension
+
+Canonical Source Conflict severity and blocking behavior:
+
+- **Blocking**: Canonical Source Conflict severity is `High` when the conflicting source is a normative source; `Medium` when the conflicting source is a non-normative reference.
+- **Non-Blocking**: Configuration Drift has no behavioral impact (already listed under Non-Blocking Conditions).
 
 ## Update Rule
 

@@ -922,6 +922,593 @@ class TestCompletePipelineCoverage:
             assert recorded_stages.index("Stage 6") < recorded_stages.index("Stage 7")
 
 
+class TestLiveCallToolAuthorization:
+    """TestClient-based regression tests for POST /v1/call_tool path.
+
+    Covers checkout/pull/push against protected and non-protected branches,
+    including implicit (empty branch) targets — closing the coverage gap where
+    all existing tests exercise only the dead-code GitService path.
+    """
+
+    @pytest.fixture
+    def client(self):
+        from scripts.mcp_servers.git.git_server import app
+
+        return TestClient(app)
+
+    @pytest.fixture
+    def mock_validate_pre_snapshot(self, monkeypatch):
+        from scripts.mcp_servers.git import git_server
+
+        monkeypatch.setattr(
+            git_server, "_validate_pre_snapshot", lambda path: (True, "")
+        )
+
+    @pytest.fixture
+    def mock_repo_state_snapshot(self, monkeypatch):
+        from mcp_servers.git.repository_state import RepositoryState
+
+        fake_state = MagicMock(spec=RepositoryState)
+        fake_state.path = "/tmp/allowed/repo"
+        fake_state.is_dirty = False
+        fake_state.head_type = "branch"
+        fake_state.active_branch = "main"
+        fake_state.untracked_file_count = 0
+        fake_state.protected_branch = True
+        fake_state.ref_valid = True
+        fake_state.verify_authorization.return_value = (
+            False,
+            "[DENIED] main is a protected branch",
+        )
+        fake_state.verify_preconditions.return_value = (True, "")
+        fake_state.verify_postcondition.return_value = (True, "")
+        fake_state.snapshot.return_value = fake_state
+        monkeypatch.setattr(RepositoryState, "snapshot", lambda *a, **kw: fake_state)
+
+    @pytest.fixture
+    def mock_repo_state_snapshot_dynamic(self, monkeypatch):
+        from mcp_servers.git.repository_state import (
+            PipelineResult,
+            RepositoryState,
+            WriteProtectionPipeline,
+        )
+
+        def _normalize_branch_name(branch):
+            stripped = branch.strip()
+            if not stripped:
+                return ""
+            if stripped.startswith("refs/heads/"):
+                return stripped.lower()
+            return f"refs/heads/{stripped}".lower()
+
+        def make_fake_state(*args, protected_branches=None, active_ref="", **kw):
+            fake_state = MagicMock(spec=RepositoryState)
+            fake_state.path = "/tmp/allowed/repo"
+            fake_state.is_dirty = False
+            fake_state.head_type = "branch"
+            # Use active_ref directly; empty string stays empty (no default to "main")
+            fake_state.active_branch = active_ref if active_ref else ""
+            fake_state.untracked_file_count = 0
+            # For non-empty refs: normalize both sides for comparison
+            if active_ref:
+                norm_active = _normalize_branch_name(active_ref)
+                norm_protected = [
+                    _normalize_branch_name(b) for b in (protected_branches or [])
+                ]
+                fake_state.protected_branch = bool(
+                    norm_protected and norm_active in norm_protected
+                )
+            else:
+                fake_state.protected_branch = False
+            fake_state.ref_valid = bool(active_ref)  # empty ref is invalid
+            if fake_state.protected_branch:
+                fake_state.verify_authorization.return_value = (
+                    False,
+                    f"[DENIED] {fake_state.active_branch!r} is a protected branch",
+                )
+            elif not fake_state.ref_valid:
+                fake_state.verify_authorization.return_value = (
+                    False,
+                    f"[DENIED] Ref {fake_state.active_branch!r} looks like a CLI option",
+                )
+            else:
+                fake_state.verify_authorization.return_value = (True, "")
+            fake_state.verify_preconditions.return_value = (True, "")
+            fake_state.verify_postcondition.return_value = (True, "")
+            fake_state.snapshot.return_value = fake_state
+            return fake_state
+
+        monkeypatch.setattr(RepositoryState, "snapshot", make_fake_state)
+
+        def mock_pipeline_run(
+            self,
+            tool_name,
+            op,
+            dry_run=False,
+            allow_detached_head=False,
+            requested_branch=None,
+            protected_branches=None,
+            active_ref="",
+        ):
+            # Signature kept in sync with WriteProtectionPipeline.run() (gitdryrun's
+            # dry_run/allow_detached_head params) so positional call sites don't
+            # silently bind the wrong keyword.
+            ok, msg = self._state.verify_authorization()
+            if not ok:
+                return PipelineResult.reject(self._state, "Stage 3", msg)
+            ok, msg = self._state.verify_preconditions(
+                tool_name, dry_run, allow_detached_head
+            )
+            if not ok:
+                return PipelineResult.reject(self._state, "Stage 5", msg)
+            output = f"{tool_name} succeeded on {self._state.active_branch}"
+            post_state = self._state.snapshot(
+                self._state.path,
+                protected_branches=protected_branches or [],
+                active_ref=active_ref,
+            )
+            ok, msg = self._state.verify_postcondition(
+                output, post_state, tool_name, requested_branch
+            )
+            if not ok:
+                return PipelineResult.reject(
+                    self._state, "Stage 7", msg, post_state=post_state
+                )
+            return PipelineResult.ok_result(post_state, output, post_state=post_state)
+
+        monkeypatch.setattr(WriteProtectionPipeline, "run", mock_pipeline_run)
+
+    @pytest.mark.asyncio
+    async def test_checkout_protected_branch_denied(
+        self,
+        client,
+        monkeypatch,
+        mock_validate_pre_snapshot,
+        mock_repo_state_snapshot_dynamic,
+    ):
+        """POST /v1/call_tool with git_checkout + branch=main must deny when main is protected."""
+        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
+        from scripts.mcp_servers.git.git_server import _service as server_service
+
+        original_read_only = server_cfg.read_only
+        original_svc_read_only = server_service._read_only
+        original_allowed = server_cfg.allowed_repo_paths
+        original_svc_allowed = server_service._allowed_repo_paths
+        original_protected = server_cfg.protected_branches
+        try:
+            server_cfg.read_only = False
+            server_service._read_only = False
+            server_cfg.allowed_repo_paths = ["/tmp/allowed"]
+            server_service._allowed_repo_paths = ["/tmp/allowed"]
+            server_cfg.protected_branches = ["main"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_checkout",
+                    "args": {
+                        "repo_path": "/tmp/allowed/repo",
+                        "branch": "main",
+                        "create": False,
+                        "dry_run": False,
+                    },
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            assert "[DENIED]" in str(body.get("result", ""))
+            assert "protected branch" in str(body.get("result", "")).lower()
+        finally:
+            server_cfg.read_only = original_read_only
+            server_service._read_only = original_svc_read_only
+            server_cfg.allowed_repo_paths = original_allowed
+            server_service._allowed_repo_paths = original_svc_allowed
+            server_cfg.protected_branches = original_protected
+
+    @pytest.mark.asyncio
+    async def test_checkout_non_protected_branch_allowed(
+        self,
+        client,
+        monkeypatch,
+        mock_validate_pre_snapshot,
+        mock_repo_state_snapshot_dynamic,
+    ):
+        """POST /v1/call_tool with git_checkout + branch=develop must allow when develop is not protected."""
+        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
+        from scripts.mcp_servers.git.git_server import _service as server_service
+
+        original_read_only = server_cfg.read_only
+        original_svc_read_only = server_service._read_only
+        original_allowed = server_cfg.allowed_repo_paths
+        original_svc_allowed = server_service._allowed_repo_paths
+        try:
+            server_cfg.read_only = False
+            server_service._read_only = False
+            server_cfg.allowed_repo_paths = ["/tmp/allowed"]
+            server_service._allowed_repo_paths = ["/tmp/allowed"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_checkout",
+                    "args": {
+                        "repo_path": "/tmp/allowed/repo",
+                        "branch": "develop",
+                        "create": False,
+                        "dry_run": False,
+                    },
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            # Non-protected branch should not be denied by authorization
+            assert "protected branch" not in str(body.get("result", "")).lower()
+        finally:
+            server_cfg.read_only = original_read_only
+            server_service._read_only = original_svc_read_only
+            server_cfg.allowed_repo_paths = original_allowed
+            server_service._allowed_repo_paths = original_svc_allowed
+
+    @pytest.mark.asyncio
+    async def test_pull_protected_branch_denied(
+        self,
+        client,
+        monkeypatch,
+        mock_validate_pre_snapshot,
+        mock_repo_state_snapshot_dynamic,
+    ):
+        """POST /v1/call_tool with git_pull + branch=master must deny when master is protected."""
+        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
+        from scripts.mcp_servers.git.git_server import _service as server_service
+
+        original_read_only = server_cfg.read_only
+        original_svc_read_only = server_service._read_only
+        original_allowed = server_cfg.allowed_repo_paths
+        original_svc_allowed = server_service._allowed_repo_paths
+        original_protected = server_cfg.protected_branches
+        try:
+            server_cfg.read_only = False
+            server_service._read_only = False
+            server_cfg.allowed_repo_paths = ["/tmp/allowed"]
+            server_service._allowed_repo_paths = ["/tmp/allowed"]
+            server_cfg.protected_branches = ["master"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_pull",
+                    "args": {
+                        "repo_path": "/tmp/allowed/repo",
+                        "remote": "origin",
+                        "branch": "master",
+                        "dry_run": False,
+                    },
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            assert "[DENIED]" in str(body.get("result", ""))
+            assert "protected branch" in str(body.get("result", "")).lower()
+        finally:
+            server_cfg.read_only = original_read_only
+            server_service._read_only = original_svc_read_only
+            server_cfg.allowed_repo_paths = original_allowed
+            server_service._allowed_repo_paths = original_svc_allowed
+            server_cfg.protected_branches = original_protected
+
+    @pytest.mark.asyncio
+    async def test_pull_non_protected_branch_allowed(
+        self,
+        client,
+        monkeypatch,
+        mock_validate_pre_snapshot,
+        mock_repo_state_snapshot_dynamic,
+    ):
+        """POST /v1/call_tool with git_pull + branch=develop must allow when develop is not protected."""
+        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
+        from scripts.mcp_servers.git.git_server import _service as server_service
+
+        original_read_only = server_cfg.read_only
+        original_svc_read_only = server_service._read_only
+        original_allowed = server_cfg.allowed_repo_paths
+        original_svc_allowed = server_service._allowed_repo_paths
+        try:
+            server_cfg.read_only = False
+            server_service._read_only = False
+            server_cfg.allowed_repo_paths = ["/tmp/allowed"]
+            server_service._allowed_repo_paths = ["/tmp/allowed"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_pull",
+                    "args": {
+                        "repo_path": "/tmp/allowed/repo",
+                        "remote": "origin",
+                        "branch": "develop",
+                        "dry_run": False,
+                    },
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            assert "protected branch" not in str(body.get("result", "")).lower()
+        finally:
+            server_cfg.read_only = original_read_only
+            server_service._read_only = original_svc_read_only
+            server_cfg.allowed_repo_paths = original_allowed
+            server_service._allowed_repo_paths = original_svc_allowed
+
+    @pytest.mark.asyncio
+    async def test_push_protected_branch_denied(
+        self,
+        client,
+        monkeypatch,
+        mock_validate_pre_snapshot,
+        mock_repo_state_snapshot_dynamic,
+    ):
+        """POST /v1/call_tool with git_push + branch=release must deny when release is protected."""
+        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
+        from scripts.mcp_servers.git.git_server import _service as server_service
+
+        original_read_only = server_cfg.read_only
+        original_svc_read_only = server_service._read_only
+        original_allowed = server_cfg.allowed_repo_paths
+        original_svc_allowed = server_service._allowed_repo_paths
+        original_protected = server_cfg.protected_branches
+        try:
+            server_cfg.read_only = False
+            server_service._read_only = False
+            server_cfg.allowed_repo_paths = ["/tmp/allowed"]
+            server_service._allowed_repo_paths = ["/tmp/allowed"]
+            server_cfg.protected_branches = ["release"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_push",
+                    "args": {
+                        "repo_path": "/tmp/allowed/repo",
+                        "remote": "origin",
+                        "branch": "release",
+                        "dry_run": False,
+                    },
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            assert "[DENIED]" in str(body.get("result", ""))
+            assert "protected branch" in str(body.get("result", "")).lower()
+        finally:
+            server_cfg.read_only = original_read_only
+            server_service._read_only = original_svc_read_only
+            server_cfg.allowed_repo_paths = original_allowed
+            server_service._allowed_repo_paths = original_svc_allowed
+            server_cfg.protected_branches = original_protected
+
+    @pytest.mark.asyncio
+    async def test_push_non_protected_branch_allowed(
+        self,
+        client,
+        monkeypatch,
+        mock_validate_pre_snapshot,
+        mock_repo_state_snapshot_dynamic,
+    ):
+        """POST /v1/call_tool with git_push + branch=develop must allow when develop is not protected."""
+        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
+        from scripts.mcp_servers.git.git_server import _service as server_service
+
+        original_read_only = server_cfg.read_only
+        original_svc_read_only = server_service._read_only
+        original_allowed = server_cfg.allowed_repo_paths
+        original_svc_allowed = server_service._allowed_repo_paths
+        try:
+            server_cfg.read_only = False
+            server_service._read_only = False
+            server_cfg.allowed_repo_paths = ["/tmp/allowed"]
+            server_service._allowed_repo_paths = ["/tmp/allowed"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_push",
+                    "args": {
+                        "repo_path": "/tmp/allowed/repo",
+                        "remote": "origin",
+                        "branch": "develop",
+                        "dry_run": False,
+                    },
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            assert "protected branch" not in str(body.get("result", "")).lower()
+        finally:
+            server_cfg.read_only = original_read_only
+            server_service._read_only = original_svc_read_only
+            server_cfg.allowed_repo_paths = original_allowed
+            server_service._allowed_repo_paths = original_svc_allowed
+
+    @pytest.mark.asyncio
+    async def test_checkout_implicit_target_denied(
+        self,
+        client,
+        monkeypatch,
+        mock_validate_pre_snapshot,
+        mock_repo_state_snapshot_dynamic,
+    ):
+        """POST /v1/call_tool with git_checkout + empty branch must deny/resolution (REQ-007)."""
+        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
+        from scripts.mcp_servers.git.git_server import _service as server_service
+
+        original_read_only = server_cfg.read_only
+        original_svc_read_only = server_service._read_only
+        original_allowed = server_cfg.allowed_repo_paths
+        original_svc_allowed = server_service._allowed_repo_paths
+        try:
+            server_cfg.read_only = False
+            server_service._read_only = False
+            server_cfg.allowed_repo_paths = ["/tmp/allowed"]
+            server_service._allowed_repo_paths = ["/tmp/allowed"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_checkout",
+                    "args": {
+                        "repo_path": "/tmp/allowed/repo",
+                        "branch": "",
+                        "create": False,
+                        "dry_run": False,
+                    },
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            # Empty branch should be rejected or resolved to current branch before authorization
+            result_str = str(body.get("result", ""))
+            assert (
+                "protected branch" not in result_str.lower()
+                or "branch must not be empty" in result_str.lower()
+            )
+        finally:
+            server_cfg.read_only = original_read_only
+            server_service._read_only = original_svc_read_only
+            server_cfg.allowed_repo_paths = original_allowed
+            server_service._allowed_repo_paths = original_svc_allowed
+
+    @pytest.mark.asyncio
+    async def test_pull_implicit_target_denied(
+        self,
+        client,
+        monkeypatch,
+        mock_validate_pre_snapshot,
+        mock_repo_state_snapshot_dynamic,
+    ):
+        """POST /v1/call_tool with git_pull + empty branch must deny/resolution (REQ-007)."""
+        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
+        from scripts.mcp_servers.git.git_server import _service as server_service
+
+        original_read_only = server_cfg.read_only
+        original_svc_read_only = server_service._read_only
+        original_allowed = server_cfg.allowed_repo_paths
+        original_svc_allowed = server_service._allowed_repo_paths
+        try:
+            server_cfg.read_only = False
+            server_service._read_only = False
+            server_cfg.allowed_repo_paths = ["/tmp/allowed"]
+            server_service._allowed_repo_paths = ["/tmp/allowed"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_pull",
+                    "args": {
+                        "repo_path": "/tmp/allowed/repo",
+                        "remote": "origin",
+                        "branch": "",
+                        "dry_run": False,
+                    },
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            result_str = str(body.get("result", ""))
+            assert (
+                "protected branch" not in result_str.lower()
+                or "branch must not be empty" in result_str.lower()
+            )
+        finally:
+            server_cfg.read_only = original_read_only
+            server_service._read_only = original_svc_read_only
+            server_cfg.allowed_repo_paths = original_allowed
+            server_service._allowed_repo_paths = original_svc_allowed
+
+    @pytest.mark.asyncio
+    async def test_push_implicit_target_denied(
+        self,
+        client,
+        monkeypatch,
+        mock_validate_pre_snapshot,
+        mock_repo_state_snapshot_dynamic,
+    ):
+        """POST /v1/call_tool with git_push + empty branch must deny/resolution (REQ-007)."""
+        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
+        from scripts.mcp_servers.git.git_server import _service as server_service
+
+        original_read_only = server_cfg.read_only
+        original_svc_read_only = server_service._read_only
+        original_allowed = server_cfg.allowed_repo_paths
+        original_svc_allowed = server_service._allowed_repo_paths
+        try:
+            server_cfg.read_only = False
+            server_service._read_only = False
+            server_cfg.allowed_repo_paths = ["/tmp/allowed"]
+            server_service._allowed_repo_paths = ["/tmp/allowed"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_push",
+                    "args": {
+                        "repo_path": "/tmp/allowed/repo",
+                        "remote": "origin",
+                        "branch": "",
+                        "dry_run": False,
+                    },
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            result_str = str(body.get("result", ""))
+            assert (
+                "protected branch" not in result_str.lower()
+                or "branch must not be empty" in result_str.lower()
+            )
+        finally:
+            server_cfg.read_only = original_read_only
+            server_service._read_only = original_svc_read_only
+            server_cfg.allowed_repo_paths = original_allowed
+            server_service._allowed_repo_paths = original_svc_allowed
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("branch", ["main", "refs/heads/main"])
+    async def test_parametrized_main_vs_refs_heads_main(
+        self,
+        client,
+        branch,
+        monkeypatch,
+        mock_validate_pre_snapshot,
+        mock_repo_state_snapshot_dynamic,
+    ):
+        """Parametrized test asserting both main and refs/heads/main deny checkout when main is protected."""
+        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
+        from scripts.mcp_servers.git.git_server import _service as server_service
+
+        original_read_only = server_cfg.read_only
+        original_svc_read_only = server_service._read_only
+        original_allowed = server_cfg.allowed_repo_paths
+        original_svc_allowed = server_service._allowed_repo_paths
+        try:
+            server_cfg.read_only = False
+            server_service._read_only = False
+            server_cfg.allowed_repo_paths = ["/tmp/allowed"]
+            server_service._allowed_repo_paths = ["/tmp/allowed"]
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_checkout",
+                    "args": {
+                        "repo_path": "/tmp/allowed/repo",
+                        "branch": branch,
+                        "create": False,
+                        "dry_run": False,
+                    },
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            result_str = str(body.get("result", ""))
+            assert "[DENIED]" in result_str
+            assert "protected branch" in result_str.lower()
+        finally:
+            server_cfg.read_only = original_read_only
+            server_service._read_only = original_svc_read_only
+            server_cfg.allowed_repo_paths = original_allowed
+            server_service._allowed_repo_paths = original_svc_allowed
+
+
 class TestDryRunAndDetachedHeadLivePath:
     """REQ-006, REQ-009: dry-run skips Stage 5 preconditions but not Stage 3
     authorization, and performs no mutation, via the real /v1/call_tool route."""

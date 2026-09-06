@@ -427,37 +427,6 @@ class TestRagPipelineLastTimings:
         assert "stale_stage" not in pipeline.last_timings
 
 
-class TestSemanticCacheDimensionGuard:
-    """Test SemanticCache dimension validation added in fail-fast refactor. (rag/cache.py)"""
-
-    def test_put_sets_dimension_on_first_entry(self) -> None:
-        from rag.cache import SemanticCache
-
-        cache = SemanticCache()
-        cache.put([1.0, 2.0, 3.0], "", "ctx")
-        assert cache._dim == 3
-
-    def test_put_returns_false_on_dimension_mismatch(self) -> None:
-        from rag.cache import SemanticCache
-
-        cache = SemanticCache()
-        cache.put([1.0, 2.0, 3.0], "", "ctx")
-        assert cache.put([1.0, 2.0], "", "other") is False
-
-    def test_lookup_returns_none_on_dimension_mismatch(self) -> None:
-        from rag.cache import SemanticCache
-
-        cache = SemanticCache()
-        cache.put([1.0, 2.0, 3.0], "", "ctx")
-        assert cache.lookup([1.0, 2.0]) is None
-
-    def test_lookup_empty_cache_returns_none(self) -> None:
-        from rag.cache import SemanticCache
-
-        cache = SemanticCache()
-        assert cache.lookup([1.0, 2.0, 3.0]) is None
-
-
 # ---------------------------------------------------------------------------
 # RagPipeline._run_stage — pipeline-level failure absorption (rag/pipeline.py)
 # ---------------------------------------------------------------------------

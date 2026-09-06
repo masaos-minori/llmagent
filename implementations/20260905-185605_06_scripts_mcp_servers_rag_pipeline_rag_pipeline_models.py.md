@@ -21,9 +21,11 @@ rejection applies to the RAG MCP loading path
   same file).
 
 ## Assumptions
-- Same hard ordering dependency as procedure documents `01`-`05`: this change must not
-  be applied until `semcacherm` has landed and `scripts/shared/config_validator.py`'s
-  new rejection check (procedure document `05`) exists.
+- `semcacherm` core is complete (confirmed: `scripts/rag/cache.py` and
+  `scripts/rag/ingestion/cache_invalidation.py` deleted; zero references to
+  `SemanticCache`/`CacheEntry`/`CacheService`/`invalidate_cache`/`rag_invalidate_cache`).
+  This change must not be applied until `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004)
+  lands as a unit — see Blocker Log.
 - `ConfigLoader().load("rag_pipeline_mcp_server.toml")` (called inside `load()`)
   returns a flat `dict[str, Any]` matching the shape `RagConfigValidator.validate()`'s
   `_extract_rag_section()` already normalizes for the MCP "flat `{...}`" case (per that
@@ -156,7 +158,7 @@ configuration-loading trust boundary.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacherm` lands and procedure document `05` lands — see Assumptions |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004) lands as a unit — see Blocker Log; `semcacherm` core is complete |
 | 2 | Add or update tests per Validation plan | Pending | — | — | Covered by procedure document for `tests/mcp_servers/rag_pipeline/test_rag_pipeline_models.py` |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation deferred to `semcachedocs` |
@@ -164,7 +166,7 @@ configuration-loading trust boundary.
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on `semcacherm`'s implementation and this Plan's `scripts/shared/config_validator.py` change landing first | No | — |
+| 1 | Part of `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004). Must land together as a unit — REQ-003 (`_05`) must precede REQ-002/REQ-004's validator wiring. `semcacherm` core is complete; `semcacheconfig` Phase 1 is prerequisite. | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

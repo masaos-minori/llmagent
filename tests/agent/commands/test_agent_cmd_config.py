@@ -196,9 +196,6 @@ class TestPrintConfigValues:
         ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = True
         ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = False
         ctx.cfg.tool.serial_tool_calls = False
-        ctx.cfg.rag.use_semantic_cache = False
-        ctx.cfg.rag.semantic_cache_threshold = 0.92
-        ctx.cfg.rag.semantic_cache_max_size = 100
         ctx.cfg.tool.tool_definitions_strict = False
         ctx.cfg.approval.approval_risk_rules = {}
         ctx.cfg.approval.approval_protected_paths = []

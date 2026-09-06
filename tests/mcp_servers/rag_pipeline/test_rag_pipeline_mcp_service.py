@@ -429,22 +429,6 @@ class TestPipelineOrRaise:
             await svc.run_pipeline(req)
 
 
-# ── invalidate_cache ──────────────────────────────────────────────────────────
-
-
-class TestInvalidateCache:
-    def test_delegates_to_pipeline(self) -> None:
-        pipeline = MagicMock()
-        svc = _make_service_with_pipeline(pipeline)
-        svc.invalidate_cache()
-        pipeline.invalidate_cache.assert_called_once_with()
-
-    def test_raises_when_not_started(self) -> None:
-        svc = RagPipelineMCPService()
-        with pytest.raises(RuntimeError, match="not started"):
-            svc.invalidate_cache()
-
-
 # ── MCP tool formatters ───────────────────────────────────────────────────────
 
 
@@ -640,26 +624,12 @@ class TestFmtDeleteDocument:
         result = await service.fmt_delete_document({"url": "file:///a.md"})
         assert "Deleted" in result
 
-    async def test_found_invalidates_cache(self, monkeypatch: Any) -> None:
-        pipeline = MagicMock()
-        service = _make_service_with_pipeline(pipeline)
-        monkeypatch.setattr(service._doc_mgr, "delete_document", lambda url: True)
-        await service.fmt_delete_document({"url": "file:///a.md"})
-        pipeline.invalidate_cache.assert_called_once_with()
-
     async def test_not_found_returns_not_found(self, monkeypatch: Any) -> None:
         pipeline = MagicMock()
         service = _make_service_with_pipeline(pipeline)
         monkeypatch.setattr(service._doc_mgr, "delete_document", lambda url: False)
         result = await service.fmt_delete_document({"url": "file:///a.md"})
         assert "Not found" in result
-
-    async def test_not_found_does_not_invalidate_cache(self, monkeypatch: Any) -> None:
-        pipeline = MagicMock()
-        service = _make_service_with_pipeline(pipeline)
-        monkeypatch.setattr(service._doc_mgr, "delete_document", lambda url: False)
-        await service.fmt_delete_document({"url": "file:///a.md"})
-        pipeline.invalidate_cache.assert_not_called()
 
     async def test_missing_url_returns_error(self) -> None:
         service = RagPipelineMCPService()

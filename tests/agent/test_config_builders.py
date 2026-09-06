@@ -118,24 +118,18 @@ class TestBuildRAGConfig:
     def test_empty_dict_returns_defaults(self) -> None:
         cfg = _build_rag_config({})
         assert cfg.embed_url == ""
-        assert cfg.use_semantic_cache is False
-        assert cfg.semantic_cache_threshold == 0.92
-        assert cfg.semantic_cache_max_size == 100
         assert cfg.use_refiner is False
         assert cfg.refiner_max_tokens == 512
         assert cfg.refiner_timeout == 30.0
         assert cfg.refiner_max_chars_per_chunk == 300
 
     def test_overrides_are_applied(self) -> None:
-        cfg = _build_rag_config({"use_semantic_cache": True})
-        assert cfg.use_semantic_cache is True
+        cfg = _build_rag_config({"use_refiner": True})
+        assert cfg.use_refiner is True
 
     def test_every_field_override_is_independently_reflected(self) -> None:
         overrides = {
             "embed_url": "http://embed",
-            "use_semantic_cache": True,
-            "semantic_cache_threshold": 0.5,
-            "semantic_cache_max_size": 9,
             "use_refiner": True,
             "refiner_max_tokens": 9,
             "refiner_timeout": 9.0,

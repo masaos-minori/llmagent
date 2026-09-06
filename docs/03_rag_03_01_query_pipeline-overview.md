@@ -53,10 +53,9 @@ RagPipeline.augment(query)
 `augment()` determines the final result through the following sequence. Each step only falls back to the next if it returns `None` (Explicit in code).
 
 1. HTTP Mode: HTTP augment $\rightarrow$ `str` (including empty string) or `None` (fallback)
-2. Semantic Cache: If `semantic_cache.lookup()` hits, returns string. Otherwise `None`.
-3. Search Pipeline: MQE + KNN/BM25 + RRF merge + Rerank $\rightarrow$ `ctx.reranked`
-4. Refiner: `refine_context()` $\rightarrow$ compressed text (final) or `None` (fallback)
-5. Raw Chunks: Formatted by chunk formatting function (final)
+2. Search Pipeline: MQE + KNN/BM25 + RRF merge + Rerank $\rightarrow$ `ctx.reranked`
+3. Refiner: `refine_context()` $\rightarrow$ compressed text (final) or `None` (fallback)
+4. Raw Chunks: Formatted by chunk formatting function (final)
 
 **Identity vs Truthiness (Explicit in code):** Results for HTTP mode and the refiner are determined using identity checks (`is not None`), not truthiness checks. Therefore, an empty string `""` returned by HTTP mode is treated as a valid result, and fallback only occurs when `None` is explicitly returned. This allows distinguishing between "searched but found 0 results" and "not yet searched."
 

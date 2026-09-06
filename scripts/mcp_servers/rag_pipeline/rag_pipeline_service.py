@@ -47,10 +47,6 @@ class RagPipelineLike(Protocol):
     last_fetch_result: Any  # TwoStageFetchResult
     last_timings: dict[str, float]
 
-    def invalidate_cache(self) -> None:
-        """Invalidate the semantic cache for this pipeline."""
-        ...
-
 
 def _hit_to_dict(hit: RagHit | dict[str, Any]) -> dict[str, Any]:
     """Safely convert a hit to a dict; supports dataclass and dict inputs."""
@@ -127,11 +123,6 @@ class RagPipelineMCPService:
         if self._pipeline is None:
             raise RuntimeError("RagPipelineMCPService not started — call start() first")
         return self._pipeline
-
-    def invalidate_cache(self) -> None:
-        """Invalidate the semantic cache by delegating to the underlying pipeline."""
-        pipeline = self._pipeline_or_raise()
-        pipeline.invalidate_cache()
 
     @staticmethod
     def _make_capture_fn() -> tuple[
@@ -242,9 +233,6 @@ class RagPipelineMCPService:
         if not url:
             return "Error: url is required."
         ok = self._doc_mgr.delete_document(url)
-        if ok:
-            self._pipeline_or_raise().invalidate_cache()
-            logger.info("Semantic cache invalidated after deleting %r", url)
         return f"Deleted: {url}" if ok else f"Not found: {url}"
 
     async def fmt_debug_pipeline(self, args: ToolArgs) -> str:

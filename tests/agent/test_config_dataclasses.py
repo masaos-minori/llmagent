@@ -131,9 +131,6 @@ class TestRAGConfigValidation:
     def test_defaults_are_valid(self) -> None:
         cfg = RAGConfig()
         assert cfg.embed_url == ""
-        assert cfg.use_semantic_cache is False
-        assert cfg.semantic_cache_threshold == 0.92
-        assert cfg.semantic_cache_max_size == 100
         assert cfg.use_refiner is False
         assert cfg.refiner_max_tokens == 512
         assert cfg.refiner_timeout == 30.0
@@ -258,11 +255,6 @@ class TestAgentConfigValidation:
             AgentConfig(rag=RAGConfig(embed_url="http://localhost:8080")),
             "workflow_require_approval",
         )
-
-    def test_semantic_cache_without_embed_url_raises(self) -> None:
-        rag = RAGConfig(use_semantic_cache=True, embed_url="")
-        with pytest.raises(ValueError, match="embed_url"):
-            AgentConfig(rag=rag)
 
     def test_memory_embed_without_embed_url_raises(self) -> None:
         mem = MemoryConfig(memory_embed_enabled=True)

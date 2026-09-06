@@ -87,16 +87,6 @@ class PreparedChunk:
 
 
 @dataclass(frozen=True)
-class CacheEntry:
-    """Cached embedding result for reuse."""
-
-    embedding: list[float]
-    context_str: str
-    history_context: str = ""
-    generation: int = 0
-
-
-@dataclass(frozen=True)
 class TwoStageFetchResult:
     """Typed result capturing reranked hits with applied filter/dedup parameters."""
 

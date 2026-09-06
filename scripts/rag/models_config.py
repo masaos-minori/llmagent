@@ -13,8 +13,6 @@ from dataclasses import dataclass
 class RagConfigImpl:
     """Concrete implementation of RagConfig Protocol."""
 
-    semantic_cache_max_size: int
-    semantic_cache_threshold: float
     use_mqe: bool
     top_k_search: int
     use_rerank: bool
@@ -31,7 +29,6 @@ class RagConfigImpl:
     refiner_max_tokens: int
     refiner_max_chars_per_chunk: int
     refiner_timeout: float
-    use_semantic_cache: bool
     llm_url: str
     embed_url: str
     rag_db_path: str

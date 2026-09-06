@@ -18,7 +18,6 @@ def _make_pipeline(rag_service_url: str = "http://rag.local") -> RagPipeline:
     cfg = MagicMock()
     cfg.rag_service_url = rag_service_url
     cfg.use_refiner = False
-    cfg.use_semantic_cache = False
     cfg.use_search = True
     pipeline = RagPipeline.__new__(RagPipeline)
     pipeline._cfg = cfg
@@ -26,7 +25,6 @@ def _make_pipeline(rag_service_url: str = "http://rag.local") -> RagPipeline:
     pipeline.last_stage_results = []
     pipeline.last_timings = {}
     pipeline.last_fetch_result = None
-    pipeline.semantic_cache = MagicMock()
     from rag.pipeline import SearchDiagnostics
 
     pipeline.last_search_diagnostics = SearchDiagnostics()

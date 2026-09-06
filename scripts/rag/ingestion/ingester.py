@@ -2,8 +2,8 @@
 """scripts/rag/ingestion/ingester.py
 
 Thin orchestrator delegating to 7 concern-specific classes:
-  FileRouter, EmbeddingService, ChunkFactory, DocumentStore,
-  TransactionManager, ChunkGroupingStrategy, CacheInvalidator
+   FileRouter, EmbeddingService, ChunkFactory, DocumentStore,
+   TransactionManager, ChunkGroupingStrategy
 
 Pipeline position: Crawler.py -> ChunkSplitter.py -> RagIngester.py
 """
@@ -16,7 +16,6 @@ import httpx
 from db.helper import SQLiteHelper
 from db.models import RagConsistencyReport
 from rag.exceptions import ChunkFormatError, IngestionFailureReason
-from rag.ingestion.cache_invalidation import CacheInvalidator
 from rag.ingestion.chunk_grouping import ChunkGroupingStrategy
 from rag.ingestion.chunk_preparation import ChunkFactory
 from rag.ingestion.document_manager import DocumentManager
@@ -120,7 +119,6 @@ class RagIngester:
         self._embedding_service = EmbeddingService(
             self._embed_url, self._embed_retry, self._embed_workers, self._client
         )
-        self._cache_invalidator = CacheInvalidator(self._client)
         self._chunk_grouping_strategy = ChunkGroupingStrategy()
         self._file_router = FileRouter(self._registered_dir, self._chunk_dir)
         # Note: DocumentStore and DocumentManager are created per-ingest
@@ -198,9 +196,6 @@ class RagIngester:
                 len(consistency_report.issues),
                 "; ".join(consistency_report.issues),
             )
-        # Invalidate RAG pipeline semantic cache after ingestion (only when at least one URL group succeeded)
-        has_success = any(r.n_success > 0 for r in results)
-        self._cache_invalidator.invalidate(self._rag_pipeline_service_url, has_success)
         return consistency_report
 
     def ingest_url_group(

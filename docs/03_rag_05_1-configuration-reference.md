@@ -95,9 +95,6 @@ Used by: `rag-pipeline-mcp` only (the rag-pipeline MCP server process). Loaded v
 | `rag_top_k` | `5` | Final number of chunks returned to LLM |
 | `rag_min_score` | `0.0` (code default; operational config uses `2.0`) | Score threshold for cross-encoder |
 | `max_chunks_per_doc` | `3` | Max chunks per document |
-| `use_semantic_cache` | `false` | Whether to use SemanticCache |
-| `semantic_cache_max_size` | `128` (code default; operational config uses `100`) | SemanticCache capacity |
-| `semantic_cache_threshold` | `0.92` | Cosine similarity threshold for cache hit detection |
 | `refiner_max_tokens` | `512` | Max tokens for Refiner LLM |
 | `refiner_max_chars_per_chunk` | `800`(code default; operational config uses `300`) | Max characters per chunk for Refiner |
 | `refiner_timeout` | `30.0`(operational config value) | Refiner LLM timeout (seconds) |
@@ -109,7 +106,7 @@ Used by: `rag-pipeline-mcp` only (the rag-pipeline MCP server process). Loaded v
 
 ## Implementation Supplements (Current behavior)
 
-- The following parameters—`top_k_search`, `top_k_rerank`, `rag_min_score`, `semantic_cache_max_size`, and `refiner_max_chars_per_chunk`—have different default values in the `RagPipelineConfig` (`mcp_servers/rag_pipeline/rag_pipeline_models.py`) compared to what is written in the operational `config/rag_pipeline_mcp_server.toml`. As long as values exist in the `.toml` file, the code defaults are ignored, so there is no harm; however, be aware of this difference if deleting or simplifying the `.toml` file. (Explicit in code)
+- The following parameters—`top_k_search`, `top_k_rerank`, `rag_min_score`, and `refiner_max_chars_per_chunk`—have different default values in the `RagPipelineConfig` (`mcp_servers/rag_pipeline/rag_pipeline_models.py`) compared to what is written in the operational `config/rag_pipeline_mcp_server.toml`. As long as values exist in the `.toml` file, the code defaults are ignored, so there is no harm; however, be aware of this difference if deleting or simplifying the `.toml` file. (Explicit in code)
 - `rag_pipeline_mcp_server.toml` is completely independent of `agent.toml`, and both files can have different values for same-named keys like `use_mqe`. The header comment explicitly states: "To override module-level caches for `agent_rag`, `rag_llm`, and `sqlite_helper`, and run the RAG pipeline independently from the main agent process." (Explicit in code)
 
 ## 1.5 `config/agent.toml`
@@ -131,8 +128,6 @@ Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `Ag
 | `rag_min_score` | Score threshold for cross-encoder |
 | `max_chunks_per_doc` | Max chunks per document |
 | `rag_service_url` | URL for external RAG service (empty = in-process) |
-| `semantic_cache_max_size` | SemanticCache capacity (0 = immediate eviction/effectively disabled, negative = validation error) |
-| `semantic_cache_threshold` | Cosine similarity threshold for cache hit detection |
 | `refiner_max_tokens` | Max tokens for Refiner LLM |
 | `refiner_max_chars_per_chunk` | Max characters per chunk for Refiner |
 | `refiner_timeout` | Refiner LLM timeout (seconds) |

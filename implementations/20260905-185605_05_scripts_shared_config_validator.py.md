@@ -18,14 +18,11 @@ clear migration-error message (`scripts/shared/config_validator.py`) (`REQ-003`)
   supports the `errors`/`warnings` split this document needs.
 
 ## Assumptions
-- Same hard ordering dependency as procedure documents `01`-`04`: this change must not
-  be applied until `semcacherm` has landed — although this file's own change is
-  low-risk in isolation (it only tightens validation, does not remove a field
-  `RagPipeline` reads), landing it before `semcacherm` would cause
-  `scripts/rag/pipeline.py`'s existing `RagConfigValidator().validate(_raw_cfg)` call
-  (Reference Files) to start rejecting `semantic_cache_max_size`/
-  `semantic_cache_threshold` values that `RagConfigImpl`/`SemanticCache` still expect
-  pre-`semcacherm` — sequence this after `semcacherm` regardless.
+- `semcacherm` core is complete (confirmed: `scripts/rag/cache.py` and
+  `scripts/rag/ingestion/cache_invalidation.py` deleted; zero references to
+  `SemanticCache`/`CacheEntry`/`CacheService`/`invalidate_cache`/`rag_invalidate_cache`).
+  This change must not be applied until `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004)
+  lands as a unit — see Blocker Log.
 - `RagPipelineConfig.load()`'s new `RagConfigValidator().validate()` call (that file's
   own procedure document, `REQ-004`) and `_build_rag_config()`'s new call (procedure
   document `04`, `REQ-002`) both depend on this document's new check existing to
@@ -147,7 +144,7 @@ N/A: no security-sensitive code path is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacherm` lands — see Assumptions |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004) lands as a unit — see Blocker Log; `semcacherm` core is complete |
 | 2 | Add or update tests per Validation plan | Pending | — | — | Covered by procedure document for `tests/shared/test_config_validator.py` |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation deferred to `semcachedocs` |
@@ -155,7 +152,7 @@ N/A: no security-sensitive code path is touched.
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on `semcacherm`'s implementation landing first | No | — |
+| 1 | Part of `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004). `semcacherm` core is complete. Phase 1 must land as a unit before Phase 2 (REQ-001 etc.) can begin — removing fields without the validator rejection wired in would silently accept obsolete config values instead of rejecting them. | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

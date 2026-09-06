@@ -17,6 +17,7 @@ from typing import Any
 
 from shared.config_errors import ConfigLoadError
 from shared.config_loader import ConfigLoader
+from shared.config_validator import RagConfigValidator
 from shared.mcp_config import (
     SecurityProfile,  # noqa: F401 — used by build_agent_config
     _build_mcp_servers,  # noqa: F401 — used by config_reload.py (lazy import)
@@ -250,12 +251,15 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
 
 def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
     """Build RAGConfig from a raw config dict."""
+    validator = RagConfigValidator()
+    validation_result = validator.validate(cfg)
+    for warning in validation_result.warnings:
+        logger.warning("rag config warning: %s", warning)
+    for error in validation_result.errors:
+        logger.error("rag config error: %s", error)
+    if not validation_result.ok:
+        raise ValueError(f"RAG config validation failed: {validation_result.errors}")
     embed_url = _get_str_or_default(cfg, "embed_url", "")
-    use_semantic_cache = _get_bool_or_default(cfg, "use_semantic_cache", False)
-    semantic_cache_threshold = _get_float_or_default(
-        cfg, "semantic_cache_threshold", 0.92
-    )
-    semantic_cache_max_size = _get_int_or_default(cfg, "semantic_cache_max_size", 100)
     use_refiner = _get_bool_or_default(cfg, "use_refiner", False)
     refiner_max_tokens = _get_int_or_default(cfg, "refiner_max_tokens", 512)
     refiner_timeout = _get_float_or_default(cfg, "refiner_timeout", 30.0)
@@ -264,9 +268,6 @@ def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
     )
     return RAGConfig(
         embed_url=embed_url,
-        use_semantic_cache=use_semantic_cache,
-        semantic_cache_threshold=semantic_cache_threshold,
-        semantic_cache_max_size=semantic_cache_max_size,
         use_refiner=use_refiner,
         refiner_max_tokens=refiner_max_tokens,
         refiner_timeout=refiner_timeout,

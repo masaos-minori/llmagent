@@ -24,7 +24,6 @@ def _make_pipeline() -> RagPipeline:
     pipeline.last_stage_results = []
     pipeline.last_timings = {}
     pipeline.last_fetch_result = None
-    pipeline.semantic_cache = MagicMock()
     pipeline.last_search_diagnostics = SearchDiagnostics()
     return pipeline
 

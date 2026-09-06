@@ -1,0 +1,13 @@
+[[canonical_sources]]
+decision_target = "eventbus.core-behavior"
+claim_type = "runtime-behavior"
+source_paths = ["scripts/eventbus/"]
+area = "EventBus"
+notes = "docs/06_eventbus_00_document-guide.md line 41 states code (scripts/eventbus/) is canonical for behavior."
+
+[[canonical_sources]]
+decision_target = "eventbus.persistence-schema"
+claim_type = "database-schema"
+source_paths = ["scripts/db/schema_sql.py", "scripts/eventbus/db.py"]
+area = "Shared/DB"
+notes = "docs/90_shared_04_02_db_architecture_and_schema-schema-reference.md line 49 states scripts/db/schema_sql.py::build_eventbus_schema_sql() and scripts/eventbus/db.py are schema authority, backed by ADR-008."

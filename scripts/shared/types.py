@@ -85,8 +85,6 @@ class RagConfig(Protocol):
     See also: build_rag_cfg_adapter() in mcp_servers.rag_pipeline.models for the MCP adapter.
     """
 
-    semantic_cache_max_size: int
-    semantic_cache_threshold: float
     use_mqe: bool
     top_k_search: int
     use_rerank: bool
@@ -103,7 +101,6 @@ class RagConfig(Protocol):
     refiner_max_tokens: int
     refiner_max_chars_per_chunk: int
     refiner_timeout: float
-    use_semantic_cache: bool
     llm_url: str
     embed_url: str
     rag_db_path: str
