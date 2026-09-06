@@ -28,8 +28,7 @@ follow-up work (see `SKILL.md` Composes with / Called by).
 
 Apply `rules/ai-execution.md` Global Safety Restrictions (Base). Additionally for this
 workflow, do not perform any of the following:
-- refactoring code that was not explicitly instructed via a target file or issue — this
-  workflow is reactive, not proactive
+- refactoring code without explicit instruction — see `SKILL.md`, section "Core rules"
 - implementing a behavior change discovered mid-refactor (record it as a proposal
   instead — see Step 2)
 - moving existing documentation files
@@ -58,6 +57,7 @@ If not already loaded, read the following before starting:
 - `rules/coding.md`
 - `rules/toolchain.md`
 - `rules/ai-execution.md`
+- `skills/DESIGN.md`
 - `SKILL.md` (this skill)
 - this file
 - `discovery.md`

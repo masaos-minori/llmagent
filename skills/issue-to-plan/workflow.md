@@ -153,12 +153,9 @@ duplicate plans when multiple agents process the same Issue concurrently.
   reclassifying, re-check only the specific field(s) the finding affects against this
   same evidence — do not restart Step 2's full field-by-field pass over
   `templates/issue.md`'s extraction list.
-  A single Issue's Plan tolerates at most 3 consecutive correction-and-recheck cycles
-  (matching `AGENTS.md` Loop Prevention > Attempt Limit — this is the same 3-attempt
-  bound, applied to Plan-correction cycles specifically, not a separate workflow-specific
-  value). If a clean `Pass` is not reached within that bound, stop and report `Blocked:
-  Plan requires more than 3 correction cycles — {summary of all remaining unresolved
-  issues}` rather than continuing to patch — the summary must list every remaining
+  Apply `rules/workflow-lifecycle.md` Correction-and-Recheck Cycle Bound; the
+  `{artifact}` in that bound's `Blocked` message is "Plan". If a clean `Pass` is not
+  reached within that bound, the summary must list every remaining
   unresolved issue, not only the last one encountered.
 - Any item classified `Needs confirmation` carries forward to Step 6 as an Unknown by
   name — do not re-derive it there. This classification is also the source for the

@@ -19,7 +19,7 @@ uv run mypy scripts/             # primary
 uv run pyright scripts/          # alternate (cross-validate)
 ```
 
-Fix type errors at the source — do not add `type: ignore` without justification.
+Fix type errors at the source. See `rules/coding.md`, section "Suppression governance".
 
 ### 3. Architecture check (import-linter)
 
@@ -83,8 +83,8 @@ git diff --staged         # confirm what will be committed
 - `uv run pytest tests/mcp_servers/mdq/test_mdq_rag_boundary.py` passes (MDQ/RAG boundary clean)
 - `uv run diff-cover coverage.xml --compare-branch=master` ≥ 90% on changed lines
 - `uv run pre-commit run --all-files` passes
-- diff reviewed and staged selectively with `git add <file>`
-- `deploy/deploy.sh` updated only if a new `config/*.toml` file was introduced — `scripts/` is rsynced wholesale and needs no `deploy.sh` change on module add/remove (see `rules/env.md` Architecture)
+- diff staged per `skills/git-commit-and-sync/SKILL.md`, section "Core rules"
+- `deploy/deploy.sh` updated per `rules/env.md`, section "Architecture", if a new `config/*.toml` file was introduced
 - `config/agent.toml mcp_servers` updated if a new MCP server was added
 
 ## Environment setup

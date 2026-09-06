@@ -10,7 +10,7 @@ Enforced by ruff, mypy, and ast-grep. Do not violate.
 | Comments and log output | English only |
 | String formatting | f-strings preferred; plain literals when no variables |
 | Import order | enforced by ruff `I` rules (isort-compatible) |
-| Module addition | no `deploy/deploy.sh` change needed — `scripts/` is rsynced wholesale (see `rules/env.md` Architecture); only a new `config/*.toml` file needs a `cp` line there |
+| Module addition | see `rules/env.md`, section "Architecture", for the `deploy.sh` impact |
 | MCP server addition | create `config/<key>_mcp_server.toml` with app config and `[mcp_servers.<key>]` transport section |
 
 ## Deprecation policy
@@ -39,7 +39,7 @@ for the gated sub-task is acceptable.
   out of scope for this increment.
 
 **mypy:** `python_version = "3.13"`, `files = ["scripts/"]`, `ignore_missing_imports = true`
-- Pre-existing errors exist. Fix incrementally; do not suppress with `type: ignore` without justification.
+- Pre-existing errors exist. Fix incrementally (see Suppression governance below).
 
 **bandit:** `[tool.bandit]` — `skips = []`; do not add skips without justification
 

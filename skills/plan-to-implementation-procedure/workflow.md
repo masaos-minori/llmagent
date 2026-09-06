@@ -178,13 +178,9 @@ same Step 3a's verification against the corrected Plan text for this row before
 proceeding to Step 3c — do not proceed on the assumption that one correction resolved
 everything.
 
-This row's verification tolerates at most 3 consecutive correction-and-recheck cycles
-(re-running Step 3a against the corrected Plan, per `rules/workflow-lifecycle.md`
-Plan-Document Correction Handling and `AGENTS.md` Loop Prevention > Attempt Limit — the
-same 3-attempt bound, applied to Plan-correction cycles specifically). If a clean Step
-3a pass (no new finding) is not reached within that bound, stop and report `Blocked:
-Plan requires more than 3 correction cycles for {row} — {summary of all remaining
-unresolved findings}` rather than continuing to patch.
+Apply `rules/workflow-lifecycle.md` Correction-and-Recheck Cycle Bound (re-running
+Step 3a against the corrected Plan); the `{artifact}` in that bound's `Blocked`
+message is "Plan ... for {row}".
 
 If this correction requires reverting a prior edit to `plans/{filename}_plan.md`, see
 `rules/workflow-lifecycle.md` Plan-Document Correction Handling for whether `AGENTS.md`

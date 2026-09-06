@@ -1,5 +1,16 @@
 # AI Execution Rules (Shared)
 
+## Context Efficiency (Base)
+
+Applies to any workflow that gates context reduction against accuracy risk.
+
+Accuracy, completeness, and validation MUST take priority over context reduction. Do
+not reduce context when doing so may cause missing evidence, incorrect conclusions,
+incomplete plans, or insufficient validation.
+
+A workflow that applies this section states so with a short reference and adds only
+its own workflow-specific bullets — it does not restate the paragraph above.
+
 ## Context Reading
 
 - Read shared files once per session in Step 0; do not re-read them for later cycles.

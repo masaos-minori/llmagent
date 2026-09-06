@@ -111,10 +111,8 @@ Run these tools only when the repository configures and supports them:
 - `pre-commit`
 - `libcst`
 
-If a conditional tool is unavailable:
-- Report why it was not run.
-- Use a repository-defined alternative when available.
-- Do not report the skipped check as passed.
+If a conditional tool is unavailable, apply `skills/DESIGN.md`, section "Tool
+availability guard".
 - Report `Blocked` only if the missing check is required to prove behavior preservation.
 - Otherwise, continue and record the check as `Not run`.
 

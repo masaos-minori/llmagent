@@ -270,13 +270,9 @@ inventory).
 
 ### Context Efficiency
 
-Accuracy, completeness, and validation MUST take priority over context reduction.
-Do not reduce context when doing so may cause missing evidence, incorrect
-conclusions, incomplete plans, or insufficient validation.
-
-Apply `rules/ai-execution.md` Context Reading, Tool Usage, Reasoning and Planning,
-and Output for the general AI-execution baseline this workflow runs under. In
-addition, specific to this workflow:
+Apply `rules/ai-execution.md` Context Efficiency (Base), Context Reading, Tool Usage,
+Reasoning and Planning, and Output for the general AI-execution baseline this workflow
+runs under. In addition, specific to this workflow:
 
 - Keep the full rule inventory internal. Retain only duplication candidates,
   ownership violations, and unresolved items in active context.

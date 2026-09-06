@@ -161,10 +161,8 @@ or planning a change (currently used by `python-refactoring` Step 3 (Preparation
 |---|---|---|---|
 | `<path>` | create / rename / delete | modules/callers affected | see below |
 
-`deploy.sh Impact` follows `rules/env.md` Architecture: `scripts/` is rsynced wholesale, so a
-module create/rename/delete needs no `deploy.sh` change; only a `config/*.toml` add/remove
-needs a `cp` line added or removed there. Valid values: `not applicable (rsynced)`, `add cp
-line`, `remove cp line`.
+`deploy.sh Impact` follows `rules/env.md`, section "Architecture". Valid values:
+`not applicable (rsynced)`, `add cp line`, `remove cp line`.
 
 A skill MAY append columns to this schema (e.g. `issue-to-plan` adds `Churn (30d)` and `Bus
 Factor`) but MUST NOT redefine the meaning of the four base columns above, and MUST NOT

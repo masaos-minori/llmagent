@@ -101,6 +101,7 @@ If not already loaded, read the following before starting:
 - `routing.md`
 - `rules/coding.md`
 - `rules/toolchain.md`
+- `rules/workflow-lifecycle.md`
 - `skills/python-implementation/SKILL.md`
 - `skills/python-lint-typecheck/SKILL.md`
 - `skills/python-test-and-fix/SKILL.md`
@@ -122,13 +123,9 @@ Apply `rules/ai-execution.md`, section 'Required File Validation'.
 
 ## Step 1: Identify the Target Implementation Procedure File(s)
 
-- The target implementation procedure file(s) are provided by the user (e.g.
-  `implementations/{filename}.md`), one path per file.
-- If no target file is specified, stop immediately and ask the user to specify one or
-  more.
-- If any specified file does not exist, stop immediately and report which file(s) are
-  missing.
-- Do not read files under `implementations/done/`.
+Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) — target files are
+`implementations/{filename}.md`, one path per file; archive directory is
+`implementations/done/`.
 - **All-steps-completed check**: after reading the file, inspect its `## Execution Status`
   table. If every step row shows `Completed` (no `Pending`, `Blocked`, or other status),
   the procedure is fully executed — do not re-execute it. Move it to
@@ -186,13 +183,9 @@ to reflect the corrected understanding before proceeding, and note the correctio
 the Execution Status table's Notes. Do not implement around a stale description —
 implement against the corrected, source-verified understanding.
 
-This file's procedure tolerates at most 3 consecutive correction-and-recheck cycles
-(re-running Step 3a against the corrected document, per `AGENTS.md` Loop Prevention >
-Attempt Limit — the same 3-attempt bound, applied to procedure-correction cycles
-specifically). If a clean Step 3a pass (no new finding) is not reached within that
-bound, stop and report `Blocked: implementation procedure requires more than 3
-correction cycles — {summary of all remaining unresolved findings}` rather than
-continuing to patch.
+Apply `rules/workflow-lifecycle.md` Correction-and-Recheck Cycle Bound (re-running
+Step 3a against the corrected document); the `{artifact}` in that bound's `Blocked`
+message is "implementation procedure".
 
 **Completed when**: no unconfirmed item or inconsistency from Step 3a remains
 unaddressed in the procedure document (or Step 3a found none).

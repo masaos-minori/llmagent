@@ -61,9 +61,8 @@ complete.
 
 ### Context efficiency
 
-Accuracy, completeness, and validation MUST take priority over context reduction.
-Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
-incomplete plans, or insufficient validation.
+Apply `rules/ai-execution.md` Context Efficiency (Base). In addition, specific to this
+workflow:
 
 - Do not read the entire source of everything under `tools/` at once.
 - First narrow candidate tools using file names, headings, help output, and READMEs.

@@ -24,8 +24,7 @@ Refactor existing Python source files without changing external behavior: lock c
 behavior with tests, classify the change's blast radius (Path A/B/C), transform with
 AST-safe tools, validate that behavior/API/side effects are unchanged, then report the
 evidence. See `workflow.md`'s opening for this workflow's safety-over-speed priority
-statement. This is a reactive workflow: code MUST NOT be refactored unless explicitly
-instructed via a target file or issue.
+statement. This is a reactive workflow — see Core rules below.
 
 ---
 

@@ -22,6 +22,10 @@ Each workflow file must explicitly define:
 
 ## Target Validation (Step 1)
 
+Applies to any target-file-cycle workflow's own Step 1, including `code-implementation`
+(target files under `implementations/`), not only the two document-generation workflows
+named in this file's title.
+
 - Target file(s) are provided by the user (one path per file).
 - If multiple target files specified, process in filename (lexicographic) order.
 - If no target file specified, stop and ask the user to specify one or more.
@@ -50,6 +54,22 @@ across cycles with no new evidence), apply `AGENTS.md` Loop Prevention > Attempt
 existing framing: after repeated correction of the same Plan field/section without new
 evidence changing the outcome, stop and report a summary to the user rather than continuing
 to re-edit indefinitely.
+
+### Correction-and-Recheck Cycle Bound
+
+Applies to any workflow step that corrects an upstream/target document (a Plan, or an
+implementation procedure document) in response to an adversarial-verification finding, then
+re-runs that same verification against the corrected text — currently `issue-to-plan` Step 2
+(Plan correction), `plan-to-implementation-procedure` Step 3a (Plan correction), and
+`code-implementation` Step 3b (implementation procedure document correction).
+
+A single row/target's correction tolerates at most 3 consecutive correction-and-recheck
+cycles — the same 3-attempt bound as `AGENTS.md` Loop Prevention > Attempt Limit, applied to
+correction cycles specifically, not a separate workflow-specific value. If a clean pass (no
+new finding) is not reached within that bound, stop and report `Blocked: {artifact} requires
+more than 3 correction cycles — {summary of all remaining unresolved findings}` rather than
+continuing to patch — the summary must list every remaining unresolved finding, not just the
+most recent one.
 
 ## Implementation Target Files Validation (Plan Freeze)
 

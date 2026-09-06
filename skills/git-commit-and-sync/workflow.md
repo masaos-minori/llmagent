@@ -276,10 +276,7 @@ Stop if:
   continue, skip, or resolve manually).
 - Post-sync validation (status/diff review, or tests) fails.
 
-Do not run the commands `SKILL.md` Core rules forbids: `git pull` in any form,
-`git rebase -i`/`--interactive`, `git rebase --onto` to any target other than the
-current branch's upstream, `git rebase --continue`, `git rebase --skip`, `git merge`
-other than the `--ff-only` step above, `git merge --abort`.
+Do not run the commands `SKILL.md` Core rules forbids.
 
 ---
 
@@ -300,10 +297,8 @@ If upstream is missing, stop. Report:
 Do not run the suggestion without user approval.
 
 If `git push` is rejected for any other reason — most commonly a non-fast-forward
-rejection because the remote advanced again after Phase 7's sync completed — stop
-and report the exact rejection message. Do not retry, do not force push, and do not
-re-run Phase 7's sync automatically to work around it; let the user decide the next
-step.
+rejection because the remote advanced again after Phase 7's sync completed — apply
+`SKILL.md` Core rules' push-rejection handling and report the exact rejection message.
 
 Do not proceed to `git push` at all if:
 - Phase 7 aborted a rebase due to a conflict — Phase 7 already stops before this
