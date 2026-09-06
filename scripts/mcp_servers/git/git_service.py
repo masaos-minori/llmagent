@@ -217,6 +217,7 @@ class GitService:
         repo_path: str,
         op: Callable[[git.Repo, RepositoryState], str],
         active_ref: str = "",
+        dry_run: bool = False,
     ) -> str:
         """Validate repo/write guards, open the repo, and run op with error wrapping.
 
@@ -238,7 +239,12 @@ class GitService:
         if tool_name in GIT_READ_TOOLS:
             return self._wrap_git_op(tool_name, lambda: op(state.repo, state))
         pipeline = WriteProtectionPipeline(state)
-        pipeline_result = pipeline.run(tool_name, lambda: op(state.repo, state))
+        pipeline_result = pipeline.run(
+            tool_name,
+            lambda: op(state.repo, state),
+            dry_run,
+            self._allow_detached_head,
+        )
         if pipeline_result.ok:
             return pipeline_result.output
         raise ValueError(pipeline_result.rejection_message)
@@ -312,7 +318,10 @@ class GitService:
             dry_run=args.get("dry_run", False),
         )
         return await self._run_tool(
-            "git_add", req.repo_path, lambda repo, _state: format_add(repo, req)
+            "git_add",
+            req.repo_path,
+            lambda repo, _state: format_add(repo, req),
+            dry_run=req.dry_run,
         )
 
     async def git_commit(self, args: ToolArgs) -> str:
@@ -323,7 +332,10 @@ class GitService:
             dry_run=args.get("dry_run", False),
         )
         return await self._run_tool(
-            "git_commit", req.repo_path, lambda repo, _state: format_commit(repo, req)
+            "git_commit",
+            req.repo_path,
+            lambda repo, _state: format_commit(repo, req),
+            dry_run=req.dry_run,
         )
 
     async def git_checkout(self, args: ToolArgs) -> str:
@@ -352,7 +364,11 @@ class GitService:
             )
 
         return await self._run_tool(
-            "git_checkout", req.repo_path, _checkout_op, active_ref=req.branch
+            "git_checkout",
+            req.repo_path,
+            _checkout_op,
+            active_ref=req.branch,
+            dry_run=req.dry_run,
         )
 
     async def git_pull(self, args: ToolArgs) -> str:
@@ -382,7 +398,11 @@ class GitService:
             return format_pull(state, req)
 
         return await self._run_tool(
-            "git_pull", req.repo_path, _pull_op, active_ref=req.branch
+            "git_pull",
+            req.repo_path,
+            _pull_op,
+            active_ref=req.branch,
+            dry_run=req.dry_run,
         )
 
     async def git_push(self, args: ToolArgs) -> str:
@@ -412,7 +432,11 @@ class GitService:
             return format_push(state, req)
 
         return await self._run_tool(
-            "git_push", req.repo_path, _push_op, active_ref=req.branch
+            "git_push",
+            req.repo_path,
+            _push_op,
+            active_ref=req.branch,
+            dry_run=req.dry_run,
         )
 
     # ── Dispatch table ────────────────────────────────────────────────────────

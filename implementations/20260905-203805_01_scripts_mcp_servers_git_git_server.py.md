@@ -81,6 +81,48 @@ cannot preserve is_error fidelity for policy-rejected checkout/pull/push without
 coordinated, not-yet-scoped change to git_service.py's return contract` per this
 cycle's Step 3a. Not implemented this cycle.**
 
+### Step 3a second finding: dry_run/allow_detached_head not threaded to Stage 5 (BLOCKING, resolved)
+Further verification (same cycle) found `GitService._run_tool()`'s
+`pipeline.run(tool_name, lambda: op(state.repo, state))` call never passes
+`dry_run`/`allow_detached_head` — both silently default to `False` regardless of
+the actual request. Confirmed by direct execution: `git_checkout(dry_run=True)`
+against a dirty repo is rejected (`[DENIED] worktree has uncommitted changes`) —
+the entire `gitdryrun` feature (Stage 5 skip on `dry_run=True`) would silently
+break the moment `call_tool()` routes through `GitService` for the first time.
+This is a pre-existing latent bug (unreachable via HTTP before this Plan, since
+`call_tool()` never called `GitService.git_checkout`/`git_pull`/`git_push`), not
+something introduced this session — but activating it live is a direct,
+foreseeable consequence of this file's own change, so it must be fixed together.
+Also found (same root cause, still unresolved — separate, deeper issue, out of
+this fix's minimal scope per user decision): `git_add` (no `dry_run`) against a
+dirty repo is *also* rejected by the same always-`dry_run=False` Stage 5 check,
+which is arguably wrong for `git_add` regardless of `dry_run` (its whole purpose
+is to act on a dirty worktree) — this is a separate design question (should
+`GIT_READ_TOOLS`-style Stage-5 bypass extend to `git_add`/`git_commit`?) not
+resolved by this fix; flagged here as a known follow-up, not blocking this Plan.
+
+**Resolution (user-approved, minimal scope)**: thread `dry_run`/`allow_detached_head`
+through `_run_tool()` to `pipeline.run()`, sourced from each write-tool handler's
+own `req.dry_run` / `self._allow_detached_head` — implemented in `git_service.py`
+(this Plan's own target file, already archived as
+`implementations/done/20260905-203805_02_..._git_service.py.md`; this additional,
+narrowly-scoped correction is recorded here since it was discovered during this
+file's cycle, not reopened as a new document).
+
+### Step 3a re-verification: unblocked (2026-09-06, later cycle)
+`git_service.py`'s own procedure document (`implementations/done/20260905-203805_02_
+..._git_service.py.md`) has since landed (commit `23bd6a71d`) with exactly the
+coordinated fix this finding called for: `_run_tool()` and every handler method's
+early-validation site now `raise ValueError(...)` on a policy/validation rejection
+instead of returning it as a plain string. `dispatch_tool()` already converts a
+raised `ValueError` into `DispatchResult(is_error=True, output=str(e))` (confirmed,
+`scripts/mcp_servers/dispatch.py:40-67`, unchanged) — so this document's original
+Design (`dispatch_tool(_service.get_dispatch_table(), req.name, args)`) is now
+correct as originally written; no further design change needed in this file.
+Re-verified via `rg` against current `git_service.py` (2026-09-06): zero remaining
+`return "[DENIED]` sites outside the two provably-dead op-closure lines (see that
+document's own finding). Proceeding with the original Design/Procedure below.
+
 ## Design decisions
 - Replace the inline `handlers` dict with a single `dispatch_tool(_service.get_dispatch_table(), req.name, args)` call, reusing the existing `_dispatch_git_tool()` helper's pattern rather than inlining `dispatch_tool()` a second time — one call site, not two.
 - Keep `call_tool()`'s pre-dispatch logic (availability check, path validation, `pre_state`/`post_state` snapshotting, audit logging) unchanged; only the dispatch step itself changes, per `REQ-009`'s "no behavior change beyond what unifying dispatch requires".
@@ -203,16 +245,17 @@ read-only bypass — applies `WriteProtectionPipeline` only to `GIT_WRITE_TOOLS`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace `handlers` dict with `GitService.get_dispatch_table()` dispatch (Procedure steps 1-2) | Blocked | 20260906-091500 | — | See Step 3a finding in Assumptions — is_error fidelity regression, needs a coordinated `git_service.py` change out of this document's scope |
-| 2 | Remove `_dispatch_git_tool()`/`GitMCPServer.dispatch()` after re-confirming zero callers (Procedure step 3) | Blocked | — | — | Blocked on Step 1 |
-| 3 | Remove now-dead `_format_checkout`/`_format_pull`/`_format_push` and unused imports, if confirmed dead (Procedure step 4) | Blocked | — | — | Blocked on Step 1 |
-| 4 | Run validation plan (existing tests + full suite + static checks) | Blocked | — | — | Blocked on Step 1 |
-| 5 | Update `docs/04_mcp_04_05_git.md`, if in scope per Documentation Impact | Blocked | — | — | Blocked on Step 1 |
+| 1 | Replace `handlers` dict with `GitService.get_dispatch_table()` dispatch (Procedure steps 1-2) | Completed | 20260906-091500 | 20260906-104500 | Unblocked once `git_service.py`'s contract fix (commit `23bd6a71d`) landed. Also required an additional coordinated fix (Step 3a second finding, user-approved): threaded `dry_run`/`allow_detached_head` through `GitService._run_tool()` to `pipeline.run()`, which was previously always calling it with `dry_run=False`, silently breaking the `gitdryrun` feature the moment dispatch routed through `GitService` |
+| 2 | Remove `_dispatch_git_tool()`/`GitMCPServer.dispatch()` after re-confirming zero callers (Procedure step 3) | Completed | 20260906-091500 | 20260906-104500 | `rg '_dispatch_git_tool'` / `rg '\.dispatch\('` reconfirmed zero external callers; both removed |
+| 3 | Remove now-dead `_format_checkout`/`_format_pull`/`_format_push` and unused imports, if confirmed dead (Procedure step 4) | Completed | 20260906-091500 | 20260906-104500 | Confirmed dead via `rg` (zero remaining callers after Step 1); removed together with `Callable`/`format_checkout`/`format_pull`/`format_push`/`GitCheckoutRequest`/`GitPullRequest`/`GitPushRequest`/`WriteProtectionPipeline`/`ToolArgs`/`DispatchResult` imports (ruff F401-confirmed unused) |
+| 4 | Run validation plan (existing tests + full suite + static checks) | Completed | 20260906-104500 | 20260906-110000 | `tests/mcp_servers/git/`: 238/238 passed (after fixing 3 of this session's own new dry-run/detached-head live-path tests: `_service`'s internal `_allowed_repo_paths`/`_read_only`/`_allow_detached_head` copies, frozen at module-import time from `_cfg`, are no longer kept in sync by patching `_cfg` alone now that dispatch routes through `_service` — test-only fix, patch both; and one test needed an explicit `branch` arg since `GitService.git_pull`/`git_push` require a non-empty branch, unlike the old `format_pull`/`format_push` path). ruff format/check, mypy (`scripts/`), lint-imports, bandit: pass (pre-existing unrelated findings unchanged). Full suite (`--deselect` the known unrelated `test_keyboard_interrupt_breaks_loop` bug): 6309 passed/575 failed/14 skipped/3 errors — zero failures under `tests/mcp_servers/git/` |
+| 5 | Update `docs/04_mcp_04_05_git.md`, if in scope per Documentation Impact | Completed | 20260906-110000 | 20260906-110000 | N/A: `docs/00_index.md` has no row naming `docs/04_mcp_04_05_git.md`; this file matches the generic "MCP server implementation" row, whose reference docs contain no claim needing correction (same finding as `git_service.py`'s own document) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | `dispatch_tool()`/`GitService._run_tool()` cannot preserve `is_error` fidelity for a policy-rejected `git_checkout`/`git_pull`/`git_push` via the live route without a coordinated, not-yet-scoped change to `git_service.py`'s return contract (see Step 3a finding) | No | — |
+| 1 | `dispatch_tool()`/`GitService._run_tool()` cannot preserve `is_error` fidelity for a policy-rejected `git_checkout`/`git_pull`/`git_push` via the live route without a coordinated, not-yet-scoped change to `git_service.py`'s return contract (see Step 3a finding) | Yes | 20260906-104500 |
+| 2 | `GitService._run_tool()` never threaded `dry_run`/`allow_detached_head` to `pipeline.run()`, which would have silently broken the `gitdryrun` feature once dispatch routed through `GitService` (Step 3a second finding) | Yes | 20260906-104500 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

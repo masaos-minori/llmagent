@@ -923,9 +923,17 @@ class TestDryRunAndDetachedHeadLivePath:
 
         original_paths = git_server._cfg.allowed_repo_paths
         original_read_only = git_server._cfg.read_only
+        original_svc_paths = git_server._service._allowed_repo_paths
+        original_svc_read_only = git_server._service._read_only
         try:
             git_server._cfg.allowed_repo_paths = [str(repo_dir)]
             git_server._cfg.read_only = False
+            # call_tool()'s own pre-dispatch checks read live _cfg, but dispatch now
+            # routes through _service (a GitService instance built once at import
+            # time from _cfg's then-current value) — its _validate_repo() reads its
+            # own copied _allowed_repo_paths/_read_only, unaffected by patching _cfg.
+            git_server._service._allowed_repo_paths = [str(repo_dir)]
+            git_server._service._read_only = False
             response = client.post(
                 "/v1/call_tool",
                 json={
@@ -940,6 +948,8 @@ class TestDryRunAndDetachedHeadLivePath:
         finally:
             git_server._cfg.allowed_repo_paths = original_paths
             git_server._cfg.read_only = original_read_only
+            git_server._service._allowed_repo_paths = original_svc_paths
+            git_server._service._read_only = original_svc_read_only
 
         body = response.json()
         assert body.get("is_error") is not True
@@ -999,11 +1009,17 @@ class TestDryRunAndDetachedHeadLivePath:
         original_paths = git_server._cfg.allowed_repo_paths
         original_allow = git_server._cfg.allow_detached_head
         original_read_only = git_server._cfg.read_only
+        original_svc_paths = git_server._service._allowed_repo_paths
+        original_svc_read_only = git_server._service._read_only
+        original_svc_allow = git_server._service._allow_detached_head
         try:
             git_server._cfg.allowed_repo_paths = [str(repo_dir)]
             git_server._cfg.read_only = False
+            git_server._service._allowed_repo_paths = [str(repo_dir)]
+            git_server._service._read_only = False
 
             git_server._cfg.allow_detached_head = False
+            git_server._service._allow_detached_head = False
             denied = client.post(
                 "/v1/call_tool",
                 json={
@@ -1017,6 +1033,7 @@ class TestDryRunAndDetachedHeadLivePath:
             )
 
             git_server._cfg.allow_detached_head = True
+            git_server._service._allow_detached_head = True
             allowed = client.post(
                 "/v1/call_tool",
                 json={
@@ -1032,6 +1049,9 @@ class TestDryRunAndDetachedHeadLivePath:
             git_server._cfg.allowed_repo_paths = original_paths
             git_server._cfg.allow_detached_head = original_allow
             git_server._cfg.read_only = original_read_only
+            git_server._service._allowed_repo_paths = original_svc_paths
+            git_server._service._read_only = original_svc_read_only
+            git_server._service._allow_detached_head = original_svc_allow
 
         assert denied.json().get("is_error") is True
         assert allowed.json().get("is_error") is not True
@@ -1066,9 +1086,13 @@ class TestDryRunAndDetachedHeadLivePath:
 
         original_paths = git_server._cfg.allowed_repo_paths
         original_read_only = git_server._cfg.read_only
+        original_svc_paths = git_server._service._allowed_repo_paths
+        original_svc_read_only = git_server._service._read_only
         try:
             git_server._cfg.allowed_repo_paths = [str(repo_dir)]
             git_server._cfg.read_only = False
+            git_server._service._allowed_repo_paths = [str(repo_dir)]
+            git_server._service._read_only = False
             pull_response = client.post(
                 "/v1/call_tool",
                 json={
@@ -1076,6 +1100,7 @@ class TestDryRunAndDetachedHeadLivePath:
                     "args": {
                         "repo_path": str(repo_dir),
                         "remote": "origin",
+                        "branch": "develop",
                         "dry_run": True,
                     },
                 },
@@ -1087,6 +1112,7 @@ class TestDryRunAndDetachedHeadLivePath:
                     "args": {
                         "repo_path": str(repo_dir),
                         "remote": "origin",
+                        "branch": "develop",
                         "dry_run": True,
                     },
                 },
@@ -1094,6 +1120,8 @@ class TestDryRunAndDetachedHeadLivePath:
         finally:
             git_server._cfg.allowed_repo_paths = original_paths
             git_server._cfg.read_only = original_read_only
+            git_server._service._allowed_repo_paths = original_svc_paths
+            git_server._service._read_only = original_svc_read_only
 
         assert pull_response.json().get("is_error") is not True
         assert push_response.json().get("is_error") is not True

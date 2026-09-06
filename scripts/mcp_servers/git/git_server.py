@@ -22,7 +22,6 @@ from __future__ import annotations
 import logging
 import shutil
 import time
-from collections.abc import Callable
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
@@ -31,24 +30,19 @@ from shared.formatters import fmt_kvlog
 from shared.tool_constants import GIT_WRITE_TOOLS
 
 from mcp_servers.audit import _audit_log
-from mcp_servers.dispatch import DispatchResult, dispatch_tool
+from mcp_servers.dispatch import dispatch_tool
 from mcp_servers.git.errors import GitServiceError
-from mcp_servers.git.format_output import format_checkout, format_pull, format_push
 from mcp_servers.git.git_models import (
-    GitCheckoutRequest,
     GitConfig,
-    GitPullRequest,
-    GitPushRequest,
 )
 from mcp_servers.git.git_security import _resolve_repo_path, is_within_allowed_paths
 from mcp_servers.git.git_service import build_service
 from mcp_servers.git.git_tools import TOOL_LIST
-from mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
+from mcp_servers.git.repository_state import RepositoryState
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
-    ToolArgs,
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
@@ -145,11 +139,6 @@ def _git_tool_availability(cfg: GitConfig, tool_name: str) -> tuple[bool, str]:
     if cfg.read_only and tool_name in GIT_WRITE_TOOLS:
         return False, "read_only=true"
     return True, ""
-
-
-async def _dispatch_git_tool(name: str, args: ToolArgs) -> DispatchResult:
-    """Dispatch a tool request to the git service."""
-    return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
 def _annotate_tool(tool: McpTool, cfg: GitConfig) -> dict[str, Any]:
@@ -254,17 +243,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     pre_state = RepositoryState.snapshot(
         resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
     )
-    handlers: dict[str, Callable[[], str]] = {
-        "git_checkout": lambda: GitMCPServer._format_checkout(pre_state, req),
-        "git_pull": lambda: GitMCPServer._format_pull(pre_state, req),
-        "git_push": lambda: GitMCPServer._format_push(pre_state, req),
-    }
-    handler = handlers.get(req.name)
-    if handler is None:
-        return CallToolResponse(result=f"Unknown tool: {req.name}", is_error=True)
-    pipeline = WriteProtectionPipeline(pre_state)
-    dry_run = cast(bool, req.args.get("dry_run", False))
-    result = pipeline.run(req.name, handler, dry_run, _cfg.allow_detached_head)
+    result = await dispatch_tool(_service.get_dispatch_table(), req.name, req.args)
     post_state = RepositoryState.snapshot(
         resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
     )
@@ -276,7 +255,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         request_id=request_id,
         action=req.name,
         target=resolved,
-        outcome="success" if result.ok else "rejected",
+        outcome="rejected" if result.is_error else "success",
         server_key="git",
         pre_condition=_serialize_state(pre_state),
         post_condition=_serialize_state(post_state),
@@ -285,7 +264,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     )
     return CallToolResponse(
         result=result.output,
-        is_error=not result.ok,
+        is_error=result.is_error,
     )
 
 
@@ -317,45 +296,6 @@ class GitMCPServer(MCPServer):
     own_config_file = "git_mcp_server.toml"
     app_module = "mcp_servers.git.git_server:app"
     mcp_tools = TOOL_LIST
-
-    @staticmethod
-    def _format_checkout(state: RepositoryState, req: CallToolRequest) -> str:
-        """Delegate to format_checkout with RepositoryState."""
-        checkout_req = GitCheckoutRequest(
-            repo_path=cast(str, req.args.get("repo_path", "")),
-            branch=cast(str, req.args.get("branch", "")),
-            create=cast(bool, req.args.get("create", False)),
-            dry_run=cast(bool, req.args.get("dry_run", False)),
-        )
-        return format_checkout(
-            state, checkout_req, allow_detached_head=_cfg.allow_detached_head
-        )
-
-    @staticmethod
-    def _format_pull(state: RepositoryState, req: CallToolRequest) -> str:
-        """Delegate to format_pull with RepositoryState."""
-        pull_req = GitPullRequest(
-            repo_path=cast(str, req.args.get("repo_path", "")),
-            remote=cast(str, req.args.get("remote", "origin")),
-            branch=cast(str, req.args.get("branch", "")),
-            dry_run=cast(bool, req.args.get("dry_run", False)),
-        )
-        return format_pull(state, pull_req)
-
-    @staticmethod
-    def _format_push(state: RepositoryState, req: CallToolRequest) -> str:
-        """Delegate to format_push with RepositoryState."""
-        push_req = GitPushRequest(
-            repo_path=cast(str, req.args.get("repo_path", "")),
-            remote=cast(str, req.args.get("remote", "origin")),
-            branch=cast(str, req.args.get("branch", "")),
-            dry_run=cast(bool, req.args.get("dry_run", False)),
-        )
-        return format_push(state, push_req)
-
-    async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
-        """Dispatch a tool invocation via the git service."""
-        return await _dispatch_git_tool(name, args)
 
 
 if __name__ == "__main__":
