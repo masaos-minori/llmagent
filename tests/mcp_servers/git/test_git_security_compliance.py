@@ -1412,3 +1412,77 @@ class TestRemoteAuthorizationViaHTTP:
                 },
             )
         assert response.json().get("is_error") is not True
+
+
+class TestGitServiceErrorHandlerIdentity:
+    """REQ-008/AC-3/AC-6: a GitServiceError raised from inside the Stage 6
+    op() callback on the live dispatch path is caught by git_server.py's
+    registered @app.exception_handler(GitServiceError) — not left unhandled
+    (which would surface as FastAPI's generic 500 body, not this handler's
+    {"detail": ...} shape) — proving exception identity was not bypassed by
+    consolidating to one GitServiceError class (REQ-001)."""
+
+    @pytest.fixture
+    def client(self):
+        from scripts.mcp_servers.git.git_server import app
+
+        return TestClient(app)
+
+    @pytest.fixture
+    def repo_dir(self, tmp_path):
+        d = tmp_path / "repo"
+        d.mkdir()
+        repo = git.Repo.init(str(d))
+        (d / "README.md").write_text("# test")
+        repo.index.add(["README.md"])
+        repo.index.commit("initial")
+        repo.git.checkout("-b", "develop")
+        return d
+
+    @pytest.fixture
+    def enabled(self, repo_dir):
+        from scripts.mcp_servers.git import git_server
+
+        original_paths = git_server._cfg.allowed_repo_paths
+        original_read_only = git_server._cfg.read_only
+        original_svc_paths = git_server._service._allowed_repo_paths
+        original_svc_read_only = git_server._service._read_only
+        git_server._cfg.allowed_repo_paths = [str(repo_dir)]
+        git_server._cfg.read_only = False
+        git_server._service._allowed_repo_paths = [str(repo_dir)]
+        git_server._service._read_only = False
+        try:
+            yield
+        finally:
+            git_server._cfg.allowed_repo_paths = original_paths
+            git_server._cfg.read_only = original_read_only
+            git_server._service._allowed_repo_paths = original_svc_paths
+            git_server._service._read_only = original_svc_read_only
+
+    def test_induced_git_service_error_is_caught_by_registered_handler(
+        self, client, enabled, repo_dir, monkeypatch
+    ):
+        # Step 3a correction: format_checkout is now called from
+        # mcp_servers.git.git_service (gitdispatch's dispatch-unification
+        # moved it there), not scripts.mcp_servers.git.git_server as this
+        # document originally assumed — patch it at its actual call site.
+        from mcp_servers.git import git_service
+        from mcp_servers.git.errors import GitServiceError
+
+        def _raise_induced(*_args, **_kwargs):
+            raise GitServiceError("induced failure for handler-identity test")
+
+        monkeypatch.setattr(git_service, "format_checkout", _raise_induced)
+
+        response = client.post(
+            "/v1/call_tool",
+            json={
+                "name": "git_checkout",
+                "args": {"repo_path": str(repo_dir), "branch": "develop"},
+            },
+        )
+
+        assert response.status_code == 500
+        assert response.json() == {
+            "detail": "induced failure for handler-identity test"
+        }
