@@ -5,6 +5,11 @@
 # Example: allowed_repo_paths = ["/home/masaos/llmagent", "/opt/llm"]
 allowed_repo_paths = []
 
+# allowed_remote_urls: normalized remote URLs authorized for git_pull/git_push.
+# Empty list = deny all (fail-closed). Add authorized remote URLs explicitly.
+# Example: allowed_remote_urls = ["https://github.com/org/repo.git"]
+allowed_remote_urls = []
+
 # read_only: when true, write tools (git_add/commit/checkout/pull/push) are rejected.
 # Set to false only when write operations are required.
 read_only = true

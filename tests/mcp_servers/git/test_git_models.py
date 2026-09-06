@@ -97,6 +97,10 @@ class TestGitConfigLoad:
         cfg = GitConfig.load()
         assert cfg.protected_branches == ["main", "master", "release"]
 
+    def test_load_reads_allowed_remote_urls_from_shipped_config(self) -> None:
+        cfg = GitConfig.load()
+        assert cfg.allowed_remote_urls == []
+
 
 class TestGitServiceError:
     def test_is_a_runtime_error(self) -> None:

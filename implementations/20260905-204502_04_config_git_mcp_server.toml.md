@@ -76,10 +76,10 @@ allowed_remote_urls = []
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260906-145000 | 20260906-145500 | Inserted immediately after `allowed_repo_paths = []`, exact comment shape as specified |
+| 2 | Add or update tests per Validation plan | Completed | 20260906-145000 | 20260906-145500 | Added `test_load_reads_allowed_remote_urls_from_shipped_config` to `TestGitConfigLoad` (`test_git_models.py`), mirroring the existing `protected_branches` shipped-config test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260906-145500 | 20260906-150500 | ruff format/check, mypy (`scripts/`): pass. `test_git_models.py`: 12/12 passed. `tests/mcp_servers/git/`: 274/274 passed. Full suite: 6346 passed/574 failed/14 skipped/3 errors (1 deselected known bug) — zero failures under `tests/mcp_servers/git/` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260906-150500 | 20260906-150500 | N/A: no `docs/00_index.md` task-scope row matches `config/git_mcp_server.toml` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
