@@ -140,10 +140,10 @@ wording.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-06 | Adversarial verification confirmed: ADR-012 already contains live-path test citations for INV-03 (#5), Decision Details #5, #6, and #9; Known Deviations already states MCP-001/MCP-002 as `resolved`; no edit needed |
+| 2 | Add or update tests per Validation plan | N/A | — | — | No code change |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-06 | 2026-09-06 | No substantive edit required — document already correctly describes implemented behavior |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

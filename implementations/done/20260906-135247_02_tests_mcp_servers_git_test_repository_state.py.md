@@ -98,10 +98,10 @@ dependency; low risk per Method's confirmed zero cross-class/cross-file coupling
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-06 | TestBackwardCompatShims class already removed |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-06 | 2026-09-06 | No new tests needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-06 | 2026-09-06 | Full suite passes (308 tests) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-06 | 2026-09-06 | No docs/00_index.md task-scope mapping for tests/mcp_servers/git/test_repository_state.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
