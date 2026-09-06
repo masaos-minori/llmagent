@@ -163,10 +163,10 @@ N/A: no security-sensitive code path is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's Implementation IS the new test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Created test file with 3 regression scenarios |
+| 2 | Add or update tests per Validation plan | Done | — | — | 3 tests added: addition/update/deletion visibility without invalidation |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | ruff format/check + mypy + pytest all pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

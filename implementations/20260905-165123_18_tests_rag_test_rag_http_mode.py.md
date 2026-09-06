@@ -77,10 +77,10 @@ N/A.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: fixture cleanup only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Removed `cfg.use_semantic_cache = False` and `pipeline.semantic_cache = MagicMock()` |
+| 2 | Add or update tests per Validation plan | Done | — | — | N/A: fixture cleanup only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | All 4 tests pass; zero `semantic_cache` references remain |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
