@@ -52,14 +52,15 @@ def _make_rag_cfg(**overrides) -> RagConfigImpl:
 
 class TestRagPipelineGetCfg:
     def test_get_cfg_error_path(self, monkeypatch) -> None:
-        """_ModuleConfig.get() returns {} when ConfigLoader raises."""
+        """resolve_rag_config falls back to empty config when config_loader raises."""
         import rag.pipeline as pipeline_mod
 
-        monkeypatch.setattr(pipeline_mod._ModuleConfig, "_cache", None)
-        with patch.object(ConfigLoader, "load_all", side_effect=ValueError("no file")):
-            result = pipeline_mod._ModuleConfig.get()
-        assert result == {}
-        monkeypatch.setattr(pipeline_mod._ModuleConfig, "_cache", None)
+        failing_loader = lambda: (_ for _ in ()).throw(ValueError("no file"))  # noqa: E731 — lambda required for zero-arg raising callable; generator expression used to avoid returning None
+        result = pipeline_mod.resolve_rag_config(None, config_loader=failing_loader)
+        assert isinstance(result, RagConfigImpl)
+        assert result.llm_url == ""
+        assert result.embed_url == ""
+        assert result.rag_db_path == ":memory:"
 
 
 class TestRagLlmExceptions:

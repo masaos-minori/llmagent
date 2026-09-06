@@ -5,7 +5,7 @@ Tests for RagPipeline stage-level observability (last_stage_results).
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from rag.pipeline import RagPipeline
@@ -53,8 +53,7 @@ def _make_pipeline(cfg: SimpleNamespace) -> RagPipeline:
     mock_resp.content = b'{"embedding": [0.1]}'
     http = AsyncMock()
     http.post = AsyncMock(return_value=mock_resp)
-    with patch("rag.pipeline._ModuleConfig.get", return_value={}):
-        return RagPipeline(http, cfg)
+    return RagPipeline(http, cfg)
 
 
 class TestStageObservability:

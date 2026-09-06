@@ -105,7 +105,7 @@ class RagPipelineMCPService:
         http_timeout = 120.0  # process-level HTTP client timeout
         self._http = httpx.AsyncClient(timeout=http_timeout)
         # SimpleNamespace satisfies RagPipeline's cfg.* attribute access pattern
-        # module_cfg bypasses _ModuleConfig.get() / agent.toml loading
+        # module_cfg bypasses resolve_rag_config's config_loader fallback / agent.toml loading
         self._pipeline = RagPipeline(self._http, rag_cfg, module_cfg=module_cfg)
         self._doc_mgr = DocumentManager(rag_db_path=cfg.rag_db_path)
         logger.info("RagPipelineMCPService started")

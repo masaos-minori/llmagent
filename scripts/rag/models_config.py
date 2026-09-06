@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-@dataclass(frozen=True)
+@dataclass
 class RagConfigImpl:
     """Concrete implementation of RagConfig Protocol."""
 

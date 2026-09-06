@@ -198,8 +198,7 @@ class TestRagPipelineErrorOnDbOpen:
             rag_auth_token="",
         )
         http = MagicMock()
-        with patch("rag.pipeline._ModuleConfig.get", return_value={}):
-            return RagPipeline(http, cfg)
+        return RagPipeline(http, cfg)
 
     @pytest.mark.asyncio
     async def test_augment_raises_pipeline_error_on_db_failure(self) -> None:
@@ -275,8 +274,7 @@ class TestGetDiagnostics:
             rag_auth_token="",
         )
         http = MagicMock()
-        with patch("rag.pipeline._ModuleConfig.get", return_value={}):
-            return RagPipeline(http, cfg)
+        return RagPipeline(http, cfg)
 
     def test_get_diagnostics_returns_empty_before_run(self) -> None:
         pipeline = self._make_pipeline()

@@ -98,10 +98,10 @@ review flags an issue with the new wording.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked on this Plan's seq 01 (`_ModuleConfig` removal) landing first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update in scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-06 | Updated comment to reference resolve_rag_config instead of _ModuleConfig.get() |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-06 | 2026-09-06 | N/A: comment-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-06 | 2026-09-06 | ruff check passes; no _ModuleConfig references remain |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-06 | 2026-09-06 | N/A: no doc update in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

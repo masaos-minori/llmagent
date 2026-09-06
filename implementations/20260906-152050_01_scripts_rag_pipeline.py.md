@@ -175,9 +175,9 @@ landing first, so a revert here also requires deferring those rows' own changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-06 | Added resolve_rag_config(), replaced inline config-resolution with delegated call, deleted _ModuleConfig class, removed redundant cast at RagLLM(...) call site |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-06 | 2026-09-06 | ruff check passes; mypy reports 2 pre-existing RagConfigImpl↔RagConfig protocol incompatibility errors (masked by original cast, visible after cast removal) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Blocked | 2026-09-06 | — | Tests fail due to _ModuleConfig removal — requires seq 02-06 changes to land first |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
 
 ### Blocker Log

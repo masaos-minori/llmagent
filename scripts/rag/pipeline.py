@@ -60,21 +60,122 @@ from rag.types import PipelineRunResult
 logger = logging.getLogger(__name__)
 
 
-class _ModuleConfig:
-    """Class-level cached config loader for RagPipeline."""
+def resolve_rag_config(
+    cfg: RagConfig,
+    *,
+    module_cfg: dict | None = None,
+    config_loader: Callable[[], dict[str, Any]] | None = None,
+) -> RagConfigImpl:
+    """Resolve RAG configuration from multiple sources with priority ordering.
 
-    _cache: dict[str, str] | None = None
+    Priority order:
+      1. cfg if already a RagConfigImpl (returned directly)
+      2. cfg as dict (used as-is)
+      3. cfg as object with __dict__ (converted to dict)
+      4. module_cfg passed explicitly
+      5. config_loader() callable (defaults to ConfigLoader().load_all())
 
-    @classmethod
-    def get(cls) -> dict:
-        """Load config on first call; cached for the class lifetime."""
-        if cls._cache is None:
+    When config_loader raises FileNotFoundError or ValueError, returns empty dict
+    as fallback (same behavior as the removed _ModuleConfig.get()).
+
+    Returns a validated RagConfigImpl populated with defaults for any missing fields.
+    """
+    if isinstance(cfg, RagConfigImpl):
+        return cfg
+
+    _raw_cfg: dict[str, Any] = {}
+    if isinstance(cfg, dict):
+        _raw_cfg = cfg
+    elif cfg is not None and hasattr(cfg, "__dict__"):
+        _raw_cfg = cfg.__dict__
+    else:
+        if config_loader is None:
             try:
-                cls._cache = ConfigLoader().load_all()
-            except (FileNotFoundError, ValueError) as e:
-                logger.warning("Config load failed: %s", e)
-                cls._cache = {}
-        return cls._cache
+                config_loader = lambda: ConfigLoader().load_all()  # noqa: E731 — closure capture requires lambda; cannot use def inside try block
+            except (FileNotFoundError, ValueError):
+                _raw_cfg = {}
+        if not _raw_cfg and config_loader is not None:
+            try:
+                _raw_cfg = config_loader()
+            except (FileNotFoundError, ValueError):
+                _raw_cfg = {}
+        elif not _raw_cfg:
+            _raw_cfg = module_cfg if module_cfg is not None else {}
+
+    _all_fields = frozenset(
+        {
+            "use_mqe",
+            "top_k_search",
+            "use_rerank",
+            "rag_top_k",
+            "max_chunks_per_doc",
+            "top_k_rerank",
+            "rag_min_score",
+            "use_rrf",
+            "rrf_k",
+            "use_search",
+            "rag_service_url",
+            "rag_auth_token",
+            "use_refiner",
+            "refiner_max_tokens",
+            "refiner_max_chars_per_chunk",
+            "refiner_timeout",
+            "llm_url",
+            "embed_url",
+            "rag_db_path",
+            "sqlite_vec_so",
+            "sqlite_timeout",
+            "sqlite_busy_timeout_ms",
+            "embed_retry",
+            "embed_workers",
+            "rag_pipeline_service_url",
+            "mqe_prompt_template",
+            "mqe_n_queries",
+            "rerank_prompt_template",
+        }
+    )
+    _defaults_for_all = {
+        "use_mqe": False,
+        "top_k_search": 5,
+        "use_rerank": False,
+        "rag_top_k": 3,
+        "max_chunks_per_doc": 5,
+        "top_k_rerank": 10,
+        "rag_min_score": 0.0,
+        "use_rrf": True,
+        "rrf_k": 60,
+        "use_search": True,
+        "rag_service_url": None,
+        "rag_auth_token": None,
+        "use_refiner": False,
+        "refiner_max_tokens": 512,
+        "refiner_max_chars_per_chunk": 800,
+        "refiner_timeout": 30.0,
+        "llm_url": "",
+        "embed_url": "",
+        "rag_db_path": ":memory:",
+        "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
+        "sqlite_timeout": 5,
+        "sqlite_busy_timeout_ms": 5000,
+        "embed_retry": 3,
+        "embed_workers": 4,
+        "rag_pipeline_service_url": None,
+        "mqe_prompt_template": "Expand query: {query}",
+        "mqe_n_queries": 3,
+        "rerank_prompt_template": "Rerank results for: {query}",
+    }
+    for k in _all_fields:
+        if k not in _raw_cfg:
+            _raw_cfg[k] = _defaults_for_all[k]
+    validator = RagConfigValidator()
+    validation_result = validator.validate(_raw_cfg)
+    for warning in validation_result.warnings:
+        logger.warning("rag config warning: %s", warning)
+    for error in validation_result.errors:
+        logger.error("rag config error: %s", error)
+    if not validation_result.ok:
+        raise ValueError(f"RAG config validation failed: {validation_result.errors}")
+    return RagConfigImpl(**_raw_cfg)
 
 
 class RagPipelineError(RuntimeError):
@@ -114,72 +215,12 @@ class RagPipeline:
         self.stat_search_fts_errors: int = 0
         # In-memory nearest-neighbour cache; threshold/max_size read from cfg
 
-        # Resolve configuration: priority: cfg > module_cfg > ConfigLoader().load_all()
-        self._cfg: RagConfig
-        if isinstance(cfg, RagConfigImpl):
-            self._cfg = cfg
-        else:
-            _raw_cfg: dict[str, Any] = {}
-            if isinstance(cfg, dict):
-                _raw_cfg = cfg
-            elif cfg is not None and hasattr(cfg, "__dict__"):
-                _raw_cfg = cfg.__dict__
-            else:
-                _raw_cfg = module_cfg if module_cfg is not None else _ModuleConfig.get()
-            # Fill missing RagConfigImpl fields from any non-dict config source
-            # Dataclass fields without explicit init args don't appear in __dict__
-            _required_fields = frozenset(
-                {
-                    "llm_url",
-                    "embed_url",
-                    "rag_db_path",
-                    "sqlite_vec_so",
-                    "sqlite_timeout",
-                    "sqlite_busy_timeout_ms",
-                    "embed_retry",
-                    "embed_workers",
-                    "rag_pipeline_service_url",
-                    "mqe_prompt_template",
-                    "mqe_n_queries",
-                    "rerank_prompt_template",
-                    "use_search",
-                    "rag_service_url",
-                }
-            )
-            _defaults_for_missing = {
-                "llm_url": "",
-                "embed_url": "",
-                "rag_db_path": "",
-                "sqlite_vec_so": "",
-                "sqlite_timeout": 30,
-                "sqlite_busy_timeout_ms": 30000,
-                "mqe_n_queries": 3,
-                "mqe_prompt_template": "",
-                "rerank_prompt_template": "",
-                "embed_retry": 3,
-                "embed_workers": 4,
-                "rag_pipeline_service_url": None,
-                "use_search": True,
-                "rag_service_url": None,
-            }
-            for k in _required_fields:
-                if k not in _raw_cfg:
-                    _raw_cfg[k] = _defaults_for_missing[k]
-            validator = RagConfigValidator()
-            validation_result = validator.validate(_raw_cfg)
-            for warning in validation_result.warnings:
-                logger.warning("rag config warning: %s", warning)
-            for error in validation_result.errors:
-                logger.error("rag config error: %s", error)
-            if not validation_result.ok:
-                raise ValueError(
-                    f"RAG config validation failed: {validation_result.errors}"
-                )
-            self._cfg = cast(RagConfig, RagConfigImpl(**_raw_cfg))
+        # Resolve configuration via delegate
+        self._cfg = resolve_rag_config(cfg, module_cfg=module_cfg)
         self._llm = RagLLM(
             self._http,
             build_llm_url(self._cfg.llm_url),
-            cfg=cast(RagConfig, self._cfg),
+            cfg=self._cfg,
         )
         self._embed_url: str = build_embed_url(self._cfg.embed_url)
         # DB settings stored for augment(); used when db_path is provided explicitly.

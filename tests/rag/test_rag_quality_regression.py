@@ -72,11 +72,8 @@ def _make_pipeline(
         cfg = _make_rag_cfg()
     http = _make_http()
     if embedder is not None:
-        # Patch the module-level config to provide embed_url
-        with patch("rag.pipeline._ModuleConfig.get", return_value={"embed_url": ""}):
-            return RagPipeline(http, cfg)
-    with patch("rag.pipeline._ModuleConfig.get", return_value={}):
         return RagPipeline(http, cfg)
+    return RagPipeline(http, cfg)
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -168,8 +165,7 @@ class TestRagQualityRegression:
     async def test_fallback_no_embed_server(self) -> None:
         """Unavailable embed server → empty reranked, embed_failed > 0, no exception."""
         cfg = _make_rag_cfg(use_rrf=True)
-        with patch("rag.pipeline._ModuleConfig.get", return_value={}):
-            pipeline = RagPipeline(_make_http(), cfg)
+        pipeline = RagPipeline(_make_http(), cfg)
         mock_db = MagicMock()
         result = await pipeline.run("any query", db=mock_db)
         assert result.reranked == []
