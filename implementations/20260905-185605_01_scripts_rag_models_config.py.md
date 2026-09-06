@@ -95,20 +95,16 @@ N/A: no security-sensitive code path is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacherm` lands — see Assumptions |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by dependent procedure documents |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation deferred to `semcachedocs` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Removed 3 fields from RagConfigImpl; updated test fixtures (test_rag_get_cfg.py, test_augment_integration.py, test_augment_refiner.py) and validator (config_validator.py) |
+| 2 | Add or update tests per Validation plan | Completed | — | — | All 60 targeted tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff + mypy pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: no docs/00_index.md task-scope mapping for changed files |
 
 ### Blocker Log
-| Step | Blocker Description | Resolved | Resolution Date |
-|------|---------------------|----------|-----------------|
-| 1 | Depends on `semcacherm`'s implementation landing first (removes `RagPipeline`'s reads of these fields) | No | — |
+Blockers: None
 
 ### Work Items Created
-| Item ID | Related Step | Type | Status | Owner | Due Date |
-|---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+Work items created: None
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

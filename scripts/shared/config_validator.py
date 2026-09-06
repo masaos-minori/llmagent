@@ -33,13 +33,9 @@ class RagConfigValidator:
         if use_rrf_warning is not None:
             warnings.append(use_rrf_warning)
 
-        threshold_warning = self._check_semantic_cache_threshold(rag)
-        if threshold_warning is not None:
-            warnings.append(threshold_warning)
-
-        max_size_error = self._check_semantic_cache_max_size(rag)
-        if max_size_error is not None:
-            errors.append(max_size_error)
+        unknown_keys = self._check_unknown_rag_keys(rag)
+        for key in unknown_keys:
+            errors.append(f"unknown RAG config key: {key}")
 
         return ConfigValidationResult(errors=errors, warnings=warnings)
 
@@ -56,17 +52,7 @@ class RagConfigValidator:
         return None
 
     @staticmethod
-    def _check_semantic_cache_threshold(rag: Mapping[str, Any]) -> str | None:
-        """Return a warning message when semantic_cache_threshold is unusually low."""
-        threshold = rag.get("semantic_cache_threshold", 0.92)
-        if threshold < 0.5:
-            return f"semantic_cache_threshold={threshold} is unusually low"
-        return None
-
-    @staticmethod
-    def _check_semantic_cache_max_size(rag: Mapping[str, Any]) -> str | None:
-        """Return an error message when semantic_cache_max_size is negative."""
-        max_size = rag.get("semantic_cache_max_size", 100)
-        if max_size < 0:
-            return f"semantic_cache_max_size={max_size} is negative; must be >= 0"
-        return None
+    def _check_unknown_rag_keys(rag: Mapping[str, Any]) -> list[str]:
+        """Return a list of unknown RAG config keys that were removed from RagConfigImpl."""
+        REMOVED_KEYS = frozenset(("semantic_cache_max_size", "semantic_cache_threshold", "use_semantic_cache"))
+        return [k for k in rag if k in REMOVED_KEYS]

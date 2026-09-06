@@ -13,9 +13,6 @@ from rag.models_config import RagConfigImpl
 from shared.config_loader import ConfigLoader
 
 _RAG_CFG_BASE = RagConfigImpl(
-    semantic_cache_max_size=0,
-    semantic_cache_threshold=0.0,
-    use_semantic_cache=False,
     use_mqe=False,
     top_k_search=5,
     use_rerank=False,

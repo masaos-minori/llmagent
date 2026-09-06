@@ -91,20 +91,16 @@ N/A: no security-sensitive code path is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacherm` lands — see Assumptions |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: no direct test targets this protocol |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation deferred to `semcachedocs` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Removed 3 attributes from RagConfig Protocol; confirmed no new mypy errors |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: no direct test targets this protocol |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff + mypy pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: no docs/00_index.md task-scope mapping for changed files |
 
 ### Blocker Log
-| Step | Blocker Description | Resolved | Resolution Date |
-|------|---------------------|----------|-----------------|
-| 1 | Depends on `semcacherm`'s implementation landing first | No | — |
+Blockers: None
 
 ### Work Items Created
-| Item ID | Related Step | Type | Status | Owner | Due Date |
-|---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+Work items created: None
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
