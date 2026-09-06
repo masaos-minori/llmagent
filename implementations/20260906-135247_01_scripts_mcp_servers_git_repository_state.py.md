@@ -172,10 +172,10 @@ change, and no other file's runtime behavior depends on this file's deleted meth
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-06 | Duplicate blocks already removed; file reduced from 880 to 527 lines |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-06 | 2026-09-06 | Sibling doc seq 02 removed TestBackwardCompatShims |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-06 | 2026-09-06 | ruff clean; mypy clean; bandit low-only (pre-existing); fixed F401 unused imports |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-06 | 2026-09-06 | No documentation update needed: Compatibility considerations state "No public API surface is removed from a caller's perspective"; Out of scope explicitly tracks ADR-012/Known Issues/docs corrections in seq 03-06 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

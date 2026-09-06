@@ -13,9 +13,8 @@ import logging
 import os
 import re
 import threading
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Literal
 
 import git
@@ -237,6 +236,7 @@ class RepositoryState:
             return False, f"[DENIED] Ref {ref!r} looks like a CLI option"
         return True, ""
 
+
 # ── WriteProtectionPipeline ─────────────────────────────────────────────────────
 
 
@@ -432,7 +432,6 @@ class WriteProtectionPipeline:
             if stage.failed:
                 return stage
         return None
-
 
 
 __all__ = [
