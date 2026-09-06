@@ -130,15 +130,15 @@ N/A: no security-sensitive code path is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until procedure documents `03`/`04`/`05` land — see Assumptions |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's Implementation IS the new test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Created `tests/agent/test_removed_config_keys_rejected.py` with 4 tests |
+| 2 | Add or update tests per Validation plan | Completed | — | — | This document's Implementation IS the new test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | All 4 tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on procedure documents `03` (`RAGConfig`), `04` (`_build_rag_config()` validator wiring), and `05` (`RagConfigValidator`'s new check) landing first | No | — |
+| 1 | Depends on procedure documents `03` (`RAGConfig`), `04` (`_build_rag_config()` validator wiring), and `05` (`RagConfigValidator`'s new check) landing first | Yes | 2026-09-06 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
