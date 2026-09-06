@@ -30,7 +30,7 @@ Database recovery exists to restore a usable persistence state after physical co
 ### 9.2 Responsibility boundaries
 
 - **Integrity checking** (`_run_integrity_check()`): determines whether the target database can be opened and runs SQLite integrity verification. It MUST NOT itself replace the database, delete the damaged file, or select an unverified backup.
-- **Recovery coordinator** (`recover_corruption()`): interprets the integrity result, applies recovery policy, and returns a structured `RecoveryResult`.
+- **physical-recovery coordinator** (`recover_corruption()`): interprets the integrity result, applies recovery policy, and returns a structured `RecoveryResult`.
 - **Backup provider**: the caller-supplied `backup_path`. Nothing in the current implementation validates the backup's own integrity before it is used — see 9.4 and 9.5.
 - **Startup orchestration**: no current caller invokes `recover_corruption()` during agent startup (Explicit in code — invocation sites are limited to the manual `/session recover` CLI path via `DbSessionOps.recover()` and `RagMaintenanceService.recover()`). Startup-time DB failures are handled by a separate, unrelated path (9.8).
 
@@ -70,7 +70,7 @@ The target design's atomicity, backup-validation, and post-restore-verification 
 
 ### 9.7 Persistence-domain policy
 
-Recovery policy differs by data ownership; `recover_corruption()` supports multiple targets via the `target` parameter. See [ADR-008](adr/ADR-008-sqlite-4db-separation.md) Decision Details #20 for the canonical recovery policy across all four DB domains.
+Recovery policy differs by data ownership; `recover_corruption()` supports multiple targets via the `target` parameter. See [ADR-008](adr/ADR-008-sqlite-4db-separation.md) Decision Details #20 for the canonical physical-recovery policy across all four DB domains. See ADR-008's Recovery Policy Matrix for the full per-domain policy comparison.
 
 - **Reconstructable derived data** (RAG full-text/vector indexes): authoritative source is the `chunks` table. `RagMaintenanceService`'s consistency check and rebuild operations reconstruct these indexes independently of `recover_corruption()`.
 - **Session data**: covered by `recover_corruption(target='session')`. Backup restoration is allowed for this domain per ADR-008.

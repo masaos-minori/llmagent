@@ -45,7 +45,7 @@ Documents the `shared/` layer (common types, configuration, logging, OTel, tool 
 | ToolExecutor, LLMClient | `03_tool-executor` / `03_llm-and-mcp-clients` |
 | Schema, Migrations | `04_overview` / `04_schema` / `04_migration` |
 | Module boundaries, Protocols | `05_module-boundaries` / `05_protocol` |
-| Maintenance, Recovery | `05_maintenance` / `05_recovery` |
+| Maintenance, Recovery | `05_maintenance` / `05_recovery` (API/operational); ADR-008 Recovery Policy Matrix (recovery policy per persistence domain) |
 | Known issues | `90_inconsistencies` |
 
 ---
@@ -60,6 +60,7 @@ Refer to [00_governance_03_issue-and-uncertainty-management.md](00_governance_03
 
 - `06_spec_shared.md` / `07_ref-sqlite.md` / `07_spec_db.md` / `90_shared.md` are legacy source files that have been deleted; their content now resides within the restructured `90_shared_02_*` through `90_shared_05_*` files.
 - If contents conflict between source files, trust the new restructured files (see `90_shared_90` for all discrepancies).
+- `docs/adr/ADR-008-sqlite-4db-separation.md`'s Recovery Policy Matrix is the canonical source for persistence-domain recovery policy, superseding any per-domain policy prose duplicated elsewhere.
 
 ---
 

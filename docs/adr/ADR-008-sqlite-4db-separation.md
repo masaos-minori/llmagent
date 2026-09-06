@@ -57,6 +57,41 @@ RAGインデックス、セッション状態、ワークフロー状態、イ�
 
 ## Decision
 
+### Recovery Category Glossary
+
+- **initialization**: Creating a fresh, empty database or required schema when no valid database exists (`scripts/db/create_schema.py`; section 11 "DB Recreation Procedure").
+- **schema-repair**: Correcting a missing or incompatible schema through an approved migration or initialization path (`apply_workflow_migrations()` / `_migrate()` in `docs/90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md` sections 8a/8b); distinct from recreate-only paths.
+- **logical-repair**: Correcting application-level inconsistencies while the SQLite file remains physically valid (`RagMaintenanceService.consistency()` in `scripts/agent/services/rag_maintenance_service.py`).
+- **derived-data-rebuild**: Recreating indexes or other data that can be derived from an authoritative source (`RagMaintenanceService.rebuild_fts()` / `rebuild_vec()` in `scripts/agent/services/rag_maintenance_service.py`; `rag.sqlite`-only per Decision Detail #11/#20).
+- **physical-recovery**: Restoring usability after SQLite file corruption (`DbCondition.CORRUPTION` path in `scripts/db/recovery.py`; DbCondition StrEnum members: HEALTHY/CORRUPTION/LOCK_CONTENTION/PERMISSION_FAILURE/INVALID_FORMAT/UNKNOWN).
+- **operator-restore**: Restoring a validated backup through an explicit operator-controlled procedure (Decision Detail #14/#17; Invariant INV-18).
+
+### Recovery Policy Matrix
+
+| Field | rag.sqlite | session.sqlite | workflow.sqlite | eventbus.sqlite |
+|---|---|---|---|---|
+| Persistence-domain identifier | rag | session | workflow | eventbus |
+| Database file | rag.sqlite | session.sqlite | workflow.sqlite | eventbus.sqlite |
+| System of record | documents, chunks, FTS5, Vector Index | sessions, messages, memories, memories_vec | tasks, attempts, artifacts, approvals, processed events | events, offsets, deliveries, DLQ state |
+| Derived or rebuildable data | FTS5, Vector Index (from chunks) | memories_vec (from memories) | none | none |
+| Owning component | RAG team | Agent team | Workflow team | EventBus team |
+| Required service stop scope | RAG process | Agent process | Workflow process | EventBus process |
+| Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | `_run_integrity_check()` | `_run_integrity_check()` |
+| Supported recovery source | verified backup file supplied by operator | verified backup file supplied by operator | none (automatic restore prohibited per Decision Detail #20) | none (automatic restore prohibited per Decision Detail #20) |
+| Automatic restore allowed or prohibited | allowed (per Decision Detail #11) | allowed (per Decision Detail #11) | prohibited (INV-18) | prohibited (INV-18) |
+| Manual restore allowed or prohibited | allowed | allowed | operator intervention only | operator intervention only |
+| Operator approval requirement | required for manual restore | required for manual restore | required (manual operation only) | required (manual operation only) |
+| Backup retention requirement | regular file copy via `rotate_all_dbs()` | regular file copy via `rotate_all_dbs()` | archived via `rotate_all_dbs()` but no automated restoration | archived via `rotate_eventbus_db()` alongside other three databases |
+| WAL checkpoint and backup consistency requirement | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup |
+| Physical integrity verification | independent validation before restore (INV-14) | independent validation before restore (INV-14) | independent validation before restore (INV-14) | independent validation before restore (INV-14) |
+| Database-specific logical verification | `check_rag_consistency()` post-restore | connection test + message count check post-restore | `_recover_pending_approvals()` post-restore | offset/delivery reconciliation post-restore |
+| Service restart condition | RAG process restart after restore | Agent process restart after restore | Workflow process restart after restore | EventBus process restart after restore |
+| Rollback condition | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails |
+| Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) |
+| Data-loss disclosure requirement | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported |
+
+For any future persistence domain not covered by this matrix, the default policy is fail-closed: no automatic restore is permitted until an approved architectural decision defines its recovery policy.
+
 ### Decision Details
 
 1. `rag.sqlite`: documents、chunks、FTS5、Vector Indexの正本。RAGチームが所有。
@@ -72,7 +107,7 @@ RAGインデックス、セッション状態、ワークフロー状態、イ�
 11. RAGは再構築可能、Sessionは履歴保持、Workflowは再開と監査、EventBusは未処理EventとOffsetを重視する。
 12. WorkflowまたはEventBusの永続化失敗をログだけで成功扱いにしない。
 13. DB横断Transactionが困難になるトレードオフより、ロック競合回避、障害分離、復旧単純化を優先する理由を記載する。
-14. リカバリは、アクションを選択する前にDB状態（healthy / confirmed corruption / lock contention / permission failure / invalid format / unknown）を分類しなければならない。Lock ContentionおよびPermission Failureを物理的破損として分類してはならない。
+14. physical-recoveryは、アクションを選択する前にDB状態（healthy / confirmed corruption / lock contention / permission failure / invalid format / unknown）を分類しなければならない。Lock ContentionおよびPermission Failureを物理的破損として分類してはならない。
 15. リストア候補のバックアップは、対象DBを置き換える前に、それ自体の整合性を独立して検証しなければならない。
 16. リストアは候補を一時的な場所へStageし、検証したうえで、現行設計でサポートされる範囲においてのみ対象DBをAtomicに置換する。対象DBは、候補が検証に合格する前に上書きしてはならない。
 17. Unknownまたは分類不能な障害は、対象DBを保持し、自動リストアではなく運用者の介入を要求する。
