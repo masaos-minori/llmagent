@@ -92,42 +92,42 @@ canonical source within that area — this matrix provides cross-cutting guidanc
 | Document | Authority | Status |
 |----------|-----------|--------|
 | docs/00_index.md | Primary | Active |
-| docs/architecture.md | Secondary | Active |
+| docs/architecture.md | Secondary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 
 ### Deployment
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/deployment_guide.md | Primary | Active |
-| deploy.sh | Operational | Active |
+| docs/deployment_guide.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
+| deploy.sh | Operational | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 
 ### RAG
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/rag/specification.md | Primary | Active |
+| docs/rag/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 | scripts/rag/embedding.py | Runtime | Active |
 
 ### MCP
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/mcp/specification.md | Primary | Active |
+| docs/mcp/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 | scripts/mcp_servers/*.py | Runtime | Active |
 
 ### Agent
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/agent/specification.md | Primary | Active |
+| docs/agent/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 | scripts/agent/*.py | Runtime | Active |
 
 ### EventBus
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/eventbus/specification.md | Primary | Active |
+| docs/eventbus/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 | scripts/eventbus/*.py | Runtime | Active |
 
 ### Shared/DB
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/shared/specification.md | Primary | Active |
+| docs/shared/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
 | scripts/shared/*.py | Runtime | Active |
 
 ### Governance

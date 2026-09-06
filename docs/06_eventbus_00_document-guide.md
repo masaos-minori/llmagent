@@ -38,7 +38,7 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 
 ## Canonical Source Rule
 
-The canonical source for behavior is the **source code** (`scripts/eventbus/`), not these documents. If there is a conflict between the documentation and the code, trust the code and update the documentation.
+See [EventBus runtime-behavior](../config/documentation_canonical_sources.toml#eventbuscore-behavior) and [EventBus persistence-schema](../config/documentation_canonical_sources.toml#eventbuspersistence-schema) in the Canonical Source Registry.
 
 ## Known Issues / Deferred Items
 
