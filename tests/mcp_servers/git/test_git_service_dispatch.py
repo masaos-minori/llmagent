@@ -253,9 +253,15 @@ class TestGitPull:
 
     @pytest.mark.asyncio
     async def test_dry_run_fetch(self) -> None:
+        from mcp_servers.git.git_models import GitConfig
+
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
         mock_repo.git.fetch.return_value = "up to date"
+        origin = MagicMock()
+        origin.name = "origin"
+        origin.url = "https://example.com/repo.git"
+        mock_repo.remotes = [origin]
         snap = MagicMock(spec=RepositoryState)
         snap.path = "/tmp/repo"
         snap._repo = mock_repo
@@ -265,7 +271,15 @@ class TestGitPull:
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
-        with patch.object(RepositoryState, "snapshot", return_value=snap):
+        with (
+            patch.object(RepositoryState, "snapshot", return_value=snap),
+            patch(
+                "mcp_servers.git.format_output.GitConfig.load",
+                return_value=GitConfig(
+                    allowed_remote_urls=["https://example.com/repo.git"]
+                ),
+            ),
+        ):
             result = await svc.git_pull(
                 {"repo_path": "/opt/repos/proj", "dry_run": True, "branch": "main"}
             )
@@ -274,12 +288,18 @@ class TestGitPull:
 
     @pytest.mark.asyncio
     async def test_pull_result(self) -> None:
+        from mcp_servers.git.git_models import GitConfig
+
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
         mock_repo.is_dirty.return_value = False
         mock_repo.head.is_detached = False
         mock_repo.git.pull.return_value = "Already up to date."
         mock_repo.index.unmerged_blobs.return_value = []
+        origin = MagicMock()
+        origin.name = "origin"
+        origin.url = "https://example.com/repo.git"
+        mock_repo.remotes = [origin]
         snap = MagicMock(spec=RepositoryState)
         snap.path = "/tmp/repo"
         snap._repo = mock_repo
@@ -289,7 +309,15 @@ class TestGitPull:
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
-        with patch.object(RepositoryState, "snapshot", return_value=snap):
+        with (
+            patch.object(RepositoryState, "snapshot", return_value=snap),
+            patch(
+                "mcp_servers.git.format_output.GitConfig.load",
+                return_value=GitConfig(
+                    allowed_remote_urls=["https://example.com/repo.git"]
+                ),
+            ),
+        ):
             result = await svc.git_pull(
                 {"repo_path": "/opt/repos/proj", "branch": "main"}
             )

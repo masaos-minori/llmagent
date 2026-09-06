@@ -17,13 +17,18 @@ from mcp_servers.git.git_models import (
     GitAddRequest,
     GitCheckoutRequest,
     GitCommitRequest,
+    GitConfig,
     GitDiffRequest,
     GitLogRequest,
     GitPullRequest,
     GitPushRequest,
     GitShowRequest,
 )
-from mcp_servers.git.repository_state import RepositoryState
+from mcp_servers.git.repository_state import (
+    RepositoryState,
+    _redact_remote_url,
+    _resolve_remote_url,
+)
 
 GIT_SHOW_OUTPUT_MAX_CHARS = 8000
 
@@ -157,8 +162,24 @@ def format_checkout(
     return f"Switched to branch '{req.branch}'"
 
 
-def format_pull(state: RepositoryState, req: GitPullRequest) -> str:
+def _authorize_remote(state: RepositoryState, remote_name: str, cfg: GitConfig) -> None:
+    """REQ-004: reject a remote whose current URL is not in
+    ``cfg.allowed_remote_urls`` — must run before any mutating GitPython call.
+    Raises GitServiceError with the redacted (never raw) resolved URL (REQ-003)."""
+    assert state._repo is not None
+    url = _resolve_remote_url(state._repo, remote_name)
+    redacted = _redact_remote_url(url) if url is not None else "(unknown remote)"
+    if url is None or url not in cfg.allowed_remote_urls:
+        raise GitServiceError(
+            f"[DENIED] remote {remote_name!r} ({redacted}) is not an authorized remote"
+        )
+
+
+def format_pull(
+    state: RepositoryState, req: GitPullRequest, cfg: GitConfig | None = None
+) -> str:
     """Format output for fetching and merging remote changes."""
+    _authorize_remote(state, req.remote, cfg or GitConfig.load())
     if req.dry_run:
         assert state._repo is not None
         fetch_info = state._repo.git.fetch("--dry-run", req.remote)
@@ -178,8 +199,11 @@ def format_pull(state: RepositoryState, req: GitPullRequest) -> str:
     return result or "Already up to date."
 
 
-def format_push(state: RepositoryState, req: GitPushRequest) -> str:
+def format_push(
+    state: RepositoryState, req: GitPushRequest, cfg: GitConfig | None = None
+) -> str:
     """Format output for pushing local commits to a remote."""
+    _authorize_remote(state, req.remote, cfg or GitConfig.load())
     branch = req.branch or state.active_branch
     if req.dry_run:
         return f"[DRY RUN] Would push branch '{branch}' to '{req.remote}'"

@@ -10,7 +10,6 @@ refactor of this module can be verified not to change behavior.
 from __future__ import annotations
 
 from pathlib import Path
-
 from unittest.mock import MagicMock
 
 import pytest
@@ -32,6 +31,7 @@ from mcp_servers.git.git_models import (
     GitAddRequest,
     GitCheckoutRequest,
     GitCommitRequest,
+    GitConfig,
     GitDiffRequest,
     GitLogRequest,
     GitPullRequest,
@@ -41,6 +41,20 @@ from mcp_servers.git.git_models import (
 from mcp_servers.git.repository_state import RepositoryState
 
 REPO_PATH = "/tmp/repo"
+REMOTE_URL = "https://example.com/repo.git"
+
+
+def _authorized_cfg(*urls: str) -> GitConfig:
+    """A GitConfig authorizing exactly the given remote URLs (REQ-004)."""
+    return GitConfig(allowed_remote_urls=list(urls) or [REMOTE_URL])
+
+
+def _mock_remote(mock_repo: MagicMock, name: str, url: str = REMOTE_URL) -> None:
+    """Configure mock_repo.remotes so _resolve_remote_url(mock_repo, name) finds url."""
+    remote = MagicMock()
+    remote.name = name
+    remote.url = url
+    mock_repo.remotes = [remote]
 
 
 def _make_state(
@@ -56,6 +70,7 @@ def _make_state(
         _repo = MagicMock()
         _repo.active_branch.name = active_branch or "main"
         _repo.head.is_detached = head_type == "detached"
+        _mock_remote(_repo, "origin")
     return RepositoryState(
         path=REPO_PATH,
         is_dirty=is_dirty,
@@ -386,33 +401,36 @@ class TestFormatPull:
     def test_dry_run_with_no_fetch_output(self) -> None:
         mock_repo = MagicMock()
         mock_repo.git.fetch.return_value = ""
+        _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=True
         )
-        result = format_pull(state, req)
+        result = format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "[DRY RUN] fetch --dry-run result:\n(nothing to commit)"
         mock_repo.git.fetch.assert_called_once_with("--dry-run", "origin")
 
     def test_dry_run_with_fetch_output(self) -> None:
         mock_repo = MagicMock()
         mock_repo.git.fetch.return_value = "some fetch info"
+        _mock_remote(mock_repo, "upstream")
         state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="upstream", branch="", dry_run=True
         )
-        result = format_pull(state, req)
+        result = format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "[DRY RUN] fetch --dry-run result:\nsome fetch info"
 
     def test_real_pull_without_branch(self) -> None:
         mock_repo = MagicMock()
         mock_repo.index.unmerged_blobs.return_value = []
         mock_repo.git.pull.return_value = "pull output"
+        _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
-        result = format_pull(state, req)
+        result = format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
         mock_repo.git.pull.assert_called_once_with("origin")
         assert result == "pull output"
 
@@ -420,22 +438,24 @@ class TestFormatPull:
         mock_repo = MagicMock()
         mock_repo.index.unmerged_blobs.return_value = []
         mock_repo.git.pull.return_value = "pull output"
+        _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="develop", dry_run=False
         )
-        format_pull(state, req)
+        format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
         mock_repo.git.pull.assert_called_once_with("origin", "--", "develop")
 
     def test_empty_pull_result_reports_up_to_date(self) -> None:
         mock_repo = MagicMock()
         mock_repo.index.unmerged_blobs.return_value = []
         mock_repo.git.pull.return_value = ""
+        _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
-        result = format_pull(state, req)
+        result = format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "Already up to date."
 
 
@@ -474,6 +494,7 @@ class TestFormatPostconditionFailures:
         mock_repo = MagicMock()
         mock_repo.index.unmerged_blobs.return_value = ["conflicted_file.py"]
         mock_repo.git.pull.return_value = "pull output"
+        _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
@@ -482,11 +503,12 @@ class TestFormatPostconditionFailures:
             GitServiceError,
             match=r"pull postcondition failed: unresolved merge conflicts remain",
         ):
-            format_pull(state, req)
+            format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
 
     def test_push_postcondition_failure_rejection_marker_in_output(self) -> None:
         mock_repo = MagicMock()
         mock_repo.git.push.return_value = "! [rejected] main -> main (non-fast-forward)"
+        _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
@@ -495,7 +517,7 @@ class TestFormatPostconditionFailures:
             GitServiceError,
             match=r"push postcondition failed: rejection marker detected in output",
         ):
-            format_push(state, req)
+            format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
 
 
 # ── format_push ────────────────────────────────────────────────────────────────
@@ -507,7 +529,7 @@ class TestFormatPush:
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="feature/x", dry_run=True
         )
-        result = format_push(state, req)
+        result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "[DRY RUN] Would push branch 'feature/x' to 'origin'"
 
     def test_dry_run_defaults_to_active_branch(self) -> None:
@@ -515,17 +537,18 @@ class TestFormatPush:
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=True
         )
-        result = format_push(state, req)
+        result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "[DRY RUN] Would push branch 'main' to 'origin'"
 
     def test_real_push_with_result(self) -> None:
         mock_repo = MagicMock()
         mock_repo.git.push.return_value = "push output"
+        _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
         )
-        result = format_push(state, req)
+        result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
         mock_repo.git.push.assert_called_once_with("origin", "--", "main")
         assert result == "push output"
 
@@ -533,11 +556,12 @@ class TestFormatPush:
         mock_repo = MagicMock()
         mock_repo.active_branch.name = "main"
         mock_repo.git.push.return_value = ""
+        _mock_remote(mock_repo, "origin")
         state = _make_state(active_branch="main", _repo=mock_repo)
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
-        result = format_push(state, req)
+        result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "Pushed 'main' to 'origin'"
 
 
@@ -569,3 +593,96 @@ class TestRealRepoRegression:
         # Re-snapshot after checkout because RepositoryState is frozen (immutable)
         state_after = RepositoryState.snapshot(repo_dir)
         assert state_after.active_branch == "feature"
+
+
+# ── Remote authorization (REQ-004/REQ-008) ───────────────────────────────────
+
+
+class TestRemoteAuthorization:
+    def test_pull_rejects_unauthorized_remote(self) -> None:
+        mock_repo = MagicMock()
+        _mock_remote(mock_repo, "origin", "https://evil.example.com/repo.git")
+        state = _make_state(_repo=mock_repo)
+        req = GitPullRequest(
+            repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
+        )
+        with pytest.raises(
+            GitServiceError, match=r"\[DENIED\].*not an authorized remote"
+        ):
+            format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        mock_repo.git.pull.assert_not_called()
+
+    def test_pull_rejects_unknown_remote_name(self) -> None:
+        mock_repo = MagicMock()
+        _mock_remote(mock_repo, "origin", REMOTE_URL)
+        state = _make_state(_repo=mock_repo)
+        req = GitPullRequest(
+            repo_path=REPO_PATH, remote="nonexistent", branch="", dry_run=False
+        )
+        with pytest.raises(
+            GitServiceError, match=r"\[DENIED\].*not an authorized remote"
+        ):
+            format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        mock_repo.git.pull.assert_not_called()
+
+    def test_pull_dry_run_also_rejects_unauthorized_remote(self) -> None:
+        """REQ-004: even a dry-run fetch must not target an unauthorized remote."""
+        mock_repo = MagicMock()
+        _mock_remote(mock_repo, "origin", "https://evil.example.com/repo.git")
+        state = _make_state(_repo=mock_repo)
+        req = GitPullRequest(
+            repo_path=REPO_PATH, remote="origin", branch="", dry_run=True
+        )
+        with pytest.raises(GitServiceError, match=r"\[DENIED\]"):
+            format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        mock_repo.git.fetch.assert_not_called()
+
+    def test_push_rejects_unauthorized_remote(self) -> None:
+        mock_repo = MagicMock()
+        _mock_remote(mock_repo, "origin", "https://evil.example.com/repo.git")
+        state = _make_state(_repo=mock_repo)
+        req = GitPushRequest(
+            repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
+        )
+        with pytest.raises(
+            GitServiceError, match=r"\[DENIED\].*not an authorized remote"
+        ):
+            format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        mock_repo.git.push.assert_not_called()
+
+    def test_push_dry_run_also_rejects_unauthorized_remote(self) -> None:
+        mock_repo = MagicMock()
+        _mock_remote(mock_repo, "origin", "https://evil.example.com/repo.git")
+        state = _make_state(_repo=mock_repo)
+        req = GitPushRequest(
+            repo_path=REPO_PATH, remote="origin", branch="main", dry_run=True
+        )
+        with pytest.raises(GitServiceError, match=r"\[DENIED\]"):
+            format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
+
+    def test_rejection_message_redacts_credentials(self) -> None:
+        """REQ-003: the raw credential must never appear in the rejection message."""
+        mock_repo = MagicMock()
+        _mock_remote(
+            mock_repo, "origin", "https://user:supersecret@evil.example.com/repo.git"
+        )
+        state = _make_state(_repo=mock_repo)
+        req = GitPullRequest(
+            repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
+        )
+        with pytest.raises(GitServiceError) as exc_info:
+            format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        assert "supersecret" not in str(exc_info.value)
+        assert "***@evil.example.com" in str(exc_info.value)
+
+    def test_authorized_remote_proceeds(self) -> None:
+        mock_repo = MagicMock()
+        mock_repo.index.unmerged_blobs.return_value = []
+        mock_repo.git.pull.return_value = "pull output"
+        _mock_remote(mock_repo, "origin", REMOTE_URL)
+        state = _make_state(_repo=mock_repo)
+        req = GitPullRequest(
+            repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
+        )
+        result = format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        assert result == "pull output"

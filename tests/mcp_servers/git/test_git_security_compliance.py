@@ -256,7 +256,19 @@ class TestGitSecurityCompliance:
         snap._repo = MagicMock()
         snap._repo.index.unmerged_blobs.return_value = []
         snap._repo.git.pull.return_value = "Already up to date."
-        with patch.object(RepositoryState, "snapshot", return_value=snap):
+        origin = MagicMock()
+        origin.name = "origin"
+        origin.url = "https://example.com/repo.git"
+        snap._repo.remotes = [origin]
+        with (
+            patch.object(RepositoryState, "snapshot", return_value=snap),
+            patch(
+                "mcp_servers.git.format_output.GitConfig.load",
+                return_value=GitConfig(
+                    allowed_remote_urls=["https://example.com/repo.git"]
+                ),
+            ),
+        ):
             args = {
                 "repo_path": "/tmp/repo",
                 "remote": "origin",
@@ -303,7 +315,20 @@ class TestGitSecurityCompliance:
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
-        with patch.object(RepositoryState, "snapshot", return_value=snap):
+        snap._repo = MagicMock()
+        origin = MagicMock()
+        origin.name = "origin"
+        origin.url = "https://example.com/repo.git"
+        snap._repo.remotes = [origin]
+        with (
+            patch.object(RepositoryState, "snapshot", return_value=snap),
+            patch(
+                "mcp_servers.git.format_output.GitConfig.load",
+                return_value=GitConfig(
+                    allowed_remote_urls=["https://example.com/repo.git"]
+                ),
+            ),
+        ):
             args = {
                 "repo_path": "/tmp/repo",
                 "remote": "origin",

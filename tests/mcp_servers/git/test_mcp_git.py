@@ -322,11 +322,18 @@ class TestGitCheckout:
 class TestGitPush:
     @pytest.mark.asyncio
     async def test_dry_run_push_current_branch(self) -> None:
+        from mcp_servers.git.git_models import GitConfig
+
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
         mock_repo.active_branch.name = "main"
+        origin = MagicMock()
+        origin.name = "origin"
+        origin.url = "https://example.com/repo.git"
+        mock_repo.remotes = [origin]
         snap = MagicMock(spec=RepositoryState)
         snap.path = "/tmp/repo"
+        snap._repo = mock_repo
         snap.repo = mock_repo
         snap.active_branch = "main"
         snap.is_dirty = False
@@ -335,7 +342,15 @@ class TestGitPush:
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
-        with patch.object(RepositoryState, "snapshot", return_value=snap):
+        with (
+            patch.object(RepositoryState, "snapshot", return_value=snap),
+            patch(
+                "mcp_servers.git.format_output.GitConfig.load",
+                return_value=GitConfig(
+                    allowed_remote_urls=["https://example.com/repo.git"]
+                ),
+            ),
+        ):
             result = await svc.git_push(
                 {"repo_path": "/opt/repos/proj", "branch": "main", "dry_run": True}
             )
