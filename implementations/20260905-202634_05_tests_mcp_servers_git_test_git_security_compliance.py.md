@@ -78,12 +78,30 @@ dirty/detached-HEAD repository is not rejected by Stage 5 and performs no mutati
      non-protected branch; assert not rejected at Stage 5 and the repo's dirty/
      detached state is unchanged after the call (no mutation).
    - `test_dry_run_checkout_protected_branch_still_denied`: POST `git_checkout` with
-     `dry_run=True`, `branch="main"` (protected); assert `[DENIED]` and "protected
-     branch" in the response (Stage 3 stays active during dry-run).
+     `dry_run=True`, `branch="main"` (protected); assert `is_error is True` (Stage 3
+     stays active during dry-run). **Step 3a correction (2026-09-05)**: `PipelineResult.reject()`
+     (`repository_state.py`) never populates `.output`, and `git_server.py`'s
+     `call_tool` always returns `result=result.output` regardless of `result.ok` — so a
+     pipeline-stage (Stage 3/Stage 5) rejection via the live route always yields
+     `result=""` in the HTTP body, never surfacing the `[DENIED]`/message text. This is
+     pre-existing behavior (not introduced by this Plan's `git_server.py`/
+     `repository_state.py` changes, which only touch the `pipeline.run()` call site and
+     `verify_preconditions()`'s signature, not the response construction or `reject()`'s
+     fields) and out of this Plan's scope to fix. This file's own established pattern
+     for pipeline-level (not pre-snapshot) rejections already accounts for this — see
+     `TestPostConditionBypassPrevention`/`TestCompletePipelineCoverage`'s
+     `is_error is True` (no message-content) assertions. This document's new tests for
+     pipeline-stage rejections must do the same: assert `is_error is True` only, not
+     `[DENIED]`/message-substring content. (Contrast with `TestHTTPSiblingPathRejection`,
+     which asserts `[DENIED]` in the response — that class exercises the earlier,
+     pre-snapshot `_validate_pre_snapshot()` rejection path, which does pass its message
+     through directly; not the same code path this document's tests exercise.)
    - `test_non_dry_run_detached_head_denied_then_allowed`: POST `git_checkout` with
      `dry_run=False` against a detached-HEAD repo, once with
-     `_cfg.allow_detached_head=False` (denied) and once with `True` (allowed),
-     mirroring `test_repository_state.py`'s matrix but via the live route.
+     `_cfg.allow_detached_head=False` (denied — assert `is_error is True` only, per the
+     same correction above) and once with `True` (allowed — assert
+     `is_error is not True`), mirroring `test_repository_state.py`'s matrix but via the
+     live route.
    - `test_dry_run_pull_and_push_skip_dirty_and_detached_precondition`: same
      dry-run/no-mutation assertion for `git_pull`/`git_push`, using a local bare repo
      as the `origin` remote (`git.Repo.init(str(tmp_path / "remote"), bare=True)`,
@@ -193,10 +211,10 @@ additionally creates a bare-repo remote per Procedure step 2's fourth bullet.)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestDryRunAndDetachedHeadLivePath` with the four real-repo, `TestClient`-based tests | Pending | — | — | |
-| 2 | Confirm each new test fails pre-change and passes post-change; run suite twice under different random seeds to check for `_cfg` leakage | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test file, no doc impact |
+| 1 | Add `TestDryRunAndDetachedHeadLivePath` with the four real-repo, `TestClient`-based tests | Completed | 20260906-000000 | 20260906-090000 | Step 3a correction: the pull/push test could not use a detached-HEAD repo with an implicit (empty) ref — `_validate_ref` fails-closed when there is no resolvable active branch, so Stage 3 rejects independent of `dry_run`. Renamed to `test_dry_run_pull_and_push_skip_dirty_precondition` and kept it on a non-detached, non-protected branch (`develop`); detached-HEAD skip is already covered by the checkout test |
+| 2 | Confirm each new test fails pre-change and passes post-change; run suite twice under different random seeds to check for `_cfg` leakage | Completed | 20260906-090000 | 20260906-090500 | 43/43 passed under `--randomly-seed=1` and `--randomly-seed=42`; no `_cfg` leakage (all four tests restore `allowed_repo_paths`/`read_only`/`allow_detached_head` via try/finally) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260906-090500 | 20260906-091000 | ruff format/check, mypy (`scripts/`), lint-imports, bandit: pass (pre-existing unrelated findings in this file and elsewhere confirmed unchanged vs baseline via `git stash`). Full suite: 6310 passed/574 failed/14 skipped/3 errors (1 deselected: known unrelated `test_keyboard_interrupt_breaks_loop` KeyboardInterrupt bug) — zero failures under `tests/mcp_servers/git/` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260906-091000 | 20260906-091000 | N/A: test file, no doc impact |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

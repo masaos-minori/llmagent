@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import httpx
+import git
 import pytest
 from fastapi.testclient import TestClient
 from mcp_servers.git.git_models import GitConfig
@@ -659,6 +659,7 @@ class TestPostConditionBypassPrevention:
     @pytest.fixture
     def client(self):
         from scripts.mcp_servers.git.git_server import app
+
         return TestClient(app)
 
     def test_checkout_postcondition_cannot_be_bypassed(self, client, monkeypatch):
@@ -671,16 +672,24 @@ class TestPostConditionBypassPrevention:
         snap.repo.is_dirty.return_value = False
         snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
-        snap.verify_postcondition.side_effect = lambda result, post_state, tool_name, requested_branch: \
-            ((False, "checkout postcondition failed: expected branch 'dev'") if tool_name == "git_checkout" else (True, ""))
+        snap.verify_postcondition.side_effect = (
+            lambda result, post_state, tool_name, requested_branch: (
+                (False, "checkout postcondition failed: expected branch 'dev'")
+                if tool_name == "git_checkout"
+                else (True, "")
+            )
+        )
         snap.audit.return_value = {}
 
         monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
 
-        response = client.post("/v1/call_tool", json={
-            "name": "git_checkout",
-            "args": {"repo_path": "/tmp/test-repo", "branch": "dev"}
-        })
+        response = client.post(
+            "/v1/call_tool",
+            json={
+                "name": "git_checkout",
+                "args": {"repo_path": "/tmp/test-repo", "branch": "dev"},
+            },
+        )
 
         body = response.json()
         assert body.get("is_error") is True or "failed" in str(body).lower()
@@ -695,19 +704,34 @@ class TestPostConditionBypassPrevention:
         snap.repo.is_dirty.return_value = False
         snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
-        snap.verify_postcondition.side_effect = lambda result, post_state, tool_name, requested_branch: \
-            ((False, "pull postcondition failed: unresolved merge conflicts remain") if tool_name == "git_pull" else (True, ""))
+        snap.verify_postcondition.side_effect = (
+            lambda result, post_state, tool_name, requested_branch: (
+                (False, "pull postcondition failed: unresolved merge conflicts remain")
+                if tool_name == "git_pull"
+                else (True, "")
+            )
+        )
         snap.audit.return_value = {}
 
         monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
 
-        response = client.post("/v1/call_tool", json={
-            "name": "git_pull",
-            "args": {"repo_path": "/tmp/test-repo", "remote": "origin", "branch": "main"}
-        })
+        response = client.post(
+            "/v1/call_tool",
+            json={
+                "name": "git_pull",
+                "args": {
+                    "repo_path": "/tmp/test-repo",
+                    "remote": "origin",
+                    "branch": "main",
+                },
+            },
+        )
 
         body = response.json()
-        assert body.get("is_error") is True or "unresolved merge conflicts" in str(body).lower()
+        assert (
+            body.get("is_error") is True
+            or "unresolved merge conflicts" in str(body).lower()
+        )
 
     def test_push_postcondition_cannot_be_bypassed(self, client, monkeypatch):
         """REQ-010, AC-8: Push postcondition failure (rejection) is reported."""
@@ -719,16 +743,28 @@ class TestPostConditionBypassPrevention:
         snap.repo.is_dirty.return_value = False
         snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
-        snap.verify_postcondition.side_effect = lambda result, post_state, tool_name, requested_branch: \
-            ((False, "push postcondition failed: rejected") if tool_name == "git_push" else (True, ""))
+        snap.verify_postcondition.side_effect = (
+            lambda result, post_state, tool_name, requested_branch: (
+                (False, "push postcondition failed: rejected")
+                if tool_name == "git_push"
+                else (True, "")
+            )
+        )
         snap.audit.return_value = {}
 
         monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
 
-        response = client.post("/v1/call_tool", json={
-            "name": "git_push",
-            "args": {"repo_path": "/tmp/test-repo", "remote": "origin", "refspec": "main:main"}
-        })
+        response = client.post(
+            "/v1/call_tool",
+            json={
+                "name": "git_push",
+                "args": {
+                    "repo_path": "/tmp/test-repo",
+                    "remote": "origin",
+                    "refspec": "main:main",
+                },
+            },
+        )
 
         body = response.json()
         assert body.get("is_error") is True or "rejected" in str(body).lower()
@@ -740,11 +776,15 @@ class TestCompletePipelineCoverage:
     @pytest.fixture
     def client(self):
         from scripts.mcp_servers.git.git_server import app
+
         return TestClient(app)
 
     def test_all_stages_execute_in_order_for_checkout(self, client, monkeypatch):
         """REQ-010, AC-1: Authorization, precondition, execution, and postcondition stages execute in documented order."""
-        from scripts.mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
+        from scripts.mcp_servers.git.repository_state import (
+            RepositoryState,
+            WriteProtectionPipeline,
+        )
 
         recorded_stages = []
         original_record = WriteProtectionPipeline.record_stage
@@ -766,10 +806,13 @@ class TestCompletePipelineCoverage:
 
         monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
 
-        response = client.post("/v1/call_tool", json={
-            "name": "git_checkout",
-            "args": {"repo_path": "/tmp/test-repo", "branch": "main"}
-        })
+        client.post(
+            "/v1/call_tool",
+            json={
+                "name": "git_checkout",
+                "args": {"repo_path": "/tmp/test-repo", "branch": "main"},
+            },
+        )
 
         if len(recorded_stages) >= 4:
             assert recorded_stages.index("Stage 3") < recorded_stages.index("Stage 5")
@@ -778,7 +821,10 @@ class TestCompletePipelineCoverage:
 
     def test_all_stages_execute_in_order_for_pull(self, client, monkeypatch):
         """REQ-010, AC-1: Pull stages execute in documented order."""
-        from scripts.mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
+        from scripts.mcp_servers.git.repository_state import (
+            RepositoryState,
+            WriteProtectionPipeline,
+        )
 
         recorded_stages = []
         original_record = WriteProtectionPipeline.record_stage
@@ -800,10 +846,17 @@ class TestCompletePipelineCoverage:
 
         monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
 
-        response = client.post("/v1/call_tool", json={
-            "name": "git_pull",
-            "args": {"repo_path": "/tmp/test-repo", "remote": "origin", "branch": "main"}
-        })
+        client.post(
+            "/v1/call_tool",
+            json={
+                "name": "git_pull",
+                "args": {
+                    "repo_path": "/tmp/test-repo",
+                    "remote": "origin",
+                    "branch": "main",
+                },
+            },
+        )
 
         if len(recorded_stages) >= 4:
             assert recorded_stages.index("Stage 3") < recorded_stages.index("Stage 5")
@@ -812,7 +865,10 @@ class TestCompletePipelineCoverage:
 
     def test_all_stages_execute_in_order_for_push(self, client, monkeypatch):
         """REQ-010, AC-1: Push stages execute in documented order."""
-        from scripts.mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
+        from scripts.mcp_servers.git.repository_state import (
+            RepositoryState,
+            WriteProtectionPipeline,
+        )
 
         recorded_stages = []
         original_record = WriteProtectionPipeline.record_stage
@@ -834,10 +890,17 @@ class TestCompletePipelineCoverage:
 
         monkeypatch.setattr(RepositoryState, "snapshot", MagicMock(return_value=snap))
 
-        response = client.post("/v1/call_tool", json={
-            "name": "git_push",
-            "args": {"repo_path": "/tmp/test-repo", "remote": "origin", "refspec": "main:main"}
-        })
+        client.post(
+            "/v1/call_tool",
+            json={
+                "name": "git_push",
+                "args": {
+                    "repo_path": "/tmp/test-repo",
+                    "remote": "origin",
+                    "refspec": "main:main",
+                },
+            },
+        )
 
         if len(recorded_stages) >= 4:
             assert recorded_stages.index("Stage 3") < recorded_stages.index("Stage 5")
@@ -845,3 +908,204 @@ class TestCompletePipelineCoverage:
             assert recorded_stages.index("Stage 6") < recorded_stages.index("Stage 7")
 
 
+class TestDryRunAndDetachedHeadLivePath:
+    """REQ-006, REQ-009: dry-run skips Stage 5 preconditions but not Stage 3
+    authorization, and performs no mutation, via the real /v1/call_tool route."""
+
+    @pytest.fixture
+    def client(self):
+        from scripts.mcp_servers.git.git_server import app
+
+        return TestClient(app)
+
+    def test_dry_run_checkout_skips_dirty_and_detached_precondition(
+        self, client, tmp_path
+    ):
+        from scripts.mcp_servers.git import git_server
+
+        repo_dir = tmp_path / "repo"
+        repo_dir.mkdir()
+        repo = git.Repo.init(str(repo_dir))
+        (repo_dir / "README.md").write_text("# test")
+        repo.index.add(["README.md"])
+        repo.index.commit("initial")
+        repo.git.checkout(repo.head.commit.hexsha)  # detached
+        (repo_dir / "README.md").write_text("# test\nuncommitted\n")  # dirty
+
+        original_paths = git_server._cfg.allowed_repo_paths
+        original_read_only = git_server._cfg.read_only
+        try:
+            git_server._cfg.allowed_repo_paths = [str(repo_dir)]
+            git_server._cfg.read_only = False
+            response = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_checkout",
+                    "args": {
+                        "repo_path": str(repo_dir),
+                        "branch": "develop",
+                        "dry_run": True,
+                    },
+                },
+            )
+        finally:
+            git_server._cfg.allowed_repo_paths = original_paths
+            git_server._cfg.read_only = original_read_only
+
+        body = response.json()
+        assert body.get("is_error") is not True
+        assert git.Repo(str(repo_dir)).is_dirty()  # unchanged: still dirty, no mutation
+        assert git.Repo(str(repo_dir)).head.is_detached  # unchanged: still detached
+
+    def test_dry_run_checkout_protected_branch_still_denied(self, client, tmp_path):
+        from scripts.mcp_servers.git import git_server
+
+        repo_dir = tmp_path / "repo"
+        repo_dir.mkdir()
+        repo = git.Repo.init(str(repo_dir))
+        (repo_dir / "README.md").write_text("# test")
+        repo.index.add(["README.md"])
+        repo.index.commit("initial")
+
+        original_paths = git_server._cfg.allowed_repo_paths
+        original_read_only = git_server._cfg.read_only
+        try:
+            git_server._cfg.allowed_repo_paths = [str(repo_dir)]
+            git_server._cfg.read_only = False
+            response = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_checkout",
+                    "args": {
+                        "repo_path": str(repo_dir),
+                        "branch": "main",
+                        "dry_run": True,
+                    },
+                },
+            )
+        finally:
+            git_server._cfg.allowed_repo_paths = original_paths
+            git_server._cfg.read_only = original_read_only
+
+        body = response.json()
+        # Stage 3 (authorization) stays active during dry-run. Per Step 3a's
+        # correction (implementation procedure document): PipelineResult.reject()
+        # never populates .output, so a pipeline-stage rejection's message is not
+        # surfaced in the response body via the live route — only is_error is
+        # asserted here, matching TestPostConditionBypassPrevention's established
+        # pattern for this same code path.
+        assert body.get("is_error") is True
+
+    def test_non_dry_run_detached_head_denied_then_allowed(self, client, tmp_path):
+        from scripts.mcp_servers.git import git_server
+
+        repo_dir = tmp_path / "repo"
+        repo_dir.mkdir()
+        repo = git.Repo.init(str(repo_dir))
+        (repo_dir / "README.md").write_text("# test")
+        repo.index.add(["README.md"])
+        repo.index.commit("initial")
+        repo.git.checkout(repo.head.commit.hexsha)  # detached
+
+        original_paths = git_server._cfg.allowed_repo_paths
+        original_allow = git_server._cfg.allow_detached_head
+        original_read_only = git_server._cfg.read_only
+        try:
+            git_server._cfg.allowed_repo_paths = [str(repo_dir)]
+            git_server._cfg.read_only = False
+
+            git_server._cfg.allow_detached_head = False
+            denied = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_checkout",
+                    "args": {
+                        "repo_path": str(repo_dir),
+                        "branch": "develop",
+                        "dry_run": False,
+                    },
+                },
+            )
+
+            git_server._cfg.allow_detached_head = True
+            allowed = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_checkout",
+                    "args": {
+                        "repo_path": str(repo_dir),
+                        "branch": "develop",
+                        "dry_run": False,
+                    },
+                },
+            )
+        finally:
+            git_server._cfg.allowed_repo_paths = original_paths
+            git_server._cfg.allow_detached_head = original_allow
+            git_server._cfg.read_only = original_read_only
+
+        assert denied.json().get("is_error") is True
+        assert allowed.json().get("is_error") is not True
+
+    def test_dry_run_pull_and_push_skip_dirty_precondition(self, client, tmp_path):
+        from scripts.mcp_servers.git import git_server
+
+        # Stage 3 (verify_authorization) rejects an empty/implicit ref when
+        # there is no resolvable active branch — e.g. a detached HEAD — per
+        # `_validate_ref`'s "empty ref valid only when a current branch exists"
+        # rule (`repository_state.py`). That Stage-3 check is unaffected by
+        # dry_run by design (only Stage 5 preconditions are skipped), so this
+        # test stays on a non-detached, non-protected branch ("develop") to
+        # isolate the dirty-worktree (Stage 5) skip this test targets;
+        # detached-HEAD skip is already covered by the checkout test above,
+        # which supplies an explicit target branch instead of an implicit ref.
+        remote_dir = tmp_path / "remote"
+        remote_dir.mkdir()
+        git.Repo.init(str(remote_dir), bare=True)
+
+        repo_dir = tmp_path / "repo"
+        repo_dir.mkdir()
+        repo = git.Repo.init(str(repo_dir))
+        (repo_dir / "README.md").write_text("# test")
+        repo.index.add(["README.md"])
+        repo.index.commit("initial")
+        repo.git.checkout("-b", "develop")
+        repo.create_remote("origin", str(remote_dir))
+        repo.git.push("origin", "develop:develop")
+        repo.git.branch("--set-upstream-to=origin/develop", "develop")
+        (repo_dir / "README.md").write_text("# test\nuncommitted\n")  # dirty
+
+        original_paths = git_server._cfg.allowed_repo_paths
+        original_read_only = git_server._cfg.read_only
+        try:
+            git_server._cfg.allowed_repo_paths = [str(repo_dir)]
+            git_server._cfg.read_only = False
+            pull_response = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_pull",
+                    "args": {
+                        "repo_path": str(repo_dir),
+                        "remote": "origin",
+                        "dry_run": True,
+                    },
+                },
+            )
+            push_response = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_push",
+                    "args": {
+                        "repo_path": str(repo_dir),
+                        "remote": "origin",
+                        "dry_run": True,
+                    },
+                },
+            )
+        finally:
+            git_server._cfg.allowed_repo_paths = original_paths
+            git_server._cfg.read_only = original_read_only
+
+        assert pull_response.json().get("is_error") is not True
+        assert push_response.json().get("is_error") is not True
+        assert git.Repo(str(repo_dir)).is_dirty()  # unchanged: still dirty, no mutation
