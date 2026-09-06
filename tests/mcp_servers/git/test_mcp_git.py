@@ -7,10 +7,13 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from unittest.mock import MagicMock, patch
 
+import git
 import pytest
+from fastapi.testclient import TestClient
 from hypothesis import given
 from hypothesis import strategies as st
 from mcp_servers.git.git_service import GitService
+from mcp_servers.git.git_tools import TOOL_LIST
 from mcp_servers.git.repository_state import RepositoryState
 
 
@@ -345,3 +348,71 @@ class TestGitPush:
         svc = _svc(allowed=["/opt/repos"], read_only=True)
         with pytest.raises(ValueError, match="read_only"):
             await svc.git_push({"repo_path": "/opt/repos/proj", "branch": "main"})
+
+
+# ── Dispatch contract (REQ-007) ───────────────────────────────────────────────
+
+
+class TestDispatchContract:
+    """REQ-007/AC-6/UNK-01: the advertised, enabled, registered, and live-reachable
+    tool-name sets must never diverge — resolves UNK-01 in favor of this automated
+    contract test (no separate startup-time check elsewhere)."""
+
+    @pytest.fixture
+    def repo_dir(self, tmp_path):
+        d = tmp_path / "repo"
+        d.mkdir()
+        repo = git.Repo.init(str(d))
+        (d / "README.md").write_text("# test")
+        repo.index.add(["README.md"])
+        repo.index.commit("initial")
+        return d
+
+    @pytest.fixture
+    def client(self, repo_dir):
+        from mcp_servers.git import git_server
+
+        original_paths = git_server._cfg.allowed_repo_paths
+        original_read_only = git_server._cfg.read_only
+        git_server._cfg.allowed_repo_paths = [str(repo_dir)]
+        git_server._cfg.read_only = False
+        try:
+            yield TestClient(git_server.app)
+        finally:
+            git_server._cfg.allowed_repo_paths = original_paths
+            git_server._cfg.read_only = original_read_only
+
+    def test_advertised_enabled_registered_reachable_sets_match(
+        self, client, repo_dir
+    ) -> None:
+        from mcp_servers.git import git_server
+
+        advertised = {t["name"] for t in TOOL_LIST}
+        enabled = {
+            t["name"] for t in client.get("/v1/tools").json()["tools"] if t["enabled"]
+        }
+        registered = set(git_server._service.get_dispatch_table().keys())
+        # Some handlers require args beyond repo_path (KeyError, not ValueError,
+        # for a missing one) — supply harmless values so the probe reaches
+        # dispatch and fails for an unrelated reason, not a missing-arg crash.
+        extra_args = {
+            "git_add": {"paths": ["README.md"]},
+            "git_commit": {"message": "probe"},
+            "git_checkout": {"branch": "develop"},
+        }
+        reachable = {
+            name
+            for name in advertised
+            if client.post(
+                "/v1/call_tool",
+                json={
+                    "name": name,
+                    "args": {
+                        "repo_path": str(repo_dir),
+                        **extra_args.get(name, {}),
+                    },
+                },
+            ).json()["result"]
+            != f"Unknown tool: {name}"
+        }
+        assert advertised == enabled == registered == reachable

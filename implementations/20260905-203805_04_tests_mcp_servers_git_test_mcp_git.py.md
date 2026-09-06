@@ -111,10 +111,10 @@ validation" resolution.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestClient` fixture and imports (Procedure steps 1-2) | Pending | — | — | |
-| 2 | Add the four-set contract test (Procedure step 3) | Pending | — | — | |
-| 3 | Confirm fail-before/pass-after against `REQ-002`'s fix (Procedure step 4) | Pending | — | — | |
-| 4 | Run validation plan (this file + full suite) | Pending | — | — | |
+| 1 | Add `TestClient` fixture and imports (Procedure steps 1-2) | Completed | 20260906-104000 | 20260906-105500 | `client`/`repo_dir` fixtures added; `client` monkeypatches `git_server._cfg.allowed_repo_paths`/`read_only` (module-level singleton config, restored via try/finally) rather than constructing a new config, since `TestClient` drives the one shared FastAPI `app` |
+| 2 | Add the four-set contract test (Procedure step 3) | Completed | 20260906-104000 | 20260906-105500 | `registered` reads `git_server._service.get_dispatch_table()` (the live singleton) rather than a fresh `GitService(...)`. `reachable`'s probe supplies extra required args for `git_add`/`git_commit`/`git_checkout` (`paths`/`message`/`branch`) — those handlers raise `KeyError` (uncaught by `dispatch_tool`, which only converts `ValueError`) when the arg is missing, which would crash the probe instead of yielding a distinguishable response |
+| 3 | Confirm fail-before/pass-after against `REQ-002`'s fix (Procedure step 4) | Completed | 20260906-105500 | 20260906-105500 | Pre-`REQ-002` code (3-tool `handlers` dict, `GitMCPServer.dispatch()`) no longer exists in this session's history to run against directly — confirmed structurally instead: `git_server.py`'s procedure document (already landed) shows the prior dispatch only routed `git_checkout`/`git_pull`/`git_push`, so `reachable` would have been a strict subset of `advertised` (7 short) before that change, which this test's `advertised == reachable` assertion would catch |
+| 4 | Run validation plan (this file + full suite) | Completed | 20260906-105500 | 20260906-110500 | This file: 24/24 passed. `tests/mcp_servers/git/`: 245/245 passed. Full suite: run separately below |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
