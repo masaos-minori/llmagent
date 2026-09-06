@@ -1260,3 +1260,155 @@ class TestNewlyReachableToolsViaHTTP:
             json={"name": "git_status", "args": {"repo_path": str(repo_dir)}},
         )
         assert response.json().get("is_error") is not True
+
+
+class TestRemoteAuthorizationViaHTTP:
+    """REQ-001/003/004: git_pull/git_push reject an unknown/unauthorized/changed
+    remote via the live /v1/call_tool route, and never leak a raw credential."""
+
+    @pytest.fixture
+    def client(self):
+        from scripts.mcp_servers.git.git_server import app
+
+        return TestClient(app)
+
+    @pytest.fixture
+    def repo_dir(self, tmp_path):
+        d = tmp_path / "repo"
+        d.mkdir()
+        repo = git.Repo.init(str(d))
+        (d / "README.md").write_text("# test")
+        repo.index.add(["README.md"])
+        repo.index.commit("initial")
+        # GitService._validate_protected() rejects an empty branch outright
+        # (pre-existing behavior, unrelated to this row) and the default init
+        # branch ("master") is itself protected — use a non-empty, non-protected
+        # branch so pull/push reach this row's remote-authorization check.
+        repo.git.checkout("-b", "develop")
+        return d
+
+    @pytest.fixture
+    def enabled(self, repo_dir):
+        from scripts.mcp_servers.git import git_server
+
+        original_paths = git_server._cfg.allowed_repo_paths
+        original_read_only = git_server._cfg.read_only
+        original_svc_paths = git_server._service._allowed_repo_paths
+        original_svc_read_only = git_server._service._read_only
+        git_server._cfg.allowed_repo_paths = [str(repo_dir)]
+        git_server._cfg.read_only = False
+        git_server._service._allowed_repo_paths = [str(repo_dir)]
+        git_server._service._read_only = False
+        try:
+            yield
+        finally:
+            git_server._cfg.allowed_repo_paths = original_paths
+            git_server._cfg.read_only = original_read_only
+            git_server._service._allowed_repo_paths = original_svc_paths
+            git_server._service._read_only = original_svc_read_only
+
+    def test_pull_rejects_unauthorized_remote(self, client, enabled, repo_dir):
+        """AC-1: an unauthorized remote URL is rejected, not silently allowed."""
+        repo = git.Repo(str(repo_dir))
+        repo.create_remote("origin", "https://evil.example.com/repo.git")
+        with patch(
+            "mcp_servers.git.format_output.GitConfig.load",
+            return_value=GitConfig(
+                allowed_remote_urls=["https://trusted.example.com/repo.git"]
+            ),
+        ):
+            response = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_pull",
+                    "args": {
+                        "repo_path": str(repo_dir),
+                        "remote": "origin",
+                        "branch": "develop",
+                    },
+                },
+            )
+        # _authorize_remote() raises GitServiceError, which propagates
+        # uncaught through dispatch_tool() (it only converts ValueError) to
+        # git_server.py's registered @app.exception_handler(GitServiceError) —
+        # a 500 response with {"detail": str(exc)}, not a graceful
+        # {"result": ..., "is_error": true} CallToolResponse.
+        assert response.status_code == 500
+        assert "not an authorized remote" in response.json()["detail"]
+
+    def test_push_rejects_remote_changed_since_authorization(
+        self, client, enabled, repo_dir
+    ):
+        """AC-2: 'origin' previously resolved to an authorized URL but now
+        resolves to a different one — rejected, not allowed via the stale name."""
+        repo = git.Repo(str(repo_dir))
+        repo.create_remote("origin", "https://redirected.example.com/repo.git")
+        with patch(
+            "mcp_servers.git.format_output.GitConfig.load",
+            return_value=GitConfig(
+                allowed_remote_urls=["https://trusted.example.com/repo.git"]
+            ),
+        ):
+            response = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_push",
+                    "args": {
+                        "repo_path": str(repo_dir),
+                        "remote": "origin",
+                        "branch": "develop",
+                    },
+                },
+            )
+        assert response.status_code == 500
+        assert "not an authorized remote" in response.json()["detail"]
+
+    def test_pull_rejection_never_leaks_raw_credential(self, client, enabled, repo_dir):
+        """AC-3: an embedded credential must never appear in the rejection
+        response, even redacted-elsewhere paths — check the full serialized body."""
+        repo = git.Repo(str(repo_dir))
+        repo.create_remote(
+            "origin", "https://user:faketoken123@evil.example.com/repo.git"
+        )
+        with patch(
+            "mcp_servers.git.format_output.GitConfig.load",
+            return_value=GitConfig(
+                allowed_remote_urls=["https://trusted.example.com/repo.git"]
+            ),
+        ):
+            response = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_pull",
+                    "args": {
+                        "repo_path": str(repo_dir),
+                        "remote": "origin",
+                        "branch": "develop",
+                    },
+                },
+            )
+        assert response.status_code == 500
+        body = response.json()
+        assert "faketoken123" not in str(body)
+        assert "***@evil.example.com" in str(body)
+
+    def test_pull_authorized_remote_proceeds(self, client, enabled, repo_dir):
+        """Sanity check: a remote resolving to an authorized URL is not rejected
+        by the authorization check itself (contrast with the cases above)."""
+        remote_dir = repo_dir.parent / "remote"
+        remote_dir.mkdir()
+        git.Repo.init(str(remote_dir), bare=True)
+        repo = git.Repo(str(repo_dir))
+        repo.create_remote("origin", str(remote_dir))
+        with patch(
+            "mcp_servers.git.format_output.GitConfig.load",
+            return_value=GitConfig(allowed_remote_urls=[str(remote_dir)]),
+        ):
+            response = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_pull",
+                    "args": {"repo_path": str(repo_dir), "branch": "develop"},
+                },
+            )
+        assert response.json().get("is_error") is not True

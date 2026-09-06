@@ -105,10 +105,10 @@ leak embedded remote credentials in the rejection message or audit output (`REQ-
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260906-151500 | 20260906-153500 | Added `TestRemoteAuthorizationViaHTTP` with 4 tests (AC-1 unauthorized remote, AC-2 changed-remote-since-authorization, AC-3 credential-redaction, plus an authorized-remote sanity check), using real temp repos + `git_server._cfg`/`_service` monkeypatching (this file's established pattern), not `RepositoryState.snapshot` mocking |
+| 2 | Add or update tests per Validation plan | Completed | 20260906-151500 | 20260906-154500 | Step 3a findings, both pre-existing and unrelated to this row: (1) `GitService._validate_protected()` rejects an empty `branch` outright and the default `git.Repo.init()` branch ("master") is itself protected — fixture checks out a "develop" branch and all calls pass an explicit `branch` arg. (2) `_authorize_remote()`'s `GitServiceError` is not caught by `dispatch_tool()` (only converts `ValueError`) and propagates to `git_server.py`'s registered `@app.exception_handler(GitServiceError)` — a 500 response with `{"detail": str(exc)}`, not a graceful `{"result": ..., "is_error": true}`; assertions check `status_code == 500` + `detail` content accordingly, not `is_error` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260906-154500 | 20260906-160500 | ruff format/check, mypy (`scripts/`): pass. This file: 57/57 passed. `tests/mcp_servers/git/`: 278/278 passed. Full suite: a `tests/eventbus/test_eventbus_publish_contract.py` segfault (native thread crash in `eventbus/dlq.py`'s sweep, unrelated subsystem) killed one run before completion — `tests/mcp_servers/git/` had already completed cleanly (no failures) before the crash; a re-run with `--ignore=tests/eventbus` completed: 6181 passed/573 failed/14 skipped/3 errors, zero failures under `tests/mcp_servers/git/` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260906-160500 | 20260906-160500 | N/A: no `docs/00_index.md` task-scope row matches `tests/mcp_servers/git/test_git_security_compliance.py` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
