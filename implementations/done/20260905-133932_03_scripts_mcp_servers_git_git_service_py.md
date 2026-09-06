@@ -182,6 +182,8 @@ def _is_within_allowed_paths(self, repo_path: str) -> tuple[bool, str]:
 
 ## Execution Status
 
+### Execution Status
+
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Replace startswith() with component-aware containment in _validate_repo() | Completed | — | — | Replaced with _is_within_allowed_paths() call |

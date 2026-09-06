@@ -318,6 +318,10 @@ Each test follows the same pattern:
 
 ### Execution Status
 
+## Execution Status
+
+### Execution Status
+
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Add TestClient fixture | Completed | — | — | Added module-level fixture |
