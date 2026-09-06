@@ -60,6 +60,7 @@ class RagMaintenanceService:
             integrity_ok=result.success,
             recovered=result.action == "restored",
             detail=result.detail or "",
+            logical_ok=result.logical_ok,
         )
 
     def rebuild_vec(self) -> int:

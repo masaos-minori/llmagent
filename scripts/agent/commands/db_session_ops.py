@@ -64,3 +64,7 @@ class DbSessionOps:
             self._out.write_success(f"Recovery succeeded: {result.detail} [Session]")
         else:
             self._out.write_no_data(f"Recovery failed: {result.detail} [Session]")
+        if result.logical_ok is True:
+            self._out.write_success("Logical verification passed [Session]")
+        elif result.logical_ok is False:
+            self._out.write_no_data("Logical verification failed: see logs [Session]")

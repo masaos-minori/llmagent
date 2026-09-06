@@ -23,6 +23,7 @@ from __future__ import annotations
 import sqlite3
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -197,3 +198,123 @@ def test_e06_recover_corruption_unknown_preserves_session_db(
     assert result.action == "preserved_operator_intervention_required"
     assert "operator intervention required" in result.detail
     assert session_db.read_bytes() == original_bytes
+
+
+def _make_partial_session_db(tmp_path: Path, table_to_drop: str | None = None) -> str:
+    """Create a session.sqlite with optional table dropped, return path."""
+    from db.schema_sql import build_session_schema_sql
+
+    db_path = str(tmp_path / "partial.sqlite")
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    schema = build_session_schema_sql(4)
+    if table_to_drop:
+        # Drop the specified table from the schema before executing
+        tables_to_drop = [table_to_drop]
+        for tbl in tables_to_drop:
+            schema = schema.replace(f"\nCREATE TABLE IF NOT EXISTS {tbl}", "")
+            schema = schema.replace(f"\nCREATE INDEX IF NOT EXISTS idx_{tbl}", "")
+    try:
+        conn.executescript(schema)
+    except Exception:  # noqa: BLE001 — memories_vec may be unavailable without sqlite-vec; ignore
+        pass
+    conn.commit()
+    conn.close()
+    return db_path
+
+
+def _make_orphaned_message_db(tmp_path: Path) -> str:
+    """Create a session.sqlite with an orphaned messages row, return path."""
+    from db.schema_sql import build_session_schema_sql
+
+    db_path = str(tmp_path / "orphan_msg.sqlite")
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    try:
+        conn.executescript(build_session_schema_sql(4))
+    except Exception:  # noqa: BLE001 — memories_vec may be unavailable without sqlite-vec; ignore
+        pass
+    conn.execute(
+        "INSERT INTO sessions(session_id, created_at) VALUES (1, '2026-01-01T00:00:00Z')"
+    )
+    conn.execute(
+        "INSERT INTO messages(message_id, session_id, role, content) VALUES (9999, 9999, 'user', 'orphan_content_placeholder')"
+    )
+    conn.commit()
+    conn.close()
+    return db_path
+
+
+def _make_orphaned_memory_link_db(tmp_path: Path) -> str:
+    """Create a session.sqlite with an orphaned memory_links row, return path."""
+    from db.schema_sql import build_session_schema_sql
+
+    db_path = str(tmp_path / "orphan_memlink.sqlite")
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    try:
+        conn.executescript(build_session_schema_sql(4))
+    except Exception:  # noqa: BLE001 — memories_vec may be unavailable without sqlite-vec; ignore
+        pass
+    conn.execute(
+        "INSERT OR IGNORE INTO memories(memory_id, memory_type, content, summary) VALUES ('valid_src', 'semantic', 'src_content', 'src')"
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO memories(memory_id, memory_type, content, summary) VALUES ('valid_dst', 'semantic', 'dst_content', 'dst')"
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO memories(memory_id, memory_type, content, summary) VALUES ('orph_src', 'semantic', 'osrc', 'osrc')"
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO memories(memory_id, memory_type, content, summary) VALUES ('orph_dst', 'semantic', 'odst', 'odst')"
+    )
+    conn.execute(
+        "INSERT INTO memory_links(src_id, dst_id) VALUES ('orph_src', 'orph_dst')"
+    )
+    conn.commit()
+    conn.close()
+    return db_path
+
+
+def test_e07_session_logical_verify_failed_on_missing_table(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Recovering from a backup missing a required table should fail logical verification."""
+    from db.recovery import DbCondition, recover_corruption
+
+    session_db = tmp_path / "session.sqlite"
+    backup_db = tmp_path / "backup.sqlite"
+    # Create a minimal backup with ONLY the sessions table (missing messages and memory_links)
+    backup_conn = sqlite3.connect(str(backup_db))
+    # Only create the sessions table, not the full schema
+    sessions_ddl = """
+CREATE TABLE IF NOT EXISTS sessions(
+    session_id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+"""
+    backup_conn.executescript(sessions_ddl)
+    backup_conn.commit()
+    backup_conn.close()
+    # Corrupt the target DB so recovery is triggered
+    session_db.write_bytes(b"corrupted data")
+    _patch_db_config(monkeypatch, tmp_path, str(session_db))
+
+    with patch(
+        "db.recovery._run_integrity_check",
+        side_effect=[
+            (DbCondition.CORRUPTION, "DB corruption"),  # current DB
+            (DbCondition.HEALTHY, None),  # backup
+            (DbCondition.HEALTHY, None),  # post-restore
+        ],
+    ):
+        with patch("pathlib.Path.exists", return_value=True):
+            result = recover_corruption(backup_path=str(backup_db), target="session")
+
+    assert result.success is False
+    assert result.action == "logical_verify_failed"
+    # Verify no content leaked into detail string
+    assert "placeholder" not in result.detail.lower()
+    assert "content" not in result.detail.lower()
+    assert "message" not in result.detail.lower()
+    assert "memory" not in result.detail.lower()

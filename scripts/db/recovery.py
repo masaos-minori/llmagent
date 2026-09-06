@@ -11,6 +11,14 @@ from pathlib import Path
 from db.config import build_db_config, format_timestamp
 from db.helper import SQLiteHelper
 from db.models import RecoveryResult
+from db.rag_consistency import check_rag_consistency
+from db.rag_consistency import is_consistent as rag_is_consistent
+from db.session_consistency import (
+    check_session_consistency,
+)
+from db.session_consistency import (
+    is_consistent as session_is_consistent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +81,79 @@ def _handle_dry_run(check_result: str) -> RecoveryResult:
         detail=f"integrity check failed: {check_result}",
         dry_run=True,
     )
+
+
+def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | None]:
+    """Run logical consistency verification on the restored database.
+
+    Returns (consistent, detail_string) — detail contains a short summary
+    of counts/identifiers only (no row content), matching REQ-010/AC-7.
+    """
+    try:
+        with SQLiteHelper(target, db_path=str(db_path)).open() as db:
+            if target == "rag":
+                report = check_rag_consistency(db)
+                consistent = rag_is_consistent(report)
+                if not consistent:
+                    parts: list[str] = []
+                    if report.fts_gap > 0:
+                        parts.append(f"fts_gap={report.fts_gap}")
+                    if report.fts_orphan_count > 0:
+                        parts.append(f"fts_orphan={report.fts_orphan_count}")
+                    if report.orphan_vec_count > 0:
+                        parts.append(f"orphan_vec={report.orphan_vec_count}")
+                    if report.vec != report.chunks:
+                        parts.append(f"vec={report.vec}/chunks={report.chunks}")
+                    if report.documents_without_chunks_count > 0:
+                        parts.append(
+                            f"docs_no_chunks={report.documents_without_chunks_count}"
+                        )
+                    if report.chunks_without_vec_count > 0:
+                        parts.append(f"chunks_no_vec={report.chunks_without_vec_count}")
+                    if report.duplicate_chunk_index_count > 0:
+                        parts.append(
+                            f"dup_chunk_idx={report.duplicate_chunk_index_count}"
+                        )
+                    if report.url_level_mismatches:
+                        parts.append(
+                            f"url_mismatches={len(report.url_level_mismatches)}"
+                        )
+                    detail = "; ".join(parts)
+                else:
+                    detail = None
+            elif target == "session":
+                session_report = check_session_consistency(db)
+                consistent = session_is_consistent(session_report)
+                if not consistent:
+                    session_parts: list[str] = []
+                    if session_report.orphaned_message_count > 0:
+                        session_parts.append(
+                            f"orphan_msgs={session_report.orphaned_message_count}"
+                        )
+                    if session_report.orphaned_memory_link_count > 0:
+                        session_parts.append(
+                            f"orphan_mem_links={session_report.orphaned_memory_link_count}"
+                        )
+                    if not session_report.session_diagnostics_readable:
+                        session_parts.append("diag_not_readable")
+                    if not session_report.read_smoke_test_ok:
+                        session_parts.append("read_smoke_fail")
+                    if session_report.write_smoke_test_ok is False:
+                        session_parts.append("write_smoke_fail")
+                    if session_report.diagnostic_errors:
+                        session_parts.append(
+                            f"errors={len(session_report.diagnostic_errors)}"
+                        )
+                    detail = "; ".join(session_parts)
+                else:
+                    detail = None
+            else:
+                # Unknown target — skip logical verification
+                return True, None
+    except sqlite3.Error as e:
+        logger.warning("Logical verification could not open DB: %s", e)
+        return True, None
+    return consistent, detail
 
 
 def _vacuum_db(target: str = "rag") -> RecoveryResult:
@@ -151,6 +232,18 @@ def _restore_from_backup(
                 dry_run=dry_run,
             )
 
+        # 5. Logical-verification stage (between physical re-check and success)
+        logical_ok, logical_detail = _run_logical_verification(db_path, target)
+        if not logical_ok:
+            err_detail = logical_detail or f"logical verification failed: {target}"
+            logger.error("Post-restore logical verification failed: %s", err_detail)
+            return RecoveryResult(
+                success=False,
+                action="logical_verify_failed",
+                detail=err_detail,
+                dry_run=dry_run,
+            )
+
         logger.info("DB restored from backup: %s", backup)
         return RecoveryResult(
             success=True, action="restored", detail=str(backup), dry_run=dry_run
@@ -179,9 +272,11 @@ def recover_corruption(
       "restored"                            — integrity failed; DB restored from backup_path
       "no_backup"                           — integrity failed; no usable backup_path
       "restore_verify_failed"               — restored from backup, but post-restore integrity
-                                               check failed
+                                                check failed
+      "logical_verify_failed"               — restored from backup, but post-restore logical
+                                                verification failed
       "unsupported_target"                  — target is not one of "rag"/"session"/"workflow"/
-                                               "eventbus"
+                                                "eventbus"
       "error"                               — could not open DB or OS-level failure
       "no_recovery_allowed"                 — automatic recovery prohibited for workflow/eventbus
       "preserved_operator_intervention_required" — integrity check returned an unclassifiable result; DB preserved, operator intervention required

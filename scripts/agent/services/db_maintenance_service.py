@@ -80,6 +80,7 @@ class DbMaintenanceService:
             integrity_ok=raw.success,
             recovered=raw.action == "restored",
             detail=raw.detail or "",
+            logical_ok=raw.logical_ok,
         )
 
 

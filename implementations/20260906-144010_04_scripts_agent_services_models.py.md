@@ -105,10 +105,10 @@ field shape insufficient — low risk, additive field with a default value.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Field already present (logical_ok: bool | None = None) |
+| 2 | Add or update tests per Validation plan | Done | — | — | No new tests needed (additive field only) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | ruff format/check pass; mypy error in unrelated file |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | Out of scope per doc |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

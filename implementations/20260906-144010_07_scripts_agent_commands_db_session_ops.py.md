@@ -119,10 +119,10 @@ exact print format.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Added logical-verification output line |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | No existing tests for recover() output; pre-existing test failures unrelated |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | ruff format/check + bandit pass; mypy errors pre-existing in scripts/db/ |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Out of scope per doc above |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

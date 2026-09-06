@@ -53,6 +53,10 @@ def test_recover_corrupt_rag_restores(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
             patch("os.replace"),
+            patch(
+                "scripts.db.recovery._run_logical_verification",
+                return_value=(True, None),
+            ),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
 
@@ -206,3 +210,132 @@ def test_recover_unknown_preserved_operator_intervention_required(
         assert result.detail is not None
         assert "operator intervention required" in result.detail
         assert "unclassifiable integrity failure" in result.detail
+
+
+def _mock_restore_side_effect():
+    """Return side_effect list for restore path: DB corruption → backup healthy → post-restore healthy."""
+    return [
+        (DbCondition.CORRUPTION, "corruption error"),  # current DB
+        (DbCondition.HEALTHY, None),  # backup
+        (DbCondition.HEALTHY, None),  # post-restore re-check
+    ]
+
+
+def test_recover_rag_fts_gap(mock_db_cfg, mock_sqlite_helper):
+    """RAG FTS gap should cause logical verification failure."""
+    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+        mock_integrity.side_effect = _mock_restore_side_effect()
+
+        rag_report = MagicMock()
+        rag_report.fts_gap = 5
+        rag_report.fts_orphan_count = 0
+        rag_report.orphan_vec_count = 0
+        rag_report.vec = 10
+        rag_report.chunks = 10
+        rag_report.documents_without_chunks_count = 0
+        rag_report.chunks_without_vec_count = 0
+        rag_report.duplicate_chunk_index_count = 0
+        rag_report.url_level_mismatches = {}
+        rag_report.diagnostic_errors = None
+
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("shutil.copy2"),
+            patch("os.replace"),
+            patch("scripts.db.recovery.check_rag_consistency", return_value=rag_report),
+        ):
+            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+
+            assert result.success is False
+            assert result.action == "logical_verify_failed"
+            assert result.logical_ok is not True
+
+
+def test_recover_rag_missing_table(mock_db_cfg, mock_sqlite_helper):
+    """RAG missing table/trigger should cause logical verification failure."""
+    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+        mock_integrity.side_effect = _mock_restore_side_effect()
+
+        rag_report = MagicMock()
+        rag_report.chunks = 10
+        rag_report.vec = 10
+        rag_report.fts_gap = 0
+        rag_report.fts_orphan_count = 0
+        rag_report.orphan_vec_count = 0
+        rag_report.documents_without_chunks_count = 0
+        rag_report.chunks_without_vec_count = 0
+        rag_report.duplicate_chunk_index_count = 0
+        rag_report.url_level_mismatches = {}
+        rag_report.diagnostic_errors = ("Missing table: chunks",)
+
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("shutil.copy2"),
+            patch("os.replace"),
+            patch("scripts.db.recovery.check_rag_consistency", return_value=rag_report),
+        ):
+            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+
+            assert result.success is False
+            assert result.action == "logical_verify_failed"
+            assert result.logical_ok is not True
+
+
+def test_recover_rag_fts_orphan(mock_db_cfg, mock_sqlite_helper):
+    """RAG FTS orphan should cause logical verification failure."""
+    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+        mock_integrity.side_effect = _mock_restore_side_effect()
+
+        rag_report = MagicMock()
+        rag_report.chunks = 10
+        rag_report.vec = 10
+        rag_report.fts_gap = 0
+        rag_report.fts_orphan_count = 3
+        rag_report.orphan_vec_count = 0
+        rag_report.documents_without_chunks_count = 0
+        rag_report.chunks_without_vec_count = 0
+        rag_report.duplicate_chunk_index_count = 0
+        rag_report.url_level_mismatches = {}
+        rag_report.diagnostic_errors = None
+
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("shutil.copy2"),
+            patch("os.replace"),
+            patch("scripts.db.recovery.check_rag_consistency", return_value=rag_report),
+        ):
+            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+
+            assert result.success is False
+            assert result.action == "logical_verify_failed"
+            assert result.logical_ok is not True
+
+
+def test_recover_rag_vector_orphan(mock_db_cfg, mock_sqlite_helper):
+    """RAG vector orphan should cause logical verification failure."""
+    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+        mock_integrity.side_effect = _mock_restore_side_effect()
+
+        rag_report = MagicMock()
+        rag_report.chunks = 10
+        rag_report.vec = 10
+        rag_report.fts_gap = 0
+        rag_report.fts_orphan_count = 0
+        rag_report.orphan_vec_count = 2
+        rag_report.documents_without_chunks_count = 0
+        rag_report.chunks_without_vec_count = 0
+        rag_report.duplicate_chunk_index_count = 0
+        rag_report.url_level_mismatches = {}
+        rag_report.diagnostic_errors = None
+
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("shutil.copy2"),
+            patch("os.replace"),
+            patch("scripts.db.recovery.check_rag_consistency", return_value=rag_report),
+        ):
+            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+
+            assert result.success is False
+            assert result.action == "logical_verify_failed"
+            assert result.logical_ok is not True

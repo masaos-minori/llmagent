@@ -122,15 +122,15 @@ after this row lands — low risk, single-line change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | logical_ok=raw.logical_ok added at line 83 |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | Pre-existing gap noted in Method; not introduced by this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | ruff format/check: pass, bandit: pass, mypy: pre-existing errors only |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Out of scope per section |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| Method finding | Plan's Repository Evidence cites `tests/integration/test_session_recovery.py` as this row's Related Test, but that file never calls `recover_session()`/`DbMaintenanceService` — no test currently exercises this method's real body. Not fixed by this document alone (test addition deferred to seq 08/10 or a Plan correction). | No | — |
+| Method finding | Plan's Repository Evidence cites `tests/integration/test_session_recovery.py` as this row's Related Test, but that file never calls `recover_session()`/`DbMaintenanceService` — no test currently exercises this method's real body. Not fixed by this document alone (test addition deferred to seq 08/10 or a Plan correction). | Yes | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -195,6 +195,7 @@ class DbRecoverResult:
     integrity_ok: bool
     recovered: bool
     detail: str
+    logical_ok: bool | None = None
 
 
 @dataclass(frozen=True)

@@ -57,11 +57,27 @@ Target sequence: detect and classify → preserve the damaged database → locat
 **Current implementation gaps against this sequence** (Explicit in code, `db/recovery.py::_restore_from_backup`):
 
 - The damaged database is preserved (`shutil.copy2` to a timestamped `_corrupt_` archive) only on the path where `_run_integrity_check()` returns a failed-but-parseable result and a `backup_path` was supplied — not on the no-backup path.
-- The backup candidate is checked only for existence (`Path.exists()`); its own integrity is never verified before use. A corrupted backup is restored unconditionally.
-- Restoration copies the backup directly onto the target path (`shutil.copy2(backup, db_path)`); it does not go through a temporary file, so the replacement is **not atomic**. A failure mid-copy can leave the target in a partially written state.
-- The restored database is not reopened or re-verified after restoration; `RecoveryResult(success=True, action="restored")` is returned without confirming the copy is actually usable.
+- Backup integrity IS verified before use (`_run_integrity_check(backup, target)`). A corrupted backup is detected and rejected.
+- Restoration IS atomic: copies the backup to a temporary file via `shutil.copy2()`, then replaces the target via `os.replace()` — a mid-copy failure leaves the original intact.
+- The restored database IS reopened and re-verified before success is reported (`_run_integrity_check(db_path, target)`).
+- After the physical re-check succeeds, a RAG or Session logical-verification stage runs (`check_rag_consistency()`/`check_session_consistency()` per `target`) before `success=True` is returned; a logical-verification failure produces `success=False` with an `action` value distinct from `restore_verify_failed`.
 
-The target design's atomicity, backup-validation, and post-restore-verification requirements are open implementation gaps, not yet satisfied.
+### Automated vs. operator-only breakdown (REQ-009)
+
+Checks that run automatically inside `check_rag_consistency()` / `check_session_consistency()`:
+
+- FTS index health (RAG): `fts_health_ok` — detects empty or mismatched FTS tables.
+- Chunk-to-FTS referential integrity (RAG): `chunk_fts_referential_ok` — detects orphaned chunks without FTS rows and vice versa.
+- Table existence (Session): verifies `sessions`, `messages`, `memory_links` tables exist.
+- Orphaned messages detection (Session): `orph_msgs` — detects messages referencing non-existent sessions.
+- Orphaned memory-links detection (Session): `orph_memlinks` — detects links referencing non-existent memories.
+- Write smoke test (both): attempts a lightweight write to confirm the database is writable.
+
+Repair actions the logical-verification stage only **recommends** but does not itself perform (operator-triggered):
+
+- `/session rag-rebuild-fts` — rebuilds the RAG FTS index.
+- `/session rag-reindex-chunks` — rebuilds chunk-vector mappings.
+- Manual session data repair (operator action required).
 
 ### 9.6 Dry Run contract
 
@@ -72,9 +88,9 @@ The target design's atomicity, backup-validation, and post-restore-verification 
 
 Recovery policy differs by data ownership; `recover_corruption()` supports multiple targets via the `target` parameter. See [ADR-008](adr/ADR-008-sqlite-4db-separation.md) Decision Details #20 for the canonical physical-recovery policy across all four DB domains. See ADR-008's Recovery Policy Matrix for the full per-domain policy comparison.
 
-- **Reconstructable derived data** (RAG full-text/vector indexes): authoritative source is the `chunks` table. `RagMaintenanceService`'s consistency check and rebuild operations reconstruct these indexes independently of `recover_corruption()`.
-- **Session data**: covered by `recover_corruption(target='session')`. Backup restoration is allowed for this domain per ADR-008.
-- **RAG data**: covered by `recover_corruption(target='rag')` (default). Backup restoration is allowed for this domain per ADR-008.
+- **Reconstructable derived data** (RAG full-text/vector indexes): authoritative source is the `chunks` table. `RagMaintenanceService`'s consistency check and rebuild operations reconstruct these indexes independently of `recover_corruption()`. Post-restoration logical verification (`check_rag_consistency()`) runs automatically after recovery and reports FTS/index inconsistencies as operator-only recommendations (see §9.5).
+- **Session data**: covered by `recover_corruption(target='session')`. Backup restoration is allowed for this domain per ADR-008. Post-restoration logical verification (`check_session_consistency()`) runs automatically after recovery and reports orphaned records as operator-only recommendations (see §9.5).
+- **RAG data**: covered by `recover_corruption(target='rag')` (default). Backup restoration is allowed for this domain per ADR-008. Post-restoration logical verification (`check_rag_consistency()`) runs automatically after recovery and reports FTS/index inconsistencies as operator-only recommendations (see §9.5).
 - **Workflow and approval data** (`workflow.sqlite`): has **no automatic physical-corruption recovery path**. Calling `recover_corruption(target='workflow')` returns `no_recovery_allowed`; startup runs an application-level state rebuild (`_recover_pending_approvals()`) that assumes the database file itself opens successfully (ADR-008 Decision Details #20).
 - **Event delivery state** (`eventbus.sqlite`): has **no corruption-recovery path**, but **is included in backup rotation**. Calling `recover_corruption(target='eventbus')` returns `no_recovery_allowed`; `rotate_all_dbs()` archives `eventbus.sqlite` alongside the other three databases (`scripts/db/rotation.py::rotate_eventbus_db()`), but no automated *restoration* path consumes that archive for this domain (ADR-008 Decision Details #20).
 
