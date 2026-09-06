@@ -17,10 +17,69 @@ Make `POST /v1/call_tool` dispatch every one of the 10 advertised git tools thro
 - `GitService.get_dispatch_table()` already returns correctly-typed handlers for all
   10 `git_*` methods (confirmed: `scripts/mcp_servers/git/git_service.py` lines
   241-411 define one method per tool, each calling `self._run_tool(...)`).
-- `dispatch_tool()` (`scripts/mcp_servers/dispatch.py`) already returns a
+- ~~`dispatch_tool()` (`scripts/mcp_servers/dispatch.py`) already returns a
   `DispatchResult` shape compatible with what `call_tool()` needs to build a
   `CallToolResponse` — this document's Method section confirms the exact field
-  mapping.
+  mapping.~~ **DISCONFIRMED (Step 3a, code-implementation cycle, 2026-09-06)** —
+  see "Step 3a finding: is_error fidelity regression" below.
+
+### Step 3a finding: is_error fidelity regression (BLOCKING)
+Adversarial verification against current source (`scripts/mcp_servers/dispatch.py`,
+`scripts/mcp_servers/git/git_service.py`) disconfirms this document's core
+Assumption and Design:
+- `dispatch_tool()` (`scripts/mcp_servers/dispatch.py:40-67`) wraps ANY non-exception
+  string return from a dispatch-table handler as `DispatchResult(output=result,
+  is_error=False)` unconditionally — it only sets `is_error=True` when the handler
+  raises `ValueError`, or `output=f"Unknown tool: {name}"` for a missing handler.
+  It has no way to distinguish a successful op from a policy-rejected one when both
+  return a plain `str`.
+- `GitService._run_tool()` (`git_service.py:213-237`, unchanged by this Plan's own
+  `git_service.py` procedure document, whose Compatibility considerations state the
+  5 write-tool handlers stay "byte-for-byte unchanged") returns
+  `pipeline_result.output` on success OR `pipeline_result.rejection_message` on a
+  Stage-3/5/7 pipeline rejection — both as a **plain `str`**, with no boolean/
+  exception signal. `PipelineResult.ok`/`.rejection_message` (`repository_state.py`)
+  is discarded before the string ever leaves `_run_tool()`.
+- Today (pre-this-Plan), `call_tool()` never calls `GitService.git_checkout`/
+  `git_pull`/`git_push` at all — it builds its own local `WriteProtectionPipeline(
+  pre_state)` directly (current lines 265-267) and reads `.ok`/`.output` from the
+  returned `PipelineResult` itself, which is why `is_error` is accurate today for a
+  Stage-3/5/7 rejection (`[DENIED] ... protected branch` / `dirty worktree` /
+  `detached HEAD` etc.) via the live `/v1/call_tool` route.
+- Switching to `dispatch_tool(_service.get_dispatch_table(), req.name, args)` as this
+  document's Design/Procedure literally specifies would make **every** Stage-3/5/7
+  rejection of `git_checkout`/`git_pull`/`git_push` come back as `is_error=False`
+  (a policy-denied write silently reported as a 200 "success") — a live-tested,
+  concrete regression: `tests/mcp_servers/git/test_git_security_compliance.py`'s
+  `TestPostConditionBypassPrevention`, `TestHTTPSiblingPathRejection`, and this
+  session's own new `TestDryRunAndDetachedHeadLivePath::
+  test_dry_run_checkout_protected_branch_still_denied` /
+  `test_non_dry_run_detached_head_denied_then_allowed` (added in this Plan's sibling
+  `gitdryrun` Plan, already landed) all assert `is_error is True` for exactly this
+  case via the live route, and would start failing.
+- This directly contradicts this Plan's own Compatibility considerations
+  ("Response shape... must stay identical for existing callers of the 3
+  currently-working tools") and `REQ-009` ("no behavior change beyond what unifying
+  dispatch requires") — the codebase's only other precedent for policy-denial
+  signaling through `dispatch_tool()` (`scripts/mcp_servers/shell/shell_server.py`)
+  uses a **raised, typed exception** (`ShellAuthorizationError`/
+  `ShellValidationError`) caught by a dedicated `@app.exception_handler`, returning a
+  distinct HTTP status (403/422) — not a same-shape `CallToolResponse` with
+  `is_error=True` at HTTP 200. Adopting that precedent here would itself be an HTTP
+  contract change (200+is_error=True → 403/422), which is a different, but equally
+  real, behavior change this Plan's own Compatibility considerations forbid.
+- **Resolution is out of this document's sole scope**: fixing this requires
+  `GitService`/`_run_tool()` (`git_service.py`, this Plan's own sibling target file,
+  `implementations/20260905-203805_02_..._git_service.py.md`) to expose a
+  structured ok/rejection signal that this file's `call_tool()` can read — a change
+  neither this document nor `git_service.py`'s own procedure document currently
+  describes or scopes. This is a Plan-level design gap, not a stale line number or
+  symbol reference this cycle's Step 3a/3b correction tolerance is meant to absorb.
+
+**Reported as `Blocked: Plan-level design gap — dispatch_tool()/GitService._run_tool()
+cannot preserve is_error fidelity for policy-rejected checkout/pull/push without a
+coordinated, not-yet-scoped change to git_service.py's return contract` per this
+cycle's Step 3a. Not implemented this cycle.**
 
 ## Design decisions
 - Replace the inline `handlers` dict with a single `dispatch_tool(_service.get_dispatch_table(), req.name, args)` call, reusing the existing `_dispatch_git_tool()` helper's pattern rather than inlining `dispatch_tool()` a second time — one call site, not two.
@@ -144,16 +203,16 @@ read-only bypass — applies `WriteProtectionPipeline` only to `GIT_WRITE_TOOLS`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace `handlers` dict with `GitService.get_dispatch_table()` dispatch (Procedure steps 1-2) | Pending | — | — | |
-| 2 | Remove `_dispatch_git_tool()`/`GitMCPServer.dispatch()` after re-confirming zero callers (Procedure step 3) | Pending | — | — | |
-| 3 | Remove now-dead `_format_checkout`/`_format_pull`/`_format_push` and unused imports, if confirmed dead (Procedure step 4) | Pending | — | — | |
-| 4 | Run validation plan (existing tests + full suite + static checks) | Pending | — | — | |
-| 5 | Update `docs/04_mcp_04_05_git.md`, if in scope per Documentation Impact | Pending | — | — | |
+| 1 | Replace `handlers` dict with `GitService.get_dispatch_table()` dispatch (Procedure steps 1-2) | Blocked | 20260906-091500 | — | See Step 3a finding in Assumptions — is_error fidelity regression, needs a coordinated `git_service.py` change out of this document's scope |
+| 2 | Remove `_dispatch_git_tool()`/`GitMCPServer.dispatch()` after re-confirming zero callers (Procedure step 3) | Blocked | — | — | Blocked on Step 1 |
+| 3 | Remove now-dead `_format_checkout`/`_format_pull`/`_format_push` and unused imports, if confirmed dead (Procedure step 4) | Blocked | — | — | Blocked on Step 1 |
+| 4 | Run validation plan (existing tests + full suite + static checks) | Blocked | — | — | Blocked on Step 1 |
+| 5 | Update `docs/04_mcp_04_05_git.md`, if in scope per Documentation Impact | Blocked | — | — | Blocked on Step 1 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | `dispatch_tool()`/`GitService._run_tool()` cannot preserve `is_error` fidelity for a policy-rejected `git_checkout`/`git_pull`/`git_push` via the live route without a coordinated, not-yet-scoped change to `git_service.py`'s return contract (see Step 3a finding) | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
