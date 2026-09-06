@@ -109,10 +109,10 @@ New test file proving concurrent writes to the same repository path are serializ
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260906-161500 | 20260906-163000 | New file created with `TestSameRepoPathSerialization`, `TestCrossRepoPathIndependence`, `TestHeadDriftRejectionPerTool` (parametrized over `git_pull`/`git_push` for AC-7) |
+| 2 | Add or update tests per Validation plan | Completed | 20260906-161500 | 20260906-163000 | Uses real `git.Repo` fixtures (non-protected "develop" branch, per `repository_state.py`'s row precedent for avoiding the empty/protected-branch pitfall) + `threading.Event`-forced interleaving, per Design decisions — not `asyncio` tasks, since the lock is `threading.Lock` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260906-163000 | 20260906-165000 | ruff format/check, mypy (`scripts/`): pass. This file: 4/4 passed, confirmed stable across 5 random seeds (no flakiness). `tests/mcp_servers/git/`: 282/282 passed. Full suite (`--ignore=tests/eventbus`, working around an unrelated native segfault in `eventbus/dlq.py` encountered in a prior cycle's run): 6187 passed/571 failed/14 skipped/3 errors — zero failures under `tests/mcp_servers/git/` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260906-165000 | 20260906-165000 | N/A: no `docs/00_index.md` task-scope row matches this new test file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
