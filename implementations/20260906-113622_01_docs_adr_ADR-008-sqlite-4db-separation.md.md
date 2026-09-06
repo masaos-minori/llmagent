@@ -214,9 +214,9 @@ existing prose with the appropriate new term (`REQ-001`, `REQ-002`, `REQ-003`,
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add glossary + matrix subsections; apply term substitution per Procedure/Method/Details | Pending | — | — | |
+| 1 | Add glossary + matrix subsections; apply term substitution per Procedure/Method/Details | Done | — | — | Glossary/matrix already present from prior commit; term substitution applied: 9 occurrences replaced (initialization/operator-restore/schema-repair/logical-repair/derived-data-rebuild/physical-recovery), 1 category-spanning cross-reference left unchanged |
 | 2 | No test changes required — documentation-only row (Plan Tests section) | N/A | — | — | Not applicable: no `pytest` target for this row |
-| 3 | Run `check_docs_quality.py` / `check_docs_structure.py` per Validation plan | Pending | — | — | |
+| 3 | Run `check_docs_quality.py` / `check_docs_structure.py` per Validation plan | Done | — | — | check_docs_quality.py passed; check_docs_structure.py reports pre-existing warnings (size limit, broken links, missing sections) |
 | 4 | N/A — this row's change is itself the documentation update; no further downstream doc depends on this row | N/A | — | — | |
 
 ### Blocker Log

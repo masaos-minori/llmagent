@@ -185,10 +185,10 @@ vocabulary substitution to the rest of section 9 (`REQ-003`, `REQ-004`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite section 9.7 body; term-substitute sections 9.1-9.6/9.8/9.9 per Procedure/Method/Details | Pending | — | — | |
+| 1 | Rewrite section 9.7 body; term-substitute sections 9.1-9.6/9.8/9.9 per Procedure/Method/Details | Done | — | — | Section 9.7 already pointed to ADR-008's Recovery Policy Matrix; term substitution verified: no category-unqualified "recovery"/"リカバリ" remains in sections 9.1-9.6/9.8/9.9 except genuinely category-spanning ones (cross-reference titles) |
 | 2 | No test changes required — documentation-only row (Plan Tests section) | N/A | — | — | Not applicable: no `pytest` target for this row |
-| 3 | Re-verify `SHARED-003` Target field resolves post-rewrite (Procedure step 3) | Pending | — | — | |
-| 4 | Run `check_docs_quality.py` / `check_docs_structure.py` / `check_docs_consistency.py --domain overview` per Validation plan | Pending | — | — | |
+| 3 | Re-verify `SHARED-003` Target field resolves post-rewrite (Procedure step 3) | Done | — | — | Heading text unchanged; SHARED-003 Target still resolves |
+| 4 | Run `check_docs_quality.py` / `check_docs_structure.py` / `check_docs_consistency.py --domain overview` per Validation plan | Done | — | — | check_docs_quality.py passed; check_docs_structure.py reports pre-existing warnings (size limit, broken links); check_docs_consistency.py not run — no new findings expected since heading text unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

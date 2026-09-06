@@ -43,7 +43,7 @@ RAGインデックス、セッション状態、ワークフロー状態、イ�
 - sqlite-vec拡張は`rag.sqlite`だけにロードする必要がある
 - DB間で物理外部キー、SQL JOIN、分散Transactionを前提としない
 - WorkflowまたはEventBusの永続化失敗をログだけで成功扱いにしない
-- リカバリは現在、手動かつ運用者起動のCLI操作であり、起動時の自動処理ではない
+- operator-restoreは現在、手動かつ運用者起動のCLI操作であり、起動時の自動処理ではない
 - マイグレーション機構は存在せず、Schema変更にはDB全体の再作成を要する（本ADRの対象外）
 
 ### Assumptions
@@ -128,7 +128,7 @@ For any future persistence domain not covered by this matrix, the default policy
 - 個別のDBスキーマの詳細
 - WAL Checkpointの詳細なパラメータ
 - Backupツールやスクリプトの実装
-- リカバリの自動（無人）起動化（現在は運用者起動のみであり、自動化は別途の判断を要する）
+- operator-restoreの自動（無人）起動化（現在は運用者起動のみであり、自動化は別途の判断を要する）
 - マイグレーション、Schemaバージョニング戦略
 - 継続的なバックアップ検証、レプリケーション設計
 - 監視・メトリクス設計（別ADRで扱う）
@@ -289,7 +289,7 @@ DBオープン失敗を常に破損として扱い、常にバックアップか
 - バックアップが容易になる
 - 保持期間の個別管理が可能になる
 - sqlite-vecの適用範囲が限定される
-- リカバリ操作が明文化された安全性契約に対して監査可能になる
+- physical-recovery操作が明文化された安全性契約に対して監査可能になる
 - バックアップの破損や部分的リストアが、稼働中（たとえ破損していても）のDBを置き換える前に検出される
 
 ### Negative Consequences
@@ -298,7 +298,7 @@ DBオープン失敗を常に破損として扱い、常にバックアップか
 - 複合トランザクションが必要になる
 - バックアップのスクリプティングが必要
 - 障害対応時に複数のDBを確認する必要がある
-- リカバリが、候補の検証・Stage・再検証・Atomic置換という、単純な単一コピー実装より多い手順を要する
+- physical-recoveryが、候補の検証・Stage・再検証・Atomic置換という、単純な単一コピー実装より多い手順を要する
 
 ### Operational Consequences
 
@@ -314,7 +314,7 @@ DBオープン失敗を常に破損として扱い、常にバックアップか
 - 認証、認可：設定ファイルに基づく権限判定
 - Secretの取扱い：最小公開原則に従う
 - Fail-Closed：設定ファイル欠落時は起動中止
-- リカバリ操作のError MessageおよびAudit Recordは、行レベルのDB内容を含めてはならない（Pathおよび例外テキストのみ）
+- physical-recovery操作のError MessageおよびAudit Recordは、行レベルのDB内容を含めてはならない（Pathおよび例外テキストのみ）
 - Audit Log：設定読み込みイベントの記録
 
 ## Invariants
@@ -331,7 +331,7 @@ DBオープン失敗を常に破損として扱い、常にバックアップか
 - INV-10: WorkflowまたはEventBusの永続化失敗をログだけで成功扱いにしない。
 - INV-11: 1DBの破損が他DBの初期化、復旧を要求しない。
 - INV-12: DB間処理が冪等に再実行できる。
-- INV-13: リカバリアクションは、DB状態の分類（healthy / corruption / lock contention / permission failure / invalid format / unknown）の後にのみ選択する。Lock ContentionおよびPermission Failureを物理的破損として分類してはならない。
+- INV-13: physical-recoveryアクションは、DB状態の分類（healthy / corruption / lock contention / permission failure / invalid format / unknown）の後にのみ選択する。Lock ContentionおよびPermission Failureを物理的破損として分類してはならない。
 - INV-14: リストア候補のバックアップは、対象DBを置き換える前に独立して検証されなければならない。
 - INV-15: 対象DBは、候補が検証に合格する前に上書きしてはならない。置換は、現行設計でサポートされる範囲でAtomicに行う。
 - INV-16: Dry Runは、いかなる分類結果であっても対象DBを移動、置換、Truncate、削除、書き換えしてはならない。
@@ -355,7 +355,7 @@ DBオープン失敗を常に破損として扱い、常にバックアップか
 
 ### Fail-Open or Degraded Conditions
 
-該当なし。破損リカバリはFail-Closedドメインとして設計する。判断に迷う場合は状態を保持し、自動的に動作するのではなく運用者の対応を要求する。
+該当なし。physical-recoveryはFail-Closedドメインとして設計する。判断に迷う場合は状態を保持し、自動的に動作するのではなく運用者の対応を要求する。
 
 ### Retry Policy
 
@@ -363,7 +363,7 @@ DBオープン失敗を常に破損として扱い、常にバックアップか
 - Retry回数：`retry_policy.max_attempts`（デフォルト3回）
 - Backoff：固定間隔（デフォルト1秒）
 - RetryしないError：整合性チェックの不一致
-- リカバリは運用者起動による単発の試行であり、自動リトライループは存在しない
+- operator-restoreは運用者起動による単発の試行であり、自動リトライループは存在しない
 
 ### Fallback Policy
 
@@ -497,7 +497,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - 永続化ストレージがファイル以外へ移行された場合
 - マイグレーション機構またはレプリケーション型ストレージ基盤が導入された場合
 - バックアップ戦略が定期ファイルコピーから別方式へ変更された場合
-- 自動（無人）リカバリトリガーが提案された場合
+- operator-restoreトリガーが提案された場合
 - `workflow.sqlite`/`eventbus.sqlite`の復旧方針を手動対応から自動化された経路へ変更する場合
 
 ## Approval

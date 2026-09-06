@@ -138,9 +138,9 @@ new ADR-008 recovery-policy matrix (`REQ-005`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit AI Query Routing table's Maintenance, Recovery row and add Canonical Source Rules bullet per Procedure/Method/Details | Pending | — | — | |
+| 1 | Edit AI Query Routing table's Maintenance, Recovery row and add Canonical Source Rules bullet per Procedure/Method/Details | Done | — | — | Both changes already present: line 48 routes recovery-policy questions to ADR-008 Recovery Policy Matrix; line 63 states ADR-008 matrix as canonical for persistence-domain recovery policy |
 | 2 | No test changes required — documentation-only row (Plan Tests section) | N/A | — | — | Not applicable: no `pytest` target for this row |
-| 3 | Run `check_docs_quality.py` / `check_docs_structure.py` per Validation plan | Pending | — | — | |
+| 3 | Run `check_docs_quality.py` / `check_docs_structure.py` per Validation plan | Done | — | — | check_docs_quality.py passed; check_docs_structure.py reports pre-existing warnings (size limit, broken links) |
 | 4 | N/A — this row's change is itself the documentation update | N/A | — | — | |
 
 ### Blocker Log
