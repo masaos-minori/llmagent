@@ -61,6 +61,28 @@ class TestGitLog:
             result = await svc.git_log({"repo_path": "/opt/repos/proj"})
         assert result == "(no commits)"
 
+    @pytest.mark.asyncio
+    async def test_read_only_bypasses_write_protection_pipeline(self) -> None:
+        """REQ-003: a dirty/detached-HEAD repo does not deny a read-only tool."""
+        svc = _svc(allowed=["/opt/repos"])
+        mock_repo = MagicMock()
+        mock_repo.iter_commits.return_value = []
+        snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
+        snap.repo = mock_repo
+        snap.is_dirty = True
+        snap.is_detached_head = True
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (
+            False,
+            "[DENIED] worktree has uncommitted changes",
+        )
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_log({"repo_path": "/opt/repos/proj"})
+        assert result == "(no commits)"
+
 
 # ── git_diff ────────────────────────────────────────────────────────────────
 
@@ -84,6 +106,28 @@ class TestGitDiff:
         snap.is_detached_head = False
         snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_diff({"repo_path": "/opt/repos/proj"})
+        assert result == "(no diff)"
+
+    @pytest.mark.asyncio
+    async def test_read_only_bypasses_write_protection_pipeline(self) -> None:
+        """REQ-003: a dirty/detached-HEAD repo does not deny a read-only tool."""
+        svc = _svc(allowed=["/opt/repos"])
+        mock_repo = MagicMock()
+        mock_repo.git.diff.return_value = ""
+        snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
+        snap.repo = mock_repo
+        snap.is_dirty = True
+        snap.is_detached_head = True
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (
+            False,
+            "[DENIED] worktree has uncommitted changes",
+        )
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
         with patch.object(RepositoryState, "snapshot", return_value=snap):
@@ -121,6 +165,30 @@ class TestGitBranch:
             result = await svc.git_branch({"repo_path": "/opt/repos/proj"})
         assert result == "(no branches)"
 
+    @pytest.mark.asyncio
+    async def test_read_only_bypasses_write_protection_pipeline(self) -> None:
+        """REQ-003: a dirty/detached-HEAD repo does not deny a read-only tool."""
+        svc = _svc(allowed=["/opt/repos"])
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "main"
+        mock_repo.branches = []
+        snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
+        snap.repo = mock_repo
+        snap.active_branch = "main"
+        snap.is_dirty = True
+        snap.is_detached_head = True
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (
+            False,
+            "[DENIED] repository is in a detached HEAD state",
+        )
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_branch({"repo_path": "/opt/repos/proj"})
+        assert result == "(no branches)"
+
 
 # ── git_show ────────────────────────────────────────────────────────────────
 
@@ -144,6 +212,28 @@ class TestGitShow:
         snap.is_detached_head = False
         snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_show({"repo_path": "/opt/repos/proj", "ref": "HEAD"})
+        assert "commit abc123" in result
+
+    @pytest.mark.asyncio
+    async def test_read_only_bypasses_write_protection_pipeline(self) -> None:
+        """REQ-003: a dirty/detached-HEAD repo does not deny a read-only tool."""
+        svc = _svc(allowed=["/opt/repos"])
+        mock_repo = MagicMock()
+        mock_repo.git.show.return_value = "commit abc123\n\ndiff --git a b"
+        snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
+        snap.repo = mock_repo
+        snap.is_dirty = True
+        snap.is_detached_head = True
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (
+            False,
+            "[DENIED] worktree has uncommitted changes",
+        )
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
         with patch.object(RepositoryState, "snapshot", return_value=snap):
@@ -229,6 +319,29 @@ class TestGitStatus:
         snap.is_detached_head = False
         snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            result = await svc.git_status({"repo_path": "/opt/repos/proj"})
+        assert "main" in result
+
+    @pytest.mark.asyncio
+    async def test_read_only_bypasses_write_protection_pipeline(self) -> None:
+        """REQ-003: a dirty/detached-HEAD repo does not deny a read-only tool."""
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        mock_repo = MagicMock()
+        mock_repo.active_branch.name = "main"
+        mock_repo.is_dirty.return_value = True
+        snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
+        snap.repo = mock_repo
+        snap.is_dirty = True
+        snap.is_detached_head = True
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (
+            False,
+            "[DENIED] repository is in a detached HEAD state",
+        )
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
         with patch.object(RepositoryState, "snapshot", return_value=snap):
@@ -361,6 +474,31 @@ class TestGitCheckoutDenied:
                     "branch": "main",
                 }
             )
+
+    @pytest.mark.asyncio
+    async def test_write_tool_still_denied_under_dirty_and_detached_head(self) -> None:
+        """REQ-004 regression guard: the read-only bypass (REQ-003) must not also
+        bypass write-tool protection — a write tool under the same dirty/detached-
+        HEAD conditions a read tool bypasses must still be denied."""
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
+        snap.is_dirty = True
+        snap.is_detached_head = True
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (
+            False,
+            "[DENIED] worktree has uncommitted changes",
+        )
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            with pytest.raises(ValueError, match="worktree has uncommitted changes"):
+                await svc.git_checkout(
+                    {
+                        "repo_path": "/opt/repos/proj",
+                        "branch": "develop",
+                        "dry_run": False,
+                    }
+                )
 
 
 # ── _wrap_git_op error branch ────────────────────────────────────────────────

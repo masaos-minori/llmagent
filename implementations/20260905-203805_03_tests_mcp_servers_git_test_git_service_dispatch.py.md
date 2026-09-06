@@ -108,9 +108,9 @@ and assert denial, proving the split is real and correctly scoped.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add read-only-bypass tests for all 5 `GIT_READ_TOOLS` (Procedure step 1) | Pending | — | — | |
-| 2 | Add write-tool regression test under the same dirty/detached-HEAD mock (Procedure step 2) | Pending | — | — | |
-| 3 | Run validation plan (confirm fail-before/pass-after, full suite) | Pending | — | — | |
+| 1 | Add read-only-bypass tests for all 5 `GIT_READ_TOOLS` (Procedure step 1) | Completed | 20260906-100000 | 20260906-102000 | One test added per read-tool class (`TestGitLog`, `TestGitDiff`, `TestGitBranch`, `TestGitShow`, `TestGitStatus`), extending existing per-tool classes per Details' guidance |
+| 2 | Add write-tool regression test under the same dirty/detached-HEAD mock (Procedure step 2) | Completed | 20260906-100000 | 20260906-102000 | `test_write_tool_still_denied_under_dirty_and_detached_head` added to `TestGitCheckoutDenied` |
+| 3 | Run validation plan (confirm fail-before/pass-after, full suite) | Completed | 20260906-102000 | 20260906-103500 | 35/35 passed in this file; `tests/mcp_servers/git/` 244/244 passed; full suite 6319 passed/571 failed/14 skipped/3 errors (1 deselected known KeyboardInterrupt bug) — zero failures under `tests/mcp_servers/git/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
