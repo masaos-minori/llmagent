@@ -161,10 +161,10 @@ tests find the schema decision needs revisiting.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-06 | Created tool with RegistryEntry/CannonicalSourceRegistry dataclasses, load_registry(), validate_registry_schema(), CLI entry point |
+| 2 | Add or update tests per Validation plan | Pending | — | — | Handled by seq 03 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Handled by seq 03 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Handled by seq 04-07 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

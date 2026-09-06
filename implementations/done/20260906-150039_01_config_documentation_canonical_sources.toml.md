@@ -131,10 +131,10 @@ decision supersedes this row's minimal `version`-field addition.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-06 | Added `version = "1"` as first line of TOML registry |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-06 | 2026-09-06 | N/A: TOML change validated via tomllib round-trip |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-06 | 2026-09-06 | TOML validity confirmed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-06 | 2026-09-06 | N/A: no docs/00_index.md task-scope mapping for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

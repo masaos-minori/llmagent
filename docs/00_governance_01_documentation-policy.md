@@ -222,6 +222,16 @@ canonical source within that area — this matrix provides cross-cutting guidanc
 | docs/00_governance_03_issue-and-uncertainty-management.md | Primary | Active |
 | docs/00_governance_04_documentation-checks.md | Primary | Active |
 
+### Canonical Source Registry
+
+`config/documentation_canonical_sources.toml` is the system of record for
+canonical-source ownership, superseding the hand-maintained Primary/Secondary
+tables above as the authoritative mapping. Area guides (each area's own
+"Canonical Source Rule(s)" section) must not maintain an independent,
+hand-edited canonical-source mapping going forward — new or changed canonical
+mappings are recorded in the registry, not restated by hand per area. Migrating
+each area guide to link to or display the registry is M-01-06's scope.
+
 ## Conflict Resolution Rule
 
 When two documents contradict each other:
