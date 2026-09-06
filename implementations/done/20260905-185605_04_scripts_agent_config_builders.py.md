@@ -153,15 +153,15 @@ of configuration input at a trust boundary (config-file loading), consistent wit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004) lands — see Blocker Log; `semcacherm` core is complete |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by procedure document for `tests/agent/test_config_builders.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation deferred to `semcachedocs` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | REQ-002 implemented |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Covered by procedure document for `tests/agent/test_config_builders.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format/lint + mypy passed on modified files |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: documentation deferred to `semcachedocs` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Part of `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004). Must land together as a unit — REQ-003 (`_05`) must precede REQ-002's validator wiring. `semcacherm` core is complete; `semcacheconfig` Phase 1 is prerequisite. | No | — |
+| 1 | Part of `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004). Must land together as a unit — REQ-003 (`_05`) must precede REQ-002's validator wiring. `semcacherm` core is complete; `semcacheconfig` Phase 1 is prerequisite. | Yes | 2026-09-06 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -7,7 +7,6 @@ Provides:
   _print_llm_settings          — LLM endpoint settings
   _print_sse_settings          — SSE stream settings
   _print_execution_settings    — Execution settings
-  _print_semantic_cache_settings — Semantic cache settings
   _print_mcp_settings          — MCP / security settings
   _print_approval_settings     — Approval settings
  _print_tool_safety_settings  — Tool safety settings
@@ -73,17 +72,6 @@ class _ConfigDisplayMixin(MixinBase):
         """Print execution settings."""
         self._out.write("Execution settings:")
         self._out.write(f"  serial_tool_calls   : {ctx.cfg.tool.serial_tool_calls}")
-
-    def _print_semantic_cache_settings(self, ctx: AgentContext) -> None:
-        """Print semantic cache settings."""
-        self._out.write("Semantic cache:")
-        self._out.write(f"  use_semantic_cache  : {ctx.cfg.rag.use_semantic_cache}")
-        self._out.write(
-            f"  sem_cache_threshold : {ctx.cfg.rag.semantic_cache_threshold}"
-        )
-        self._out.write(
-            f"  sem_cache_max_size  : {ctx.cfg.rag.semantic_cache_max_size}"
-        )
 
     def _print_mcp_settings(self, ctx: AgentContext) -> None:
         """Print MCP and security settings."""
@@ -171,8 +159,6 @@ class _ConfigDisplayMixin(MixinBase):
         self._print_sse_settings(ctx)
         self._out.write("")
         self._print_execution_settings(ctx)
-        self._out.write("")
-        self._print_semantic_cache_settings(ctx)
         self._out.write("")
         self._print_mcp_settings(ctx)
         self._print_approval_settings(ctx)

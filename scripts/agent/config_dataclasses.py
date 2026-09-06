@@ -151,9 +151,6 @@ class RAGConfig:
     """RAG pipeline and vector search settings."""
 
     embed_url: str = ""
-    use_semantic_cache: bool = False
-    semantic_cache_threshold: float = 0.92
-    semantic_cache_max_size: int = 100
     use_refiner: bool = False
     refiner_max_tokens: int = 512
     refiner_timeout: float = 30.0
@@ -431,7 +428,7 @@ class AgentConfig:
     """Mutable runtime configuration shared by all agent components.
 
     Composes 8 domain-specific sub-configs.
-    Access fields via nested paths: cfg.llm.llm_url, cfg.rag.use_semantic_cache, etc.
+    Access fields via nested paths: cfg.llm.llm_url, cfg.rag.embed_url, etc.
     """
 
     llm: LLMConfig = field(default_factory=LLMConfig)
@@ -451,16 +448,8 @@ class AgentConfig:
 
     def _validate_cross_field(self) -> None:
         """Validate interdependent settings that span sub-config boundaries."""
-        self._validate_semantic_cache_url()
         self._validate_memory_jsonl_dir()
         self._validate_memory_embed_url()
-
-    def _validate_semantic_cache_url(self) -> None:
-        """Raise ValueError when semantic cache is enabled but embed_url is missing."""
-        if self.rag.use_semantic_cache and not self.rag.embed_url:
-            raise ValueError(
-                "use_semantic_cache=True requires embed_url to be non-empty",
-            )
 
     def _validate_memory_jsonl_dir(self) -> None:
         """Raise ValueError when memory layer is enabled but memory_jsonl_dir is missing."""
