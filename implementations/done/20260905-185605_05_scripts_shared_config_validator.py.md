@@ -144,15 +144,15 @@ N/A: no security-sensitive code path is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004) lands as a unit — see Blocker Log; `semcacherm` core is complete |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by procedure document for `tests/shared/test_config_validator.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation deferred to `semcachedocs` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Applied alongside semcacheconfig Phase 1 |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Covered by procedure document for `tests/shared/test_config_validator.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: documentation deferred to `semcachedocs` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Part of `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004). `semcacherm` core is complete. Phase 1 must land as a unit before Phase 2 (REQ-001 etc.) can begin — removing fields without the validator rejection wired in would silently accept obsolete config values instead of rejecting them. | No | — |
+| 1 | Part of `semcacheconfig` Phase 1 (REQ-003+REQ-002+REQ-004). `semcacherm` core is complete. Phase 1 must land as a unit before Phase 2 (REQ-001 etc.) can begin — removing fields without the validator rejection wired in would silently accept obsolete config values instead of rejecting them. | Yes | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

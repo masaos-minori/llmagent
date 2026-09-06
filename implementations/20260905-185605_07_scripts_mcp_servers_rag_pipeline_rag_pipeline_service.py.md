@@ -98,15 +98,15 @@ N/A: no security-sensitive code path is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `semcacherm` and procedure document `06` land — see Assumptions |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by procedure document for `tests/mcp_servers/rag_pipeline/test_rag_pipeline_mcp_service.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation deferred to `semcachedocs` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-05 | 2026-09-06 | Applied before this document — no-op; confirmed via `rg` zero matches |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-05 | 2026-09-06 | Covered by procedure document for `tests/mcp_servers/rag_pipeline/test_rag_pipeline_mcp_service.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-05 | 2026-09-06 | Passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-05 | 2026-09-06 | N/A: documentation deferred to `semcachedocs` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on `semcacherm`'s implementation and this Plan's `rag_pipeline_models.py` change landing first | No | — |
+| 1 | Depends on `semcacherm`'s implementation and this Plan's `rag_pipeline_models.py` change landing first | Yes | 2026-09-06 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
