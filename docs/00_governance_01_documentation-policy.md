@@ -176,6 +176,26 @@ From detection to record-keeping:
 4. Update affected documents or code to eliminate the conflict
 5. Record the resolution in the relevant Known Issues document if applicable
 
+### Routing Rules
+
+When a canonical source conflict is detected, route it to exactly one destination:
+
+1. **design-vs-code** → Known Issue — Design intent conflicts with current implementation behavior
+2. **functional-requirement-vs-implementation** → Known Issue — Functional requirements contradict actual implementation
+3. **Specification-vs-acceptance-test** → blocking Canonical Source Conflict — Specification claims conflict with acceptance test outcomes
+4. **deployed-vs-approved config** → Configuration Drift — Deployed operational value differs from approved value
+5. **undetermined intent** → Needs Confirmation — Cannot determine whether discrepancy reflects intentional design or omission
+6. **missing canonical source** → design/governance gap — No authoritative source exists for the claim
+7. **multiple normative sources** → blocking Canonical Source Conflict — Two or more normative sources disagree on the same decision target
+8. **stale non-canonical wording only** → documentation-correction task — Only non-canonical documentation is stale; no code/config change needed
+
+### Merge Conditions Extension
+
+Canonical Source Conflict severity and blocking behavior:
+
+- **Blocking**: Canonical Source Conflict severity is `High` when the conflicting source is a normative source; `Medium` when the conflicting source is a non-normative reference.
+- **Non-Blocking**: Configuration Drift has no behavioral impact (already listed under Non-Blocking Conditions).
+
 ## Update Rule
 
 When a change occurs, the following documents must be updated based on the change type:

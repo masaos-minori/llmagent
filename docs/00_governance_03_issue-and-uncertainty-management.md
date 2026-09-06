@@ -1043,6 +1043,84 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 No other active items beyond NC-021 through NC-032 above.
 
+## Part 3: Canonical Source Conflict
+
+### Purpose
+
+A centralized inventory of all canonical source conflicts found across the design documentation set. It makes conflicting claims trackable and actionable, preventing them from being silently accepted as facts.
+
+### Entry Template
+
+Each active Canonical Source Conflict entry must contain these 12 fields: ID, Decision target, Claim type, Canonical source, Conflicting source or evidence, Conflict category, Impact, Severity (`High`/`Medium`/`Low`), Blocking status (`Blocking`/`Non-blocking`), Required action, Owner, Validation evidence.
+
+### Status Values
+
+- **open** — Conflict acknowledged but not yet investigated
+- **investigating** — Investigation underway
+- **resolved** — Exactly one normative source remains; validation evidence confirms the conflict is closed
+
+An item is removed from this active inventory once it is resolved or no longer applies to the current system; it is not retained here with a closed-out status.
+
+### Lifecycle
+
+Open → Investigating → Resolved, or removed from this inventory once resolved or no longer applicable to the current system.
+
+### Resolution Rule
+
+Canonical Source Conflict resolved only when exactly one normative source remains registered.
+
+### Evidence-Required Rule
+
+Evidence is required before any discrepancy is reclassified or removed; a documentation-only edit cannot close a design-vs-code conflict unless required implementation evidence exists.
+
+### Current-Specification-Only Policy Reference
+
+Resolved-item handling for Canonical Source Conflict follows the existing Current-Specification-Only Policy: resolved entries are removed from the active inventory, not retained with a closed-out status.
+
+## Part 4: Configuration Drift
+
+### Purpose
+
+A minimal inventory of discrepancies between deployed operational values and approved operational values. Tracks configuration drift that may affect behavior without changing the approved value.
+
+### Entry Template
+
+Each active Configuration Drift entry must contain these 6 fields: ID, Decision target, Deployed value description, Approved operational value description, Severity, Status.
+
+### Status Values
+
+- **open** — Drift acknowledged but not yet investigated
+- **investigating** — Investigation underway
+- **resolved** — Deployed and approved values agree, or the approved value has been formally changed
+
+An item is removed from this active inventory once it is resolved or no longer applies to the current system; it is not retained here with a closed-out status.
+
+### Lifecycle
+
+Open → Investigating → Resolved, or removed from this inventory once resolved or no longer applicable to the current system.
+
+### Resolution Rule
+
+Configuration Drift resolved only when deployed and approved values agree, or approved value is formally changed.
+
+### Evidence-Required Rule
+
+Evidence is required before any discrepancy is reclassified or removed.
+
+### Current-Specification-Only Policy Reference
+
+Resolved-item handling for Configuration Drift follows the existing Current-Specification-Only Policy: resolved entries are removed from the active inventory, not retained with a closed-out status.
+
+## Resolution Rules
+
+The following resolution criteria apply across all four parts of this document:
+
+- Known Issue resolved only when implementation and design agree, or design is formally changed
+- Configuration Drift resolved only when deployed and approved values agree, or approved value is formally changed
+- Needs Confirmation removed only after evidence establishes intent and the canonical source is updated
+- Canonical Source Conflict resolved only when exactly one normative source remains registered
+- Documentation correction complete only when validation shows no stale statement remains
+
 ## Temporary Exception Process
 
 Applies to any automated check finding classified `Warning` (not `Blocking`) in
