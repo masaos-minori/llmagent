@@ -55,6 +55,8 @@ Documents in the design documentation set are classified into seven classes:
 
 When conflicts arise between documentation and code/config, the following precedence applies:
 
+This ranking is pending replacement by the Claim Type Taxonomy below per M-01-02; new authority questions should consult the taxonomy first.
+
 | Rank | Source Type | Example | Notes |
 |------|-------------|---------|-------|
 | 1 | Code | `scripts/eventbus/publisher.py` | Authoritative for runtime behavior |
@@ -63,6 +65,88 @@ When conflicts arise between documentation and code/config, the following preced
 | 4 | Specifications | `docs/specification.md` | Authoritative for functional requirements |
 | 5 | Configuration | `config/system.toml` | Authoritative for operational parameters |
 | 6 | Documentation | `docs/architecture.md` | Authoritative for conceptual understanding |
+
+## Claim Type Taxonomy
+
+The Claim Type Taxonomy resolves canonical authority at the level of individual claims rather than whole-document-level rankings. It supersedes the "Canonical Source Precedence" ranking above only once M-01-02 completes the replacement.
+
+### architecture-decision
+
+An adopted architectural decision documented in an accepted ADR (`docs/adr/ADR-{NNN}-*.md`). Boundary against `functional-requirement`: an architecture-decision may constrain how a requirement is implemented but does not itself define what the requirement specifies.
+
+### functional-requirement
+
+A normative statement of what the system must do, expressed in a Specification document (`docs/{area}_*_specification.md`). Boundary against `architecture-decision`: a functional-requirement defines the desired outcome; it does not prescribe how that outcome is achieved architecturally.
+
+### external-behavior
+
+Observable behavior of the system as experienced by external consumers — inputs, outputs, side effects, and timing characteristics. Canonical source kind: Specification documents and integration tests; conflict destination: Known Issues.
+
+### api-contract
+
+The formal interface contract between the system and its callers — request/response shapes, headers, status codes, error semantics. Canonical source kind: Official API Schema or Contract; conflict destination: Known Issues.
+
+### runtime-behavior
+
+Current execution-time behavior of the running system as exercised by source code under `scripts/`, `implementations/`. Boundary against `verification-contract`: runtime-behavior describes what the system actually does; verification-contract describes what the system ought to do according to test expectations.
+
+### verification-contract
+
+Executable assertions about expected behavior — unit tests, acceptance tests, integration tests. Boundary against `runtime-behavior`: verification-contract encodes the intended behavior; runtime-behavior encodes the actual behavior. Boundary against `functional-requirement`: verification-contract validates specific scenarios; functional-requirement states the broader obligation.
+
+### production-effective-value
+
+The effective value of a parameter in a deployed environment, which may differ from the declared default or the value in any single configuration file. Canonical source kind: Deployed Configuration (`config/*.toml`); conflict destination: Configuration Drift.
+
+### configuration-schema
+
+Valid structure, allowed values, and constraints for configuration files. Canonical source kind: Configuration Schema (e.g., pydantic models, TOML schema definitions); conflict destination: Configuration Drift.
+
+### database-schema
+
+The authoritative definition of tables, columns, indexes, and constraints. Canonical source kind: Schema Generator or official DDL; conflict destination: Known Issues.
+
+### operational-procedure
+
+How operators interact with the system — runbooks, escalation paths, recovery steps. Canonical source kind: Operations / Runbook; conflict destination: Known Issues.
+
+### security-policy
+
+Security-relevant constraints — access control rules, encryption requirements, data classification mandates. Canonical source kind: Governance-class documents and Security Policy specifications; conflict destination: Known Issues.
+
+### documentation-metadata
+
+Metadata fields attached to documentation assets (title, area, tags, related, etc.). Canonical source kind: `docs/00_governance_02_documentation-metadata.md`; conflict destination: Known Issues.
+
+### unconfirmed-claim
+
+A claim whose truth has not yet been verified through evidence. Canonical source kind: Needs Confirmation inventory (`docs/00_governance_03_issue-and-uncertainty-management.md`); conflict destination: Needs Confirmation.
+
+### Resolution Matrix
+
+| Claim type | Definition | Canonical source kind | Auxiliary evidence | Conflict destination | Notes or constraints |
+|------------|-----------|----------------------|--------------------|---------------------|---------------------|
+| architecture-decision | Adopted architectural decision in accepted ADR | `docs/adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues | Does not grant code authority over adopted design (AC4) |
+| functional-requirement | Normative requirement in Specification | `docs/{area}_*_specification.md` | Acceptance Test | Known Issues | |
+| external-behavior | Observable system behavior for external consumers | Specification + Integration Test | Runtime Log, Test | Known Issues | |
+| api-contract | Formal interface contract | Official API Schema or Contract | Integration Test | Known Issues | |
+| runtime-behavior | Current execution-time behavior | Source under `scripts/`, `implementations/` | Runtime Log, Test | Known Issues | Code authority does not extend to adopted design (AC4) |
+| verification-contract | Executable assertions about expected behavior | `tests/` + Specification | ADR | Known Issues | Tests cannot silently redefine requirements (AC5) |
+| production-effective-value | Effective parameter value in deployment | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift | |
+| configuration-schema | Valid configuration structure and constraints | Configuration Schema | Configuration Validation | Configuration Drift | |
+| database-schema | Tables, columns, indexes, constraints | Schema Generator or official DDL | Schema Test | Known Issues | |
+| operational-procedure | Operator interaction guidance | Operations / Runbook | Operational Validation | Known Issues | |
+| security-policy | Security constraints and mandates | Governance + Security Policy Spec | Audit Evidence | Known Issues | |
+| documentation-metadata | Metadata on documentation assets | `docs/00_governance_02_documentation-metadata.md` | Metadata Validator | Known Issues | |
+| unconfirmed-claim | Unverified claim | Needs Confirmation inventory | Investigation Evidence | Needs Confirmation | |
+
+### Authority vs. Evidence
+
+The "Canonical source kind" column identifies **authority** — the artifact whose word settles the question. The "Auxiliary evidence" column identifies **evidence** — supporting material that can confirm or challenge the authority's position. These are never interchangeable: evidence alone does not establish authority, and authority without evidence is incomplete.
+
+### Multi-Type Documents
+
+A single document may carry claims of more than one type. Classification is by claim, not by the document as a whole. For example, an ADR may contain both `architecture-decision` claims and `documentation-metadata` claims; each claim type is resolved independently using the row for that type.
 
 ### Decision Target Canonical Source Matrix
 
