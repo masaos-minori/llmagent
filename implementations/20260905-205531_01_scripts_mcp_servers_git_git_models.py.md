@@ -118,9 +118,9 @@ symbol in the file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete `git_models.py`'s duplicate `GitServiceError` class and its section-header comment | Pending | — | — | |
-| 2 | Run `tests/mcp_servers/git/test_git_models.py` and confirm no reference to the removed class | Pending | — | — | |
-| 3 | Run the validation sequence (ruff, mypy, lint-imports) | Pending | — | — | |
+| 1 | Delete `git_models.py`'s duplicate `GitServiceError` class and its section-header comment | Completed | 20260906-170000 | 20260906-170500 | Deleted at line 78 (drifted from the doc's cited line 73 — pre-existing content shift from earlier cycles' edits, no other discrepancy). `rg -n "class GitServiceError" scripts/mcp_servers/git/` now returns exactly one match (`errors.py`) |
+| 2 | Run `tests/mcp_servers/git/test_git_models.py` and confirm no reference to the removed class | Completed | 20260906-170500 | 20260906-171000 | 12/12 passed |
+| 3 | Run the validation sequence (ruff, mypy, lint-imports) | Completed | 20260906-171000 | 20260906-173000 | ruff format/check, mypy (`scripts/`), lint-imports: pass (pre-existing unrelated finding unchanged). `tests/mcp_servers/git/`: 282/282 passed. Full suite (`--ignore=tests/eventbus`): 6188 passed/570 failed/14 skipped/3 errors — zero failures under `tests/mcp_servers/git/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
