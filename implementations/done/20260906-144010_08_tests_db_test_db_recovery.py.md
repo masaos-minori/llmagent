@@ -122,10 +122,10 @@ low risk, test-only.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-09-06T00:00 | 2026-09-06T00:01 | Added 3 new test functions |
+| 2 | Add or update tests per Validation plan | Done | 2026-09-06T00:01 | 2026-09-06T00:02 | All 17 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-09-06T00:02 | 2026-09-06T00:03 | ruff format/check + pytest pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Test-only change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
