@@ -158,10 +158,8 @@ class TestGuardDelegation:
 
     def test_validate_repo_delegates_to_state(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
-        result = state.validate_repo(working_repo, "git_test")
-        from mcp_servers.git.repository_state import RepoValidationResult
-
-        assert isinstance(result, RepoValidationResult)
+        assert state.path == working_repo
+        assert state.ref_valid is True
 
     def test_structured_result_contains_state_fields(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
@@ -217,10 +215,8 @@ class TestGuardDelegation:
 
     def test_legacy_validate_repo_delegates(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
-        result = state.validate_repo(working_repo, "git_test")
-        from mcp_servers.git.repository_state import RepoValidationResult
-
-        assert isinstance(result, RepoValidationResult)
+        assert state.path == working_repo
+        assert state.ref_valid is True
 
 
 # ── Backward-compat shim tests ──────────────────────────────────────────────
@@ -249,18 +245,6 @@ class TestBackwardCompatShims:
 
         result = state.run_tool("git_test", working_repo, tool_op)
         assert result == "tool_ok"
-
-    def test_repo_validation_result_shim_exists(self) -> None:
-        from mcp_servers.git.repository_state import RepoValidationResult
-
-        assert RepoValidationResult is not None
-
-    def test_repo_validation_result_shim_requires_error_message(self) -> None:
-        from mcp_servers.git.repository_state import RepoValidationResult
-
-        with pytest.warns(DeprecationWarning):
-            result = RepoValidationResult(error_message="")
-        assert result.error_message == ""
 
 
 # ── Pipeline ordering tests ──────────────────────────────────────────────────

@@ -180,9 +180,9 @@ touching).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the 2 `validate_repo()`-based tests to assert `RepositoryState` fields directly | Pending | — | — | |
-| 2 | Delete the 2 `RepoValidationResult`-existence tests in `TestBackwardCompatShims` | Pending | — | — | |
-| 3 | Run this file's test suite and confirm zero remaining `RepoValidationResult` references | Pending | — | — | |
+| 1 | Rewrite the 2 `validate_repo()`-based tests to assert `RepositoryState` fields directly | Completed | 20260906-174000 | 20260906-174500 | Exactly as specified: `state.path`/`state.ref_valid` assertions replace the `isinstance(result, RepoValidationResult)` check |
+| 2 | Delete the 2 `RepoValidationResult`-existence tests in `TestBackwardCompatShims` | Completed | 20260906-174000 | 20260906-174500 | Both deleted; `test_open_repo_shim`/`test_wrap_git_op_shim`/`test_run_tool_shim` left in place |
+| 3 | Run this file's test suite and confirm zero remaining `RepoValidationResult` references | Completed | 20260906-174500 | 20260906-180500 | `rg -n "RepoValidationResult"` on this file: zero matches. This file: 67/67 passed (69→67, matching the 2 deletions). ruff format/check, mypy (`scripts/`): pass. `tests/mcp_servers/git/`: 280/280 passed. Full suite (`--ignore=tests/eventbus`): 6180 passed/576 failed/14 skipped/3 errors — zero failures under `tests/mcp_servers/git/`. Note: `RepoValidationResult` itself still exists in `repository_state.py` at this point (sibling row 2 removes it next, per this row's own Assumptions) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
