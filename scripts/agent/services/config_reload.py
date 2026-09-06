@@ -493,12 +493,12 @@ class ConfigReloadService:
         """Collect RAG setting changes."""
         if (vb := _get_bool(new_cfg, "use_refiner")) is not None:
             changes["use_refiner"] = vb
-        if (v := _get_int(new_cfg, "refiner_max_tokens")) is not None:
-            changes["refiner_max_tokens"] = v
-        if (v := _get_float(new_cfg, "refiner_timeout")) is not None:
-            changes["refiner_timeout"] = v
-        if (v := _get_int(new_cfg, "refiner_max_chars_per_chunk")) is not None:
-            changes["refiner_max_chars_per_chunk"] = v
+        if (vi := _get_int(new_cfg, "refiner_max_tokens")) is not None:
+            changes["refiner_max_tokens"] = vi
+        if (vf := _get_float(new_cfg, "refiner_timeout")) is not None:
+            changes["refiner_timeout"] = vf
+        if (vi := _get_int(new_cfg, "refiner_max_chars_per_chunk")) is not None:
+            changes["refiner_max_chars_per_chunk"] = vi
 
     def _apply_llm_retry_params(
         self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
