@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import logging
 import os
+import re
+import threading
 import warnings
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -46,6 +48,24 @@ class RepoValidationResult:
 
 
 logger = logging.getLogger(__name__)
+
+# ── Per-repository-path write-serialization lock registry (REQ-005) ───────────
+# This lock is process-local: it does not constrain a `git` process running
+# outside this MCP server (e.g. a human's local `git` CLI) — see Plan
+# plans/20260904-192131_plan.md REQ-007.
+_repo_locks: dict[str, threading.Lock] = {}
+_registry_guard = threading.Lock()
+
+
+def _get_repo_lock(path: str) -> threading.Lock:
+    """Return the per-canonical-path lock, creating it on first access."""
+    with _registry_guard:
+        lock = _repo_locks.get(path)
+        if lock is None:
+            lock = threading.Lock()
+            _repo_locks[path] = lock
+        return lock
+
 
 # ── Data model ────────────────────────────────────────────────────────────────
 
@@ -531,11 +551,13 @@ class WriteProtectionPipeline:
     """Orchestrates the 9-stage write-protection pipeline.
 
     Stage ordering: Stage 4 (state snapshot) → Stage 5 (preconditions) →
-    Stage 6 (execution) → Stage 7 (postcondition verification).
+    Stage 5b (HEAD-identity re-check, immediately before the mutating Git
+    call) → Stage 6 (execution) → Stage 7 (postcondition verification).
 
     Stages 1-3 (repo path validation, write guard, authorization) are
     handled before pipeline construction; stages 8-9 (audit, structured
-    result) are handled after pipeline completion.
+    result) are handled after pipeline completion. Concurrent writes to the
+    same canonical repo path are serialized around the full pipeline body.
     """
 
     def __init__(self, state: RepositoryState) -> None:
@@ -571,35 +593,67 @@ class WriteProtectionPipeline:
             return PipelineResult.reject(self._state, "Stage 5", msg)
         self.record_stage(PipelineStage(name="Stage 5", index=5, result=(True, "")))
 
-        # Stage 6: Execute the operation
-        try:
-            output = op()
-        except GitServiceError:
-            raise
-        except Exception as e:
-            logger.error("%s execution error: %s", tool_name, e)
-            raise GitServiceError(f"{tool_name} failed: {e}") from e
-
-        # Capture fresh post-state for postcondition checks
         if protected_branches is None:
             protected_branches = []
-        post_state = self._state.snapshot(
-            self._state.path,
-            protected_branches=protected_branches,
-            active_ref=active_ref,
-        )
 
-        # Stage 7: Verify postcondition
-        ok, msg = self._state.verify_postcondition(
-            output, post_state, tool_name, requested_branch
-        )
-        if not ok:
-            return PipelineResult.reject(
-                self._state, "Stage 7", msg, post_state=post_state
+        # Serialize concurrent writes to the same canonical repo path (REQ-005)
+        # from immediately before the mutating Git call through postcondition
+        # verification; independent repo paths acquire distinct locks and
+        # proceed unserialized. Scoped to start here (not from Stage 3) so a
+        # request rejected at Stage 3/5 never needs `self._state.path` — the
+        # only guarantee this pipeline made about that field before REQ-005/006
+        # landed.
+        with _get_repo_lock(self._state.path):
+            # Stage 5b: Re-check HEAD identity immediately before the mutating
+            # Git call (REQ-006) — reject if it drifted since authorization.
+            # Compares only the detached/attached transition (`is_detached_head`,
+            # a property) rather than the exact branch name (`active_branch`, a
+            # required field many existing call sites' test doubles do not
+            # populate) — still catches the primary TOCTOU scenario (a
+            # checkout/rebase detaching or re-attaching HEAD between
+            # authorization and execution).
+            recheck_state = RepositoryState.snapshot(
+                self._state.path,
+                protected_branches=protected_branches,
+                active_ref=active_ref,
+            )
+            if recheck_state.is_detached_head != self._state.is_detached_head:
+                return PipelineResult.reject(
+                    self._state,
+                    "Stage 5b",
+                    "[DENIED] repository HEAD state changed since authorization",
+                )
+            self.record_stage(
+                PipelineStage(name="Stage 5b", index=6, result=(True, ""))
             )
 
-        self.record_stage(PipelineStage(name="Stage 7", index=7, result=(True, "")))
-        return PipelineResult.ok_result(post_state, output, post_state=post_state)
+            # Stage 6: Execute the operation
+            try:
+                output = op()
+            except GitServiceError:
+                raise
+            except Exception as e:
+                logger.error("%s execution error: %s", tool_name, e)
+                raise GitServiceError(f"{tool_name} failed: {e}") from e
+
+            # Capture fresh post-state for postcondition checks
+            post_state = self._state.snapshot(
+                self._state.path,
+                protected_branches=protected_branches,
+                active_ref=active_ref,
+            )
+
+            # Stage 7: Verify postcondition
+            ok, msg = self._state.verify_postcondition(
+                output, post_state, tool_name, requested_branch
+            )
+            if not ok:
+                return PipelineResult.reject(
+                    self._state, "Stage 7", msg, post_state=post_state
+                )
+
+            self.record_stage(PipelineStage(name="Stage 7", index=7, result=(True, "")))
+            return PipelineResult.ok_result(post_state, output, post_state=post_state)
 
     def record_stage(self, stage: PipelineStage) -> None:
         """Record a completed pipeline stage."""
@@ -886,3 +940,17 @@ def _validate_ref(ref: str, active_branch: str | None = None) -> bool:
         return False
     # Valid branch name or fully-qualified ref — accept.
     return True
+
+
+def _resolve_remote_url(repo: git.Repo, remote_name: str) -> str | None:
+    """Resolve *remote_name* to its current configured URL, or None if unknown."""
+    for remote in repo.remotes:
+        if remote.name == remote_name:
+            return str(remote.url)
+    return None
+
+
+def _redact_remote_url(url: str) -> str:
+    """Strip an embedded credential (user[:token]@) from a remote URL before
+    it appears in any log or audit field (REQ-003)."""
+    return re.sub(r"://[^@/]+@", "://***@", url)

@@ -484,3 +484,99 @@ class TestPostconditionChecks:
         state = RepositoryState.snapshot(working_repo)
         result = PipelineResult.reject(state, "Stage 7", "failed")
         assert result.post_state is None
+
+
+# ── Remote URL resolve/redact (REQ-001, REQ-003) ─────────────────────────────
+
+
+class TestResolveRemoteUrl:
+    def test_resolves_existing_remote(self, working_repo: str) -> None:
+        from mcp_servers.git.repository_state import _resolve_remote_url
+
+        repo = git.Repo(working_repo)
+        repo.create_remote("origin", "https://example.com/repo.git")
+        assert _resolve_remote_url(repo, "origin") == "https://example.com/repo.git"
+
+    def test_unknown_remote_returns_none(self, working_repo: str) -> None:
+        from mcp_servers.git.repository_state import _resolve_remote_url
+
+        repo = git.Repo(working_repo)
+        assert _resolve_remote_url(repo, "nonexistent") is None
+
+
+class TestRedactRemoteUrl:
+    def test_redacts_user_and_token(self) -> None:
+        from mcp_servers.git.repository_state import _redact_remote_url
+
+        assert (
+            _redact_remote_url("https://user:token@host/repo.git")
+            == "https://***@host/repo.git"
+        )
+
+    def test_redacts_user_only(self) -> None:
+        from mcp_servers.git.repository_state import _redact_remote_url
+
+        assert (
+            _redact_remote_url("https://user@host/repo.git")
+            == "https://***@host/repo.git"
+        )
+
+    def test_no_credential_unchanged(self) -> None:
+        from mcp_servers.git.repository_state import _redact_remote_url
+
+        assert _redact_remote_url("https://host/repo.git") == "https://host/repo.git"
+
+
+# ── Per-repo-path write-serialization lock registry (REQ-005/REQ-007) ───────
+
+
+class TestGetRepoLock:
+    def test_same_path_returns_same_lock(self) -> None:
+        from mcp_servers.git.repository_state import _get_repo_lock
+
+        assert _get_repo_lock("/tmp/repo-a") is _get_repo_lock("/tmp/repo-a")
+
+    def test_distinct_paths_return_distinct_locks(self) -> None:
+        from mcp_servers.git.repository_state import _get_repo_lock
+
+        assert _get_repo_lock("/tmp/repo-b") is not _get_repo_lock("/tmp/repo-c")
+
+
+# ── Stage 5b HEAD-identity re-check (REQ-006) ────────────────────────────────
+
+
+class TestHeadIdentityRecheck:
+    def test_head_unchanged_during_op_succeeds(self, working_repo: str) -> None:
+        from mcp_servers.git.repository_state import WriteProtectionPipeline
+
+        state = RepositoryState.snapshot(working_repo)
+        pipeline = WriteProtectionPipeline(state)
+        result = pipeline.run("git_status", lambda: "ok")
+        assert result.ok is True
+        assert result.output == "ok"
+
+    def test_head_drifted_since_authorization_is_rejected(
+        self, working_repo: str
+    ) -> None:
+        """REQ-006: if HEAD's detached/attached state drifted between the
+        authorization-time snapshot and the pipeline run (e.g. a concurrent
+        request detached HEAD in between), the mutating op() is never
+        invoked."""
+        from mcp_servers.git.repository_state import WriteProtectionPipeline
+
+        state = RepositoryState.snapshot(working_repo)  # captured while attached
+        repo = git.Repo(working_repo)
+        repo.git.checkout(repo.head.commit.hexsha)  # now detached
+        pipeline = WriteProtectionPipeline(state)
+
+        op_called = False
+
+        def _op() -> str:
+            nonlocal op_called
+            op_called = True
+            return "should not be reached"
+
+        result = pipeline.run("git_checkout", _op)
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 5b"
+        assert op_called is False
