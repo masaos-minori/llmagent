@@ -166,6 +166,24 @@ runtime behavior) may both be documented simultaneously without one silently
 overwriting the other. An automatic documentation change MUST NOT convert an
 implementation deviation into an approved specification without explicit review.
 
+### Recency Is Not Authority
+
+Review date, modification date, commit date, and document recency do not determine canonical authority. Recency may be used only for the following purposes:
+
+- Detecting staleness of non-canonical content during maintenance sweeps
+- Prioritizing investigation of potential discrepancies
+- Scheduling periodic review cycles
+- Identifying which revision of a single file is newer
+
+Recency must never be used for any of the following:
+
+- Overriding an accepted ADR
+- Overriding a canonical Specification
+- Overriding an official API contract or schema
+- Overriding deployed configuration
+- Overriding an Operations runbook
+- Promoting a Note or Reference to canonical status
+
 ## Area Canonical Maps
 
 ### Overview
