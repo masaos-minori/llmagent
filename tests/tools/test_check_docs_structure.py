@@ -17,6 +17,7 @@ from tools.check_docs_structure import (
     MAX_SIZE,
     check_schema_compliance,
     check_size,
+    check_unique_adr_ids,
     validate_file,
 )
 
@@ -176,3 +177,32 @@ class TestValidateFileSchemaOptIn:
         # Built-in default schema matches the tool's own existing required
         # fields exactly, so passing it adds no new findings for a compliant doc.
         assert validate_file(doc, expected_area=None, schema=schema) == []
+
+
+class TestCheckUniqueAdrIds:
+    def test_no_duplicate_adr_ids_passes(self, tmp_path: Path) -> None:
+        adr1 = _write(tmp_path / "ADR-001-example.md", "# ADR-001\n")
+        adr2 = _write(tmp_path / "ADR-002-example.md", "# ADR-002\n")
+        issues = check_unique_adr_ids([adr1, adr2])
+        assert issues == []
+
+    def test_duplicate_adr_id_is_flagged(self, tmp_path: Path) -> None:
+        adr1 = _write(tmp_path / "ADR-001-first.md", "# ADR-001\n")
+        adr2 = _write(tmp_path / "ADR-001-second.md", "# ADR-001\n")
+        issues = check_unique_adr_ids([adr1, adr2])
+        assert len(issues) == 1
+        assert "ADR-001" in issues[0]
+        assert "first.md" in issues[0]
+        assert "second.md" in issues[0]
+
+    def test_non_adr_files_are_ignored(self, tmp_path: Path) -> None:
+        other1 = _write(tmp_path / "other1.md", "# Other\n")
+        other2 = _write(tmp_path / "other2.md", "# Other\n")
+        issues = check_unique_adr_ids([other1, other2])
+        assert issues == []
+
+    def test_mixed_adr_and_non_adr_files(self, tmp_path: Path) -> None:
+        adr = _write(tmp_path / "ADR-001-example.md", "# ADR-001\n")
+        other = _write(tmp_path / "other.md", "# Other\n")
+        issues = check_unique_adr_ids([adr, other])
+        assert issues == []

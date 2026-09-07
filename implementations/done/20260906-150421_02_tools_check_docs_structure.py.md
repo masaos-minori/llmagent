@@ -110,9 +110,9 @@ tool's own CLI output.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Identify the target implementation procedure file(s) | Completed | — | — | |
-| 2 | Read the current implementation procedure file | Completed | — | — | |
-| 3 | Implement the feature and pass code validation | Completed | — | — | Added check_unique_adr_ids() + main() wiring; mypy/ruff OK |
+| 1 | Identify the target implementation procedure file(s) | Completed | — | — | Added `check_unique_adr_ids()` and wired into `main()` |
+| 2 | Read the current implementation procedure file | Completed | — | — | Added 4 test cases for `check_unique_adr_ids()` |
+| 3 | Implement the feature and pass code validation | Completed | — | — | mypy/ruff OK; ruff: 3 pre-existing E501 |
 | 4 | Test the feature and pass required tests/coverage | Completed | — | — | 12 existing tests pass |
 | 5 | Update documentation per `docs/00_index.md` task-scope mapping | N/A | — | — | No docs files matched |
 | 6 | Validate documentation updates | N/A | — | — | No documentation changes to validate |

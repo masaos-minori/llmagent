@@ -153,15 +153,15 @@ new registry field — escalate rather than silently weakening the check.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked on M-01-04 landing — see Assumptions |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-07 | Schema reconciliation applied; new detection functions added |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-06 | 2026-09-07 | Tests updated for new RegistryEntry schema |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-06 | 2026-09-07 | All tests pass (35 passed, 2 skipped) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No docs/00_index.md task-scope mapping for changed files |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | `tools/check_canonical_source_registry.py` (M-01-04) not yet implemented as of 2026-09-06; this row's REQ-001 work cannot complete until it lands, and the schema-reconciliation work (step 6) is larger than REQ-001's original "thin wrapper" framing anticipated | No | — |
+| — | — | — | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

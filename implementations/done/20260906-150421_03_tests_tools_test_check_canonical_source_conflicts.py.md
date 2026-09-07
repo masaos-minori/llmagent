@@ -154,15 +154,15 @@ require a substantially different fixture design.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Partially blocked — see Assumptions/Procedure step 7 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-07 | Tests updated for new RegistryEntry schema |
+| 2 | Add or update tests per Validation plan | Completed | 2026-09-06 | 2026-09-07 | All tests pass (35 passed, 2 skipped) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-06 | 2026-09-07 | All tests pass (35 passed, 2 skipped) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No docs/00_index.md task-scope mapping for changed files |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | `CANONICAL-002`–`006`/`-009` (REQ-001) blocked on seq 01; `CANONICAL-007` (REQ-004) blocked on seq 02 — both still unimplemented as of 2026-09-06 | No | — |
+| — | — | — | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

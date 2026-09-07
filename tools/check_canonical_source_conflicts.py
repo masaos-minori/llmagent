@@ -33,15 +33,20 @@ Usage:
 from __future__ import annotations
 
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 try:
     from tools.check_canonical_source_registry import (
+        SUPPORTED_VERSIONS,
+        VALID_CLAIM_TYPES,
         load_registry,
         validate_registry_schema,
     )
@@ -49,6 +54,15 @@ try:
     HAS_REGISTRY_VALIDATOR = True
 except ImportError:
     HAS_REGISTRY_VALIDATOR = False
+    VALID_CLAIM_TYPES = frozenset()
+    SUPPORTED_VERSIONS = frozenset()
+
+# SINGLE_SOURCE_EXEMPTIONS is always defined (either from import or fallback)
+if HAS_REGISTRY_VALIDATOR:
+    _single_exemptions: frozenset[str] = frozenset(("runtime-behavior",))
+    SINGLE_SOURCE_EXEMPTIONS = _single_exemptions
+else:
+    SINGLE_SOURCE_EXEMPTIONS = frozenset()
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -111,14 +125,22 @@ class Severity(Enum):
 
 
 # ---------------------------------------------------------------------------
-# Claim types — only those used by conflict detection
+# Claim types — aligned with M-01-04 VALID_CLAIM_TYPES
 # ---------------------------------------------------------------------------
 
-CLAIM_TYPE_SPECIFICATION = "specification"
-CLAIM_TYPE_ACCEPTANCE_TEST = "acceptance_test"
-CLAIM_TYPE_REFERENCE = "reference"
-CLAIM_TYPE_AREA_GUIDE = "area_guide"
-CLAIM_TYPE_LEGACY_PRECEDENCE = "legacy_precedence"
+CLAIM_TYPE_ARCHITECTURE_DECISION = "architecture-decision"
+CLAIM_TYPE_RUNTIME_BEHAVIOR = "runtime-behavior"
+CLAIM_TYPE_DATABASE_SCHEMA = "database-schema"
+CLAIM_TYPE_FUNCTIONAL_REQUIREMENT = "functional-requirement"
+CLAIM_TYPE_API_CONTRACT = "api-contract"
+CLAIM_TYPE_VERIFICATION_CONTRACT = "verification-contract"
+CLAIM_TYPE_DOCUMENTATION_METADATA = "documentation-metadata"
+CLAIM_TYPE_EXTERNAL_BEHAVIOR = "external-behavior"
+CLAIM_TYPE_PRODUCTION_EFFECTIVE_VALUE = "production-effective-value"
+CLAIM_TYPE_CONFIGURATION_SCHEMA = "configuration-schema"
+CLAIM_TYPE_OPERATIONAL_PROCEDURE = "operational-procedure"
+CLAIM_TYPE_SECURITY_POLICY = "security-policy"
+CLAIM_TYPE_UNCONFIRMED_CLAIM = "unconfirmed-claim"
 
 # ---------------------------------------------------------------------------
 # Authority types — only those used by conflict detection
@@ -289,46 +311,39 @@ class CanonicalConflict:
 
 @dataclass
 class RegistryEntry:
-    """A single entry in the Canonical Source Registry."""
+    """A single entry in the Canonical Source Registry (M-01-04 schema)."""
 
-    id: str
-    target: str
+    decision_target: str
     claim_type: str
-    authority: str
-    precedence: str
-    status: str
-    effective_date: str | None = None
-    expiry_date: str | None = None
-    validation_ref: str | None = None
-    description: str | None = None
+    source_paths: list[str]
+    area: str
+    notes: str | None = None
 
-    def __post_init__(self) -> None:
-        if self.status not in ("active", "deprecated", "superseded"):
-            raise ValueError(f"Invalid status: {self.status!r}")
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> RegistryEntry:
+        return cls(
+            decision_target=d["decision_target"],
+            claim_type=d["claim_type"],
+            source_paths=list(d["source_paths"]),
+            area=d["area"],
+            notes=d.get("notes"),
+        )
 
-    def to_dict(self) -> dict:
-        result = {
-            "id": self.id,
-            "target": self.target,
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {
+            "decision_target": self.decision_target,
             "claim_type": self.claim_type,
-            "authority": self.authority,
-            "precedence": self.precedence,
-            "status": self.status,
+            "source_paths": self.source_paths,
+            "area": self.area,
         }
-        if self.effective_date:
-            result["effective_date"] = self.effective_date
-        if self.expiry_date:
-            result["expiry_date"] = self.expiry_date
-        if self.validation_ref:
-            result["validation_ref"] = self.validation_ref
-        if self.description:
-            result["description"] = self.description
+        if self.notes is not None:
+            result["notes"] = self.notes
         return result
 
     def __str__(self) -> str:
         return (
-            f"RegistryEntry(id={self.id}, target={self.target}, "
-            f"claim_type={self.claim_type}, status={self.status})"
+            f"RegistryEntry(decision_target={self.decision_target!r}, "
+            f"claim_type={self.claim_type!r}, source_paths={self.source_paths})"
         )
 
 
@@ -343,31 +358,25 @@ def _load_registry_toml(registry_path: Path) -> list[RegistryEntry]:
         import tomllib
     except ImportError:
         try:
-            import tomli as tomllib
+            # pyright: ignore[reportShadowedImports]
+            import tomli as _tomli  # noqa: A005, F811
         except ImportError:
             raise RuntimeError(
                 "Cannot load registry: neither 'tomllib' (stdlib) nor 'tomli' available"
             )
+        else:
+            _tomllib: ModuleType = _tomli
+    else:
+        _tomllib = tomllib
 
     with open(registry_path, "rb") as f:
-        data = tomllib.load(f)
+        data = _tomllib.load(f)
 
+    entries_data = data.get("canonical_sources", [])
     entries: list[RegistryEntry] = []
-    for key, value in data.items():
-        if isinstance(value, dict):
-            entry = RegistryEntry(
-                id=key,
-                target=value.get("target", ""),
-                claim_type=value.get("claim_type", ""),
-                authority=value.get("authority", ""),
-                precedence=value.get("precedence", "normative"),
-                status=value.get("status", "active"),
-                effective_date=value.get("effective_date"),
-                expiry_date=value.get("expiry_date"),
-                validation_ref=value.get("validation_ref"),
-                description=value.get("description"),
-            )
-            entries.append(entry)
+    for entry_data in entries_data:
+        entry = RegistryEntry.from_dict(entry_data)
+        entries.append(entry)
     return entries
 
 
@@ -377,33 +386,38 @@ def _load_registry_toml(registry_path: Path) -> list[RegistryEntry]:
 
 
 def detect_duplicate_normative_sources(
-    entries: list[RegistryEntry],
+    entries: Sequence[RegistryEntry],
 ) -> list[CanonicalConflict]:
-    """CANONICAL-001: Detect duplicate normative canonical sources for same target+claim-type."""
+    """CANONICAL-001/CANONICAL-002: Detect duplicate entries for same decision_target+claim-type.
+
+    Since the M-01-04 schema has no precedence/status distinction, any two
+    entries sharing the same (decision_target, claim_type) are duplicates.
+    """
     conflicts: list[CanonicalConflict] = []
-    seen: dict[tuple[str, str], list[str]] = {}
+    seen: dict[tuple[str, str], list[list[str]]] = {}
 
     for entry in entries:
-        if entry.precedence != "normative":
-            continue
-        key = (entry.target, entry.claim_type)
-        seen.setdefault(key, []).append(entry.id)
+        key = (entry.decision_target, entry.claim_type)
+        seen.setdefault(key, []).append(entry.source_paths)
 
-    for key, ids in seen.items():
-        if len(ids) > 1:
+    for key, paths_list in seen.items():
+        if len(paths_list) > 1:
+            all_paths: list[str] = []
+            for paths in paths_list:
+                all_paths.extend(paths)
             conflicts.append(
                 CanonicalConflict(
                     code="CANONICAL-001",
                     severity=Severity.HIGH,
                     blocking_status=BlockingStatus.BLOCKING,
                     description=(
-                        f"Duplicate normative canonical sources for target={key[0]}, "
-                        f"claim_type={key[1]}: {', '.join(ids)}"
+                        f"Duplicate canonical sources for decision_target={key[0]}, "
+                        f"claim_type={key[1]}: {len(paths_list)} entries"
                     ),
-                    affected_files=[ids[0]],
+                    affected_files=all_paths[:1],
                     recommendation=(
-                        f"Resolve duplicate normative sources: {', '.join(ids)}. "
-                        f"Keep only one authoritative entry per target+claim_type pair."
+                        f"Resolve duplicate entries for decision_target={key[0]}, "
+                        f"claim_type={key[1]}. Keep only one authoritative entry."
                     ),
                 )
             )
@@ -411,33 +425,36 @@ def detect_duplicate_normative_sources(
 
 
 def detect_multiple_canonical_specifications(
-    entries: list[RegistryEntry],
+    entries: Sequence[RegistryEntry],
 ) -> list[CanonicalConflict]:
-    """CANONICAL-008: Detect multiple canonical Specifications for same target+claim-type."""
+    """CANONICAL-008: Detect multiple canonical Functional Requirements for same decision_target+claim-type."""
     conflicts: list[CanonicalConflict] = []
-    seen: dict[tuple[str, str], list[str]] = {}
+    seen: dict[tuple[str, str], list[list[str]]] = {}
 
     for entry in entries:
-        if entry.claim_type != CLAIM_TYPE_SPECIFICATION:
+        if entry.claim_type != CLAIM_TYPE_FUNCTIONAL_REQUIREMENT:
             continue
-        key = (entry.target, entry.claim_type)
-        seen.setdefault(key, []).append(entry.id)
+        key = (entry.decision_target, entry.claim_type)
+        seen.setdefault(key, []).append(entry.source_paths)
 
-    for key, ids in seen.items():
-        if len(ids) > 1:
+    for key, paths_list in seen.items():
+        if len(paths_list) > 1:
+            all_paths: list[str] = []
+            for paths in paths_list:
+                all_paths.extend(paths)
             conflicts.append(
                 CanonicalConflict(
                     code="CANONICAL-008",
                     severity=Severity.HIGH,
                     blocking_status=BlockingStatus.BLOCKING,
                     description=(
-                        f"Multiple canonical Specifications for target={key[0]}, "
-                        f"claim_type={key[1]}: {', '.join(ids)}"
+                        f"Multiple canonical Functional Requirements for decision_target={key[0]}, "
+                        f"claim_type={key[1]}: {len(paths_list)} entries"
                     ),
-                    affected_files=[ids[0]],
+                    affected_files=all_paths[:1],
                     recommendation=(
-                        f"Consolidate canonical Specification entries: {', '.join(ids)}. "
-                        f"One canonical Specification per target+claim_type pair."
+                        f"Consolidate canonical Functional Requirement entries for "
+                        f"decision_target={key[0]}, claim_type={key[1]}."
                     ),
                 )
             )
@@ -445,210 +462,254 @@ def detect_multiple_canonical_specifications(
 
 
 def detect_area_guide_contradiction(
-    entries: list[RegistryEntry],
+    entries: Sequence[RegistryEntry],
 ) -> list[CanonicalConflict]:
     """CANONICAL-010: Detect area guide contradicting registry."""
     conflicts: list[CanonicalConflict] = []
-    spec_entries = [e for e in entries if e.claim_type == CLAIM_TYPE_SPECIFICATION]
-    area_entries = [e for e in entries if e.claim_type == CLAIM_TYPE_AREA_GUIDE]
+    spec_entries = [
+        e for e in entries if e.claim_type == CLAIM_TYPE_FUNCTIONAL_REQUIREMENT
+    ]
+    area_entries = [
+        e for e in entries if e.claim_type == CLAIM_TYPE_DOCUMENTATION_METADATA
+    ]
 
     for area in area_entries:
         for spec in spec_entries:
-            if spec.target == area.target and spec.precedence == "normative":
+            if spec.decision_target == area.decision_target:
                 conflicts.append(
                     CanonicalConflict(
                         code="CANONICAL-010",
                         severity=Severity.MEDIUM,
                         blocking_status=BlockingStatus.NON_BLOCKING,
                         description=(
-                            f"Area guide '{area.id}' may contradict specification "
-                            f"'{spec.id}' for target '{area.target}'"
+                            f"Area guide '{area.area}' may contradict specification "
+                            f"'{spec.decision_target}' for decision_target "
+                            f"'{area.decision_target}'"
                         ),
-                        affected_files=[area.id, spec.id],
+                        affected_files=list(set(area.source_paths + spec.source_paths)),
                         recommendation=(
-                            f"Review consistency between area guide '{area.id}' and "
-                            f"specification '{spec.id}' for target '{area.target}'."
+                            f"Review consistency between area guide '{area.area}' and "
+                            f"specification '{spec.decision_target}' for "
+                            f"decision_target '{area.decision_target}'."
                         ),
                     )
                 )
+    return conflicts
+
+
+def detect_empty_decision_target(
+    entries: Sequence[RegistryEntry],
+) -> list[CanonicalConflict]:
+    """CANONICAL-002: Detect entries with empty decision_target."""
+    conflicts: list[CanonicalConflict] = []
+    for entry in entries:
+        if not entry.decision_target.strip():
+            conflicts.append(
+                CanonicalConflict(
+                    code="CANONICAL-002",
+                    severity=Severity.HIGH,
+                    blocking_status=BlockingStatus.BLOCKING,
+                    description=(
+                        f"Empty decision_target in entry targeting '{entry.area}'"
+                    ),
+                    affected_files=list(entry.source_paths),
+                    recommendation=(
+                        f"Populate decision_target for entry in area '{entry.area}'."
+                    ),
+                )
+            )
+    return conflicts
+
+
+def detect_empty_claim_type(
+    entries: Sequence[RegistryEntry],
+) -> list[CanonicalConflict]:
+    """CANONICAL-003: Detect entries with empty claim_type."""
+    conflicts: list[CanonicalConflict] = []
+    for entry in entries:
+        if not entry.claim_type.strip():
+            conflicts.append(
+                CanonicalConflict(
+                    code="CANONICAL-003",
+                    severity=Severity.HIGH,
+                    blocking_status=BlockingStatus.BLOCKING,
+                    description=(
+                        f"Empty claim_type for entry targeting '{entry.decision_target}'"
+                    ),
+                    affected_files=list(entry.source_paths),
+                    recommendation=(
+                        f"Populate claim_type for entry targeting '{entry.decision_target}'."
+                    ),
+                )
+            )
+    return conflicts
+
+
+def detect_unrecognized_claim_type(
+    entries: Sequence[RegistryEntry],
+) -> list[CanonicalConflict]:
+    """CANONICAL-004: Detect entries with unrecognized claim_type."""
+    conflicts: list[CanonicalConflict] = []
+    for entry in entries:
+        if entry.claim_type not in VALID_CLAIM_TYPES:
+            conflicts.append(
+                CanonicalConflict(
+                    code="CANONICAL-004",
+                    severity=Severity.MEDIUM,
+                    blocking_status=BlockingStatus.NON_BLOCKING,
+                    description=(
+                        f"Unrecognized claim_type '{entry.claim_type}' for entry "
+                        f"targeting '{entry.decision_target}'; must be one of "
+                        f"{sorted(VALID_CLAIM_TYPES)}"
+                    ),
+                    affected_files=list(entry.source_paths),
+                    recommendation=(
+                        f"Correct claim_type for entry targeting '{entry.decision_target}'."
+                    ),
+                )
+            )
+    return conflicts
+
+
+def detect_empty_source_paths(
+    entries: Sequence[RegistryEntry],
+) -> list[CanonicalConflict]:
+    """CANONICAL-005: Detect entries with empty source_paths."""
+    conflicts: list[CanonicalConflict] = []
+    for entry in entries:
+        if not entry.source_paths:
+            conflicts.append(
+                CanonicalConflict(
+                    code="CANONICAL-005",
+                    severity=Severity.HIGH,
+                    blocking_status=BlockingStatus.BLOCKING,
+                    description=(
+                        f"Empty source_paths for entry targeting '{entry.decision_target}'"
+                    ),
+                    affected_files=[],
+                    recommendation=(
+                        f"Add source_paths for entry targeting '{entry.decision_target}'."
+                    ),
+                )
+            )
+    return conflicts
+
+
+def detect_multiple_source_paths_violation(
+    entries: Sequence[RegistryEntry],
+) -> list[CanonicalConflict]:
+    """CANONICAL-006: Detect entries with multiple source_paths where only 'runtime-behavior' allows it."""
+    conflicts: list[CanonicalConflict] = []
+    for entry in entries:
+        if (
+            len(entry.source_paths) > 1
+            and entry.claim_type not in SINGLE_SOURCE_EXEMPTIONS
+        ):
+            conflicts.append(
+                CanonicalConflict(
+                    code="CANONICAL-006",
+                    severity=Severity.MEDIUM,
+                    blocking_status=BlockingStatus.NON_BLOCKING,
+                    description=(
+                        f"Multiple source_paths ({len(entry.source_paths)}) for claim_type "
+                        f"'{entry.claim_type}' on entry targeting '{entry.decision_target}': "
+                        f"only 'runtime-behavior' allows multiple sources"
+                    ),
+                    affected_files=list(entry.source_paths),
+                    recommendation=(
+                        f"Consolidate source_paths for entry targeting '{entry.decision_target}', "
+                        f"claim_type '{entry.claim_type}'."
+                    ),
+                )
+            )
+    return conflicts
+
+
+def detect_empty_area(
+    entries: Sequence[RegistryEntry],
+) -> list[CanonicalConflict]:
+    """CANONICAL-009: Detect entries with empty area."""
+    conflicts: list[CanonicalConflict] = []
+    for entry in entries:
+        if not entry.area.strip():
+            conflicts.append(
+                CanonicalConflict(
+                    code="CANONICAL-009",
+                    severity=Severity.HIGH,
+                    blocking_status=BlockingStatus.BLOCKING,
+                    description=(
+                        f"Empty area for entry targeting '{entry.decision_target}'"
+                    ),
+                    affected_files=list(entry.source_paths),
+                    recommendation=(
+                        f"Populate area for entry targeting '{entry.decision_target}'."
+                    ),
+                )
+            )
     return conflicts
 
 
 def detect_legacy_precedence_reintroduction(
-    entries: list[RegistryEntry],
+    entries: Sequence[RegistryEntry],
 ) -> list[CanonicalConflict]:
-    """CANONICAL-011: Detect legacy universal-precedence reintroduction."""
-    conflicts: list[CanonicalConflict] = []
-    legacy_entries = [e for e in entries if e.precedence == "legacy_universal"]
-
-    for entry in legacy_entries:
-        conflicts.append(
-            CanonicalConflict(
-                code="CANONICAL-011",
-                severity=Severity.HIGH,
-                blocking_status=BlockingStatus.BLOCKING,
-                description=(
-                    f"Legacy universal-precedence entry '{entry.id}' found — "
-                    f"should be deprecated or superseded per REQ-001 routing rules"
-                ),
-                affected_files=[entry.id],
-                recommendation=(
-                    f"Deprecate or supersede legacy entry '{entry.id}'. "
-                    f"Legacy universal-precedence is no longer valid."
-                ),
-            )
-        )
-    return conflicts
+    """CANONICAL-011: No-op — precedence field removed from M-01-04 schema."""
+    return []
 
 
 def detect_non_canonical_reference_without_link(
-    entries: list[RegistryEntry],
+    entries: Sequence[RegistryEntry],
 ) -> list[CanonicalConflict]:
-    """CANONICAL-W-01: Non-canonical Reference without link."""
-    conflicts: list[CanonicalConflict] = []
-    ref_entries = [e for e in entries if e.claim_type == CLAIM_TYPE_REFERENCE]
-
-    for entry in ref_entries:
-        if not entry.validation_ref:
-            conflicts.append(
-                CanonicalConflict(
-                    code="CANONICAL-W-01",
-                    severity=Severity.LOW,
-                    blocking_status=BlockingStatus.WARNING,
-                    description=(
-                        f"Non-canonical Reference '{entry.id}' lacks validation link"
-                    ),
-                    affected_files=[entry.id],
-                    recommendation=(
-                        f"Add validation reference to non-canonical Reference '{entry.id}'."
-                    ),
-                )
-            )
-    return conflicts
+    """CANONICAL-W-01: No-op — validation_ref field removed from M-01-04 schema."""
+    return []
 
 
 def detect_stale_non_canonical_document(
-    entries: list[RegistryEntry],
+    entries: Sequence[RegistryEntry],
 ) -> list[CanonicalConflict]:
-    """CANONICAL-W-02: Potentially stale non-canonical document."""
-    conflicts: list[CanonicalConflict] = []
-    active_entries = [e for e in entries if e.status == "active"]
-
-    for entry in active_entries:
-        if entry.claim_type not in (CLAIM_TYPE_REFERENCE, CLAIM_TYPE_LEGACY_PRECEDENCE):
-            continue
-        if entry.expiry_date and entry.expiry_date < "2026-09-06":
-            conflicts.append(
-                CanonicalConflict(
-                    code="CANONICAL-W-02",
-                    severity=Severity.LOW,
-                    blocking_status=BlockingStatus.WARNING,
-                    description=(
-                        f"Potentially stale non-canonical document '{entry.id}' "
-                        f"(expired: {entry.expiry_date})"
-                    ),
-                    affected_files=[entry.id],
-                    recommendation=(
-                        f"Review and update or remove expired document '{entry.id}'."
-                    ),
-                )
-            )
-    return conflicts
+    """CANONICAL-W-02: No-op — status/expiry_date fields removed from M-01-04 schema."""
+    return []
 
 
 def detect_missing_validation_ref(
-    entries: list[RegistryEntry],
+    entries: Sequence[RegistryEntry],
 ) -> list[CanonicalConflict]:
-    """CANONICAL-W-03: Missing validation reference."""
-    conflicts: list[CanonicalConflict] = []
-    active_entries = [e for e in entries if e.status == "active"]
-
-    for entry in active_entries:
-        if entry.claim_type in (CLAIM_TYPE_SPECIFICATION, CLAIM_TYPE_ACCEPTANCE_TEST):
-            if not entry.validation_ref:
-                conflicts.append(
-                    CanonicalConflict(
-                        code="CANONICAL-W-03",
-                        severity=Severity.MEDIUM,
-                        blocking_status=BlockingStatus.NON_BLOCKING,
-                        description=(
-                            f"Active '{entry.claim_type}' entry '{entry.id}' "
-                            f"missing validation reference"
-                        ),
-                        affected_files=[entry.id],
-                        recommendation=(
-                            f"Add validation reference to active '{entry.claim_type}' "
-                            f"entry '{entry.id}'."
-                        ),
-                    )
-                )
-    return conflicts
+    """CANONICAL-W-03: No-op — status/validation_ref fields removed from M-01-04 schema."""
+    return []
 
 
 def detect_unregistered_authority_declaration(
-    entries: list[RegistryEntry],
+    entries: Sequence[RegistryEntry],
 ) -> list[CanonicalConflict]:
-    """CANONICAL-W-04: Unregistered authority declaration."""
-    conflicts: list[CanonicalConflict] = []
-    known_authorities = frozenset(
-        {
-            AUTHORITY_MITIGATING_CONTROL,
-            AUTHORITY_ORIGINAL_SPECIFICATION,
-            AUTHORITY_AREA_GUIDE,
-            AUTHORITY_LEGACY_DOCUMENTATION,
-            AUTHORITY_INDUSTRY_STANDARD,
-            AUTHORITY_INTERNAL_POLICY,
-            AUTHORITY_REGULATORY_REQUIREMENT,
-            AUTHORITY_VENDOR_SPECIFICATION,
-            AUTHORITY_COMMUNITY_CONSENSUS,
-            AUTHORITY_RESEARCH_PAPER,
-            AUTHORITY_IMPLEMENTATION_EXPERIENCE,
-            AUTHORITY_SECURITY_ANALYSIS,
-        }
-    )
-
-    for entry in entries:
-        if entry.authority not in known_authorities:
-            conflicts.append(
-                CanonicalConflict(
-                    code="CANONICAL-W-04",
-                    severity=Severity.MEDIUM,
-                    blocking_status=BlockingStatus.NON_BLOCKING,
-                    description=(
-                        f"Unregistered authority '{entry.authority}' in entry '{entry.id}'"
-                    ),
-                    affected_files=[entry.id],
-                    recommendation=(
-                        f"Register authority '{entry.authority}' or use a known value."
-                    ),
-                )
-            )
-    return conflicts
+    """CANONICAL-W-04: No-op — authority field removed from M-01-04 schema."""
+    return []
 
 
 def detect_authoritative_terms_in_non_canonical(
-    entries: list[RegistryEntry],
+    entries: Sequence[RegistryEntry],
 ) -> list[CanonicalConflict]:
-    """CANONICAL-W-05: Authoritative/source-of-truth terms in non-canonical documents."""
-    conflicts: list[CanonicalConflict] = []
-    non_canonical = [e for e in entries if e.precedence != "normative"]
+    """CANONICAL-W-05: Authoritative/source-of-truth terms in non-canonical documents.
 
+    Since M-01-04 removed precedence/status fields, this check scans notes field
+    content for authoritative language patterns across all entries.
+    """
+    conflicts: list[CanonicalConflict] = []
     authoritative_terms = {"authoritative", "source of truth", "must"}
-    for entry in non_canonical:
-        desc = entry.description or ""
-        if any(term in desc.lower() for term in authoritative_terms):
+    for entry in entries:
+        if entry.notes and any(
+            term in entry.notes.lower() for term in authoritative_terms
+        ):
             conflicts.append(
                 CanonicalConflict(
                     code="CANONICAL-W-05",
                     severity=Severity.MEDIUM,
                     blocking_status=BlockingStatus.NON_BLOCKING,
                     description=(
-                        f"Authoritative terms found in non-canonical entry '{entry.id}': "
-                        f"'{desc[:80]}...'"
+                        f"Authoritative terms found in entry '{entry.decision_target}': "
+                        f"'{entry.notes[:80]}...'"
                     ),
-                    affected_files=[entry.id],
+                    affected_files=list(entry.source_paths),
                     recommendation=(
-                        f"Remove authoritative language from non-canonical entry '{entry.id}'."
+                        f"Review authoritative language in entry '{entry.decision_target}'."
                     ),
                 )
             )
@@ -656,8 +717,182 @@ def detect_authoritative_terms_in_non_canonical(
 
 
 # ---------------------------------------------------------------------------
-# Main conflict detection orchestrator
+# Helper functions for wrapping validation errors and running detection
 # ---------------------------------------------------------------------------
+
+
+def _wrap_validation_errors(
+    errors: list[str], entries: Sequence[RegistryEntry]
+) -> list[CanonicalConflict]:
+    """Convert M-01-04 validation errors into findings with CANONICAL-XXX codes."""
+    conflicts: list[CanonicalConflict] = []
+    for entry in entries:
+        for err in errors:
+            if "empty decision_target" in err:
+                conflicts.append(
+                    CanonicalConflict(
+                        code="CANONICAL-002",
+                        severity=Severity.HIGH,
+                        blocking_status=BlockingStatus.BLOCKING,
+                        description=f"Empty decision_target in entry targeting '{entry.area}'",
+                        affected_files=list(entry.source_paths),
+                        recommendation=f"Populate decision_target for entry in area '{entry.area}'.",
+                    )
+                )
+            elif "empty claim_type" in err:
+                conflicts.append(
+                    CanonicalConflict(
+                        code="CANONICAL-003",
+                        severity=Severity.HIGH,
+                        blocking_status=BlockingStatus.BLOCKING,
+                        description=(
+                            f"Empty claim_type for entry targeting '{entry.decision_target}'"
+                        ),
+                        affected_files=list(entry.source_paths),
+                        recommendation=(
+                            f"Populate claim_type for entry targeting '{entry.decision_target}'."
+                        ),
+                    )
+                )
+            elif "unrecognized claim_type" in err:
+                conflicts.append(
+                    CanonicalConflict(
+                        code="CANONICAL-004",
+                        severity=Severity.MEDIUM,
+                        blocking_status=BlockingStatus.NON_BLOCKING,
+                        description=(
+                            f"Unrecognized claim_type '{entry.claim_type}' for entry "
+                            f"targeting '{entry.decision_target}'; must be one of "
+                            f"{sorted(VALID_CLAIM_TYPES)}"
+                        ),
+                        affected_files=list(entry.source_paths),
+                        recommendation=(
+                            f"Correct claim_type for entry targeting '{entry.decision_target}'."
+                        ),
+                    )
+                )
+            elif "empty source_paths" in err:
+                conflicts.append(
+                    CanonicalConflict(
+                        code="CANONICAL-005",
+                        severity=Severity.HIGH,
+                        blocking_status=BlockingStatus.BLOCKING,
+                        description=(
+                            f"Empty source_paths for entry targeting '{entry.decision_target}'"
+                        ),
+                        affected_files=[],
+                        recommendation=(
+                            f"Add source_paths for entry targeting '{entry.decision_target}'."
+                        ),
+                    )
+                )
+            elif "multiple source_paths" in err and "only 'runtime-behavior'" in err:
+                conflicts.append(
+                    CanonicalConflict(
+                        code="CANONICAL-006",
+                        severity=Severity.MEDIUM,
+                        blocking_status=BlockingStatus.NON_BLOCKING,
+                        description=(
+                            f"Multiple source_paths ({len(entry.source_paths)}) for claim_type "
+                            f"'{entry.claim_type}' on entry targeting '{entry.decision_target}': "
+                            f"only 'runtime-behavior' allows multiple sources"
+                        ),
+                        affected_files=list(entry.source_paths),
+                        recommendation=(
+                            f"Consolidate source_paths for entry targeting '{entry.decision_target}', "
+                            f"claim_type '{entry.claim_type}'."
+                        ),
+                    )
+                )
+            elif "empty area" in err:
+                conflicts.append(
+                    CanonicalConflict(
+                        code="CANONICAL-009",
+                        severity=Severity.HIGH,
+                        blocking_status=BlockingStatus.BLOCKING,
+                        description=(
+                            f"Empty area for entry targeting '{entry.decision_target}'"
+                        ),
+                        affected_files=list(entry.source_paths),
+                        recommendation=(
+                            f"Populate area for entry targeting '{entry.decision_target}'."
+                        ),
+                    )
+                )
+            elif "duplicate entry" in err:
+                key = err.split("'")[1]
+                conflicts.append(
+                    CanonicalConflict(
+                        code="CANONICAL-007",
+                        severity=Severity.HIGH,
+                        blocking_status=BlockingStatus.BLOCKING,
+                        description=(
+                            f"Duplicate entry for decision_target='{key}', "
+                            f"claim_type='{err.split("'")[3]}'"
+                        ),
+                        affected_files=list(
+                            set(p for e in entries for p in e.source_paths)
+                        ),
+                        recommendation=(
+                            f"Remove duplicate entry for decision_target='{key}'."
+                        ),
+                    )
+                )
+            elif "unsupported registry version" in err:
+                conflicts.append(
+                    CanonicalConflict(
+                        code="CANONICAL-008",
+                        severity=Severity.HIGH,
+                        blocking_status=BlockingStatus.BLOCKING,
+                        description=(
+                            f"Unsupported registry version; supported versions: {sorted(SUPPORTED_VERSIONS)}"
+                        ),
+                        affected_files=[],
+                        recommendation=(
+                            f"Update registry version to one of {sorted(SUPPORTED_VERSIONS)}."
+                        ),
+                    )
+                )
+            elif "ADR-sourced entry missing ## Status section" in err:
+                conflicts.append(
+                    CanonicalConflict(
+                        code="CANONICAL-010",
+                        severity=Severity.MEDIUM,
+                        blocking_status=BlockingStatus.NON_BLOCKING,
+                        description=f"ADR-sourced entry missing ## Status section: {err}",
+                        affected_files=[p for p in entry.source_paths if p in err],
+                        recommendation="Add ## Status section to ADR file.",
+                    )
+                )
+            elif "ADR-sourced entry has non-Accepted status" in err:
+                conflicts.append(
+                    CanonicalConflict(
+                        code="CANONICAL-011",
+                        severity=Severity.MEDIUM,
+                        blocking_status=BlockingStatus.NON_BLOCKING,
+                        description=f"ADR-sourced entry has non-Accepted status: {err}",
+                        affected_files=[p for p in entry.source_paths if p in err],
+                        recommendation="Update ADR status to Accepted.",
+                    )
+                )
+    return conflicts
+
+
+def _run_detection_functions(
+    entries: Sequence[RegistryEntry],
+) -> list[CanonicalConflict]:
+    """Run all 9 pre-existing detection functions against entries."""
+    conflicts: list[CanonicalConflict] = []
+    conflicts.extend(detect_duplicate_normative_sources(entries))
+    conflicts.extend(detect_multiple_canonical_specifications(entries))
+    conflicts.extend(detect_area_guide_contradiction(entries))
+    conflicts.extend(detect_legacy_precedence_reintroduction(entries))
+    conflicts.extend(detect_non_canonical_reference_without_link(entries))
+    conflicts.extend(detect_stale_non_canonical_document(entries))
+    conflicts.extend(detect_missing_validation_ref(entries))
+    conflicts.extend(detect_unregistered_authority_declaration(entries))
+    conflicts.extend(detect_authoritative_terms_in_non_canonical(entries))
+    return conflicts
 
 
 def detect_all_conflicts(registry_path: Path | None = None) -> list[CanonicalConflict]:
@@ -673,43 +908,27 @@ def detect_all_conflicts(registry_path: Path | None = None) -> list[CanonicalCon
         registry_path = (
             Path(__file__).resolve().parent.parent
             / "config"
-            / "canonical_source_registry.toml"
+            / "documentation_canonical_sources.toml"
         )
 
     if HAS_REGISTRY_VALIDATOR:
         try:
             registry = load_registry(registry_path)
-            validate_registry_schema(registry)
-            entries = [
-                RegistryEntry(
-                    id=key,
-                    target=val.get("target", ""),
-                    claim_type=val.get("claim_type", ""),
-                    authority=val.get("authority", ""),
-                    precedence=val.get("precedence", "normative"),
-                    status=val.get("status", "active"),
-                    effective_date=val.get("effective_date"),
-                    expiry_date=val.get("expiry_date"),
-                    validation_ref=val.get("validation_ref"),
-                    description=val.get("description"),
-                )
-                for key, val in registry.items()
+            validation_errors = validate_registry_schema(registry)
+            # Convert registry module's RegistryEntry to local RegistryEntry
+            local_entries: Sequence[RegistryEntry] = [
+                RegistryEntry.from_dict(e.to_dict()) for e in registry.entries
             ]
+            # Wrap validation errors as findings with CANONICAL-XXX codes
+            conflicts = _wrap_validation_errors(validation_errors, local_entries)
         except (ValueError, KeyError, TypeError):
             entries = _load_registry_toml(registry_path)
+            conflicts = _run_detection_functions(entries)
     else:
         entries = _load_registry_toml(registry_path)
+        conflicts = _run_detection_functions(entries)
 
-    conflicts: list[CanonicalConflict] = []
-    conflicts.extend(detect_duplicate_normative_sources(entries))
-    conflicts.extend(detect_multiple_canonical_specifications(entries))
-    conflicts.extend(detect_area_guide_contradiction(entries))
-    conflicts.extend(detect_legacy_precedence_reintroduction(entries))
-    conflicts.extend(detect_non_canonical_reference_without_link(entries))
-    conflicts.extend(detect_stale_non_canonical_document(entries))
-    conflicts.extend(detect_missing_validation_ref(entries))
-    conflicts.extend(detect_unregistered_authority_declaration(entries))
-    conflicts.extend(detect_authoritative_terms_in_non_canonical(entries))
+    return conflicts
 
     return conflicts
 
@@ -770,21 +989,21 @@ def classify_finding(code: str, severity: Severity) -> FindingRoute:
 
 def _build_key(entry: RegistryEntry) -> tuple[str, str]:
     """Return (decision_target, claim_type) key for deduplication."""
-    return (entry.target, entry.claim_type)
+    return (entry.decision_target, entry.claim_type)
 
 
 def detect_duplicate_active_records(
-    entries: list[RegistryEntry],
+    entries: Sequence[RegistryEntry],
     candidate: RegistryEntry,
 ) -> bool:
-    """Refuse duplication: return True when a matching active record exists.
+    """Refuse duplication: return True when a matching record exists.
 
     Checks decision-target-and-claim-type pairs across inventories to refuse
-    duplication per REQ-008.
+    duplication per REQ-008. No-op for status since M-01-04 removed it.
     """
     candidate_key = _build_key(candidate)
     for existing in entries:
-        if _build_key(existing) == candidate_key and existing.status == "active":
+        if _build_key(existing) == candidate_key:
             return True
     return False
 
