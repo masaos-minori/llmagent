@@ -156,10 +156,10 @@ edits conflict with this row's edit (re-read and reconcile rather than force-app
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | REQ-001: Rank 1-6 table invalidated; REQ-004: intended/observed state coexistence added; REQ-005: anti-auto-conversion prohibition added |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | check_docs_quality.py passed; check_docs_structure.py flagged size limit (pre-existing) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: no docs/00_index.md task-scope mapping for changed file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -55,16 +55,7 @@ Documents in the design documentation set are classified into seven classes:
 
 When conflicts arise between documentation and code/config, the following precedence applies:
 
-This ranking is pending replacement by the Claim Type Taxonomy below per M-01-02; new authority questions should consult the taxonomy first.
-
-| Rank | Source Type | Example | Notes |
-|------|-------------|---------|-------|
-| 1 | Code | `scripts/eventbus/publisher.py` | Authoritative for runtime behavior |
-| 2 | Tests | `tests/eventbus/test_publisher.py` | Authoritative for expected behavior |
-| 3 | ADRs | `docs/adr/ADR-001-workflow-engine-mandatory.md` | Authoritative for architectural decisions |
-| 4 | Specifications | `docs/specification.md` | Authoritative for functional requirements |
-| 5 | Configuration | `config/system.toml` | Authoritative for operational parameters |
-| 6 | Documentation | `docs/architecture.md` | Authoritative for conceptual understanding |
+The ranking table above is no longer normative. It has been superseded by the Claim Type Taxonomy and Decision Target Canonical Source Matrix below, which resolve canonical authority at the level of individual claims rather than whole-document-level rankings.
 
 ## Claim Type Taxonomy
 
@@ -169,6 +160,11 @@ treated as the top canonical source for every kind of decision.
 contradicts an ADR, the ADR represents the intended architecture and the discrepancy
 must be registered as a Known Issue. Each area's document-guide identifies the
 canonical source within that area — this matrix provides cross-cutting guidance only.
+
+Intended state (e.g., an ADR's adopted design) and observed state (e.g., current
+runtime behavior) may both be documented simultaneously without one silently
+overwriting the other. An automatic documentation change MUST NOT convert an
+implementation deviation into an approved specification without explicit review.
 
 ## Area Canonical Maps
 
