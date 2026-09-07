@@ -86,15 +86,15 @@ enough from this document's assumption to require a different fixture shape.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked on seq 02 landing — see Assumptions |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Added `TestCheckUniqueAdrIds` class with 4 test cases |
+| 2 | Add or update tests per Validation plan | Done | — | — | All 4 tests pass (duplicate/no-duplicate/non-ADR/mixed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | All 4 tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | No docs/ files modified |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | seq 02 (`tools/check_docs_structure.py`'s GV-003 check) not yet implemented as of 2026-09-06 | No | — |
+| 1 | seq 02 (`tools/check_docs_structure.py`'s GV-003 check) not yet implemented as of 2026-09-06 | Yes | 2026-09-07 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

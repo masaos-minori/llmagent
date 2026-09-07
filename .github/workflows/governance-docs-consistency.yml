@@ -7,6 +7,9 @@ on:
       - "tools/check_needs_confirmation_inventory.py"
       - "tools/check_dependency_graph_cycles.py"
       - "tools/check_docs_structure.py"
+      - "tools/check_canonical_source_conflicts.py"
+      - "tools/check_canonical_source_registry.py"
+      - "config/documentation_canonical_sources.toml"
       - "schemas/doc_front_matter.json"
   pull_request:
     paths:
@@ -14,6 +17,9 @@ on:
       - "tools/check_needs_confirmation_inventory.py"
       - "tools/check_dependency_graph_cycles.py"
       - "tools/check_docs_structure.py"
+      - "tools/check_canonical_source_conflicts.py"
+      - "tools/check_canonical_source_registry.py"
+      - "config/documentation_canonical_sources.toml"
       - "schemas/doc_front_matter.json"
 
 # Cancel in-progress runs for the same workflow + branch
@@ -42,6 +48,11 @@ jobs:
         run: |
           set -euo pipefail
           python tools/check_dependency_graph_cycles.py
+
+      - name: Run canonical source conflict checks
+        run: |
+          set -euo pipefail
+          python tools/check_canonical_source_conflicts.py
 
       - name: Run Front Matter schema compliance check (report-only)
         continue-on-error: true

@@ -297,7 +297,7 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 |---------|------|-----|--------|--------------|--------|------|--------|-----------|
 | GV-001 | Required Front Matter | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-002 | Valid Document Status | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Missing | Implement |
-| GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Missing | Implement |
+| GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-005 | Existence of Related Documents | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-006 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Missing | Implement |
 | GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Missing | Implement |
@@ -315,14 +315,14 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 | GV-021 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py` | PR | Warning | Partial | Run against the current corpus and scope follow-up content-migration issues from the violation inventory; promote to default-on once the corpus is compliant |
 | GV-022 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-023 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
+| GV-024 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 
 ### Follow-up Work Needed
 
 Rules marked "Missing" or "Partial" above need new inspection tools or processes:
 
 1. **GV-002**: Implement Valid Document Status value validation
-2. **GV-003**: Implement Unique ADR ID enforcement
-3. **GV-006**: Implement Self-reference prohibition check
+2. **GV-006**: Implement Self-reference prohibition check
 4. **GV-007**: Implement Duplicate Related Link prohibition check
 5. **GV-008**: Implement Known Issue required fields validation (owner, severity, status)
 6. **GV-009**: Implement Needs Confirmation owner and deadline validation
