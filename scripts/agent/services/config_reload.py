@@ -44,9 +44,14 @@ from agent.services.config_validators import (
     validate_llm_sse_malformed_retry,
     validate_llm_sse_reconnect_max,
     validate_llm_temperature,
+    validate_progress_stagnation_window,
     validate_rag_refiner_max_chars_per_chunk,
     validate_rag_refiner_max_tokens,
     validate_rag_refiner_timeout,
+    validate_tool_cycle_detect_window,
+    validate_tool_dedup_max_repeats,
+    validate_tool_error_max_consecutive,
+    validate_tool_error_retry_max,
     validate_tool_max_tool_turns,
     validate_tool_result_max_llm_chars,
 )
@@ -423,19 +428,6 @@ class ConfigReloadService:
             except ValueError as e:
                 raise ConfigReloadValidationError(str(e)) from e
             # Re-validate after replacement
-            from agent.services.config_validators import (
-                validate_llm_context_char_limit,
-                validate_llm_context_token_limit,
-                validate_llm_http_timeout,
-                validate_llm_max_retries,
-                validate_llm_max_tokens,
-                validate_llm_retry_base_delay,
-                validate_llm_sse_heartbeat_timeout,
-                validate_llm_sse_malformed_retry,
-                validate_llm_sse_reconnect_max,
-                validate_llm_temperature,
-            )
-
             try:
                 validate_llm_temperature(new_llm)
                 validate_llm_max_tokens(new_llm)
@@ -461,12 +453,6 @@ class ConfigReloadService:
                     new_rag = dataclasses.replace(cfg.rag, **rag_changes)
                 except ValueError as e:
                     raise ConfigReloadValidationError(str(e)) from e
-                from agent.services.config_validators import (
-                    validate_rag_refiner_max_chars_per_chunk,
-                    validate_rag_refiner_max_tokens,
-                    validate_rag_refiner_timeout,
-                )
-
                 try:
                     validate_rag_refiner_max_tokens(new_rag)
                     validate_rag_refiner_timeout(new_rag)
@@ -480,16 +466,6 @@ class ConfigReloadService:
                 new_tool = dataclasses.replace(cfg.tool, **tool_changes)
             except ValueError as e:
                 raise ConfigReloadValidationError(str(e)) from e
-            from agent.services.config_validators import (
-                validate_progress_stagnation_window,
-                validate_tool_cycle_detect_window,
-                validate_tool_dedup_max_repeats,
-                validate_tool_error_max_consecutive,
-                validate_tool_error_retry_max,
-                validate_tool_max_tool_turns,
-                validate_tool_result_max_llm_chars,
-            )
-
             try:
                 validate_tool_dedup_max_repeats(new_tool)
                 validate_tool_cycle_detect_window(new_tool)

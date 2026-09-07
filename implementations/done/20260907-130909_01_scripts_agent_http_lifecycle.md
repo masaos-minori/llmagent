@@ -343,17 +343,16 @@ No type hint changes are necessary after careful review — the existing hints a
 - Refactoring other files in the agent service layer
 - Deriving field mappings automatically from dataclass fields (deferred to future task)
 
-## Execution Status
-
 ### Execution Status
+
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Add constants (REQ-005) | Pending | — | — | |
-| 2 | Phase 2: Extract methods from start() (REQ-001, REQ-002, REQ-007) | Pending | — | — | |
-| 3 | Phase 3: Snapshot consolidation (REQ-003) | Pending | — | — | |
-| 4 | Phase 4: Signal handling simplification (REQ-004) | Pending | — | — | |
-| 5 | Phase 5: Type hint improvements (REQ-008) | Pending | — | — | No changes required after review |
-| 6 | Verification (REQ-006, REQ-007) | Pending | — | — | |
+| 1 | Phase 1: Add constants (REQ-005) | Completed | — | — | All phases already applied by prior refactor |
+| 2 | Phase 2: Extract methods from start() (REQ-001, REQ-002, REQ-007) | Completed | — | — | Verified via adversarial review |
+| 3 | Phase 3: Snapshot consolidation (REQ-003) | Completed | — | — | Verified via adversarial review |
+| 4 | Phase 4: Signal handling simplification (REQ-004) | Completed | — | — | Verified via adversarial review |
+| 5 | Phase 5: Type hint improvements (REQ-008) | Completed | — | — | No changes required after review |
+| 6 | Verification (REQ-006, REQ-007) | Completed | — | — | Tests pass; static analysis OK |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
