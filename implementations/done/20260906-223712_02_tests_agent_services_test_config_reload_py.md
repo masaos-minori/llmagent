@@ -93,10 +93,10 @@ Update tests to match new registry-based API; remove `TestCollectFieldChangesCon
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | TestCollectFieldChangesConsolidation class removed |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Tests updated for registry-based API |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | All tests pass; no new dead-code/lint/type/security finding |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No documentation changes required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

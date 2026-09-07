@@ -244,10 +244,10 @@ Replace 46 FIELD_* constants with a ConfigFieldRegistry dataclass; eliminate dea
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | CONFIG_FIELD_REGISTRY replaces 46 FIELD_* constants; _collect_field_changes() removed |
+| 2 | Add or update tests per Validation plan | Completed | — | — | TestCollectFieldChangesConsolidation class removed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | All tests pass; no new dead-code/lint/type/security finding |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No documentation changes required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
