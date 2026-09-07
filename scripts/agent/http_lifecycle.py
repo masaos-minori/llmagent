@@ -46,6 +46,9 @@ logger = logging.getLogger(__name__)
 MCPSERVER_HEALTH_TIMEOUT: float = 5.0
 _TERMINATE_POLL_INTERVAL_SEC: float = 0.05
 _STDERR_TAIL_BYTES: int = 64 * 1024
+HEALTH_POLL_INTERVAL_SEC: float = 0.5
+TERMINATE_TIMEOUT_SEC: float = 5.0
+RESTART_TERMINATE_TIMEOUT_SEC: float = 3.0
 
 
 class HttpServerLifecycleManager:
@@ -129,7 +132,7 @@ class HttpServerLifecycleManager:
         self,
         proc: subprocess.Popen[bytes],
         server_key: str,
-        timeout: float = 3.0,
+        timeout: float = RESTART_TERMINATE_TIMEOUT_SEC,
     ) -> None:
         """Terminate proc; escalate to kill if terminate times out."""
         if proc.poll() is not None:
@@ -211,10 +214,8 @@ class HttpServerLifecycleManager:
         self._last_health_check.pop(server_key, None)
         return stderr_content
 
-    def _snapshot_fields(
-        self, server_key: str
-    ) -> tuple[subprocess.Popen[bytes], bool, int | None, int | None, str] | None:
-        """Return (proc, running, last_exit_code, pgid, stderr_log), or None if unknown."""
+    def _build_snapshot_dict(self, server_key: str) -> dict | None:
+        """Return a dict snapshot for a managed subprocess, or None if unknown."""
         proc = self._http_procs.get(server_key)
         if proc is None:
             return None
@@ -222,30 +223,6 @@ class HttpServerLifecycleManager:
         last_exit_code = proc.poll() if not running else None
         pgid = self._http_pgids.get(server_key)
         stderr_log = self._stderr_log_paths.get(server_key, "")
-        return proc, running, last_exit_code, pgid, stderr_log
-
-    def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
-        """Return a read-only snapshot for a managed subprocess, or None if unknown."""
-        fields = self._snapshot_fields(server_key)
-        if fields is None:
-            return None
-        proc, running, last_exit_code, pgid, stderr_log = fields
-        return ProcessInfoSnapshot(
-            server_key=server_key,
-            managed=True,
-            pid=proc.pid,
-            pgid=pgid,
-            running=running,
-            last_exit_code=last_exit_code,
-            stderr_log=stderr_log,
-        )
-
-    def get_process_snapshot(self, server_key: str) -> dict | None:
-        """Return a dict snapshot for a managed subprocess, or None if unknown."""
-        fields = self._snapshot_fields(server_key)
-        if fields is None:
-            return None
-        proc, running, last_exit_code, pgid, stderr_log = fields
         return {
             "server_key": server_key,
             "managed": True,
@@ -255,6 +232,25 @@ class HttpServerLifecycleManager:
             "last_exit_code": last_exit_code,
             "stderr_log": stderr_log,
         }
+
+    def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
+        """Return a read-only snapshot for a managed subprocess, or None if unknown."""
+        d = self._build_snapshot_dict(server_key)
+        if d is None:
+            return None
+        return ProcessInfoSnapshot(
+            server_key=d["server_key"],
+            managed=d["managed"],
+            pid=d["pid"],
+            pgid=d["pgid"],
+            running=d["running"],
+            last_exit_code=d["last_exit_code"],
+            stderr_log=d["stderr_log"],
+        )
+
+    def get_process_snapshot(self, server_key: str) -> dict | None:
+        """Return a dict snapshot for a managed subprocess, or None if unknown."""
+        return self._build_snapshot_dict(server_key)
 
     def list_processes(self) -> list[ProcessInfoSnapshot]:
         """Return snapshots for all currently managed subprocess servers."""
@@ -285,36 +281,22 @@ class HttpServerLifecycleManager:
             task.cancel()
         return shutdown_task in done
 
-    async def start(
+    async def _create_and_validate_proc(
         self,
         server_key: str,
         cfg: McpServerConfig,
-        shutdown_event: asyncio.Event | None = None,
-    ) -> None:
-        """Start an HTTP MCP server subprocess and poll /health until ready.
+    ) -> tuple[subprocess.Popen[bytes], IO[bytes]]:
+        """Create and validate subprocess for the given server configuration.
 
-        Idempotent: reuses an already-running process.
-        Stores the full stderr in StartupFailure when the process exits early
-        or the health-poll times out; raises RuntimeError in both cases.
-        When `shutdown_event` fires mid-poll, aborts within roughly one poll
-        interval (0.5s) instead of waiting up to the full startup timeout.
+        Validates the command, filters environment variables, creates the subprocess,
+        and handles getpgid failure with resource cleanup.
+
+        Returns:
+            A tuple of (proc, stderr_fh) on success.
+
+        Raises:
+            HttpStartupError: If command validation fails or getpgid fails.
         """
-        existing = self._http_procs.get(server_key)
-        if existing is not None and existing.poll() is None:
-            logger.info(
-                "Lifecycle: HTTP subprocess %r already running (reusing)",
-                server_key,
-            )
-            return
-
-        logger.info(
-            "Lifecycle: starting HTTP subprocess %r: %s",
-            server_key,
-            cfg.cmd,
-        )
-        # Note: cfg.env keys are already validated against a denylist in
-        # McpServerConfig._validate_cross_fields() at config-load time,
-        # so no additional filtering is performed here.
         env = self._command_validator.filter_env(cfg.env)
         stderr_fh = self._open_stderr_log(server_key, cfg)
         self._stderr_files[server_key] = stderr_fh
@@ -364,7 +346,9 @@ class HttpServerLifecycleManager:
                 proc.pid,
             )
             try:
-                await self._terminate_with_timeout(proc, server_key, timeout=5.0)
+                await self._terminate_with_timeout(
+                    proc, server_key, timeout=TERMINATE_TIMEOUT_SEC
+                )
                 poll_result = proc.poll()
                 if poll_result is not None and poll_result != 0:
                     logger.info(
@@ -382,59 +366,86 @@ class HttpServerLifecycleManager:
                 self._http_pgids.pop(server_key, None)
             raise e
         self._http_procs[server_key] = proc
+        return proc, stderr_fh
 
+    async def _health_poll_until_ready(
+        self,
+        server_key: str,
+        cfg: McpServerConfig,
+        proc: subprocess.Popen[bytes],
+        client: httpx.AsyncClient,
+        deadline: float,
+        shutdown_event: asyncio.Event | None,
+    ) -> None:
+        """Poll /health endpoint until the server becomes healthy or timeout expires.
+
+        Polls the health endpoint in a loop, checking for early exit and shutdown
+        events between polls. Raises HttpStartupError on early exit, shutdown,
+        or timeout.
+
+        Args:
+            server_key: Server identifier key.
+            cfg: Server configuration.
+            proc: Subprocess instance to monitor.
+            client: Async HTTP client for health check requests.
+            deadline: Monotonic time at which to abort polling.
+            shutdown_event: Optional event to race against poll sleep.
+
+        Raises:
+            HttpStartupError: On early exit, shutdown, or timeout.
+        """
         health_url = cfg.url.rstrip("/") + "/health"
-        if cfg.startup_timeout_sec > 0:
-            deadline = time.monotonic() + cfg.startup_timeout_sec
-            hc_timeout = self._health_checker.compute_health_check_timeout(
-                cfg.startup_timeout_sec
-            )
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(timeout=hc_timeout)
-            ) as client:
-                while time.monotonic() < deadline:
-                    if proc.poll() is not None:
-                        stderr_full = self._cleanup_server_resources(server_key)
-                        failure = StartupFailure(
-                            server_key=server_key,
-                            reason="exited early",
-                            stderr_full=stderr_full,
-                        )
-                        logger.error(
-                            "Lifecycle: %r exited early; stderr (%s chars): %s",
-                            server_key,
-                            len(stderr_full),
-                            _mask_secrets(stderr_full[:500]),
-                        )
-                        self._http_procs.pop(server_key, None)
-                        self._http_pgids.pop(server_key, None)
-                        raise HttpStartupError(failure)
-                    try:
-                        resp = await client.get(health_url)
-                        if resp.status_code == HTTPStatus.OK:
-                            self._last_health_check[server_key] = time.monotonic()
-                            logger.info(
-                                "Lifecycle: HTTP subprocess %r ready",
-                                server_key,
-                            )
-                            return
-                    except (httpx.HTTPError, OSError) as e:
+        hc_timeout = self._health_checker.compute_health_check_timeout(
+            cfg.startup_timeout_sec
+        )
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout=hc_timeout)
+        ) as client:
+            while time.monotonic() < deadline:
+                if proc.poll() is not None:
+                    stderr_full = self._cleanup_server_resources(server_key)
+                    failure = StartupFailure(
+                        server_key=server_key,
+                        reason="exited early",
+                        stderr_full=stderr_full,
+                    )
+                    logger.error(
+                        "Lifecycle: %r exited early; stderr (%s chars): %s",
+                        server_key,
+                        len(stderr_full),
+                        _mask_secrets(stderr_full[:500]),
+                    )
+                    self._http_procs.pop(server_key, None)
+                    self._http_pgids.pop(server_key, None)
+                    raise HttpStartupError(failure)
+                try:
+                    resp = await client.get(health_url)
+                    if resp.status_code == HTTPStatus.OK:
+                        self._last_health_check[server_key] = time.monotonic()
                         logger.info(
-                            "Lifecycle: health-check poll %r: %s", server_key, e
+                            "Lifecycle: HTTP subprocess %r ready",
+                            server_key,
                         )
-                    if await self._interruptible_poll_sleep(0.5, shutdown_event):
-                        stderr_full = self._cleanup_server_resources(server_key)
-                        failure = StartupFailure(
-                            server_key=server_key,
-                            reason="shutdown requested",
-                            stderr_full=stderr_full,
-                        )
-                        self._http_procs.pop(server_key, None)
-                        self._http_pgids.pop(server_key, None)
-                        raise HttpStartupError(failure)
+                        return
+                except (httpx.HTTPError, OSError) as e:
+                    logger.info("Lifecycle: health-check poll %r: %s", server_key, e)
+                if await self._interruptible_poll_sleep(
+                    HEALTH_POLL_INTERVAL_SEC, shutdown_event
+                ):
+                    stderr_full = self._cleanup_server_resources(server_key)
+                    failure = StartupFailure(
+                        server_key=server_key,
+                        reason="shutdown requested",
+                        stderr_full=stderr_full,
+                    )
+                    self._http_procs.pop(server_key, None)
+                    self._http_pgids.pop(server_key, None)
+                    raise HttpStartupError(failure)
 
             stderr_full = self._cleanup_server_resources(server_key)
-            await self._terminate_with_timeout(proc, server_key, timeout=5.0)
+            await self._terminate_with_timeout(
+                proc, server_key, timeout=TERMINATE_TIMEOUT_SEC
+            )
             timeout_failure = StartupFailure(
                 server_key=server_key,
                 reason=f"did not become healthy within {cfg.startup_timeout_sec}s",
@@ -443,6 +454,44 @@ class HttpServerLifecycleManager:
             self._http_procs.pop(server_key, None)
             self._http_pgids.pop(server_key, None)
             raise HttpStartupError(timeout_failure)
+
+    async def start(
+        self,
+        server_key: str,
+        cfg: McpServerConfig,
+        shutdown_event: asyncio.Event | None = None,
+    ) -> None:
+        """Start an HTTP MCP server subprocess and poll /health until ready.
+
+        Idempotent: reuses an already-running process.
+        Stores the full stderr in StartupFailure when the process exits early
+        or the health-poll times out; raises RuntimeError in both cases.
+        When `shutdown_event` fires mid-poll, aborts within roughly one poll
+        interval (0.5s) instead of waiting up to the full startup timeout.
+        """
+        existing = self._http_procs.get(server_key)
+        if existing is not None and existing.poll() is None:
+            logger.info(
+                "Lifecycle: HTTP subprocess %r already running (reusing)",
+                server_key,
+            )
+            return
+
+        logger.info(
+            "Lifecycle: starting HTTP subprocess %r: %s",
+            server_key,
+            cfg.cmd,
+        )
+        proc, stderr_fh = await self._create_and_validate_proc(server_key, cfg)
+
+        if cfg.startup_timeout_sec > 0:
+            deadline = time.monotonic() + cfg.startup_timeout_sec
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout=MCPSERVER_HEALTH_TIMEOUT)
+            ) as client:
+                await self._health_poll_until_ready(
+                    server_key, cfg, proc, client, deadline, shutdown_event
+                )
         else:
             logger.info(
                 "Lifecycle: skipping health check for %r (timeout=0)",
@@ -490,16 +539,7 @@ class HttpServerLifecycleManager:
             try:
                 signal.signal(signal.SIGINT, self._absorb_sigint_during_shutdown)
             except ValueError:
-                try:
-                    asyncio.get_running_loop().call_soon_threadsafe(
-                        lambda: signal.signal(
-                            signal.SIGINT, self._absorb_sigint_during_shutdown
-                        )
-                    )
-                except Exception as exc:  # noqa: BLE001 — scheduling the SIGINT guard handler is best-effort; failure must not block shutdown
-                    logger.debug(
-                        "Lifecycle: could not schedule SIGINT guard handler: %s", exc
-                    )
+                logger.debug("Lifecycle: could not set SIGINT guard handler")
 
         try:
             keys = list(self._http_procs.keys())
@@ -511,7 +551,9 @@ class HttpServerLifecycleManager:
                     logger.debug("Lifecycle: %r already exited; removing entry", key)
                 else:
                     try:
-                        await self._terminate_with_timeout(proc, key, timeout=5.0)
+                        await self._terminate_with_timeout(
+                            proc, key, timeout=TERMINATE_TIMEOUT_SEC
+                        )
                     except (OSError, TimeoutError) as e:
                         logger.warning(
                             "Lifecycle: error stopping HTTP subprocess %r: %s", key, e
@@ -534,9 +576,4 @@ class HttpServerLifecycleManager:
                 try:
                     signal.signal(signal.SIGINT, old_sigint)
                 except ValueError:
-                    try:
-                        asyncio.get_running_loop().call_soon_threadsafe(
-                            lambda: signal.signal(signal.SIGINT, old_sigint)
-                        )
-                    except Exception:  # noqa: BLE001 — restoring the original SIGINT handler is best-effort; failure must not block shutdown
-                        pass
+                    pass
