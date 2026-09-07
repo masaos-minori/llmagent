@@ -181,7 +181,7 @@ uv run python tools/check_docs_content_policy.py
 
 When conflicts arise between documentation and code/config, apply the precedence hierarchy defined in `00_governance_01_documentation-policy.md`:
 
-1. Code is the ultimate authority for behavioral claims
+1. Canonical authority resolved per claim type and decision target — see `00_governance_01_documentation-policy.md`'s Claim Type Taxonomy and Decision Target Canonical Source Matrix
 2. The most recently reviewed document is authoritative among conflicting documents
 3. The area's document-guide identifies the canonical source within that area
 

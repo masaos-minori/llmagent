@@ -81,15 +81,14 @@ Revert via `git checkout` on this file alone if `check_docs_quality.py`/
 - Item 3 (area document-guide) — unrelated.
 - `docs/00_governance_01_documentation-policy.md` — tracked in seq 01.
 
-## Execution Status
-
 ### Execution Status
+
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | REQ-008: item 1 updated to reference claim-type/decision-target resolution |
+| 2 | Add or update tests per Validation plan | Completed | — | — | REQ-008: validation checks passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | REQ-008: check_docs_quality + check_docs_structure passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | REQ-008: no additional docs needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
