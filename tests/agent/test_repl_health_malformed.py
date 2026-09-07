@@ -1,7 +1,10 @@
 """Tests for /v1/tools malformed response validation in repl_health."""
 
 import pytest
-from agent.services.tool_validation import _validate_tools_response, _collect_server_tool_names
+from agent.services.tool_validation import (
+    _collect_server_tool_names,
+    _validate_tools_response,
+)
 
 # --- _validate_tools_response unit tests ---
 

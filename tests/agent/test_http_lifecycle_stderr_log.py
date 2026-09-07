@@ -3,12 +3,10 @@
 import os
 import tempfile
 from io import BytesIO
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from agent.http_lifecycle_stderr_log import StderrLogManager, _DEFAULT_STDERR_TAIL_BYTES
+from agent.http_lifecycle_stderr_log import _DEFAULT_STDERR_TAIL_BYTES, StderrLogManager
 
 
 class TestReadTail:
@@ -74,10 +72,12 @@ class TestOpenLog:
     def test_open_log_creates_directory_and_returns_handle(self):
         mgr = StderrLogManager()
         cfg = MagicMock()
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory():
             # Patch the log dir creation to use temp directory
-            with patch("os.makedirs") as mock_makedirs, \
-                 patch("builtins.open", new_callable=lambda: MagicMock()) as mock_open:
+            with (
+                patch("os.makedirs") as mock_makedirs,
+                patch("builtins.open", new_callable=lambda: MagicMock()) as mock_open,
+            ):
                 mock_fh = MagicMock(spec=BytesIO)
                 mock_open.return_value = mock_fh
                 result = mgr.open_log("server1", cfg)
@@ -88,8 +88,10 @@ class TestOpenLog:
     def test_open_log_stores_handle(self):
         mgr = StderrLogManager()
         cfg = MagicMock()
-        with patch("os.makedirs"), \
-             patch("builtins.open", new_callable=lambda: MagicMock()) as mock_open:
+        with (
+            patch("os.makedirs"),
+            patch("builtins.open", new_callable=lambda: MagicMock()) as mock_open,
+        ):
             mock_fh = MagicMock(spec=BytesIO)
             mock_open.return_value = mock_fh
             mgr.open_log("server1", cfg)
@@ -98,8 +100,10 @@ class TestOpenLog:
     def test_open_log_stores_path(self):
         mgr = StderrLogManager()
         cfg = MagicMock()
-        with patch("os.makedirs"), \
-             patch("builtins.open", new_callable=lambda: MagicMock()) as mock_open:
+        with (
+            patch("os.makedirs"),
+            patch("builtins.open", new_callable=lambda: MagicMock()) as mock_open,
+        ):
             mock_fh = MagicMock(spec=BytesIO)
             mock_open.return_value = mock_fh
             mgr.open_log("server1", cfg)

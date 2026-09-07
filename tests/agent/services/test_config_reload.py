@@ -4,7 +4,6 @@ Error-path tests for ConfigReloadService.apply_config().
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -612,16 +611,11 @@ class TestApprovalGitopsPushBlocked:
             svc.apply_config(req)  # type: ignore[attr-defined]
 
 
-class TestCollectFieldChangesConsolidation:
-    """Regression tests for _collect_field_changes() consolidation.
-
-    After refactor, _collect_field_changes() replaces _collect_request_values()
-    and _apply_llm_prompt_params(), populating one unified set of change dicts.
-    These tests verify it collects all expected fields across LLM/RAG/tool buckets.
-    """
+class TestRegistryFieldClassification:
+    """Tests verifying CONFIG_FIELD_REGISTRY correctly categorizes fields by section."""
 
     @pytest.fixture()
-    def reload_svc(self) -> object:
+    def svc(self) -> object:
         from agent.services.config_reload import ConfigReloadService
 
         llm_cfg = LLMConfig(
@@ -664,132 +658,208 @@ class TestCollectFieldChangesConsolidation:
         ctx.services_required.embedding = None
         ctx.services_required.retriever = None
         ctx.services_required.llm = None
-        svc = ConfigReloadService(ctx)
+        from unittest.mock import patch
+
+        from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+
+        old_mcp_srv = MagicMock(spec=McpServerConfig)
+        old_mcp_srv.url = "http://localhost:8080"
+        old_mcp_srv.auth_token = "tok"
+        old_mcp_srv.startup_mode = StartupMode.PERSISTENT
+        old_mcp_srv.transport = TransportType.HTTP
+        old_mcp_srv.cmd = []
+        ctx.cfg.mcp.mcp_servers = {"_none": old_mcp_srv}
+        with patch(
+            "agent.config_builders._build_mcp_servers",
+            return_value={"_none": old_mcp_srv},
+        ):
+            svc = ConfigReloadService(ctx)
         return svc
 
-    def test_consolidated_method_collects_all_llm_fields(
-        self, reload_svc: object
-    ) -> None:
-        new_cfg: dict[str, Any] = {
-            "http_timeout": 60.0,
-            "context_token_limit": 8000,
-            "llm_temperature": 0.8,
-            "llm_max_tokens": 2000,
-            "llm_url": "https://api.example.com",
-            "llm_max_retries": 5,
-            "llm_retry_base_delay": 2.0,
-            "sse_heartbeat_timeout": 45.0,
-            "sse_malformed_retry": 3,
-            "sse_reconnect_max": 10,
-            "llm_stream_retry_on_heartbeat_timeout": True,
-            "llm_stream_retry_on_malformed_chunk": False,
-        }
-        llm_changes: dict[str, Any] = {}
-        rag_changes: dict[str, Any] = {}
-        tool_changes: dict[str, Any] = {}
-        reload_svc._collect_field_changes(  # type: ignore[attr-defined]
-            new_cfg, llm_changes, rag_changes, tool_changes
-        )
-        assert len(llm_changes) == 12
-        assert "http_timeout" in llm_changes
-        assert "context_token_limit" in llm_changes
-        assert "llm_temperature" in llm_changes
-        assert "llm_max_tokens" in llm_changes
-        assert "llm_url" in llm_changes
-        assert "llm_max_retries" in llm_changes
-        assert "llm_retry_base_delay" in llm_changes
-        assert "sse_heartbeat_timeout" in llm_changes
-        assert "sse_malformed_retry" in llm_changes
-        assert "sse_reconnect_max" in llm_changes
-        assert "llm_stream_retry_on_heartbeat_timeout" in llm_changes
-        assert "llm_stream_retry_on_malformed_chunk" in llm_changes
+    def test_llm_section_fields_are_classified_correctly(self) -> None:
+        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
 
-    def test_consolidated_method_collects_all_rag_fields(
-        self, reload_svc: object
-    ) -> None:
-        new_cfg: dict[str, Any] = {
-            "embed_url": "http://localhost:8080/embed",
-            "web_search_url": "https://search.example.com",
-            "use_refiner": True,
-            "refiner_max_tokens": 1024,
-            "refiner_timeout": 45.0,
-            "refiner_max_chars_per_chunk": 500,
+        llm_fields = [
+            entry.field_name
+            for entry in CONFIG_FIELD_REGISTRY.values()
+            if entry.section_path == "llm"
+        ]
+        expected = {
+            "http_timeout",
+            "context_token_limit",
+            "context_char_limit",
+            "context_compress_turns",
+            "llm_temperature",
+            "llm_max_tokens",
+            "llm_url",
+            "llm_max_retries",
+            "llm_retry_base_delay",
+            "sse_heartbeat_timeout",
+            "sse_malformed_retry",
+            "sse_reconnect_max",
+            "llm_stream_retry_on_heartbeat_timeout",
+            "llm_stream_retry_on_malformed_chunk",
         }
-        llm_changes: dict[str, Any] = {}
-        rag_changes: dict[str, Any] = {}
-        tool_changes: dict[str, Any] = {}
-        reload_svc._collect_field_changes(  # type: ignore[attr-defined]
-            new_cfg, llm_changes, rag_changes, tool_changes
-        )
-        assert len(rag_changes) == 6
-        assert "embed_url" in rag_changes
-        assert "web_search_url" in rag_changes
-        assert "use_refiner" in rag_changes
-        assert "refiner_max_tokens" in rag_changes
-        assert "refiner_timeout" in rag_changes
-        assert "refiner_max_chars_per_chunk" in rag_changes
+        assert set(llm_fields) == expected
 
-    def test_consolidated_method_collects_all_tool_fields(
-        self, reload_svc: object
-    ) -> None:
-        new_cfg: dict[str, Any] = {
-            "max_tool_turns": 10,
-            "tool_result_max_llm_chars": 4096,
-            "tool_definitions": ["def1", "def2"],
-            "system_prompt_tool": "prompt_tool",
-            "system_prompts": {"default": "Hello"},
-            "serial_tool_calls": True,
-            "tool_definitions_strict": False,
-            "plan_blocked_tools": ["dangerous_tool"],
+    def test_rag_section_fields_are_classified_correctly(self) -> None:
+        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+
+        rag_fields = [
+            entry.field_name
+            for entry in CONFIG_FIELD_REGISTRY.values()
+            if entry.section_path == "rag"
+        ]
+        expected = {
+            "embed_url",
+            "web_search_url",
+            "use_refiner",
+            "refiner_max_tokens",
+            "refiner_timeout",
+            "refiner_max_chars_per_chunk",
         }
-        llm_changes: dict[str, Any] = {}
-        rag_changes: dict[str, Any] = {}
-        tool_changes: dict[str, Any] = {}
-        reload_svc._collect_field_changes(  # type: ignore[attr-defined]
-            new_cfg, llm_changes, rag_changes, tool_changes
-        )
-        assert len(tool_changes) == 8
-        assert "max_tool_turns" in tool_changes
-        assert "tool_result_max_llm_chars" in tool_changes
-        assert "tool_definitions" in tool_changes
-        assert "system_prompt_tool" in tool_changes
-        assert "system_prompts" in tool_changes
-        assert "serial_tool_calls" in tool_changes
-        assert "tool_definitions_strict" in tool_changes
-        assert "plan_blocked_tools" in tool_changes
+        assert set(rag_fields) == expected
 
-    def test_consolidated_method_skips_missing_fields(self, reload_svc: object) -> None:
-        new_cfg: dict[str, Any] = {}
-        llm_changes: dict[str, Any] = {}
-        rag_changes: dict[str, Any] = {}
-        tool_changes: dict[str, Any] = {}
-        reload_svc._collect_field_changes(  # type: ignore[attr-defined]
-            new_cfg, llm_changes, rag_changes, tool_changes
-        )
-        assert llm_changes == {}
-        assert rag_changes == {}
-        assert tool_changes == {}
+    def test_tool_section_fields_are_classified_correctly(self) -> None:
+        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
 
-    def test_consolidated_method_handles_partial_updates(
-        self, reload_svc: object
-    ) -> None:
-        new_cfg: dict[str, Any] = {
-            "llm_temperature": 0.9,
-            "embed_url": "http://localhost:8080/embed",
-            "max_tool_turns": 5,
+        tool_fields = [
+            entry.field_name
+            for entry in CONFIG_FIELD_REGISTRY.values()
+            if entry.section_path == "tool"
+        ]
+        expected = {
+            "max_tool_turns",
+            "tool_result_max_llm_chars",
+            "serial_tool_calls",
+            "tool_definitions_strict",
+            "plan_blocked_tools",
+            "system_prompt_tool",
+            "system_prompts",
+            "tool_definitions",
+            "allowed_tools",
+            "routing_drift_strict",
         }
-        llm_changes: dict[str, Any] = {}
-        rag_changes: dict[str, Any] = {}
-        tool_changes: dict[str, Any] = {}
-        reload_svc._collect_field_changes(  # type: ignore[attr-defined]
-            new_cfg, llm_changes, rag_changes, tool_changes
+        assert set(tool_fields) == expected
+
+    def test_approval_section_fields_are_classified_correctly(self) -> None:
+        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+
+        approval_fields = [
+            entry.field_name
+            for entry in CONFIG_FIELD_REGISTRY.values()
+            if entry.section_path == "approval"
+        ]
+        expected = {
+            "approval_risk_rules",
+            "approval_protected_paths",
+            "approval_high_risk_branches",
+            "approval_shell_safe_prefixes",
+            "approval_resource_keys",
+            "approval_dry_run_tools",
+            "tool_safety_tiers",
+            "allowed_root",
+            "approval_github_allowed_repos",
+            "gitops_push_blocked",
+        }
+        assert set(approval_fields) == expected
+
+    def test_memory_section_fields_are_classified_correctly(self) -> None:
+        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+
+        memory_fields = [
+            entry.field_name
+            for entry in CONFIG_FIELD_REGISTRY.values()
+            if entry.section_path == "memory"
+        ]
+        expected = {
+            "memory_retention_days",
+            "memory_local_only",
+            "use_memory_layer",
+            "memory_embed_enabled",
+        }
+        assert set(memory_fields) == expected
+
+    def test_mcp_section_fields_are_classified_correctly(self) -> None:
+        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+
+        mcp_fields = [
+            entry.field_name
+            for entry in CONFIG_FIELD_REGISTRY.values()
+            if entry.section_path == "mcp"
+        ]
+        expected = {"security_profile", "security_lockdown_enabled"}
+        assert set(mcp_fields) == expected
+
+    def test_all_registry_entries_have_validators_or_none(self) -> None:
+        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+
+        for entry in CONFIG_FIELD_REGISTRY.values():
+            assert isinstance(entry.name, str)
+            assert isinstance(entry.section_path, str)
+            assert isinstance(entry.hot_reloadable, bool)
+            # validator_fn can be None or a callable
+            if entry.validator_fn is not None:
+                assert callable(entry.validator_fn)
+
+    def test_no_duplicate_field_names_in_registry(self) -> None:
+        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+
+        names = [entry.field_name for entry in CONFIG_FIELD_REGISTRY.values()]
+        assert len(names) == len(set(names)), (
+            f"Duplicate field names found: {[n for n in names if names.count(n) > 1]}"
         )
-        assert len(llm_changes) == 1
-        assert "llm_temperature" in llm_changes
-        assert llm_changes["llm_temperature"] == 0.9
-        assert len(rag_changes) == 1
-        assert "embed_url" in rag_changes
-        assert rag_changes["embed_url"] == "http://localhost:8080/embed"
-        assert len(tool_changes) == 1
-        assert "max_tool_turns" in tool_changes
-        assert tool_changes["max_tool_turns"] == 5
+
+    @pytest.fixture()
+    def svc_with_mocked_mcp(self, svc: object) -> object:
+        from unittest.mock import patch
+
+        from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+
+        new_mcp_srv = MagicMock(spec=McpServerConfig)
+        new_mcp_srv.url = "http://localhost:8080"
+        new_mcp_srv.auth_token = "tok"
+        new_mcp_srv.startup_mode = StartupMode.PERSISTENT
+        new_mcp_srv.transport = TransportType.HTTP
+        new_mcp_srv.cmd = []
+        with (
+            patch(
+                "agent.config_builders._build_mcp_servers",
+                return_value={"_none": new_mcp_srv},
+            ),
+            patch.object(svc, "_classify_mcp_server_changes"),
+        ):
+            yield svc
+
+    def test_apply_config_dict_applies_llm_fields_via_registry(
+        self, svc_with_mocked_mcp: object
+    ) -> None:
+        svc_with_mocked_mcp.apply_config_dict({"llm_temperature": 0.8})
+        assert svc_with_mocked_mcp._ctx.cfg.llm.llm_temperature == 0.8
+
+    def test_apply_config_dict_applies_rag_fields_via_registry(
+        self, svc_with_mocked_mcp: object
+    ) -> None:
+        svc_with_mocked_mcp.apply_config_dict({"refiner_max_tokens": 1024})
+        assert svc_with_mocked_mcp._ctx.cfg.rag.refiner_max_tokens == 1024
+
+    def test_apply_config_dict_applies_tool_fields_via_registry(
+        self, svc_with_mocked_mcp: object
+    ) -> None:
+        svc_with_mocked_mcp.apply_config_dict({"max_tool_turns": 10})
+        assert svc_with_mocked_mcp._ctx.cfg.tool.max_tool_turns == 10
+
+    def test_apply_config_dict_skips_missing_fields(
+        self, svc_with_mocked_mcp: object
+    ) -> None:
+        svc_with_mocked_mcp.apply_config_dict({})
+        assert svc_with_mocked_mcp._ctx.cfg.llm.llm_temperature == 0.7
+
+    def test_apply_config_dict_handles_partial_updates(
+        self, svc_with_mocked_mcp: object
+    ) -> None:
+        svc_with_mocked_mcp.apply_config_dict(
+            {"llm_temperature": 0.9, "refiner_max_tokens": 1024}
+        )
+        assert svc_with_mocked_mcp._ctx.cfg.llm.llm_temperature == 0.9
+        assert svc_with_mocked_mcp._ctx.cfg.rag.refiner_max_tokens == 1024

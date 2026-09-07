@@ -6,12 +6,7 @@ Unit tests for ProcessTerminator and related error classes.
 from __future__ import annotations
 
 import os
-import signal
-import subprocess
-from unittest.mock import MagicMock, patch
 
-import pytest
-from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
 from agent.http_lifecycle_process_terminator import ProcessTerminator
 
 _TEST_SERVER_KEY = "test_server"
@@ -65,12 +60,15 @@ class TestProcessTerminatorInit:
         assert terminator._terminate_poll_interval_sec == 1e10
 
     def test_inf_poll_interval(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=float('inf'))
-        assert terminator._terminate_poll_interval_sec == float('inf')
+        terminator = ProcessTerminator(terminate_poll_interval_sec=float("inf"))
+        assert terminator._terminate_poll_interval_sec == float("inf")
 
     def test_nan_poll_interval(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=float('nan'))
-        assert terminator._terminate_poll_interval_sec != terminator._terminate_poll_interval_sec
+        terminator = ProcessTerminator(terminate_poll_interval_sec=float("nan"))
+        assert (
+            terminator._terminate_poll_interval_sec
+            != terminator._terminate_poll_interval_sec
+        )
 
     def test_multiple_instances_independent(self):
         t1 = ProcessTerminator(terminate_poll_interval_sec=0.1)
@@ -243,7 +241,7 @@ class TestProcessTerminatorInit:
 
     def test_constructor_accepts_class_reference(self):
         terminator = ProcessTerminator(terminate_poll_interval_sec=int)  # type: ignore[arg-type]
-        assert terminator._terminate_poll_interval_sec == int
+        assert terminator._terminate_poll_interval_sec is int
 
     def test_constructor_accepts_module_reference(self):
         terminator = ProcessTerminator(terminate_poll_interval_sec=os)  # type: ignore[arg-type]
@@ -273,7 +271,9 @@ class TestProcessTerminatorInit:
         assert isinstance(terminator._terminate_poll_interval_sec, Outer.Inner)
 
     def test_constructor_accepts_metaclass_instance(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=type("Dynamic", (), {}))  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=type("Dynamic", (), {})
+        )  # type: ignore[arg-type]
         assert isinstance(terminator._terminate_poll_interval_sec, type)
 
     def test_constructor_accepts_property_descriptor(self):
@@ -316,12 +316,15 @@ class TestProcessTerminatorInit:
         assert callable(terminator._terminate_poll_interval_sec)
 
     def test_constructor_accepts_code_object(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=compile("pass", "<string>", "exec"))  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=compile("pass", "<string>", "exec")
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "co_code")
 
     def test_constructor_accepts_frame_object(self):
         def frame_func():
             import sys
+
             return sys._getframe()
 
         terminator = ProcessTerminator(terminate_poll_interval_sec=frame_func())  # type: ignore[arg-type]
@@ -364,24 +367,50 @@ class TestProcessTerminatorInit:
         assert isinstance(terminator._terminate_poll_interval_sec, memoryview)
 
     def test_constructor_accepts_array(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("array").array("d", [0.1]))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("array").array)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("array").array("d", [0.1])
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("array").array
+        )
 
     def test_constructor_accepts_deque(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("collections").deque([0.1]))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("collections").deque)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("collections").deque([0.1])
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("collections").deque
+        )
 
     def test_constructor_accepts_ordered_dict(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("collections").OrderedDict({"a": 0.1}))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("collections").OrderedDict)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("collections").OrderedDict(
+                {"a": 0.1}
+            )
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec,
+            __import__("collections").OrderedDict,
+        )
 
     def test_constructor_accepts_counter(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("collections").Counter({"a": 0.1}))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("collections").Counter)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("collections").Counter({"a": 0.1})
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("collections").Counter
+        )
 
     def test_constructor_accepts_defaultdict(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("collections").defaultdict(lambda: 0.1))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("collections").defaultdict)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("collections").defaultdict(
+                lambda: 0.1
+            )
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec,
+            __import__("collections").defaultdict,
+        )
 
     def test_constructor_accepts_namedtuple(self):
         Point = __import__("typing").NamedTuple("Point", [("x", float), ("y", float)])
@@ -415,8 +444,12 @@ class TestProcessTerminatorInit:
             READ = 1
             WRITE = 2
 
-        terminator = ProcessTerminator(terminate_poll_interval_sec=Permission.READ | Permission.WRITE)  # type: ignore[arg-type]
-        assert terminator._terminate_poll_interval_sec == (Permission.READ | Permission.WRITE)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=Permission.READ | Permission.WRITE
+        )  # type: ignore[arg-type]
+        assert terminator._terminate_poll_interval_sec == (
+            Permission.READ | Permission.WRITE
+        )
 
     def test_constructor_accepts_intenum(self):
         from enum import IntEnum
@@ -448,60 +481,108 @@ class TestProcessTerminatorInit:
         assert terminator._terminate_poll_interval_sec == "*/5 * * * *"
 
     def test_constructor_accepts_iso_datetime(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec="2026-09-03T10:14:32Z")  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec="2026-09-03T10:14:32Z"
+        )  # type: ignore[arg-type]
         assert terminator._terminate_poll_interval_sec == "2026-09-03T10:14:32Z"
 
     def test_constructor_accepts_uuid(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("uuid").uuid4())  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("uuid").UUID)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("uuid").uuid4()
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("uuid").UUID
+        )
 
     def test_constructor_accepts_decimal_from_string(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("decimal").Decimal("0.1"))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("decimal").Decimal)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("decimal").Decimal("0.1")
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("decimal").Decimal
+        )
 
     def test_constructor_accepts_fraction_from_tuple(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("fractions").Fraction(1, 10))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("fractions").Fraction)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("fractions").Fraction(1, 10)
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("fractions").Fraction
+        )
 
     def test_constructor_accepts_timedelta(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("datetime").timedelta(seconds=1))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("datetime").timedelta)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("datetime").timedelta(seconds=1)
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("datetime").timedelta
+        )
 
     def test_constructor_accepts_date(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("datetime").date.today())  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("datetime").date)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("datetime").date.today()
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("datetime").date
+        )
 
     def test_constructor_accepts_time(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("datetime").time(10, 14, 32))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("datetime").time)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("datetime").time(10, 14, 32)
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("datetime").time
+        )
 
     def test_constructor_accepts_datetime(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("datetime").datetime.now())  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("datetime").datetime)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("datetime").datetime.now()
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("datetime").datetime
+        )
 
     def test_constructor_accepts_timezone(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("datetime").timezone.utc)  # type: ignore[arg-type]
-        assert terminator._terminate_poll_interval_sec == __import__("datetime").timezone.utc
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("datetime").timezone.utc
+        )  # type: ignore[arg-type]
+        assert (
+            terminator._terminate_poll_interval_sec
+            == __import__("datetime").timezone.utc
+        )
 
     def test_constructor_accepts_locale(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("locale").getlocale())  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, tuple) or terminator._terminate_poll_interval_sec is None
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("locale").getlocale()
+        )  # type: ignore[arg-type]
+        assert (
+            isinstance(terminator._terminate_poll_interval_sec, tuple)
+            or terminator._terminate_poll_interval_sec is None
+        )
 
     def test_constructor_accepts_gettext_domain(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("gettext").bindtextdomain)  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("gettext").bindtextdomain
+        )  # type: ignore[arg-type]
         assert callable(terminator._terminate_poll_interval_sec)
 
     def test_constructor_accepts_regex_pattern(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("re").compile(r"\w+"))  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("re").compile(r"\w+")
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "pattern")
 
     def test_constructor_accepts_regex_match_object(self):
         match_result = __import__("re").match(r"\w+", "hello")
         terminator = ProcessTerminator(terminate_poll_interval_sec=match_result)  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("re").Match)
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("re").Match
+        )
 
     def test_constructor_accepts_regex_substitution_function(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=lambda m: m.group(0).upper())  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=lambda m: m.group(0).upper()
+        )  # type: ignore[arg-type]
         assert callable(terminator._terminate_poll_interval_sec)
 
     def test_constructor_accepts_iterable_protocol(self):
@@ -531,84 +612,140 @@ class TestProcessTerminatorInit:
         assert hasattr(terminator._terminate_poll_interval_sec, "__enter__")
 
     def test_constructor_accepts_async_context_manager(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("contextlib").nullcontext())  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("contextlib").nullcontext()
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "__aenter__")
 
     def test_constructor_accepts_file_descriptor(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("os").open("/dev/null", __import__("os").O_RDONLY))  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("os").open(
+                "/dev/null", __import__("os").O_RDONLY
+            )
+        )  # type: ignore[arg-type]
         assert isinstance(terminator._terminate_poll_interval_sec, int)
 
     def test_constructor_accepts_socket(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("socket").socket(__import__("socket").AF_INET, __import__("socket").SOCK_STREAM))  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("socket").socket(
+                __import__("socket").AF_INET, __import__("socket").SOCK_STREAM
+            )
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "fileno")
 
     def test_constructor_accepts_thread(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("threading").Thread(target=lambda: None))  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("threading").Thread(
+                target=lambda: None
+            )
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "start")
 
     def test_constructor_accepts_lock(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("threading").Lock())  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("threading").Lock()
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "acquire")
 
     def test_constructor_accepts_semaphore(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("threading").Semaphore(1))  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("threading").Semaphore(1)
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "acquire")
 
     def test_constructor_accepts_event(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("threading").Event())  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("threading").Event()
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "set")
 
     def test_constructor_accepts_condition(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("threading").Condition())  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("threading").Condition()
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "notify")
 
     def test_constructor_accepts_barrier(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("threading").Barrier(2))  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("threading").Barrier(2)
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "wait")
 
     def test_constructor_accepts_rlock(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("threading").RLock())  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("threading").RLock()
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "acquire")
 
     def test_constructor_accepts_timer(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("threading").Timer(1.0, lambda: None))  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("threading").Timer(1.0, lambda: None)
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "start")
 
     def test_constructor_accepts_pool(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("multiprocessing").Pool())  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("multiprocessing").Pool()
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "map")
 
     def test_constructor_accepts_queue(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("queue").Queue())  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("queue").Queue()
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "put")
 
     def test_constructor_accepts_priority_queue(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("queue").PriorityQueue())  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("queue").PriorityQueue()
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "put")
 
     def test_constructor_accepts_lifo_queue(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("queue").LifoQueue())  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("queue").LifoQueue()
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "put")
 
     def test_constructor_accepts_fifo_queue(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("queue").Queue())  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("queue").Queue()
+        )  # type: ignore[arg-type]
         assert hasattr(terminator._terminate_poll_interval_sec, "put")
 
     def test_constructor_accepts_deque_with_maxlen(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("collections").deque(maxlen=10))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("collections").deque)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("collections").deque(maxlen=10)
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("collections").deque
+        )
 
     def test_constructor_accepts_ordered_dict_with_popitem(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("collections").OrderedDict())  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("collections").OrderedDict)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("collections").OrderedDict()
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec,
+            __import__("collections").OrderedDict,
+        )
 
     def test_constructor_accepts_counter_with_most_common(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("collections").Counter("hello"))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("collections").Counter)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("collections").Counter("hello")
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec, __import__("collections").Counter
+        )
 
     def test_constructor_accepts_defaultdict_with_default_factory(self):
-        terminator = ProcessTerminator(terminate_poll_interval_sec=__import__("collections").defaultdict(list))  # type: ignore[arg-type]
-        assert isinstance(terminator._terminate_poll_interval_sec, __import__("collections").defaultdict)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=__import__("collections").defaultdict(list)
+        )  # type: ignore[arg-type]
+        assert isinstance(
+            terminator._terminate_poll_interval_sec,
+            __import__("collections").defaultdict,
+        )
 
     def test_constructor_accepts_namedtuple_with_fields_and_defaults(self):
         Point = __import__("typing").NamedTuple("Point", [("x", float), ("y", float)])
@@ -622,7 +759,9 @@ class TestProcessTerminatorInit:
         class FrozenClass:
             value: float = 0.1
 
-        terminator = ProcessTerminator(terminate_poll_interval_sec=FrozenClass(value=0.1))  # type: ignore[arg-type]
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=FrozenClass(value=0.1)
+        )  # type: ignore[arg-type]
         assert isinstance(terminator._terminate_poll_interval_sec, FrozenClass)
 
     def test_constructor_accepts_enums_with_members_and_values(self):
@@ -642,8 +781,12 @@ class TestProcessTerminatorInit:
             READ = 1
             WRITE = 2
 
-        terminator = ProcessTerminator(terminate_poll_interval_sec=Permission.READ | Permission.WRITE)  # type: ignore[arg-type]
-        assert terminator._terminate_poll_interval_sec == (Permission.READ | Permission.WRITE)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=Permission.READ | Permission.WRITE
+        )  # type: ignore[arg-type]
+        assert terminator._terminate_poll_interval_sec == (
+            Permission.READ | Permission.WRITE
+        )
 
     def test_constructor_accepts_intenum_with_values_and_names(self):
         from enum import IntEnum

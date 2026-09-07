@@ -54,7 +54,13 @@ class RagConfigValidator:
     @staticmethod
     def _check_removed_semantic_cache_keys(rag: Mapping[str, Any]) -> str | None:
         """Return a migration error message when any removed semantic cache key is present."""
-        REMOVED_KEYS = frozenset(("semantic_cache_max_size", "semantic_cache_threshold", "use_semantic_cache"))
+        REMOVED_KEYS = frozenset(
+            (
+                "semantic_cache_max_size",
+                "semantic_cache_threshold",
+                "use_semantic_cache",
+            )
+        )
         found = [k for k in rag if k in REMOVED_KEYS]
         if found:
             keys_str = ", ".join(sorted(found))

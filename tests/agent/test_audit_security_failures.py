@@ -70,7 +70,9 @@ def test_git_config_failure_production_raises():
     from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch(
+        "agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK
+    ):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
             with patch(
                 "agent.services.security_audit.load_git_audit_config",
@@ -86,7 +88,9 @@ def test_git_config_failure_local_warning():
     from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch(
+        "agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK
+    ):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
             with patch(
                 "agent.services.security_audit.load_git_audit_config",
@@ -105,9 +109,14 @@ def test_github_config_failure_production_raises():
     from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch(
+        "agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK
+    ):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=_GIT_OK):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config",
+                return_value=_GIT_OK,
+            ):
                 with patch(
                     "agent.services.security_audit.load_github_audit_config",
                     side_effect=RuntimeError(
@@ -122,9 +131,14 @@ def test_github_config_failure_local_warning():
     from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch(
+        "agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK
+    ):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=_GIT_OK):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config",
+                return_value=_GIT_OK,
+            ):
                 with patch(
                     "agent.services.security_audit.load_github_audit_config",
                     side_effect=RuntimeError(
@@ -142,9 +156,14 @@ def test_cicd_config_failure_production_raises():
     from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch(
+        "agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK
+    ):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=_GIT_OK):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config",
+                return_value=_GIT_OK,
+            ):
                 with patch(
                     "agent.services.security_audit.load_github_audit_config",
                     return_value=_GITHUB_OK,
@@ -163,9 +182,14 @@ def test_cicd_config_failure_local_warning():
     from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch(
+        "agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK
+    ):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=_GIT_OK):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config",
+                return_value=_GIT_OK,
+            ):
                 with patch(
                     "agent.services.security_audit.load_github_audit_config",
                     return_value=_GITHUB_OK,
@@ -202,11 +226,17 @@ def test_import_error_stays_silent():
     from agent.services.security_audit import audit_security_defaults
 
     ctx = _make_ctx()
-    with patch("agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK):
+    with patch(
+        "agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK
+    ):
         with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch("agent.services.security_audit.load_git_audit_config", return_value=_GIT_OK):
+            with patch(
+                "agent.services.security_audit.load_git_audit_config",
+                return_value=_GIT_OK,
+            ):
                 with patch(
-                    "agent.services.security_audit.load_github_audit_config", return_value=None
+                    "agent.services.security_audit.load_github_audit_config",
+                    return_value=None,
                 ):
                     warnings = audit_security_defaults(ctx, production_mode=True)
     assert not any("GitHub config" in w for w in (warnings or []))

@@ -31,6 +31,25 @@ if TYPE_CHECKING:
     from agent.history import HistoryManager
     from agent.llm_client import LLMClient
 
+from collections.abc import Callable
+
+from agent.services.config_validators import (
+    validate_llm_context_char_limit,
+    validate_llm_context_token_limit,
+    validate_llm_http_timeout,
+    validate_llm_max_retries,
+    validate_llm_max_tokens,
+    validate_llm_retry_base_delay,
+    validate_llm_sse_heartbeat_timeout,
+    validate_llm_sse_malformed_retry,
+    validate_llm_sse_reconnect_max,
+    validate_llm_temperature,
+    validate_rag_refiner_max_chars_per_chunk,
+    validate_rag_refiner_max_tokens,
+    validate_rag_refiner_timeout,
+    validate_tool_max_tool_turns,
+    validate_tool_result_max_llm_chars,
+)
 from agent.services.typed_validators import (
     _get_bool,
     _get_dict_nonempty,
@@ -42,53 +61,104 @@ from agent.services.typed_validators import (
     _get_str_nonempty,
 )
 
-# Magic string constants — replaces scattered literal field names
-FIELD_HTTP_TIMEOUT = "http_timeout"
-FIELD_CONTEXT_TOKEN_LIMIT = "context_token_limit"
-FIELD_EMBED_URL = "embed_url"
-FIELD_MAX_TOOL_TURNS = "max_tool_turns"
-FIELD_TOOL_RESULT_MAX_LLM_CHARS = "tool_result_max_llm_chars"
-FIELD_CONTEXT_CHAR_LIMIT = "context_char_limit"
-FIELD_CONTEXT_COMPRESS_TURNS = "context_compress_turns"
-FIELD_SERIAL_TOOL_CALLS = "serial_tool_calls"
-FIELD_TOOL_DEFINITIONS_STRICT = "tool_definitions_strict"
-FIELD_PLAN_BLOCKED_TOOLS = "plan_blocked_tools"
-FIELD_LLML_TEMPERATURE = "llm_temperature"
-FIELD_LLML_MAX_TOKENS = "llm_max_tokens"
-FIELD_LLML_URL = "llm_url"
-FIELD_WEB_SEARCH_URL = "web_search_url"
-FIELD_LLML_MAX_RETRIES = "llm_max_retries"
-FIELD_LLML_RETRY_BASE_DELAY = "llm_retry_base_delay"
-FIELD_SSE_HEARTBEAT_TIMEOUT = "sse_heartbeat_timeout"
-FIELD_SSE_MALFORMED_RETRY = "sse_malformed_retry"
-FIELD_SSE_RECONNECT_MAX = "sse_reconnect_max"
-FIELD_LLML_STREAM_RETRY_ON_HEARTBEAT_TIMEOUT = "llm_stream_retry_on_heartbeat_timeout"
-FIELD_LLML_STREAM_RETRY_ON_MALFORMED_CHUNK = "llm_stream_retry_on_malformed_chunk"
-FIELD_SYSTEM_PROMPT_TOOL = "system_prompt_tool"
-FIELD_SYSTEM_PROMPTS = "system_prompts"
-FIELD_TOOL_DEFINITIONS = "tool_definitions"
-FIELD_USE_REFINER = "use_refiner"
-FIELD_REFINER_MAX_TOKENS = "refiner_max_tokens"
-FIELD_REFINER_TIMEOUT = "refiner_timeout"
-FIELD_REFINER_MAX_CHARS_PER_CHUNK = "refiner_max_chars_per_chunk"
-FIELD_APPROVAL_RISK_RULES = "approval_risk_rules"
-FIELD_APPROVAL_PROTECTED_PATHS = "approval_protected_paths"
-FIELD_APPROVAL_HIGH_RISK_BRANCHES = "approval_high_risk_branches"
-FIELD_APPROVAL_SHELL_SAFE_PREFIXES = "approval_shell_safe_prefixes"
-FIELD_APPROVAL_RESOURCE_KEYS = "approval_resource_keys"
-FIELD_APPROVAL_DRY_RUN_TOOLS = "approval_dry_run_tools"
-FIELD_TOOL_SAFETY_TIERS = "tool_safety_tiers"
-FIELD_ALLOWED_ROOT = "allowed_root"
-FIELD_ALLOWED_TOOLS = "allowed_tools"
-FIELD_APPROVAL_GITHUB_ALLOWED_REPOS = "approval_github_allowed_repos"
-FIELD_GITOPS_PUSH_BLOCKED = "gitops_push_blocked"
-FIELD_MEMORY_RETENTION_DAYS = "memory_retention_days"
-FIELD_MEMORY_LOCAL_ONLY = "memory_local_only"
-FIELD_SECURITY_PROFILE = "security_profile"
-FIELD_SECURITY_LOCKDOWN_ENABLED = "security_lockdown_enabled"
-FIELD_USE_MEMORY_LAYER = "use_memory_layer"
-FIELD_ROUTING_DRIFT_STRICT = "routing_drift_strict"
-FIELD_MEMORY_EMBED_ENABLED = "memory_embed_enabled"
+
+@dataclass(frozen=True)
+class ConfigFieldRegistry:
+    name: str
+    section_path: str
+    hot_reloadable: bool
+    validator_fn: Callable[[Any], None] | None = None
+
+    @property
+    def field_name(self) -> str:
+        return self.name
+
+
+CONFIG_FIELD_REGISTRY: Mapping[str, ConfigFieldRegistry] = {
+    entry.field_name: entry
+    for entry in [
+        # LLM section
+        ConfigFieldRegistry("http_timeout", "llm", True, validate_llm_http_timeout),
+        ConfigFieldRegistry(
+            "context_token_limit", "llm", False, validate_llm_context_token_limit
+        ),
+        ConfigFieldRegistry(
+            "context_char_limit", "llm", False, validate_llm_context_char_limit
+        ),
+        ConfigFieldRegistry("context_compress_turns", "llm", False),
+        ConfigFieldRegistry("llm_temperature", "llm", True, validate_llm_temperature),
+        ConfigFieldRegistry("llm_max_tokens", "llm", True, validate_llm_max_tokens),
+        ConfigFieldRegistry("llm_url", "llm", True),
+        ConfigFieldRegistry("llm_max_retries", "llm", True, validate_llm_max_retries),
+        ConfigFieldRegistry(
+            "llm_retry_base_delay", "llm", True, validate_llm_retry_base_delay
+        ),
+        ConfigFieldRegistry(
+            "sse_heartbeat_timeout", "llm", True, validate_llm_sse_heartbeat_timeout
+        ),
+        ConfigFieldRegistry(
+            "sse_malformed_retry", "llm", True, validate_llm_sse_malformed_retry
+        ),
+        ConfigFieldRegistry(
+            "sse_reconnect_max", "llm", True, validate_llm_sse_reconnect_max
+        ),
+        ConfigFieldRegistry("llm_stream_retry_on_heartbeat_timeout", "llm", True),
+        ConfigFieldRegistry("llm_stream_retry_on_malformed_chunk", "llm", True),
+        # RAG section
+        ConfigFieldRegistry("embed_url", "rag", True),
+        ConfigFieldRegistry("web_search_url", "rag", True),
+        ConfigFieldRegistry("use_refiner", "rag", True),
+        ConfigFieldRegistry(
+            "refiner_max_tokens", "rag", True, validate_rag_refiner_max_tokens
+        ),
+        ConfigFieldRegistry(
+            "refiner_timeout", "rag", True, validate_rag_refiner_timeout
+        ),
+        ConfigFieldRegistry(
+            "refiner_max_chars_per_chunk",
+            "rag",
+            True,
+            validate_rag_refiner_max_chars_per_chunk,
+        ),
+        # Tool section
+        ConfigFieldRegistry(
+            "max_tool_turns", "tool", True, validate_tool_max_tool_turns
+        ),
+        ConfigFieldRegistry(
+            "tool_result_max_llm_chars",
+            "tool",
+            True,
+            validate_tool_result_max_llm_chars,
+        ),
+        ConfigFieldRegistry("serial_tool_calls", "tool", True),
+        ConfigFieldRegistry("tool_definitions_strict", "tool", True),
+        ConfigFieldRegistry("plan_blocked_tools", "tool", True),
+        ConfigFieldRegistry("system_prompt_tool", "tool", True),
+        ConfigFieldRegistry("system_prompts", "tool", True),
+        ConfigFieldRegistry("tool_definitions", "tool", True),
+        ConfigFieldRegistry("allowed_tools", "tool", True),
+        ConfigFieldRegistry("routing_drift_strict", "tool", False),
+        # Approval section
+        ConfigFieldRegistry("approval_risk_rules", "approval", True),
+        ConfigFieldRegistry("approval_protected_paths", "approval", True),
+        ConfigFieldRegistry("approval_high_risk_branches", "approval", True),
+        ConfigFieldRegistry("approval_shell_safe_prefixes", "approval", True),
+        ConfigFieldRegistry("approval_resource_keys", "approval", True),
+        ConfigFieldRegistry("approval_dry_run_tools", "approval", True),
+        ConfigFieldRegistry("tool_safety_tiers", "approval", True),
+        ConfigFieldRegistry("allowed_root", "approval", True),
+        ConfigFieldRegistry("approval_github_allowed_repos", "approval", True),
+        ConfigFieldRegistry("gitops_push_blocked", "approval", False),
+        # Memory section
+        ConfigFieldRegistry("memory_retention_days", "memory", True),
+        ConfigFieldRegistry("memory_local_only", "memory", True),
+        ConfigFieldRegistry("use_memory_layer", "memory", False),
+        ConfigFieldRegistry("memory_embed_enabled", "memory", False),
+        # MCP section
+        ConfigFieldRegistry("security_profile", "mcp", True),
+        ConfigFieldRegistry("security_lockdown_enabled", "mcp", True),
+    ]
+}
 
 _MCP_SERVER_FIELDS = (
     "transport",
@@ -174,12 +244,67 @@ class ConfigReloadService:
         The command handler only calls this method and renders the result.
         """
         ctx = self._ctx
-        self._collect_field_changes(new_cfg, {}, {}, {})
-        self._apply_rag_tool_params(ctx, new_cfg)
+        llm_changes: dict[str, Any] = {}
+        rag_changes: dict[str, Any] = {}
+        tool_changes: dict[str, Any] = {}
+        for field_entry in CONFIG_FIELD_REGISTRY.values():
+            value = new_cfg.get(field_entry.field_name)
+            if value is None:
+                continue
+            section = field_entry.section_path
+            if section == "llm":
+                llm_changes[field_entry.field_name] = value
+            elif section == "rag":
+                rag_changes[field_entry.field_name] = value
+            elif section == "tool":
+                tool_changes[field_entry.field_name] = value
+        if llm_changes:
+            try:
+                new_llm = dataclasses.replace(ctx.cfg.llm, **llm_changes)
+            except ValueError as e:
+                raise ConfigReloadValidationError(str(e)) from e
+            for field_entry in CONFIG_FIELD_REGISTRY.values():
+                if field_entry.section_path == "llm" and field_entry.validator_fn:
+                    try:
+                        field_entry.validator_fn(new_llm)
+                    except ValueError as e:
+                        raise ConfigReloadValidationError(str(e)) from e
+            ctx.cfg.llm = new_llm
+        if rag_changes:
+            rag_changes = {
+                k: v for k, v in rag_changes.items() if k != "web_search_url"
+            }
+            if rag_changes:
+                try:
+                    new_rag = dataclasses.replace(ctx.cfg.rag, **rag_changes)
+                except ValueError as e:
+                    raise ConfigReloadValidationError(str(e)) from e
+                for field_entry in CONFIG_FIELD_REGISTRY.values():
+                    if field_entry.section_path == "rag" and field_entry.validator_fn:
+                        try:
+                            field_entry.validator_fn(new_rag)
+                        except ValueError as e:
+                            raise ConfigReloadValidationError(str(e)) from e
+                ctx.cfg.rag = new_rag
+        if tool_changes:
+            try:
+                new_tool = dataclasses.replace(ctx.cfg.tool, **tool_changes)
+            except ValueError as e:
+                raise ConfigReloadValidationError(str(e)) from e
+            for field_entry in CONFIG_FIELD_REGISTRY.values():
+                if field_entry.section_path == "tool" and field_entry.validator_fn:
+                    try:
+                        field_entry.validator_fn(new_tool)
+                    except ValueError as e:
+                        raise ConfigReloadValidationError(str(e)) from e
+            ctx.cfg.tool = new_tool
         self._reload_approval_config(ctx, new_cfg)
-        self._reload_tool_allowlist(ctx, new_cfg)
         self._reload_memory_runtime(ctx, new_cfg)
         self._reload_security_profile(ctx, new_cfg)
+        if "system_prompt_tool" in new_cfg:
+            ctx.conv.system_prompt_content = new_cfg["system_prompt_tool"]
+        if "allowed_tools" in new_cfg:
+            ctx.cfg.tool.allowed_tools = list(new_cfg["allowed_tools"])
         if "masked_fields" in new_cfg:
             ctx.cfg.tool.masked_fields = list(new_cfg["masked_fields"])
         result = self._classify_mcp_server_changes(ctx, new_cfg)
@@ -202,88 +327,6 @@ class ConfigReloadService:
         result.startup_only = self._detect_startup_only(new_cfg)
         result.always_live = self._detect_diagnostics_live_fields(new_cfg)
         return result
-
-    def _collect_field_changes(
-        self,
-        new_cfg: dict[str, Any],
-        llm_changes: dict[str, Any],
-        rag_changes: dict[str, Any],
-        tool_changes: dict[str, Any],
-    ) -> None:
-        """Collect field values from new_cfg into change dicts for validation.
-
-        Replaces _collect_request_values() and _apply_llm_prompt_params().
-        Populates one unified set of change dicts.
-        """
-        # LLM fields
-        if (v := _get_float(new_cfg, FIELD_HTTP_TIMEOUT)) is not None:
-            llm_changes[FIELD_HTTP_TIMEOUT] = v
-        if (v := _get_int(new_cfg, FIELD_CONTEXT_TOKEN_LIMIT)) is not None:
-            llm_changes[FIELD_CONTEXT_TOKEN_LIMIT] = v
-        if (temperature := _get_float(new_cfg, FIELD_LLML_TEMPERATURE)) is not None:
-            llm_changes[FIELD_LLML_TEMPERATURE] = temperature
-        if (max_tokens := _get_int(new_cfg, FIELD_LLML_MAX_TOKENS)) is not None:
-            llm_changes[FIELD_LLML_MAX_TOKENS] = max_tokens
-        if (llm_url := _get_str(new_cfg, FIELD_LLML_URL)) is not None:
-            llm_changes[FIELD_LLML_URL] = llm_url
-        if (max_retries := _get_int(new_cfg, FIELD_LLML_MAX_RETRIES)) is not None:
-            llm_changes[FIELD_LLML_MAX_RETRIES] = max_retries
-        if (base_delay := _get_float(new_cfg, FIELD_LLML_RETRY_BASE_DELAY)) is not None:
-            llm_changes[FIELD_LLML_RETRY_BASE_DELAY] = base_delay
-
-        # SSE fields
-        if (vf := _get_float(new_cfg, FIELD_SSE_HEARTBEAT_TIMEOUT)) is not None:
-            llm_changes[FIELD_SSE_HEARTBEAT_TIMEOUT] = vf
-        if (vi := _get_int(new_cfg, FIELD_SSE_MALFORMED_RETRY)) is not None:
-            llm_changes[FIELD_SSE_MALFORMED_RETRY] = vi
-        if (vi := _get_int(new_cfg, FIELD_SSE_RECONNECT_MAX)) is not None:
-            llm_changes[FIELD_SSE_RECONNECT_MAX] = vi
-        if (
-            vb := _get_bool(new_cfg, FIELD_LLML_STREAM_RETRY_ON_HEARTBEAT_TIMEOUT)
-        ) is not None:
-            llm_changes[FIELD_LLML_STREAM_RETRY_ON_HEARTBEAT_TIMEOUT] = vb
-        if (
-            vb := _get_bool(new_cfg, FIELD_LLML_STREAM_RETRY_ON_MALFORMED_CHUNK)
-        ) is not None:
-            llm_changes[FIELD_LLML_STREAM_RETRY_ON_MALFORMED_CHUNK] = vb
-
-        # RAG fields
-        if (embed_url := _get_str(new_cfg, FIELD_EMBED_URL)) is not None:
-            rag_changes[FIELD_EMBED_URL] = embed_url
-        if (web_search_url := _get_str(new_cfg, FIELD_WEB_SEARCH_URL)) is not None:
-            rag_changes[FIELD_WEB_SEARCH_URL] = web_search_url
-        if (vb := _get_bool(new_cfg, FIELD_USE_REFINER)) is not None:
-            rag_changes[FIELD_USE_REFINER] = vb
-        if (v := _get_int(new_cfg, FIELD_REFINER_MAX_TOKENS)) is not None:
-            rag_changes[FIELD_REFINER_MAX_TOKENS] = v
-        if (v := _get_float(new_cfg, FIELD_REFINER_TIMEOUT)) is not None:
-            rag_changes[FIELD_REFINER_TIMEOUT] = v
-        if (v := _get_int(new_cfg, FIELD_REFINER_MAX_CHARS_PER_CHUNK)) is not None:
-            rag_changes[FIELD_REFINER_MAX_CHARS_PER_CHUNK] = v
-
-        # Tool fields
-        if (v := _get_int(new_cfg, FIELD_MAX_TOOL_TURNS)) is not None:
-            tool_changes[FIELD_MAX_TOOL_TURNS] = v
-        if (
-            tool_result_max_chars := _get_int(new_cfg, FIELD_TOOL_RESULT_MAX_LLM_CHARS)
-        ) is not None:
-            tool_changes[FIELD_TOOL_RESULT_MAX_LLM_CHARS] = tool_result_max_chars
-        if (lst := _get_list_nonempty(new_cfg, FIELD_TOOL_DEFINITIONS)) is not None:
-            tool_changes[FIELD_TOOL_DEFINITIONS] = list(lst)
-        if (
-            prompt_tool := _get_str_nonempty(new_cfg, FIELD_SYSTEM_PROMPT_TOOL)
-        ) is not None:
-            tool_changes[FIELD_SYSTEM_PROMPT_TOOL] = prompt_tool
-        if (
-            sys_prompts := _get_dict_nonempty(new_cfg, FIELD_SYSTEM_PROMPTS)
-        ) is not None:
-            tool_changes[FIELD_SYSTEM_PROMPTS] = dict(sys_prompts)
-        if (vb := _get_bool(new_cfg, FIELD_SERIAL_TOOL_CALLS)) is not None:
-            tool_changes[FIELD_SERIAL_TOOL_CALLS] = vb
-        if (vb := _get_bool(new_cfg, FIELD_TOOL_DEFINITIONS_STRICT)) is not None:
-            tool_changes[FIELD_TOOL_DEFINITIONS_STRICT] = vb
-        if (lst := _get_list(new_cfg, FIELD_PLAN_BLOCKED_TOOLS)) is not None:
-            tool_changes[FIELD_PLAN_BLOCKED_TOOLS] = list(lst)
 
     @staticmethod
     def _req_to_dict(req: ConfigReloadRequest) -> dict[str, Any]:
@@ -347,10 +390,6 @@ class ConfigReloadService:
                 allowed_tools=ctx.cfg.tool.allowed_tools,
             )
             result.applied.append("runtime_tools")
-
-        # system_prompt update: write to the canonical field; Orchestrator syncs history[0].
-        if FIELD_SYSTEM_PROMPT_TOOL in new_cfg:
-            ctx.conv.system_prompt_content = new_cfg[FIELD_SYSTEM_PROMPT_TOOL]
 
         return result
 
@@ -469,12 +508,24 @@ class ConfigReloadService:
         self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
     ) -> None:
         """Collect LLM context window setting changes."""
-        if (v := _get_int(new_cfg, "context_char_limit")) is not None:
-            changes["context_char_limit"] = v
-        if (v := _get_int(new_cfg, "context_compress_turns")) is not None:
-            changes["context_compress_turns"] = v
-        if (v := _get_int(new_cfg, FIELD_CONTEXT_TOKEN_LIMIT)) is not None:
-            changes[FIELD_CONTEXT_TOKEN_LIMIT] = v
+        for field_entry in CONFIG_FIELD_REGISTRY.values():
+            if field_entry.section_path != "llm":
+                continue
+            if field_entry.field_name not in (
+                "context_char_limit",
+                "context_compress_turns",
+                "context_token_limit",
+            ):
+                continue
+            if field_entry.field_name == "context_char_limit":
+                if (v := _get_int(new_cfg, "context_char_limit")) is not None:
+                    changes["context_char_limit"] = v
+            elif field_entry.field_name == "context_compress_turns":
+                if (v := _get_int(new_cfg, "context_compress_turns")) is not None:
+                    changes["context_compress_turns"] = v
+            elif field_entry.field_name == "context_token_limit":
+                if (v := _get_int(new_cfg, "context_token_limit")) is not None:
+                    changes["context_token_limit"] = v
 
     def _apply_tool_params(
         self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
@@ -640,16 +691,9 @@ class ConfigReloadService:
     ) -> None:
         """Update ApprovalConfig fields in ctx.cfg when present in new_cfg."""
         field_mappings = [
-            (FIELD_APPROVAL_RISK_RULES, "approval_risk_rules"),
-            (FIELD_APPROVAL_PROTECTED_PATHS, "approval_protected_paths"),
-            (FIELD_APPROVAL_HIGH_RISK_BRANCHES, "approval_high_risk_branches"),
-            (FIELD_APPROVAL_SHELL_SAFE_PREFIXES, "approval_shell_safe_prefixes"),
-            (FIELD_APPROVAL_RESOURCE_KEYS, "approval_resource_keys"),
-            (FIELD_APPROVAL_DRY_RUN_TOOLS, "approval_dry_run_tools"),
-            (FIELD_TOOL_SAFETY_TIERS, "tool_safety_tiers"),
-            (FIELD_ALLOWED_ROOT, "allowed_root"),
-            (FIELD_APPROVAL_GITHUB_ALLOWED_REPOS, "approval_github_allowed_repos"),
-            (FIELD_GITOPS_PUSH_BLOCKED, "gitops_push_blocked"),
+            (entry.field_name, entry.field_name)
+            for entry in CONFIG_FIELD_REGISTRY.values()
+            if entry.section_path == "approval"
         ]
         self._reload_section(ctx, new_cfg, "approval", field_mappings)
 
@@ -659,9 +703,12 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> None:
         """Reload allowed_tools from new_cfg if present."""
-        self._reload_section(
-            ctx, new_cfg, "tool", [(FIELD_ALLOWED_TOOLS, "allowed_tools")]
-        )
+        field_mappings = [
+            (entry.field_name, entry.field_name)
+            for entry in CONFIG_FIELD_REGISTRY.values()
+            if entry.section_path == "tool" and entry.field_name == "allowed_tools"
+        ]
+        self._reload_section(ctx, new_cfg, "tool", field_mappings)
 
     def _reload_memory_runtime(
         self,
@@ -670,8 +717,9 @@ class ConfigReloadService:
     ) -> None:
         """Reload memory runtime fields from new_cfg if present."""
         field_mappings = [
-            (FIELD_MEMORY_RETENTION_DAYS, "memory_retention_days"),
-            (FIELD_MEMORY_LOCAL_ONLY, "memory_local_only"),
+            (entry.field_name, entry.field_name)
+            for entry in CONFIG_FIELD_REGISTRY.values()
+            if entry.section_path == "memory"
         ]
         self._reload_section(ctx, new_cfg, "memory", field_mappings)
 
@@ -681,15 +729,21 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> None:
         """Reload the security-profile and security-lockdown fields from new_cfg."""
-        if (vs := _get_str(new_cfg, FIELD_SECURITY_PROFILE)) is not None:
-            try:
-                from shared.mcp_config import SecurityProfile
+        for field_entry in CONFIG_FIELD_REGISTRY.values():
+            if field_entry.section_path != "mcp":
+                continue
+            value = new_cfg.get(field_entry.field_name)
+            if value is None:
+                continue
+            if field_entry.field_name == "security_profile":
+                try:
+                    from shared.mcp_config import SecurityProfile
 
-                ctx.cfg.mcp.security_profile = SecurityProfile(vs)
-            except ValueError:
-                pass
-        if (vb := _get_bool(new_cfg, FIELD_SECURITY_LOCKDOWN_ENABLED)) is not None:
-            ctx.cfg.mcp.security_lockdown_enabled = vb
+                    ctx.cfg.mcp.security_profile = SecurityProfile(value)
+                except ValueError:
+                    pass
+            elif field_entry.field_name == "security_lockdown_enabled":
+                ctx.cfg.mcp.security_lockdown_enabled = bool(value)
 
     def _detect_startup_only(
         self,

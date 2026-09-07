@@ -54,7 +54,7 @@ class TestStartupFailure:
         failure = StartupFailure(
             server_key="my_server",
             reason="Auth failed",
-            stderr_full='password=secret123\napi_key=abc123',
+            stderr_full="password=secret123\napi_key=abc123",
         )
         error = HttpStartupError(failure)
         msg = str(error)

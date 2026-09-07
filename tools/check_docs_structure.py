@@ -155,6 +155,24 @@ def check_links(path: Path, content: str) -> list[str]:
 ADR_ID_RE = re.compile(r"^ADR-(\d+)-")
 
 
+def check_unique_adr_ids(files: list[Path]) -> list[str]:
+    seen: dict[str, Path] = {}
+    issues: list[str] = []
+    for path in files:
+        stem = path.stem
+        m = ADR_ID_RE.match(stem)
+        if m is None:
+            continue
+        adr_id = f"ADR-{m.group(1)}"
+        if adr_id in seen:
+            issues.append(
+                f"{seen[adr_id].name}, {path.name}: duplicate ADR ID '{adr_id}'"
+            )
+        else:
+            seen[adr_id] = path
+    return issues
+
+
 def check_related_links(path: Path, content: str) -> list[str]:
     if not content.startswith("---"):
         return []
@@ -173,21 +191,6 @@ def check_related_links(path: Path, content: str) -> list[str]:
                 issues.append(
                     f"{path.name}: front matter references missing file '{entry}' (field: {field})"
                 )
-    return issues
-
-
-def check_unique_adr_ids(files: list[Path]) -> list[str]:
-    id_to_files: dict[str, list[Path]] = {}
-    for path in files:
-        match = ADR_ID_RE.match(path.stem)
-        if match:
-            adr_id = f"ADR-{match.group(1)}"
-            id_to_files.setdefault(adr_id, []).append(path)
-    issues: list[str] = []
-    for adr_id, conflicting in id_to_files.items():
-        if len(conflicting) > 1:
-            names = ", ".join(f.name for f in conflicting)
-            issues.append(f"{adr_id}: duplicate identifiers across [{names}]")
     return issues
 
 
@@ -253,12 +256,12 @@ def main() -> int:
             for issue in issues:
                 print(issue)
 
-    adr_files = [f for f in files if ADR_ID_RE.match(f.stem)]
+    adr_files = [f for f in files if "docs/adr/" in str(f)]
     if adr_files:
-        adr_issues = check_unique_adr_ids(adr_files)
-        if adr_issues:
-            total_issues += len(adr_issues)
-            for issue in adr_issues:
+        unique_issues = check_unique_adr_ids(adr_files)
+        if unique_issues:
+            total_issues += len(unique_issues)
+            for issue in unique_issues:
                 print(issue)
 
     if total_issues:

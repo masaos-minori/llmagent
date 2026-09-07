@@ -882,6 +882,7 @@ class TestPurgeCorruptArchives:
 
 # ── DbCondition.UNKNOWN handling ───────────────────────────────────────────────
 
+
 class TestRecoverCorruptionUnknown:
     """Tests for DbCondition.UNKNOWN handling in recover_corruption()."""
 
@@ -923,9 +924,14 @@ class TestRecoverCorruptionUnknown:
 
         original_content = db_path.read_bytes()
 
-        with patch("db.recovery._classify_error") as mock_classify, \
-             patch("db.recovery._restore_from_backup") as mock_restore:
-            mock_classify.return_value = (DbCondition.UNKNOWN, "unknown integrity error")
+        with (
+            patch("db.recovery._classify_error") as mock_classify,
+            patch("db.recovery._restore_from_backup") as mock_restore,
+        ):
+            mock_classify.return_value = (
+                DbCondition.UNKNOWN,
+                "unknown integrity error",
+            )
 
             result = recover_corruption(target="rag")
 
