@@ -278,7 +278,6 @@ class ProductionConfigValidator:
                 warnings,
                 f"Unknown config keys: {unknown_list}",
             )
- 6100e317 (feat: REQ-004 unknown-key rejection, config isolation, resource shutdown coordinator)
 
         return ConfigValidationResult(errors=errors, warnings=warnings)
 

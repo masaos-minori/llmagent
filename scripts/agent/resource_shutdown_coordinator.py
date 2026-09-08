@@ -44,9 +44,10 @@ class ResourceShutdownCoordinator:
         behavior.
 
     Settlement period:
-        After cancelling pending tasks, waits up to _GRACEFUL_TIMEOUT_S
-        seconds for cancellation state to propagate through dependent
-        tasks before finalizing shutdown.
+        No artificial delay is applied after task cancellation. All
+        cancelled tasks are already awaited to completion via
+        ``asyncio.gather`` before this method proceeds; any resulting
+        errors are recorded and logged in the final error summary.
     """
 
     def __init__(
@@ -139,26 +140,6 @@ class ResourceShutdownCoordinator:
                     logger.error("%s failed: %s", err_name, res)
         else:
             logger.debug("No services available to shut down")
-
-        # Wait for pending operations to settle after cancellation.
-        # All operations have been cancelled above; this period allows
-        # cancellation state to propagate through dependent tasks.
-        try:
-            await asyncio.wait_for(
-                asyncio.sleep(_GRACEFUL_TIMEOUT_S),
-                timeout=_GRACEFUL_TIMEOUT_S,
-            )
-        except TimeoutError:
-            errors.append(
-                (
-                    "shutdown_timeout",
-                    f"TimeoutError: exceeded {_GRACEFUL_TIMEOUT_S}s",
-                )
-            )
-            logger.error("Shutdown sequence timed out after %.1fs", _GRACEFUL_TIMEOUT_S)
-        except Exception as e:
-            errors.append(("shutdown_error", f"{type(e).__name__}: {e}"))
-            logger.exception("Critical error during shutdown sequence")
 
         if errors:
             summary = "; ".join(f"{name}: {err}" for name, err in errors)
