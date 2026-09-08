@@ -87,9 +87,9 @@ This is a Path A task (single file, documentation update). The approach is simpl
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Locate INV-07 row | Pending | — | — | |
-| 2 | Update INV-07 Verification status | Pending | — | — | |
-| 3 | Verify consistency with ADR-002 | Pending | — | — | |
+| 1 | Locate INV-07 row | Completed | — | — | Found at line 383-388; already "Confirmed" |
+| 2 | Update INV-07 Verification status | Completed | — | — | No change needed; already Confirmed with test reference |
+| 3 | Verify consistency with ADR-002 | Completed | — | — | Both ADRs consistent |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

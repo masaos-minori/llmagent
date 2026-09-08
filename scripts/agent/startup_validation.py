@@ -118,8 +118,8 @@ class StartupValidationPipeline:
         try:
             for msg in check_routing_safety_tiers(ctx):
                 pipeline.add_warning("routing_safety_tiers", msg)
-        except Exception as exc:  # noqa: BLE001 — unexpected routing-safety-tier check failures are downgraded to a warning rather than allowed to abort startup
-            pipeline.add_warning(
+        except Exception as exc:  # noqa: BLE001 — Safety Tier failures are Fail-Closed per INV-07; broad catch handles RuntimeError from check_tool_safety_tiers
+            pipeline.add_fatal(
                 "routing_safety_tiers", f"Routing safety tier check failed: {exc}"
             )
 

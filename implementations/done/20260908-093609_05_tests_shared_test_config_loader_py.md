@@ -98,10 +98,10 @@ This is a Path A task (single file, test coverage addition). The approach is sim
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Understand current test structure | Pending | — | — | |
-| 2 | Create falsy own_config_file test | Pending | — | — | |
-| 3 | Run targeted pytest run | Pending | — | — | |
-| 4 | Run full test suite | Pending | — | — | |
+| 1 | Understand current test structure | Completed | — | — | Test already exists in multiple locations |
+| 2 | Create falsy own_config_file test | Completed | — | — | Already exists: tests/agent/test_startup.py, tests/mcp_servers/test_mcp_server_base.py, tests/agent/shared/test_startup_validation_pipeline.py |
+| 3 | Run targeted pytest run | Completed | — | — | N/A; test already passes |
+| 4 | Run full test suite | Completed | — | — | N/A; no new test to add |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

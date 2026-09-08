@@ -388,3 +388,83 @@ class TestUnknownTopLevelKeyScenario:
             mock_rag.return_value.consistency.return_value.is_consistent = True
 
             await instance._check_services()  # must not raise for WARNING only
+
+
+class TestInv07EnvironmentFailureHandling:
+    """Tests for ADR-004 INV-07: environment failure handling policy.
+
+    INV-07: 認証、認可、Allowlist、Safety Tier、Config Isolation、
+    承認制御確立の失敗は、いずれも起動時にFail-Closed（Fail-Fast）とする。
+
+    NOTE: Some INV-07 conditions are verified indirectly via REQ-003/REQ-004
+    tests (tests/agent/test_startup.py::TestMCPServerFalsyOwnConfigFile,
+    tests/shared/test_config_loader.py::TestUnknownTopLevelKeyRejection).
+    This class verifies pipeline-level aggregation when Allowlist/SafetyTier
+    failures produce FATAL errors.
+    """
+
+    @pytest.mark.asyncio
+    async def test_allowlist_failure_produces_fatal(self, mock_ctx_with_strict_profile) -> None:
+        """Verify that Allowlist verification failure produces a FATAL error."""
+        instance = StartupOrchestrator.__new__(StartupOrchestrator)
+        instance._ctx = mock_ctx_with_strict_profile
+        instance._view = MagicMock()
+        instance._reporter = MagicMock()
+        instance._validation_pipeline = StartupValidationPipeline(
+            mock_ctx_with_strict_profile, instance._view
+        )
+
+        # Simulate Allowlist verification failure (FATAL)
+        with (
+            patch(
+                f"{MODULE}.audit_security_defaults",
+                side_effect=RuntimeError("Allowlist verification failed"),
+            ),
+            patch(
+                f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
+            ),
+            patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
+            patch(f"{MODULE}.check_routing_drift", return_value=[]),
+            patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
+            patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
+        ):
+            mock_svc.return_value.discover_all = AsyncMock(
+                return_value=MagicMock(findings=[], unreachable=[])
+            )
+            mock_rag.return_value.consistency.return_value.is_consistent = True
+
+            with pytest.raises(RuntimeError, match="Startup validation failed"):
+                await instance._check_services()
+
+    @pytest.mark.asyncio
+    async def test_safety_tier_failure_produces_fatal(self, mock_ctx_with_strict_profile) -> None:
+        """Verify that Safety Tier verification failure produces a FATAL error."""
+        instance = StartupOrchestrator.__new__(StartupOrchestrator)
+        instance._ctx = mock_ctx_with_strict_profile
+        instance._view = MagicMock()
+        instance._reporter = MagicMock()
+        instance._validation_pipeline = StartupValidationPipeline(
+            mock_ctx_with_strict_profile, instance._view
+        )
+
+        # Simulate Safety Tier verification failure (FATAL)
+        with (
+            patch(f"{MODULE}.audit_security_defaults", return_value=[]),
+            patch(
+                f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
+            ),
+            patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
+            patch(f"{MODULE}.check_routing_drift", return_value=[]),
+            patch(
+                f"{MODULE}.check_routing_safety_tiers",
+                side_effect=RuntimeError("Safety tier verification failed"),
+            ),
+            patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
+        ):
+            mock_svc.return_value.discover_all = AsyncMock(
+                return_value=MagicMock(findings=[], unreachable=[])
+            )
+            mock_rag.return_value.consistency.return_value.is_consistent = True
+
+            with pytest.raises(RuntimeError, match="Startup validation failed"):
+                await instance._check_services()

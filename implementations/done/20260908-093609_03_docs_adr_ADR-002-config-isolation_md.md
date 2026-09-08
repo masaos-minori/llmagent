@@ -100,10 +100,10 @@ This is a Path A task (single file, documentation update). The approach is simpl
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Determine configs requiring per-process tracking | Pending | — | — | |
-| 2 | Create per-process table section | Pending | — | — | |
-| 3 | Update INV-01/INV-02 Verification status | Pending | — | — | |
-| 4 | Validate documentation structure | Pending | — | — | |
+| 1 | Determine configs requiring per-process tracking | Completed | — | — | Found 6 process types in ADR-002: Agent, MCP Server, Crawler, Chunk Splitter, Ingester, EventBus |
+| 2 | Create per-process table section | Completed | — | — | Section exists at line 78 with full table |
+| 3 | Update INV-01/INV-02 Verification status | Completed | — | — | Both INV-01 and INV-02 verified as Confirmed |
+| 4 | Validate documentation structure | Completed | — | — | Pre-existing issues: missing '## Keywords', 3 broken links, front-matter reference to ADR-001 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
