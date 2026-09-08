@@ -231,6 +231,17 @@ Securityを優先し、プロセス境界を超えた設定漏洩を防ぐため
 - Fail-Closed：設定ファイル欠落時は起動中止
 - Audit Log：設定読み込みイベントの記録
 
+## Per-Process Required Files and Keys
+
+| Process | Required Config File(s) | Required Keys | Empty-Allowed Keys |
+|---|---|---|---|
+| Agent | `config/agent.toml` | llm_url, http_timeout, llm_max_retries, llm_retry_base_delay, llm_temperature, llm_max_tokens, title_llm_temperature, title_llm_max_tokens, sse_heartbeat_timeout, sse_malformed_retry, sse_reconnect_max, llm_stream_retry_on_heartbeat_timeout, llm_stream_retry_on_malformed_chunk, tokenize_url, context_token_limit, context_char_limit, context_compress_turns, history_protect_turns, budget_warn_ratio, llm_compress_temperature, llm_compress_max_tokens, embed_url, use_refiner, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, serial_tool_calls, tool_definitions_strict, routing_drift_strict, tool_dedup_max_repeats, tool_cycle_detect_window, tool_error_max_consecutive, tool_error_retry_max, tool_concurrency_limits, masked_fields, plan_blocked_tools, max_tool_turns, tool_result_max_llm_chars, tool_results_turn_max_chars, tool_definitions, system_prompts, allowed_tools, use_memory_layer, memory_jsonl_dir, memory_max_inject_semantic, memory_max_inject_episodic, memory_min_importance, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only, mcp_servers, security_profile, security_lockdown_enabled, approval_risk_rules, approval_protected_paths, approval_high_risk_branches, approval_shell_safe_prefixes, approval_resource_keys, approval_dry_run_tools, tool_safety_tiers, allowed_root, approval_github_allowed_repos, gitops_push_blocked, otel_enabled, otel_endpoint, otel_service_name, audit_log_file, structured_log, agent_memory_max_startup_snippets | llm_url, tokenize_url, embed_url, allowed_root, encryption_key, otel_endpoint, otel_service_name, audit_log_file, system_prompt_tool |
+| MCP Server (each) | `config/<name>_mcp_server.toml` | mcp_servers, security_profile, security_lockdown_enabled, http_host, http_port, app_module, own_config_file | security_profile, security_lockdown_enabled, http_host, http_port |
+| Crawler | `config/crawler.toml` | embed_url, use_refiner, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only | embed_url, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only |
+| Chunk Splitter | `config/chunk_splitter.toml` | embed_url, use_refiner, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only | embed_url, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only |
+| Ingester | `config/ingester.toml` | embed_url, use_refiner, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only | embed_url, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only |
+| EventBus | *N/A* (does not use ConfigLoader) | *N/A* | *N/A* |
+
 ## Invariants
 
 - INV-01: 各プロセスは許可された設定ファイルだけを読み込む。
@@ -289,13 +300,15 @@ Securityを優先し、プロセス境界を超えた設定漏洩を防ぐため
   - **Verifies**: INV-01
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: Confirmed — `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error` verifies Config Isolation fail-closed (REQ-003); `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to` verifies ConfigLoader.restrict_to call path (REQ-003)
+- **Status**: - **Status**: Confirmed — `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error` verifies Config Isolation fail-closed (REQ-003); `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to` verifies ConfigLoader.restrict_to call path (REQ-003)
+  - **Citation**: - **Citation**: `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys`, `tests/mcp_servers/test_config_isolation_fail_closed.py` ebf063b9 (docs: add REQ-005 per-process required files and keys table to ADR-002)
 
 - **Test**: 許可外設定ファイルへのアクセスが拒否されること
   - **Verifies**: INV-02
   - **Type**: Regression
   - **Blocking**: Yes
-  - **Status**: Confirmed — `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys` verifies unknown-key rejection in production config validation (REQ-004)
+- **Status**: - **Status**: Confirmed — `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys` verifies unknown-key rejection in production config validation (REQ-004)
+  - **Citation**: - **Citation**: `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorSecurityProfileEnum`, `tests/mcp_servers/test_config_isolation_fail_closed.py` ebf063b9 (docs: add REQ-005 per-process required files and keys table to ADR-002)
 
 - **Test**: MCPサーバーがagent.tomlなしで単体起動できること
   - **Verifies**: INV-03
@@ -344,14 +357,6 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
 行番号は記載せず、File PathとSymbol名で参照する。
-
-## Impact of REQ-001
-
-With REQ-001's fix (strict-default behavior), the config isolation boundary is now enforced at startup time rather than being silently bypassed when `agent.toml` is missing. This ensures that:
-
-1. Config isolation violations are detected early (fail-closed).
-2. No process can start with incomplete configuration.
-3. The strict-default applies uniformly across all environments.
 
 ADRと現行実装、設定、テスト、文書に差異がある場合に記載する。
 
@@ -445,6 +450,10 @@ With REQ-001's fix (strict-default behavior), the config isolation boundary is n
 1. Config isolation violations are detected early (fail-closed).
 2. No process can start with incomplete configuration.
 3. The strict-default applies uniformly across all environments.
+
+## Impact of REQ-005
+
+REQ-005 adds a per-process required-file/required-key/empty-allowed-key table to this ADR, making explicit which keys each process requires vs. may legitimately omit. This supports operators in auditing configuration completeness without requiring them to read dataclass definitions directly.
 
 ## Completion Checklist
 
