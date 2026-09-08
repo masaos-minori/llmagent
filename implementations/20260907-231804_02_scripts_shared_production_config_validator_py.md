@@ -112,11 +112,11 @@ Reverting this change means removing the `_check_unknown_top_level_keys()` metho
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement _check_unknown_top_level_keys() method | Pending | — | — | |
-| 2 | Call _check_unknown_top_level_keys() from validate() | Pending | — | — | |
-| 3 | Add unit tests for unknown-key rejection | Pending | — | — | |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement _check_unknown_top_level_keys() method | Completed | 2026-09-07T23:18:04Z | 2026-09-08T09:36:09Z | Method renamed to _check_unknown_production_keys(); implementation already present |
+| 2 | Call _check_unknown_top_level_keys() from validate() | Completed | 2026-09-07T23:18:04Z | 2026-09-08T09:36:09Z | Call site already present; note: not gated behind is_production (class named ProductionConfigValidator) |
+| 3 | Add unit tests for unknown-key rejection | Completed | 2026-09-07T23:18:04Z | 2026-09-08T09:36:09Z | Test class TestProductionConfigValidatorUnknownTopLevelKeys exists with 4 tests |
+| 4 | Run the validation sequence (rules/toolchain.md) | Completed | 2026-09-08T09:36:09Z | 2026-09-08T09:36:09Z | ruff format/check/mypy all pass; 37 tests pass including 4 REQ-004 tests |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-08T09:36:09Z | 2026-09-08T09:36:09Z | N/A: no docs/00_index.md task-scope mapping for scripts/shared/production_config_validator.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
