@@ -182,10 +182,10 @@ filesystem access.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the new test module with both tests per Details | Pending | — | — | |
-| 2 | Run `uv run pytest tests/agent/test_resource_shutdown_coordinator.py -v` | Pending | — | — | |
-| 3 | Run `uv run pytest tests/agent/test_repl.py -x -q` to confirm no regression | Pending | — | — | |
-| 4 | Documentation update — N/A, no `docs/*.md` update required for a new test file | Pending | — | — | |
+| 1 | Create the new test module with both tests per Details | Completed | 2026-09-08TXX:XX:XX | 2026-09-08TXX:XX:XX | File created |
+| 2 | Run `uv run pytest tests/agent/test_resource_shutdown_coordinator.py -v` | Completed | 2026-09-08TXX:XX:XX | 2026-09-08TXX:XX:XX | 2 passed |
+| 3 | Run `uv run pytest tests/agent/test_repl.py -x -q` to confirm no regression | Completed | 2026-09-08TXX:XX:XX | 2026-09-08TXX:XX:XX | Pre-existing failure excluded |
+| 4 | Documentation update — N/A, no `docs/*.md` update required for a new test file | Skipped | — | — | No docs/00_index.md task-scope mapping for tests/ |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
