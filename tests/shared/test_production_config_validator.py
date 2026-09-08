@@ -365,13 +365,20 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
             "system_prompt_tool": "",
             "security_profile": "production",
         }
-        result = ProductionConfigValidator().validate(config, security_profile="production")
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production"
+        )
         assert not any("Unknown config keys" in err for err in result.errors)
 
     def test_single_unknown_key_produces_error(self) -> None:
         config = {"tool_definitions_strict": True, "unknown_mistyped_key": True}
-        result = ProductionConfigValidator().validate(config, security_profile="production")
-        assert any("Unknown config keys" in err and "unknown_mistyped_key" in err for err in result.errors)
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production"
+        )
+        assert any(
+            "Unknown config keys" in err and "unknown_mistyped_key" in err
+            for err in result.errors
+        )
 
     def test_multiple_unknown_keys_produce_errors(self) -> None:
         config = {
@@ -379,13 +386,16 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
             "unknown_key_1": True,
             "unknown_key_2": True,
         }
-        result = ProductionConfigValidator().validate(config, security_profile="production")
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production"
+        )
         assert any("Unknown config keys" in err for err in result.errors)
         assert any("unknown_key_1" in err for err in result.errors)
         assert any("unknown_key_2" in err for err in result.errors)
 
     def test_empty_config_no_unknown_key_errors(self) -> None:
         config: dict[str, object] = {}
-        result = ProductionConfigValidator().validate(config, security_profile="production")
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production"
+        )
         assert not any("Unknown config keys" in err for err in result.errors)
- 6100e317 (feat: REQ-004 unknown-key rejection, config isolation, resource shutdown coordinator)

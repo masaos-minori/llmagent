@@ -209,13 +209,6 @@ class ProductionConfigValidator:
         errors: list[str] = []
         warnings: list[str] = []
 
-        from shared.mcp_config import SecurityProfile
-
-        is_prod = (
-            security_profile == "production"
-            or security_profile == SecurityProfile.PRODUCTION
-        )
-
         # Strict keys: default false is an error
         for key in _REQUIRED_STRICT_KEYS:
             if not config.get(key, False):

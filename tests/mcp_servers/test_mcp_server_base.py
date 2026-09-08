@@ -101,7 +101,7 @@ class TestConfigIsolationValidation:
     @staticmethod
     def _fake_run(self: object) -> None:
         """Stand-in for uvicorn.Server.run() — marks started without blocking."""
-        self.started = True  # type: ignore[attr-defined]
+        self.started = True  # type: ignore[attr-defined] — dynamically attached test flag, not a real uvicorn.Server attribute
 
     def test_falsy_own_config_file_raises_error(
         self, monkeypatch: pytest.MonkeyPatch
@@ -482,7 +482,9 @@ class TestAuditLog:
 
 
 class TestAppModuleImportability:
-    def test_all_server_app_modules_are_importable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_all_server_app_modules_are_importable(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """All server app_module paths should be importable.
 
         Note: Config Isolation restricts which config files can be loaded.
