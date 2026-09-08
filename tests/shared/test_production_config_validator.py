@@ -388,3 +388,4 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
         config: dict[str, object] = {}
         result = ProductionConfigValidator().validate(config, security_profile="production")
         assert not any("Unknown config keys" in err for err in result.errors)
+ 6100e317 (feat: REQ-004 unknown-key rejection, config isolation, resource shutdown coordinator)

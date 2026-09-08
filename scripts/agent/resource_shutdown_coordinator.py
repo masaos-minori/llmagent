@@ -35,10 +35,13 @@ class ResourceShutdownCoordinator:
     Encapsulates the shutdown sequence extracted from AgentREPL._close_resources:
     task cancellation, WAL checkpoint/backup, and service lifecycle shutdown.
 
-    Cancellation ordering:
-        Tasks are cancelled in LIFO (last-created-first-cancelled) order
-        to ensure deterministic shutdown behavior. This prevents cascading
-        failures when dependent tasks are still running.
+    Checkpoint-before-cancellation ordering:
+        The WAL checkpoint always completes before any pending task —
+        including a history-write task — is cancelled, satisfying the
+        checkpoint-before-cancellation guarantee. Among the remaining
+        pending tasks, cancellation then proceeds in LIFO
+        (last-created-first-cancelled) order for deterministic shutdown
+        behavior.
 
     Settlement period:
         After cancelling pending tasks, waits up to _GRACEFUL_TIMEOUT_S
@@ -63,27 +66,7 @@ class ResourceShutdownCoordinator:
         errors: list[tuple[str, str]] = []
         loop = asyncio.get_running_loop()
 
-        # 1. Cancel all pending tasks in LIFO order (last-created-first-cancelled)
-        #    This ensures deterministic shutdown behavior: the most recently
-        #    created task is cancelled first, preventing cascading failures
-        #    when dependent tasks are still running.
-        pending_tasks = [
-            t for t in asyncio.all_tasks(loop) if t is not asyncio.current_task()
-        ]
-        if pending_tasks:
-            logger.info(
-                "Cancelling %d pending tasks during shutdown", len(pending_tasks)
-            )
-            # Cancel in reverse order (LIFO) for deterministic shutdown
-            for t in reversed(pending_tasks):
-                t.cancel()
-
-            results = await asyncio.gather(*pending_tasks, return_exceptions=True)
-            for res in results:
-                if isinstance(res, Exception):
-                    errors.append(("task_cancellation", f"{type(res).__name__}: {res}"))
-
-        # 2. WAL checkpoint before closing connections
+        # 1. WAL checkpoint before any pending task (e.g. history write) is cancelled
         truncated_or_ok = False
         try:
             truncated_or_ok, checkpoint_errors = await asyncio.wait_for(
@@ -121,6 +104,26 @@ class ResourceShutdownCoordinator:
             except Exception as e:  # noqa: BLE001 — shutdown path must record and continue past any backup failure, not propagate
                 errors.append(("wal_backup_error", f"{type(e).__name__}: {e}"))
                 logger.error("Unexpected error during WAL backup: %s", e)
+
+        # 2. Cancel all pending tasks in LIFO order (last-created-first-cancelled)
+        #    This ensures deterministic shutdown behavior: the most recently
+        #    created task is cancelled first, preventing cascading failures
+        #    when dependent tasks are still running.
+        pending_tasks = [
+            t for t in asyncio.all_tasks(loop) if t is not asyncio.current_task()
+        ]
+        if pending_tasks:
+            logger.info(
+                "Cancelling %d pending tasks during shutdown", len(pending_tasks)
+            )
+            # Cancel in reverse order (LIFO) for deterministic shutdown
+            for t in reversed(pending_tasks):
+                t.cancel()
+
+            results = await asyncio.gather(*pending_tasks, return_exceptions=True)
+            for res in results:
+                if isinstance(res, Exception):
+                    errors.append(("task_cancellation", f"{type(res).__name__}: {res}"))
 
         # 3. Concurrent Service Shutdown
         svc = self._ctx.services

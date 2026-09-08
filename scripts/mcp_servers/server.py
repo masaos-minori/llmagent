@@ -233,6 +233,7 @@ class MCPServer:
             raise ConfigPermissionError(
                 "Config Isolation: own_config_file is falsy — "
                 "cannot start without config isolation"
+ 6100e317 (feat: REQ-004 unknown-key rejection, config isolation, resource shutdown coordinator)
             )
 
         class _LoopbackVerifyingServer(uvicorn.Server):

@@ -765,7 +765,9 @@ class TestCloseResourcesWALCheckpoint:
         repl = _make_bare_repl()
         mock_db = MagicMock()
         mock_db.execute.return_value.fetchone.return_value = ("wal",)
-        mock_db.checkpoint.side_effect = lambda mode: time.sleep(0.3)
+        mock_db.checkpoint.side_effect = lambda mode: (_ for _ in ()).throw(
+            TimeoutError()
+        )
         mock_ctx_manager = MagicMock()
         mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
         mock_ctx_manager.__exit__ = MagicMock(return_value=None)
@@ -773,6 +775,7 @@ class TestCloseResourcesWALCheckpoint:
             patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper,
             patch("shutil.copy2"),
             patch("agent.resource_shutdown_coordinator.logger") as mock_logger,
+            patch.object(asyncio, "sleep", return_value=None),
         ):
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
             start = time.monotonic()
@@ -809,6 +812,48 @@ class TestCloseResourcesWALCheckpoint:
         mock_copy2.assert_called_once()
         args, _ = mock_copy2.call_args
         assert args[0] == "/opt/llm/db/session.db-wal"
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_completes_before_pending_task_cancelled(self) -> None:
+        """WAL checkpoint completes before any pending task is cancelled (REQ-RSC001B-1)."""
+        repl = _make_bare_repl()
+
+        execution_order = []
+        task_cancelled = asyncio.Event()
+
+        async def _pending_task():
+            try:
+                await asyncio.sleep(10)
+            except asyncio.CancelledError:
+                execution_order.append("cancel")
+                task_cancelled.set()
+                raise
+
+        loop = asyncio.get_running_loop()
+        loop.create_task(_pending_task())
+
+        checkpoint_completed = asyncio.Event()
+
+        async def _checkpoint_with_flag():
+            execution_order.append("checkpoint_start")
+            await asyncio.sleep(0.1)
+            execution_order.append("checkpoint_done")
+            checkpoint_completed.set()
+            return True, []
+
+        repl._wal.checkpoint_sync = _checkpoint_with_flag
+
+        await repl._shutdown.close_resources()
+
+        assert checkpoint_completed.is_set(), "Checkpoint should have completed"
+        assert execution_order == [
+            "checkpoint_start",
+            "checkpoint_done",
+            "cancel",
+        ], f"Expected checkpoint before cancel, got {execution_order}"
+        assert task_cancelled.is_set(), (
+            "Pending task should have been cancelled after checkpoint"
+        )
 
 
 # ── _wal_backup_sync() path-containment security ───────────────────────────────

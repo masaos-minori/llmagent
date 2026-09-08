@@ -179,12 +179,18 @@ class TestBindAddressValidation:
         import uvicorn
 
         monkeypatch.setattr(uvicorn.Server, "run", self._fake_run)
+        monkeypatch.setattr(
+            "shared.config_loader.ConfigLoader.restrict_to", lambda x: None
+        )
         _SimpleServer().run_http()
 
     def test_loopback_v6_accepted(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import uvicorn
 
         monkeypatch.setattr(uvicorn.Server, "run", self._fake_run)
+        monkeypatch.setattr(
+            "shared.config_loader.ConfigLoader.restrict_to", lambda x: None
+        )
         _LoopbackV6Server().run_http()
 
 

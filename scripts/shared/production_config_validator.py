@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from dataclasses import fields as dataclass_fields
@@ -166,6 +167,38 @@ class ProductionConfigValidator:
     production-critical settings.
     """
 
+    def _check_unknown_top_level_keys(self, config: Mapping[str, object]) -> list[str]:
+        """Check for unknown top-level config keys not in dataclass fields."""
+        from agent.config_dataclasses import (
+            AgentConfig,
+            ApprovalConfig,
+            DiagnosticsConfig,
+            LLMConfig,
+            MCPConfig,
+            MemoryConfig,
+            MessageRoleConfig,
+            ObservabilityConfig,
+            RAGConfig,
+            ToolConfig,
+        )
+
+        known_fields: set[str] = set()
+        for dc in (
+            LLMConfig,
+            RAGConfig,
+            ToolConfig,
+            MemoryConfig,
+            MCPConfig,
+            ApprovalConfig,
+            ObservabilityConfig,
+            DiagnosticsConfig,
+            MessageRoleConfig,
+        ):
+            known_fields.update(f.name for f in dataclasses.fields(dc))
+        # Include AgentConfig's own fields (e.g. agent_memory_max_startup_snippets)
+        known_fields.update(f.name for f in dataclasses.fields(AgentConfig))
+        return [k for k in config if k not in known_fields]
+
     def validate(
         self,
         config: Mapping[str, object],
@@ -175,6 +208,13 @@ class ProductionConfigValidator:
         """Validate the full configuration against security profile rules."""
         errors: list[str] = []
         warnings: list[str] = []
+
+        from shared.mcp_config import SecurityProfile
+
+        is_prod = (
+            security_profile == "production"
+            or security_profile == SecurityProfile.PRODUCTION
+        )
 
         # Strict keys: default false is an error
         for key in _REQUIRED_STRICT_KEYS:
@@ -238,6 +278,7 @@ class ProductionConfigValidator:
                 warnings,
                 f"Unknown config keys: {unknown_list}",
             )
+ 6100e317 (feat: REQ-004 unknown-key rejection, config isolation, resource shutdown coordinator)
 
         return ConfigValidationResult(errors=errors, warnings=warnings)
 

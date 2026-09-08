@@ -100,6 +100,7 @@ Reverting this change means removing the `_check_unknown_top_level_keys()` metho
 - [ ] Non-production environments do not enforce unknown-key rejection
 - [ ] New unit test exists asserting unknown-key rejection behavior
 - [ ] Existing tests pass without modification
+ 6100e317 (feat: REQ-004 unknown-key rejection, config isolation, resource shutdown coordinator)
 
 ## Out of scope
 
@@ -117,6 +118,7 @@ Reverting this change means removing the `_check_unknown_top_level_keys()` metho
 | 3 | Add unit tests for unknown-key rejection | Completed | 2026-09-07T23:18:04Z | 2026-09-08T09:36:09Z | Test class TestProductionConfigValidatorUnknownTopLevelKeys exists with 4 tests |
 | 4 | Run the validation sequence (rules/toolchain.md) | Completed | 2026-09-08T09:36:09Z | 2026-09-08T09:36:09Z | ruff format/check/mypy all pass; 37 tests pass including 4 REQ-004 tests |
 | 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-08T09:36:09Z | 2026-09-08T09:36:09Z | N/A: no docs/00_index.md task-scope mapping for scripts/shared/production_config_validator.py |
+ 6100e317 (feat: REQ-004 unknown-key rejection, config isolation, resource shutdown coordinator)
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
