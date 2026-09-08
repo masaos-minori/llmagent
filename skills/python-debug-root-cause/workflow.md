@@ -288,16 +288,9 @@ has a row above, using `SKILL.md`'s Hypothesis Analysis Matrix format.
 
 #### hypothesis
 
-```python
-from hypothesis import given, settings
-from hypothesis import strategies as st
-
-@given(st.text())
-@settings(max_examples=500)
-def test_normalize_does_not_raise(text):
-    from rag_utils import normalize_unicode
-    normalize_unicode(text)
-```
+See `python-test-and-fix/workflow.md` Step 7 for the property-based invariant
+pattern — apply it here to falsify a "does not raise for any input" hypothesis on a
+pure function.
 
 #### pytest-asyncio
 
@@ -315,26 +308,13 @@ PYTHONASYNCIODEBUG=1 pytest tests/test_agent_repl.py -v -s
 
 #### freezegun
 
-```python
-from freezegun import freeze_time
-
-def test_cache_expiry():
-    with freeze_time("2024-01-01 00:00:00") as frozen:
-        cache = SemanticCache(ttl=3600)
-        cache.put("q", "result")
-        frozen.tick(delta=3601)
-        assert cache.get("q") is None
-```
+See `python-test-and-fix/workflow.md` Step 5 for the time-freezing pattern — apply it
+here to falsify a TTL/cache-staleness hypothesis.
 
 #### respx
 
-```python
-@respx.mock
-def test_reproduce_500():
-    respx.post("http://localhost:8002/v1/chat/completions").mock(
-        return_value=httpx.Response(500, json={"error": "internal"})
-    )
-```
+See `python-test-and-fix/workflow.md` Step 6 for the httpx-mocking pattern — apply it
+here to falsify a wire-format or status-code hypothesis.
 
 #### pytest-rerunfailures + pytest-timeout
 

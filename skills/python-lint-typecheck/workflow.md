@@ -29,14 +29,8 @@ changed since that command last ran in this cycle.
 
 **Fast path** — see `SKILL.md` Routing (Fast Path Assessment) for the failure-type → step mapping.
 
-**Full diagnosis** — if the cause is unknown, run all tools first:
-
-```bash
-ruff check scripts/
-mypy scripts/
-lint-imports
-bandit -r scripts/ -c pyproject.toml
-```
+**Full diagnosis** — if the cause is unknown, run all tools first: `rules/toolchain.md`
+sections 1 (ruff), 2 (mypy), 3 (lint-imports), and 5 (bandit), each scoped to `scripts/`.
 
 Per `rules/ai-execution.md` Repository Tool Usage #8: a clean (0-finding) result from any
 of the above is evidence only after confirming `scripts/` exists and is non-empty — not
