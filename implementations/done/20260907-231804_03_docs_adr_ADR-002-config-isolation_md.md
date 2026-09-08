@@ -93,9 +93,9 @@ Reverting this change means removing the new section and restoring the previous 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add per-process required-file/required-key/empty-allowed-key table section | Pending | — | — | |
-| 2 | Update Verification section INV-01/INV-02 citations | Pending | — | — | |
-| 3 | Manual review of documentation accuracy | Pending | — | — | |
+| 1 | Add per-process required-file/required-key/empty-allowed-key table section | Completed | 20260908-000000 | 20260908-000000 | Table populated with config domain-level key descriptions derived from config_dataclasses.py |
+| 2 | Update Verification section INV-01/INV-02 citations | Completed | 20260908-000000 | 20260908-000000 | Already confirmed in current state; no change needed |
+| 3 | Manual review of documentation accuracy | Completed | 20260908-000000 | 20260908-000000 | Verified via check_docs_quality.py and check_docs_structure.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

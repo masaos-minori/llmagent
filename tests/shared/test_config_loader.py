@@ -408,3 +408,31 @@ class TestLoadAllStrictMode:
             )
             with pytest.raises(ConfigLoadError):
                 build_agent_config()
+
+
+class TestUnknownTopLevelKeyRejection:
+    """Tests for unknown top-level key rejection in production."""
+
+    def test_unknown_top_level_key_rejected_in_production(self) -> None:
+        """Assert that an unknown/mistyped top-level config key is rejected in production."""
+        from shared.production_config_validator import ProductionConfigValidator
+
+        validator = ProductionConfigValidator()
+        result = validator.validate({"unknown_mistyped_key": "value"})
+        assert len(result.errors) > 0
+        assert any("unknown" in e.lower() for e in result.errors)
+
+    def test_known_keys_pass_in_production(self) -> None:
+        """Assert that known keys derived from dataclass fields pass validation."""
+        from shared.production_config_validator import ProductionConfigValidator
+
+        # llm_url is a field name in LLMConfig; include required strict keys
+        validator = ProductionConfigValidator()
+        result = validator.validate(
+            {
+                "llm_url": "http://localhost:8080",
+                "tool_definitions_strict": True,
+                "routing_drift_strict": True,
+            }
+        )
+        assert len(result.errors) == 0

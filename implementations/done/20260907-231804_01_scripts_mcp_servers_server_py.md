@@ -91,10 +91,10 @@ Reverting this change means removing the `else` clause and restoring the silent-
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the fail-closed branch in MCPServer.run_http() | Pending | — | — | |
-| 2 | Add unit test for falsy own_config_file fail-closed path | Pending | — | — | |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the fail-closed branch in MCPServer.run_http() | Completed | 2026-09-08T09:45:00Z | 2026-09-08T09:45:00Z | Added else branch with ConfigPermissionError |
+| 2 | Add unit test for falsy own_config_file fail-closed path | Completed | 2026-09-08T09:45:00Z | 2026-09-08T09:45:00Z | Added TestConfigIsolationValidation class |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 2026-09-08T09:45:00Z | 2026-09-08T09:45:00Z | All 36 tests pass; fixed pre-existing test compatibility |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-08T09:45:00Z | 2026-09-08T09:45:00Z | N/A: no docs/00_index.md task-scope mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

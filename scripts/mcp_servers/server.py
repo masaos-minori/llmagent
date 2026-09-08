@@ -227,6 +227,13 @@ class MCPServer:
             from shared.config_loader import ConfigLoader
 
             ConfigLoader.restrict_to(self.own_config_file)
+        else:
+            from shared.config_errors import ConfigPermissionError
+
+            raise ConfigPermissionError(
+                "Config Isolation: own_config_file is falsy — "
+                "cannot start without config isolation"
+            )
 
         class _LoopbackVerifyingServer(uvicorn.Server):
             """Verifies the actual bound socket address is loopback right

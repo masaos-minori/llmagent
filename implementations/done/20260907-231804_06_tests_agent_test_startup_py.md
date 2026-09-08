@@ -11,6 +11,7 @@ Modify exactly one file: `tests/agent/test_startup.py`. Add a new test method fo
 - The `MCPServer` class is importable from `mcp_servers.server`.
 - The test can use `pytest` fixtures and `unittest.mock` for mocking.
 - The existing test patterns in this file (e.g., `TestStartupOrchestratorStartServers`) use async test methods — follow the same pattern.
+- **CORRECTED**: `MCPServer` does NOT accept constructor arguments (`http_host`, `http_port`, `own_config_file`). These are class attributes. A minimal subclass must be created to override them.
 
 ## Design decisions
 
@@ -43,23 +44,26 @@ class TestMCPServerFalsyOwnConfigFile:
         from mcp_servers.server import MCPServer
         from shared.config_errors import ConfigPermissionError
 
-        # Create an MCPServer instance with falsy own_config_file
-        server = MCPServer(
-            http_host="127.0.0.1",
-            http_port=8080,
-            own_config_file="",  # falsy value
-        )
+        # MCPServer has no __init__ args; use a minimal subclass to override class attrs
+        class _TestServer(MCPServer):
+            http_host = "127.0.0.1"
+            http_port = 8080
+            own_config_file = ""  # falsy value
+            mcp_tools = []
 
-        # run_http() should raise ConfigPermissionError before starting uvicorn
+        server = _TestServer()
+
+        # run_http() is synchronous (not async); raises ConfigPermissionError
         with pytest.raises(ConfigPermissionError):
-            await server.run_http()
+            server.run_http()
 ```
 
 ### Details
 1. Read the existing test patterns in the file (e.g., `TestStartupOrchestratorStartServers.test_production_profile_raises_on_start_failure`).
-2. Ensure the `MCPServer` constructor signature matches the test parameters.
+2. `MCPServer` has NO `__init__` parameters — `http_host`, `http_port`, `own_config_file` are class attributes. Use a minimal subclass to override them.
 3. Verify that `ConfigPermissionError` is importable from `shared.config_errors`.
-4. Run the test locally before committing: `uv run pytest tests/agent/test_startup.py::TestMCPServerFalsyOwnConfigFile -xvs`.
+4. `MCPServer.run_http()` is a **synchronous** method (not async).
+5. Run the test locally before committing: `uv run pytest tests/agent/test_startup.py::TestMCPServerFalsyOwnConfigFile -xvs`.
 
 ## Compatibility considerations
 
@@ -96,8 +100,8 @@ Reverting this change means removing the new test class. No operational impact s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add test for falsy own_config_file fail-closed path | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add test for falsy own_config_file fail-closed path | Completed | — | — | |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

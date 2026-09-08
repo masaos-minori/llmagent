@@ -75,6 +75,17 @@ Agent、各MCPサーバー、RAGインジェクションプロセス、EventBus�
 14. 設定変更時の影響範囲と再起動対象を所有プロセス単位で判断する。
 15. Module Import時に設定を暗黙読込しない。
 
+## Per-Process Required Files and Keys
+
+| Process | Required Config File(s) | Required Keys | Empty-Allowed Keys |
+|---|---|---|---|
+| Agent | `agent.toml` | All keys consumed by `AgentConfig` dataclass and its 9 sub-configs (`LLMConfig`, `RAGConfig`, `ToolConfig`, `MemoryConfig`, `MCPConfig`, `ApprovalConfig`, `ObservabilityConfig`, `DiagnosticsConfig`, `MessageRoleConfig`) | Keys with non-empty defaults in dataclass definitions (see `scripts/agent/config_dataclasses.py`) |
+| MCP Server (each) | `<name>_mcp_server.toml` | `security_profile`, `security_lockdown_enabled`, `mcp_servers.<name>` (server-specific entry) | `mcp_servers.<name>.env`, `mcp_servers.<name>.allowlist`, `mcp_servers.<name>.denylist`, `mcp_servers.<name>.headers` |
+| Crawler | `crawler_mcp_server.toml` | `security_profile`, `security_lockdown_enabled`, `mcp_servers.crawler` | `mcp_servers.crawler.env`, `mcp_servers.crawler.allowlist`, `mcp_servers.crawler.denylist`, `mcp_servers.crawler.headers` |
+| Chunk Splitter | `chunk_splitter_mcp_server.toml` | `security_profile`, `security_lockdown_enabled`, `mcp_servers.chunk_splitter` | `mcp_servers.chunk_splitter.env`, `mcp_servers.chunk_splitter.allowlist`, `mcp_servers.chunk_splitter.denylist`, `mcp_servers.chunk_splitter.headers` |
+| Ingester | `ingester_mcp_server.toml` | `security_profile`, `security_lockdown_enabled`, `mcp_servers.ingester` | `mcp_servers.ingester.env`, `mcp_servers.ingester.allowlist`, `mcp_servers.ingester.denylist`, `mcp_servers.ingester.headers` |
+| EventBus | *N/A* (does not use ConfigLoader) | *N/A* | *N/A* |
+
 ### Scope
 
 - **対象コンポーネント**: `ConfigLoader`, `MCPServer`, `Orchestrator`
@@ -278,11 +289,13 @@ Securityを優先し、プロセス境界を超えた設定漏洩を防ぐため
   - **Verifies**: INV-01
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Status**: Confirmed — `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error` verifies Config Isolation fail-closed (REQ-003); `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to` verifies ConfigLoader.restrict_to call path (REQ-003)
 
 - **Test**: 許可外設定ファイルへのアクセスが拒否されること
   - **Verifies**: INV-02
   - **Type**: Regression
   - **Blocking**: Yes
+  - **Status**: Confirmed — `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys` verifies unknown-key rejection in production config validation (REQ-004)
 
 - **Test**: MCPサーバーがagent.tomlなしで単体起動できること
   - **Verifies**: INV-03

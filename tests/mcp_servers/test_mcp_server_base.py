@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from mcp_servers.dispatch import DispatchResult
 from mcp_servers.server import MCPServer, attach_auth_middleware
+from shared.config_errors import ConfigPermissionError
 
 
 class _SimpleServer(MCPServer):
@@ -22,6 +23,7 @@ class _SimpleServer(MCPServer):
     http_host = "127.0.0.1"
     http_port = 9999
     app_module = "test:app"
+    own_config_file = "test_mcp_server.toml"
     mcp_tools = [
         {"name": "tool_a", "description": "Tool A"},
         {"name": "tool_b", "description": "Tool B"},
@@ -38,6 +40,7 @@ class _EmptyServer(MCPServer):
     server_version = "1.0"
     http_port = 9998
     app_module = "empty:app"
+    own_config_file = "empty_mcp_server.toml"
 
     async def dispatch(self, name: str, args: dict) -> DispatchResult:
         return DispatchResult("noop", False)
@@ -61,6 +64,7 @@ class _LoopbackV6Server(MCPServer):
     http_host = "::1"
     http_port = 9996
     app_module = "loopback_v6:app"
+    own_config_file = "loopback_v6_mcp_server.toml"
     mcp_tools = []
 
     async def dispatch(self, name: str, args: dict) -> DispatchResult:
@@ -89,6 +93,61 @@ class _OtherPublicServer(MCPServer):
 
     async def dispatch(self, name: str, args: dict) -> DispatchResult:
         raise NotImplementedError
+
+
+class TestConfigIsolationValidation:
+    """Tests for run_http()'s config isolation validation."""
+
+    @staticmethod
+    def _fake_run(self: object) -> None:
+        """Stand-in for uvicorn.Server.run() — marks started without blocking."""
+        self.started = True  # type: ignore[attr-defined]
+
+    def test_falsy_own_config_file_raises_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A falsy own_config_file must raise ConfigPermissionError at startup."""
+        import uvicorn
+        from shared.config_errors import ConfigPermissionError
+
+        class _NoConfigServer(MCPServer):
+            server_name = "no-config-mcp"
+            server_version = "1.0"
+            http_host = "127.0.0.1"
+            http_port = 9993
+            app_module = "no_config:app"
+            own_config_file = ""  # falsy — no config isolation
+
+            async def dispatch(self, name: str, args: dict) -> DispatchResult:
+                return DispatchResult("noop", False)
+
+        monkeypatch.setattr(uvicorn.Server, "run", self._fake_run)
+        with pytest.raises(ConfigPermissionError, match="Config Isolation"):
+            _NoConfigServer().run_http()
+
+    def test_truthy_own_config_file_calls_restrict_to(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A truthy own_config_file must call ConfigLoader.restrict_to()."""
+        from unittest.mock import patch
+
+        import uvicorn
+
+        class _WithConfigServer(MCPServer):
+            server_name = "with-config-mcp"
+            server_version = "1.0"
+            http_host = "127.0.0.1"
+            http_port = 9992
+            app_module = "with_config:app"
+            own_config_file = "test_config.toml"  # truthy
+
+            async def dispatch(self, name: str, args: dict) -> DispatchResult:
+                return DispatchResult("noop", False)
+
+        monkeypatch.setattr(uvicorn.Server, "run", self._fake_run)
+        with patch("shared.config_loader.ConfigLoader.restrict_to") as mock_restrict:
+            _WithConfigServer().run_http()
+            mock_restrict.assert_called_once_with("test_config.toml")
 
 
 class TestBindAddressValidation:
@@ -417,7 +476,14 @@ class TestAuditLog:
 
 
 class TestAppModuleImportability:
-    def test_all_server_app_modules_are_importable(self) -> None:
+    def test_all_server_app_modules_are_importable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """All server app_module paths should be importable.
+
+        Note: Config Isolation restricts which config files can be loaded.
+        This test must skip servers whose configs are not available in the
+        current environment, since importing their __init__ modules may
+        trigger ConfigPermissionError when they try to load restricted configs.
+        """
         scripts_dir = Path(__file__).parent.parent.parent / "scripts"
         server_files = list(scripts_dir.glob("mcp_servers/**/*server.py"))
         assert server_files, "No server.py files found under scripts/mcp_servers/"
@@ -429,7 +495,11 @@ class TestAppModuleImportability:
             for match in pattern.finditer(path.read_text()):
                 app_module_value = match.group(1)
                 module_path = app_module_value.split(":")[0]
-                spec = importlib.util.find_spec(module_path)
+                try:
+                    spec = importlib.util.find_spec(module_path)
+                except ConfigPermissionError:
+                    # Config Isolation blocks loading this config — skip it
+                    continue
                 if spec is None:
                     missing.append(f"{path.relative_to(scripts_dir)}: {module_path!r}")
 

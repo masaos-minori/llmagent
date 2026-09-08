@@ -11,6 +11,8 @@ Modify exactly one file: `tests/agent/test_config_permission_cross_server.py`. A
 - The existing test patterns in this file use `tmp_path` fixture for temporary config files.
 - The `MCPServer` class is importable from `mcp_servers.server`.
 - The `ConfigPermissionError` exception is importable from `shared.config_errors`.
+- **CORRECTED**: `MCPServer` has NO `__init__` parameters — `http_host`, `http_port`, `own_config_file` are class attributes. A minimal subclass must be created to override them.
+- **CORRECTED**: `MCPServer.run_http()` is a **synchronous** method (not async); `asyncio.run()` is unnecessary.
 
 ## Design decisions
 
@@ -44,22 +46,26 @@ def test_falsy_own_config_file_blocks_cross_server_access(tmp_path) -> None:
     from mcp_servers.server import MCPServer
     from shared.config_errors import ConfigPermissionError
 
-    # Create an MCPServer instance with falsy own_config_file
-    server = MCPServer(
-        http_host="127.0.0.1",
-        http_port=8081,
-        own_config_file="",  # falsy value
-    )
+    # MCPServer has no __init__ args; use a minimal subclass to override class attrs
+    class _TestServer(MCPServer):
+        http_host = "127.0.0.1"
+        http_port = 8081
+        own_config_file = ""  # falsy value
+        app_module = "test:test"
+        mcp_tools = []
+
+    server = _TestServer()
 
     # Should raise ConfigPermissionError instead of running unrestricted
+    # run_http() is synchronous (not async)
     with pytest.raises(ConfigPermissionError):
-        asyncio.run(server.run_http())
+        server.run_http()
 ```
 
 ### Details
 1. Read the existing test patterns in the file (e.g., `test_cross_server_config_load_raises_config_permission_error`).
-2. Ensure the `MCPServer` constructor signature matches the test parameters.
-3. Verify that `asyncio.run()` can be used to execute the async `run_http()` method.
+2. Use a minimal subclass of `MCPServer` to override class attributes (`http_host`, `http_port`, `own_config_file`, `app_module`, `mcp_tools`).
+3. `run_http()` is a **synchronous** method — no `asyncio.run()` needed.
 4. Run the test locally before committing: `uv run pytest tests/agent/test_config_permission_cross_server.py::test_falsy_own_config_file_blocks_cross_server_access -xvs`.
 
 ## Compatibility considerations
@@ -97,8 +103,8 @@ Reverting this change means removing the new test method. No operational impact 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add cross-server permission test for fail-closed behavior | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add cross-server permission test for fail-closed behavior | Completed | — | — | |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | — | — | ruff format/check passed; all 5 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

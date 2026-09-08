@@ -1718,3 +1718,25 @@ class TestBuildAgentConfigErrorPath:
         ):
             with pytest.raises(ConfigLoadError, match="Config load failed"):
                 build_agent_config()
+
+
+class TestMCPServerFalsyOwnConfigFile:
+    """Tests for MCPServer.fail-closed when own_config_file is falsy."""
+
+    def test_falsy_own_config_file_raises(self) -> None:
+        """Assert that MCPServer.run_http() raises when own_config_file is falsy."""
+        from mcp_servers.server import MCPServer
+        from shared.config_errors import ConfigPermissionError
+
+        # MCPServer has no __init__ args; use a minimal subclass to override class attrs
+        class _TestServer(MCPServer):
+            http_host = "127.0.0.1"
+            http_port = 8080
+            own_config_file = ""  # falsy value
+            mcp_tools = []
+
+        server = _TestServer()
+
+        # run_http() is synchronous (not async); raises ConfigPermissionError
+        with pytest.raises(ConfigPermissionError):
+            server.run_http()

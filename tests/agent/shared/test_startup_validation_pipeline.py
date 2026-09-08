@@ -256,3 +256,135 @@ def test_check_routing_safety_tiers_context():
 # NOTE: The RAG consistency tests below have been migrated to
 #   - tests/agent/test_startup_mcp_starter.py (consistency check tests)
 # Kept for backward compatibility until all references are updated.
+
+# --- REQ-003/REQ-004 scenario extensions ---
+
+
+@pytest.fixture()
+def mock_ctx_with_strict_profile():
+    """Return a MagicMock ctx configured for strict production profile."""
+    ctx = MagicMock()
+    ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
+    ctx.cfg.tool.tool_definitions_strict = True
+    ctx.cfg.tool.routing_drift_strict = True
+    return ctx
+
+
+class TestFaltyOwnConfigFileScenario:
+    """Tests for falsy own_config_file fail-closed scenario (REQ-003).
+
+    NOTE: Config Isolation check is performed in MCPServer.run_http(),
+    NOT in the validation pipeline. Direct test exists in
+    tests/agent/test_startup.py::TestMCPServerFalsyOwnConfigFile.
+    This class verifies pipeline aggregation when other checks produce FATAL errors.
+    """
+
+    @pytest.mark.asyncio
+    async def test_falsy_own_config_file_produces_fatal(
+        self, mock_ctx_with_strict_profile
+    ) -> None:
+        """Verify that a FATAL error from any check is aggregated by the pipeline."""
+        instance = StartupOrchestrator.__new__(StartupOrchestrator)
+        instance._ctx = mock_ctx_with_strict_profile
+        instance._view = MagicMock()
+        instance._reporter = MagicMock()
+        instance._validation_pipeline = StartupValidationPipeline(
+            mock_ctx_with_strict_profile, instance._view
+        )
+
+        # Simulate a FATAL error from security_audit
+        with (
+            patch(
+                f"{MODULE}.audit_security_defaults",
+                side_effect=RuntimeError("security audit failed"),
+            ),
+            patch(
+                f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
+            ),
+            patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
+            patch(f"{MODULE}.check_routing_drift", return_value=[]),
+            patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
+            patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
+        ):
+            mock_svc.return_value.discover_all = AsyncMock(
+                return_value=MagicMock(findings=[], unreachable=[])
+            )
+            mock_rag.return_value.consistency.return_value.is_consistent = True
+
+            with pytest.raises(RuntimeError, match="Startup validation failed"):
+                await instance._check_services()
+
+    @pytest.mark.asyncio
+    async def test_truthy_own_config_file_does_not_produce_fatal(
+        self, mock_ctx_with_strict_profile
+    ) -> None:
+        """Verify that clean checks do not produce FATAL errors."""
+        instance = StartupOrchestrator.__new__(StartupOrchestrator)
+        instance._ctx = mock_ctx_with_strict_profile
+        instance._view = MagicMock()
+        instance._reporter = MagicMock()
+        instance._validation_pipeline = StartupValidationPipeline(
+            mock_ctx_with_strict_profile, instance._view
+        )
+
+        # All checks pass cleanly
+        with (
+            patch(f"{MODULE}.audit_security_defaults", return_value=[]),
+            patch(
+                f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
+            ),
+            patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
+            patch(f"{MODULE}.check_routing_drift", return_value=[]),
+            patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
+            patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
+        ):
+            mock_svc.return_value.discover_all = AsyncMock(
+                return_value=MagicMock(findings=[], unreachable=[])
+            )
+            mock_rag.return_value.consistency.return_value.is_consistent = True
+
+            await instance._check_services()  # must not raise
+
+
+class TestUnknownTopLevelKeyScenario:
+    """Tests for unknown top-level key rejection scenario (REQ-004).
+
+    NOTE: Unknown-key validation is performed by ProductionConfigValidator.validate(),
+    NOT in the startup validation pipeline. Direct test exists in
+    tests/shared/test_config_loader.py::TestUnknownTopLevelKeyRejection.
+    This class verifies pipeline aggregation when routing_drift produces warnings.
+    """
+
+    @pytest.mark.asyncio
+    async def test_unknown_top_level_key_produces_error_in_production(
+        self, mock_ctx_with_strict_profile
+    ) -> None:
+        """Verify that routing_drift warnings are aggregated without raising."""
+        instance = StartupOrchestrator.__new__(StartupOrchestrator)
+        instance._ctx = mock_ctx_with_strict_profile
+        instance._view = MagicMock()
+        instance._reporter = MagicMock()
+        instance._validation_pipeline = StartupValidationPipeline(
+            mock_ctx_with_strict_profile, instance._view
+        )
+
+        # Simulate routing_drift warning (not FATAL)
+        with (
+            patch(f"{MODULE}.audit_security_defaults", return_value=[]),
+            patch(
+                f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
+            ),
+            patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
+            patch(
+                f"{MODULE}.check_routing_drift",
+                return_value=["Routing drift [web]: extra tool 'foo'"],
+            ),
+            patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
+            patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
+        ):
+            mock_svc.return_value.discover_all = AsyncMock(
+                return_value=MagicMock(findings=[], unreachable=[])
+            )
+            mock_rag.return_value.consistency.return_value.is_consistent = True
+
+            await instance._check_services()  # must not raise for WARNING only

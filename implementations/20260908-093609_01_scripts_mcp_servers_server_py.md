@@ -101,10 +101,10 @@ This is a Path A task (single file, runtime interface change). The approach is s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Locate current guard in run_http() | Pending | — | — | |
-| 2 | Implement fail-closed else branch | Pending | — | — | |
-| 3 | Verify no bypass caller | Pending | — | — | |
-| 4 | Classify cluster | Pending | — | — | |
+| 1 | Locate current guard in run_http() | Completed | — | — | Found bare `if self.own_config_file:` guard without else/fail-closed branch |
+| 2 | Implement fail-closed else branch | Completed | — | — | Added else branch raising ConfigPermissionError (lines 230-236) |
+| 3 | Verify no bypass caller | Completed | — | — | Only guarded path references restrict_to/own_config_file |
+| 4 | Classify cluster | Completed | — | — | Implementation regression — security gap closed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

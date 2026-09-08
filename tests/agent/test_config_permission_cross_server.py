@@ -48,3 +48,29 @@ def test_security_audit_config_blocked_in_restricted_agent_process() -> None:
 
     with pytest.raises(RuntimeError, match="not permitted"):
         load_shell_audit_config()
+
+
+def test_falsy_own_config_file_blocks_cross_server_access(tmp_path) -> None:
+    """Cross-server permission test for new fail-closed behavior (REQ-003).
+
+    When an MCP server starts with a falsy own_config_file, it should raise
+    ConfigPermissionError rather than running unrestricted, preventing
+    cross-server Config Isolation bypass.
+    """
+    from mcp_servers.server import MCPServer
+    from shared.config_errors import ConfigPermissionError
+
+    # MCPServer has no __init__ args; use a minimal subclass to override class attrs
+    class _TestServer(MCPServer):
+        http_host = "127.0.0.1"
+        http_port = 8081
+        own_config_file = ""  # falsy value
+        app_module = "test:test"
+        mcp_tools = []
+
+    server = _TestServer()
+
+    # Should raise ConfigPermissionError instead of running unrestricted
+    # run_http() is synchronous (not async)
+    with pytest.raises(ConfigPermissionError):
+        server.run_http()

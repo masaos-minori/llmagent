@@ -384,7 +384,7 @@ With REQ-001's fix (strict-default behavior), the Fail-Fast requirements of INV-
   - **Verifies**: INV-06, INV-07
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: Needs confirmation — `tests/agent/shared/test_startup_validation_pipeline.py`はFATAL/WARNING集約の一般機構（`test_single_fatal_readiness_raises`等）を検証するが、各条件個別のシナリオテストは本タスクで個々に確認していない
+   - **Status**: Confirmed — `tests/agent/test_startup.py::test_falsy_own_config_file_raises` verifies Config Isolation fail-closed (REQ-003); `tests/shared/test_config_loader.py::test_unknown_top_level_key_rejected` verifies unknown-key rejection (REQ-004). Note: individual scenario tests for each condition are covered by these new tests rather than the general FATAL/WARNING aggregation test.
 
 - **Test**: 必須コンポーネント（必須MCPサーバー等）の利用不能が起動を中止させること
   - **Verifies**: INV-08

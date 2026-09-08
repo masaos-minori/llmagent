@@ -14,9 +14,10 @@ Modify exactly one file: `tests/shared/test_config_loader.py`. Add a new test cl
 
 ## Design decisions
 
-- Add a new test class `TestUnknownTopLevelKeyRejection` with methods for production and non-production scenarios.
+- Add a new test class `TestUnknownTopLevelKeyRejection` with methods for production-only scenarios.
 - Use `pytest` fixtures and mock configurations to avoid needing actual TOML files.
 - Follow the existing test patterns in this file (e.g., `TestRestrictToIsolation`, `TestMergeOrder`).
+- Note: `ProductionConfigValidator` has no `is_production` parameter; it always validates for production. The original plan included a non-production test which was removed after adversarial verification.
 
 ## Alternatives considered
 
@@ -28,7 +29,7 @@ Modify exactly one file: `tests/shared/test_config_loader.py`. Add a new test cl
 `tests/shared/test_config_loader.py`
 
 ### Procedure
-Add a new test class `TestUnknownTopLevelKeyRejection` with methods for production and non-production scenarios.
+Add a new test class `TestUnknownTopLevelKeyRejection` with methods for production-only scenarios.
 
 ### Method
 1. Open `tests/shared/test_config_loader.py`.
@@ -41,40 +42,36 @@ class TestUnknownTopLevelKeyRejection:
         """Assert that an unknown/mistyped top-level config key is rejected in production."""
         from shared.production_config_validator import ProductionConfigValidator
 
-        validator = ProductionConfigValidator(is_production=True)
+        validator = ProductionConfigValidator()
         result = validator.validate({"unknown_mistyped_key": "value"})
         assert len(result.errors) > 0
         assert any("unknown" in e.lower() for e in result.errors)
 
     def test_known_keys_pass_in_production(self) -> None:
         """Assert that known keys derived from dataclass fields pass validation."""
-        from agent.config_dataclasses import LLMConfig
         from shared.production_config_validator import ProductionConfigValidator
 
-        # llm_url is a field name in LLMConfig
-        validator = ProductionConfigValidator(is_production=True)
-        result = validator.validate({"llm_url": "http://localhost:8080"})
-        assert len(result.errors) == 0
-
-    def test_unknown_key_allowed_in_non_production(self) -> None:
-        """Assert that unknown keys are not rejected in non-production environments."""
-        from shared.production_config_validator import ProductionConfigValidator
-
-        validator = ProductionConfigValidator(is_production=False)
-        result = validator.validate({"unknown_mistyped_key": "value"})
+        # llm_url is a field name in LLMConfig; include required strict keys
+        validator = ProductionConfigValidator()
+        result = validator.validate({
+            "llm_url": "http://localhost:8080",
+            "tool_definitions_strict": True,
+            "routing_drift_strict": True,
+        })
         assert len(result.errors) == 0
 ```
 
 ### Details
 1. Read the existing test patterns in the file (e.g., `TestRestrictToIsolation`).
 2. Ensure imports match the project's conventions (`from shared.production_config_validator import ProductionConfigValidator`).
-3. Verify that `ProductionConfigValidator.__init__` accepts `is_production` parameter.
+3. `ProductionConfigValidator.__init__` takes no parameters (always production mode).
 4. Run the tests locally before committing: `uv run pytest tests/shared/test_config_loader.py::TestUnknownTopLevelKeyRejection -xvs`.
 
 ## Compatibility considerations
 
 - This adds new tests only; no existing behavior changes.
 - The test depends on `ProductionConfigValidator` being importable from `shared.production_config_validator`.
+- Removed the non-production test after adversarial verification found that `ProductionConfigValidator` has no `is_production` parameter.
 
 ## Security considerations
 
@@ -94,7 +91,6 @@ Reverting this change means removing the new test class. No operational impact s
 
 - [ ] New test asserts unknown/mistyped top-level config key is rejected in production
 - [ ] New test asserts known keys derived from dataclass fields pass validation
-- [ ] New test asserts unknown keys are allowed in non-production environments
 - [ ] All tests pass: `uv run pytest tests/shared/test_config_loader.py -q`
 
 ## Out of scope
@@ -107,10 +103,13 @@ Reverting this change means removing the new test class. No operational impact s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add test for unknown-key rejection in production | Pending | — | — | |
-| 2 | Add test for known keys passing validation | Pending | — | — | |
-| 3 | Add test for unknown keys allowed in non-production | Pending | — | — | |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add test for unknown-key rejection in production | Completed | — | — | |
+| 2 | Add test for known keys passing validation | Completed | — | — | |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | — | — | |
+| 4 | Test the feature and pass required tests/coverage | Completed | — | — | |
+| 5 | Update documentation per `docs/00_index.md` task-scope mapping | N/A | — | — | no docs/00_index.md task-scope mapping for tests/shared/test_config_loader.py |
+| 6 | Validate documentation updates | N/A | — | — | no documentation changes to validate |
+| 7 | Move the implementation procedure file to `implementations/done/` | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
