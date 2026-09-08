@@ -183,10 +183,10 @@ modified by this document.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260908-203617 | 20260908-203617 | Added `_REQUIRED_TABLE_BY_DOMAIN`, `_verify_domain_identity()`, and the call site in `_restore_from_backup()` exactly per Method/Details — no procedure correction needed (Step 3a found no stale claims). |
+| 2 | Add or update tests per Validation plan | Completed | 20260908-203617 | 20260908-203617 | The 3 wrong-domain tests already existed in `tests/db/test_db_recovery.py` (out of scope for this document, tracked in `implementations/20260908-133223_03_tests_db_test_db_recovery.py.md`) but their `_run_integrity_check` mock used a single `return_value` instead of the two-stage `side_effect` the existing sibling tests use, so they never reached `_restore_from_backup()`. Fixed the mock setup in those 3 tests (test-only change, no assertion changes) — see Test Fix Strategy Record below. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260908-203617 | 20260908-203617 | ruff/mypy/lint-imports/bandit/ast-grep pass on `scripts/db/recovery.py`. `tests/db/test_db_recovery.py` 20/20 pass. Full suite: 491 pre-existing failures unrelated to this change (0 in `test_db_recovery.py`) — traced to 3 independent, pre-existing regressions (unknown-config-key rejection tracked in `issues/20260908-162735_cfgval001_...md`; a removed `_ModuleConfig` reference; and an `Orchestrator._llm_turn_executor`→`_llm_executor` rename not yet propagated to tests) — filed as a new issue rather than fixed here (out of scope). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260908-203617 | 20260908-203617 | N/A: no `docs/00_index.md` task-scope row matches `scripts/db/recovery.py` (closest candidate, "SQLite / DB connection / WAL / transactions", covers connection/WAL/transactions generally, not recovery specifically) — normal, non-blocking outcome per `code-implementation/workflow.md` Step 5. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

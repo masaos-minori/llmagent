@@ -127,16 +127,17 @@ def test_recover_bad_backup(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_wrong_domain_backup_rejected(mock_db_cfg, mock_sqlite_helper):
     with (
-        patch(
-            "scripts.db.recovery._run_integrity_check",
-            return_value=(DbCondition.HEALTHY, None),
-        ),
+        patch("scripts.db.recovery._run_integrity_check") as mock_integrity,
         patch(
             "scripts.db.recovery._verify_domain_identity",
             return_value=(False, "backup missing required table 'sessions'"),
         ),
         patch("pathlib.Path.exists", return_value=True),
     ):
+        mock_integrity.side_effect = [
+            (DbCondition.CORRUPTION, "corruption error"),  # current DB
+            (DbCondition.HEALTHY, None),  # backup
+        ]
         result = recover_corruption(backup_path="/tmp/backup.db", target="session")
 
         assert result.success is False
@@ -145,16 +146,17 @@ def test_recover_wrong_domain_backup_rejected(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_wrong_domain_backup_distinct_action(mock_db_cfg, mock_sqlite_helper):
     with (
-        patch(
-            "scripts.db.recovery._run_integrity_check",
-            return_value=(DbCondition.HEALTHY, None),
-        ),
+        patch("scripts.db.recovery._run_integrity_check") as mock_integrity,
         patch(
             "scripts.db.recovery._verify_domain_identity",
             return_value=(False, "backup missing required table 'sessions'"),
         ),
         patch("pathlib.Path.exists", return_value=True),
     ):
+        mock_integrity.side_effect = [
+            (DbCondition.CORRUPTION, "corruption error"),  # current DB
+            (DbCondition.HEALTHY, None),  # backup
+        ]
         result = recover_corruption(backup_path="/tmp/backup.db", target="session")
 
         assert result.action not in ("no_backup", "bad_backup")
@@ -164,10 +166,7 @@ def test_recover_wrong_domain_backup_leaves_db_untouched(
     mock_db_cfg, mock_sqlite_helper
 ):
     with (
-        patch(
-            "scripts.db.recovery._run_integrity_check",
-            return_value=(DbCondition.HEALTHY, None),
-        ),
+        patch("scripts.db.recovery._run_integrity_check") as mock_integrity,
         patch(
             "scripts.db.recovery._verify_domain_identity",
             return_value=(False, "backup missing required table 'sessions'"),
@@ -176,6 +175,10 @@ def test_recover_wrong_domain_backup_leaves_db_untouched(
         patch("shutil.copy2") as mock_copy2,
         patch("os.replace") as mock_replace,
     ):
+        mock_integrity.side_effect = [
+            (DbCondition.CORRUPTION, "corruption error"),  # current DB
+            (DbCondition.HEALTHY, None),  # backup
+        ]
         result = recover_corruption(backup_path="/tmp/backup.db", target="session")
 
         assert result.success is False

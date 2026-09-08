@@ -168,6 +168,35 @@ def _vacuum_db(target: str = "rag") -> RecoveryResult:
     return RecoveryResult(success=True, action="vacuum")
 
 
+_REQUIRED_TABLE_BY_DOMAIN: dict[str, str] = {
+    "rag": "documents",
+    "session": "sessions",
+}
+
+
+def _verify_domain_identity(backup: Path, target: str) -> tuple[bool, str | None]:
+    """Verify backup contains the required table for target's domain.
+
+    Returns (True, None) if the domain's required table is present in the backup's
+    sqlite_master; (False, detail) otherwise. Unknown/unmapped targets pass through
+    (no domain-identity constraint defined for them).
+    """
+    required_table = _REQUIRED_TABLE_BY_DOMAIN.get(target)
+    if required_table is None:
+        return True, None
+    with SQLiteHelper(target, db_path=str(backup)).open() as db:
+        cursor = db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+            (required_table,),
+        )
+        if cursor.fetchone() is None:
+            return False, (
+                f"backup missing required table '{required_table}' for "
+                f"domain '{target}'"
+            )
+    return True, None
+
+
 def _restore_from_backup(
     db_path: Path,
     backup_path: str | Path | None,
@@ -201,6 +230,14 @@ def _restore_from_backup(
         logger.error("Backup is also corrupt: %s", err)
         return RecoveryResult(
             success=False, action="bad_backup", detail=err, dry_run=dry_run
+        )
+
+    domain_ok, domain_error = _verify_domain_identity(backup, target)
+    if not domain_ok:
+        err = domain_error or f"backup failed domain-identity check for target={target}"
+        logger.error("Backup belongs to a different persistence domain: %s", err)
+        return RecoveryResult(
+            success=False, action="backup_wrong_domain", detail=err, dry_run=dry_run
         )
 
     ts = format_timestamp()
