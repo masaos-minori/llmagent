@@ -26,6 +26,17 @@ Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `
 | Documentation / docs — also matches whenever a file under `docs/` or `skills/` will be created or edited, even with no documentation keyword in the request | document, doc, write docs, readme, changelog, editing `docs/*` or `skills/*` | `skills/python-documentation/SKILL.md` + `skills/python-documentation/workflow.md` |
 | Issue creation / GitHub issue | issue, github issue, create issue, convert findings to issue | `skills/issue-creator/SKILL.md` + `skills/issue-creator/workflow.md` |
 | Git commit / sync | commit, stage, push, pull, fetch, rebase, git sync, conflict, git workflow | `skills/git-commit-and-sync/SKILL.md` + `skills/git-commit-and-sync/workflow.md` |
+| Tool addition / modification under `tools/` | new tool, add script, tools/, one-off script | See "Tools" → "Adding a new tool" below — lighter validation than a `scripts/` change, not `python-implementation` |
+
+**Documentation row exception**: a `skills/*.md` edit that revises the *procedure
+itself* (per that skill's own `## Improvement feedback` section — e.g. correcting a
+Step's stop condition, adding a missing branch, fixing a false-positive check) does
+not route through `python-documentation`. That skill's own "When to use"/"When not to
+use" scope it to documenting existing Python code/architecture behavior, not to
+revising workflow instructions — applying its Phase 1-10 procedure to a `workflow.md`
+edit is a scope mismatch. This row still applies as normal to any `docs/*.md` edit,
+and to a `skills/*.md` edit that documents actual code behavior (e.g. `rules/env.md`
+Architecture changes reflected into a skill's evidence).
 
 ## Source code layout
 
@@ -36,6 +47,28 @@ Test scripts live under `tests/` (mirroring `scripts/` structure, e.g. `tests/ag
 ## Tools
 
 Scripts in `tools/` for one-off operations on source code or documentation. Not triggered by routing; AI invokes these during investigation or refactoring tasks. See `tools/TOOL_DESCRIPTIONS.md` for details.
+
+### Adding a new tool
+
+A new or modified `tools/*.py` script does not route through `python-implementation`
+— that skill's scope is `scripts/` (see "Source code layout" above). Apply this
+lighter validation sequence instead, then consider the tool done:
+
+1. `uv run ruff format tools/<file>.py` and `uv run ruff check tools/<file>.py --fix`,
+   then confirm clean with `uv run ruff check tools/<file>.py`.
+2. `uv run mypy tools/<file>.py` — pass the file path explicitly; `pyproject.toml`'s
+   mypy `files` scope covers `scripts/` by default, not `tools/`, so a bare
+   `uv run mypy` (no path) silently skips this file rather than confirming it clean.
+3. `uv run bandit tools/<file>.py`.
+4. A manual smoke-test invocation against real repository data (not only a
+   hand-crafted fixture) — confirm the tool's actual output on live
+   `issues/`/`plans/`/`implementations/`/`docs/` content before trusting it as
+   evidence elsewhere.
+5. Apply `AGENTS.md` Global Rule 7 (script-worthiness) and Global Rule 9: run
+   `uv run python tools/check_tool_descriptions_sync.py` and add the new tool's row to
+   `tools/TOOL_DESCRIPTIONS.md` in the same change. If the tool should run
+   automatically at a defined trigger point rather than only ad hoc, add it to "When
+   to run which tool" below too.
 
 ### When to run which tool
 
