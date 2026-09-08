@@ -114,6 +114,15 @@ does against the Allowed types below:
 
 `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `build`, `ci`, `perf`, `style`
 
+Project-specific addition for this repository: `plan` — generating or archiving
+`issues/` → `plans/` → `implementations/` workflow artifacts (`issue-to-plan`,
+`plan-to-implementation-procedure`, `code-implementation`), e.g. `plan: archive plan
+after implementation procedure generation` or `plan: generate implementation
+procedures for <topic>`. Use this instead of `docs`/`chore` only for a commit whose
+staged diff is entirely such workflow-artifact output — a commit mixing this with an
+unrelated `feat`/`fix` change still follows Step 5b (flag the mixed concern, do not
+silently fold it into `plan`).
+
 ### Step 5b: Flag mixed concerns
 
 If the staged diff matches more than one type above (e.g. a `feat` change and an unrelated

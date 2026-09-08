@@ -106,6 +106,13 @@ directory: `plans/done/`.
 Only the current file MUST be read; multiple target files MUST NOT be read
 simultaneously.
 
+- Before reading, run `uv run python tools/check_workitem_structure.py --file
+  {plan_path}` to confirm the Plan contains every `## ` section
+  `templates/plan.md` requires. If this reports any `missing-section` finding, see
+  "Non-conforming Plan structure" below before proceeding — a Plan missing entire
+  sections (e.g. `Implementation Target Files`, `Traceability`) cannot be read as if
+  it followed `templates/plan.md`, and the checks below (Freeze status, Source issue
+  extraction) assume those sections exist.
 - Read the target plan file in full. It follows `templates/plan.md`'s structure.
 - Identify the target feature. The files to modify are exactly the Plan's
   `Implementation Target Files` rows — do not re-derive the file list independently
@@ -133,6 +140,35 @@ simultaneously.
   before proceeding.
 - **After finishing all Steps 1-4 for this file, load the NEXT target file.** Do not
   preload or batch-read other files.
+
+### Non-conforming Plan structure
+
+Applies when `tools/check_workitem_structure.py --file {plan_path}` (above) reports
+one or more `missing-section` findings for this Plan — the Plan does not follow
+`templates/plan.md`'s required structure (e.g. it uses a non-standard section in
+place of `Implementation Target Files`, or has no `Traceability` section at all).
+
+This workflow does not silently proceed on an incomplete Plan, and does not silently
+report `Blocked` without offering the user a choice — ask the user which of these two
+paths to take for this specific Plan:
+
+- **(a) Blocked, refer back to `issue-to-plan`**: stop this cycle and report `Blocked:
+  Plan missing required section(s): {list}` — structural completeness is
+  `issue-to-plan`'s responsibility, not this workflow's; the Plan should be
+  regenerated or corrected there.
+- **(b) Correct in place, with the user's explicit approval**: only when the user
+  explicitly approves doing so for this specific Plan, rewrite
+  `plans/{filename}_plan.md` (via Write/Edit) to add the missing section(s),
+  grounding every added claim (Requirements, Implementation Target Files rows,
+  Traceability values) in repository evidence per Step 3a's Adversarial Verification
+  procedure below — do not fabricate a Requirement, a Source issue path, or a Target
+  File row that cannot be traced to the Plan's own prose or its source issue. Re-run
+  `tools/check_workitem_structure.py --file {plan_path}` after the rewrite and confirm
+  zero findings before proceeding to Freeze validation (this Step's next bullet).
+
+Do not default to (b) without asking — a structurally incomplete Plan may reflect an
+upstream `issue-to-plan` defect that repeated silent correction here would mask rather
+than surface.
 
 ---
 
@@ -397,6 +433,24 @@ plans/{filename}_plan.md` over a direct `git mv` — it performs the same move a
 refuses (non-zero exit, no move) if the source is missing, the destination already
 exists, or the source has uncommitted changes. Fall back to the direct `git mv`
 command only if the tool is unavailable.
+
+### Tool refusal due to this cycle's own Plan edit
+
+`close-plan`'s uncommitted-changes refusal commonly fires here for a reason distinct
+from "the tool is unavailable": this same Step's own Plan edit two paragraphs above
+(the Execution Status update), or a Step 3a correction earlier in this cycle, is
+itself the uncommitted change the tool is refusing to move. This is not the "tool
+unavailable" case the paragraph above scopes the `git mv` fallback to — do not fall
+back to `git mv` for this reason.
+
+Instead: confirm via `git status --porcelain plans/{filename}_plan.md` (and the newly
+generated `implementations/*.md` files from this cycle) that the only uncommitted
+changes are this cycle's own output, then ask the user whether to commit them (with a
+commit message describing what this cycle generated) before re-running the same
+`close-plan` command. This is a known, recurring interaction between this Step's
+required Plan edit and the tool's safety check, not a reason to bypass the check —
+if unrelated uncommitted changes are also present, report `Blocked` instead of asking
+to commit them.
 
 After a `0` exit, independently verify the same checklist `rules/workflow-lifecycle.md`
 Archival Move already requires for the manual `git mv` fallback: destination file
