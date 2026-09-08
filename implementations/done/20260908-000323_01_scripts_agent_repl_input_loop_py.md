@@ -27,23 +27,15 @@ Modify exactly one file: `scripts/agent/repl_input_loop.py`. Remove the `_cmds i
 `scripts/agent/repl_input_loop.py`
 
 ### Procedure
-Remove the `if self._cmds is None:` guard clause from `_dispatch_line` method.
+The `if self._cmds is None:` guard clause has already been removed from `_dispatch_line`. Adversarial verification (Step 3a) confirmed the current source does not contain this block. The implementation goal is already satisfied — `_dispatch_line` only has `if self._orchestrator is None:` at line 180-181; `_repl_loop` retains its `if self._cmds is None:` check at line 200.
 
 ### Method
-1. Open `scripts/agent/repl_input_loop.py`.
-2. Locate the `_dispatch_line` method (starting at line 178).
-3. Remove the following block (lines 183-185):
-```python
-        if self._cmds is None:
-            self._view.write_fatal("Command registry not initialized")
-            return
-```
-4. Verify that `_repl_loop`'s existing check (line 202) remains intact.
+No code changes required. Proceed directly to validation.
 
 ### Details
-1. Read the current file to confirm line numbers (may have shifted from the archived procedure's cited 170-171 due to intervening docstring insertion).
-2. Confirm `_dispatch_line` is only called from `_repl_loop` at line 224.
-3. After removing the block, verify that `_repl_loop`'s check at line 202 is still present and unchanged.
+1. Confirmed `_dispatch_line` method exists at line 178 with only `if self._orchestrator is None:` check (no `_cmds is None` check).
+2. Confirmed `_dispatch_line` is only called from `_repl_loop` at line 222.
+3. Confirmed `_repl_loop`'s `if self._cmds is None:` check at line 200 is intact.
 4. Run the test suite: `uv run pytest tests/agent/test_repl.py -v`.
 5. Run static verification: `rg -n "_cmds is None" scripts/agent/repl_input_loop.py` should show exactly one match at `_repl_loop`.
 
@@ -89,10 +81,13 @@ Reverting this change means re-adding the removed block. No operational impact s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Adversarial verification found the change already applied; no code modification needed |
+| 2 | Add or update tests per Validation plan | Completed | — | — | No new tests needed; existing tests cover the unchanged behavior |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format clean; mypy clean; bandit low-severity B101 pre-existing; lint-imports broken contract pre-existing |
+| 4 | Test the feature and pass required tests/coverage | Completed | — | — | 14 passed, 1 pre-existing failure (unrelated); no regression introduced |
+| 5 | Update documentation per `docs/00_index.md` task-scope mapping | N/A | — | — | No changed files matched a Task scope row; no code changes made |
+| 6 | Validate documentation updates | N/A | — | — | No documentation changes to validate |
+| 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
