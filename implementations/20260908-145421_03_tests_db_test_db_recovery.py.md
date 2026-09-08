@@ -171,10 +171,10 @@ silently in this document.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-08TXX:XX:XX | 2026-09-08TXX:XX:XX | Added test_recover_rag_read_smoke_test_failed |
+| 2 | Add or update tests per Validation plan | Completed | — | — | All 21 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | mypy/ruff passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

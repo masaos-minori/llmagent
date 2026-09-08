@@ -170,10 +170,10 @@ out of scope per the Plan (`UNK-01`, non-blocking).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-08TXX:XX:XX | 2026-09-08TXX:XX:XX | Added _check_read_smoke_test function and wiring |
+| 2 | Add or update tests per Validation plan | Completed | — | — | All existing tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | mypy/ruff/lint-imports/bandit passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

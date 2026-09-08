@@ -82,6 +82,9 @@ class RagConsistencyReport:
     fts_gap: int  # chunks - fts; positive = missing FTS entries
     fts_orphan_count: int  # fts - chunks; positive = extra FTS entries (data loss risk)
     embed_failed: int = 0  # embedding failures during ingestion
+    read_smoke_test_ok: bool = (
+        False  # RAG read-smoke-test result, mirrors SessionConsistencyReport
+    )
     issues: tuple[str, ...] = ()  # human-readable consistency issues
     # Document-level checks
     documents_without_chunks_count: int = 0  # documents with no chunks
@@ -124,7 +127,7 @@ class RecoveryResult:
     """Structured result of a corruption recovery attempt."""
 
     success: bool
-    action: str
+    action: str  # e.g. "no_backup", "bad_backup", "backup_wrong_domain", "logical_verify_failed", etc.
     detail: str | None = None
     dry_run: bool = False
     logical_ok: bool | None = None

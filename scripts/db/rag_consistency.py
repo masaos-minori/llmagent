@@ -177,6 +177,22 @@ def _collect_affected_identifiers(
     )
 
 
+def _check_read_smoke_test(db: SQLiteHelper) -> bool:
+    """Verify each required RAG table can be read without raising."""
+    required_tables = [
+        "documents",
+        "chunks",
+        "chunks_fts_docsize",
+        "chunks_vec",
+    ]
+    for table in required_tables:
+        try:
+            db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+        except sqlite3.Error:
+            return False
+    return True
+
+
 def check_rag_consistency(
     db: SQLiteHelper, embed_failed: int = 0
 ) -> RagConsistencyReport:
@@ -251,6 +267,7 @@ def check_rag_consistency(
         fts_gap=fts_gap,
         fts_orphan_count=fts_orphan_count,
         embed_failed=embed_failed,
+        read_smoke_test_ok=_check_read_smoke_test(db),
         affected_chunk_ids=affected_chunk_ids,
         affected_doc_ids=affected_doc_ids,
         affected_orphan_chunk_ids=affected_orphan_chunk_ids,
@@ -280,6 +297,7 @@ def is_consistent(report: RagConsistencyReport) -> bool:
         and report.duplicate_chunk_index_count == 0
         and not report.url_level_mismatches
         and not report.diagnostic_errors
+        and report.read_smoke_test_ok
     )
     return consistent
 

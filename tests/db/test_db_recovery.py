@@ -400,3 +400,34 @@ def test_recover_rag_vector_orphan(mock_db_cfg, mock_sqlite_helper):
             assert result.success is False
             assert result.action == "logical_verify_failed"
             assert result.logical_ok is not True
+
+
+def test_recover_rag_read_smoke_test_failed(mock_db_cfg, mock_sqlite_helper):
+    """RAG read smoke test failure should cause logical verification failure even when counts are healthy."""
+    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+        mock_integrity.side_effect = _mock_restore_side_effect()
+
+        rag_report = MagicMock()
+        rag_report.chunks = 10
+        rag_report.vec = 10
+        rag_report.fts_gap = 0
+        rag_report.fts_orphan_count = 0
+        rag_report.orphan_vec_count = 0
+        rag_report.documents_without_chunks_count = 0
+        rag_report.chunks_without_vec_count = 0
+        rag_report.duplicate_chunk_index_count = 0
+        rag_report.url_level_mismatches = {}
+        rag_report.diagnostic_errors = None
+        rag_report.read_smoke_test_ok = False
+
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("shutil.copy2"),
+            patch("os.replace"),
+            patch("scripts.db.recovery.check_rag_consistency", return_value=rag_report),
+        ):
+            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+
+            assert result.success is False
+            assert result.action == "logical_verify_failed"
+            assert result.logical_ok is not True
