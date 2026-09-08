@@ -90,6 +90,7 @@ Yes: ADR-002 and ADR-004 documentation updates required (see related target file
 ## Assumptions
 - TOML-key-to-dataclass-field mapping is direct (no nesting conflicts)
 - All sub-config classes have their fields defined via dataclass decorators
+- Valid keys = union of all dataclass field names across LLMConfig, RAGConfig, ToolConfig, MemoryConfig, MCPConfig, ApprovalConfig, ObservabilityConfig, DiagnosticsConfig, MessageRoleConfig + AgentConfig.agent_memory_max_startup_snippets + build_agent_config() direct keys (system_prompt_tool, security_profile)
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -124,10 +125,10 @@ This is a Path B task (> 3 files affected, interface changes). The approach uses
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Introspect sub-config classes | Pending | — | — | |
-| 2 | Implement _check_unknown_production_keys() | Pending | — | — | |
-| 3 | Integrate into validation flow | Pending | — | — | |
-| 4 | Verify no cross-file conflicts | Pending | — | — | |
+| 1 | Introspect sub-config classes | Completed | — | — | All 9 sub-config classes identified; AgentConfig + build_agent_config() direct keys added |
+| 2 | Implement _check_unknown_production_keys() | Completed | — | — | Added method + module-level cache function |
+| 3 | Integrate into validation flow | Completed | — | — | Integrated after allowed_tools check in validate() |
+| 4 | Verify no cross-file conflicts | Completed | — | — | No conflicts found |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from dataclasses import fields as dataclass_fields
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -26,6 +27,10 @@ _REQUIRED_STRICT_KEYS = (
 
 # Keys where explicit false is an error in production (absent is acceptable)
 _REQUIRED_NOT_FALSE_KEYS: tuple[str, ...] = ()
+
+# Valid top-level keys derived from dataclass field introspection.
+# Includes all sub-config field names + AgentConfig-level keys + build_agent_config() direct keys.
+_VALID_PRODUCTION_KEYS: frozenset[str] | None = None
 
 
 def _resolve_known_tools(known_tools: set[str] | None) -> set[str] | None:
@@ -105,6 +110,55 @@ def _check_approval_risk_floor(
     return below_high
 
 
+def _get_valid_production_keys() -> frozenset[str]:
+    """Return the set of valid top-level config keys.
+
+    Derived from dataclass field introspection on all sub-config classes
+    plus AgentConfig-level keys and build_agent_config() direct keys.
+    Cached in _VALID_PRODUCTION_KEYS for efficiency.
+    """
+    global _VALID_PRODUCTION_KEYS
+    if _VALID_PRODUCTION_KEYS is not None:
+        return _VALID_PRODUCTION_KEYS
+
+    from agent.config_dataclasses import (
+        ApprovalConfig,
+        DiagnosticsConfig,
+        LLMConfig,
+        MCPConfig,
+        MemoryConfig,
+        MessageRoleConfig,
+        ObservabilityConfig,
+        RAGConfig,
+        ToolConfig,
+    )
+
+    valid_keys: set[str] = set()
+    for cls in [
+        LLMConfig,
+        RAGConfig,
+        ToolConfig,
+        MemoryConfig,
+        MCPConfig,
+        ApprovalConfig,
+        ObservabilityConfig,
+        DiagnosticsConfig,
+        MessageRoleConfig,
+    ]:
+        for f in dataclass_fields(cls):
+            valid_keys.add(f.name)
+
+    # AgentConfig-level key
+    valid_keys.add("agent_memory_max_startup_snippets")
+
+    # build_agent_config() direct keys (not mapped to any sub-config)
+    valid_keys.add("system_prompt_tool")
+    valid_keys.add("security_profile")
+
+    _VALID_PRODUCTION_KEYS = frozenset(valid_keys)
+    return _VALID_PRODUCTION_KEYS
+
+
 class ProductionConfigValidator:
     """Validate configuration against production security requirements.
 
@@ -175,6 +229,16 @@ class ProductionConfigValidator:
             msg = "allowed_tools=[] (all tools allowed; use allowlist to restrict)"
             self._record(errors, warnings, msg)
 
+        # Unknown top-level key rejection
+        unknown_keys = ProductionConfigValidator._check_unknown_production_keys(config)
+        if unknown_keys:
+            unknown_list = ", ".join(repr(k) for k in unknown_keys)
+            self._record(
+                errors,
+                warnings,
+                f"Unknown config keys: {unknown_list}",
+            )
+
         return ConfigValidationResult(errors=errors, warnings=warnings)
 
     def validate_unknown_tool_safety_tiers(
@@ -186,6 +250,13 @@ class ProductionConfigValidator:
             for k in unknown_keys
         ]
         return ConfigValidationResult(errors=errors)
+
+    @staticmethod
+    def _check_unknown_production_keys(config: Mapping[str, object]) -> list[str]:
+        """Return top-level keys not found in any sub-config dataclass field."""
+        valid_keys = _get_valid_production_keys()
+        unknown_keys = sorted(k for k in config if k not in valid_keys)
+        return unknown_keys
 
     @classmethod
     def _record(

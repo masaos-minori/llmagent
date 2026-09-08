@@ -353,3 +353,38 @@ class TestProductionConfigValidatorValidateUnknownToolSafetyTiers:
         assert len(result.errors) == 2
         assert "mdq" in result.errors[0] or "mdq" in result.errors[1]
         assert "unknown_tool" in result.errors[0] or "unknown_tool" in result.errors[1]
+
+
+class TestProductionConfigValidatorUnknownTopLevelKeys:
+    """Tests for general unknown top-level key rejection (REQ-004)."""
+
+    def test_valid_keys_only_no_errors(self) -> None:
+        config = {
+            "tool_definitions_strict": True,
+            "routing_drift_strict": True,
+            "system_prompt_tool": "",
+            "security_profile": "production",
+        }
+        result = ProductionConfigValidator().validate(config, security_profile="production")
+        assert not any("Unknown config keys" in err for err in result.errors)
+
+    def test_single_unknown_key_produces_error(self) -> None:
+        config = {"tool_definitions_strict": True, "unknown_mistyped_key": True}
+        result = ProductionConfigValidator().validate(config, security_profile="production")
+        assert any("Unknown config keys" in err and "unknown_mistyped_key" in err for err in result.errors)
+
+    def test_multiple_unknown_keys_produce_errors(self) -> None:
+        config = {
+            "tool_definitions_strict": True,
+            "unknown_key_1": True,
+            "unknown_key_2": True,
+        }
+        result = ProductionConfigValidator().validate(config, security_profile="production")
+        assert any("Unknown config keys" in err for err in result.errors)
+        assert any("unknown_key_1" in err for err in result.errors)
+        assert any("unknown_key_2" in err for err in result.errors)
+
+    def test_empty_config_no_unknown_key_errors(self) -> None:
+        config: dict[str, object] = {}
+        result = ProductionConfigValidator().validate(config, security_profile="production")
+        assert not any("Unknown config keys" in err for err in result.errors)
