@@ -213,10 +213,10 @@ this reordering.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reorder WAL-checkpoint-and-backup block before task-cancellation-and-gather block; update class docstring | Completed | — | — | Done: moved WAL block before cancellation block, updated docstring with "Checkpoint-before-cancellation ordering" guarantee |
-| 2 | Add new test demonstrating checkpoint-before-cancellation ordering in `tests/agent/test_repl.py` | Completed | — | — | Done: added `test_checkpoint_completes_before_pending_task_cancelled` |
-| 3 | Run `uv run pytest tests/agent/test_repl.py` to confirm no regression | Completed | — | — | Done: all 6 TestCloseResourcesWALCheckpoint tests pass |
-| 4 | Documentation update — N/A per Plan's Documentation Impact (docstring change is captured in Step 1, not a `docs/*.md` update) | Completed | — | — | N/A |
+| 1 | Reorder WAL-checkpoint-and-backup block before task-cancellation-and-gather block; update class docstring | Completed | 2026-09-08T10:54:00+00:00 | 2026-09-08T10:54:00+00:00 | All three sub-tasks verified against current source: (1) WAL block moved before cancel block, (2) step comments renumbered, (3) docstring updated. No adversarial verification findings. |
+| 2 | Add new test demonstrating checkpoint-before-cancellation ordering in `tests/agent/test_repl.py` | Completed | 2026-09-08T10:54:00+00:00 | 2026-09-08T10:54:00+00:00 | Test was already present but needed `await asyncio.sleep(0)` after `create_task()` to ensure the task appears in `asyncio.all_tasks()` when `close_resources()` inspects it. |
+| 3 | Run `uv run pytest tests/agent/test_repl.py` to confirm no regression | Completed | 2026-09-08T10:54:00+00:00 | 2026-09-08T10:54:00+00:00 | Targeted test passes. Pre-existing failures exist in unrelated tests (`TestSigtermHandlerTurnActiveGuard::test_input_coro_cancelled_when_turn_not_active`, `TestCloseResourcesWALCheckpoint::test_checkpoint_timeout_records_error_and_still_runs_backup`) — not caused by these changes. |
+| 4 | Documentation update — N/A per Plan's Documentation Impact (docstring change is captured in Step 1, not a `docs/*.md` update) | Completed | 2026-09-08T10:54:00+00:00 | 2026-09-08T10:54:00+00:00 | N/A: no docs/00_index.md task-scope mapping for changed files |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
