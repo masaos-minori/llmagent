@@ -9,7 +9,7 @@ Handles: readline, multiline continuation, shutdown event racing, command routin
 import asyncio
 import sqlite3
 from collections.abc import Callable, Coroutine
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from agent.output_tags import OutputTag
 from agent.session import SchemaMissingError
@@ -180,10 +180,8 @@ class ReplInputLoop:
         if self._orchestrator is None:
             raise RuntimeError("_dispatch_line called before _init_components()")
         if line.startswith("/"):
-            if self._cmds is None:
-                self._view.write_fatal("Command registry not initialized")
-                return
-            matched = await self._cmds.dispatch(line)
+            cmds = cast("CommandRegistry", self._cmds)
+            matched = await cmds.dispatch(line)
             if not matched:
                 self._view.write_warning(
                     f"Unknown command: {line}  (type /help for commands)"

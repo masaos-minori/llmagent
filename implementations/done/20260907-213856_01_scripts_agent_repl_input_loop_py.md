@@ -112,9 +112,10 @@ Expected result: Exactly one match at line 202 (_repl_loop). If multiple matches
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify no bypass caller exists | Pending | — | — | |
-| 2 | Remove duplicate _cmds check from _dispatch_line | Pending | — | — | Single authoritative check remains in _repl_loop |
-| 3 | Verify the class docstring's claim remains accurate | Pending | — | — | |
+| 1 | Verify no bypass caller exists | Completed | — | — | Only call site is _repl_loop at line 224 |
+| 2 | Remove duplicate _cmds check from _dispatch_line | Completed | — | — | Single authoritative check remains in _repl_loop; used typing.cast for type narrowing instead of removing entirely (mypy requires it) |
+| 3 | Verify the class docstring's claim remains accurate | Completed | — | — | Exactly one _cmds is None check remains at _repl_loop line 199 |
+| 4 | Test the feature | Completed | — | — | 16 passed, 2 pre-existing failures (unrelated DB path); key REPL dispatch tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
