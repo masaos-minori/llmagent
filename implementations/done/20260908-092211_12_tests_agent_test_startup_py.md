@@ -71,9 +71,9 @@ This is a Path A task (single file, read-only verification). The approach is sim
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Search for stale references | Pending | — | — | |
-| 2 | Identify affected test functions | Pending | — | — | |
-| 3 | Classify cluster | Pending | — | — | |
+| 1 | Search for stale references | Completed | — | — | Found 17 occurrences of deleted functions in test_startup.py (find_all_pending_approvals: lines 260,292,332,362,403,439,465,476,522; check_workflow_definition: lines 647,651,656,660,673,674,684,688) |
+| 2 | Identify affected test functions | Completed | — | — | Multiple test functions reference deleted functions; all use mock patches |
+| 3 | Classify cluster | Completed | — | — | Cluster 7 = stale test (functions relocated to approval_ops.py and workflow_schema.py) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

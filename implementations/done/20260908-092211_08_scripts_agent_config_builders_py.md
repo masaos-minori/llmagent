@@ -72,9 +72,9 @@ This is a Path A task (single file, read-only verification). The approach is sim
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Search for all three patterns | Pending | — | — | |
-| 2 | Verify removal via git history | Pending | — | — | Optional |
-| 3 | Classify cluster 2 | Pending | — | — | |
+| 1 | Search for all three patterns | Completed | — | — | PRODUCTION NOT found; tool_definitions_strict EXISTS (line 281-282); routing_drift_strict EXISTS (line 284) |
+| 2 | Verify removal via git history | Pending | — | — | Not needed; patterns confirmed present |
+| 3 | Classify cluster 2 | Completed | — | — | Cluster 2 = implementation regression (patterns retained in config_builders.py) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

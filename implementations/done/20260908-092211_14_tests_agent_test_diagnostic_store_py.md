@@ -73,9 +73,9 @@ This is a Path A task (single file, read-only verification). The approach is sim
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Search for session_diagnostics fixture | Pending | — | — | |
-| 2 | Compare with production schema | Pending | — | — | |
-| 3 | Classify cluster 4 | Pending | — | — | |
+| 1 | Search for session_diagnostics fixture | Completed | — | — | Found 41 occurrences across test files; fixture at lines 18-30 |
+| 2 | Compare with production schema | Completed | — | — | Fixture omits FK constraint on session_id and uses different index name (intentional for in-memory tests) |
+| 3 | Classify cluster 4 | Completed | — | — | Cluster 4 = stale test (fixture differs from production schema but intentionally so) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

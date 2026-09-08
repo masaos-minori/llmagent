@@ -76,10 +76,10 @@ This is a Path A task (single file, read-only verification). The approach is sim
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Search for table definition | Pending | — | — | |
-| 2 | Read table schema | Pending | — | — | |
-| 3 | Compare with test fixture | Pending | — | — | |
-| 4 | Classify cluster 4 | Pending | — | — | |
+| 1 | Search for table definition | Completed | — | — | Not found in session_consistency.py; table defined in scripts/db/schema_sql.py:136 |
+| 2 | Read table schema | Completed | — | — | Schema confirmed at schema_sql.py:136-146 |
+| 3 | Compare with test fixture | Completed | — | — | Test fixtures omit FK constraint and use different index name (intentional for in-memory tests) |
+| 4 | Classify cluster 4 | Completed | — | — | Cluster 4 = stale test (test fixture omits FK constraint on session_id) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

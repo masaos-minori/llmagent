@@ -71,9 +71,9 @@ This is a Path A task (single file, read-only verification). The approach is sim
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Search for stale references | Pending | — | — | |
-| 2 | Identify affected test functions | Pending | — | — | |
-| 3 | Classify cluster | Pending | — | — | |
+| 1 | Search for stale references | Completed | — | — | Found 4 occurrences of _llm_turn_executor (lines 126, 765, 800, 831); attribute does NOT exist in orchestrator.py |
+| 2 | Identify affected test functions | Completed | — | — | Fixture _make_orchestrator (line 126) + 3 test functions reference deleted attribute |
+| 3 | Classify cluster | Completed | — | — | Cluster 1 (_llm_turn_executor) = stale test (needs update to use _llm_executor instead) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

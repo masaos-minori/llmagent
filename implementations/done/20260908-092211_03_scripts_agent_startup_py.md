@@ -71,9 +71,9 @@ This is a Path A task (single file, read-only verification). The approach is sim
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Search for both functions | Pending | — | — | |
-| 2 | Verify removal via git history | Pending | — | — | Optional |
-| 3 | Classify cluster 7 | Pending | — | — | |
+| 1 | Search for both functions | Completed | — | — | Not found in startup.py; functions moved to other files (workflow_schema.py, approval_ops.py) |
+| 2 | Verify removal via git history | Completed | — | — | Multiple refactor commits show functions extracted from startup.py |
+| 3 | Classify cluster 7 | Completed | — | — | Cluster 7 = stale test (functions relocated, not deleted) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

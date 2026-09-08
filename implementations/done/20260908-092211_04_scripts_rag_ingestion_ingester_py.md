@@ -71,9 +71,9 @@ This is a Path A task (single file, read-only verification). The approach is sim
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Search for both methods | Pending | — | — | |
-| 2 | Verify removal via git history | Pending | — | — | Optional |
-| 3 | Classify cluster 8 | Pending | — | — | |
+| 1 | Search for both methods | Completed | — | — | Not found in ingester.py; methods moved to other files during reorganization |
+| 2 | Verify removal via git history | Completed | — | — | Both methods removed in f7f7616f (reorganization) and confirmed absent in 747aed92 |
+| 3 | Classify cluster 8 | Completed | — | — | Cluster 8 = stale test (methods relocated, not deleted) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

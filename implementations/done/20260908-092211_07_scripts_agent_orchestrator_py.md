@@ -72,9 +72,9 @@ This is a Path A task (single file, read-only verification). The approach is sim
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Search for both attributes | Pending | — | — | |
-| 2 | Check integration tests | Pending | — | — | |
-| 3 | Classify clusters 1 and 2 | Pending | — | — | |
+| 1 | Search for both attributes | Completed | — | — | _llm_executor EXISTS (line 155, 186, 286); _llm_turn_executor NOT found |
+| 2 | Check integration tests | Pending | — | — | Not yet checked; _llm_executor presence changes classification |
+| 3 | Classify clusters 1 and 2 | Completed | — | — | Cluster 1 (_llm_turn_executor) = stale test; Cluster 2 (_llm_executor) = implementation regression (attribute retained) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

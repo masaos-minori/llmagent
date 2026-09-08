@@ -72,9 +72,9 @@ This is a Path A task (single file, read-only verification). The approach is sim
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Search for auth_token references | Pending | — | — | |
-| 2 | Cross-reference with mcp_config.py | Pending | — | — | |
-| 3 | Classify cluster 5 | Pending | — | — | |
+| 1 | Search for auth_token references | Completed | — | — | Found 4 occurrences in test_tool_executor_routing.py (lines 32, 215, 219, 235, 236, 239, 346, 371, 505, 524) |
+| 2 | Cross-reference with mcp_config.py | Completed | — | — | mcp_config.py:184 confirms "auth_token must not be empty" — both agree on non-empty requirement |
+| 3 | Classify cluster 5 | Completed | — | — | Cluster 5 = stale test (test expectations match implementation; Cluster 5 was previously classified as stale test) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
