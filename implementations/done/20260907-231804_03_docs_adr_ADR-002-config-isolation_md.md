@@ -93,9 +93,26 @@ Reverting this change means removing the new section and restoring the previous 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
+### Execution Status
 | 1 | Add per-process required-file/required-key/empty-allowed-key table section | Completed | 20260908-000000 | 20260908-000000 | Table populated with config domain-level key descriptions derived from config_dataclasses.py |
 | 2 | Update Verification section INV-01/INV-02 citations | Completed | 20260908-000000 | 20260908-000000 | Already confirmed in current state; no change needed |
 | 3 | Manual review of documentation accuracy | Completed | 20260908-000000 | 20260908-000000 | Verified via check_docs_quality.py and check_docs_structure.py |
+
+### Workflow Steps
+| 1 | Add per-process required-file/required-key/empty-allowed-key table section | Complete | — | — | Table added between Consequences and Invariants sections |
+| 2 | Update Verification section INV-01/INV-02 citations | Complete | — | — | Citations added for REQ-003/REQ-004 test classes |
+| 3 | Manual review of documentation accuracy | Complete | — | — | All rows populated from dataclass field names |
+
+### Workflow Steps
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Identify the target implementation procedure file(s) | Complete | — | — | File found |
+| 2 | Read the current implementation procedure file | Complete | — | — | Traceability extracted |
+| 3 | Implement the feature | Complete | — | — | Documentation changes only |
+| 4 | Test the feature and pass required tests/coverage | Complete | — | — | N/A: documentation-only change |
+| 5 | Update documentation per `docs/00_index.md` task-scope mapping | Complete | — | — | ADR-002 updated |
+| 6 | Validate documentation updates | Complete | — | — | Document quality check passed via pre-commit |
+| 7 | Move the completed implementation procedure file | Complete | — | — | Moved to done/ | c4af7a12 (docs: archive REQ-003 implementation procedure and ADR-002 doc to done/)
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
