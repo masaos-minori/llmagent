@@ -125,6 +125,62 @@ def test_recover_bad_backup(mock_db_cfg, mock_sqlite_helper):
             assert result.action == "bad_backup"
 
 
+def test_recover_wrong_domain_backup_rejected(mock_db_cfg, mock_sqlite_helper):
+    with (
+        patch(
+            "scripts.db.recovery._run_integrity_check",
+            return_value=(DbCondition.HEALTHY, None),
+        ),
+        patch(
+            "scripts.db.recovery._verify_domain_identity",
+            return_value=(False, "backup missing required table 'sessions'"),
+        ),
+        patch("pathlib.Path.exists", return_value=True),
+    ):
+        result = recover_corruption(backup_path="/tmp/backup.db", target="session")
+
+        assert result.success is False
+        assert result.action == "backup_wrong_domain"
+
+
+def test_recover_wrong_domain_backup_distinct_action(mock_db_cfg, mock_sqlite_helper):
+    with (
+        patch(
+            "scripts.db.recovery._run_integrity_check",
+            return_value=(DbCondition.HEALTHY, None),
+        ),
+        patch(
+            "scripts.db.recovery._verify_domain_identity",
+            return_value=(False, "backup missing required table 'sessions'"),
+        ),
+        patch("pathlib.Path.exists", return_value=True),
+    ):
+        result = recover_corruption(backup_path="/tmp/backup.db", target="session")
+
+        assert result.action not in ("no_backup", "bad_backup")
+
+
+def test_recover_wrong_domain_backup_leaves_db_untouched(mock_db_cfg, mock_sqlite_helper):
+    with (
+        patch(
+            "scripts.db.recovery._run_integrity_check",
+            return_value=(DbCondition.HEALTHY, None),
+        ),
+        patch(
+            "scripts.db.recovery._verify_domain_identity",
+            return_value=(False, "backup missing required table 'sessions'"),
+        ),
+        patch("pathlib.Path.exists", return_value=True),
+        patch("shutil.copy2") as mock_copy2,
+        patch("os.replace") as mock_replace,
+    ):
+        result = recover_corruption(backup_path="/tmp/backup.db", target="session")
+
+        assert result.success is False
+        mock_copy2.assert_not_called()
+        mock_replace.assert_not_called()
+
+
 def test_recover_dry_run_healthy(mock_db_cfg, mock_sqlite_helper):
     with patch(
         "scripts.db.recovery._run_integrity_check",
