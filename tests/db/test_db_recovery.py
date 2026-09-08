@@ -160,7 +160,9 @@ def test_recover_wrong_domain_backup_distinct_action(mock_db_cfg, mock_sqlite_he
         assert result.action not in ("no_backup", "bad_backup")
 
 
-def test_recover_wrong_domain_backup_leaves_db_untouched(mock_db_cfg, mock_sqlite_helper):
+def test_recover_wrong_domain_backup_leaves_db_untouched(
+    mock_db_cfg, mock_sqlite_helper
+):
     with (
         patch(
             "scripts.db.recovery._run_integrity_check",
