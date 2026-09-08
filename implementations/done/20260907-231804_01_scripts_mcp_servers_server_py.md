@@ -95,6 +95,7 @@ Reverting this change means removing the `else` clause and restoring the silent-
 | 2 | Add unit test for falsy own_config_file fail-closed path | Completed | 2026-09-08T09:45:00Z | 2026-09-08T09:45:00Z | Added TestConfigIsolationValidation class |
 | 3 | Run the validation sequence (rules/toolchain.md) | Completed | 2026-09-08T09:45:00Z | 2026-09-08T09:45:00Z | All 36 tests pass; fixed pre-existing test compatibility |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-08T09:45:00Z | 2026-09-08T09:45:00Z | N/A: no docs/00_index.md task-scope mapping |
+ 6f502c3d (docs: update REQ-003 Execution Status and archive to done/)
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
