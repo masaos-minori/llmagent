@@ -4,7 +4,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from scripts.db.config import DbConfig
-from scripts.db.recovery import DbCondition, _classify_error, recover_corruption
+from scripts.db.recovery import (
+    DbCondition,
+    _classify_error,
+    _restore_from_backup,
+    recover_corruption,
+)
 
 
 @pytest.fixture
@@ -647,3 +652,106 @@ def test_stage_backup_sidecars():
         assert staged["-shm"].exists()
         assert staged["-wal"].name == "backup-wal"
         assert staged["-shm"].name == "backup-shm"
+
+
+def test_restore_with_stale_wal_shm_before_swap(mock_db_cfg, mock_sqlite_helper):
+    """Stale -wal/-shm files present before restore should be quarantined and not affect restore."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        wal_path = Path(tmpdir) / "test-wal"
+        shm_path = Path(tmpdir) / "test-shm"
+
+        # Create dummy files
+        db_path.write_bytes(b"\x00" * 100)
+        wal_path.write_text("STALE_WAL_CONTENT")
+        shm_path.write_text("STALE_SHM_CONTENT")
+
+        # Verify sidecars exist before restore
+        assert wal_path.exists()
+        assert shm_path.exists()
+
+        # Create a valid backup (SQLite header for health check)
+        backup_path = Path(tmpdir) / "backup.db"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+
+        with (
+            patch("scripts.db.recovery._run_integrity_check") as mock_integrity,
+            patch(
+                "scripts.db.recovery._run_logical_verification",
+                return_value=(True, None),
+            ),
+            patch("os.replace"),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # post-restore re-check
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is True
+        assert result.action == "restored"
+
+        # Stale sidecars should be removed from original location
+        assert not wal_path.exists()
+        assert not shm_path.exists()
+
+        # Quarantine directory should have been cleaned up after success
+        quarantine_dirs = list(Path(tmpdir).glob("*_sidecar_quarantine_*"))
+        assert len(quarantine_dirs) == 0
+
+
+def test_restore_with_backup_wal_shm_sidecars(mock_db_cfg, mock_sqlite_helper):
+    """Backup -wal/-shm sidecars should be staged and swapped atomically with main file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_dir = Path(tmpdir) / "db_dir"
+        db_dir.mkdir()
+        db_path = db_dir / "test.db"
+        wal_path = db_dir / "test-wal"
+        shm_path = db_dir / "test-shm"
+
+        # Create stale sidecars on db_path
+        db_path.write_bytes(b"\x00" * 100)
+        wal_path.write_text("STALE_WAL_CONTENT")
+        shm_path.write_text("STALE_SHM_CONTENT")
+
+        # Backup with its own WAL/SHM in a separate directory
+        backup_dir = Path(tmpdir) / "backup_dir"
+        backup_dir.mkdir()
+        backup_path = backup_dir / "backup.db"
+        backup_wal = backup_dir / "backup-wal"
+        backup_shm = backup_dir / "backup-shm"
+
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+        backup_wal.write_text("BACKUP_WAL_CONTENT")
+        backup_shm.write_text("BACKUP_SHM_CONTENT")
+
+        # Verify all files exist
+        assert wal_path.exists()
+        assert shm_path.exists()
+        assert backup_wal.exists()
+        assert backup_shm.exists()
+
+        with (
+            patch("scripts.db.recovery._run_integrity_check") as mock_integrity,
+            patch(
+                "scripts.db.recovery._run_logical_verification",
+                return_value=(True, None),
+            ),
+            patch("os.replace"),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # post-restore re-check
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is True
+        assert result.action == "restored"
+
+        # Restored DB should have WAL/SHM sidecars from backup
+        restored_wal = db_dir / "test-wal"
+        restored_shm = db_dir / "test-shm"
+        assert restored_wal.exists(), "Restored WAL sidecar should exist"
+        assert restored_shm.exists(), "Restored SHM sidecar should exist"
+        assert restored_wal.read_text() == "BACKUP_WAL_CONTENT"
+        assert restored_shm.read_text() == "BACKUP_SHM_CONTENT"

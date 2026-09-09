@@ -320,6 +320,18 @@ def _restore_from_backup(
             shutil.copy2(staged_path, dest)
         os.replace(temp_restore, db_path)
 
+        # 4a. Rename staged -wal/-shm files to final locations alongside db_path
+        for suffix, staged_path in staged.items():
+            final_path = db_path.parent / f"{db_path.stem}{suffix}"
+            try:
+                shutil.move(staged_path, final_path)
+            except OSError:
+                logger.warning(
+                    "Failed to move staged sidecar %s to %s; proceeding without it",
+                    staged_path,
+                    final_path,
+                )
+
         # 4. Re-verify the restored database before reporting success
         post_condition, post_detail = _run_integrity_check(db_path, target)
         if post_condition != DbCondition.HEALTHY:
