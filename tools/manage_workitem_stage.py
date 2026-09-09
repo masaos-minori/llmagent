@@ -28,6 +28,7 @@ Subcommands:
 Usage:
     python tools/manage_workitem_stage.py close-issue issues/20260101_foo.md
     python tools/manage_workitem_stage.py close-plan plans/20260101_plan.md
+    python tools/manage_workitem_stage.py close-plan plans/20260101_plan.md --allow-uncommitted
     python tools/manage_workitem_stage.py close-implementation \\
         implementations/20260101_x.md
     python tools/manage_workitem_stage.py close-implementation \\
@@ -139,7 +140,7 @@ def _find_remote_conflict(repo: git.Repo, destination_abs: Path) -> str | None:
     )
 
 
-def move_to_done(source: Path) -> MoveResult:
+def move_to_done(source: Path, allow_uncommitted: bool = False) -> MoveResult:
     """Move `source` into its sibling `done/` directory as a Git rename.
 
     Refuses (returns a failure `MoveResult`, performs no move) when the source is
@@ -147,6 +148,8 @@ def move_to_done(source: Path) -> MoveResult:
     does not exist, the source is outside a Git repository, the source has
     uncommitted local changes, or the destination already exists on `origin`'s
     remote-tracking branch (see `_find_remote_conflict`).
+
+    Set `allow_uncommitted=True` to bypass the uncommitted-changes check.
     """
     if not source.is_file():
         return MoveResult(success=False, error=f"source file not found: {source}")
@@ -183,11 +186,16 @@ def move_to_done(source: Path) -> MoveResult:
     except git.exc.GitCommandError as e:
         return MoveResult(success=False, error=f"git status failed: {e}")
 
-    if status.strip():
-        return MoveResult(
-            success=False,
-            error=f"source file has uncommitted changes, refusing to move: {source}",
+    if status.strip() and not allow_uncommitted:
+        diff_output = _run_with_lock_retry(
+            lambda: repo.git.diff("--cached", str(source_abs))
         )
+        error_msg = (
+            f"source file has uncommitted changes, refusing to move: {source}\n"
+            f"HINT: Commit the changes first, or use --allow-uncommitted to proceed anyway.\n"
+            f"Changes:\n{diff_output}"
+        )
+        return MoveResult(success=False, error=error_msg)
 
     conflict = _find_remote_conflict(repo, destination_abs)
     if conflict:
@@ -262,7 +270,12 @@ def cmd_close_issue(args: argparse.Namespace) -> int:
 
 def cmd_close_plan(args: argparse.Namespace) -> int:
     """Move a `plans/*.md` file to `plans/done/`."""
-    return _run_simple_move(Path(args.plan_path))
+    result = move_to_done(Path(args.plan_path), allow_uncommitted=args.allow_uncommitted)
+    if not result.success:
+        print(f"ERROR: {result.error}", file=sys.stderr)
+        return 1
+    print(f"OK: moved {args.plan_path} -> {result.destination}")
+    return 0
 
 
 def _run_simple_move(source: Path) -> int:
@@ -337,6 +350,11 @@ def build_parser() -> argparse.ArgumentParser:
         "close-plan", help="Move a plans/*.md file to plans/done/"
     )
     plan_parser.add_argument("plan_path", help="Path to the plan file")
+    plan_parser.add_argument(
+        "--allow-uncommitted",
+        action="store_true",
+        help="Allow moving files with uncommitted changes (not recommended without review)",
+    )
 
     impl_parser = subparsers.add_parser(
         "close-implementation",
