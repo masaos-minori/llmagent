@@ -75,27 +75,34 @@ is a test-only rename-propagation fix.
   (`rg -n "_llm_turn_executor" tests/ scripts/` returns no matches)
 - [ ] `uv run pytest tests/agent/test_orchestrator.py -q` no longer reports the
   `_llm_turn_executor` `AttributeError` (78 fewer failures than the current baseline)
-- [ ] `tests/integration/test_orchestrator_integration.py`'s 3 occurrences are fixed;
-  any of its failures that persist afterward are confirmed to be a distinct,
-  unrelated cause (see Out of Scope), not this one
+- [ ] `uv run pytest tests/integration/test_orchestrator_integration.py -q` no longer
+  reports the `_llm_turn_executor` `AttributeError` (32 fewer failures — see Testing
+  Expectations; this file's one remaining failure after this fix is a distinct,
+  separately-tracked defect, not this issue's concern)
 
 ## Testing Expectations
 - `uv run pytest tests/agent/test_orchestrator.py -q` — all 78
   `_llm_turn_executor`-attributable failures must be resolved
-- `uv run pytest tests/integration/test_orchestrator_integration.py -q` — the 3
-  `_llm_turn_executor` occurrences must be fixed; re-baseline this file's remaining
-  failure count afterward (33 failures were observed in the full suite before this fix,
-  which is more than the 3 occurrences found — confirm whether the rest share this
-  cause or are unrelated, per Out of Scope)
+- `uv run pytest tests/integration/test_orchestrator_integration.py -q` — **Resolved
+  2026-09-09**: a follow-up investigation confirmed 32 of this file's 33 failures
+  (not just the 3 occurrences originally found) share this exact cause — every failing
+  test that goes through the shared `_make_orchestrator()`-equivalent construction path
+  hits the same `_llm_turn_executor` `AttributeError`, the same cascading-from-one-line
+  mechanism as `test_orchestrator.py`'s 78. The file's one remaining failure
+  (`TestCompleteTurnExecution::test_handle_turn_history_compression_persists_when_needed`,
+  which constructs `Orchestrator(ctx)` directly and is unaffected by this rename) is a
+  distinct, genuine production defect, filed separately as
+  `issues/20260909-130135_orch003_history-compression-no-longer-persists-to-session-store.md`
+  — do not attempt to fix it as part of this issue.
 
 ## Documentation Impact
 N/A: test-only rename propagation; no documented behavior changes.
 
 ## Out of Scope
 - Any change to `scripts/agent/orchestrator.py` or `LlmTurnExecutor`.
-- Root-causing `tests/integration/test_orchestrator_integration.py`'s full 33-failure
-  count if it exceeds what the 3 `_llm_turn_executor` occurrences explain — file a
-  separate issue for any residual, distinct cause found there.
+- `test_orchestrator_integration.py`'s one remaining, distinct failure
+  (`test_handle_turn_history_compression_persists_when_needed`) — tracked separately,
+  see Testing Expectations.
 - `tests/agent/test_orchestrator_bg_failure_threshold.py`'s 6 failures — `rg` found no
   `_llm_turn_executor` reference in this file, so its failures are a separate,
   uninvestigated cause, not part of this issue.
@@ -106,10 +113,8 @@ N/A: none. Related to (but does not duplicate) the now-deleted triage record
 sampled this failure.
 
 ## Unresolved Questions
-Whether `tests/integration/test_orchestrator_integration.py`'s full 33-failure count is
-entirely explained by its 3 `_llm_turn_executor` occurrences, or partly by a separate,
-unconfirmed cause — resolve this by re-running the file after the rename fix and
-inspecting any remaining failures.
+N/A: none — resolved 2026-09-09 (see Testing Expectations); `test_orchestrator_integration.py`'s
+full failure count is now fully accounted for (32 by this issue, 1 by `orch003`).
 
 ## AI Implementation Instruction
 Apply the rename mechanically to all 7 occurrences; do not guess at a fix for
