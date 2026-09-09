@@ -165,6 +165,9 @@ class TestReplLoop:
         mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=KeyboardInterrupt):
             await repl._input_loop.run(mock_banner, mock_persister)
+        # Verify KeyboardInterrupt routed through _abort_input, not an uncaught escape
+        repl._view.write_turn_end.assert_called_once()
+        assert repl._input_loop._input_coro is None
 
     @pytest.mark.asyncio
     async def test_slash_command_dispatched_to_cmds(self) -> None:

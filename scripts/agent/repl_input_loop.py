@@ -23,6 +23,17 @@ if TYPE_CHECKING:
 _REPL_RESERVED_COMMANDS = frozenset(["/exit"])
 
 
+class _InputAborted(Exception):
+    """Internal sentinel: input reading was interrupted by Ctrl-C/SystemExit.
+
+    CPython's Task.__step() re-raises a raw (KeyboardInterrupt, SystemExit) through
+    the event loop's own callback machinery instead of storing it as a normal,
+    retrievable Task exception — catching it inside _input_task()'s own coroutine
+    step and converting it to a plain Exception subclass avoids that special-cased
+    escape path entirely.
+    """
+
+
 class ReplInputLoop:
     """Manages REPL input reading, dispatch, and exit conditions.
 
@@ -116,7 +127,10 @@ class ReplInputLoop:
 
             async def _input_task() -> str:
                 """Read one line of user input via executor."""
-                return await loop.run_in_executor(None, lambda: input("> "))
+                try:
+                    return await loop.run_in_executor(None, lambda: input("> "))
+                except (KeyboardInterrupt, SystemExit) as exc:
+                    raise _InputAborted from exc
 
             input_coro = asyncio.ensure_future(_input_task())
             self._input_coro = input_coro
@@ -151,7 +165,7 @@ class ReplInputLoop:
             except EOFError:
                 self._abort_input()
                 return None
-            except KeyboardInterrupt:
+            except _InputAborted:
                 self._abort_input()
                 return None
         else:

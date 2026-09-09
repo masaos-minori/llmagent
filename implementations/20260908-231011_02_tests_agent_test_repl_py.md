@@ -108,8 +108,8 @@ These assertions provide explicit verification of the fix rather than relying on
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add verification test asserting KeyboardInterrupt routes through _abort_input | Pending | — | — | |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add verification test asserting KeyboardInterrupt routes through _abort_input | Completed | 20260909-105920 | 20260909-122726 | Applied exactly as designed (no correction needed) — `_abort_input()`'s call shape (`write_turn_end()` + clearing `_input_coro`) is unchanged by Row 1's `_InputAborted` correction. |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20260909-105920 | 20260909-122726 | ruff format/check, mypy: clean. `test_keyboard_interrupt_breaks_loop` passes with the new assertions; full `tests/agent/test_repl.py` run: 47 passed, 8 failed (all pre-existing/unrelated — see sibling procedure's Step 3 Notes). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

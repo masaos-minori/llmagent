@@ -8,22 +8,73 @@ Modify only `scripts/agent/repl_input_loop.py` to prevent `KeyboardInterrupt` fr
 
 ## Assumptions
 
-- CPython's Task machinery special-cases `(KeyboardInterrupt, SystemExit)` and re-raises them through the event loop's callback machinery when a Task's own coroutine step raises one of these exceptions.
-- The `input_coro.result()` call at line 146 propagates the exception before the `except KeyboardInterrupt:` clause at line 154 can catch it.
-- The `else` branch (line 157-162) already handles `KeyboardInterrupt` correctly via `(EOFError, KeyboardInterrupt)`.
+- **Corrected 2026-09-09, per Step 3a adversarial verification**: CPython's Task
+  machinery special-cases `(KeyboardInterrupt, SystemExit)` — when a Task's own
+  coroutine step raises one of these, `Task.__step()` calls `super().set_exception(exc)`
+  **and then re-raises it immediately**, inside the event loop's own callback-stepping
+  code, *before* control ever returns to whatever coroutine is awaiting that Task (e.g.
+  via `asyncio.wait(...)`). This was verified two ways: (1) direct inspection of
+  `/usr/lib/python3.13/asyncio/tasks.py`'s `Task.__step_run_and_handle_result`, which
+  contains `except (KeyboardInterrupt, SystemExit) as exc: super().set_exception(exc);
+  raise`; (2) a minimal standalone `asyncio.run()` reproduction (not pytest) mirroring
+  this file's exact structure — `current_buggy_structure()` in the reproduction script —
+  which showed the `KeyboardInterrupt` escaping `asyncio.run(main())` **entirely, as an
+  unretrieved-Task-exception warning surfacing after `main()` had already returned**, not
+  as an exception raised at the `input_coro.result()` call site inside `_read_input()`.
+- Consequently, **no `except` clause added around `input_coro.result()` at line 146—156,
+  no matter how it is structured or which exception types it lists, can reliably catch
+  this** — the exception frequently never reaches that call site's frame at all. This
+  invalidates this document's original Design decision (see below) and Alternative #2's
+  original dismissal.
+- The **correct** boundary is inside `_input_task()`'s own coroutine body — catching
+  `(KeyboardInterrupt, SystemExit)` there, before the coroutine step completes, means
+  `Task.__step()` never observes a raw `(KeyboardInterrupt, SystemExit)` escaping that
+  step, so its special-case re-raise branch is never triggered. This was empirically
+  confirmed via the same reproduction script's `fix_a_catch_inside_input_task()` and
+  `fix_final_sentinel_exception()`: both completed and returned normally with no
+  escape, once `KeyboardInterrupt` was caught inside `_input_task()` itself.
+- The `else` branch (line 157-162) already handles `KeyboardInterrupt` correctly via
+  `(EOFError, KeyboardInterrupt)` — it is not wrapped in a separate `ensure_future()`
+  Task, so the exception propagates through the current coroutine's own frame via
+  normal Python exception unwinding, not through `Task.__step()`'s special-cased path.
+  This asymmetry between the two branches is the actual root cause of the bug, not a
+  detail to preserve unexamined.
 
 ## Design decisions
 
-- Wrap the entire `try/except` block (lines 145-156) in a try/except that catches `KeyboardInterrupt` and `SystemExit`, then calls `_abort_input()` and returns `None`.
-- This approach preserves the existing control flow while adding a safety net for the Task machinery bug.
-- Minimal change: only modify the existing code, do not introduce new abstractions.
+- **Corrected 2026-09-09**: Catch `(KeyboardInterrupt, SystemExit)` **inside
+  `_input_task()`'s own body** (wrapping only the `await loop.run_in_executor(...)`
+  call), and re-raise as a new, module-scoped plain `Exception` subclass,
+  `_InputAborted` — a regular `Exception` is not special-cased by `Task.__step()`, so it
+  propagates normally to `input_coro.result()` at the existing call site.
+- Replace the existing `except KeyboardInterrupt:` clause (line 154-156) with
+  `except _InputAborted:` — the old clause is now unreachable dead code once the
+  conversion happens inside `_input_task()`, since a raw `KeyboardInterrupt` can no
+  longer reach `input_coro.result()` through this path.
+- This is still a minimal change scoped to `scripts/agent/repl_input_loop.py`: one new
+  private exception class, one `try/except` inside `_input_task()`, and one renamed
+  `except` clause.
 
 ## Alternatives considered
 
-1. **Replace `input_coro.result()` with `await input_coro`** — Would propagate the exception through await machinery instead of result(), but CPython still re-raises `(KeyboardInterrupt, SystemExit)` through await. Not effective.
-2. **Catch the exception inside `_input_task()`** — Would require wrapping the executor call in a try/except inside the Task, but the exception is raised after the Task completes, not during execution.
-3. **Use `asyncio.wait_for()` with timeout** — Same issue as alternative 1; the exception propagation mechanism is the same.
-4. **Cancel the task and retry** — Complex and introduces race conditions; unnecessary given the simpler approach.
+1. **Replace `input_coro.result()` with `await input_coro`** — Would propagate the
+   exception through await machinery instead of `result()`, but CPython still
+   special-cases `(KeyboardInterrupt, SystemExit)` the same way regardless of `.result()`
+   vs. `await` — not effective, confirmed by the same reproduction mechanism.
+2. **Catch the exception inside `_input_task()`** — *(Corrected 2026-09-09: this
+   document originally dismissed this option on the mistaken premise that "the exception
+   is raised after the Task completes, not during execution." This is factually wrong —
+   the traceback shows it raised at the `await loop.run_in_executor(...)` line, inside
+   `_input_task()`'s own body, i.e. during its execution. This is in fact the correct,
+   empirically-verified fix — see Design decisions above.)*
+3. **Use `asyncio.wait_for()` with timeout** — Same issue as alternative 1; the exception
+   propagation mechanism is unchanged by adding a timeout.
+4. **Cancel the task and retry** — Complex and introduces race conditions; unnecessary
+   given the simpler, now-confirmed approach above.
+5. **Wrap `input_coro.result()`'s call site in a broader `except` (any combination of
+   `KeyboardInterrupt`/`SystemExit`/bare `Exception`)** — *(Corrected 2026-09-09: this
+   was this document's original Design decision. Empirically disproven — see
+   Assumptions above. Removed as the chosen approach; Alternative #2 replaces it.)*
 
 ## Implementation
 
@@ -33,12 +84,50 @@ Modify only `scripts/agent/repl_input_loop.py` to prevent `KeyboardInterrupt` fr
 
 ### Procedure
 
-1. After the `input_coro.result()` call at line 146, wrap the subsequent `except` clauses in a try/except that catches `KeyboardInterrupt` and `SystemExit`.
-2. When caught, call `self._abort_input()` and return `None`.
+1. Add a module-level private exception class `_InputAborted(Exception)` near the top
+   of the file (alongside `_REPL_RESERVED_COMMANDS`).
+2. Wrap `_input_task()`'s body (`return await loop.run_in_executor(None, lambda: input("> "))`)
+   in a `try/except (KeyboardInterrupt, SystemExit) as exc:` that raises
+   `_InputAborted from exc`.
+3. Replace the `except KeyboardInterrupt:` clause at line 154-156 with
+   `except _InputAborted:`, keeping the same body (`self._abort_input(); return None`).
 
 ### Method
 
-Add a try/except wrapper around the existing `try/except` block (lines 145-156):
+Add near the top of the file, after `_REPL_RESERVED_COMMANDS`:
+
+```python
+class _InputAborted(Exception):
+    """Internal sentinel: input reading was interrupted by Ctrl-C/SystemExit.
+
+    CPython's Task.__step() re-raises a raw (KeyboardInterrupt, SystemExit) through
+    the event loop's own callback machinery instead of storing it as a normal,
+    retrievable Task exception — catching it here, inside _input_task()'s own
+    coroutine step, and converting it to a plain Exception subclass avoids that
+    special-cased escape path entirely.
+    """
+```
+
+Change `_input_task()` from:
+
+```python
+            async def _input_task() -> str:
+                """Read one line of user input via executor."""
+                return await loop.run_in_executor(None, lambda: input("> "))
+```
+
+to:
+
+```python
+            async def _input_task() -> str:
+                """Read one line of user input via executor."""
+                try:
+                    return await loop.run_in_executor(None, lambda: input("> "))
+                except (KeyboardInterrupt, SystemExit) as exc:
+                    raise _InputAborted from exc
+```
+
+Change the `input_coro.result()` except clauses from:
 
 ```python
             try:
@@ -55,7 +144,7 @@ Add a try/except wrapper around the existing `try/except` block (lines 145-156):
                 return None
 ```
 
-Change to:
+to:
 
 ```python
             try:
@@ -67,76 +156,24 @@ Change to:
             except EOFError:
                 self._abort_input()
                 return None
-            except KeyboardInterrupt:
-                self._abort_input()
-                return None
-            except (KeyboardInterrupt, SystemExit):
-                # Safety net: Task machinery may re-raise these through
-                # the event loop's callback machinery even though we
-                # just handled KeyboardInterrupt above. This catches
-                # the case where the exception propagated out of the
-                # Task before our except clause could catch it.
+            except _InputAborted:
                 self._abort_input()
                 return None
 ```
-
-Wait, this would be redundant since we already handle `KeyboardInterrupt` above. The correct approach is different.
-
-The issue is that `input_coro.result()` raises `KeyboardInterrupt` BEFORE the `except KeyboardInterrupt:` clause at line 154 can execute. The exception has already been propagated out of the Task machinery. So the fix needs to wrap the entire `result()` call in a try/except:
-
-```python
-            try:
-                raw = input_coro.result()
-            except asyncio.CancelledError:
-                # Input was cancelled by signal handler — treat as shutdown
-                self._abort_input()
-                return None
-            except EOFError:
-                self._abort_input()
-                return None
-            except KeyboardInterrupt:
-                self._abort_input()
-                return None
-            except Exception:
-                # Catch any other unexpected exception from result()
-                self._abort_input()
-                return None
-```
-
-But wait, `KeyboardInterrupt` is already caught above. The real issue is that the `KeyboardInterrupt` raised by `input_coro.result()` bypasses the `except KeyboardInterrupt:` clause because the exception has already been propagated out of the Task machinery.
-
-Actually, looking at this more carefully, the `except KeyboardInterrupt:` clause at line 154 SHOULD catch the exception from `input_coro.result()`. The issue described in the source issue is that the exception escapes past this clause entirely.
-
-Let me reconsider. The problem is that `input_coro.result()` raises `KeyboardInterrupt`, but the `except KeyboardInterrupt:` clause at line 154 does NOT catch it because the exception has already been propagated out of the Task machinery.
-
-The correct fix is to wrap the entire `result()` call in a try/except that catches `(KeyboardInterrupt, SystemExit)`:
-
-```python
-            try:
-                raw = input_coro.result()
-            except asyncio.CancelledError:
-                # Input was cancelled by signal handler — treat as shutdown
-                self._abort_input()
-                return None
-            except EOFError:
-                self._abort_input()
-                return None
-            except (KeyboardInterrupt, SystemExit):
-                # Task machinery may re-raise these through the event loop's
-                # callback machinery even though we just handled KeyboardInterrupt
-                # above. This catches the case where the exception propagated
-                # out of the Task before our except clause could catch it.
-                self._abort_input()
-                return None
-```
-
-This removes the separate `except KeyboardInterrupt:` clause and replaces it with a combined `(KeyboardInterrupt, SystemExit)` clause that catches the exception regardless of whether it came from the Task machinery or directly from `result()`.
 
 ### Details
 
-The key insight is that CPython's Task machinery treats `(KeyboardInterrupt, SystemExit)` specially: when a Task's own coroutine step raises one of these exceptions, the machinery re-raises it through the event loop's callback machinery. This means the exception may propagate out of the Task before the `except KeyboardInterrupt:` clause at line 154 can catch it.
-
-By replacing the separate `except KeyboardInterrupt:` clause with a combined `(KeyboardInterrupt, SystemExit)` clause, we ensure that the exception is caught regardless of how it was propagated.
+CPython's Task machinery treats `(KeyboardInterrupt, SystemExit)` specially: when a
+Task's own coroutine step raises one of these, `Task.__step()` re-raises it directly
+through the event loop's callback machinery, bypassing any `except` clause an awaiting
+caller (like `_read_input()`) might have around `input_coro.result()` — the exception
+frequently never reaches that call site at all, instead surfacing later as an
+unretrieved-Task-exception warning once the surrounding `async def` has already
+returned. Catching `(KeyboardInterrupt, SystemExit)` *inside* `_input_task()`'s own
+coroutine step, before it exits, and converting it into a plain `Exception` subclass
+(`_InputAborted`) avoids the special case entirely — a regular `Exception` is not
+subject to `Task.__step()`'s re-raise branch, so it flows through `input_coro.result()`
+exactly like `EOFError` already does today.
 
 ## Compatibility considerations
 
@@ -151,7 +188,9 @@ By replacing the separate `except KeyboardInterrupt:` clause with a combined `(K
 
 ## Rollback considerations
 
-- Simple revert: restore the original `except KeyboardInterrupt:` clause and remove the `(KeyboardInterrupt, SystemExit)` clause.
+- Simple revert: remove the `_InputAborted` class, restore `_input_task()`'s body to a
+  bare `return await loop.run_in_executor(...)`, and restore the `except
+  KeyboardInterrupt:` clause in place of `except _InputAborted:`.
 - No data loss risk.
 
 ## Validation plan
@@ -177,9 +216,9 @@ By replacing the separate `except KeyboardInterrupt:` clause with a combined `(K
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix `_read_input()`'s `shutdown_event is not None` branch so KeyboardInterrupt is caught | Pending | — | — | |
-| 2 | Confirm else branch still works | Pending | — | — | |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Fix `_read_input()`'s `shutdown_event is not None` branch so KeyboardInterrupt is caught | Completed | 20260909-105920 | 20260909-122726 | Step 3a adversarial verification found the original Design decision (wrap `input_coro.result()`'s except clauses) empirically does not work — corrected 2026-09-09 to catch inside `_input_task()` instead (new `_InputAborted` sentinel exception); see Assumptions/Design decisions. Verified via a standalone `asyncio.run()` reproduction script before applying to source. |
+| 2 | Confirm else branch still works | Completed | 20260909-105920 | 20260909-122726 | Unmodified; `else` branch's existing `(EOFError, KeyboardInterrupt)` handling untouched. |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20260909-105920 | 20260909-122726 | ruff format/check, mypy: clean. `lint-imports` broken contract (`shared.production_config_validator` -> `agent.*`) and `bandit` B101 assert finding (line ~250) are pre-existing and unrelated to this change — not fixed, out of scope. `tests/agent/test_repl.py` (55 items): 47 passed, 8 failed — all 8 pre-existing/unrelated (banner workflow status, session-diagnostics warning logging, sqlite error message path, sigterm handler, an unrelated timing test); `test_keyboard_interrupt_breaks_loop` now passes. Full suite `uv run pytest tests/ -q` completed cleanly (7154 collected, 590 failed/6545 passed/16 skipped/3 errors) with zero `KeyboardInterrupt` session aborts — first clean completion this session. Diff coverage: 100% (6/6 changed lines). No `docs/00_index.md` task-scope row matches `repl_input_loop.py` — Step 5/6 skipped per that Step's own no-mapping rule. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
