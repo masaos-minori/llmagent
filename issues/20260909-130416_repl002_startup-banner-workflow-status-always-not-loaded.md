@@ -126,3 +126,12 @@ Trace the real (non-test) call path to `_get_workflow_status()` first — confir
 this is a live `AttributeError` in production or something this method's caller
 currently guards against — before deciding the fix mechanism. Do not change the three
 status strings' meaning.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-130416
+- **Related target files**: see Target Files or Areas above

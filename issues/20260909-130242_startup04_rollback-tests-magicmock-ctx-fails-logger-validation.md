@@ -121,3 +121,12 @@ Resolve the Unresolved Question above before implementing — do not assume the 
 "add a real `audit_log_file` string" without first confirming the code path reaching
 `Logger` construction is itself expected for these tests' scenarios. Do not modify
 `scripts/shared/logger.py`.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-130242
+- **Related target files**: see Target Files or Areas above

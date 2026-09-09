@@ -167,3 +167,12 @@ deploy 時に本エージェント本体および各 MCP サーバーを Nuitka 
   `scripts/agent/config_builders.py`, `scripts/shared/plugin_registry.py`,
   `scripts/agent/factory.py`, `scripts/mcp_launcher.py`, `config/agent.toml`,
   `skills/deploy/SKILL.md`, `deploy/deploy.sh`
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260717-171801 (inferred from git history — first commit adding this file; predates this template's timestamp-prefixed naming convention)
+- **Related target files**: N/A: this document predates templates/issue.md's Target Files or Areas structure

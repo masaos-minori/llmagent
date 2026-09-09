@@ -113,3 +113,12 @@ Start with `nack_event()`'s `WHERE` clause — add `AND acked_at IS NULL AND dlq
 equivalent) and return a rowcount-based signal the route layer can turn into HTTP 409,
 mirroring `dlq_route.py`'s existing `ERR_EVENT_NOT_IN_DLQ` pattern. Do not redesign the
 underlying schema in this issue — that is EB-H01's scope.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260907-125042
+- **Related target files**: see Target Files or Areas above

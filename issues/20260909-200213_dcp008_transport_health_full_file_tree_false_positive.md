@@ -125,3 +125,12 @@ and its regression test. Do not touch the `literal port number`,
 `implementation-location mapping`, or other category checks. Do not edit any
 `docs/*.md` file. Run the full `tests/tools/test_check_docs_content_policy.py` suite,
 not just the new test, before considering this done.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/done/20260908-211017_plan.md (`UNK-03`)
+- **Source implementation procedure**: implementations/20260909-194838_03_docs_04_mcp_03_03_transport-and-health_md.md
+- **Generated at**: 20260909-200213
+- **Related target files**: tools/check_docs_content_policy.py, tests/tools/test_check_docs_content_policy.py

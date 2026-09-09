@@ -153,3 +153,12 @@ confirm zero findings before moving to the next. Stop and ask if a file's
 existing design-intent content is too sparse to produce a meaningful
 retain-category section without inventing unverified claims about the
 code.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260905-153715
+- **Related target files**: see Target Files or Areas above

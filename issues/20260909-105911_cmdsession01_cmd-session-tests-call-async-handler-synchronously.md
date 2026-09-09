@@ -127,3 +127,12 @@ Apply the `async def` + `await` conversion mechanically across all 43 methods; d
 change any assertion logic, fixture, or mock setup beyond what the conversion itself
 requires. Do not modify `cmd_session.py`, `command_defs_list.py`, or `registry.py` —
 production behavior is already correct.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-105911
+- **Related target files**: see Target Files or Areas above

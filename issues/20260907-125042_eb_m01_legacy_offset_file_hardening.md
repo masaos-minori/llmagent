@@ -106,3 +106,12 @@ Keep this change scoped to `scripts/eventbus/offsets.py` — do not begin migrat
 storage into SQLite here; that is the separate, larger redesign tracked elsewhere in this
 batch. Follow the atomic-write pattern already established in `scripts/eventbus/dlq.py`'s
 `_atomic_write()` (tempfile + `os.replace()`) rather than inventing a new one.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260907-125042
+- **Related target files**: see Target Files or Areas above

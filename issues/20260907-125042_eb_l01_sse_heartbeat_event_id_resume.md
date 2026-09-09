@@ -91,3 +91,12 @@ N/A: none
 Keep the heartbeat as an SSE comment line (`:`-prefixed), not a `data:` event, so it does not
 appear as a delivered event to `EventSource`-based clients. Do not change `replay_ceil`-based
 duplicate-discard logic in `subscribe_route.py` when adding the `id:` field.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260907-125042
+- **Related target files**: see Target Files or Areas above

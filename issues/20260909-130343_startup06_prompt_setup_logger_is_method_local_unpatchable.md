@@ -120,3 +120,12 @@ Survey at least one sibling extracted startup component's logger-handling patter
 before choosing an approach — do not default to whichever seems simplest without that
 check, since introducing a third, inconsistent convention would itself be new test
 debt. Do not change `_classify_memory_failure`'s own classification logic.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-130343
+- **Related target files**: see Target Files or Areas above

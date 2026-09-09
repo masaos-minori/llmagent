@@ -150,3 +150,12 @@ direction until the commit history question above is resolved — surface it and
 asked only to investigate further. Do not add `tool_cache_ttl`/`tool_cache_max_size` to
 `_get_valid_production_keys()` as a speculative fix without first confirming they have
 (or will have, if caching is reinstated) an actual consumer.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-183426
+- **Related target files**: see Target Files or Areas above

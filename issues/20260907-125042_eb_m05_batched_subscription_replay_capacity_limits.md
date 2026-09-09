@@ -122,3 +122,12 @@ Preserve `subscribe_route.py`'s existing register-before-replay-then-live-delive
 its `replay_ceil`-based duplicate-discard logic exactly — batching the SQLite fetch must not
 change when the broker subscription is registered relative to the replay query. Measure before
 deciding on connection-pooling changes; do not implement a connection manager speculatively.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260907-125042
+- **Related target files**: see Target Files or Areas above

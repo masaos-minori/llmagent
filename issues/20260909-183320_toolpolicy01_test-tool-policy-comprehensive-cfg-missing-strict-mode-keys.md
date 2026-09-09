@@ -107,3 +107,12 @@ Add the 3 missing keys to `_cfg()`'s `defaults` dict only. Verify each of this f
 existing tests still passes with the new defaults before considering this issue
 resolved; adjust an individual test's `overrides=` argument if needed rather than
 reverting the shared default.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-183320
+- **Related target files**: see Target Files or Areas above

@@ -106,3 +106,12 @@ Preserve today's hardcoded numeric values as the new configuration fields' defau
 this issue is about centralizing and validating, not re-tuning. Add validation to
 `EventBusConfig.__post_init__` alongside the existing `port`/`max_retry`/`host` checks rather
 than introducing a separate validation path.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260907-125042
+- **Related target files**: see Target Files or Areas above

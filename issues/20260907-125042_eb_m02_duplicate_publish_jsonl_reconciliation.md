@@ -116,3 +116,12 @@ Confirm no other code or operator tooling currently depends on `events.jsonl` co
 line per publish *attempt* (including ignored duplicates) before changing the append condition
 — check for readers of `events.jsonl` under `scripts/` before assuming replica-role is safe to
 adopt.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260907-125042
+- **Related target files**: see Target Files or Areas above

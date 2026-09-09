@@ -147,3 +147,12 @@ count would still leave production data being written to. Do not attempt to dele
 modify existing rows in the real database file. Do not implement the optional
 path-injection hardening without first confirming the primary patch-target fix alone
 stops the pollution.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-105831
+- **Related target files**: see Target Files or Areas above

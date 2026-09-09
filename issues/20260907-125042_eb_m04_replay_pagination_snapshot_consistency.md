@@ -105,3 +105,12 @@ query parameter rather than manual string validation, so OpenAPI generation pick
 automatically. Combine `_fetch()`/`_count()` into one locked closure rather than only
 reordering the two separate `run_with_db_lock()` calls — reordering alone does not close the
 race, since the lock is still released between them.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260907-125042
+- **Related target files**: see Target Files or Areas above

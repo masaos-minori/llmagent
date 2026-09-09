@@ -104,3 +104,12 @@ the relocated symbol's current call signature before considering it fixed — do
 assume the fix is purely mechanical without checking, since two separate refactors are
 involved (`workflow_schema.py` extraction and `ComponentInitializer` extraction) and
 they may not share identical call shapes.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-130315
+- **Related target files**: see Target Files or Areas above

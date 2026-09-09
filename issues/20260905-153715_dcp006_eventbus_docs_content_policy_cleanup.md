@@ -76,3 +76,12 @@ N/A: none.
 Single-line edit. Remove only the literal port number at line 95; do not
 touch any other content in the file. Confirm the sentence still reads
 coherently after removal.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260905-153715
+- **Related target files**: see Target Files or Areas above

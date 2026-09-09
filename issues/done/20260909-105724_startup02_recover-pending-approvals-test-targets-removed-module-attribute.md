@@ -116,3 +116,12 @@ the correct action is removal (with scenario-porting verification), not relocati
 the patch target, since the coverage already exists in
 `tests/agent/test_startup_approval_recovery.py`. Do not touch the other, unrelated
 failures in `tests/agent/test_startup.py` listed under Out of Scope.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-105724
+- **Related target files**: see Target Files or Areas above

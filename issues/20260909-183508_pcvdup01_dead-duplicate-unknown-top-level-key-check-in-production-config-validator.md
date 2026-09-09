@@ -108,3 +108,12 @@ remove only `_check_unknown_top_level_keys()` and its now-unused imports specifi
 that method — do not touch `_check_unknown_production_keys()`/`_get_valid_production_keys()`
 unless the investigation concludes a field-derivation gap needs fixing, and if so, file
 that separately rather than expanding this issue's scope.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-183508
+- **Related target files**: see Target Files or Areas above

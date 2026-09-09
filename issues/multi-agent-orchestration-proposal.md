@@ -453,3 +453,12 @@ CPU 節約方針は、polling 間隔長め、並列数制限、小さい context
 - 複数ホスト分散時の Event Bus replication トポロジ。全結合、スター、リングなど
 - Metadata DB 配置。Orchestrator ローカル SQLite か共有 DB か
 - GitHub token の保管と権限設計
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260625-155400 (inferred from git history — first commit adding this file; predates this template's timestamp-prefixed naming convention)
+- **Related target files**: N/A: this document predates templates/issue.md's Target Files or Areas structure

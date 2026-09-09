@@ -103,3 +103,12 @@ Add the `auth_token` argument only to `_http_subprocess_cfg()`; do not modify
 reasons unrelated to `auth_token` (their own actual assertions) — report any such
 residual failure as a new finding rather than silently expanding this issue's scope to
 fix it.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-130214
+- **Related target files**: see Target Files or Areas above

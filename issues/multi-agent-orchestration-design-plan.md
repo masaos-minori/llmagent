@@ -789,3 +789,12 @@ MCP servers
 - HTTP MCP + Event Bus + worktree + SQLite/JSONL による中央集権制御と非同期疎結合の両立。
 - role-specific prompt / allowed-tools 制御の導入。
 - validation fail -> retry の自動ループと Event Replay / DLQ までを Phase 1 完了条件とする。
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260625-152551 (inferred from git history — first commit adding this file; predates this template's timestamp-prefixed naming convention)
+- **Related target files**: N/A: this document predates templates/issue.md's Target Files or Areas structure

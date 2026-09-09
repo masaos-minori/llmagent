@@ -66,6 +66,15 @@ implementation. Use `N/A: none` if there are none.
 
 ## AI Implementation Instruction
 Concise constraints for an AI coding agent implementing this issue.
+
+## Traceability
+- **Workflow phase**: {the workflow that produced this issue, e.g. `issue-creator`, `python-code-review`, or `N/A: manually filed`}
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: {path to the Plan this issue was filed from, or `N/A: not filed from a Plan`}
+- **Source implementation procedure**: {path to the implementation procedure this issue was filed from, or `N/A: not filed from an implementation procedure`}
+- **Generated at**: {timestamp from date +%Y%m%d-%H%M%S}
+- **Related target files**: {paths from Target Files or Areas above, or `N/A: not yet confirmed`}
 ```
 
 ## Field notes
@@ -80,3 +89,13 @@ Concise constraints for an AI coding agent implementing this issue.
   (`Explicit in issue` / `Confirmed by repository evidence` / `Derived from confirmed
   evidence` / `Needs confirmation`); an `N/A` field is `Explicit in issue` by
   definition and carries no Unknown.
+- `Traceability` uses `templates/traceability.md`'s full field structure, unlike the
+  narrower subset `templates/unknowns-issue.md`/`templates/risks-issue.md` use — an
+  Issue is usually the pipeline's entry point (see `routing.md` "Document workflow
+  directories"), so `Source issue` and `Source requirement` are almost always `N/A`.
+  Fill `Source plan` / `Source implementation procedure` only when this issue was
+  filed as a follow-up discovered during a later pipeline phase (e.g. a Plan Gap found
+  during `plan-to-implementation-procedure`, or a Plan's Unknown/Risk routed here
+  instead of `issues/{timestamp}_unknowns.md`/`_risks.md`) — cite the exact path, not
+  the full content. `Related target files` restates `Target Files or Areas` above —
+  do not maintain a second, divergent list.

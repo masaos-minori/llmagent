@@ -129,3 +129,12 @@ descriptions as if already implemented. Extend the existing `06_eventbus_03`/`06
 chapters rather than creating parallel new documents; per `rules/coding.md`'s "Current behavior"
 classification, treat any remaining doc/code mismatch found during this work as its own
 Implementation-fix-required or Documentation-fix-required item, not as silently patched prose.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260907-125042
+- **Related target files**: see Target Files or Areas above

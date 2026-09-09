@@ -158,3 +158,12 @@ git show 846dc93b --stat | grep -i "cmd_rag_export\|cmd_db"
   出力APIを1系統(Protocol経由)に寄せることを検討する。
 - `services/export_formatter.py` の `sys.stdout.write()` を他と同じ出力口に揃える
   かどうかを判断する。
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260718-115226 (inferred from git history — first commit adding this file; predates this template's timestamp-prefixed naming convention)
+- **Related target files**: N/A: this document predates templates/issue.md's Target Files or Areas structure

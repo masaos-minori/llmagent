@@ -138,3 +138,12 @@ responsibility/boundary prose unchanged. Do not touch the
 hand-written findings for that file reach zero before moving to the next.
 Stop and ask if a port number appears load-bearing to disambiguate two
 similarly-named servers rather than purely decorative.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260905-153715
+- **Related target files**: see Target Files or Areas above

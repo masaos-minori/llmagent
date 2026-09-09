@@ -518,3 +518,12 @@ Prompt、Tool Call、Diff、Decision Reason、Token Usage を保存し、デバ�
 - Python ベースのモジュール構成案
 - ディレクトリ構成案
 - Event Bus / Memory / MCP の統合仕様案
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260613-174048 (inferred from git history — first commit adding this file; predates this template's timestamp-prefixed naming convention)
+- **Related target files**: N/A: this document predates templates/issue.md's Target Files or Areas structure

@@ -89,3 +89,12 @@ failure output.
 ## AI Implementation Instruction
 Change only the two `mock.patch(...)` target strings; do not modify
 `scripts/agent/session_persister.py` or the warning message text.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-130453
+- **Related target files**: see Target Files or Areas above

@@ -135,3 +135,12 @@ is explicitly answered — surface the question to a maintainer and stop. If ask
 to "investigate further," re-read `44d7f2e4f`'s full diff and any linked
 issue/plan/PR discussion for stated rationale before escalating, but do not guess at an
 implementation in the meantime.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-130540
+- **Related target files**: see Target Files or Areas above

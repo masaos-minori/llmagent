@@ -129,3 +129,12 @@ prose module-purpose paragraphs in the same sections. Replace each removed
 table with a single pointer sentence to the source file, not a longer
 substitute listing. Run `tools/check_docs_content_policy.py` after each
 file to confirm zero findings before moving to the next.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260905-153715
+- **Related target files**: see Target Files or Areas above

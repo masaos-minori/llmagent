@@ -122,3 +122,12 @@ Apply the rename mechanically to all 7 occurrences; do not guess at a fix for
 if failures remain after the rename, report them as a new, separate finding rather than
 extending this issue's scope to cover them. Do not modify
 `scripts/agent/orchestrator.py`.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-105759
+- **Related target files**: see Target Files or Areas above

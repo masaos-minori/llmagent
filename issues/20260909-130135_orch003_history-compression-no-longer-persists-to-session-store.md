@@ -122,3 +122,12 @@ Restore the dropped persistence call with the correct occurred-vs-no-op conditio
 not call `replace_messages` unconditionally on every turn, since that would fail the
 no-op test's intent even if its current assertion happens to still pass. Do not modify
 `hist_mgr.compress()`'s own compression logic.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-130135
+- **Related target files**: see Target Files or Areas above

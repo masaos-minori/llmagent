@@ -156,3 +156,12 @@ guard-commented auto-generated block — do not broaden it into a general
 `04_mcp_01_tool_ownership_matrix.md`'s hand-written content as part of this
 issue. Stop and ask if evidence suggests a fourth option not listed here is
 warranted, rather than forcing the decision into one of the three.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260905-153715
+- **Related target files**: see Target Files or Areas above

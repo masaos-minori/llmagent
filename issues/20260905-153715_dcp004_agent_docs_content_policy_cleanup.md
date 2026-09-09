@@ -146,3 +146,12 @@ disposition (removed / kept-as-false-positive) for every flagged line in
 the completion report. Stop and ask if a flagged section is ambiguous
 between "control-flow diagram" and "file/directory listing" rather than
 guessing.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260905-153715
+- **Related target files**: see Target Files or Areas above

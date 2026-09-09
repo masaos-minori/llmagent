@@ -89,3 +89,12 @@ validation) confirmed by direct read of both the test and `DbConfig.__post_init_
 ## AI Implementation Instruction
 Replace the hardcoded path with `tmp_path` (or this suite's existing convention) only;
 do not modify `scripts/db/config.py`'s validation.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260909-130516
+- **Related target files**: see Target Files or Areas above

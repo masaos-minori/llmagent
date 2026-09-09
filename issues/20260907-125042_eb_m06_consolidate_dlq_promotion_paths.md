@@ -113,3 +113,12 @@ this issue's already-recorded result) before deleting it, in case a caller was a
 issue was filed. Do not delete the three test files that reference it — retarget their
 assertions to the surviving function(s) instead, preserving what behavior each test actually
 verifies.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: not filed from a Plan
+- **Source implementation procedure**: N/A: not filed from an implementation procedure
+- **Generated at**: 20260907-125042
+- **Related target files**: see Target Files or Areas above

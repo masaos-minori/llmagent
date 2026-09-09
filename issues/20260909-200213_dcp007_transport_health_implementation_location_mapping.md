@@ -104,3 +104,12 @@ touch the state-transition diagram (lines 50-58) or any other section. Do not in
 a replacement file reference — remove the file-path claim, do not substitute a
 different one. Run `tools/check_docs_content_policy.py` after the edit to confirm the
 finding is gone.
+
+## Traceability
+- **Workflow phase**: N/A: manually filed
+- **Source issue**: N/A: this document is the issue
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/done/20260908-211017_plan.md (`UNK-03`)
+- **Source implementation procedure**: implementations/20260909-194838_03_docs_04_mcp_03_03_transport-and-health_md.md
+- **Generated at**: 20260909-200213
+- **Related target files**: docs/04_mcp_03_03_transport-and-health.md
