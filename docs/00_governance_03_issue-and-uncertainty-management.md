@@ -155,44 +155,6 @@ them, are preserved here rather than lost:
 - **Impact**: Vector index grows over time with orphaned entries, increasing memory usage and potentially degrading search performance.
 - **Recommended Action**: Accept this limitation and implement periodic cleanup of orphaned vectors, or migrate to a vector store that supports FK constraints. (Note: this is a known, accepted architectural limitation mitigated by deletion ordering, not an active defect being worked.)
 
-#### RAG-006
-
-- **ID**: RAG-006
-- **Title**: Documentation described `read_json_file()`'s lenient fallback behavior as a current production reader
-- **Status**: resolved
-- **Severity**: Medium
-- **Area**: RAG
-- **Type**: obsolete-description
-- **Source**: `scripts/rag/ingestion/pipeline_utils.py`
-- **Owner**: Team
-- **First Found**: 2026-09-02
-- **Target**: `docs/03_rag_02_03_ingestion_pipeline-chunksplitter.md`
-- **Related**: N/A: no related active Known Issue
-- **Summary**: `docs/03_rag_02_08_ingestion_pipeline-shared.md` documented `read_json_file()`'s lenient fallback behavior (`lang` default `"en"`, `chunk_index` default `0`, empty-string fallbacks) as a currently-relevant reader, even though the strict-reader migration (`read_crawl_json()`/`read_chunk_json()`, both raising `ChunkFormatError` on missing/invalid fields) had already superseded it in code.
-- **Current Description**: `read_json_file()` remains in `scripts/rag/ingestion/pipeline_utils.py` (removal was out of scope for this resolution) but is confirmed unused by any current pipeline code path. The `docs/03_rag_*.md` Specification set now states `read_crawl_json()`/`read_chunk_json()` as the canonical readers, documents the `ChunkFormatError` failure mode, classifies every crawl/chunk field as Required/Nullable/Conditional in one canonical table (this document's Target), and marks `read_json_file()`'s description as historical in `docs/03_rag_02_08_ingestion_pipeline-shared.md`.
-- **Observed Implementation**: Verified by test — `tests/rag/ingestion/test_pipeline_utils_strict.py` exercises `read_crawl_json()`/`read_chunk_json()`'s `ChunkFormatError` conditions; no test exercises `read_json_file()` as a production path.
-- **Impact**: Prior to resolution, new artifact producers or future implementers reading the Specification set risked reintroducing lenient-fallback assumptions no longer valid against the strict readers.
-- **Recommended Action**: Resolved — canonical-reader statements, the `ChunkFormatError` failure mode, and a single canonical Required/Nullable/Conditional field-contract table were added across the `docs/03_rag_*.md` Specification set, and `read_json_file()`'s description was relocated to a clearly marked historical section. (Action already taken via `plans/20260903-085152_plan.md`; entry retained per this template pending removal at next review, matching the `SHARED-002` precedent in this document.)
-
-#### RAG-007
-
-- **ID**: RAG-007
-- **Title**: Documentation did not reflect Null Fill Mode's removal from `ETagManager`
-- **Status**: resolved
-- **Severity**: Medium
-- **Area**: RAG
-- **Type**: obsolete-description
-- **Source**: `scripts/rag/ingestion/etag_manager.py`
-- **Owner**: Team
-- **First Found**: 2026-09-02
-- **Target**: `docs/03_rag_02_06_ingestion_pipeline-supporting-components.md`
-- **Related**: N/A: no related active Known Issue
-- **Summary**: `issues/done/20260828_01_remove-fetched-at-null-fill-and-mandatory-contract.md` removed `_update_null_fill()` and made `fetched_at` mandatory on `ChunkDocument`/`ETagManager.update()`/`DocumentManager.handle_existing_document()`, but that change's Documentation Impact was limited to docstrings — the `docs/03_rag_*.md` Specification set was not updated to reflect Null Fill Mode's removal, `fetched_at`'s mandatory status, or several ETagManager freshness-comparison edge cases (invalid timestamps, equal timestamps, missing stored timestamp) newly relevant once the fallback path was gone.
-- **Current Description**: `scripts/rag/ingestion/` no longer contains any `_update_null_fill`, `null_fill`, or `COALESCE` reference (confirmed via repository-wide search). The `docs/03_rag_*.md` Specification set now states Freshness Mode as `ETagManager`'s only update mode, documents `fetched_at` as a required field on `ChunkDocument`, and documents the invalid-incoming-timestamp, invalid-stored-timestamp, equal-timestamp, and missing-stored-timestamp outcomes in this document's Target above.
-- **Observed Implementation**: Explicit in code — `scripts/rag/ingestion/etag_manager.py`'s `ETagManager` has a single update path (`_update_with_freshness()`), gated by `_is_stale_update()`; `ChunkDocument.fetched_at`, `ETagManager.update()`'s `new_fetched_at`, and `DocumentManager.handle_existing_document()`'s `fetched_at` are all typed `str`, not `str | None`.
-- **Impact**: Prior to resolution, a reader of the Specification set could believe missing-`fetched_at` fallback handling (Null Fill Mode) still existed, or could be unaware of the freshness-comparison edge cases introduced by its removal.
-- **Recommended Action**: Resolved — the `docs/03_rag_*.md` Specification set was updated to document `fetched_at` as required, Freshness Mode as the only update mode, and the invalid-timestamp/equal-timestamp/missing-stored-timestamp edge cases, cross-linked from the ingester and document-manager documents rather than duplicated. (Action already taken via `plans/done/20260903-085718_plan.md`; entry retained per this template pending removal at next review, matching the `SHARED-002`/`RAG-006` precedent in this document.)
-
 #### DESIGN-1
 
 - **ID**: DESIGN-1
@@ -385,45 +347,7 @@ them, are preserved here rather than lost:
 
 #### SHARED-001
 
-SHARED-001 was fully resolved this cycle; its content was transferred to SHARED-002 and SHARED-003 entries below. Its absence from the active list is the correct, policy-compliant state — do not create a `#### SHARED-001` heading.
-
-#### SHARED-002
-
-- **ID**: SHARED-002
-- **Title**: Backup restoration was not validated, not atomic, and not re-verified after restore
-- **Status**: resolved
-- **Severity**: High
-- **Area**: Shared/DB
-- **Type**: design-gap
-- **Source**: `scripts/db/recovery.py::_restore_from_backup()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `90_shared_05_04_db_api_and_operations-recovery-and-reference.md` section 9.5 Safe restoration sequence
-- **Related**: SHARED-003
-- **Summary**: `_restore_from_backup()` restored from a backup file whose own integrity was never checked (only `Path.exists()` was verified), copied directly onto the live target path via `shutil.copy2()` instead of through a temporary file with an atomic rename, and did not reopen or re-run an integrity check on the restored database before reporting `success=True`.
-- **Current Description**: A corrupted backup could be restored unconditionally; a failure mid-copy could leave the target database partially written; a restore that produced a still-broken database was reported as successful.
-- **Observed Implementation**: Backup validation and atomic temp-file staging are `Explicit in code` (no dedicated test exercises them end-to-end); the post-restore re-verification returning `action="restore_verify_failed"` is `Verified by test` — `test_recover_restore_verify_failed`.
-- **Impact**: A corrupted backup could be restored unconditionally; a failure mid-copy could leave the target database partially written.
-- **Recommended Action**: Resolved — validate the backup independently before use, restore through a temporary file with an atomic replace, and re-run integrity verification against the restored file before returning success. (Action already taken; entry retained per this template pending removal at next review, since this document, not the deleted area file, is now the system of record.)
-
-#### SHARED-003
-
-- **ID**: SHARED-003
-- **Title**: `workflow.sqlite` and `eventbus.sqlite` have no physical-corruption recovery path
-- **Status**: resolved
-- **Severity**: High
-- **Area**: Shared/DB
-- **Type**: design-gap
-- **Source**: `scripts/db/recovery.py::recover_corruption()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `90_shared_05_04_db_api_and_operations-recovery-and-reference.md` section 9.7 Persistence-domain policy
-- **Related**: SHARED-002, ADR-008
-- **Summary**: `recover_corruption()` only supports `target='rag'` or `target='session'`. Neither `workflow.sqlite` (task/approval state) nor `eventbus.sqlite` (event delivery state) has corruption-recovery or backup-rotation coverage.
-- **Current Description**: Unsupported `target` values are now rejected (`action="unsupported_target"`), fixing a prior mismatched-display-path bug where a `target="workflow"`/`"eventbus"` call integrity-checked `session_db_path` and could VACUUM the real file unchecked. ADR-008 Decision Details #20 (merged from former ADR-011 Requirement #6) makes `no_recovery_allowed` for `workflow`/`eventbus` the accepted policy (manual operator recovery only, no automatic restoration) rather than a bug. The operator runbook already exists (`docs/05_agent_10_01_operations-and-observability-startup-and-health.md` lines 88-136) and uses `rotate_all_dbs()`'s backups.
-- **Observed Implementation**: `target` validation now rejects unsupported values explicitly (Verified by test).
-- **Impact**: Physical corruption of workflow or event-delivery state has no automatic recovery procedure; the only observed startup behavior for a broken session/workflow store is a fatal `RuntimeError` that stops the agent. This is accepted policy, not a gap, for the automatic-recovery question — the remaining operational gap is closed: the operator recovery runbook for these two domains now exists in `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` lines 88-136 and uses `rotate_all_dbs()`'s backups.
-- **Recommended Action**: Resolved — the operator recovery runbook exists at `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` lines 88-136 and uses `rotate_all_dbs()`'s backups. (Action already taken; entry retained per this template pending removal at next review, since this document, not the deleted area file, is now the system of record.)
+SHARED-001 was fully resolved this cycle; its content was transferred to SHARED-002 and SHARED-003, both since independently resolved and removed from this active inventory in turn. Its absence from the active list is the correct, policy-compliant state — do not create a `#### SHARED-001` heading.
 
 #### CI-001
 
@@ -443,25 +367,6 @@ SHARED-001 was fully resolved this cycle; its content was transferred to SHARED-
 - **Observed Implementation**: `scripts/eventbus/config.py` opens TOML files and parses them independently; `scripts/shared/config_loader.py` is never imported or used by the EventBus module.
 - **Impact**: EventBus operates with a configuration loading path that differs from other processes, potentially leading to inconsistent config handling across the system.
 - **Recommended Action**: Refactor EventBus configuration loading to use ConfigLoader, ensuring consistent config access across all processes.
-
-#### CI-002
-
-- **ID**: CI-002
-- **Title**: former-ADR-011 INV-01/INV-02 production/local recovery distinction — stale reference
-- **Status**: resolved
-- **Severity**: N/A
-- **Area**: Shared/DB
-- **Type**: obsolete-description
-- **Source**: `scripts/db/recovery.py::recover_corruption()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `docs/adr/ADR-008-sqlite-4db-separation.md`
-- **Related**: ADR-008
-- **Summary**: `recover_corruption()` does NOT distinguish between production and local environments — confirmed to be the correct, intended current behavior, not a gap.
-- **Current Description**: This entry's original wording cited an "INV-01 (production MUST NOT auto-recover without explicit operator confirmation)" / "INV-02 (local MAY auto-recover)" pair that was investigated against all three tracked ADR-011 revisions and the current ADR-008 text: no such invariant pair was ever present.
-- **Observed Implementation**: No production/local recovery gap exists; the entry described a citation that never corresponded to real ADR content.
-- **Impact**: None — retained as a historical record of the investigation.
-- **Recommended Action**: None required.
 
 #### CI-003
 
@@ -710,47 +615,8 @@ SHARED-001 was fully resolved this cycle; its content was transferred to SHARED-
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for duplicate-tool detection.
 
-#### MCP-001
-
-- **ID**: MCP-001
-- **Title**: `verify_postcondition()` returns unconditional success regardless of operation outcome
-- **Status**: resolved
-- **Severity**: High
-- **Area**: MCP
-- **Type**: implementation-bug
-- **Source**: `scripts/mcp_servers/git/repository_state.py::WriteProtectionPipeline.verify_postcondition()`
-- **Owner**: Unassigned
-- **First Found**: 2026-09-04
-- **Target**: `scripts/mcp_servers/git/repository_state.py`
-- **Related**: REQ-003, REQ-004, REQ-005, REQ-006
-- **Summary**: `verify_postcondition()` always returned `(True, "")`, making it impossible for the pipeline to reject operations based on their actual outcomes.
-- **Current Description**: The method was a placeholder that returned unconditional success. It did not inspect the post-operation state (e.g., whether the branch actually changed, whether pull resolved conflicts, whether push succeeded).
-- **Observed Implementation**: Explicit in code — `verify_postcondition()` body was `return True, ""` with no conditional logic.
-- **Impact**: A failed checkout/pull/push could be silently accepted by the pipeline, violating the security requirement that postcondition failures prevent unsafe operations.
-- **Recommended Action**: Implement proper postcondition verification: for checkout, compare `active_branch` to requested branch; for pull, check `repo.index.unmerged_blobs()`; for push, parse result string for rejection markers.
-
-#### MCP-002
-
-- **ID**: MCP-002
-- **Title**: `PipelineResult` lacks `post_state` field for post-operation snapshot comparison
-- **Status**: resolved
-- **Severity**: Medium
-- **Area**: MCP
-- **Type**: design-gap
-- **Source**: `scripts/mcp_servers/git/repository_state.py::PipelineResult`
-- **Owner**: Unassigned
-- **First Found**: 2026-09-04
-- **Target**: `scripts/mcp_servers/git/repository_state.py`
-- **Related**: REQ-002, REQ-008
-- **Summary**: `PipelineResult` had no `post_state` attribute, so callers could not compare pre-operation and post-operation repository states.
-- **Current Description**: The `PipelineResult` class stored only `repository_state` (pre-operation snapshot) and `output`; there was no mechanism to capture the post-operation state.
-- **Observed Implementation**: `PipelineResult.__init__()` accepted `repository_state` and `output` parameters; no `post_state` parameter existed.
-- **Impact**: Audit trails lacked the ability to show what changed during an operation; postcondition checks could not independently verify results against the expected state.
-- **Recommended Action**: Add `post_state: RepositoryState | None` parameter to `PipelineResult.__init__()`, store it as `self.post_state`, and populate it in `ok_result()` when the operation is mutating.
-
 No other active Known Issues beyond RAG-003, RAG-004, RAG-005, DESIGN-1, DESIGN-2,
-EVENTBUS-001 through EVENTBUS-008, SHARED-002, SHARED-003, CI-001 through
-CI-015, and MCP-001, MCP-002 above.
+EVENTBUS-001 through EVENTBUS-008, and CI-001, CI-003 through CI-015 above.
 
 ## Part 2: Needs Confirmation Inventory
 
