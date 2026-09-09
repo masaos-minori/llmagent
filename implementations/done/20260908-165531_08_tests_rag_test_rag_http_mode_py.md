@@ -1,8 +1,8 @@
-# Implementation Procedure: Update test_pipeline_http_result_kind.py for New Structure
+# Implementation Procedure: Update test_rag_http_mode.py for New Structure
 
 ## Goal
 
-Update `tests/rag/test_pipeline_http_result_kind.py` to construct/patch the new `RagPipeline` structure after extracting private SQLite/refiner attributes to separate modules, per UNK-01's preferred resolution (rewrite tests directly rather than preserving via forwarding properties).
+Update `tests/rag/test_rag_http_mode.py` to construct/patch the new `RagPipeline` structure after extracting private SQLite/refiner attributes to separate modules, per UNK-01's preferred resolution (rewrite tests directly rather than preserving via forwarding properties).
 
 ## Scope
 
@@ -11,9 +11,8 @@ Update `tests/rag/test_pipeline_http_result_kind.py` to construct/patch the new 
 
 ## Assumptions
 
-- The Issue states `__init__` "stores five SQLite-related attributes" but names only four (`_rag_db_path`, `_sqlite_vec_so`, `_sqlite_timeout`, `_sqlite_busy_timeout_ms`); direct code reading confirms exactly these four exist.
+- Same as `test_pipeline_http_result_kind.py`: 5 direct-assignment lines at lines 32-36 confirmed by grep.
 - After Phase 4, `RagPipeline.__init__` accepts optional `RagDatabaseConnection` parameter; after Phase 6, `AugmentRefiner` is optional constructor parameter (default `None`).
-- Tests must be rewritten to use the new structure directly, not preserved via forwarding properties on `RagPipeline`.
 
 ## Design decisions
 
@@ -30,11 +29,11 @@ Update `tests/rag/test_pipeline_http_result_kind.py` to construct/patch the new 
 
 ### Target file
 
-`tests/rag/test_pipeline_http_result_kind.py`
+`tests/rag/test_rag_http_mode.py`
 
 ### Procedure
 
-1. Read current test file to identify all direct private attribute assignments (lines 31-42 confirmed: 5 direct-assignment lines).
+1. Read current test file to identify all direct private attribute assignments (lines 32-36 confirmed: 5 direct-assignment lines).
 2. For each test that assigns `pipeline._rag_db_path`/`_sqlite_vec_so`/`_sqlite_timeout`/`_sqlite_busy_timeout_ms`:
    - Create a `RagDatabaseConnection` instance with the same parameters.
    - Pass it to `RagPipeline` constructor (or set as attribute if constructor doesn't accept it yet).
@@ -49,7 +48,7 @@ Test rewrite: replace private attribute assignments with proper construction pat
 
 ### Details
 
-- Current direct-assignment lines: `tests/rag/test_pipeline_http_result_kind.py:31-42` (5 lines)
+- Current direct-assignment lines: `tests/rag/test_rag_http_mode.py:32-36` (5 lines)
 - Private attributes affected: `_rag_db_path`, `_sqlite_vec_so`, `_sqlite_timeout`, `_sqlite_busy_timeout_ms`, `_augment_refiner`
 - After Phase 4: `RagPipeline` may accept `RagDatabaseConnection` as constructor parameter
 - After Phase 6: `AugmentRefiner` is optional constructor parameter (default `None`)
@@ -72,7 +71,7 @@ Test rewrite: replace private attribute assignments with proper construction pat
 
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| `tests/rag/test_pipeline_http_result_kind.py` | Integration | `uv run pytest tests/rag/test_pipeline_http_result_kind.py -v` | All tests pass against the new structure |
+| `tests/rag/test_rag_http_mode.py` | Integration | `uv run pytest tests/rag/test_rag_http_mode.py -v` | All tests pass against the new structure |
 
 ## Completion criteria
 
@@ -91,11 +90,11 @@ Test rewrite: replace private attribute assignments with proper construction pat
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Identify all direct private attribute assignments | Pending | — | — | |
-| 2 | Rewrite DB-related assignments using `RagDatabaseConnection` | Pending | — | — | |
-| 3 | Rewrite AugmentRefiner assignment using constructor parameter | Pending | — | — | |
-| 4 | Remove all direct private attribute assignments | Pending | — | — | |
-| 5 | Verify tests pass | Pending | — | — | |
+| 1 | Identify all direct private attribute assignments | Completed | — | — | Found 5 lines (32-36: DB attrs + AugmentRefiner) |
+| 2 | Rewrite DB-related assignments using `RagDatabaseConnection` | Completed | — | — | Removed; constructor handles DB via `RagDatabaseConnection` |
+| 3 | Rewrite AugmentRefiner assignment using constructor parameter | Completed | — | — | Removed; constructor accepts `augment_refiner` param |
+| 4 | Remove all direct private attribute assignments | Completed | — | — | All removed; `_make_pipeline()` simplified |
+| 5 | Verify tests pass | Completed | — | — | 4/4 passed; ruff/mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -115,4 +114,4 @@ Test rewrite: replace private attribute assignments with proper construction pat
 - **Source plan**: plans/20260908-165531_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260908-165531
-- **Related target files**: tests/rag/test_pipeline_http_result_kind.py
+- **Related target files**: tests/rag/test_rag_http_mode.py

@@ -91,8 +91,8 @@ Standard unit test creation: define test functions/classes, use `pytest` fixture
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/rag/test_stage_lifecycle.py` | Pending | — | — | |
-| 2 | Run validation sequence | Pending | — | — | |
+| 1 | Create `tests/rag/test_stage_lifecycle.py` | Completed | — | — | File exists; 28 tests covering stage order/timing/fallback |
+| 2 | Run validation sequence | Completed | — | — | 28/28 passed; ruff/mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

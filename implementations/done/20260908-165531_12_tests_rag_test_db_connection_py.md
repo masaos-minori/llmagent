@@ -95,8 +95,8 @@ Standard unit test creation: define test functions/classes, use `pytest` fixture
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/rag/test_db_connection.py` | Pending | — | — | |
-| 2 | Run validation sequence | Pending | — | — | |
+| 1 | Create `tests/rag/test_db_connection.py` | Completed | — | — | File exists; 17 tests covering open/close lifecycle |
+| 2 | Run validation sequence | Completed | — | — | 17/17 passed; ruff/mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

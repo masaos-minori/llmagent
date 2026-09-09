@@ -8,7 +8,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from rag.diagnostics import (
+        PipelineDiagnostics,  # noqa: F401 — re-exported for consumers
+    )
 
 from rag.enums import MqeStatus
 

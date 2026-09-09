@@ -85,8 +85,8 @@ Simple import addition — mechanical edit, no behavioral change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `PipelineDiagnostics` import to `models_result.py` | Pending | — | — | |
-| 2 | Verify no circular import | Pending | — | — | |
+| 1 | Add `PipelineDiagnostics` import to `models_result.py` | Completed | — | — | Added via TYPE_CHECKING guard (circular import with diagnostics.py); noqa F401 for re-export |
+| 2 | Verify no circular import | Completed | — | — | TYPE_CHECKING guard prevents runtime circular import; ruff/mypy pass; no new test failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -89,10 +89,10 @@ Mechanical extraction: copy function body, verify parameter list and return type
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `scripts/rag/config_resolution.py` with extracted `resolve_rag_config()` | Pending | — | — | |
-| 2 | Update `pipeline.py` to import from `config_resolution` | Pending | — | — | |
-| 3 | Create `tests/rag/test_config_resolution.py` | Pending | — | — | |
-| 4 | Run validation sequence | Pending | — | — | |
+| 1 | Create `scripts/rag/config_resolution.py` with extracted `resolve_rag_config()` | Completed | — | — | File exists; function body verbatim copy confirmed |
+| 2 | Update `pipeline.py` to import from `config_resolution` | Completed | — | — | Import site updated in prior cycle |
+| 3 | Create `tests/rag/test_config_resolution.py` | Completed | — | — | Test file exists |
+| 4 | Run validation sequence | Completed | — | — | Validation passed in prior cycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

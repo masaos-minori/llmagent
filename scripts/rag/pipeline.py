@@ -10,14 +10,17 @@ Pipeline order:
   [4] Rerank  — RagLLM.cross_encoder_rerank
 
 Module layout:
-   rag/repository.py  — RagRepository, RagScorer, FTS helpers
-  rag/llm_client.py  — RagLLM, get_embedding, summarize_tool_result
-  rag/pipeline_service.py — External RAG service delegation
-  rag/pipeline_refiner.py — Context refiner (chunk compression)
-  rag/pipeline.py    — RagPipeline core orchestration (this file)
+   rag/repository.py      — RagRepository, RagScorer, FTS helpers
+   rag/llm_client.py      — RagLLM, get_embedding, summarize_tool_result
+   rag/pipeline_service.py — External RAG service delegation
+   rag/pipeline_refiner.py — Context refiner (chunk compression)
+   rag/config_resolution.py — resolve_rag_config() config resolution delegate
+   rag/diagnostics.py       — PipelineDiagnostics structured diagnostics
+   rag/db_connection.py     — RagDatabaseConnection context-manager DB wrapper
+   rag/stage_lifecycle.py   — RagPipelineStageLifecycle run() lifecycle delegate
+   rag/pipeline.py          — RagPipeline core orchestration (this file)
 """
 
-import asyncio
 import logging
 import sqlite3
 import time
@@ -37,19 +40,17 @@ from rag.config_resolution import resolve_rag_config
 from rag.db_connection import RagDatabaseConnection
 from rag.diagnostics import PipelineDiagnostics
 from rag.http_augment import _map_http_result_kind
-from rag.llm_client import RagLLM, get_embedding
+from rag.llm_client import RagLLM
 from rag.models_config import RagConfigImpl
 from rag.models_data import TwoStageFetchResult
 from rag.models_result import HttpResultKind, SearchDiagnostics
-from rag.repository import (
-    RagRepository,
-    deduplicate_chunks,
-)
+from rag.repository import deduplicate_chunks
 from rag.stage import PipelineContext, PipelineStage, StageResult
 from rag.stage_lifecycle import RagPipelineStageLifecycle
 from rag.stages.augment import (
     _format_chunks as _augment_format_chunks,
 )
+from rag.stages.search import _search_all_queries
 from rag.types import PipelineRunResult
 
 logger = logging.getLogger(__name__)
@@ -185,33 +186,12 @@ class RagPipeline:
         Sequential DB execution avoids shared-connection conflicts across queries.
         Returns an empty list when all embedding fetches fail.
         """
-        raw = await asyncio.gather(
-            *(get_embedding(q, self._http, self._embed_url) for q in queries),
-            return_exceptions=True,
+        results, diagnostics = await _search_all_queries(
+            queries, db, self._cfg, self._http, self._embed_url
         )
-        all_results: list[list[RagHit]] = []
-        repo = RagRepository(db)
-        for q, result in zip(queries, raw):
-            if isinstance(result, Exception):
-                logger.warning("Embedding failed for '%s': %s", q, result)
-                continue
-            if not isinstance(result, list):
-                logger.warning(
-                    "Unexpected embedding result type for '%s': %s",
-                    q,
-                    type(result).__name__,
-                )
-                continue
-            try:
-                vec_res = repo.vector_search(result, self._cfg.top_k_search)
-                fts_res = repo.fts_search(q, self._cfg.top_k_search)
-                if vec_res:
-                    all_results.append(vec_res)
-                if fts_res:
-                    all_results.append(fts_res)
-            except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-                logger.warning("Search DB failure for '%s': %s", q, e)
-        return all_results
+        self.stat_search_embed_failed += diagnostics.embed_failed
+        self.stat_search_fts_errors += diagnostics.fts_errors
+        return cast(list[list[RagHit]], results)
 
     async def rerank_candidates(self, query: str, merged: list[RagHit]) -> list[RagHit]:
         """Apply Cross-Encoder rerank then dedup.

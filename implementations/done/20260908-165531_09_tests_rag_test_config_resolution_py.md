@@ -92,8 +92,8 @@ Standard unit test creation: define test functions/classes, use `pytest` fixture
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/rag/test_config_resolution.py` | Pending | — | — | |
-| 2 | Run validation sequence | Pending | — | — | |
+| 1 | Create `tests/rag/test_config_resolution.py` | Completed | — | — | File exists; 7 tests covering priority ordering, defaults, validation |
+| 2 | Run validation sequence | Completed | — | — | 7/7 passed; ruff/mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

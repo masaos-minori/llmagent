@@ -93,10 +93,10 @@ Class extraction: copy the stage lifecycle methods from `RagPipeline.run()`, ver
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `scripts/rag/stage_lifecycle.py` with `RagPipelineStageLifecycle` | Pending | — | — | |
-| 2 | Update `run()` to delegate to `RagPipelineStageLifecycle` | Pending | — | — | |
-| 3 | Create `tests/rag/test_stage_lifecycle.py` | Pending | — | — | |
-| 4 | Run validation sequence | Pending | — | — | |
+| 1 | Create `scripts/rag/stage_lifecycle.py` with `RagPipelineStageLifecycle` | Completed | — | — | File exists; class defined |
+| 2 | Update `run()` to delegate to `RagPipelineStageLifecycle` | Completed | — | — | Updated in prior cycle |
+| 3 | Create `tests/rag/test_stage_lifecycle.py` | Completed | — | — | Test file exists |
+| 4 | Run validation sequence | Completed | — | — | Validation passed in prior cycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

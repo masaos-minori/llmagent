@@ -129,13 +129,13 @@ Multi-phase mechanical refactoring: extract functions/classes, replace call site
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 2: Extract config resolution | Pending | — | — | |
-| 2 | Phase 3: Replace diagnostics dict construction | Pending | — | — | |
-| 3 | Phase 4: Update augment() with RagDatabaseConnection | Pending | — | — | |
-| 4 | Phase 5: Delegate run() to RagPipelineStageLifecycle | Pending | — | — | |
-| 5 | Phase 6a: Make AugmentRefiner optional, remove lambdas | Pending | — | — | |
-| 6 | Phase 6b: Consolidate search_queries() | Pending | — | — | |
-| 7 | Phase 7: Verify line count, update docs, run validation | Pending | — | — | |
+| 1 | Phase 2: Extract config resolution | Completed | — | — | Already implemented in prior cycle |
+| 2 | Phase 3: Replace diagnostics dict construction | Completed | — | — | Already implemented in prior cycle |
+| 3 | Phase 4: Update augment() with RagDatabaseConnection | Completed | — | — | Already implemented in prior cycle |
+| 4 | Phase 5: Delegate run() to RagPipelineStageLifecycle | Completed | — | — | Already implemented in prior cycle |
+| 5 | Phase 6a: Make AugmentRefiner optional, remove lambdas | Completed | — | — | Already implemented in prior cycle |
+| 6 | Phase 6b: Consolidate search_queries() | Completed | — | — | Delegated to `_search_all_queries` |
+| 7 | Phase 7: Verify line count, update docs, run validation | Completed | — | — | Line count: 364 total / 317 non-blank-non-comment (target ~200-250 not met); module docstring updated; ruff/mypy pass; no new test failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
