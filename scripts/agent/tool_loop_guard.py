@@ -59,6 +59,11 @@ GUARD_HINT = (
     " Do not make any more tool calls."
 )
 
+EMPTY_RESULT_REPEAT_HINT = (
+    "[System] A tool returned an empty result repeatedly. Stop retrying and"
+    " provide your best answer with the information already available."
+)
+
 
 @dataclass
 class TurnLoopState:
@@ -81,6 +86,7 @@ class ToolLoopGuard:
     def __init__(self, ctx: AgentContext) -> None:
         """Initialize the tool loop guard with the agent context for diagnostic tracking."""
         self._ctx = ctx
+        self._empty_result_counts: dict[str, int] = {}
 
     # ── Diagnostic save helper ────────────────────────────────────────────────
 
@@ -99,6 +105,54 @@ class ToolLoopGuard:
             "timestamp": now_iso_raw(),
         }
         ctx.diagnostics.save(ctx.session.session_id, "guard_hint", json_dumps(payload))
+
+    # ── Empty result repeat guard helpers ─────────────────────────────────────
+
+    @staticmethod
+    def _is_empty_result(result: object) -> bool:
+        """Return True if result is an empty value."""
+        if result is None:
+            return True
+        if isinstance(result, str) and result == "":
+            return True
+        if isinstance(result, (dict, list)) and len(result) == 0:
+            return True
+        return False
+
+    def record_tool_result(self, tool_name: str, result: object) -> None:
+        """Record a tool result for empty-result repeat detection."""
+        ctx = self._ctx
+        if ctx.cfg.tool.tool_empty_result_max_repeats <= 0:
+            return
+        if not self._is_empty_result(result):
+            # Reset counter on successful result
+            self._empty_result_counts[tool_name] = 0
+            return
+        self._empty_result_counts[tool_name] = (
+            self._empty_result_counts.get(tool_name, 0) + 1
+        )
+
+    def check_empty_result_repeat(self, message: LLMMessage) -> str | None:
+        """Check if any tool has exceeded the empty result repeat threshold."""
+        ctx = self._ctx
+        if ctx.cfg.tool.tool_empty_result_max_repeats <= 0:
+            return None
+        for tool_name, count in self._empty_result_counts.items():
+            if count >= ctx.cfg.tool.tool_empty_result_max_repeats:
+                logger.warning(
+                    "Empty result repeat detected: %r (%s times)",
+                    tool_name,
+                    count,
+                )
+                self._save_guard_hint(
+                    ctx,
+                    "empty_result_repeat",
+                    tool_name=tool_name,
+                    repeat_count=count,
+                    hint=EMPTY_RESULT_REPEAT_HINT,
+                )
+                return f"Repeated empty result from '{tool_name}' detected."
+        return None
 
     # ── Guard checks ──────────────────────────────────────────────────────────
 
@@ -253,11 +307,13 @@ class ToolLoopGuard:
         failed_calls: set[str],
         message: LLMMessage,
     ) -> str | None:
-        """Run cycle, stagnation, dedup, and retry guards in order; return first hit or None."""
+        """Run cycle, stagnation, dedup, retry, and empty result guards in order; return first hit or None."""
         if msg := self.check_cycle(round_fingerprints, message):
             return msg
         if msg := self._check_progress_stagnation(round_fingerprints, message):
             return msg  # NEW: check stagnation before dedup/retry
+        if msg := self.check_empty_result_repeat(message):
+            return msg
         if msg := self.check_dedup(seen_calls, message):
             return msg
         return self.check_retry(failed_calls, message)

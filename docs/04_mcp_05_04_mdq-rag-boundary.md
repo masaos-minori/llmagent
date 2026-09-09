@@ -67,7 +67,7 @@ RAG is the primary document retrieval system for the agent layer. It supports ge
 
 | System | Database | Owner | Administrator |
 |---|---|---|---|
-| MDQ | `mdq.sqlite` | MCP Layer (`scripts/mcp_servers/mdq/`) | mdq-mcp server (port 8013) |
+| MDQ | `mdq.sqlite` | MCP Layer (`scripts/mcp_servers/mdq/`) | mdq-mcp server |
 | RAG | `rag.sqlite` | MCP Layer (`scripts/mcp_servers/rag_pipeline/`) | rag-pipeline-mcp server |
 
 Neither system has direct access to the other's database. Each maintains its own schema, indexes, and search logic.

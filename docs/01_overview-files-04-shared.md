@@ -28,7 +28,7 @@ Four isolated SQLite databases: `rag.sqlite`, `session.sqlite`, `workflow.sqlite
 
 ### DB Layer Package (scripts/db/)
 
-Schema initialization (`create_schema.py`, `schema_sql.py`). Connection management (`helper.py`) — WAL mode, busy_timeout. Maintenance operations (`maintenance.py`). Protocol abstraction (`store.py`, `store_protocols.py`) — VectorStore, DocumentStore, SessionStore. SQLite implementations (`store_impl.py`) — SQLiteVectorStore, SQLiteDocumentStore, SQLiteSessionStore. Data models (`models.py`) — WalCheckpointCounts, PurgeCounts, DbHealthMetrics, DocumentRow, SessionRow, MessageRow. Consistency checking (`rag_consistency.py`). Rotation (`rotation.py`) and recovery (`recovery.py`).
+Schema initialization, connection management (WAL mode, busy_timeout), and maintenance operations. Protocol abstraction layer defining VectorStore, DocumentStore, and SessionStore interfaces with SQLite implementations. Data models for checkpoint counts, purge counts, health metrics, document rows, session rows, and message rows. Consistency checking, rotation, and recovery utilities.
 
 ### Shared Infrastructure Components (scripts/shared/)
 

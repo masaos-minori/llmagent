@@ -16,7 +16,7 @@ related:
 
 # MCP Server Catalog: rag-pipeline-mcp / cicd-mcp
 
-## rag-pipeline-mcp (Port 8010)
+## rag-pipeline-mcp 
 
 **Purpose:** RAG search pipeline (MQE → Search → RRF → Rerank → Deduplication → Expansion).
 **Startup Mode:** persistent (HTTP)
@@ -65,7 +65,7 @@ related:
 
 ---
 
-## cicd-mcp (Port 8012)
+## cicd-mcp 
 
 See also: [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing cicd-mcp as a high-risk tool.
 
@@ -112,4 +112,4 @@ The git-mcp server's `enabled`/`disabled_reason` calculation logic ("workflow_al
 
 mcp
 server-catalog
-rag-pipeline-mcp, cicd-mcp, port 8010, port 8012
+rag-pipeline-mcp, cicd-mcp

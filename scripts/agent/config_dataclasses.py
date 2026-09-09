@@ -185,6 +185,8 @@ class ToolConfig:
     tool_error_retry_max: int = 1
     # Window size for progress stagnation detection; 0 disables
     progress_stagnation_window: int = 3
+    # Max consecutive empty tool results within a turn; 0 = disabled
+    tool_empty_result_max_repeats: int = 0
     # Per-server concurrent call limit; empty = unlimited
     tool_concurrency_limits: dict[str, int] = field(default_factory=dict)
     # Argument fields to redact in console output

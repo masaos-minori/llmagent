@@ -62,7 +62,7 @@ curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8006/health   # 200 if h
 ```
 HTTP 200 — Fully healthy.
 
-**shell-mcp (port 8009) — degraded:**
+**shell-mcp — degraded:**
 ```json
 {
   "status": "degraded",

@@ -149,11 +149,17 @@ async def _collect_tool_result_msgs(
     """
     tool_msgs: list[tuple[str, str | None, list[dict] | None, str | None]] = []
     turn_chars = 0
+    # Get guard reference for empty-result repeat detection
+    guard = getattr(ctx, "guard", None)
     for tc_id, name, args, text, is_error, llm_text in results:
         _update_stats_for_result(ctx, name, args, is_error, out_failed_keys)
         masked = mask_args(args, ctx.cfg.tool.masked_fields)
         _log_and_emit_tool_call(turn + 1, name, masked)
         _emit_tool_result(text, name)
+
+        # Wire tool result into guard for empty-result repeat detection
+        if guard is not None and not is_error:
+            guard.record_tool_result(name, text)
 
         llm_text = _apply_turn_char_limit(
             llm_text,

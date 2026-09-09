@@ -49,7 +49,7 @@ SQLite-based event store with WAL mode for concurrent access. Event schema inclu
 
 ### Configuration Files (conf.d/)
 
-Per-MCP-server configuration files under `conf.d/`: `cicd-mcp` (GITHUB_TOKEN settings), `git-mcp` (allowed_repo_paths / read_only settings), `github-mcp` (GITHUB_TOKEN settings), `web-search-mcp` (API key settings for each search provider). These files contain operational credentials and are managed separately from code.
+Per-MCP-server configuration files under `conf.d/`: operational credentials for CI/CD, git, GitHub, and web search providers. These files contain sensitive settings and are managed separately from code.
 
 ## Related Documents
 

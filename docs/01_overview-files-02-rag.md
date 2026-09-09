@@ -23,26 +23,23 @@ Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01
 
 See `rag-src/` for the current file layout.
 
-### RAG Pipeline Stages
+### Component Responsibilities
 
-**Crawled text (`rag-src/`)** — Collects raw crawled content as `{yyyymmddhhmmss}-{slug}.json`. Owned by the crawler process. Feeds into the chunking stage. Direction of dependency flows from crawler into this component.
+**Crawled content** — Raw crawled data collected by the crawler process. Owned by the crawler; feeds into the chunking stage. Dependency direction flows from crawler into this component.
 
-**Chunked files (`rag-src/chunk/`)** — Produced by the chunk_splitter process from crawled text. Uses `{stem}-{idx:04d}.json` naming convention. Feeds into the ingester stage. Dependency direction flows from chunk_splitter into this staging area.
+**Chunked content** — Produced by the chunk_splitter process from crawled content. Feeds into the ingester stage. Dependency direction flows from chunk_splitter into this staging area.
 
-**Registered files (`rag-src/registered/`)** — Moved here by the ingester after successful database insertion. Retention period and cleanup policy currently unconfirmed — needs resolution against ingester implementation.
+**Post-ingestion staging** — Files moved here by the ingester after successful database insertion. Retention period and cleanup policy are unresolved — requires verification against ingester implementation.
 
-**sqlite-vec extension (`sqlite-vec/vec0.so`)** — Loadable SQLite extension module providing vector search capability. Runtime dependency of the RAG pipeline's vector store layer.
+**Vector search extension** — SQLite extension module providing vector search capability. Runtime dependency of the RAG pipeline's vector store layer.
 
 ### Data Flow Dependencies
 
-- Crawler → chunk_splitter: crawled text is consumed by chunk splitter
-- chunk_splitter → ingester: chunks are consumed by ingester for database insertion
-- ingester → registered/: post-insertion staging area (retention TBD)
-- sqlite-vec: used by RAG pipeline's vector store for embedding similarity queries
+Crawler produces crawled content consumed by chunk_splitter; chunk_splitter produces chunks consumed by ingester for database insertion; ingester moves processed files to post-ingestion staging; vector search extension supports embedding similarity queries across all stages.
 
 ### Unknowns
 
-- Retention period for files under `registered/` is not confirmed within this document (needs verification against ingester implementation)
+Retention period for post-ingestion staging files is not confirmed within this document (requires verification against ingester implementation).
 
 ## Related Documents
 

@@ -25,7 +25,7 @@ Specifications for 10 MCP servers per server: purpose, port, tools, I/O, configu
 
 ---
 
-## web-search-mcp (Port 8004)
+## web-search-mcp 
 
 **Purpose:** Web search via DuckDuckGo (no API key required).
 **Startup Mode:** persistent (HTTP)
@@ -51,7 +51,7 @@ Specifications for 10 MCP servers per server: purpose, port, tools, I/O, configu
 
 **Note (2026-07-20):** Calls to `health.record_success()`/`record_failure()`/`metrics.record_query()` are centralized in the newly created orchestration layer `scripts/mcp_servers/web_search/web_search_service.py` (handles `SearchRequest` construction, `search_provider.search_duckduckgo` invocation, and latency measurement). `formatters.py::fdisp_search_web()` calls `service.search_web()` and formats the result. `web_search_server.py::call_tool()` does not call these update hooks directly; instead, it only handles `outcome`/`error_type` classification for `_audit_log(...)` to avoid double counting health/metrics—only `web_search_service.py` performs `health.record_*`/`metrics.record_query` within the package.
 
-**Note (2026-07-20):** The `browser_fetch` tool was integrated into this server from the old standalone `browser-mcp` (Port 8016). It performs read-only page fetching and text extraction (no interactive operations; no JavaScript execution).
+**Note (2026-07-20):** The `browser_fetch` tool was integrated into this server from the old standalone `browser-mcp`. It performs read-only page fetching and text extraction (no interactive operations; no JavaScript execution).
 
 **Tools:**
 
@@ -99,7 +99,7 @@ When `browser_fetch` is called with a domain not in the allowlist, the server ra
 
 ---
 
-## file-read-mcp (Port 8005)
+## file-read-mcp 
 
 **Purpose:** Read-only access to the local filesystem within `allowed_dirs`.
 **Startup Mode:** persistent (HTTP)
@@ -140,7 +140,7 @@ Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty
 
 ---
 
-## github-mcp (Port 8006)
+## github-mcp 
 
 See also: [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing github-mcp as a high-risk tool.
 
@@ -198,4 +198,4 @@ The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server 
 
 mcp
 server-catalog
-web-search-mcp, file-read-mcp, github-mcp, port 8004, port 8005, port 8006
+web-search-mcp, file-read-mcp, github-mcp

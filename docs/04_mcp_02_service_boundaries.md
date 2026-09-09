@@ -16,7 +16,7 @@ source:
 
 ## Per-Server Responsibility Definitions
 
-### file-read-mcp (port 8005)
+### file-read-mcp 
 
 **Responsibilities:**
 - Read-only local file operations (read, list, search, metadata)
@@ -29,7 +29,7 @@ source:
 **Ownership rationale:**
 Provides least-privilege access for reading local files.
 
-### file-write-mcp (port 8007)
+### file-write-mcp 
 
 **Responsibilities:**
 - Local file write operations (write, edit, create directory, move)
@@ -42,7 +42,7 @@ Provides least-privilege access for reading local files.
 **Ownership rationale:**
 Provides least-privilege access for writing local files.
 
-### file-delete-mcp (port 8008)
+### file-delete-mcp 
 
 **Responsibilities:**
 - Local file/directory deletion
@@ -55,7 +55,7 @@ Provides least-privilege access for writing local files.
 **Ownership rationale:**
 Provides least-privilege access for deleting local files.
 
-### rag-pipeline-mcp (port 8010)
+### rag-pipeline-mcp 
 
 **Responsibilities:**
 - RAG ingestion pipeline execution
@@ -70,7 +70,7 @@ Provides least-privilege access for deleting local files.
 **Ownership rationale:**
 Isolates RAG pipeline operations to prevent accidental interference with other subsystems and ensure proper data lifecycle management.
 
-### cicd-mcp (port 8012)
+### cicd-mcp 
 
 **Responsibilities:**
 - GitHub Actions workflow triggering and monitoring
@@ -85,7 +85,7 @@ Isolates RAG pipeline operations to prevent accidental interference with other s
 **Ownership rationale:**
 Provides focused CI/CD integration without exposing broader GitHub API capabilities that could interfere with code workflows.
 
-### mdq-mcp (port 8013)
+### mdq-mcp 
 
 **Responsibilities:**
 - Markdown structural search and retrieval
@@ -100,7 +100,7 @@ Provides focused CI/CD integration without exposing broader GitHub API capabilit
 **Ownership rationale:**
 Specialized for markdown structural analysis; FTS5 search is production-ready while hybrid search remains unimplemented.
 
-### git-mcp (port 8014)
+### git-mcp 
 
 **Responsibilities:**
 - Local Git operations (status, log, diff, branch, commit, checkout)
@@ -115,7 +115,7 @@ Specialized for markdown structural analysis; FTS5 search is production-ready wh
 **Ownership rationale:**
 Local Git operations require different authentication and error handling than remote GitHub operations.
 
-### shell-mcp (port 8009)
+### shell-mcp 
 
 **Responsibilities:**
 - Shell command execution
@@ -128,7 +128,7 @@ Local Git operations require different authentication and error handling than re
 **Ownership rationale:**
 Minimal surface area for shell execution; isolated from other systems to prevent unintended side effects.
 
-### web-search-mcp (port 8004)
+### web-search-mcp 
 
 **Responsibilities:**
 - Web search functionality
@@ -142,7 +142,7 @@ Minimal surface area for shell execution; isolated from other systems to prevent
 **Ownership rationale:**
 Consolidated from retired browser-mcp server; focuses on read-only web interaction.
 
-### github-mcp (port 8006)
+### github-mcp 
 
 **Responsibilities:**
 - GitHub repository operations (search, branches, commits, issues, PRs)

@@ -10,7 +10,7 @@ related:
 ---
 # MCP Server Catalog: file-write-mcp / file-delete-mcp / shell-mcp
 
-## file-write-mcp (Port 8007)
+## file-write-mcp 
 
 **Purpose:** Write operations to the local filesystem. All tools support `dry_run=True`.
 **Startup Mode:** persistent (HTTP)
@@ -44,7 +44,7 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 
 ---
 
-## file-delete-mcp (Port 8008)
+## file-delete-mcp 
 
 **Purpose:** Deletion from the local filesystem. All tools support `dry_run=True`.
 **Startup Mode:** persistent (HTTP)
@@ -78,7 +78,7 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 
 ---
 
-## shell-mcp (Port 8009)
+## shell-mcp 
 
 **Purpose:** Execution of sandboxed shell commands within the `command_allowlist`.
 **Startup Mode:** persistent (HTTP)
@@ -132,4 +132,4 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 
 mcp
 server-catalog
-file-write-mcp, file-delete-mcp, shell-mcp, port 8007, port 8008, port 8009
+file-write-mcp, file-delete-mcp, shell-mcp

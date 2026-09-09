@@ -24,38 +24,32 @@ Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01
 
 See `deploy/` for the current file layout.
 
-### Deployment Targets
+### Component Responsibilities
 
-**llama.cpp** — Builds and maintains inference runtime artifacts. Depends on the models directory for GGUF model loading. Owns the compiled shared libraries and header files produced by the build process.
+**Build artifacts** — Compiles and maintains the inference runtime. Owns the compiled shared libraries and headers produced by the build process. Consumed by the deployment layer.
 
-**Chat LLM models** — Owned by the model acquisition process defined in `02_deployment.md` section 1.4. Consumed by the :8080 agent-LLM process. Direction of dependency flows from model acquisition into this component.
+**Model assets** — Chat and embedding model weights acquired independently. Consumed by their respective LLM processes. Dependency direction flows from model acquisition into these components.
 
-**Embedding LLM models** — Owned by the model acquisition process. Consumed by the :8081 embed-LLM process. Direction of dependency flows from model acquisition into this component.
+### Deployment Artifacts
 
-### Deployment Scripts
+**Build scripts** — One-time setup operations: sqlite-vec extension compilation, Python script and configuration deployment, and SQLite schema initialization. Each runs sequentially; later steps depend on earlier ones completing successfully.
 
-**`build_sqlite_vec.sh`** — Downloads and builds the sqlite-vec extension (vec0.so). Runs once during initial deployment. No upstream dependency other than network access for downloading.
+**Service orchestration** — Starts MCP server group and LLM service group as independent subprocesses. Requires workflow definitions validated and database tables present before starting.
 
-**`deploy.sh`** — Copies Python scripts, configurations, and SQL to /opt/llm/. Requires `config/workflows/default.json` exists with a valid schema. Dependent on `build_sqlite_vec.sh` completing first in the startup sequence.
-
-**`init_db.sh`** — Initializes the SQLite schema. Depends on `deploy.sh` completing first in the startup sequence. Produces the database state required by downstream services.
-
-**`setup_services.sh`** — Starts MCP servers (:8004-:8014) and LLM servers (:8080-:8081) as subprocesses. Requires workflow definitions validated and DB tables present. Dependent on `init_db.sh` completing first in the startup sequence.
-
-**`start_agent.sh`** — Starts AgentREPL. Prefers `/opt/llm/pyproject.toml` in production. Dependent on `setup_services.sh` completing first in the startup sequence.
+**Agent launcher** — Starts the AgentREPL process. Prefers the production pyproject.toml over development alternatives. Dependent on service orchestration completing first.
 
 ### Startup Sequence Dependencies
 
-Workflow validation (`default.json` + `python -m agent.workflow.validate`) is a hard prerequisite for both `deploy.sh` and `setup_services.sh`. DB existence check (`/opt/llm/db/workflow.sqlite` and required tables) is a precondition for `setup_services.sh`.
+Workflow validation is a hard prerequisite for both deployment and service orchestration. Database existence check is a precondition for service orchestration.
 
-Startup order: `build_sqlite_vec.sh` → `deploy.sh` → `init_db.sh` → `setup_services.sh` → `start_agent.sh`
+Startup order: build scripts → deployment → schema initialization → service orchestration → agent launcher
 
-### Implementation Notes (Current behavior)
+### Reason for Process Separation
 
-- Both `deploy.sh` and `setup_services.sh` require the existence of `config/workflows/default.json` and validation via `python -m agent.workflow.validate`; failure results in a `[FATAL]` error and aborts deployment/startup (exit 1). Operation without workflow definitions is not supported.
-  (Evidence classification: Explicit in code — `deploy/deploy.sh`, `deploy/setup_services.sh`)
-- `setup_services.sh` further checks for the existence of `/opt/llm/db/workflow.sqlite` and the `tasks/attempts/processed_events/artifacts/approvals` table. It also aborts with `[FATAL]` if they are missing.
-  (Evidence classification: Explicit in code — `deploy/setup_services.sh`)
+Deployment scripts are separated because:
+- Failure isolation: a failure in one step does not affect others.
+- Independent scaling: write-heavy domains may require different resource allocation than read-only domains.
+- Deployment independence: individual scripts can be updated or restarted without affecting the entire system.
 
 ## Related Documents
 

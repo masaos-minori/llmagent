@@ -31,7 +31,7 @@ Building a multi-agent orchestration system with Agent + MCP servers
 
 ## 2. Architecture
 
-### 2.1 Process Configuration
+### 2.1 Process Topology
 
 The system consists of three categories of processes: the Agent CLI REPL, LLM services, and MCP servers. Each category runs as an independent process with its own lifecycle and configuration.
 
