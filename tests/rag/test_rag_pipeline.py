@@ -204,7 +204,7 @@ class TestRagPipelineErrorOnDbOpen:
     async def test_augment_raises_pipeline_error_on_db_failure(self) -> None:
         pipeline = self._make_pipeline()
         with patch(
-            "rag.pipeline.SQLiteHelper",
+            "rag.db_connection.SQLiteHelper",
             side_effect=sqlite3.OperationalError("unable to open database"),
         ):
             with pytest.raises(RagPipelineError, match="DB open failed"):

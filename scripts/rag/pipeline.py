@@ -22,12 +22,10 @@ import logging
 import sqlite3
 import time
 from collections.abc import Callable
-from typing import Any, Literal, cast
+from typing import Literal, cast
 
 import httpx
 from db.helper import SQLiteHelper
-from shared.config_loader import ConfigLoader
-from shared.config_validator import RagConfigValidator
 from shared.llm_client import build_embed_url, build_llm_url
 from shared.types import (
     RagConfig,
@@ -35,6 +33,9 @@ from shared.types import (
 )
 
 from rag.augment import AugmentRefiner
+from rag.config_resolution import resolve_rag_config
+from rag.db_connection import RagDatabaseConnection
+from rag.diagnostics import PipelineDiagnostics
 from rag.http_augment import _map_http_result_kind
 from rag.llm_client import RagLLM, get_embedding
 from rag.models_config import RagConfigImpl
@@ -45,137 +46,13 @@ from rag.repository import (
     deduplicate_chunks,
 )
 from rag.stage import PipelineContext, PipelineStage, StageResult
-from rag.stages.augment import (
-    AugmentStage,
-)
+from rag.stage_lifecycle import RagPipelineStageLifecycle
 from rag.stages.augment import (
     _format_chunks as _augment_format_chunks,
 )
-from rag.stages.fusion import FusionStage
-from rag.stages.mqe import MqeStage
-from rag.stages.rerank import RerankStage
-from rag.stages.search import SearchStage
 from rag.types import PipelineRunResult
 
 logger = logging.getLogger(__name__)
-
-
-def resolve_rag_config(
-    cfg: RagConfig,
-    *,
-    module_cfg: dict | None = None,
-    config_loader: Callable[[], dict[str, Any]] | None = None,
-) -> RagConfigImpl:
-    """Resolve RAG configuration from multiple sources with priority ordering.
-
-    Priority order:
-      1. cfg if already a RagConfigImpl (returned directly)
-      2. cfg as dict (used as-is)
-      3. cfg as object with __dict__ (converted to dict)
-      4. module_cfg passed explicitly
-      5. config_loader() callable (defaults to ConfigLoader().load_all())
-
-    When config_loader raises FileNotFoundError or ValueError, returns empty dict
-    as fallback (same behavior as the removed _ModuleConfig.get()).
-
-    Returns a validated RagConfigImpl populated with defaults for any missing fields.
-    """
-    if isinstance(cfg, RagConfigImpl):
-        return cfg
-
-    _raw_cfg: dict[str, Any] = {}
-    if isinstance(cfg, dict):
-        _raw_cfg = cfg
-    elif cfg is not None and hasattr(cfg, "__dict__"):
-        _raw_cfg = cfg.__dict__
-    else:
-        if config_loader is None:
-            try:
-                config_loader = lambda: ConfigLoader().load_all()  # noqa: E731 — closure capture requires lambda; cannot use def inside try block
-            except (FileNotFoundError, ValueError):
-                _raw_cfg = {}
-        if not _raw_cfg and config_loader is not None:
-            try:
-                _raw_cfg = config_loader()
-            except (FileNotFoundError, ValueError):
-                _raw_cfg = {}
-        elif not _raw_cfg:
-            _raw_cfg = module_cfg if module_cfg is not None else {}
-
-    _all_fields = frozenset(
-        {
-            "use_mqe",
-            "top_k_search",
-            "use_rerank",
-            "rag_top_k",
-            "max_chunks_per_doc",
-            "top_k_rerank",
-            "rag_min_score",
-            "use_rrf",
-            "rrf_k",
-            "use_search",
-            "rag_service_url",
-            "rag_auth_token",
-            "use_refiner",
-            "refiner_max_tokens",
-            "refiner_max_chars_per_chunk",
-            "refiner_timeout",
-            "llm_url",
-            "embed_url",
-            "rag_db_path",
-            "sqlite_vec_so",
-            "sqlite_timeout",
-            "sqlite_busy_timeout_ms",
-            "embed_retry",
-            "embed_workers",
-            "rag_pipeline_service_url",
-            "mqe_prompt_template",
-            "mqe_n_queries",
-            "rerank_prompt_template",
-        }
-    )
-    _defaults_for_all = {
-        "use_mqe": False,
-        "top_k_search": 5,
-        "use_rerank": False,
-        "rag_top_k": 3,
-        "max_chunks_per_doc": 5,
-        "top_k_rerank": 10,
-        "rag_min_score": 0.0,
-        "use_rrf": True,
-        "rrf_k": 60,
-        "use_search": True,
-        "rag_service_url": None,
-        "rag_auth_token": None,
-        "use_refiner": False,
-        "refiner_max_tokens": 512,
-        "refiner_max_chars_per_chunk": 800,
-        "refiner_timeout": 30.0,
-        "llm_url": "",
-        "embed_url": "",
-        "rag_db_path": ":memory:",
-        "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
-        "sqlite_timeout": 5,
-        "sqlite_busy_timeout_ms": 5000,
-        "embed_retry": 3,
-        "embed_workers": 4,
-        "rag_pipeline_service_url": None,
-        "mqe_prompt_template": "Expand query: {query}",
-        "mqe_n_queries": 3,
-        "rerank_prompt_template": "Rerank results for: {query}",
-    }
-    for k in _all_fields:
-        if k not in _raw_cfg:
-            _raw_cfg[k] = _defaults_for_all[k]
-    validator = RagConfigValidator()
-    validation_result = validator.validate(_raw_cfg)
-    for warning in validation_result.warnings:
-        logger.warning("rag config warning: %s", warning)
-    for error in validation_result.errors:
-        logger.error("rag config error: %s", error)
-    if not validation_result.ok:
-        raise ValueError(f"RAG config validation failed: {validation_result.errors}")
-    return RagConfigImpl(**_raw_cfg)
 
 
 class RagPipelineError(RuntimeError):
@@ -197,6 +74,7 @@ class RagPipeline:
         module_cfg: dict | None = None,
         on_status: Callable[[str], None] | None = None,
         on_clear: Callable[[], None] | None = None,
+        augment_refiner: AugmentRefiner | None = None,
     ) -> None:
         """Initialize with HTTP client, config, and optional status/clear callbacks."""
         self._http = http
@@ -230,15 +108,16 @@ class RagPipeline:
         self._sqlite_busy_timeout_ms: int = self._cfg.sqlite_busy_timeout_ms
 
         # AugmentRefiner: HTTP augment + refiner concern
-        self._augment_refiner = AugmentRefiner(
-            http=self._http,
-            cfg=self._cfg,
-            on_status=self._on_status,
-            set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
-            set_fallback_reason=lambda _: None,
-            search_diagnostics=self.last_search_diagnostics,
-            llm=self._llm,
-        )
+        if augment_refiner is not None:
+            self._augment_refiner = augment_refiner
+        else:
+            self._augment_refiner = AugmentRefiner(
+                http=self._http,
+                cfg=self._cfg,
+                on_status=self._on_status,
+                search_diagnostics=self.last_search_diagnostics,
+                llm=self._llm,
+            )
 
         logger.info(
             "RagPipeline init: use_rrf=%s rrf_k=%d",
@@ -365,60 +244,22 @@ class RagPipeline:
         history_context: str = "",
     ) -> PipelineRunResult:
         """Execute MQE→search→RRF→rerank on an open DB; returns PipelineRunResult; on_clear() called on exit."""
+        lifecycle = RagPipelineStageLifecycle(
+            cast(RagConfigImpl, self._cfg),
+            cast(Callable[..., object], self._llm),
+            self._http,
+            self._embed_url,
+        )
         try:
-            ctx = PipelineContext(query=query, history_context=history_context)
-            self.last_timings = {}
-            pre_augment_stages: list = [
-                MqeStage(cast(RagConfig, self._cfg), self._llm),
-                SearchStage(cast(RagConfig, self._cfg), self._http, self._embed_url),
-                FusionStage(use_rrf=self._cfg.use_rrf, rrf_k=self._cfg.rrf_k),
-                RerankStage(cast(RagConfig, self._cfg), self._llm),
-            ]
-            for stage in pre_augment_stages:
-                await self._run_stage(stage, ctx, db)
-
-            augment_stage = AugmentStage()
-            t0 = time.perf_counter()
-            await augment_stage.run(ctx, db=db)
-            elapsed = time.perf_counter() - t0
-            self.last_timings[augment_stage.__class__.__name__] = elapsed
-            ctx.stage_results.append(
-                StageResult(
-                    stage_name=augment_stage.__class__.__name__,
-                    status="success",
-                    elapsed_seconds=elapsed,
-                    fallback_reason=None,
-                )
-            )
-
-            # Store for two-stage fetch callers (e.g. REPLAgent._run_turn)
-            self.last_fetch_result = TwoStageFetchResult(
-                hits=ctx.reranked,
-                min_score_applied=self._cfg.rag_min_score,
-                max_chunks_per_doc=self._cfg.max_chunks_per_doc,
-            )
-            self.last_stage_results = list(ctx.stage_results)
-            # Save search diagnostics and accumulate cumulative counters
-            self.last_search_diagnostics = ctx.search_diagnostics
-            self.stat_search_embed_failed += ctx.search_diagnostics.embed_failed
-            self.stat_search_fts_errors += ctx.search_diagnostics.fts_errors
-            fallbacks = [r for r in ctx.stage_results if r["status"] == "fallback"]
-            if fallbacks:
-                logger.info(
-                    "Pipeline fallback stages: %s",
-                    ", ".join(
-                        f"{r['stage_name']}({r['fallback_reason']})" for r in fallbacks
-                    ),
-                )
-
-            return PipelineRunResult(
-                queries=ctx.queries,
-                search_results=ctx.search_results,
-                merged=ctx.merged,
-                reranked=ctx.reranked,
-                stage_results=list(ctx.stage_results),
-                diagnostics=ctx.search_diagnostics,
-            )
+            result = await lifecycle.run(query, db, history_context=history_context)
+            self.last_timings = lifecycle.last_timings
+            self.last_stage_results = lifecycle.last_stage_results
+            self.last_fetch_result = lifecycle.last_fetch_result
+            if lifecycle.last_search_diagnostics is not None:
+                self.last_search_diagnostics = lifecycle.last_search_diagnostics
+                self.stat_search_embed_failed += lifecycle.stat_search_embed_failed
+                self.stat_search_fts_errors += lifecycle.stat_search_fts_errors
+            return result
         finally:
             self._on_clear()
 
@@ -476,23 +317,19 @@ class RagPipeline:
             if result is not None:
                 return result
         try:
-            if self._rag_db_path:
-                db = SQLiteHelper(
-                    db_path=self._rag_db_path,
-                    sqlite_vec_so=self._sqlite_vec_so,
-                    sqlite_timeout=self._sqlite_timeout,
-                    sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
-                ).open(row_factory=True)
-            else:
-                db = SQLiteHelper().open(row_factory=True)
-        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+            with RagDatabaseConnection(
+                rag_db_path=self._rag_db_path,
+                sqlite_vec_so=self._sqlite_vec_so,
+                sqlite_timeout=self._sqlite_timeout,
+                sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
+            ) as db:
+                pipeline_result = await self.run(
+                    query,
+                    db,
+                    history_context=history_context,
+                )
+        except RuntimeError as e:
             raise RagPipelineError(f"DB open failed (RAG unavailable): {e}") from e
-        with db:
-            pipeline_result = await self.run(
-                query,
-                db,
-                history_context=history_context,
-            )
         # run() already calls on_clear() in its finally block
         if debug_fn is not None:
             debug_fn(
@@ -524,10 +361,6 @@ class RagPipeline:
         Safe to call before ``run()`` / ``augment()`` — returns empty/zero values.
         Callers should serialize with ``orjson.dumps(pipeline.get_diagnostics())``.
         """
-        stage_results = [dict(r) for r in self.last_stage_results]
-        fallbacks = [r for r in stage_results if r.get("status") == "fallback"]
-        fetch = self.last_fetch_result
-        fusion_mode = "rrf" if self._cfg.use_rrf else "dedup_only"
         http_result_kind_raw = getattr(
             self.last_search_diagnostics, "http_result_kind", None
         )
@@ -535,53 +368,16 @@ class RagPipeline:
             http_result_kind = http_result_kind_raw
         else:
             http_result_kind = _map_http_result_kind(http_result_kind_raw)
-        refiner_fallbacks = [
-            r
-            for r in stage_results
-            if r.get("stage_name") == "Refiner" and r.get("status") == "fallback"
-        ]
-        refiner_fallback_count = len(refiner_fallbacks)
-        refiner_returned_empty = sum(
-            1
-            for r in refiner_fallbacks
-            if str(r.get("fallback_reason", "")) == "refiner_returned_empty"
+        return PipelineDiagnostics.to_dict(
+            PipelineDiagnostics.from_run_result(
+                embed_ok=self.last_search_diagnostics.embed_ok,
+                embed_failed=self.last_search_diagnostics.embed_failed,
+                fts_errors=self.last_search_diagnostics.fts_errors,
+                stage_results=self.last_stage_results,
+                timings=self.last_timings,
+                fetch_result=self.last_fetch_result,
+                use_rrf=self._cfg.use_rrf,
+                rrf_k=self._cfg.rrf_k,
+                http_result_kind=http_result_kind,
+            )
         )
-        refiner_exception_count = sum(
-            1
-            for r in refiner_fallbacks
-            if str(r.get("fallback_reason", "")).startswith("refiner_exception:")
-        )
-        return {
-            "stage_results": stage_results,
-            "timings": dict(self.last_timings),
-            "fetch_result": (
-                {
-                    "hits": len(fetch.hits),
-                    "min_score_applied": fetch.min_score_applied,
-                }
-                if fetch is not None
-                else None
-            ),
-            "fusion_mode": fusion_mode,
-            "http_result_kind": http_result_kind,
-            "fallback_count": len(fallbacks),
-            "fallback_reasons": [
-                r["fallback_reason"] for r in stage_results if r.get("fallback_reason")
-            ],
-            "refiner_fallback_count": refiner_fallback_count,
-            "refiner_returned_empty": refiner_returned_empty,
-            "refiner_exception_count": refiner_exception_count,
-            "refiner_exception": refiner_exception_count > 0,
-            "hit_counts": {
-                "merged": len(fetch.hits) if fetch is not None else 0,
-            },
-            "search_diagnostics": {
-                "embed_ok": self.last_search_diagnostics.embed_ok,
-                "embed_failed": self.last_search_diagnostics.embed_failed,
-                "fts_errors": self.last_search_diagnostics.fts_errors,
-                "degraded": (
-                    self.last_search_diagnostics.embed_failed > 0
-                    or self.last_search_diagnostics.fts_errors > 0
-                ),
-            },
-        }
