@@ -1,0 +1,67 @@
+# Implementation Procedure: Remove hand-written port numbers from docs/04_mcp_04_03_rag-pipeline-and-cicd.md
+
+## Plan Reference
+- Plan: `plans/20260908-211017_plan.md`
+- Row: #6 — `docs/04_mcp_04_03_rag-pipeline-and-cicd.md`
+- Requirement: REQ-001
+- Freeze Status: Frozen
+
+## Goal
+Remove all hand-written literal port numbers from this file while preserving server names and responsibility content intact.
+
+## Scope
+**In-Scope**: Remove `(Port NNNN)` annotations from heading names and prose text that contains port numbers.
+
+**Out-of-Scope**: Configuration parameter defaults (e.g., `HARD_MAX_RESULTS_LIMIT=100`), file paths, and other non-port-number literals.
+
+## Current Violations
+This file has 3 literal-port-number findings per `check_docs_content_policy.py`. Concretely:
+
+### Headings (lines 19, 68)
+```
+## rag-pipeline-mcp (Port 8010)
+## cicd-mcp (Port 8012)
+```
+
+### Prose (line 115)
+```
+rag-pipeline-mcp, cicd-mcp, port 8010, port 8012
+```
+
+## Implementation Steps
+
+### Step 1: Preparation
+1. Read `skills/DESIGN.md` Docs content policy — remove/retain definitions.
+2. Verify `config/agent.toml` authoritative port assignments for cross-reference.
+3. Check `docs/00_governance_03_issue-and-uncertainty-management.md` for Needs Confirmation markers anchored to headings being edited.
+
+### Step 2: Remove port numbers from headings
+For each subsection heading, remove the `(Port NNNN)` annotation:
+- Before: `## rag-pipeline-mcp (Port 8010)` → After: `## rag-pipeline-mcp`
+- Before: `## cicd-mcp (Port 8012)` → After: `## cicd-mcp`
+
+### Step 3: Remove port numbers from prose
+Edit line 115 (Keywords section):
+- Before: `rag-pipeline-mcp, cicd-mcp, port 8010, port 8012`
+- After: `rag-pipeline-mcp, cicd-mcp`
+
+### Step 4: Verification
+1. Run `uv run python tools/check_docs_content_policy.py docs/04_mcp_04_03_rag-pipeline-and-cicd.md` — expect zero findings.
+2. Run `uv run python tools/check_docs_structure.py docs/04_mcp_04_03_rag-pipeline-and-cicd.md` — expect structure check passes.
+3. Run `uv run python tools/check_docs_consistency.py --domain mcp` — expect no broken cross-references or drift.
+4. Manual review: confirm every Responsibilities / Explicit non-responsibilities section remains coherent after port-number removal.
+
+## Acceptance Criteria
+- Zero literal-port-number findings from `check_docs_content_policy.py` on this file [REQ-001]
+- No broken cross-references confirmed by `check_docs_consistency.py` [REQ-003]
+- Every Responsibilities / Explicit non-responsibilities section reads coherently without port numbers [REQ-003]
+
+## Risks
+- **Risk**: Removing port numbers breaks cross-references → **Mitigation**: Run `check_docs_consistency.py` after edits
+- **Risk**: Server names become ambiguous without port numbers → **Mitigation**: Each server has one unique name; verify during implementation
+
+## Traceability
+- **Workflow phase**: plan-to-implementation-procedure
+- **Source plan**: plans/20260908-211017_plan.md
+- **Source requirement**: REQ-001
+- **Generated at**: 20260909-174819

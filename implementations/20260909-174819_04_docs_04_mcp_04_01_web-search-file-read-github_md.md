@@ -1,0 +1,78 @@
+# Implementation Procedure: Remove hand-written port numbers from docs/04_mcp_04_01_web-search-file-read-github.md
+
+## Plan Reference
+- Plan: `plans/20260908-211017_plan.md`
+- Row: #4 — `docs/04_mcp_04_01_web-search-file-read-github.md`
+- Requirement: REQ-001
+- Freeze Status: Frozen
+
+## Goal
+Remove all hand-written literal port numbers from this file while preserving server names and responsibility content intact.
+
+## Scope
+**In-Scope**: Remove `(Port NNNN)` annotations from heading names and prose text that contains port numbers.
+
+**Out-of-Scope**: Configuration parameter defaults (e.g., `HARD_MAX_RESULTS_LIMIT=100`), file paths, and other non-port-number literals.
+
+## Current Violations
+This file has 5 literal-port-number findings per `check_docs_content_policy.py`. Concretely:
+
+### Headings (lines 28, 102, 143)
+```
+## web-search-mcp (Port 8004)
+## file-read-mcp (Port 8005)
+## github-mcp (Port 8006)
+```
+
+### Prose (line 54)
+```
+The browser_fetch tool was integrated into this server from the old standalone browser-mcp (Port 8016).
+```
+
+### Prose (line 201)
+```
+web-search-mcp, file-read-mcp, github-mcp, port 8004, port 8005, port 8006
+```
+
+## Implementation Steps
+
+### Step 1: Preparation
+1. Read `skills/DESIGN.md` Docs content policy — remove/retain definitions.
+2. Verify `config/agent.toml` authoritative port assignments for cross-reference.
+3. Check `docs/00_governance_03_issue-and-uncertainty-management.md` for Needs Confirmation markers anchored to headings being edited.
+
+### Step 2: Remove port numbers from headings
+For each subsection heading, remove the `(Port NNNN)` annotation:
+- Before: `## web-search-mcp (Port 8004)` → After: `## web-search-mcp`
+- Before: `## file-read-mcp (Port 8005)` → After: `## file-read-mcp`
+- Before: `## github-mcp (Port 8006)` → After: `## github-mcp`
+
+### Step 3: Remove port numbers from prose
+Edit line 54:
+- Before: `The browser_fetch tool was integrated into this server from the old standalone browser-mcp (Port 8016).`
+- After: `The browser_fetch tool was integrated into this server from the old standalone browser-mcp.`
+
+Edit line 201 (Keywords section):
+- Before: `web-search-mcp, file-read-mcp, github-mcp, port 8004, port 8005, port 8006`
+- After: `web-search-mcp, file-read-mcp, github-mcp`
+
+### Step 4: Verification
+1. Run `uv run python tools/check_docs_content_policy.py docs/04_mcp_04_01_web-search-file-read-github.md` — expect zero findings.
+2. Run `uv run python tools/check_docs_structure.py docs/04_mcp_04_01_web-search-file-read-github.md` — expect structure check passes.
+3. Run `uv run python tools/check_docs_consistency.py --domain mcp` — expect no broken cross-references or drift.
+4. Manual review: confirm every Responsibilities / Explicit non-responsibilities section remains coherent after port-number removal.
+
+## Acceptance Criteria
+- Zero literal-port-number findings from `check_docs_content_policy.py` on this file [REQ-001]
+- No broken cross-references confirmed by `check_docs_consistency.py` [REQ-003]
+- Every Responsibilities / Explicit non-responsibilities section reads coherently without port numbers [REQ-003]
+
+## Risks
+- **Risk**: Removing port numbers breaks cross-references → **Mitigation**: Run `check_docs_consistency.py` after edits
+- **Risk**: Server names become ambiguous without port numbers → **Mitigation**: Each server has one unique name; verify during implementation
+
+## Traceability
+- **Workflow phase**: plan-to-implementation-procedure
+- **Source plan**: plans/20260908-211017_plan.md
+- **Source requirement**: REQ-001
+- **Generated at**: 20260909-174819
