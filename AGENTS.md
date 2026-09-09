@@ -60,6 +60,13 @@ When proposing a new approach, check against this log to avoid duplication.
 
 If a proposed fix increases errors or fails to resolve the issue, revert the code to its pre-modification state (e.g., `git checkout`) before considering the next approach. Do not accumulate destructive changes.
 
+### Tool Call Loop Prevention
+
+- Do not re-invoke a tool with the same target and arguments once it has already
+  returned a definitive result (success, not-found, or a clearly non-retryable failure).
+- If repeated tool calls are not converging toward new information, stop calling
+  tools and report the result already obtained instead of continuing to retry.
+
 ## Context Loading Flow
 
 ```
