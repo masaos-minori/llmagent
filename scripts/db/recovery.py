@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import sqlite3
+import time
 from enum import StrEnum
 from pathlib import Path
 
@@ -35,14 +36,36 @@ class DbCondition(StrEnum):
 
 
 def _classify_error(e: Exception) -> DbCondition:
-    """Classify a caught exception into a DbCondition."""
+    """Classify a caught exception into a DbCondition.
+
+    Uses sqlite_errorcode where available (Python 3.14+), falling back to
+    substring matching for conditions not covered by error codes.
+    Priority: lock/permission via error code > INVALID_FORMAT via message >
+    CORRUPTION > UNKNOWN.
+    """
     if isinstance(e, sqlite3.OperationalError):
+        # Lock/permission conditions: prefer error code over substring matching
+        errcode = getattr(e, "sqlite_errorcode", None)
+        if errcode is not None:
+            if errcode in (5, 6):  # SQLITE_BUSY / SQLITE_LOCKED
+                return DbCondition.LOCK_CONTENTION
+            if errcode == 8:  # SQLITE_READONLY
+                return DbCondition.PERMISSION_FAILURE
+        # Substring fallback for lock/permission conditions
         msg = str(e).lower()
         if "database is locked" in msg or "busy" in msg:
             return DbCondition.LOCK_CONTENTION
         if "permission denied" in msg or "readonly" in msg:
             return DbCondition.PERMISSION_FAILURE
-    if isinstance(e, (sqlite3.DatabaseError, ValueError)):
+    elif isinstance(e, sqlite3.DatabaseError):
+        # INVALID_FORMAT: "file is not a database" signal from SQLite C library
+        if "file is not a database" in str(e):
+            return DbCondition.INVALID_FORMAT
+        return DbCondition.CORRUPTION
+    elif isinstance(e, ValueError):
+        # Same INVALID_FORMAT signal applies to ValueError
+        if "file is not a database" in str(e):
+            return DbCondition.INVALID_FORMAT
         return DbCondition.CORRUPTION
     return DbCondition.UNKNOWN
 
@@ -197,6 +220,40 @@ def _verify_domain_identity(backup: Path, target: str) -> tuple[bool, str | None
     return True, None
 
 
+def _quarantine_sidecar_files(db_path: Path, quarantine_dir: Path) -> None:
+    """Quarantine pre-existing -wal/-shm sidecar files associated with db_path."""
+    stem = db_path.stem
+    ts = int(time.time())
+    for suffix in ("-wal", "-shm"):
+        sidecar = db_path.parent / f"{stem}{suffix}"
+        if sidecar.exists():
+            quarantine_name = f"{stem}{suffix}_corrupt_{ts}"
+            quarantine_path = quarantine_dir / quarantine_name
+            try:
+                shutil.copy2(sidecar, quarantine_path)
+                sidecar.unlink()
+            except OSError:
+                logger.warning(
+                    "Failed to quarantine sidecar file %s; proceeding without it",
+                    sidecar,
+                )
+
+
+def _stage_backup_sidecars(
+    backup_path: Path, temp_restore_dir: Path
+) -> dict[str, Path]:
+    """Stage -wal/-shm sidecars from backup_path alongside temp_restore."""
+    stem = backup_path.stem
+    staged: dict[str, Path] = {}
+    for suffix in ("-wal", "-shm"):
+        sidecar = backup_path.parent / f"{stem}{suffix}"
+        if sidecar.exists():
+            dest = temp_restore_dir / f"{stem}{suffix}"
+            shutil.copy2(sidecar, dest)
+            staged[suffix] = dest
+    return staged
+
+
 def _restore_from_backup(
     db_path: Path,
     backup_path: str | Path | None,
@@ -245,13 +302,22 @@ def _restore_from_backup(
     temp_restore = db_path.with_name(f"{db_path.stem}.tmp_{ts}{db_path.suffix}")
 
     try:
-        # 2. Archive current corrupt DB (if it exists)
+        # 2. Quarantine pre-existing -wal/-shm sidecar files on the target path
+        quarantine_dir = db_path.parent / f"{db_path.stem}_sidecar_quarantine_{ts}"
+        quarantine_dir.mkdir(exist_ok=True)
+        _quarantine_sidecar_files(db_path, quarantine_dir)
+
+        # 3. Archive current corrupt DB (if it exists)
         if db_path.exists():
             shutil.copy2(db_path, corrupt_archive)
             logger.info("Corrupt DB archived: %s", corrupt_archive)
 
-        # 3. Atomic restore: copy backup to temp, then rename
+        # 4. Atomic restore: copy backup + sidecars to temp, then rename
         shutil.copy2(backup, temp_restore)
+        staged = _stage_backup_sidecars(backup, temp_restore.parent)
+        for suffix, staged_path in staged.items():
+            dest = temp_restore.parent / f"{temp_restore.stem}{suffix}"
+            shutil.copy2(staged_path, dest)
         os.replace(temp_restore, db_path)
 
         # 4. Re-verify the restored database before reporting success
@@ -282,6 +348,9 @@ def _restore_from_backup(
             )
 
         logger.info("DB restored from backup: %s", backup)
+        # Cleanup quarantine directory after successful restore
+        if quarantine_dir.exists():
+            shutil.rmtree(quarantine_dir, ignore_errors=True)
         return RecoveryResult(
             success=True, action="restored", detail=str(backup), dry_run=dry_run
         )
@@ -327,8 +396,18 @@ def recover_corruption(
             detail=f"unsupported target: {target!r}",
             dry_run=dry_run,
         )
-    db_path = Path(target_db_path)
 
+    # Domain policy check — moved here, before _run_integrity_check()
+    if target in ("workflow", "eventbus"):
+        # ADR-011 Requirement #6: workflow/eventbus require explicit decision
+        return RecoveryResult(
+            success=False,
+            action="no_recovery_allowed",
+            detail=f"Automatic recovery is prohibited for {target}. Manual intervention required.",
+            dry_run=dry_run,
+        )
+
+    db_path = Path(target_db_path)
     condition, detail = _run_integrity_check(db_path, target)
     if condition == DbCondition.HEALTHY:
         if dry_run:
@@ -362,16 +441,6 @@ def recover_corruption(
             action="error",
             detail=f"Integrity failure ({condition.value}): {detail}",
             dry_run=True,
-        )
-
-    # Domain policy check
-    if target in ("workflow", "eventbus"):
-        # ADR-011 Requirement #6: workflow/eventbus require explicit decision
-        return RecoveryResult(
-            success=False,
-            action="no_recovery_allowed",
-            detail=f"Automatic recovery is prohibited for {target}. Manual intervention required.",
-            dry_run=dry_run,
         )
 
     # For rag and session, we attempt restoration

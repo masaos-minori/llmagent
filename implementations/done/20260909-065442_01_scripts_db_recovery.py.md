@@ -101,9 +101,9 @@ Changing the domain recovery policy itself (workflow/eventbus remain prohibited 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move workflow/eventbus domain-policy check to top of recover_corruption() | Pending | — | — | |
-| 2 | Verify relocated check works for all paths | Pending | — | — | |
-| 3 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Move workflow/eventbus domain-policy check to top of recover_corruption() | Completed | — | — | Moved block from line 437 to after unsupported_target guard (line 399) |
+| 2 | Verify relocated check works for all paths | Completed | — | — | All 35 tests pass; `_run_integrity_check` not called for workflow/eventbus |
+| 3 | Run validation sequence (rules/toolchain.md) | Completed | — | — | ruff OK, mypy OK, bandit OK |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

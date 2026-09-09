@@ -133,10 +133,10 @@ Modifying existing test functions beyond adding `assert_not_called()` assertions
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add regression tests for HEALTHY-path workflow/eventbus | Pending | — | — | |
-| 2 | Add regression tests for dry_run workflow/eventbus | Pending | — | — | |
-| 3 | Update existing tests with assert_not_called() | Pending | — | — | |
-| 4 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add regression tests for HEALTHY-path workflow/eventbus | Completed | — | — | Added test_recover_healthy_workflow_prohibited + test_recover_healthy_eventbus_prohibited |
+| 2 | Add regression tests for dry_run workflow/eventbus | Completed | — | — | Added test_recover_dry_run_workflow_prohibited + test_recover_dry_run_eventbus_prohibited |
+| 3 | Update existing tests with assert_not_called() | Completed | — | — | Updated test_recover_corrupt_workflow_prohibited, test_recover_workflow_uses_correct_db_path, test_recover_eventbus_uses_correct_db_path |
+| 4 | Run validation sequence (rules/toolchain.md) | Completed | — | — | ruff OK, mypy OK, bandit OK, all 35 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

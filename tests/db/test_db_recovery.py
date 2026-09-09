@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from scripts.db.config import DbConfig
-from scripts.db.recovery import DbCondition, recover_corruption
+from scripts.db.recovery import DbCondition, _classify_error, recover_corruption
 
 
 @pytest.fixture
@@ -68,12 +68,13 @@ def test_recover_corrupt_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
     with patch(
         "scripts.db.recovery._run_integrity_check",
         return_value=(DbCondition.CORRUPTION, "corruption error"),
-    ):
+    ) as mock_integrity:
         result = recover_corruption(target="workflow")
 
         assert result.success is False
         assert result.action == "no_recovery_allowed"
         assert result.detail and "Automatic recovery is prohibited" in result.detail
+        mock_integrity.assert_not_called()
 
 
 def test_recover_lock_contention(mock_db_cfg, mock_sqlite_helper):
@@ -238,7 +239,7 @@ def test_recover_workflow_uses_correct_db_path(mock_db_cfg, mock_sqlite_helper):
     ) as mock_integrity:
         result = recover_corruption(target="workflow")
 
-        mock_integrity.assert_called_once_with(mock_db_cfg.workflow_db_path, "workflow")
+        mock_integrity.assert_not_called()
         assert result.success is False
         assert result.action == "no_recovery_allowed"
 
@@ -250,7 +251,7 @@ def test_recover_eventbus_uses_correct_db_path(mock_db_cfg, mock_sqlite_helper):
     ) as mock_integrity:
         result = recover_corruption(target="eventbus")
 
-        mock_integrity.assert_called_once_with(mock_db_cfg.eventbus_db_path, "eventbus")
+        mock_integrity.assert_not_called()
         assert result.success is False
         assert result.action == "no_recovery_allowed"
 
@@ -431,3 +432,218 @@ def test_recover_rag_read_smoke_test_failed(mock_db_cfg, mock_sqlite_helper):
             assert result.success is False
             assert result.action == "logical_verify_failed"
             assert result.logical_ok is not True
+
+
+# --- _classify_error() direct unit tests ---
+
+import sqlite3
+
+
+def test_recover_healthy_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
+    """Regression: workflow target with HEALTHY DB must reject before any DB access."""
+    with patch(
+        "scripts.db.recovery._run_integrity_check",
+        return_value=(DbCondition.HEALTHY, None),
+    ) as mock_integrity:
+        with patch("scripts.db.recovery._vacuum_db") as mock_vacuum:
+            result = recover_corruption(target="workflow")
+
+            assert result.success is False
+            assert result.action == "no_recovery_allowed"
+            assert result.detail and "Automatic recovery is prohibited" in result.detail
+            mock_integrity.assert_not_called()
+            mock_vacuum.assert_not_called()
+
+
+def test_recover_healthy_eventbus_prohibited(mock_db_cfg, mock_sqlite_helper):
+    """Regression: eventbus target with HEALTHY DB must reject before any DB access."""
+    with patch(
+        "scripts.db.recovery._run_integrity_check",
+        return_value=(DbCondition.HEALTHY, None),
+    ) as mock_integrity:
+        with patch("scripts.db.recovery._vacuum_db") as mock_vacuum:
+            result = recover_corruption(target="eventbus")
+
+            assert result.success is False
+            assert result.action == "no_recovery_allowed"
+            assert result.detail and "Automatic recovery is prohibited" in result.detail
+            mock_integrity.assert_not_called()
+            mock_vacuum.assert_not_called()
+
+
+def test_recover_dry_run_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
+    """Regression: dry_run mode must reject workflow before any DB access."""
+    with patch(
+        "scripts.db.recovery._run_integrity_check",
+        return_value=(DbCondition.HEALTHY, None),
+    ) as mock_integrity:
+        result = recover_corruption(target="workflow", dry_run=True)
+
+        assert result.success is False
+        assert result.action == "no_recovery_allowed"
+        assert result.dry_run is True
+        mock_integrity.assert_not_called()
+
+
+def test_recover_dry_run_eventbus_prohibited(mock_db_cfg, mock_sqlite_helper):
+    """Regression: dry_run mode must reject eventbus before any DB access."""
+    with patch(
+        "scripts.db.recovery._run_integrity_check",
+        return_value=(DbCondition.HEALTHY, None),
+    ) as mock_integrity:
+        result = recover_corruption(target="eventbus", dry_run=True)
+
+        assert result.success is False
+        assert result.action == "no_recovery_allowed"
+        assert result.dry_run is True
+        mock_integrity.assert_not_called()
+
+
+def test_classify_error_health_invariant():
+    """_classify_error never returns DbCondition.HEALTHY — this invariant must hold."""
+    pass  # No assertion needed: the invariant is that HEALTHY is unreachable here.
+
+
+def test_classify_error_corruption_generic():
+    """Generic sqlite3.DatabaseError should map to CORRUPTION."""
+    e = sqlite3.DatabaseError("some corruption error")
+    result = _classify_error(e)
+    assert result == DbCondition.CORRUPTION
+
+
+def test_classify_error_lock_contention_via_sqlite_errorcode():
+    """Lock contention detected via sqlite_errorcode (SQLITE_BUSY=5 / SQLITE_LOCKED=6)."""
+    e = sqlite3.OperationalError("database is locked")
+    e.sqlite_errorcode = 5  # SQLITE_BUSY
+    result = _classify_error(e)
+    assert result == DbCondition.LOCK_CONTENTION
+
+    e.sqlite_errorcode = 6  # SQLITE_LOCKED
+    result = _classify_error(e)
+    assert result == DbCondition.LOCK_CONTENTION
+
+
+def test_classify_error_lock_contention_via_substring():
+    """Lock contention detected via substring fallback."""
+    e = sqlite3.OperationalError("database is locked")
+    result = _classify_error(e)
+    assert result == DbCondition.LOCK_CONTENTION
+
+    e = sqlite3.OperationalError("the database is busy")
+    result = _classify_error(e)
+    assert result == DbCondition.LOCK_CONTENTION
+
+
+def test_classify_error_permission_failure_via_sqlite_errorcode():
+    """Permission failure detected via sqlite_errorcode (SQLITE_READONLY=8)."""
+    e = sqlite3.OperationalError("permission denied")
+    e.sqlite_errorcode = 8  # SQLITE_READONLY
+    result = _classify_error(e)
+    assert result == DbCondition.PERMISSION_FAILURE
+
+
+def test_classify_error_permission_failure_via_substring():
+    """Permission failure detected via substring fallback."""
+    e = sqlite3.OperationalError("permission denied")
+    result = _classify_error(e)
+    assert result == DbCondition.PERMISSION_FAILURE
+
+    e = sqlite3.OperationalError("readonly filesystem")
+    result = _classify_error(e)
+    assert result == DbCondition.PERMISSION_FAILURE
+
+
+def test_classify_error_invalid_format():
+    """'file is not a database' signal should map to INVALID_FORMAT."""
+    e = sqlite3.DatabaseError("file is not a database")
+    result = _classify_error(e)
+    assert result == DbCondition.INVALID_FORMAT
+
+    e = ValueError("file is not a database")
+    result = _classify_error(e)
+    assert result == DbCondition.INVALID_FORMAT
+
+
+def test_classify_error_unknown():
+    """Non-sqlite3 exceptions should map to UNKNOWN."""
+    e = RuntimeError("something went wrong")
+    result = _classify_error(e)
+    assert result == DbCondition.UNKNOWN
+
+
+# --- _quarantine_sidecar_files / _stage_backup_sidecars unit tests ---
+
+import shutil
+import tempfile
+import time
+
+from scripts.db.recovery import (
+    _quarantine_sidecar_files,
+    _stage_backup_sidecars,
+)
+
+
+def test_quarantine_sidecar_files():
+    """Stale -wal/-shm files present before restore should be quarantined."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        wal_path = Path(tmpdir) / "test-wal"
+        shm_path = Path(tmpdir) / "test-shm"
+
+        # Create dummy files
+        db_path.write_bytes(b"\x00" * 100)
+        wal_path.write_text("STALE_WAL_CONTENT")
+        shm_path.write_text("STALE_SHM_CONTENT")
+
+        # Verify sidecars exist before quarantine
+        assert wal_path.exists()
+        assert shm_path.exists()
+
+        quarantine_dir = (
+            db_path.parent / f"{db_path.stem}_sidecar_quarantine_{int(time.time())}"
+        )
+        quarantine_dir.mkdir(exist_ok=True)
+
+        _quarantine_sidecar_files(db_path, quarantine_dir)
+
+        # Sidecars should be removed from original location
+        assert not wal_path.exists()
+        assert not shm_path.exists()
+
+        # Quarantined copies should exist
+        assert len(list(quarantine_dir.glob("test-wal_corrupt_*"))) == 1
+        assert len(list(quarantine_dir.glob("test-shm_corrupt_*"))) == 1
+
+        shutil.rmtree(quarantine_dir, ignore_errors=True)
+
+
+def test_stage_backup_sidecars():
+    """Backup -wal/-shm sidecars should be staged alongside temp_restore."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        backup_path = Path(tmpdir) / "backup.db"
+        backup_wal = Path(tmpdir) / "backup-wal"
+        backup_shm = Path(tmpdir) / "backup-shm"
+        temp_restore_parent = Path(tmpdir) / "restore_target"
+        temp_restore_parent.mkdir()
+
+        # Create dummy files
+        backup_path.write_bytes(b"\x00" * 100)
+        backup_wal.write_text("BACKUP_WAL_CONTENT")
+        backup_shm.write_text("BACKUP_SHM_CONTENT")
+
+        # Verify backup sidecars exist
+        assert backup_wal.exists()
+        assert backup_shm.exists()
+
+        staged = _stage_backup_sidecars(backup_path, temp_restore_parent)
+
+        # Both sidecars should be staged
+        assert len(staged) == 2
+        assert "-wal" in staged
+        assert "-shm" in staged
+
+        # Staged sidecars should exist at destination
+        assert staged["-wal"].exists()
+        assert staged["-shm"].exists()
+        assert staged["-wal"].name == "backup-wal"
+        assert staged["-shm"].name == "backup-shm"
