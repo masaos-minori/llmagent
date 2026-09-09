@@ -126,10 +126,10 @@ def check_empty_result_repeat(self, message: str) -> GuardHint | None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Added EMPTY_RESULT_REPEAT_HINT, ToolConfig field, record_tool_result(), check_empty_result_repeat() |
+| 2 | Add or update tests per Validation plan | Pending | — | — | Tests to be added separately |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format/check: OK, mypy: OK, bandit: OK |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No docs/00_index.md task-scope row matched |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

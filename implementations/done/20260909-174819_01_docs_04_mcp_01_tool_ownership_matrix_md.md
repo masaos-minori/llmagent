@@ -108,6 +108,18 @@ Edit the note paragraph (lines 41–43):
 - **Risk**: Server names become ambiguous without port numbers → **Mitigation**: Each server has one unique name; verify during implementation
 - **Risk**: Auto-generated block accidentally modified → **Mitigation**: Explicitly skip `<!-- AUTO-GENERATED -->` section
 
+## Execution Status
+
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Identify the target implementation procedure file(s) | Completed | — | — | |
+| 2 | Read the current implementation procedure file | Completed | — | — | |
+| 3 | Implement the feature and pass code validation | Completed | — | — | Removed all `(port NNNN)` from table cells and headings; updated prose |
+| 4 | Test the feature and pass required tests/coverage | Completed | — | — | No test changes required |
+| 5 | Update documentation per `docs/00_index.md` task-scope mapping | Completed | — | — | No docs/00_index.md task-scope row matched |
+| 6 | Validate documentation updates | Completed | — | — | check_docs_content_policy.py: 0 findings; check_docs_structure.py: 1 pre-existing issue (source ref); check_docs_consistency.py: 0 findings for this file |
+| 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
+
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
 - **Source plan**: plans/20260908-211017_plan.md
