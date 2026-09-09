@@ -104,10 +104,13 @@ To rollback: restore the original file from git history (`git checkout HEAD -- d
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove ASCII trees and per-file descriptions | Pending | — | — | |
-| 2 | Add design-intent prose for deployment components | Pending | — | — | |
-| 3 | Expand startup sequence dependencies | Pending | — | — | |
-| 4 | Run validation checkers | Pending | — | — | |
+| 1 | Remove ASCII trees and per-file descriptions | Completed | 2026-09-09 | 2026-09-09 | Removed two ASCII tree blocks (lines 27-45) |
+| 2 | Add design-intent prose for deployment components | Completed | 2026-09-09 | 2026-09-09 | Added prose for Deployment Targets, Deployment Scripts, Startup Sequence Dependencies sections |
+| 3 | Expand startup sequence dependencies | Completed | 2026-09-09 | 2026-09-09 | Startup order and prerequisites documented |
+| 4 | Run validation checkers | Completed | 2026-09-09 | 2026-09-09 | Zero findings; structure check passes |
+| 5 | Update documentation per `docs/00_index.md` task-scope mapping | Completed | 2026-09-09 | 2026-09-09 | N/A: no docs/00_index.md task-scope mapping for docs/01_overview-files-01-build.md |
+| 6 | Validate documentation updates | Completed | 2026-09-09 | 2026-09-09 | N/A: no documentation changes to validate |
+| 7 | Move the implementation procedure file to `implementations/done/` | Completed | 2026-09-09 | 2026-09-09 | Moved via git mv |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

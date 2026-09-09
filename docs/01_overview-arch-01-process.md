@@ -33,19 +33,40 @@ Building a multi-agent orchestration system with Agent + MCP servers
 
 ### 2.1 Process Configuration
 
-``` text
-User
-    │ Interaction input (agent[chat]> / agent[code]> Prompt)
-    ▼
-┌──────────────────────────────────────────────────────┐
-│  agent.py (CLI REPL Tool)                           │
-│  Input → RAG Search → LLM Call → MCP Tool Exec → Response  │
-└───────┬─────────────┬──────────────────┬─────────────┘
-        │             │                  │
-        ▼             ▼                  ▼
-:8081 embed-LLM  :8080 agent-LLM   MCP Server Group (http)
-(During RAG search)                 (Count/Ports refer to `[mcp_servers.*]` in `config/agent.toml`)
-```
+The system consists of three categories of processes: the Agent CLI REPL, LLM services, and MCP servers. Each category runs as an independent process with its own lifecycle and configuration.
+
+**Component responsibilities:**
+
+- **Agent CLI REPL** (`scripts/agent/__main__.py`): Orchestrates the user interaction loop — receives prompts, performs RAG search, invokes the LLM, executes MCP tools, and returns responses. This is the single entry point for all agent operations.
+- **LLM services**: Provide chat/completion and embedding capabilities. The Agent CLI connects to these via HTTP; they operate independently of the agent lifecycle.
+- **MCP server group**: Each server implements a single-responsibility tool domain (file read/write/delete, shell execution, GitHub operations, RAG pipeline, CI/CD, MDQ compression, local git, web search). Servers communicate with the Agent CLI exclusively over HTTP POST `/v1/call_tool`.
+
+**Owned state:**
+
+- The Agent CLI owns the conversation context (turn history, prompt construction, response assembly).
+- Each LLM service owns its model weights and inference state.
+- Each MCP server owns its tool-specific runtime state (e.g., file handles, connection pools).
+- Shared data (vector stores, SQLite databases) is accessed by multiple components but owned by the infrastructure layer, not any single process.
+
+**Allowed dependency direction:**
+
+- The Agent CLI depends on LLM services and MCP servers (it initiates calls to them).
+- LLM services depend on neither the Agent CLI nor MCP servers.
+- MCP servers depend on neither the Agent CLI nor LLM services.
+- No MCP server depends on another MCP server.
+- Infrastructure (SQLite, vector DB) is depended upon by both the Agent CLI and MCP servers but does not depend on either.
+
+**Reason for process separation:**
+
+Each MCP server runs as a separate process because:
+- Failure isolation: a crash in one tool domain does not affect others.
+- Security boundary: each server can enforce its own access controls and permissions.
+- Independent scaling: write-heavy domains (file-write-mcp) may require different resource allocation than read-only domains (web-search-mcp).
+- Deployment independence: individual servers can be updated or restarted without affecting the entire system.
+
+**Reason for per-process configuration separation:**
+
+Each process reads only its own configuration file. Common parameters (DB paths, external service URLs) are described individually in each process's configuration rather than shared across files. This ensures that changing one process's configuration never inadvertently affects another, and each process can be configured independently for different environments (development, staging, production).
 
 #### Implementation Notes
 
@@ -69,27 +90,35 @@ Details → [ADR-002](adr/ADR-002-config-isolation.md) / [90_shared_03 §2a](90_
 
 The following table contains representative examples; the exact number and ports of MCP servers are defined in `[mcp_servers.*]` of `config/agent.toml`.
 
-| Service | Port | Model | Role |
-|---|---|---|---|
-| `agent-llm` | 8080 | See [docs/02_deployment.md section 1.4](./02_deployment.md#14-llm--How to get models) for canonical model names | Chat/Code Generation LLM (Dual use: MQE & Re-ranking) |
-| `embed-llm` | 8081 | See [docs/02_deployment.md section 1.4](./02_deployment.md#14-llm--How to get models) for canonical model names | Text → Vector conversion (dimension: `scripts/db/store_protocols.py::get_embedding_dims()`) |
-| `web-search-mcp` | 8004 | — | Web Search MCP Server (DuckDuckGo) |
-| `file-read-mcp` | 8005 | — | File Read MCP Server |
-| `github-mcp` | 8006 | — | GitHub Operation MCP Server |
-| `file-write-mcp` | 8007 | — | File Write MCP Server |
-| `file-delete-mcp` | 8008 | — | File Delete MCP Server |
-| `shell-mcp` | 8009 | — | Shell Command Execution MCP Server |
-| `rag-pipeline-mcp` | 8010 | — | RAG Pipeline MCP Server |
-| `cicd-mcp` | 8012 | — | GitHub Actions CI/CD MCP Server |
-| `mdq-mcp` | 8013 | — | Markdown Context Compression Engine MCP Server |
-| `git-mcp` | 8014 | — | Local Git Operation MCP Server |
-| `eventbus` | 8015 | — | Event Delivery Server (Separate process from MCP servers. Details: `06_eventbus_01_system-overview.md`) |
+| Service | Role |
+|---|---|
+| `agent-llm` | Chat/Code Generation LLM (Dual use: MQE & Re-ranking) |
+| `embed-llm` | Text → Vector conversion (dimension: `scripts/db/store_protocols.py::get_embedding_dims()`) |
+| `web-search-mcp` | Web Search MCP Server (DuckDuckGo) |
+| `file-read-mcp` | File Read MCP Server |
+| `github-mcp` | GitHub Operation MCP Server |
+| `file-write-mcp` | File Write MCP Server |
+| `file-delete-mcp` | File Delete MCP Server |
+| `shell-mcp` | Shell Command Execution MCP Server |
+| `rag-pipeline-mcp` | RAG Pipeline MCP Server |
+| `cicd-mcp` | GitHub Actions CI/CD MCP Server |
+| `mdq-mcp` | Markdown Context Compression Engine MCP Server |
+| `git-mcp` | Local Git Operation MCP Server |
+| `eventbus` | Event Delivery Server (Separate process from MCP servers. Details: `06_eventbus_01_system-overview.md`) |
 
 #### Implementation Notes (LLM Service URL/Port)
 
-The actual connection destinations for `agent-llm`/`embed-llm` are set as individual hosts/ports via `llm.llm_url` / `rag.embed_url` in `config/agent.toml`; the values in this table (e.g., `8080`/`8081`) are representative. Depending on the runtime environment, they may point to different hosts/ports (such as the default `8080` series for llama.cpp). The MCP server group (`8004`–`8015`) matches the `[mcp_servers.*].url` in `agent.toml`. (Explicit in code)
+The actual connection destinations for `agent-llm`/`embed-llm` are set as individual hosts/ports via `llm.llm_url` / `rag.embed_url` in `config/agent.toml`; the values shown above are representative. Depending on the runtime environment, they may point to different hosts/ports (such as the default `8080` series for llama.cpp). The MCP server group matches the `[mcp_servers.*].url` in `agent.toml`. (Explicit in code)
 
 Port `8011` was deprecated (formerly `sqlite-mcp`) and is intentionally absent from the current table and `config/agent.toml`.
+
+### 2.2 Design Boundaries Requiring Joint Review
+
+- Architecture decisions that affect multiple subsystems require joint review by all affected teams.
+- Process documentation that impacts operational procedures requires review by operations stakeholders.
+- Changes to ADRs that alter architectural rationale require review by the architecture committee.
+- Configuration changes to one process's config file must be reviewed against its dependency boundaries (e.g., changing `agent.toml`'s `mcp_servers` section affects which MCP servers the Agent CLI can reach).
+- Cross-component state transitions (Agent CLI ↔ LLM service ↔ MCP server) require coordinated testing when any component's contract changes.
 
 ## Related Documents
 

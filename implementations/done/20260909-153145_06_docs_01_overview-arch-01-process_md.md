@@ -102,10 +102,10 @@ To rollback: restore the original file from git history (`git checkout HEAD -- d
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove ASCII tree and per-file descriptions | Pending | — | — | |
-| 2 | Add design-intent prose for architecture docs | Pending | — | — | |
-| 3 | Document process documentation responsibilities | Pending | — | — | |
-| 4 | Run validation checkers | Pending | — | — | |
+| 1 | Remove ASCII tree and per-file descriptions | Completed | — | — | ASCII図を削除、設計意図の文章に置換 |
+| 2 | Add design-intent prose for architecture docs | Completed | — | — | コンポーネント責任、所有状態、依存方向、プロセス分離理由を記載 |
+| 3 | Document process documentation responsibilities | Completed | — | — | プロセス設定、構成ファイル分離ポリシーを記載 |
+| 4 | Run validation checkers | Completed | — | — | check_docs_content_policy.py: zero findings; check_docs_structure.py: all checks passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

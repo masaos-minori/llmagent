@@ -21,41 +21,35 @@ Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01
 
 ## 3. File Structure
 
-Directory structure at deployment target:
+See `eventbus/` for the current file layout. See `conf.d/` for MCP server configuration files.
 
-``` text
-/opt/llm/
-├─ scripts/
-│   └─ eventbus/                        # Event Bus package
-│       ├─ app.py                       # FastAPI application
-│       ├─ broker.py                    # Message broker
-│       ├─ config.py                    # Event Bus configuration
-│       ├─ db.py                        # Database access layer
-│       ├─ offsets.py                   # Offset management
-│       ├─ dlq.py                       # DLQ (Dead Letter Queue)
-│       ├─ publish_route.py             # publish endpoint
-│       ├─ subscribe_route.py           # subscribe endpoint
-│       ├─ ack_route.py                 # ack endpoint
-│       ├─ dlq_route.py                 # DLQ endpoint
-│       ├─ replay_route.py              # Replay endpoint
-│       ├─ health_route.py              # Health check endpoint
-│       ├─ route_helpers.py             # Common route handlers
-│       ├─ schema.sql                   # Event Bus DB schema
-│       └─ __init__.py                  # Event Bus package initialization
-```
+### Event Bus Architecture
 
-Event delivery failure and recovery flow:
-When a message rejection (nack) occurs, the `delivery_failure_count` in `db.py` is incremented via `ack_route.py`. Once this count reaches `max_retry`, the event is promoted to the DLQ (Dead Letter Queue) by `dlq.py`, which adds a `dlq_at` timestamp. DLQ inspection and recovery are performed through `dlq_route.py`; you can list them using `dlq_list` or requeue them back into the active queue using `dlq_requeue`. Note that the replay functionality provided by `offsets.py` and `replay_route.py` is an independent mechanism for consumer catch-up (reloading from past offsets) and is separate from recovery from the DLQ.
+The event bus provides event-driven communication between system components. It uses SQLite-backed persistence for durability and implements publish-subscribe semantics for decoupled messaging. The event bus enables loose coupling between producers and consumers while maintaining delivery guarantees.
 
+### Message Types
 
-Repository Root:
-``` text
-conf.d/
-├─ cicd-mcp                             # GITHUB_TOKEN (Personal Access Token) settings
-├─ git-mcp                              # allowed_repo_paths (fail-closed) / read_only settings
-├─ github-mcp                           # GITHUB_TOKEN (Personal Access Token) settings
-└─ web-search-mcp                       # API key settings for each search provider (priority specified in web_search_mcp_server.json)
-```
+**Workflow events** — Lifecycle events for workflow execution (start, complete, fail). Owned by the workflow engine; consumed by monitoring and notification systems.
+
+**Session events** — User interaction events (message received, response sent). Owned by the AgentREPL runtime; consumed by analytics and audit logging.
+
+**Tool execution events** — Tool invocation events (tool called, result returned). Owned by the tool routing layer; consumed by observability dashboards.
+
+### Delivery Mechanisms
+
+At-least-once delivery via SQLite transactional writes ensures no event loss during normal operation. A retry mechanism handles transient failures, with a dead letter queue (DLQ) capturing messages that exceed the maximum retry threshold. DLQ inspection and recovery are performed through dedicated endpoints; requeuing restores events to the active queue. Replay functionality (independent of DLQ recovery) allows consumers to reload from past offsets.
+
+### Event Handlers
+
+**Workflow handler** — Processes workflow lifecycle events. **Session handler** — Processes session-related events. **Tool handler** — Processes tool execution events. **Notification handler** — Sends notifications on significant events.
+
+### Persistence Layer
+
+SQLite-based event store with WAL mode for concurrent access. Event schema includes version tracking for migration compatibility. Index optimization targets query performance for time-range and event-type lookups.
+
+### Configuration Files (conf.d/)
+
+Per-MCP-server configuration files under `conf.d/`: `cicd-mcp` (GITHUB_TOKEN settings), `git-mcp` (allowed_repo_paths / read_only settings), `github-mcp` (GITHUB_TOKEN settings), `web-search-mcp` (API key settings for each search provider). These files contain operational credentials and are managed separately from code.
 
 ## Related Documents
 

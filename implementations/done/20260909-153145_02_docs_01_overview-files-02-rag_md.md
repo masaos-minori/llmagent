@@ -105,10 +105,13 @@ To rollback: restore the original file from git history (`git checkout HEAD -- d
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove ASCII tree and per-file descriptions | Pending | — | — | |
-| 2 | Add design-intent prose for RAG pipeline stages | Pending | — | — | |
-| 3 | Document retention-period unknown | Pending | — | — | |
-| 4 | Run validation checkers | Pending | — | — | |
+| 1 | Remove ASCII tree and per-file descriptions | Completed | 2026-09-09 | 2026-09-09 | Removed ASCII tree block (lines 26-34) |
+| 2 | Add design-intent prose for RAG pipeline stages | Completed | 2026-09-09 | 2026-09-09 | Added prose for RAG Pipeline Stages, Data Flow Dependencies sections |
+| 3 | Document retention-period unknown | Completed | 2026-09-09 | 2026-09-09 | Added Unknowns subsection noting retention period uncertainty |
+| 4 | Run validation checkers | Completed | 2026-09-09 | 2026-09-09 | Zero findings; structure check passes |
+| 5 | Update documentation per `docs/00_index.md` task-scope mapping | Completed | 2026-09-09 | 2026-09-09 | N/A: no docs/00_index.md task-scope mapping for docs/01_overview-files-02-rag.md |
+| 6 | Validate documentation updates | Completed | 2026-09-09 | 2026-09-09 | N/A: no documentation changes to validate |
+| 7 | Move the implementation procedure file to `implementations/done/` | Completed | 2026-09-09 | 2026-09-09 | Moved via git mv |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -123,10 +123,13 @@ To rollback: restore the original file from git history (`git checkout HEAD -- d
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove ASCII trees and per-file descriptions | Pending | — | — | |
-| 2 | Add design-intent prose for shared infrastructure | Pending | — | — | |
-| 3 | Expand design-intent subsections | Pending | — | — | |
-| 4 | Run validation checkers | Pending | — | — | |
+| 1 | Remove ASCII trees and per-file descriptions | Completed | 2026-09-09 | 2026-09-09 | Removed two ASCII tree blocks (venv/db/scripts/tree at lines 21-46; scripts/shared/ per-file list at lines 64-119) |
+| 2 | Add design-intent prose for shared infrastructure | Completed | 2026-09-09 | 2026-09-09 | Added prose for Virtual Environment, Database Domains, DB Layer Package, Shared Infrastructure Components sections |
+| 3 | Expand design-intent subsections | Completed | 2026-09-09 | 2026-09-09 | Expanded Design Intent subsections: Caching Strategy, Health Check-Based Dispatch Control, Drift Validation Behavior |
+| 4 | Run validation checkers | Completed | 2026-09-09 | 2026-09-09 | Zero findings; structure check passes |
+| 5 | Update documentation per `docs/00_index.md` task-scope mapping | Completed | 2026-09-09 | 2026-09-09 | N/A: no docs/00_index.md task-scope mapping for docs/01_overview-files-04-shared.md |
+| 6 | Validate documentation updates | Completed | 2026-09-09 | 2026-09-09 | N/A: no documentation changes to validate |
+| 7 | Move the implementation procedure file to `implementations/done/` | Completed | 2026-09-09 | 2026-09-09 | Moved via git mv |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

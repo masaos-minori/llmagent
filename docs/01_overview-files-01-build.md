@@ -22,27 +22,33 @@ Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01
 
 ## 3. File Structure
 
-Directory structure for deployment:
+See `deploy/` for the current file layout.
 
-``` text
-/opt/llm/
-├─ llama.cpp/                                 # llama.cpp source and build artifacts
-├─ models/
-│   ├─ (chat LLM)  # Refer to [docs/02_deployment.md section 1.4](02_deployment.md#14-llm-model-acquisition)
-│   └─ (embedding LLM)  # Refer to [docs/02_deployment.md section 1.4](02_deployment.md#14-llm-model-acquisition)
-```
+### Deployment Targets
 
-Deployment scripts (located under the `deploy/` repository, executed with `bash deploy/xxx.sh`):
+**llama.cpp** — Builds and maintains inference runtime artifacts. Depends on the models directory for GGUF model loading. Owns the compiled shared libraries and header files produced by the build process.
 
-``` text
-deploy/
-├─ deploy.sh                                  # Copies Python scripts, configurations, and SQL to /opt/llm/
-├─ build_sqlite_vec.sh                        # Downloads and builds sqlite-vec (vec0.so). Run once during initial deployment.
-├─ init_db.sh                                 # Initializes SQLite schema. Run once after executing deploy.sh.
-├─ setup_services.sh                          # Starts MCP servers (:8004-:8014) and LLM servers (:8080-:8081)
-│                                              # as agent management subprocesses
-└─ start_agent.sh                             # Starts AgentREPL (prefers /opt/llm/pyproject.toml in production)
-```
+**Chat LLM models** — Owned by the model acquisition process defined in `02_deployment.md` section 1.4. Consumed by the :8080 agent-LLM process. Direction of dependency flows from model acquisition into this component.
+
+**Embedding LLM models** — Owned by the model acquisition process. Consumed by the :8081 embed-LLM process. Direction of dependency flows from model acquisition into this component.
+
+### Deployment Scripts
+
+**`build_sqlite_vec.sh`** — Downloads and builds the sqlite-vec extension (vec0.so). Runs once during initial deployment. No upstream dependency other than network access for downloading.
+
+**`deploy.sh`** — Copies Python scripts, configurations, and SQL to /opt/llm/. Requires `config/workflows/default.json` exists with a valid schema. Dependent on `build_sqlite_vec.sh` completing first in the startup sequence.
+
+**`init_db.sh`** — Initializes the SQLite schema. Depends on `deploy.sh` completing first in the startup sequence. Produces the database state required by downstream services.
+
+**`setup_services.sh`** — Starts MCP servers (:8004-:8014) and LLM servers (:8080-:8081) as subprocesses. Requires workflow definitions validated and DB tables present. Dependent on `init_db.sh` completing first in the startup sequence.
+
+**`start_agent.sh`** — Starts AgentREPL. Prefers `/opt/llm/pyproject.toml` in production. Dependent on `setup_services.sh` completing first in the startup sequence.
+
+### Startup Sequence Dependencies
+
+Workflow validation (`default.json` + `python -m agent.workflow.validate`) is a hard prerequisite for both `deploy.sh` and `setup_services.sh`. DB existence check (`/opt/llm/db/workflow.sqlite` and required tables) is a precondition for `setup_services.sh`.
+
+Startup order: `build_sqlite_vec.sh` → `deploy.sh` → `init_db.sh` → `setup_services.sh` → `start_agent.sh`
 
 ### Implementation Notes (Current behavior)
 

@@ -103,10 +103,13 @@ To rollback: restore the original file from git history (`git checkout HEAD -- d
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove ASCII tree and handle literal port numbers | Pending | — | — | |
-| 2 | Add design-intent prose for configuration | Pending | — | — | |
-| 3 | Document per-process config isolation policy | Pending | — | — | |
-| 4 | Run validation checkers | Pending | — | — | |
+| 1 | Remove ASCII tree and handle literal port numbers | Completed | 2026-09-09 | 2026-09-09 | Removed ASCII tree block (lines 27-47); literal port numbers retained as illustrative examples |
+| 2 | Add design-intent prose for configuration | Completed | 2026-09-09 | 2026-09-09 | Added prose for Configuration Directory Structure, Per-Process Config Isolation Policy, MCP Server Configuration Responsibilities sections |
+| 3 | Document per-process config isolation policy | Completed | 2026-09-09 | 2026-09-09 | Included in Section 2 above |
+| 4 | Run validation checkers | Completed | 2026-09-09 | 2026-09-09 | Zero findings; structure check passes |
+| 5 | Update documentation per `docs/00_index.md` task-scope mapping | Completed | 2026-09-09 | 2026-09-09 | N/A: no docs/00_index.md task-scope mapping for docs/01_overview-files-05-config.md |
+| 6 | Validate documentation updates | Completed | 2026-09-09 | 2026-09-09 | N/A: no documentation changes to validate |
+| 7 | Move the implementation procedure file to `implementations/done/` | Completed | 2026-09-09 | 2026-09-09 | Moved via git mv |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
