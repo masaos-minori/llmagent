@@ -1,0 +1,119 @@
+# `Orchestrator._llm_turn_executor` rename to `_llm_executor` not propagated to tests
+
+## Priority
+High
+
+## Summary
+`tests/agent/test_orchestrator.py` fails 78 of its tests (the largest single
+contributor to the full suite's pre-existing failure count) with
+`AttributeError: 'Orchestrator' object has no attribute '_llm_turn_executor'. Did you
+mean: '_llm_executor'?`. The attribute was renamed on `Orchestrator` in a prior
+refactor; the shared test-construction helper still references the old name, cascading
+the failure across nearly every test class in the file. A second file,
+`tests/integration/test_orchestrator_integration.py`, also references the old name.
+
+## Background
+Commit `35a1e1969` ("refactor: extract orchestrator into dedicated component modules")
+renamed the attribute assigned in `Orchestrator.__init__`
+(`scripts/agent/orchestrator.py`) from `self._llm_turn_executor = LlmTurnExecutor(...)`
+to `self._llm_executor = LlmTurnExecutor(...)`, and updated the one internal call site
+(`self._llm_executor.handle_llm_turn(...)`) accordingly — same class, same constructor
+arguments, a pure rename with no type or shape change. `LlmTurnExecutor`'s constructor
+already receives `diagnostic_store` directly, so `orch._diagnostic_store` no longer
+needs to be reassigned onto the executor after construction.
+
+## Problem
+`rg -n "_llm_turn_executor" tests/ scripts/` finds 7 remaining references, all in
+tests, none in production code:
+- `tests/agent/test_orchestrator.py`: 4 occurrences, including one inside the shared
+  `_make_orchestrator()` helper used to construct the `Orchestrator` under test by
+  nearly every test class in the file — this single line is why one rename produces 78
+  failures.
+- `tests/integration/test_orchestrator_integration.py`: 3 occurrences, following the
+  same pattern (`orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store`).
+
+## Reason for Change
+78 failing tests in `tests/agent/test_orchestrator.py` block confident verification of
+`Orchestrator` behavior — a core Agent component — and mask any genuine regression a
+future change might introduce in this area, since the current failure list already
+looks total. `test_orchestrator_integration.py`'s failures are undercounted here (see
+Out of Scope) and may include additional, unrelated causes worth a separate look once
+this rename is fixed.
+
+## Implementation Intent
+Rename all 7 remaining `_llm_turn_executor` references to `_llm_executor` across both
+test files. For the `orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store`
+line specifically (in whichever file it appears), remove the reassignment entirely
+rather than renaming it in place — it is redundant now that `LlmTurnExecutor`'s
+constructor already receives `diagnostic_store` directly. Do not change any production
+file; `scripts/agent/orchestrator.py`'s current `_llm_executor` naming and construction
+are confirmed correct.
+
+## Target Files or Areas
+- `tests/agent/test_orchestrator.py` (4 occurrences, including the shared
+  `_make_orchestrator()` helper)
+- `tests/integration/test_orchestrator_integration.py` (3 occurrences)
+- `scripts/agent/orchestrator.py` (reference only — confirms current `_llm_executor`
+  naming and constructor signature; not a modification target)
+
+## Required Changes
+- Replace each of the 4 `_llm_turn_executor` references in
+  `tests/agent/test_orchestrator.py` with `_llm_executor`.
+- Replace each of the 3 `_llm_turn_executor` references in
+  `tests/integration/test_orchestrator_integration.py` with `_llm_executor`, removing
+  the now-redundant `._diagnostic_store = orch._diagnostic_store` reassignment rather
+  than just renaming its left-hand side.
+- No change to `scripts/agent/orchestrator.py`.
+
+## Constraints
+Do not modify `scripts/agent/orchestrator.py` or `LlmTurnExecutor`'s constructor — the
+current production naming and constructor-injection design are confirmed correct; this
+is a test-only rename-propagation fix.
+
+## Acceptance Criteria
+- [ ] No occurrence of `_llm_turn_executor` remains in `tests/` or `scripts/`
+  (`rg -n "_llm_turn_executor" tests/ scripts/` returns no matches)
+- [ ] `uv run pytest tests/agent/test_orchestrator.py -q` no longer reports the
+  `_llm_turn_executor` `AttributeError` (78 fewer failures than the current baseline)
+- [ ] `tests/integration/test_orchestrator_integration.py`'s 3 occurrences are fixed;
+  any of its failures that persist afterward are confirmed to be a distinct,
+  unrelated cause (see Out of Scope), not this one
+
+## Testing Expectations
+- `uv run pytest tests/agent/test_orchestrator.py -q` — all 78
+  `_llm_turn_executor`-attributable failures must be resolved
+- `uv run pytest tests/integration/test_orchestrator_integration.py -q` — the 3
+  `_llm_turn_executor` occurrences must be fixed; re-baseline this file's remaining
+  failure count afterward (33 failures were observed in the full suite before this fix,
+  which is more than the 3 occurrences found — confirm whether the rest share this
+  cause or are unrelated, per Out of Scope)
+
+## Documentation Impact
+N/A: test-only rename propagation; no documented behavior changes.
+
+## Out of Scope
+- Any change to `scripts/agent/orchestrator.py` or `LlmTurnExecutor`.
+- Root-causing `tests/integration/test_orchestrator_integration.py`'s full 33-failure
+  count if it exceeds what the 3 `_llm_turn_executor` occurrences explain — file a
+  separate issue for any residual, distinct cause found there.
+- `tests/agent/test_orchestrator_bg_failure_threshold.py`'s 6 failures — `rg` found no
+  `_llm_turn_executor` reference in this file, so its failures are a separate,
+  uninvestigated cause, not part of this issue.
+
+## Dependencies
+N/A: none. Related to (but does not duplicate) the now-deleted triage record
+`issues/20260908-203803_regr001_full-suite-491-pre-existing-failures.md`, which first
+sampled this failure.
+
+## Unresolved Questions
+Whether `tests/integration/test_orchestrator_integration.py`'s full 33-failure count is
+entirely explained by its 3 `_llm_turn_executor` occurrences, or partly by a separate,
+unconfirmed cause — resolve this by re-running the file after the rename fix and
+inspecting any remaining failures.
+
+## AI Implementation Instruction
+Apply the rename mechanically to all 7 occurrences; do not guess at a fix for
+`test_orchestrator_integration.py`'s failure count beyond its 3 confirmed occurrences —
+if failures remain after the rename, report them as a new, separate finding rather than
+extending this issue's scope to cover them. Do not modify
+`scripts/agent/orchestrator.py`.
