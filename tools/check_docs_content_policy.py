@@ -151,10 +151,19 @@ def check_location_mapping(files: list[DocFile]) -> list[Issue]:
 
 
 def check_literal_port_number(files: list[DocFile]) -> list[Issue]:
-    """Flag a literal port number, unless the line is explicitly labeled illustrative."""
+    """Flag a literal port number, unless the line is explicitly labeled illustrative or inside an auto-generated block."""
     issues: list[Issue] = []
     for doc in files:
+        in_auto_generated = False
         for i, line in enumerate(doc.lines, 1):
+            if "<!-- AUTO-GENERATED -->" in line:
+                in_auto_generated = True
+                continue
+            if "<!-- END AUTO-GENERATED -->" in line:
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
             if not _PORT_NUMBER_RE.search(line):
                 continue
             lowered = line.lower()

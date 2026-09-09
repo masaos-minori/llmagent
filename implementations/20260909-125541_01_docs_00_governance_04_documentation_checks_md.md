@@ -83,9 +83,9 @@ Manual review: confirm the GV-021 row contains an explicit, reasoned decision fo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Locate GV-021 row in docs/00_governance_04_documentation-checks.md | Pending | — | — | |
-| 2 | Add exemption decision text to GV-021 row | Pending | — | — | |
-| 3 | Verify decision is explicit and reasoned | Pending | — | — | |
+| 1 | Locate GV-021 row in docs/00_governance_04_documentation-checks.md | Completed | 2026-09-09 | 2026-09-09 | Row found at line 315 |
+| 2 | Add exemption decision text to GV-021 row | Completed | 2026-09-09 | 2026-09-09 | Added REQ-001 decision with rationale |
+| 3 | Verify decision is explicit and reasoned | Completed | 2026-09-09 | 2026-09-09 | Decision includes option choice, rationale, and narrow scoping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -88,9 +88,9 @@ Run `uv run python tools/check_docs_content_policy.py` against the current corpu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Locate check_literal_port_number() function | Pending | — | — | |
-| 2 | Add guard-comment boundary tracking | Pending | — | — | |
-| 3 | Verify hand-written ports still flagged | Pending | — | — | |
+| 1 | Locate check_literal_port_number() function | Completed | 2026-09-09 | 2026-09-09 | Found at line 153 |
+| 2 | Add guard-comment boundary tracking | Completed | 2026-09-09 | 2026-09-09 | Added in_auto_generated flag with guard comment detection |
+| 3 | Verify hand-written ports still flagged | Completed | 2026-09-09 | 2026-09-09 | Flag only applies within auto-generated blocks; outside blocks behavior unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

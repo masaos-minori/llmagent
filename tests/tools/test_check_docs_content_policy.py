@@ -87,3 +87,31 @@ def test_retain_category_only_content_has_no_false_positive() -> None:
     issues += check_location_mapping([doc])
     issues += check_literal_port_number([doc])
     assert issues == []
+
+
+def test_literal_port_number_exempted_inside_auto_generated_block() -> None:
+    doc = _doc(
+        "<!-- AUTO-GENERATED -->\n"
+        "## Server Port & Tool Reference\n"
+        "Port 8001: agent-server\n"
+        "Port 8002: mcp-server\n"
+        "Port 8003: rag-server\n"
+        "<!-- END AUTO-GENERATED -->\n"
+    )
+    issues = check_literal_port_number([doc])
+    assert issues == []
+
+
+def test_literal_port_number_flagged_outside_auto_generated_block() -> None:
+    doc = _doc(
+        "<!-- AUTO-GENERATED -->\n"
+        "## Server Port & Tool Reference\n"
+        "Port 8001: agent-server\n"
+        "Port 8002: mcp-server\n"
+        "Port 8003: rag-server\n"
+        "<!-- END AUTO-GENERATED -->\n"
+        "## Additional Info (Port 9000)\n"
+    )
+    issues = check_literal_port_number([doc])
+    assert len(issues) == 1
+    assert "literal port number" in issues[0].message

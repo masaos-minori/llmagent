@@ -84,9 +84,9 @@ Run `uv run pytest tests/tools/test_check_docs_content_policy.py` and confirm th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Locate existing test patterns | Pending | — | — | |
-| 2 | Write test for auto-generated exemption | Pending | — | — | |
-| 3 | Run tests to verify | Pending | — | — | |
+| 1 | Locate existing test patterns | Completed | 2026-09-09 | 2026-09-09 | Found `test_literal_port_number_detected` at line 61 |
+| 2 | Write test for auto-generated exemption | Completed | 2026-09-09 | 2026-09-09 | Added two tests: exemption inside block + flagging outside block |
+| 3 | Run tests to verify | Completed | 2026-09-09 | 2026-09-09 | All 9 tests passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
