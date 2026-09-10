@@ -839,6 +839,49 @@ class TestTimestampDefaults:
                 )
         conn.close()
 
+    def test_create_eventbus_schema_produces_new_tables(self, tmp_path: Path) -> None:
+        """create_eventbus_schema() produces consumer_delivery/consumer_offsets tables (REQ-001, REQ-002; AC-7)."""
+        import unittest.mock as mock
+
+        extra_ddl = """
+CREATE TABLE IF NOT EXISTS consumer_delivery (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    consumer_id     TEXT    NOT NULL,
+    event_id        TEXT    NOT NULL,
+    delivered_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    UNIQUE(consumer_id, event_id)
+);
+
+CREATE TABLE IF NOT EXISTS consumer_offsets (
+    consumer_id     TEXT    PRIMARY KEY,
+    last_offset     INTEGER NOT NULL DEFAULT 0,
+    updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+"""
+
+        original_init = cs.SQLiteHelper.__init__
+
+        captured_path = {}
+
+        def capture_init(self, target="rag", **kwargs):
+            original_init(self, target=target, **kwargs)
+            if target == "eventbus":
+                captured_path["path"] = self._db_path
+
+        with mock.patch.object(cs.SQLiteHelper, "__init__", capture_init):
+            with mock.patch(
+                "db.create_schema.build_eventbus_schema_sql",
+                side_effect=lambda: _EVENTBUS_SCHEMA_NO_VEC0 + extra_ddl,
+            ):
+                cs.create_eventbus_schema()
+
+        # Re-open the captured DB path
+        if "path" in captured_path:
+            conn = sqlite3.connect(captured_path["path"])
+            tables = _table_names(conn)
+            conn.close()
+            assert {"events", "consumer_delivery", "consumer_offsets"} <= tables
+
 
 # ── DDL error propagation (behavior lock for the refactor extracting the shared ────
 # try/except/log/raise pattern out of the four create_*_schema functions) ─────────

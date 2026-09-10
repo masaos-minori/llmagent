@@ -24,7 +24,7 @@ async def subscribe(
     _identity: Annotated[dict, Depends(require_consumer_identity)] = {},  # noqa: ANN001,ANN202 — FastAPI dependency protocol
 ) -> Any:
     """Subscribe to events via SSE with optional topic filtering and offset recovery."""
-    from eventbus.offsets import read_offset  # noqa: PLC0415
+    from eventbus.db import get_consumer_offset  # noqa: PLC0415
 
     cfg = request.app.state.config
     assert cfg is not None

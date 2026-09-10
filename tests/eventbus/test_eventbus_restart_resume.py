@@ -103,14 +103,14 @@ def test_same_consumer_id_resumes_from_last_acked_offset(
 ) -> None:
     """Consumer with same consumer_id reconnects → resumes from last acked offset."""
     from eventbus import app as eb_app
-    from eventbus.offsets import read_offset
+    from eventbus.db import get_consumer_offset
 
     # Publish and ack first event
     r1 = _pub(client)
     client.post(f"/events/{r1['event_id']}/ack?consumer_id=svc-A")
 
     # Verify offset is written
-    offset = read_offset(eb_app.app.state.config.offsets_dir, "svc-A")
+    offset = get_consumer_offset(eb_app.app.state.db, "svc-A")
     assert offset == r1["seq"]
 
     # Publish second event (this will be the replay start point)
@@ -130,18 +130,18 @@ def test_different_consumer_id_starts_from_zero(
 ) -> None:
     """Consumer with different consumer_id reconnects → starts from seq=0 (offset not found)."""
     from eventbus import app as eb_app
-    from eventbus.offsets import read_offset
+    from eventbus.db import get_consumer_offset
 
     # Consumer-A publishes and acks
     r1 = _pub(client)
     client.post(f"/events/{r1['event_id']}/ack?consumer_id=svc-A")
 
     # Consumer-B (different ID) has no offset
-    offset_b = read_offset(eb_app.app.state.config.offsets_dir, "svc-B")
+    offset_b = get_consumer_offset(eb_app.app.state.db, "svc-B")
     assert offset_b == 0
 
     # Consumer-A's offset should still be intact
-    offset_a = read_offset(eb_app.app.state.config.offsets_dir, "svc-A")
+    offset_a = get_consumer_offset(eb_app.app.state.db, "svc-A")
     assert offset_a == r1["seq"]
 
     # Consumer-B would start from seq=0 on reconnect
@@ -155,9 +155,9 @@ def test_different_consumer_id_starts_from_zero(
 
 
 def test_same_consumer_id_last_write_wins(client: TestClient, tmp_path: Path) -> None:
-    """Two consumers with same consumer_id → last write wins for offset file (no collision detection)."""
+    """Two consumers with same consumer_id → last write wins for offset (no collision detection)."""
     from eventbus import app as eb_app
-    from eventbus.offsets import read_offset
+    from eventbus.db import get_consumer_offset
 
     # Both consumers ack different events with the same consumer_id
     r1 = _pub(client)
@@ -167,7 +167,7 @@ def test_same_consumer_id_last_write_wins(client: TestClient, tmp_path: Path) ->
     client.post(f"/events/{r2['event_id']}/ack?consumer_id=shared-consumer")
 
     # Last write wins — offset should be from the second ack
-    offset = read_offset(eb_app.app.state.config.offsets_dir, "shared-consumer")
+    offset = get_consumer_offset(eb_app.app.state.db, "shared-consumer")
     assert offset == r2["seq"]
 
     # No collision detection — both consumers can ack with same consumer_id without error

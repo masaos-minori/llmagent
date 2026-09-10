@@ -238,6 +238,28 @@ class TestAckHttpBehavior:
         resp = client.post("/events/nonexistent-event/ack")
         assert resp.status_code == 404
 
+    def test_two_consumers_ack_same_event_independently(self, client: Any) -> None:
+        """Two distinct consumer_ids can each ACK the same event_id independently (REQ-001)."""
+        body = _event()
+        resp = client.post("/publish", json=body)
+        assert resp.status_code == 200
+
+        resp_a = client.post(
+            f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-a"}
+        )
+        assert resp_a.status_code == 200
+        data_a = resp_a.json()
+        assert data_a["acked"] is True
+        assert data_a.get("already_acked") is not True
+
+        resp_b = client.post(
+            f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-b"}
+        )
+        assert resp_b.status_code == 200
+        data_b = resp_b.json()
+        assert data_b["acked"] is True
+        assert data_b.get("already_acked") is not True
+
 
 class TestNackEvent:
     def test_nack_event_increments_failure_count(self, db: sqlite3.Connection) -> None:

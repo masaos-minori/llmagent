@@ -200,12 +200,12 @@ conservative resolution.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `_migrate()` with the two new `CREATE TABLE IF NOT EXISTS` statements | Pending | — | — | |
-| 2 | Add `ack_event_for_consumer()` with single-transaction commit/rollback | Pending | — | — | |
-| 3 | Add `migrate_legacy_offsets()` with the no-`.map`-companion fallback | Pending | — | — | |
-| 4 | Add `get_consumer_offset()` read helper for row 05 | Pending | — | — | |
-| 5 | Add or update tests per Validation plan (rows 07-09) | Pending | — | — | |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend `_migrate()` with the two new `CREATE TABLE IF NOT EXISTS` statements | Completed | — | — | |
+| 2 | Add `ack_event_for_consumer()` with single-transaction commit/rollback | Completed | — | — | |
+| 3 | Add `migrate_legacy_offsets()` with the no-`.map`-companion fallback | Completed | — | — | |
+| 4 | Add `get_consumer_offset()` read helper for row 05 | Completed | — | — | |
+| 5 | Add or update tests per Validation plan (rows 07-09) | Completed | — | — | All 35 eventbus tests pass |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format/check, mypy pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

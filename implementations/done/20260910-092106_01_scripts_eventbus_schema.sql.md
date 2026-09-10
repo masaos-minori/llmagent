@@ -112,10 +112,10 @@ columns (`delivery_failure_count`, `dlq_at` stay global per Plan Out-of-Scope).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `consumer_delivery` and `consumer_offsets` `CREATE TABLE IF NOT EXISTS` DDL | Pending | — | — | |
-| 2 | Confirm DDL matches `scripts/db/schema_sql.py`'s `_EVENTBUS_SCHEMA` (row 02) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | N/A: no documentation update in this file's own scope (see Documentation Impact rows 12-14) | Pending | — | — | |
+| 1 | Add `consumer_delivery` and `consumer_offsets` `CREATE TABLE IF NOT EXISTS` DDL | Completed | — | — | |
+| 2 | Confirm DDL matches `scripts/db/schema_sql.py`'s `_EVENTBUS_SCHEMA` (row 02) | Completed | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
+| 4 | N/A: no documentation update in this file's own scope (see Documentation Impact rows 12-14) | Completed | — | — | N/A: no docs/00_index.md task-scope mapping for scripts/eventbus/schema.sql |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

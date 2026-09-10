@@ -99,7 +99,7 @@ Each row stores the last-committed sequence offset for a consumer. The primary k
 9. At-Least-Once Deliveryを基本とし、重複は許容するが欠落は許容しない。
 10. NAK、Retry、DLQ、Requeueの状態、回数、履歴を永続化する。
 11. 次の未決事項をコードとテストで確認し、ADRで判断を確定する：
-    - `new_offset <= current_offset`を拒否するか警告して無視するか → 拒否する（Monotonicity Invariant）
+    - `new_offset <= current_offset`を拒否するか → 拒否する（Monotonicity Invariant）。後退はper-consumer offsetテーブルに対する単一のatomic SQL statementで強制され、read-then-compareファイルチェックではない。
     - 同一Consumer IDの並行使用を禁止するか → 禁止する（Conflict Detection Required）
     - Consumer ID衝突を検出するか → 検出する
     - ACK永続化失敗時の応答と再配信方針 → エラー応答 + 再配信不可（Fail-Closed）
@@ -229,6 +229,7 @@ Securityを優先し、意図せぬEventの受信を防ぐため不採用とし�
 - Offset単調性が保証される
 - Consumer ID衝突が検出される
 - DLQ昇格経路が統一される
+- ACK状態とOffset追跡はconsumerごとに独立しており、ACK書き込みとOffset進捗はトランザクション内でコミットまたはロールバックされる
 
 ### Negative Consequences
 

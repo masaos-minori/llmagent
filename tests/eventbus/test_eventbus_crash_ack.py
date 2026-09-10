@@ -7,6 +7,7 @@ that offsets advance only via explicit ack, never automatically.
 
 from __future__ import annotations
 
+import sqlite3
 import uuid
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,36 @@ from typing import Any
 import pytest
 from eventbus_helpers import make_eventbus_client
 from fastapi.testclient import TestClient
+
+
+class FlakyConnection:
+    """Wraps sqlite3.Connection to inject failures into execute calls."""
+
+    def __init__(self, real_conn):
+        self._real_conn = real_conn
+        self._failed = False
+
+    def execute(self, sql, *args, **kwargs):
+        if not self._failed and "consumer_offsets" in sql:
+            self._failed = True
+            raise sqlite3.OperationalError("simulated offset-write failure")
+        return self._real_conn.execute(sql, *args, **kwargs)
+
+    def commit(self):
+        return self._real_conn.commit()
+
+    def rollback(self):
+        return self._real_conn.rollback()
+
+    def __getattr__(self, name):
+        return getattr(self._real_conn, name)
+
+
+@pytest.fixture
+def db(tmp_path: Path) -> Any:
+    from eventbus.db import open_db
+
+    return open_db(str(tmp_path / "eventbus.sqlite"))
 
 
 @pytest.fixture
@@ -38,13 +69,13 @@ class TestCrashBeforeAck:
     def test_unacked_event_replayed_on_reconnect(self, client: TestClient) -> None:
         """Consumer disconnects before acking — event must be replayed."""
         import eventbus.app as eb_app
-        from eventbus.offsets import read_offset
+        from eventbus.db import get_consumer_offset
 
         body = _event("crash")
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
         # Simulate disconnect without ack — verify offset not written
-        offset = read_offset(eb_app.app.state.config.offsets_dir, "consumer-A")
+        offset = get_consumer_offset(eb_app.app.state.db, "consumer-A")
         assert offset == 0, "Offset should not be written for unacked events"
 
         # Reconnect with same consumer_id — event should be replayed from seq=0
@@ -58,7 +89,7 @@ class TestCrashBeforeAck:
     def test_partial_ack_replay(self, client: TestClient) -> None:
         """Consumer acks some events but not others — only unacked replayed."""
         import eventbus.app as eb_app
-        from eventbus.offsets import read_offset
+        from eventbus.db import get_consumer_offset
 
         body1 = _event("crash")
         body2 = _event("crash")
@@ -73,7 +104,7 @@ class TestCrashBeforeAck:
             params={"consumer_id": "consumer-B"},
         )
 
-        offset = read_offset(eb_app.app.state.config.offsets_dir, "consumer-B")
+        offset = get_consumer_offset(eb_app.app.state.db, "consumer-B")
         assert offset == resp1.json()["seq"]
 
         # Reconnect — only unacked event should be replayed
