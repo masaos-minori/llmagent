@@ -123,3 +123,27 @@ class TestHealth:
         body = resp.json()
         assert body["status"] == "degraded"
         assert "dlq_task_stopped" in body["degraded_reasons"]
+
+    def test_health_surfaces_new_counters(self, client: TestClient) -> None:
+        """Health response includes overflow_disconnects and duplicate_rejections counters."""
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        body = resp.json()
+
+        # Both new counter fields should be present
+        assert "overflow_disconnects" in body, \
+            "Health response should include 'overflow_disconnects' field"
+        assert "duplicate_rejections" in body, \
+            "Health response should include 'duplicate_rejections' field"
+
+        # Values should be integers (not None or missing)
+        assert isinstance(body["overflow_disconnects"], int), \
+            f"'overflow_disconnects' should be an integer, got {type(body['overflow_disconnects'])}"
+        assert isinstance(body["duplicate_rejections"], int), \
+            f"'duplicate_rejections' should be an integer, got {type(body['duplicate_rejections'])}"
+
+        # In a healthy state with no overflow/rejection events, both should be zero
+        assert body["overflow_disconnects"] == 0, \
+            f"'overflow_disconnects' should be 0 in healthy state, got {body['overflow_disconnects']}"
+        assert body["duplicate_rejections"] == 0, \
+            f"'duplicate_rejections' should be 0 in healthy state, got {body['duplicate_rejections']}"
