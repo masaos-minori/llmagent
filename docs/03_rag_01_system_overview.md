@@ -32,56 +32,28 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 - Ingestion Pipeline: `scripts/rag/ingestion/crawler.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`
 - Query Pipeline: `scripts/rag/pipeline.py`, `scripts/rag/repository.py`, `scripts/rag/llm_client.py`, `scripts/rag/stages/`
 - Utilities: `scripts/rag/utils.py`
-- MCP Wrapper: `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` (port 8010)
+- MCP Wrapper: `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`
 
 **Not Included:**
 - MDQ (Markdown Only Query) — A separate service. For boundary definitions, see [04_mcp_05 MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)
 - Agent REPL — Only calls the pipeline via MCP; does not contain RAG logic.
-- LLM and Embedding Servers — External services running on ports 8080 and 8081.
+- LLM and Embedding Servers — External services providing inference and vector generation.
 
 ---
 
 ## System Architecture
 
-``` text
-[Admin / Operator]
-      |
-      | crawler.py CLI
-      v
-+------------------+     rag-src/*.json     +-------------------+     rag-src/chunk/*.json
-|  crawler.py      | -------------------->  | chunk_splitter.py | -------------------->
-|  (WebCrawler)    |                         | (ChunkSplitter)   |
-+------------------+                         +-------------------+
-                                                                          |
-                                                                          v
-                                                                +------------------+
-                                                                |  ingester.py     |
-                                                                |  (RagIngester)   |
-                                                                +------------------+
-                                                                         |
-                                                                         | embed (port 8081)
-                                                                         | INSERT SQLite
-                                                                         v
-                                                               rag-src/registered/
+- **Component Responsibilities**: Admin/Operator initiates crawling via `crawler.py`; `WebCrawler` performs BFS crawl of same-origin URLs producing `{yyyymmddhhmmss}-{slug}.json` artifacts; `ChunkSplitter` splits crawled content using language-aware strategies (JA: Sudachi / EN: sentence / code: blank-line); `RagIngester` generates embeddings via embed-llm and upserts into SQLite; processed chunks are moved to `rag-src/registered/`.
+- **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns post-ingestion staging area (retention TBD).
+- **Allowed Dependency Direction**: Admin → crawler.py → chunk_splitter.py → ingester.py → rag-src/registered/. No circular dependencies among pipeline stages.
+- **Reason for Process Separation**: Each pipeline stage runs as a separate script because failure isolation prevents one stage's crash from affecting others; independent scaling allows write-heavy domains (file-write-mcp) to require different resource allocation than read-only domains (web-search-mcp); deployment independence allows individual scripts to be updated or restarted without affecting the entire system.
+- **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
 
-```
-``` text
-[Agent turn]
-      |
-      | augment(query)
-      v
-+----------------------+    MCP :8010    +----------------------------------+
-| scripts/mcp_servers/rag_pipeline/ | <-------------> | RagPipeline              |
-| service.py           |                 | [1] MQE → [2] Search → [3] RRF →   
-+----------------------+                 | [4] Rerank →                       |
-                                         |          [5] Augment               |
-                                         +----------------------------------+
-                                                    |
-                                           +--------+--------+
-                                           | KNN + BM25      |
-                                           | SQLite (rag.db) |
-                                           +-----------------+
-```
+- **Component Responsibilities**: Agent turn invokes `RagPipeline.augment(query)` via MCP HTTP; RagPipeline executes MQE → Search → RRF → Rerank → Augment stages; KNN + BM25 search operates over SQLite (rag.db).
+- **Owned State**: RagPipeline owns the query execution lifecycle; SQLite (rag.db) owns the vector store layer.
+- **Allowed Dependency Direction**: Agent → MCP → RagPipeline → KNN + BM25 → SQLite. No circular dependencies among pipeline stages.
+- **Reason for Process Separation**: MCP server operates independently of the agent lifecycle; each stage can be updated or restarted without affecting the entire system.
+- **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
 
 ---
 
@@ -93,7 +65,7 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 |---|---|---|---|
 | `crawler.py` | Crawling | URL or local path | `rag-src/yyyymmddhhmmss-{slug}.json` (JSON) |
 | `chunk_splitter.py` | Chunking | `rag-src/*.json` | `rag-src/chunk/{stem}-{idx:04d}.json` (JSON) |
-| `ingester.py` | Embedding | `rag-src/chunk/*.json` | Embedding API call (port 8081) |
+| `ingester.py` | Embedding | `rag-src/chunk/*.json` | Embedding API call |
 | `ingester.py` | Storage | Embedding vector | SQLite table + `rag-src/registered/` |
 
 > **Terminology Note:** "3 Scripts" refers to the three executable files (`crawler.py`, `chunk_splitter.py`, `ingester.py`).
@@ -126,7 +98,7 @@ config/crawler.toml [target_urls]
 Stages: MQE → Search → Fusion → Rerank → Augmentation. For details on each stage, see `docs/03_rag_03_02_query_pipeline-rag-pipeline-class.md` through `docs/03_rag_03_05_query_pipeline-augment-stages.md`.
 
 **Entrypoint:** `RagPipeline.augment(query) -> str`
-**Caller:** `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` (via MCP HTTP, port 8010)
+**Caller:** `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` (via MCP HTTP)
 
 ### Semantic Cache
 
@@ -138,7 +110,7 @@ When `use_semantic_cache=True`, if the cosine similarity of the query embedding 
 
 | Requirement | Verification Command |
 |---|---|
-| Embedding server running on port 8081 | `curl -s http://127.0.0.1:8081/health` |
+| Embedding server available | `curl -s http://127.0.0.1:<PORT>/health` |
 | `sqlite-vec` extension loadable | `/opt/llm/sqlite-vec/vec0.so` exists |
 | Configuration files exist | `config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml` |
 | Target URLs or files specified | `--url` in CLI, or `target_urls` in config |
