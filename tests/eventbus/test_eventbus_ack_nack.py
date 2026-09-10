@@ -118,6 +118,63 @@ class TestAckEvent:
         ).fetchone()
         assert row["acked_at"] == "2026-06-22T13:00:00Z"
 
+    def test_two_consumers_ack_same_event(self, tmp_path: Path) -> None:
+        """Two distinct consumer_ids can each ACK the same event independently."""
+        from eventbus.db import ack_event_for_consumer, insert_event  # noqa: PLC0415
+
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        now = "2026-09-09T10:00:00Z"
+
+        # Insert an event first
+        seq, inserted = insert_event(
+            db, "evt-multi-ack", "test-topic", '{"data": "value"}', "producer", now
+        )
+        assert inserted
+
+        # Consumer A acknowledges
+        found_a, newly_acked_a, _ = ack_event_for_consumer(
+            db, "evt-multi-ack", "consumer_A", now
+        )
+        assert found_a
+        assert newly_acked_a
+
+        # Consumer B acknowledges the same event
+        found_b, newly_acked_b, _ = ack_event_for_consumer(
+            db, "evt-multi-ack", "consumer_B", now
+        )
+        assert found_b
+        assert newly_acked_b
+
+        # Both deliveries recorded separately
+        row_a = db.execute(
+            "SELECT acked_at FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            ("consumer_A", "evt-multi-ack"),
+        ).fetchone()
+        assert row_a is not None
+        assert row_a["acked_at"] == now
+
+        row_b = db.execute(
+            "SELECT acked_at FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            ("consumer_B", "evt-multi-ack"),
+        ).fetchone()
+        assert row_b is not None
+        assert row_b["acked_at"] == now
+
+        # Offsets advanced independently
+        row_off_a = db.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("consumer_A",),
+        ).fetchone()
+        assert row_off_a is not None
+        assert int(row_off_a["offset"]) == seq
+
+        row_off_b = db.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("consumer_B",),
+        ).fetchone()
+        assert row_off_b is not None
+        assert int(row_off_b["offset"]) == seq
+
 
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
