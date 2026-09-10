@@ -141,9 +141,9 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace two-call pattern with single transactional call | Pending | — | — | |
-| 2 | Remove write_offset import | Pending | — | — | |
-| 3 | Run validation (pytest + structural check) | Pending | — | — | |
+| 1 | Replace two-call pattern with single transactional call | Completed | — | — | |
+| 2 | Remove write_offset import | Completed | — | — | |
+| 3 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing errors (auth_token config) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
