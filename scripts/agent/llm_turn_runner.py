@@ -120,6 +120,10 @@ class LLMTurnRunner:
             state.consecutive_errors = ToolLoopGuard.update_errors(
                 state.consecutive_errors, n_errors, len(message["tool_calls"])
             )
+            if msg := self._guard.check_empty_result_repeat(message):
+                return TurnResult(
+                    action="fail", answer=msg, reason="empty_result_repeat"
+                )
             if msg := self._guard.check_error_limit(state.consecutive_errors):
                 return TurnResult(action="fail", answer=msg, reason="error_limit")
 

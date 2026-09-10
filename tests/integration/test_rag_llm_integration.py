@@ -19,12 +19,16 @@ def _make_guard_ctx(
     dedup_max: int = 2,
     cycle_window: int = 0,
     retry_max: int = 0,
+    empty_result_max: int = 0,
+    stagnation_window: int = 3,
 ) -> MagicMock:
     """Return a minimal AgentContext mock for ToolLoopGuard tests."""
     ctx = MagicMock()
     ctx.cfg.tool.tool_dedup_max_repeats = dedup_max
     ctx.cfg.tool.tool_cycle_detect_window = cycle_window
     ctx.cfg.tool.tool_error_retry_max = retry_max
+    ctx.cfg.tool.tool_empty_result_max_repeats = empty_result_max
+    ctx.cfg.tool.progress_stagnation_window = stagnation_window
     ctx.diagnostics = None
     return ctx
 
