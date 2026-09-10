@@ -1,4 +1,4 @@
-"""Integration tests: RAG Pipeline <-> LLM Turn Runner (TC-C01 through TC-C10).
+"""Integration tests: RAG Pipeline <-> LLM Turn Runner (TC-C01 through TC-C11).
 
 Tests exercise MemoryIngestionService, HybridRetriever, ToolLoopGuard, and
 tool argument parsing at the integration boundary with mocked dependencies.
@@ -313,3 +313,37 @@ async def test_c10_rag_mcp_unavailable_transport_error():
     assert result.is_error
     assert result.error_type == "transport"
     assert "unavailable" in result.output
+
+
+# ── TC-C11: ToolLoopGuard fires on repeated empty tool result ─────────────────
+
+
+def test_c11_tool_loop_guard_fires_on_empty_result_repeat():
+    from agent.tool_loop_guard import ToolLoopGuard
+
+    ctx = _make_guard_ctx(empty_result_max=2)
+    guard = ToolLoopGuard(ctx)
+
+    call = _tool_call("read_text_file", '{"path": "/etc/hosts"}')
+    msg = _message_with_calls(call)
+
+    _seen_calls: dict[str, int] = {}
+    _round_fp: list[str] = []
+    _failed: set[str] = set()
+
+    # First call — no guard (record_tool_result called after execution)
+    # Simulate empty result by calling record_tool_result directly
+    guard.record_tool_result("read_text_file", "")
+    result1 = guard.check_empty_result_repeat(msg)
+    assert result1 is None
+
+    # Second call with same tool returning empty — empty result repeat fires
+    guard.record_tool_result("read_text_file", "")
+    result2 = guard.check_empty_result_repeat(msg)
+    assert result2 is not None
+    assert "empty" in result2.lower() or "Empty" in result2
+
+    # Third call with non-empty result — counter resets
+    guard.record_tool_result("read_text_file", "some content")
+    result3 = guard.check_empty_result_repeat(msg)
+    assert result3 is None
