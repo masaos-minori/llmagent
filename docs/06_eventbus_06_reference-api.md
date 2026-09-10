@@ -93,9 +93,9 @@ Common route helpers. See code for details.
 
 ### scripts/eventbus/broker.py
 
-`_Subscriber`: Internal data structure holding the queue and topic list. `EventBroker`: In-memory pub/sub broker with topic-based fanout.
+`_Subscriber`: Internal data structure holding the queue, topic list, and disconnect signal. `EventBroker`: In-memory pub/sub broker with topic-based fanout.
 
-Methods: `subscribe(topics→_Subscriber)`, `unsubscribe(sub→None)`, `publish(event→int)`, `shutdown()`, `subscriber_count()→int`, `max_queue_depth()→int`, `slow_consumer_count()→int`.
+Methods: `subscribe(topics→_Subscriber, consumer_id=str)`, `unsubscribe(sub→None)`, `publish(event→int)`, `shutdown()`, `subscriber_count()→int`, `max_queue_depth()→int`, `slow_consumer_count()→int`, `overflow_disconnect_count()→int`, `duplicate_rejection_count()→int`.
 
 ### scripts/eventbus/offsets.py
 

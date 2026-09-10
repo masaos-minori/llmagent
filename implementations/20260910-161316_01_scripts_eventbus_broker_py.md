@@ -372,13 +372,13 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add disconnect_signal field to _Subscriber | Pending | — | — | |
-| 2 | Add _consumer_registry and counter attributes | Pending | — | — | |
-| 3 | Modify subscribe() to accept consumer_id and check registry | Pending | — | — | |
-| 4 | Modify unsubscribe() to clear registry entry | Pending | — | — | |
-| 5 | Modify publish() to set disconnect signal on QueueFull | Pending | — | — | |
-| 6 | Add counter getter methods | Pending | — | — | |
-| 7 | Run validation (pytest + regression check) | Pending | — | — | |
+| 1 | Add disconnect_signal field to _Subscriber | Completed | — | — | |
+| 2 | Add _consumer_registry and counter attributes | Completed | — | — | |
+| 3 | Modify subscribe() to accept consumer_id and check registry | Completed | — | — | |
+| 4 | Modify unsubscribe() to clear registry entry | Completed | — | — | |
+| 5 | Modify publish() to set disconnect signal on QueueFull | Completed | — | — | |
+| 6 | Add counter getter methods | Completed | — | — | |
+| 7 | Run validation (pytest + regression check) | Completed | — | — | Pre-existing errors in other tests (auth_token/middleware) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
