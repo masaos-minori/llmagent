@@ -392,13 +392,21 @@ class TestBuildDiagnosticsConfig:
 
 class TestBuildAgentConfig:
     def test_returns_agent_config_instance(self) -> None:
-        cfg = build_agent_config(_MIN_CFG)
+        cfg = build_agent_config(
+            {
+                **_MIN_CFG,
+                "tool_definitions_strict": True,
+                "routing_drift_strict": True,
+            }
+        )
         assert isinstance(cfg, AgentConfig)
 
     def test_top_level_bool_and_observability_overrides_reflected(self) -> None:
         cfg = build_agent_config(
             {
                 **_MIN_CFG,
+                "tool_definitions_strict": True,
+                "routing_drift_strict": True,
                 "security_lockdown_enabled": True,
                 "otel_enabled": True,
                 "structured_log": True,
@@ -447,17 +455,33 @@ class TestBuildAgentConfig:
         mock_exit.assert_not_called()
 
     def test_llm_defaults_reflected(self) -> None:
-        cfg = build_agent_config(_MIN_CFG)
+        cfg = build_agent_config(
+            {
+                **_MIN_CFG,
+                "tool_definitions_strict": True,
+                "routing_drift_strict": True,
+            }
+        )
         assert cfg.llm.llm_url == ""
 
     def test_diagnostics_defaults_reflected(self) -> None:
-        cfg = build_agent_config(_MIN_CFG)
+        cfg = build_agent_config(
+            {
+                **_MIN_CFG,
+                "tool_definitions_strict": True,
+                "routing_drift_strict": True,
+            }
+        )
         assert cfg.diagnostics.encryption_key == ""
         assert cfg.diagnostics.retention_days == 30
 
     def test_none_cfg_override_calls_load_config(self) -> None:
         with patch("agent.config_builders.ConfigLoader") as MockLoader:
-            MockLoader.return_value.load_all.return_value = _MIN_CFG
+            MockLoader.return_value.load_all.return_value = {
+                **_MIN_CFG,
+                "tool_definitions_strict": True,
+                "routing_drift_strict": True,
+            }
             cfg = build_agent_config(None)
         assert isinstance(cfg, AgentConfig)
 
