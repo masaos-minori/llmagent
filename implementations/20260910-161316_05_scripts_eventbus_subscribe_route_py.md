@@ -171,9 +171,9 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace read_offset call with SQLite-first path | Pending | — | — | |
-| 2 | Add _get_offset_from_sqlite helper | Pending | — | — | |
-| 3 | Run validation (pytest + structural check) | Pending | — | — | |
+| 1 | Replace read_offset call with SQLite-first path | Completed | — | — | |
+| 2 | Add _get_offset_from_sqlite helper | Completed | — | — | |
+| 3 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing errors (auth_token config) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
