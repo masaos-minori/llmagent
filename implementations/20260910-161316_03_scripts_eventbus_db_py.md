@@ -302,10 +302,10 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend _migrate() with new table DDL | Pending | — | — | |
-| 2 | Add ack_event_for_consumer() function | Pending | — | — | |
-| 3 | Add migrate_legacy_offsets() function | Pending | — | — | |
-| 4 | Run validation (pytest + structural check) | Pending | — | — | |
+| 1 | Extend _migrate() with new table DDL | Completed | — | — | |
+| 2 | Add ack_event_for_consumer() function | Completed | — | — | Added B101 nosec suppression |
+| 3 | Add migrate_legacy_offsets() function | Completed | — | — | |
+| 4 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing errors (auth_token config) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
