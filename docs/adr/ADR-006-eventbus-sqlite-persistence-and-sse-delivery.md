@@ -17,7 +17,7 @@ superseded_by: null
 
 ## Status
 
-Accepted
+v2
 
 使用可能なStatusは次のとおりとする。
 
@@ -57,6 +57,34 @@ EventBusでは複数のデータストア（SQLite、JSONLアーカイブ、オ�
 - 前提が崩れた場合に再評価が必要な事項：複数DB構成、分散実行、外部イベントストア統合
 
 ## Decision
+
+### Per-Consumer Delivery State
+
+A new `consumer_delivery` table tracks which events each consumer has acknowledged:
+
+```sql
+CREATE TABLE consumer_delivery (
+    consumer_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    acked_at TEXT,
+    PRIMARY KEY (consumer_id, event_id)
+);
+```
+
+Each row represents a unique (consumer, event) pair. The `acked_at` column records the timestamp of acknowledgment. This table enables per-consumer delivery semantics: different consumers can independently ACK the same event without interference.
+
+### Per-Consumer Offset Store
+
+A new `consumer_offsets` table replaces the file-based offset store:
+
+```sql
+CREATE TABLE consumer_offsets (
+    consumer_id TEXT PRIMARY KEY,
+    offset INTEGER NOT NULL DEFAULT 0
+);
+```
+
+Each row stores the last-committed sequence offset for a consumer. The primary key on `consumer_id` ensures one row per consumer. The `offset` value is monotonically non-decreasing — older-or-equal seq values cannot move a consumer's offset backward.
 
 ### Decision Details
 
@@ -367,11 +395,43 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
 - 実装ファイル: `scripts/eventbus/broker.py`, `scripts/eventbus/publish.py`, `scripts/eventbus/subscribe.py`, `scripts/eventbus/ack.py`, `scripts/eventbus/nack.py`, `scripts/eventbus/dlq.py`, `scripts/eventbus/offsets.py`
-- 主要ClassまたはFunction: `EventBroker.publish()`, `EventSubscriber.subscribe()`, `ack_event()`, `nack_event()`, `promote_single()`, `write_offset()`, `read_offset()`
-- データベーススキーマ: `events`テーブル（`seq`, `event_id`, `topic`, `payload`, `acked_at`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`）
-- オフセットファイル: `{offsets_dir}/{sanitized_consumer_id}`
+- 主要ClassまたはFunction: `EventBroker.publish()`, `EventSubscriber.subscribe()`, `ack_event_for_consumer()`, `nack_event()`, `promote_single()`, `write_offset()`, `read_offset()`
+- データベーススキーマ: `events`テーブル（`seq`, `event_id`, `topic`, `payload`, `acked_at`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`）、`consumer_delivery`テーブル（`consumer_id`, `event_id`, `acked_at`）、`consumer_offsets`テーブル（`consumer_id`, `offset`）
+- オフセットファイル: `{offsets_dir}/{sanitized_consumer_id}` — 起動時に`migrate_legacy_offsets()`で`consumer_offsets`テーブルへ移行
 - DLQ昇格経路: インライン昇格（`POST /nack`時）とバックグラウンドループ（60秒ごと）
 - 対応するテスト: `tests/test_eventbus_*.py`
+
+### State Management
+
+**Event persistence:** Events are written to the `events` table via `insert_event()`, with the `seq` auto-incrementing via SQLite's `AUTOINCREMENT`.
+
+**Per-consumer delivery state:** Each consumer's delivery progress is tracked in the `consumer_delivery` table. When a consumer acknowledges an event, a row `(consumer_id, event_id, acked_at)` is inserted atomically with the offset advancement using `INSERT OR IGNORE` semantics — if the same consumer has already ACKed the same event, the row is silently skipped.
+
+**Per-consumer offset tracking:** Offsets are stored in the `consumer_offsets` table, keyed by `consumer_id`. The offset advancement uses the SQL statement:
+
+```sql
+INSERT INTO consumer_offsets(consumer_id, offset) VALUES (?, ?) ON CONFLICT(consumer_id) DO UPDATE SET offset = excluded.offset WHERE excluded.offset > consumer_offsets.offset
+```
+
+This ensures monotonic enforcement: an older-or-equal seq value cannot move a consumer's offset backward.
+
+**Legacy offset migration:** On startup, the `lifespan()` function calls `migrate_legacy_offsets()` to seed the `consumer_offsets` table from existing `offsets_dir` files. The migration reads each `.map` companion file to recover the original `consumer_id`, then inserts the offset using `INSERT OR IGNORE` (idempotent). Legacy files are retained until verified end-to-end.
+
+### Atomic Transaction Guarantee
+
+The `ack_event_for_consumer()` function performs both the per-consumer delivery-state UPSERT and the offset advancement in a single SQLite transaction. If either operation fails, the entire transaction rolls back — neither the delivery nor the offset is committed. This eliminates the two-commit gap that existed before the Plan.
+
+### Monotonic Enforcement
+
+The `consumer_offsets` table uses the `ON CONFLICT(consumer_id) DO UPDATE SET offset = excluded.offset WHERE excluded.offset > consumer_offsets.offset` statement to enforce monotonicity. An older-or-equal seq value cannot move a consumer's offset backward, preventing out-of-order commits from corrupting the offset state.
+
+### Per-Consumer Delivery-State Migration
+
+The `consumer_delivery` and `consumer_offsets` tables are created by `_migrate()` during `open_db()`, using `CREATE TABLE IF NOT EXISTS` — safe to run multiple times. The `migrate_legacy_offsets()` function seeds the `consumer_offsets` table from existing `offsets_dir` files on every startup.
+
+### Consumer ID Recovery
+
+When migrating offsets, the system reads each `.map` companion file under `offsets_dir` to recover the original `consumer_id`. For any offset file with no `.map` companion, the system falls back to the sanitized filename (via `_sanitize_consumer_id()`) as the `consumer_id`, logging a warning. This handles the edge case where the `.map` file was lost or corrupted.
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
