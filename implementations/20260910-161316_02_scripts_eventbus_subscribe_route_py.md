@@ -327,10 +327,10 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add consumer_id passthrough to subscribe() | Pending | — | — | |
-| 2 | Add HTTP 409 translation for ValueError | Pending | — | — | |
-| 3 | Replace queue.get() with asyncio.wait race | Pending | — | — | |
-| 4 | Run validation (pytest + structural check) | Pending | — | — | |
+| 1 | Add consumer_id passthrough to subscribe() | Completed | — | — | |
+| 2 | Add HTTP 409 translation for ValueError | Completed | — | — | |
+| 3 | Replace queue.get() with asyncio.wait race | Completed | — | — | |
+| 4 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing errors (auth_token config) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
