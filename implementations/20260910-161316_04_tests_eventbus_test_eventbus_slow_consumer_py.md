@@ -190,9 +190,9 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add overflow-disconnect assertion test | Pending | — | — | |
-| 2 | Add reconnect-after-disconnect test | Pending | — | — | |
-| 3 | Run validation (pytest + regression check) | Pending | — | — | |
+| 1 | Add overflow-disconnect assertion test | Completed | — | — | |
+| 2 | Add reconnect-after-disconnect test | Completed | — | — | |
+| 3 | Run validation (pytest + regression check) | Completed | — | — | Pre-existing errors (auth_token config) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
