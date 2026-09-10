@@ -42,7 +42,10 @@ async def subscribe(
 
     start_seq = since_seq
     if consumer_id and start_seq == 0:
-        start_seq = read_offset(cfg.offsets_dir, consumer_id)
+        # Try SQLite-backed offset first, then fall back to legacy file-based
+        start_seq = _get_offset_from_sqlite(db, consumer_id)
+        if start_seq == 0:
+            start_seq = read_offset(cfg.offsets_dir, consumer_id)
 
     # Register with broker, passing consumer_id for connection tracking
     try:
@@ -134,3 +137,24 @@ async def subscribe(
             broker.unsubscribe(sub)
 
     return StreamingResponse(_sse_gen(), media_type="text/event-stream")
+
+
+def _get_offset_from_sqlite(
+    db: Any,
+    consumer_id: str,
+) -> int:
+    """Read the last-committed sequence offset for a consumer from the SQLite store.
+
+    Returns 0 if no offset exists for this consumer.
+    """
+    try:
+        row = db.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            (consumer_id,),
+        ).fetchone()
+        if row:
+            return int(row["offset"])
+    except Exception:
+        # Table doesn't exist yet or query failed — fall through to legacy path
+        pass
+    return 0
