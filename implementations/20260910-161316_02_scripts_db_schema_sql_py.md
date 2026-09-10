@@ -134,9 +134,9 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add consumer_delivery DDL to _EVENTBUS_SCHEMA | Pending | — | — | |
-| 2 | Add consumer_offsets DDL to _EVENTBUS_SCHEMA | Pending | — | — | |
-| 3 | Run validation (pytest + structural check) | Pending | — | — | |
+| 1 | Add consumer_delivery DDL to _EVENTBUS_SCHEMA | Completed | — | — | |
+| 2 | Add consumer_offsets DDL to _EVENTBUS_SCHEMA | Completed | — | — | |
+| 3 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing failures (db path config) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
