@@ -117,8 +117,8 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add new counter fields test | Completed | — | — | |
-| 2 | Run validation (pytest + regression check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 1 | Add new counter fields test | Completed | — | — | Actual test name: 'test_health_reports_overflow_and_duplicate_counters' |
+| 2 | Run validation (pytest + regression check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

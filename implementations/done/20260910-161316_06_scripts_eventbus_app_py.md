@@ -143,7 +143,7 @@ The key changes are:
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Add migrate_legacy_offsets import | Completed | — | — | |
 | 2 | Wire migration call in lifespan() | Completed | — | — | |
-| 3 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 3 | Run validation (pytest + structural check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

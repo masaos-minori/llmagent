@@ -146,8 +146,8 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add resume-from-SQLite-offset test | Completed | — | — | |
-| 2 | Run validation (pytest + regression check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 1 | Add resume-from-SQLite-offset test | Completed | — | — | Added test_resume_from_sqlite_offset using get_consumer_offset |
+| 2 | Run validation (pytest + regression check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

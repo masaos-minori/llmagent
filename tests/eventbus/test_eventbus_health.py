@@ -92,6 +92,8 @@ class TestHealth:
         assert body["status"] == "ok"
         assert body["db"] == "ok"
         assert body["dlq_task"] == "running"
+        assert body["overflow_disconnects"] == 0
+        assert body["duplicate_connection_rejections"] == 0
 
     def test_health_degraded_when_db_unavailable(self, client: TestClient) -> None:
         from unittest.mock import MagicMock
@@ -124,26 +126,20 @@ class TestHealth:
         assert body["status"] == "degraded"
         assert "dlq_task_stopped" in body["degraded_reasons"]
 
-    def test_health_surfaces_new_counters(self, client: TestClient) -> None:
-        """Health response includes overflow_disconnects and duplicate_rejections counters."""
-        resp = client.get("/health")
-        assert resp.status_code == 200
-        body = resp.json()
+    def test_health_reports_overflow_and_duplicate_counters(
+        self, client: TestClient
+    ) -> None:
+        """Health response reflects incremented overflow/duplicate counters."""
+        from eventbus import app as eb_app
 
-        # Both new counter fields should be present
-        assert "overflow_disconnects" in body, \
-            "Health response should include 'overflow_disconnects' field"
-        assert "duplicate_rejections" in body, \
-            "Health response should include 'duplicate_rejections' field"
-
-        # Values should be integers (not None or missing)
-        assert isinstance(body["overflow_disconnects"], int), \
-            f"'overflow_disconnects' should be an integer, got {type(body['overflow_disconnects'])}"
-        assert isinstance(body["duplicate_rejections"], int), \
-            f"'duplicate_rejections' should be an integer, got {type(body['duplicate_rejections'])}"
-
-        # In a healthy state with no overflow/rejection events, both should be zero
-        assert body["overflow_disconnects"] == 0, \
-            f"'overflow_disconnects' should be 0 in healthy state, got {body['overflow_disconnects']}"
-        assert body["duplicate_rejections"] == 0, \
-            f"'duplicate_rejections' should be 0 in healthy state, got {body['duplicate_rejections']}"
+        sub1 = eb_app.app.state.broker.subscribe([], consumer_id="dup-health")
+        try:
+            # Second subscribe with same consumer_id triggers rejection
+            with pytest.raises(Exception):
+                eb_app.app.state.broker.subscribe([], consumer_id="dup-health")
+            resp = client.get("/health")
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body["duplicate_connection_rejections"] >= 1
+        finally:
+            eb_app.app.state.broker.unsubscribe(sub1)

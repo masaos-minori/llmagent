@@ -171,9 +171,9 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace read_offset call with SQLite-first path | Completed | — | — | |
-| 2 | Add _get_offset_from_sqlite helper | Completed | — | — | |
-| 3 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 1 | Replace read_offset call with SQLite-first path | Completed | — | — | Actual uses get_consumer_offset() directly from eventbus.db |
+| 2 | Add _get_offset_from_sqlite helper | N/A | — | — | Not needed — get_consumer_offset() in db.py serves this role |
+| 3 | Run validation (pytest + structural check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

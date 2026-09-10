@@ -88,8 +88,8 @@ last-write-wins as an accepted, intentional design choice for concurrent connect
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace "Consumer ID Collision Risk" body text with the rejection policy | Pending | — | — | |
-| 2 | Run `check_docs_quality.py`/`check_docs_structure.py`/`check_docs_consistency.py` | Pending | — | — | |
+| 1 | Replace "Consumer ID Collision Risk" body text with the rejection policy | Completed | — | — | |
+| 2 | Run `check_docs_quality.py`/`check_docs_structure.py`/`check_docs_consistency.py` | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

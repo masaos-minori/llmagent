@@ -111,11 +111,11 @@ The six pre-existing tests in this file — unmodified.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_consumer_id_registry_rejects_duplicate` | Pending | — | — | |
-| 2 | Add `test_consumer_id_registry_releases_on_unsubscribe` | Pending | — | — | |
-| 3 | Add `test_empty_consumer_id_is_never_registered` | Pending | — | — | |
-| 4 | Add `test_publish_disconnects_subscriber_on_queue_full` | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `test_consumer_id_registry_rejects_duplicate` | Completed | — | — | |
+| 2 | Add `test_consumer_id_registry_releases_on_unsubscribe` | Completed | — | — | |
+| 3 | Add `test_empty_consumer_id_is_never_registered` | Completed | — | — | |
+| 4 | Add `test_publish_disconnects_subscriber_on_queue_full` | Completed | — | — | |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

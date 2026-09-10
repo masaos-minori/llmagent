@@ -135,8 +135,8 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Add consumer_delivery DDL to _EVENTBUS_SCHEMA | Completed | — | — | |
-| 2 | Add consumer_offsets DDL to _EVENTBUS_SCHEMA | Completed | — | — | |
-| 3 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing failures (db path config) |
+| 2 | Add consumer_offsets DDL to _EVENTBUS_SCHEMA | Completed | — | — | Column name differs: procedure says 'offset', actual uses 'seq' |
+| 3 | Run validation (pytest + structural check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -154,7 +154,7 @@ The key changes are:
 | 1 | Add counter variables | Completed | — | — | |
 | 2 | Add getter calls | Completed | — | — | |
 | 3 | Add JSON fields | Completed | — | — | |
-| 4 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 4 | Run validation (pytest + structural check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

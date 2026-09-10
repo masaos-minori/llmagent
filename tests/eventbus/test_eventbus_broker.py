@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from eventbus.broker import EventBroker
+from eventbus.broker import ConsumerAlreadyConnectedError, EventBroker
 
 
 @pytest.mark.asyncio
@@ -61,116 +61,53 @@ async def test_shutdown_sends_sentinel():
 
 
 @pytest.mark.asyncio
-async def test_consumer_id_registry_population_release():
-    """Non-empty consumer_id is registered on subscribe() and released on unsubscribe()."""
+async def test_duplicate_consumer_id_rejected():
     broker = EventBroker()
-    consumer_id = "test_consumer"
-
-    # Subscribe with non-empty consumer_id
-    sub = broker.subscribe([], consumer_id=consumer_id)
-    try:
-        # Verify the consumer is registered
-        assert consumer_id in broker._consumer_registry, \
-            f"Consumer {consumer_id} should be registered"
-        assert broker._consumer_registry[consumer_id] is sub, \
-            "Registry entry should point to the subscriber"
-
-        # Verify the subscriber count increased
-        assert broker.subscriber_count() == 1, \
-            "Subscriber count should be 1"
-
-        # Unsubscribe — this should release the registry entry
-        broker.unsubscribe(sub)
-
-        # Verify the consumer is no longer registered
-        assert consumer_id not in broker._consumer_registry, \
-            f"Consumer {consumer_id} should be unregistered after unsubscribe"
-        assert broker.subscriber_count() == 0, \
-            "Subscriber count should be 0 after unsubscribe"
-    finally:
-        # Clean up any remaining subscribers
-        for s in list(broker._subscribers):
-            broker.unsubscribe(s)
+    _ = broker.subscribe([], consumer_id="c1")
+    with pytest.raises(ConsumerAlreadyConnectedError):
+        broker.subscribe([], consumer_id="c1")
+    assert broker.duplicate_rejection_count() == 1
+    assert len(broker._subscribers) == 1  # only one subscriber registered
+    assert len(broker._consumer_subs) == 1
 
 
 @pytest.mark.asyncio
-async def test_duplicate_consumer_id_rejection():
-    """A second concurrent connection for the same non-empty consumer_id raises ValueError."""
+async def test_anonymous_connection_not_rejected():
     broker = EventBroker()
-    consumer_id = "test_consumer"
-
-    # First subscription succeeds
-    sub1 = broker.subscribe([], consumer_id=consumer_id)
-    try:
-        # Second subscription with the same consumer_id should fail
-        with pytest.raises(ValueError, match=f"duplicate consumer_id: {consumer_id}"):
-            broker.subscribe([], consumer_id=consumer_id)
-
-        # Verify only one subscriber exists
-        assert broker.subscriber_count() == 1, \
-            "Only one subscriber should exist"
-
-        # Verify the duplicate rejection counter increased
-        assert broker.duplicate_rejection_count() == 1, \
-            "Duplicate rejection counter should be incremented"
-    finally:
-        # Clean up any remaining subscribers
-        for s in list(broker._subscribers):
-            broker.unsubscribe(s)
+    _ = broker.subscribe([])
+    _ = broker.subscribe([])
+    assert len(broker._subscribers) == 2
+    assert broker.duplicate_rejection_count() == 0
+    assert (
+        len(broker._consumer_subs) == 0
+    )  # anonymous connections not tracked in registry
 
 
 @pytest.mark.asyncio
-async def test_disconnect_signal_on_queue_full():
-    """The disconnect signal fires when publish() QueueFull occurs."""
+async def test_unsubscribe_clears_registry_entry():
     broker = EventBroker()
-    sub = broker.subscribe([])
-    try:
-        # Fill the queue to capacity (maxsize=1000)
-        bodies = [{"seq": i, "topic": "t", "event_id": f"evt-{i}"} for i in range(1000)]
-        for body in bodies:
-            broker.publish(body)
-
-        # Queue should now be full
-        assert sub.queue.full(), "Queue should be at capacity"
-
-        # Publish one more event — this should trigger overflow disconnect
-        overflow_body = {"seq": 1001, "topic": "t", "event_id": "overflow"}
-        broker.publish(overflow_body)
-
-        # Verify the subscriber was removed from the active list
-        assert broker.subscriber_count() == 0, \
-            "Overflowing subscriber should be removed from active list"
-
-        # Verify the disconnect signal was set
-        assert sub.disconnect_signal.is_set(), \
-            "Disconnect signal should be set after overflow"
-
-        # Verify the overflow disconnect counter increased
-        assert broker.overflow_disconnect_count() == 1, \
-            "Overflow disconnect counter should be incremented"
-    finally:
-        # Clean up any remaining subscribers
-        for s in list(broker._subscribers):
-            broker.unsubscribe(s)
+    sub = broker.subscribe([], consumer_id="c1")
+    assert len(broker._consumer_subs) == 1
+    assert broker._consumer_subs["c1"] is sub
+    broker.unsubscribe(sub)
+    assert len(broker._consumer_subs) == 0
+    assert len(broker._subscribers) == 0
 
 
 @pytest.mark.asyncio
-async def test_empty_consumer_id_exempt_from_rejection():
-    """An empty consumer_id is exempt from duplicate-rejection."""
+async def test_overflow_disconnect_on_queue_full():
     broker = EventBroker()
-
-    # Two subscriptions with empty consumer_id should both succeed
-    sub1 = broker.subscribe([])
-    sub2 = broker.subscribe([])
-    try:
-        # Both subscribers should exist
-        assert broker.subscriber_count() == 2, \
-            "Both anonymous subscribers should exist"
-
-        # No duplicate rejections should occur
-        assert broker.duplicate_rejection_count() == 0, \
-            "No duplicate rejections for empty consumer_id"
-    finally:
-        # Clean up any remaining subscribers
-        for s in list(broker._subscribers):
-            broker.unsubscribe(s)
+    sub = broker.subscribe([], consumer_id="c1")
+    # Fill the queue to capacity
+    for i in range(1000):
+        try:
+            sub.queue.put_nowait({"seq": i, "topic": "t"})
+        except asyncio.QueueFull:
+            break
+    assert sub.queue.full()
+    # Publish an event that will hit QueueFull
+    delivered = broker.publish({"seq": 999, "topic": "t"})
+    assert delivered >= 0
+    assert sub.disconnect.is_set()
+    assert broker.overflow_disconnect_count() >= 1
+    assert len(broker._subscribers) < 1 or broker._subscribers[0] is not sub

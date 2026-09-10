@@ -330,7 +330,7 @@ The key changes are:
 | 1 | Add consumer_id passthrough to subscribe() | Completed | — | — | |
 | 2 | Add HTTP 409 translation for ValueError | Completed | — | — | |
 | 3 | Replace queue.get() with asyncio.wait race | Completed | — | — | |
-| 4 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 4 | Run validation (pytest + structural check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

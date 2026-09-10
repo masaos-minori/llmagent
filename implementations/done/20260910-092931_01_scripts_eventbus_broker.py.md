@@ -193,14 +193,14 @@ Plan (see Plan Risks). `max_queue_depth()`/`slow_consumer_count()`/threshold con
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `disconnect`/`consumer_id` fields to `_Subscriber` | Pending | — | — | |
-| 2 | Add `_consumer_subs` registry + counters to `EventBroker.__init__` | Pending | — | — | |
-| 3 | Extend `subscribe()` with duplicate-rejection check | Pending | — | — | |
-| 4 | Extend `unsubscribe()` to clear the registry entry | Pending | — | — | |
-| 5 | Extend `publish()`'s `QueueFull` branch to disconnect instead of continue | Pending | — | — | |
-| 6 | Add counter getter methods | Pending | — | — | |
-| 7 | Add or update tests per Validation plan (rows 04, 05) | Pending | — | — | |
-| 8 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `disconnect`/`consumer_id` fields to `_Subscriber` | Completed | — | — | |
+| 2 | Add `_consumer_subs` registry + counters to `EventBroker.__init__` | Completed | — | — | |
+| 3 | Extend `subscribe()` with duplicate-rejection check | Completed | — | — | |
+| 4 | Extend `unsubscribe()` to clear the registry entry | Completed | — | — | |
+| 5 | Extend `publish()`'s `QueueFull` branch to disconnect instead of continue | Completed | — | — | |
+| 6 | Add counter getter methods | Completed | — | — | |
+| 7 | Add or update tests per Validation plan (rows 04, 05) | Completed | — | — | |
+| 8 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

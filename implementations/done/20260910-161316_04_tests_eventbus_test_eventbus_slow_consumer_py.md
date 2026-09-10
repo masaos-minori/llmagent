@@ -190,9 +190,9 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add overflow-disconnect assertion test | Completed | — | — | |
-| 2 | Add reconnect-after-disconnect test | Completed | — | — | |
-| 3 | Run validation (pytest + regression check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 1 | Add overflow-disconnect assertion test | Completed | — | — | Actual test name differs: 'test_overflow_disconnects_subscriber' |
+| 2 | Add reconnect-after-disconnect test | Completed | — | — | Actual test name differs: 'test_reconnect_after_overflow_disconnect_resumes_from_offset' |
+| 3 | Run validation (pytest + regression check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

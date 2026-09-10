@@ -136,8 +136,8 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add failure-injection test | Completed | — | — | |
-| 2 | Run validation (pytest + regression check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 1 | Add failure-injection test | Completed | — | — | Actual test name: 'test_offset_write_failure_rolls_back_delivery_write' |
+| 2 | Run validation (pytest + regression check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

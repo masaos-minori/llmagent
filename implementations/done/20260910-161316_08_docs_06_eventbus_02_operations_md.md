@@ -123,9 +123,9 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace Queue Overflow paragraph | Completed | — | — | |
-| 2 | Add HTTP 409 documentation | Completed | — | — | |
-| 3 | Update Failure Behavior Summary | Completed | — | — | |
+| 1 | Replace Queue Overflow paragraph | Completed | — | — | Subscriber disconnected language present |
+| 2 | Add HTTP 409 documentation | Completed | — | — | Duplicate Consumer Connection Rejection section present |
+| 3 | Update Failure Behavior Summary | Completed | — | — | Subscriber queue full row updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

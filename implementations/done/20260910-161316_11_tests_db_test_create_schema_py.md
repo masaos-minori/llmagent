@@ -136,8 +136,8 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add eventbus-tables-exist test | Completed | — | — | |
-| 2 | Run validation (pytest + regression check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 1 | Add eventbus-tables-exist test | Completed | — | — | Actual test name: 'test_create_eventbus_schema_produces_new_tables' |
+| 2 | Run validation (pytest + regression check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

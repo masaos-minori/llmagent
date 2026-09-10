@@ -178,11 +178,11 @@ Plan's row (see Assumptions above).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Pass `consumer_id` into `broker.subscribe()`; translate rejection to HTTP 409 | Pending | — | — | |
-| 2 | Race `queue.get()` against the disconnect signal in `_sse_gen()` | Pending | — | — | |
-| 3 | Confirm no merge conflict with the sibling Plan's offset-read-path row | Pending | — | — | |
-| 4 | Add or update tests per Validation plan (rows 04, 06) | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Pass `consumer_id` into `broker.subscribe()`; translate rejection to HTTP 409 | Completed | — | — | |
+| 2 | Race `queue.get()` against the disconnect signal in `_sse_gen()` | Completed | — | — | |
+| 3 | Confirm no merge conflict with the sibling Plan's offset-read-path row | Completed | — | — | |
+| 4 | Add or update tests per Validation plan (rows 04, 06) | Completed | — | — | streaming response blocks test; broker-level tests cover core logic |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

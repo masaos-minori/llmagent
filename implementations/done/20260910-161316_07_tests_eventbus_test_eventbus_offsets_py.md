@@ -297,10 +297,10 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update test_ack_writes_offset for SQLite-backed offset | Completed | — | — | |
-| 2 | Add TestOffsetMonotonicity class | Completed | — | — | |
-| 3 | Add TestLegacyOffsetMigration class | Completed | — | — | |
-| 4 | Run validation (pytest + regression check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 1 | Update test_ack_writes_offset for SQLite-backed offset | Completed | — | — | Actual test uses ack_event_for_consumer |
+| 2 | Add TestOffsetMonotonicity class | Completed | — | — | Actual class name: 'TestOffsetMonotonicity' |
+| 3 | Add TestLegacyOffsetMigration class | Completed | — | — | Actual class name: 'TestLegacyOffsetMigration' |
+| 4 | Run validation (pytest + regression check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

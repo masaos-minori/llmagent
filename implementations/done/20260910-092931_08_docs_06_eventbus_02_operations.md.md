@@ -100,10 +100,10 @@ Any other endpoint section in this document.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace "Queue Overflow" bullet with disconnect-on-overflow description | Pending | — | — | |
-| 2 | Add HTTP 409 duplicate-connection documentation under GET /subscribe | Pending | — | — | |
-| 3 | Update "Subscriber queue full" row in Failure Behavior Summary | Pending | — | — | |
-| 4 | Run `check_docs_quality.py`/`check_docs_structure.py`/`check_docs_consistency.py` | Pending | — | — | |
+| 1 | Replace "Queue Overflow" bullet with disconnect-on-overflow description | Completed | — | — | |
+| 2 | Add HTTP 409 duplicate-connection documentation under GET /subscribe | Completed | — | — | |
+| 3 | Update "Subscriber queue full" row in Failure Behavior Summary | Completed | — | — | |
+| 4 | Run `check_docs_quality.py`/`check_docs_structure.py`/`check_docs_consistency.py` | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

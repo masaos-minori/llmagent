@@ -302,10 +302,10 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend _migrate() with new table DDL | Completed | — | — | |
-| 2 | Add ack_event_for_consumer() function | Completed | — | — | Added B101 nosec suppression |
+| 1 | Extend _migrate() with new table DDL | Completed | — | — | Column name differs: procedure says 'offset', actual uses 'seq' |
+| 2 | Add ack_event_for_consumer() function | Completed | — | — | |
 | 3 | Add migrate_legacy_offsets() function | Completed | — | — | |
-| 4 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 4 | Run validation (pytest + structural check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

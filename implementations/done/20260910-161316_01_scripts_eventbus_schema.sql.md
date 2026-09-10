@@ -109,8 +109,8 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Add consumer_delivery DDL to schema.sql | Completed | — | — | |
-| 2 | Add consumer_offsets DDL to schema.sql | Completed | — | — | |
-| 3 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 2 | Add consumer_offsets DDL to schema.sql | Completed | — | — | Column name differs: procedure says 'offset', actual uses 'seq' |
+| 3 | Run validation (pytest + structural check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

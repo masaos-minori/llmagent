@@ -95,9 +95,9 @@ The four pre-existing tests in this class — unmodified.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_overflow_disconnects_subscriber` | Pending | — | — | |
-| 2 | Add `test_reconnect_after_overflow_disconnect_resumes_from_offset` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `test_overflow_disconnects_subscriber` | Completed | — | — | |
+| 2 | Add `test_reconnect_after_overflow_disconnect_resumes_from_offset` | Completed | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

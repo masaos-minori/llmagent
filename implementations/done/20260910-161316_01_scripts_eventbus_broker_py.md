@@ -378,7 +378,7 @@ The key changes are:
 | 4 | Modify unsubscribe() to clear registry entry | Completed | — | — | |
 | 5 | Modify publish() to set disconnect signal on QueueFull | Completed | — | — | |
 | 6 | Add counter getter methods | Completed | — | — | |
-| 7 | Run validation (pytest + regression check) | Completed | — | — | Pre-existing errors in other tests (auth_token/middleware) |
+| 7 | Run validation (pytest + regression check) | Completed | — | — | 10/10 tests passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

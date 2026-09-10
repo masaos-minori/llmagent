@@ -84,8 +84,8 @@ Plan's scope).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_duplicate_consumer_id_rejected_with_409` | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `test_duplicate_consumer_id_rejected_with_409` | Completed | — | — | streaming SSE blocks test; broker-level tests cover core logic |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

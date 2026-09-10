@@ -165,9 +165,9 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add new table descriptions | Completed | — | — | |
-| 2 | Update Schema Evolution section | Completed | — | — | |
-| 3 | Update Scaling Considerations section | Completed | — | — | |
+| 1 | Add new table descriptions | Completed | — | — | consumer_delivery/consumer_offsets tables described |
+| 2 | Update Schema Evolution section | Completed | — | — | _migrate() idempotent pattern documented |
+| 3 | Update Scaling Considerations section | Completed | — | — | Storage growth analysis documented |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

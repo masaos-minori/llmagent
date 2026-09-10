@@ -161,9 +161,9 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add new table descriptions | Completed | — | — | |
-| 2 | Update Delivery Semantics section | Completed | — | — | |
-| 3 | Update Migration section | Completed | — | — | |
+| 1 | Add new table descriptions | Completed | — | — | consumer_delivery/consumer_offsets tables described in Offset Storage |
+| 2 | Update Delivery Semantics section | Completed | — | — | Per-consumer delivery-state isolation documented |
+| 3 | Update Migration section | Completed | — | — | Legacy migration path documented |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

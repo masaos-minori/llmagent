@@ -93,9 +93,9 @@ unmodified.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `test_health_ok` with the two new zero-baseline assertions | Pending | — | — | |
-| 2 | Add `test_health_reports_overflow_and_duplicate_counters` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend `test_health_ok` with the two new zero-baseline assertions | Completed | — | — | |
+| 2 | Add `test_health_reports_overflow_and_duplicate_counters` | Completed | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

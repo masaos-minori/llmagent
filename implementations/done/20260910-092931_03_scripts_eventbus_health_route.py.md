@@ -106,10 +106,10 @@ Any change to the DB-connectivity or DLQ-task-status checks in this same functio
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the two new counter getter calls to the broker-metrics block | Pending | — | — | |
-| 2 | Add the two new keys to the JSON response | Pending | — | — | |
-| 3 | Add or update tests per Validation plan (row 07) | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the two new counter getter calls to the broker-metrics block | Completed | — | — | |
+| 2 | Add the two new keys to the JSON response | Completed | — | — | |
+| 3 | Add or update tests per Validation plan (row 07) | Completed | — | — | |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

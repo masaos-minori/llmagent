@@ -172,11 +172,11 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add new table descriptions | Completed | — | — | |
-| 2 | Update State Management section | Completed | — | — | |
-| 3 | Update Reliability section | Completed | — | — | |
-| 4 | Update Migration section | Completed | — | — | |
-| 5 | Increment version number | Completed | — | — | |
+| 1 | Add new table descriptions | Completed | — | — | consumer_delivery/consumer_offsets described in Implementation Notes |
+| 2 | Update State Management section | Completed | — | — | ack_event_for_consumer atomic transaction documented |
+| 3 | Update Reliability section | Completed | — | — | Atomic Transaction Guarantee + Monotonic Enforcement documented |
+| 4 | Update Migration section | Completed | — | — | Legacy migration path documented |
+| 5 | Increment version number | Completed | — | — | EVENTBUS-007 Known Issue added |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

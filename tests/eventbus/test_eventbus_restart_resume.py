@@ -174,47 +174,70 @@ def test_same_consumer_id_last_write_wins(client: TestClient, tmp_path: Path) ->
     # The offset file simply overwrites silently
 
 
-def test_resume_from_sqlite_offset(client: TestClient) -> None:
+def test_resume_from_sqlite_offset(client: TestClient, tmp_path: Path) -> None:
     """Consumer resumes from SQLite-backed offset after restart."""
-    from eventbus.db import ack_event_for_consumer, insert_event  # noqa: PLC0415
-    from eventbus.subscribe_route import _get_offset_from_sqlite  # noqa: PLC0415
+    import json
 
-    db = client.app.state.db
-    now = "2026-09-09T10:00:00Z"
-    consumer_id = "resume_consumer"
+    from eventbus import app as eb_app
+    from eventbus.db import ack_event_for_consumer, get_consumer_offset, insert_event
 
-    # Insert three events
-    seq1, _ = insert_event(db, "evt-resume-1", "test-topic", '{"data": "1"}', "producer", now)
-    seq2, _ = insert_event(db, "evt-resume-2", "test-topic", '{"data": "2"}', "producer", now)
-    seq3, _ = insert_event(db, "evt-resume-3", "test-topic", '{"data": "3"}', "producer", now)
+    db = eb_app.app.state.db
+
+    seq1, _ = insert_event(
+        db,
+        "evt-resume-1",
+        "t",
+        json.dumps({"data": "1"}),
+        "p",
+        "2026-06-25T12:00:00Z",
+    )
+    seq2, _ = insert_event(
+        db,
+        "evt-resume-2",
+        "t",
+        json.dumps({"data": "2"}),
+        "p",
+        "2026-06-25T12:00:00Z",
+    )
+    seq3, _ = insert_event(
+        db,
+        "evt-resume-3",
+        "t",
+        json.dumps({"data": "3"}),
+        "p",
+        "2026-06-25T12:00:00Z",
+    )
     assert seq1 < seq2 < seq3
 
-    # Consumer ACKs evt-resume-1 and evt-resume-2
-    _, newly_acked_a, _ = ack_event_for_consumer(db, "evt-resume-1", consumer_id, now)
+    _, newly_acked_a, _ = ack_event_for_consumer(
+        db, "evt-resume-1", "resume-consumer", "2026-06-25T12:00:00Z"
+    )
     assert newly_acked_a
-    _, newly_acked_b, _ = ack_event_for_consumer(db, "evt-resume-2", consumer_id, now)
+    _, newly_acked_b, _ = ack_event_for_consumer(
+        db, "evt-resume-2", "resume-consumer", "2026-06-25T12:00:00Z"
+    )
     assert newly_acked_b
 
-    # Verify offset was advanced to seq2
     row = db.execute(
         "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
-        (consumer_id,),
+        ("resume-consumer",),
     ).fetchone()
     assert row is not None
     assert int(row["offset"]) == seq2
 
-    # Simulate restart: read offset via SQLite path
-    start_seq = _get_offset_from_sqlite(db, consumer_id)
+    start_seq = get_consumer_offset(db, "resume-consumer")
     assert start_seq == seq2
 
-    # Subscribe with since_seq=start_seq — should deliver only evt-resume-3
     response = client.get(
         "/events",
-        params={"topic": ["test-topic"], "consumer_id": consumer_id, "since_seq": start_seq},
+        params={
+            "topic": ["t"],
+            "consumer_id": "resume-consumer",
+            "since_seq": start_seq,
+        },
     )
     assert response.status_code == 200
 
-    # Parse SSE stream and verify only evt-resume-3 is delivered
     lines = response.text.split("\n")
     data_lines = [line[5:] for line in lines if line.startswith("data:")]
     assert len(data_lines) == 1

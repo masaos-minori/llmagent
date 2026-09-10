@@ -135,9 +135,9 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace Consumer ID Collision Risk section | Completed | — | — | |
-| 2 | Add Overflow Disconnection section | Completed | — | — | |
-| 3 | Update Delivery Guarantees section | Completed | — | — | |
+| 1 | Replace Consumer ID Collision Risk section | Completed | — | — | One-connection-per-consumer policy documented |
+| 2 | Add Overflow Disconnection section | Completed | — | — | Overflow disconnection mechanism documented |
+| 3 | Update Delivery Guarantees section | Completed | — | — | Overflow guarantee added |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

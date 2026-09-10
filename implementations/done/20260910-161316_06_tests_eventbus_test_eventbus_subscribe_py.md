@@ -115,8 +115,8 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add duplicate consumer_id 409 test | Completed | — | — | |
-| 2 | Run validation (pytest + regression check) | Completed | — | — | Pre-existing errors (auth_token config) |
+| 1 | Add duplicate consumer_id 409 test | Completed | — | — | Actual test name: 'test_subscribe_duplicate_consumer_id_returns_409' |
+| 2 | Run validation (pytest + regression check) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
