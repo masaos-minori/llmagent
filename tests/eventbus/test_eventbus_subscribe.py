@@ -48,3 +48,23 @@ def test_health_ok(client: TestClient) -> None:
     assert body["status"] == "ok"
     assert body["db"] == "ok"
     assert body["dlq_task"] == "running"
+
+
+def test_duplicate_consumer_id_returns_409(client: TestClient) -> None:
+    """A second concurrent /subscribe?consumer_id=X connection receives HTTP 409."""
+    # First subscription succeeds
+    resp1 = client.get("/subscribe", params={"consumer_id": "dup_test"})
+    assert resp1.status_code == 200, \
+        f"First subscription should succeed, got {resp1.status_code}"
+
+    # Second subscription with the same consumer_id should fail with 409
+    resp2 = client.get("/subscribe", params={"consumer_id": "dup_test"})
+    assert resp2.status_code == 409, \
+        f"Second subscription should receive 409, got {resp2.status_code}"
+
+    # Verify the response body contains the expected error message
+    body = resp2.json()
+    assert "detail" in body, \
+        "Response body should contain 'detail' field"
+    assert "dup_test" in body["detail"], \
+        f"Error detail should mention the consumer_id, got: {body['detail']}"
