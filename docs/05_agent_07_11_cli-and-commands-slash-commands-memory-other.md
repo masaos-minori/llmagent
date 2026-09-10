@@ -27,7 +27,7 @@ A group of commands for long-term memory. `/memory rebuild` performs DELETE + IN
 
 ### MDQ Category
 
-All `/mdq` commands call MCP tools of `mdq-mcp` (port 8013) via the agent's tool executor. MDQ uses `mdq.sqlite` (separate from `rag.sqlite`). For the distinction between MDQ and RAG, see [MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary).
+All `/mdq` commands call MCP tools of `mdq-mcp` via the agent's tool executor. MDQ uses `mdq.sqlite` (separate from `rag.sqlite`). For the distinction between MDQ and RAG, see [MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary).
 
 ### Skill Category
 
