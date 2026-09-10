@@ -118,3 +118,90 @@ class TestSlowConsumer:
                 assert "slow_consumers_detected" in health.get("degraded_reasons", [])
         finally:
             eb_app.app.state.broker.unsubscribe(sub)
+
+    def test_overflow_disconnect_ends_sse_stream(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Overflowing subscription is disconnected (SSE stream ends), not silently continued."""
+        from eventbus import app as eb_app
+
+        # Fill subscriber queue past the overflow threshold (maxsize=1000)
+        sub = eb_app.app.state.broker.subscribe([])
+        try:
+            # Fill the queue to capacity
+            bodies = [_event("overflow") for _ in range(1000)]
+            for body in bodies:
+                resp = client.post("/publish", json=body)
+                assert resp.status_code == 200
+
+            # Queue is now full (1000 items)
+            assert sub.queue.full(), "Queue should be at capacity"
+
+            # Publish one more event — this should trigger overflow disconnect
+            overflow_body = _event("overflow")
+            resp = client.post("/publish", json=overflow_body)
+            assert resp.status_code == 200
+
+            # Verify the subscriber was removed from the active list
+            assert eb_app.app.state.broker.subscriber_count() == 0, \
+                "Overflowing subscriber should be removed from active list"
+
+            # Verify the overflow disconnect counter increased
+            assert eb_app.app.state.broker.overflow_disconnect_count() == 1, \
+                "Overflow disconnect counter should be incremented"
+
+            # Verify the disconnect signal was set
+            assert sub.disconnect_signal.is_set(), \
+                "Disconnect signal should be set after overflow"
+        finally:
+            # Clean up any remaining subscribers
+            for s in list(eb_app.app.state.broker._subscribers):
+                eb_app.app.state.broker.unsubscribe(s)
+
+    def test_reconnect_after_overflow_disconnect(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A consumer can reconnect after an overflow-triggered disconnect and receive subsequent events."""
+        from eventbus import app as eb_app
+        from eventbus.offsets import read_offset, write_offset
+
+        # Subscribe first — this creates a subscriber with an empty queue (slow consumer)
+        sub = eb_app.app.state.broker.subscribe([])
+        try:
+            # Fill the queue to capacity
+            bodies = [_event("reconnect") for _ in range(1000)]
+            for body in bodies:
+                resp = client.post("/publish", json=body)
+                assert resp.status_code == 200
+
+            # Queue is now full (1000 items)
+            assert sub.queue.full(), "Queue should be at capacity"
+
+            # Write a fake offset so the consumer can resume from it
+            write_offset(str(tmp_path / "offsets"), "reconnect_consumer", 1000)
+
+            # Publish one more event — this should trigger overflow disconnect
+            overflow_body = _event("reconnect")
+            resp = client.post("/publish", json=overflow_body)
+            assert resp.status_code == 200
+
+            # Verify the subscriber was removed from the active list
+            assert eb_app.app.state.broker.subscriber_count() == 0, \
+                "Overflowing subscriber should be removed from active list"
+
+            # Now subscribe again — this should succeed (no duplicate consumer_id)
+            sub2 = eb_app.app.state.broker.subscribe([])
+            try:
+                # Verify the new subscriber received no events yet
+                assert sub2.queue.qsize() == 0, \
+                    "New subscriber should have an empty queue"
+
+                # Verify the overflow disconnect counter is still 1 (no additional disconnects)
+                assert eb_app.app.state.broker.overflow_disconnect_count() == 1, \
+                    "Overflow disconnect counter should remain at 1"
+            finally:
+                eb_app.app.state.broker.unsubscribe(sub2)
+        finally:
+            # Clean up any remaining subscribers
+            for s in list(eb_app.app.state.broker._subscribers):
+                eb_app.app.state.broker.unsubscribe(s)
