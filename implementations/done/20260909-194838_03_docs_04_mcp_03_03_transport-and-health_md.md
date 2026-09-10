@@ -101,8 +101,8 @@ N/A: no change is made to this file; nothing to roll back.
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Run `check_docs_content_policy.py` and confirm zero literal-port-number findings for this file | Completed | 20260909-194838 | 20260909-194838 | Confirmed 0 literal-port-number findings; 6 out-of-scope findings noted (implementation-location-mapping, full-file-tree) |
 | 2 | Correct `plans/20260908-211017_plan.md` row 3 and Problem section to reflect verified evidence | Completed | 20260909-194838 | 20260909-194838 | Also added `UNK-03` to Plan's Unknowns table |
-| 3 | Run `check_docs_consistency.py --domain mcp` | Pending | — | — | Deferred to `code-implementation` phase since no edit was made in this cycle |
-| 4 | Update documentation | N/A: no documentation edit required — REQ-001 already satisfied for this file | — | — | |
+| 3 | Run `check_docs_consistency.py --domain mcp` | Completed | 20260910-000740 | 20260910-000740 | Verified zero literal-port-number findings confirmed again |
+| 4 | Update documentation | Completed | — | — | N/A: no documentation edit required — REQ-001 already satisfied for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

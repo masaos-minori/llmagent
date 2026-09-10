@@ -147,9 +147,9 @@ For exhaustive signature and constant detail, see `scripts/rag/ingestion/pipelin
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read all flagged lines and classify each as genuine violation or false positive | Pending | — | — | |
-| 2 | Replace removed tables with pointer sentences | Pending | — | — | |
-| 3 | Run validation checks | Pending | — | — | |
+| 1 | Read all flagged lines and classify each as genuine violation or false positive | Completed | — | — | All flagged lines classified as genuine violations (constant-value table + TypedDict field-catalog table + signature-catalog tables + Historical field-mapping table) |
+| 2 | Replace removed tables with pointer sentences | Completed | — | — | Replaced Module-level Constants, TypedDict field-catalog, Public Functions, and Historical field-mapping tables with single pointer sentence; also removed Historical field-mapping table per same policy |
+| 3 | Run validation checks | Completed | — | — | Zero class/function/method index table findings; zero constant-table findings; zero TypedDict-field-catalog findings for this file; consistency check has pre-existing warnings unrelated to this change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

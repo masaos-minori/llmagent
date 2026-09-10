@@ -164,10 +164,10 @@ async def run(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Added check_empty_result_repeat() call after execute_all_tool_calls() |
-| 2 | Add or update tests per Validation plan | Completed | — | — | Fixed _make_guard_ctx() missing fields for existing tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format/check, mypy pass; targeted guard tests pass |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Out of scope per document |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | |
+| 2 | Add or update tests per Validation plan | Completed | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: no docs/00_index.md task-scope mapping for scripts/agent/llm_turn_runner.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

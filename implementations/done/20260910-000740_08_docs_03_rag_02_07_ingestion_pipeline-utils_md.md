@@ -164,9 +164,9 @@ For exhaustive signature and constant detail, see `scripts/rag/ingestion/crawler
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read all flagged lines and classify each as genuine violation or false positive | Pending | — | — | |
-| 2 | Replace removed tables with pointer sentences | Pending | — | — | |
-| 3 | Run validation checks | Pending | — | — | |
+| 1 | Read all flagged lines and classify each as genuine violation or false positive | Completed | — | — | All flagged lines classified as genuine violations (constant-value tables + signature-catalog tables + caller-function mapping table) |
+| 2 | Replace removed tables with pointer sentences | Completed | — | — | Replaced Module-level Constants, CJK Detection Unicode Code Point Ranges, Public Functions, Chunk Utils Public Functions, and Actual Usage tables with single pointer sentence |
+| 3 | Run validation checks | Completed | — | — | Zero class/function/method index table findings; zero constant-table findings for this file; consistency check has pre-existing warnings unrelated to this change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -96,9 +96,9 @@ The sentence remains grammatically coherent without the explicit port number. Th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read line 95 and its surrounding paragraph | Pending | — | — | |
-| 2 | Remove the literal port number and replace with prose | Pending | — | — | |
-| 3 | Run validation checks | Pending | — | — | |
+| 1 | Read line 95 and its surrounding paragraph | Completed | — | — | |
+| 2 | Remove the literal port number and replace with prose | Completed | — | — | |
+| 3 | Run validation checks | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

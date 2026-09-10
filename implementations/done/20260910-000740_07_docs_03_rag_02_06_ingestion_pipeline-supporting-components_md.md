@@ -111,9 +111,9 @@ For exhaustive detail, see `scripts/rag/ingestion/etag_manager.py` (ETagManager 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read all flagged lines and classify each as genuine violation or false positive | Pending | — | — | |
-| 2 | Replace removed tables with pointer sentences | Pending | — | — | |
-| 3 | Run validation checks | Pending | — | — | |
+| 1 | Read all flagged lines and classify each as genuine violation or false positive | Completed | — | — | All flagged lines classified as genuine violations (signature-catalog table + configuration-value table) |
+| 2 | Replace removed tables with pointer sentences | Completed | — | — | Replaced Public Methods table with pointer sentence; also removed Configuration parameter table per same policy |
+| 3 | Run validation checks | Completed | — | — | Zero class/function/method index table findings; zero literal-port-number findings for this file; consistency check has pre-existing warnings unrelated to this change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

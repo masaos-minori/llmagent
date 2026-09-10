@@ -97,9 +97,9 @@ These HTTP request examples also contain literal port numbers and should be revi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read lines 37 and 110 and their surrounding paragraphs | Pending | — | — | |
-| 2 | Remove the literal port numbers and replace with prose | Pending | — | — | |
-| 3 | Run validation checks | Pending | — | — | |
+| 1 | Read lines 37 and 110 and their surrounding paragraphs | Completed | — | — | Confirmed context of literal port numbers at both locations |
+| 2 | Remove the literal port numbers and replace with prose | Completed | — | — | Removed "(port 8081)" from both duplicate sections; sentences remain coherent |
+| 3 | Run validation checks | Completed | — | — | Zero literal-port-number findings for this file; consistency check has pre-existing warnings unrelated to this change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

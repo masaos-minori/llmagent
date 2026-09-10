@@ -373,6 +373,8 @@ class TestRun:
                 "agent.llm_turn_runner.execute_all_tool_calls",
             ) as mock_exec,
         ):
+            runner._guard.check_all.return_value = None
+            runner._guard.check_empty_result_repeat.return_value = None
             result = await runner.run("http://llm", **WF_CTX)
 
         assert result.answer == "Done"
@@ -410,6 +412,8 @@ class TestRun:
                 "agent.llm_turn_runner.execute_all_tool_calls",
             ),
         ):
+            runner._guard.check_all.return_value = None
+            runner._guard.check_empty_result_repeat.return_value = None
             runner._ctx.cfg.tool.max_tool_turns = 2
 
             result = await runner.run("http://llm", **WF_CTX)
@@ -458,6 +462,7 @@ class TestRun:
             ),
         ):
             runner._guard.check_all.return_value = None
+            runner._guard.check_empty_result_repeat.return_value = None
             runner._guard.check_error_limit.return_value = "Error limit reached"
 
             result = await runner.run("http://llm", **WF_CTX)
@@ -488,6 +493,8 @@ class TestRun:
             ),
             patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()),
         ):
+            runner._guard.check_all.return_value = None
+            runner._guard.check_empty_result_repeat.return_value = None
             result = await runner.run("http://llm", **WF_CTX)
 
         assert result.action == "fail"
@@ -551,6 +558,8 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
             ),
             patch("agent.llm_turn_runner.execute_all_tool_calls"),
         ):
+            runner._guard.check_all.return_value = None
+            runner._guard.check_empty_result_repeat.return_value = None
             await runner.run("http://llm", **WF_CTX)
 
         assert runner._ctx.conv.history[0] == {
