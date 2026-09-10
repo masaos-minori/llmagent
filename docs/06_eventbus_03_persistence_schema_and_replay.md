@@ -30,6 +30,14 @@ Key columns: `seq` (PK), `event_id` (UNIQUE), `topic`, `payload` (JSON string), 
 
 The `retry_count` column has been removed. Migrations for existing databases are idempotent.
 
+### Per-consumer delivery state
+
+`consumer_delivery(consumer_id, event_id, acked_at)` — composite PK on `(consumer_id, event_id)`. Tracks which consumer has acknowledged each event. Idempotent via INSERT OR IGNORE semantics.
+
+### Per-consumer offset
+
+`consumer_offsets(consumer_id, offset)` — PK on `consumer_id`. Tracks last-committed sequence offset per consumer. Monotonic enforcement via ON CONFLICT DO UPDATE WHERE excluded.offset > consumer_offsets.offset.
+
 ### Indexes
 
 - `idx_events_topic` — For topic filtering

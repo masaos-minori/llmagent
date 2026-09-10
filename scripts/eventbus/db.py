@@ -114,6 +114,34 @@ def _migrate(conn: sqlite3.Connection) -> None:
             else:
                 raise
 
+    # New tables added in REQ-001/REQ-002: per-consumer delivery state and offset
+    for tbl_name, ddl in [
+        (
+            "consumer_delivery",
+            "CREATE TABLE IF NOT EXISTS consumer_delivery ("
+            "    consumer_id TEXT NOT NULL,"
+            "    event_id TEXT NOT NULL,"
+            "    acked_at TEXT,"
+            "    PRIMARY KEY (consumer_id, event_id)"
+            ")",
+        ),
+        (
+            "consumer_offsets",
+            "CREATE TABLE IF NOT EXISTS consumer_offsets ("
+            "    consumer_id TEXT PRIMARY KEY,"
+            "    offset INTEGER NOT NULL DEFAULT 0"
+            ")",
+        ),
+    ]:
+        try:
+            conn.execute(ddl)
+            logger.info("migrated: created table %s", tbl_name)
+        except sqlite3.OperationalError as exc:
+            if exc.args and "duplicate column name" in exc.args[0].lower():
+                pass  # table already exists (unlikely but defensive)
+            else:
+                raise
+
 
 def ack_event(conn: sqlite3.Connection, event_id: str, now: str) -> tuple[bool, bool]:
     """Set acked_at on an event. Idempotent — will not overwrite existing ack.
@@ -156,6 +184,80 @@ def nack_event(conn: sqlite3.Connection, event_id: str) -> int:
         "SELECT delivery_failure_count FROM events WHERE event_id = ?", (event_id,)
     ).fetchone()
     return int(row["delivery_failure_count"]) if row else -1
+
+
+def ack_event_for_consumer(
+    conn: sqlite3.Connection,
+    event_id: str,
+    consumer_id: str,
+    now: str,
+) -> tuple[bool, bool, int | None]:
+    """Acknowledge an event for a specific consumer atomically.
+
+    Performs the per-consumer delivery-state UPSERT and the per-consumer
+    offset advancement in a single SQLite transaction. Commits once at the
+    end (or rolls back on exception).
+
+    Returns (found, newly_acked, seq):
+      - (True, True, seq)   = event found, newly acked by this consumer
+      - (True, False, None) = event found but already acked by this consumer
+      - (False, False, None)= event not found
+
+    Args:
+        conn: SQLite connection (must be the shared eventbus connection).
+        event_id: Event identifier.
+        consumer_id: Non-empty consumer identifier.
+        now: ISO-8601 UTC timestamp string.
+
+    Raises:
+        sqlite3.Error: If the transaction fails to commit or roll back.
+    """
+    assert consumer_id, "consumer_id must be non-empty"  # nosec B101 — contract invariant; caller validates before calling
+    newly_acked = False
+    seq: int | None = None
+
+    try:
+        # Per-consumer delivery-state UPSERT (idempotent)
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO consumer_delivery "
+            "(consumer_id, event_id, acked_at) VALUES (?, ?, ?)",
+            (consumer_id, event_id, now),
+        )
+        newly_acked = cur.rowcount == 1  # INSERT happened; IGNORE means 0 rows affected
+
+        if newly_acked:
+            # Get the event seq for offset tracking
+            row = conn.execute(
+                "SELECT seq FROM events WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+            if row:
+                seq = int(row["seq"])
+                # Atomic monotonic offset advancement
+                conn.execute(
+                    "INSERT INTO consumer_offsets(consumer_id, offset) "
+                    "VALUES (?, ?) "
+                    "ON CONFLICT(consumer_id) DO UPDATE SET "
+                    "offset = excluded.offset "
+                    "WHERE excluded.offset > consumer_offsets.offset",
+                    (consumer_id, seq),
+                )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+    # Check if event exists but was already acked by this consumer
+    if not newly_acked:
+        already_acked = conn.execute(
+            "SELECT 1 FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            (consumer_id, event_id),
+        ).fetchone()
+        if already_acked:
+            return True, False, None
+
+    return False, False, None
 
 
 def check_db(conn: sqlite3.Connection) -> bool:
@@ -257,3 +359,75 @@ def requeue_event(conn: sqlite3.Connection, event_id: str) -> bool:
     )
     conn.commit()
     return cur.rowcount > 0
+
+
+def migrate_legacy_offsets(
+    conn: sqlite3.Connection,
+    offsets_dir: str,
+) -> list[str]:
+    """Migrate legacy file-based offsets into the consumer_offsets table.
+
+    Reads each .map file under offsets_dir, recovers the original consumer_id
+    from the .map companion file, reads its offset via read_offset(), and inserts
+    a row into consumer_offsets using INSERT OR IGNORE (idempotent).
+
+    For any offset file with no .map companion, falls back to the sanitized
+    filename as consumer_id, logging a warning.
+
+    Does NOT delete or modify any legacy files.
+
+    Returns:
+        List of consumer_ids that were migrated.
+    """
+    from eventbus.offsets import read_offset  # noqa: PLC0415
+
+    migrated: list[str] = []
+    dir_path = Path(offsets_dir)
+
+    if not dir_path.exists():
+        logger.warning("offsets_dir does not exist: %s", offsets_dir)
+        return migrated
+
+    for map_file in sorted(dir_path.glob("*.map")):
+        safe_id = map_file.stem  # filename without .map extension
+        try:
+            stored_id = map_file.read_text().strip()
+            if stored_id:
+                consumer_id = stored_id
+            else:
+                # Empty .map file — fall back to sanitized filename
+                consumer_id = safe_id
+                logger.warning(
+                    "empty .map file for %s, using sanitized filename as consumer_id",
+                    safe_id,
+                )
+        except FileNotFoundError:
+            # No .map companion — use sanitized filename
+            consumer_id = safe_id
+            logger.warning(
+                "no .map companion for %s, using sanitized filename as consumer_id",
+                safe_id,
+            )
+
+        offset_val = read_offset(offsets_dir, consumer_id)
+        if offset_val > 0:
+            try:
+                conn.execute(
+                    "INSERT OR IGNORE INTO consumer_offsets(consumer_id, offset) "
+                    "VALUES (?, ?)",
+                    (consumer_id, offset_val),
+                )
+                migrated.append(consumer_id)
+                logger.debug(
+                    "migrated offset: consumer=%s offset=%d",
+                    consumer_id,
+                    offset_val,
+                )
+            except sqlite3.IntegrityError as exc:
+                logger.warning(
+                    "failed to migrate offset for consumer %s: %s",
+                    consumer_id,
+                    exc,
+                )
+
+    return migrated
