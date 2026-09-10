@@ -101,8 +101,8 @@ The ADR should include:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the ADR document | Pending | — | — | |
-| 2 | Validate ADR format and cross-references | Pending | — | — | |
+| 1 | Create the ADR document | Completed | — | — | |
+| 2 | Validate ADR format and cross-references | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
