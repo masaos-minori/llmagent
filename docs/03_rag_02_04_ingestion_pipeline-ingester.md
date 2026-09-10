@@ -34,7 +34,7 @@ source:
 
 ### 4.1 Class Overview
 
-`RagIngester` reads chunk files, generates embeddings via `embed-llm` (port 8081), and upserts them into SQLite (`documents` / `chunks` / `chunks_vec`). Processed chunks are moved to `rag-src/registered/`.
+`RagIngester` reads chunk files, generates embeddings via `embed-llm`, and upserts them into SQLite (`documents` / `chunks` / `chunks_vec`). Processed chunks are moved to `rag-src/registered/`.
 
 For a complete list of dataclasses and public methods, see `scripts/rag/ingestion/ingester.py`.
 
@@ -107,7 +107,7 @@ rag
 
 ### 4.1 Class Overview
 
-`RagIngester` reads chunk files, generates embeddings via `embed-llm` (port 8081), and upserts them into SQLite (`documents` / `chunks` / `chunks_vec`). Processed chunks are moved to `rag-src/registered/`.
+`RagIngester` reads chunk files, generates embeddings via `embed-llm`, and upserts them into SQLite (`documents` / `chunks` / `chunks_vec`). Processed chunks are moved to `rag-src/registered/`.
 
 For a complete list of dataclasses and public methods, see `scripts/rag/ingestion/ingester.py`.
 
