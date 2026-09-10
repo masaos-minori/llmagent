@@ -141,9 +141,9 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add migrate_legacy_offsets import | Pending | — | — | |
-| 2 | Wire migration call in lifespan() | Pending | — | — | |
-| 3 | Run validation (pytest + structural check) | Pending | — | — | |
+| 1 | Add migrate_legacy_offsets import | Completed | — | — | |
+| 2 | Wire migration call in lifespan() | Completed | — | — | |
+| 3 | Run validation (pytest + structural check) | Completed | — | — | Pre-existing errors (auth_token config) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
