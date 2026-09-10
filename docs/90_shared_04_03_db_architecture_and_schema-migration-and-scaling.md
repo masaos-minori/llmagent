@@ -48,6 +48,41 @@ Incremental migration mechanisms like this do not exist for `rag.sqlite` or `ses
 
 `scripts/eventbus/db.py::_migrate()` performs incremental, additive schema evolution on `eventbus.sqlite` at every EventBus service startup. It is called from `open_db()` when the `events` table already exists (see `_init_schema()` line 67–70).
 
+```sql
+-- Event persistence (auto-incrementing seq)
+CREATE TABLE events (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id TEXT UNIQUE NOT NULL,
+    topic TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    producer_id TEXT,
+    created_at TEXT
+);
+```
+
+```sql
+-- Per-consumer delivery state (one row per (consumer, event) pair)
+CREATE TABLE consumer_delivery (
+    consumer_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    acked_at TEXT,
+    PRIMARY KEY (consumer_id, event_id)
+);
+```
+
+```sql
+-- Per-consumer offset store (one row per consumer)
+CREATE TABLE consumer_offsets (
+    consumer_id TEXT PRIMARY KEY,
+    offset INTEGER NOT NULL DEFAULT 0
+);
+```
+
+Each table serves a distinct purpose:
+- `events`: Stores all published events with auto-incrementing sequence numbers.
+- `consumer_delivery`: Tracks which events each consumer has acknowledged, enabling per-consumer delivery semantics.
+- `consumer_offsets`: Stores the last-committed sequence offset for each consumer, enabling resume-after-restart.
+
 - **Additive columns:** `delivery_failure_count` and `dlq_requeue_count` (both `INTEGER NOT NULL DEFAULT 0`) are added via `ALTER TABLE events ADD COLUMN`; duplicate-column errors are caught and ignored.
 - **Column removal:** `retry_count` is dropped via `ALTER TABLE events DROP COLUMN retry_count`; "no such column" errors are caught and ignored (already dropped or never existed).
 - **Additive indexes:** `idx_events_dlq_at ON events(dlq_at)` and `idx_events_dlq_seq ON events(dlq_at, seq)` are created with `CREATE INDEX IF NOT EXISTS`; duplicate-index errors are caught and ignored.
@@ -71,9 +106,19 @@ The `chunks_vec`/`memories_vec` (`db/schema_sql.py`) for `rag.sqlite`, `session.
 
 ---
 
-## 9. Constraints List
+## 9. Schema Evolution
 
-SQLite 3.35+ required; sqlite-vec path `/opt/llm/sqlite-vec/vec0.so` (`agent.toml::sqlite_vec_so`); WAL mode enabled on all connections (`PRAGMA journal_mode=WAL`); default `busy_timeout` 30,000 ms (`agent.toml::sqlite_busy_timeout_ms`); default embedding dimension fixed by `scripts/db/store_protocols.py::get_embedding_dims()` (not config-driven); float format: float32 little-endian BLOB; single-node only (no distributed/replica support); `agent.toml` included in `ConfigLoader().load_all()` at index 0 (see 90_shared_03 section 2a).
+The EventBus SQLite database uses `CREATE TABLE IF NOT EXISTS` for all new tables, ensuring safe re-runs. The `_migrate()` function in `scripts/eventbus/db.py` applies schema changes incrementally:
+
+1. **New tables:** Created via `CREATE TABLE IF NOT EXISTS` — safe to run multiple times.
+2. **New columns:** Added via `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` — defensive check against duplicate-column errors.
+3. **New indexes:** Created via `CREATE INDEX IF NOT EXISTS` — safe to run multiple times.
+
+For example, the `consumer_delivery` and `consumer_offsets` tables were added by `_migrate()` during the transition from file-based offsets to SQLite-backed offsets. Both tables use `CREATE TABLE IF NOT EXISTS` so they are safe to run on existing databases.
+
+### Migration Strategy
+
+The `migrate_legacy_offsets()` function seeds the `consumer_offsets` table from existing `offsets_dir` files on every startup. It reads each `.map` companion file to recover the original `consumer_id`, then inserts the offset using `INSERT OR IGNORE` (idempotent). Legacy files are retained until verified end-to-end.
 
 ---
 
@@ -89,7 +134,18 @@ DDL source: `db/schema_sql.py`; schema initialization entry point: `db/create_sc
 
 **Note:** The Event Bus runtime (publisher/subscriber/dispatcher/DLQ worker) is outside the scope of this cleanup. Future Event Bus write operations must use ISO-8601 UTC Z-suffix timestamps.
 
-## 11. Scaling Limits and Migration Indicators
+## 11. Storage Growth
+
+The `consumer_delivery` table grows proportionally to the product of (number of consumers × number of events). For a single consumer, this is bounded by the total number of events. For multiple consumers, the growth is linear with respect to the number of consumers.
+
+**Mitigation strategies:**
+- Periodic cleanup of old delivery-state rows (e.g., events older than N days).
+- Partitioning by consumer_id or event_id if the dataset becomes very large.
+- Using a separate database per consumer if the workload requires strict isolation.
+
+The `consumer_offsets` table has constant-size growth (one row per consumer), regardless of the number of events.
+
+## 12. Scaling Limits and Migration Indicators
 
 The current RAG architecture uses single-node SQLite. This is suitable for team-scale deployments where corpus size is moderate and concurrent writes are infrequent.
 The following indicators suggest a need for re-evaluation.
