@@ -38,10 +38,14 @@ async def health_check(request: Request) -> JSONResponse:
     active_subscribers = 0
     max_queue_depth = 0
     slow_consumers = 0
+    overflow_disconnects = 0
+    duplicate_rejections = 0
     if broker is not None:
         active_subscribers = broker.subscriber_count()
         max_queue_depth = broker.max_queue_depth()
         slow_consumers = broker.slow_consumer_count()
+        overflow_disconnects = broker.overflow_disconnect_count()
+        duplicate_rejections = broker.duplicate_rejection_count()
 
     degraded_reasons: list[str] = []
     if db_status != "ok":
@@ -63,6 +67,8 @@ async def health_check(request: Request) -> JSONResponse:
             "active_subscribers": active_subscribers,
             "max_queue_depth": max_queue_depth,
             "slow_consumers": slow_consumers,
+            "overflow_disconnects": overflow_disconnects,
+            "duplicate_rejections": duplicate_rejections,
             "degraded_reasons": degraded_reasons,
         },
         status_code=status_code,
