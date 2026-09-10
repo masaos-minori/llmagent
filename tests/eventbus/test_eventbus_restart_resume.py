@@ -172,3 +172,50 @@ def test_same_consumer_id_last_write_wins(client: TestClient, tmp_path: Path) ->
 
     # No collision detection — both consumers can ack with same consumer_id without error
     # The offset file simply overwrites silently
+
+
+def test_resume_from_sqlite_offset(client: TestClient) -> None:
+    """Consumer resumes from SQLite-backed offset after restart."""
+    from eventbus.db import ack_event_for_consumer, insert_event  # noqa: PLC0415
+    from eventbus.subscribe_route import _get_offset_from_sqlite  # noqa: PLC0415
+
+    db = client.app.state.db
+    now = "2026-09-09T10:00:00Z"
+    consumer_id = "resume_consumer"
+
+    # Insert three events
+    seq1, _ = insert_event(db, "evt-resume-1", "test-topic", '{"data": "1"}', "producer", now)
+    seq2, _ = insert_event(db, "evt-resume-2", "test-topic", '{"data": "2"}', "producer", now)
+    seq3, _ = insert_event(db, "evt-resume-3", "test-topic", '{"data": "3"}', "producer", now)
+    assert seq1 < seq2 < seq3
+
+    # Consumer ACKs evt-resume-1 and evt-resume-2
+    _, newly_acked_a, _ = ack_event_for_consumer(db, "evt-resume-1", consumer_id, now)
+    assert newly_acked_a
+    _, newly_acked_b, _ = ack_event_for_consumer(db, "evt-resume-2", consumer_id, now)
+    assert newly_acked_b
+
+    # Verify offset was advanced to seq2
+    row = db.execute(
+        "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+        (consumer_id,),
+    ).fetchone()
+    assert row is not None
+    assert int(row["offset"]) == seq2
+
+    # Simulate restart: read offset via SQLite path
+    start_seq = _get_offset_from_sqlite(db, consumer_id)
+    assert start_seq == seq2
+
+    # Subscribe with since_seq=start_seq — should deliver only evt-resume-3
+    response = client.get(
+        "/events",
+        params={"topic": ["test-topic"], "consumer_id": consumer_id, "since_seq": start_seq},
+    )
+    assert response.status_code == 200
+
+    # Parse SSE stream and verify only evt-resume-3 is delivered
+    lines = response.text.split("\n")
+    data_lines = [line[5:] for line in lines if line.startswith("data:")]
+    assert len(data_lines) == 1
+    assert '"event_id":"evt-resume-3"' in data_lines[0]
