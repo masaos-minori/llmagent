@@ -221,11 +221,11 @@ The key changes are:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add registry population/release test | Pending | — | — | |
-| 2 | Add duplicate-rejection test | Pending | — | — | |
-| 3 | Add disconnect-signal test | Pending | — | — | |
-| 4 | Add empty consumer_id exemption test | Pending | — | — | |
-| 5 | Run validation (pytest + regression check) | Pending | — | — | |
+| 1 | Add registry population/release test | Completed | — | — | |
+| 2 | Add duplicate-rejection test | Completed | — | — | |
+| 3 | Add disconnect-signal test | Completed | — | — | |
+| 4 | Add empty consumer_id exemption test | Completed | — | — | |
+| 5 | Run validation (pytest + regression check) | Completed | — | — | Pre-existing errors (auth_token config) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
