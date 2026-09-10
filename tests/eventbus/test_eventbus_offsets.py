@@ -102,19 +102,35 @@ def _pub(client: TestClient, topic: str = "t") -> dict[str, Any]:
 
 
 def test_ack_writes_offset(client: TestClient, tmp_path: Path) -> None:
-    """POST /events/{id}/ack should write offset to the offsets directory."""
-    result = _pub(client)
-    event_id = result["event_id"]
-    seq = result["seq"]
+    """Acknowledge an event writes the offset atomically via ack_event_for_consumer."""
+    from eventbus.db import ack_event_for_consumer, insert_event  # noqa: PLC0415
 
-    r = client.post(f"/events/{event_id}/ack?consumer_id=consumer1")
-    assert r.status_code == 200
+    db = client.app.state.db
+    cfg = client.app.state.config
+    now = "2026-09-09T10:00:00Z"
+    consumer_id = "test_consumer"
 
-    from eventbus import app as eb_app
-    from eventbus.offsets import read_offset
+    # Insert an event first
+    seq, inserted = insert_event(
+        db, "evt-001", "test-topic", '{"data": "value"}', "test-producer", now
+    )
+    assert inserted
 
-    offset = read_offset(eb_app.app.state.config.offsets_dir, "consumer1")
-    assert offset == seq
+    # Acknowledge with consumer_id — should advance offset atomically
+    found, newly_acked, result_seq = ack_event_for_consumer(
+        db, "evt-001", consumer_id, now
+    )
+    assert found
+    assert newly_acked
+    assert result_seq == seq
+
+    # Verify offset was advanced in consumer_offsets table
+    row = db.execute(
+        "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+        (consumer_id,),
+    ).fetchone()
+    assert row is not None
+    assert int(row["offset"]) == seq
 
 
 def test_ack_nonexistent_event_returns_404(client: TestClient) -> None:
@@ -305,3 +321,148 @@ class TestOffsetMonotonicity:
 
         write_offset(str(tmp_path), "consumer_4", 1)
         assert read_offset(str(tmp_path), "consumer_4") == 1
+
+
+class TestOffsetMonotonicity:
+    """Tests for atomic monotonic offset enforcement in consumer_offsets."""
+
+    def test_older_seq_cannot_move_offset_backward(self, tmp_path: Path, client: TestClient) -> None:
+        """An older-or-equal seq cannot move a consumer's offset backward."""
+        from eventbus.db import ack_event_for_consumer, insert_event  # noqa: PLC0415
+
+        db = client.app.state.db
+        cfg = client.app.state.config
+        now = "2026-09-09T10:00:00Z"
+        consumer_id = "monotonic_test"
+
+        # Insert two events with different seq values
+        seq1, _ = insert_event(db, "evt-mono-1", "test-topic", "{}", "producer", now)
+        seq2, _ = insert_event(db, "evt-mono-2", "test-topic", "{}", "producer", now)
+        assert seq1 < seq2
+
+        # Acknowledge evt-mono-2 first (higher seq)
+        _, newly_acked, _ = ack_event_for_consumer(db, "evt-mono-2", consumer_id, now)
+        assert newly_acked
+
+        # Verify offset was set to seq2
+        row = db.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            (consumer_id,),
+        ).fetchone()
+        assert row is not None
+        assert int(row["offset"]) == seq2
+
+        # Try to acknowledge evt-mono-1 (lower seq) — should NOT update offset
+        _, newly_acked, _ = ack_event_for_consumer(db, "evt-mono-1", consumer_id, now)
+        assert newly_acked  # Event was newly acked (different event)
+
+        # Offset should still be seq2 (not moved backward)
+        row = db.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            (consumer_id,),
+        ).fetchone()
+        assert row is not None
+        assert int(row["offset"]) == seq2  # Not seq1
+
+
+class TestLegacyOffsetMigration:
+    """Tests for legacy offset file migration idempotency and edge cases."""
+
+    def test_migration_is_idempotent(self, tmp_path: Path, client: TestClient) -> None:
+        """Re-running migration on already-migrated offsets is a no-op."""
+        from eventbus.db import migrate_legacy_offsets, insert_event  # noqa: PLC0415
+
+        db = client.app.state.db
+        cfg = client.app.state.config
+
+        # Pre-populate consumer_offsets directly
+        db.execute(
+            "INSERT OR REPLACE INTO consumer_offsets(consumer_id, offset) VALUES (?, ?)",
+            ("migrating_consumer", 100),
+        )
+        db.commit()
+
+        # Migrate — should not change anything since offset already exists
+        migrated = migrate_legacy_offsets(db, cfg.offsets_dir)
+        assert len(migrated) == 0  # No new migrations (no .map files exist)
+
+        # Verify offset unchanged
+        row = db.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("migrating_consumer",),
+        ).fetchone()
+        assert row is not None
+        assert int(row["offset"]) == 100
+
+    def test_multi_consumer_legacy_directory(self, tmp_path: Path, client: TestClient) -> None:
+        """Migrate a synthetic multi-consumer legacy directory."""
+        from eventbus.db import migrate_legacy_offsets, insert_event  # noqa: PLC0415
+
+        db = client.app.state.db
+        cfg = client.app.state.config
+
+        # Create synthetic legacy directory structure
+        offsets_dir = Path(cfg.offsets_dir)
+        offsets_dir.mkdir(parents=True, exist_ok=True)
+
+        # Consumer A: has .map companion
+        map_a = offsets_dir / "consumer_A.map"
+        map_a.write_text("original_consumer_A")
+        offset_a = offsets_dir / "consumer_A"
+        offset_a.write_text("50")
+
+        # Consumer B: has .map companion
+        map_b = offsets_dir / "consumer_B.map"
+        map_b.write_text("original_consumer_B")
+        offset_b = offsets_dir / "consumer_B"
+        offset_b.write_text("75")
+
+        # Migrate
+        migrated = migrate_legacy_offsets(db, offsets_dir)
+        assert len(migrated) == 2
+        assert "original_consumer_A" in migrated
+        assert "original_consumer_B" in migrated
+
+        # Verify both offsets were migrated
+        row_a = db.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("original_consumer_A",),
+        ).fetchone()
+        assert row_a is not None
+        assert int(row_a["offset"]) == 50
+
+        row_b = db.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("original_consumer_B",),
+        ).fetchone()
+        assert row_b is not None
+        assert int(row_b["offset"]) == 75
+
+    def test_no_map_companion_fallback(self, tmp_path: Path, client: TestClient) -> None:
+        """A legacy file with no .map companion uses sanitized filename as consumer_id."""
+        from eventbus.db import migrate_legacy_offsets, insert_event  # noqa: PLC0415
+
+        db = client.app.state.db
+        cfg = client.app.state.config
+
+        # Create synthetic legacy directory structure without .map companion
+        offsets_dir = Path(cfg.offsets_dir)
+        offsets_dir.mkdir(parents=True, exist_ok=True)
+
+        # Offset file without .map companion
+        offset_file = offsets_dir / "bad_consumer_id..path"
+        offset_file.write_text("25")
+
+        # Migrate — should fall back to sanitized filename
+        migrated = migrate_legacy_offsets(db, offsets_dir)
+        assert len(migrated) == 1
+        # Sanitized filename: ".." → "_", "." → "_" → "bad_consumer_id__path"
+        assert "bad_consumer_id__path" in migrated
+
+        # Verify offset was migrated under sanitized name
+        row = db.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("bad_consumer_id__path",),
+        ).fetchone()
+        assert row is not None
+        assert int(row["offset"]) == 25
