@@ -937,3 +937,74 @@ class TestCreateSchemaWrapper:
         ):
             cs.create_schema()
         assert calls == ["rag", "session", "workflow", "eventbus"]
+
+
+class TestEventBusTablesExist:
+    """Verify consumer_delivery and consumer_offsets tables exist after schema creation."""
+
+    def test_consumer_delivery_table_exists(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "eventbus_td.sqlite"
+        with patch(
+            "db.create_schema.build_eventbus_schema_sql",
+            return_value=_EVENTBUS_SCHEMA_NO_VEC0,
+        ):
+            cs.create_eventbus_schema()
+        conn = sqlite3.connect(str(db_file))
+        try:
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='consumer_delivery'"
+            )
+            rows = cursor.fetchall()
+            assert len(rows) == 1, "consumer_delivery table should exist"
+        finally:
+            conn.close()
+
+    def test_consumer_offsets_table_exists(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "eventbus_co.sqlite"
+        with patch(
+            "db.create_schema.build_eventbus_schema_sql",
+            return_value=_EVENTBUS_SCHEMA_NO_VEC0,
+        ):
+            cs.create_eventbus_schema()
+        conn = sqlite3.connect(str(db_file))
+        try:
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='consumer_offsets'"
+            )
+            rows = cursor.fetchall()
+            assert len(rows) == 1, "consumer_offsets table should exist"
+        finally:
+            conn.close()
+
+    def test_consumer_delivery_columns(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "eventbus_cd_cols.sqlite"
+        with patch(
+            "db.create_schema.build_eventbus_schema_sql",
+            return_value=_EVENTBUS_SCHEMA_NO_VEC0,
+        ):
+            cs.create_eventbus_schema()
+        conn = sqlite3.connect(str(db_file))
+        try:
+            cursor = conn.execute("PRAGMA table_info(consumer_delivery)")
+            cols = {row[1]: row[2] for row in cursor.fetchall()}
+            assert "consumer_id" in cols, "consumer_delivery should have consumer_id column"
+            assert "event_id" in cols, "consumer_delivery should have event_id column"
+            assert "acked_at" in cols, "consumer_delivery should have acked_at column"
+        finally:
+            conn.close()
+
+    def test_consumer_offsets_columns(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "eventbus_co_cols.sqlite"
+        with patch(
+            "db.create_schema.build_eventbus_schema_sql",
+            return_value=_EVENTBUS_SCHEMA_NO_VEC0,
+        ):
+            cs.create_eventbus_schema()
+        conn = sqlite3.connect(str(db_file))
+        try:
+            cursor = conn.execute("PRAGMA table_info(consumer_offsets)")
+            cols = {row[1]: row[2] for row in cursor.fetchall()}
+            assert "consumer_id" in cols, "consumer_offsets should have consumer_id column"
+            assert "offset" in cols, "consumer_offsets should have offset column"
+        finally:
+            conn.close()
