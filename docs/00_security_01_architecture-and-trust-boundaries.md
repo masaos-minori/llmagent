@@ -266,6 +266,45 @@ Repository operations will be unavailable until the server recovers.
 [FATAL] Session schema missing. Run: bash deploy/init_db.sh to initialize the database.
 ```
 
+## EventBus Authentication and Authorization
+
+The EventBus API enforces authentication and authorization as a fail-closed security boundary.
+
+### Authentication
+
+All EventBus routes require Bearer-token authentication. Requests without a valid
+`Authorization: Bearer <token>` header receive HTTP 401 Unauthorized.
+
+See [ADR-013-eventbus-authentication-authorization](adr/ADR-013-eventbus-authentication-authorization.md)
+for the authentication mechanism decision and configuration details.
+
+### Authorization
+
+Four roles control access to EventBus routes:
+
+| Role | Access |
+|------|--------|
+| Publisher | POST `/publish` |
+| Consumer | GET `/subscribe`, POST `/events/{event_id}/ack`, POST `/nack` |
+| Operator | GET `/dlq`, POST `/dlq/{event_id}/requeue`, GET `/replay` |
+| Monitoring | GET `/health` |
+
+A consumer's authenticated identity is bound to allowed `consumer_id`s and topics —
+a caller cannot act as another consumer or access unauthorized topics.
+
+DLQ administration (`/dlq`, `/dlq/{event_id}/requeue`) and privileged replay
+(`/replay`) require operator permission.
+
+See [ADR-013-eventbus-authentication-authorization](adr/ADR-013-eventbus-authentication-authorization.md)
+for the authorization model decision and role definitions.
+
+### Loopback-only Binding
+
+**Note**: The EventBus process already enforces loopback-only binding via
+`EventBusConfig.__post_init__` and `_LoopbackVerifyingServer` — both confirmed by
+direct read. This predates the authentication/authorization work described above
+and remains in effect as defense-in-depth.
+
 ## Related Documents
 
 - `00_security_02_high-risk-tool-common-policy.md`

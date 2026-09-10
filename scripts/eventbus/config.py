@@ -40,6 +40,7 @@ class EventBusConfig:
     deadletter_dir: str
     max_retry: int
     host: str = "127.0.0.1"
+    auth_token: str = ""
 
     def __post_init__(self) -> None:
         """Validate configuration values after initialization."""
@@ -52,9 +53,30 @@ class EventBusConfig:
                 f"Event Bus bound to non-loopback address {self.host}. "
                 "The API has no authentication — this is a security risk."
             )
+        if not self.auth_token:
+            raise ValueError("auth_token is required but not configured")
 
+_KNOWN_CONFIG_KEYS = frozenset((
+    "port",
+    "db_path",
+    "storage_dir",
+    "offsets_dir",
+    "deadletter_dir",
+    "max_retry",
+    "host",
+    "auth_token",
+))
 
-_REMOVED_CONFIG_KEYS = ("poll_interval_ms", "offset_checkpoint_interval")
+_CONFIG_KEY_TYPES: dict[str, type] = {
+    "port": int,
+    "db_path": str,
+    "storage_dir": str,
+    "offsets_dir": str,
+    "deadletter_dir": str,
+    "max_retry": int,
+    "host": str,
+    "auth_token": str,
+}
 
 
 def load_config(path: Path | None = None) -> EventBusConfig:
@@ -62,13 +84,35 @@ def load_config(path: Path | None = None) -> EventBusConfig:
     p = path or _DEFAULT_CONFIG_PATH
     with p.open("rb") as f:
         data = tomllib.load(f)
-    stale_keys = [k for k in _REMOVED_CONFIG_KEYS if k in data]
-    if stale_keys:
+
+    # Reject unknown keys
+    unknown_keys = set(data.keys()) - _KNOWN_CONFIG_KEYS
+    if unknown_keys:
         raise ValueError(
-            f"eventbus config contains removed key(s): {', '.join(stale_keys)}. "
-            "These fields were deprecated no-ops and have been removed; "
-            f"delete them from {p}."
+            f"eventbus config contains unknown key(s): {', '.join(sorted(unknown_keys))}. "
+            f"Known keys are: {', '.join(sorted(_KNOWN_CONFIG_KEYS))}."
         )
+
+    # Validate required keys exist
+    missing_keys = _KNOWN_CONFIG_KEYS - set(data.keys())
+    if missing_keys:
+        raise ValueError(
+            f"eventbus config missing required key(s): {', '.join(sorted(missing_keys))}."
+        )
+
+    # Validate types
+    for key, expected_type in _CONFIG_KEY_TYPES.items():
+        value = data[key]
+        if not isinstance(value, expected_type):
+            raise ValueError(
+                f"eventbus config key '{key}' has type {type(value).__name__}, "
+                f"expected {expected_type.__name__}."
+            )
+
+    # Validate auth_token is non-empty
+    if not data["auth_token"]:
+        raise ValueError("eventbus config 'auth_token' must not be empty.")
+
     return EventBusConfig(
         port=data["port"],
         db_path=data["db_path"],
@@ -77,4 +121,5 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         deadletter_dir=data["deadletter_dir"],
         max_retry=data["max_retry"],
         host=data.get("host", "127.0.0.1"),
+        auth_token=data["auth_token"],
     )

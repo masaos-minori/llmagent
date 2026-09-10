@@ -54,6 +54,7 @@ def test_valid_config_with_host_field() -> None:
         offsets_dir="/tmp/offsets",
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
+        auth_token="test-token",
     )
     assert cfg.port == 8015
     assert cfg.host == "127.0.0.1"
@@ -68,9 +69,10 @@ def test_load_config_rejects_stray_poll_interval_ms(tmp_path: Path) -> None:
         'offsets_dir = "/tmp/offsets"\n'
         'deadletter_dir = "/tmp/deadletter"\n'
         "max_retry = 3\n"
+        'auth_token = "test-token"\n'
         "poll_interval_ms = 1000\n"
     )
-    with pytest.raises(ValueError, match="poll_interval_ms"):
+    with pytest.raises(ValueError, match="unknown key"):
         load_config(toml_path)
 
 
@@ -83,9 +85,10 @@ def test_load_config_rejects_stray_offset_checkpoint_interval(tmp_path: Path) ->
         'offsets_dir = "/tmp/offsets"\n'
         'deadletter_dir = "/tmp/deadletter"\n'
         "max_retry = 3\n"
+        'auth_token = "test-token"\n'
         "offset_checkpoint_interval = 30\n"
     )
-    with pytest.raises(ValueError, match="offset_checkpoint_interval"):
+    with pytest.raises(ValueError, match="unknown key"):
         load_config(toml_path)
 
 
@@ -98,6 +101,7 @@ def test_load_config_rejects_both_stray_keys(tmp_path: Path) -> None:
         'offsets_dir = "/tmp/offsets"\n'
         'deadletter_dir = "/tmp/deadletter"\n'
         "max_retry = 3\n"
+        'auth_token = "test-token"\n'
         "poll_interval_ms = 1000\n"
         "offset_checkpoint_interval = 30\n"
     )
@@ -116,9 +120,12 @@ def test_load_config_succeeds_without_stray_keys(tmp_path: Path) -> None:
         'offsets_dir = "/tmp/offsets"\n'
         'deadletter_dir = "/tmp/deadletter"\n'
         "max_retry = 3\n"
+        'host = "127.0.0.1"\n'
+        'auth_token = "test-token"\n'
     )
     cfg = load_config(toml_path)
     assert cfg.port == 8015
+    assert cfg.auth_token == "test-token"
 
 
 def test_load_config_call_sites_pass_get_config_path() -> None:
@@ -153,3 +160,77 @@ def test_load_config_call_sites_pass_get_config_path() -> None:
         idx = i
 
     assert count >= 2, f"Expected at least 2 load_config() calls, found {count}"
+
+def test_non_loopback_host_raises_value_error() -> None:
+    """REQ-007: Regression test confirming EventBusConfig rejects non-loopback hosts."""
+    # IPv4 non-loopback
+    with pytest.raises(ValueError, match="non-loopback"):
+        EventBusConfig(
+            port=8015,
+            db_path="/tmp/test.db",
+            storage_dir="/tmp/storage",
+            offsets_dir="/tmp/offsets",
+            deadletter_dir="/tmp/deadletter",
+            max_retry=3,
+            host="0.0.0.0",
+        )
+
+    # IPv6 non-loopback
+    with pytest.raises(ValueError, match="non-loopback"):
+        EventBusConfig(
+            port=8015,
+            db_path="/tmp/test.db",
+            storage_dir="/tmp/storage",
+            offsets_dir="/tmp/offsets",
+            deadletter_dir="/tmp/deadletter",
+            max_retry=3,
+            host="::ffff:192.168.1.1",
+        )
+
+def test_load_config_rejects_unknown_key(tmp_path: Path) -> None:
+    """REQ-005: load_config() raises ValueError for unknown TOML keys."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+auth_token = "test-token"
+unknown_key = "should-be-rejected"
+""")
+    with pytest.raises(ValueError, match="unknown key"):
+        load_config(config_file)
+
+def test_load_config_rejects_wrong_type(tmp_path: Path) -> None:
+    """REQ-005: load_config() raises ValueError for wrong-type keys."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = "not-an-int"
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-token"
+""")
+    with pytest.raises(ValueError, match="type"):
+        load_config(config_file)
+
+def test_load_config_rejects_empty_auth_token(tmp_path: Path) -> None:
+    """REQ-005: load_config() raises ValueError for empty auth_token."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = ""
+""")
+    with pytest.raises(ValueError, match="auth_token"):
+        load_config(config_file)

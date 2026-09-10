@@ -2,10 +2,11 @@
 """scripts/eventbus/dlq_route.py — Dead Letter Queue endpoint handlers."""
 
 import logging
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import HTTPException, Query, Request
+from fastapi import Depends, HTTPException, Query, Request
 
+from eventbus.auth import require_role, Role  # noqa: PLC0415 — new module, REQ-004
 from eventbus.db import count_dlq, fetch_dlq, requeue_event
 from eventbus.route_helpers import (
     ERR_EVENT_NOT_FOUND,
@@ -22,6 +23,7 @@ async def dlq_list(
     request: Request,
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    _operator: Annotated[None, Depends(require_role(Role.OPERATOR))] = None,  # noqa: ANN001,ANN202 — FastAPI dependency protocol
 ) -> dict[str, Any]:
     """List dead-letter queue entries with pagination support."""
     db = get_db(request)
@@ -46,7 +48,11 @@ async def dlq_list(
     }
 
 
-async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
+async def dlq_requeue(
+    request: Request,
+    event_id: str,
+    _operator: Annotated[None, Depends(require_role(Role.OPERATOR))] = None,  # noqa: ANN001,ANN202 — FastAPI dependency protocol
+) -> dict[str, Any]:
     """Requeue a dead-letter queue entry back into the active event queue."""
     db = get_db(request)
     cfg = get_config(request)
