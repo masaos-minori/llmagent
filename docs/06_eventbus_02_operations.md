@@ -70,7 +70,7 @@ A hybrid model combining replay and push, streaming events to the caller.
 
 **Phase 2 — Live Push**: After replay completion, the process subscribes to the internal `EventBroker` and streams new events published via `POST /publish` to the SSE stream in real-time.
 
-**Queue Overflow**: If the consumer is slow and the queue becomes full, the event is discarded (only a WARNING is logged). Use `since_seq`/`GET /replay` for recovery.
+**Queue Overflow**: If the consumer is slow and the subscriber's queue becomes full, the subscription is disconnected (SSE stream ends) instead of silently dropping the event. The client can reconnect using `since_seq`/`GET /replay` to resume from its last acknowledged position.
 
 **Reconnection**: Specifying a `consumer_id` allows resuming from the last acknowledged offset. Offsets are not saved upon disconnection, so events that were not acknowledged before disconnecting will be re-delivered upon reconnection.
 
@@ -91,6 +91,12 @@ Rule: An explicit `since_seq=0` and an omitted `since_seq` (defaults to 0 via `Q
 ### Handling Unknown/Mismatched Consumers
 
 There is no consumer/event ownership column in `schema.sql`. `consumer_id` is accepted as any string and only used for `write_offset`/`read_offset`. Both `/subscribe` and `/events/{event_id}/ack` accept arbitrary strings without validation against an event ownership registry. Following implementation instructions #1/#3, this is documented as "untracked/unimplemented (by design)" rather than being silently omitted.
+
+### Duplicate Consumer Connection Rejection
+
+When a non-empty `consumer_id` is specified, only one active connection is allowed per consumer ID. A second concurrent attempt to connect with the same `consumer_id` receives HTTP 409 (Conflict) with a response body containing the message `"duplicate consumer_id: X"` where `X` is the rejected consumer ID.
+
+This policy implements ADR-006 INV-10 ("同一Consumer IDの並行使用を禁止する") and INV-11 ("Consumer ID衝突を検出する"), rejecting Alternative C ("no consumer ID conflict detection"). Anonymous connections (empty `consumer_id`) are exempt from this restriction.
 
 ---
 
@@ -185,7 +191,7 @@ Promotion follows the same procedure as inline processing (atomic write to JSON 
 | Unknown `event_id` during requeue | 404 |
 | Event exists but is not in DLQ during requeue | 409 Conflict |
 | Duplicate `event_id` during `publish` (Idempotency skip) | 200 returned (existing `seq`), broker notification skipped |
-| Subscriber queue full | Event is silently discarded, WARNING log output |
+| Subscriber queue full | Subscription disconnected (SSE stream ends), WARNING log output |
 
 ## Related Documents
 
