@@ -2,14 +2,15 @@
 """scripts/eventbus/ack_route.py — Ack/Nack endpoint handlers."""
 
 import logging
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import HTTPException, Query, Request
+from fastapi import Depends, HTTPException, Query, Request
 
+from eventbus.auth import require_consumer_identity  # noqa: PLC0415 — new module, REQ-003
 from eventbus.db import ack_event as _ack_event
 from eventbus.db import nack_event as _nack_event
 from eventbus.json_utils import now_iso
-from eventbus.offsets import write_offset
+# write_offset removed — replaced by ack_event_for_consumer() transactional path
 from eventbus.route_helpers import (
     ERR_EVENT_ID_REQUIRED,
     ERR_EVENT_NOT_FOUND,
@@ -32,17 +33,13 @@ async def _do_ack(
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 
     def _ack_and_offset() -> tuple[bool, bool, int | None]:
-        """Acknowledge an event and write consumer offset if newly acked."""
+        """Acknowledge an event atomically (delivery + offset in one transaction)."""
+        from eventbus.db import ack_event_for_consumer  # noqa: PLC0415
+
         now = now_iso()
-        found, newly_acked = _ack_event(db, event_id, now)
-        seq: int | None = None
-        if consumer_id and newly_acked:
-            row = db.execute(
-                "SELECT seq FROM events WHERE event_id = ?", (event_id,)
-            ).fetchone()
-            if row:
-                seq = int(row["seq"])
-                write_offset(cfg.offsets_dir, consumer_id, seq)
+        found, newly_acked, seq = ack_event_for_consumer(
+            db, event_id, consumer_id, now
+        )
         return (found, newly_acked, seq)
 
     found, newly_acked, seq = await run_with_db_lock(_ack_and_offset)
@@ -62,6 +59,7 @@ async def ack_event(
     request: Request,
     event_id: str,
     consumer_id: str = Query(default=""),
+    _identity: Annotated[dict, Depends(require_consumer_identity)] = {},  # noqa: ANN001,ANN202 — FastAPI dependency protocol
 ) -> dict[str, Any]:
     """Acknowledge an event as successfully processed by a consumer."""
     db = get_db(request)
@@ -72,6 +70,7 @@ async def ack_event(
 async def nack(
     request: Request,
     event_id: str = Query(default=""),
+    _identity: Annotated[dict, Depends(require_consumer_identity)] = {},  # noqa: ANN001,ANN202 — FastAPI dependency protocol
 ) -> dict[str, Any]:
     """Negatively acknowledge an event, triggering retry logic."""
     if not event_id:
