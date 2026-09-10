@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
+import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -23,7 +24,7 @@ from eventbus.config import (
     get_schema_path,
     load_config,
 )
-from eventbus.db import open_db
+from eventbus.db import migrate_legacy_offsets, open_db
 from eventbus.dlq import sweep_orphans
 from eventbus.dlq_route import (
     dlq_list as dlq_list_route,
@@ -44,6 +45,7 @@ from eventbus.route_helpers import (
     run_with_db_lock,
 )
 from eventbus.subscribe_route import subscribe as subscribe_route
+from eventbus.auth import attach_auth_middleware  # noqa: PLC0415 — new module, REQ-002
 
 logger = logging.getLogger(__name__)
 
@@ -57,13 +59,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown."""
     app.state.config = load_config(get_config_path())
     app.state.db = open_db(app.state.config.db_path)
+    # Migrate legacy offset files into the new consumer_offsets table (idempotent)
+    try:
+        migrate_legacy_offsets(app.state.db, app.state.config.offsets_dir)
+    except Exception:
+        logger.exception("failed to migrate legacy offsets")
     app.state.envelope_schema = orjson.loads(get_schema_path().read_bytes())
     Path(app.state.config.storage_dir).mkdir(parents=True, exist_ok=True)
     app.state.broker = EventBroker()
     app.state.dlq_task = asyncio.create_task(_dlq_loop(app))
     if _is_public_host(app.state.config.host):
         logger.warning(
-            "eventbus bound to public address %s:%d without authentication",
+            "eventbus bound to public address %s:%d without loopback-only protection",
             app.state.config.host,
             app.state.config.port,
         )
@@ -71,6 +78,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         logger.info(
             "eventbus starting on %s:%d", app.state.config.host, app.state.config.port
         )
+    
+    # Register authentication middleware after config is loaded
+    try:
+        attach_auth_middleware(app, app.state.config.auth_token)
+    except ValueError:
+        logger.error("auth_token not configured in config/eventbus.toml")
+        sys.exit(1)
     yield
     if app.state.dlq_task:
         app.state.dlq_task.cancel()
