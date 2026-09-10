@@ -21,12 +21,13 @@ To document the processing flow for LLM invocation and the tool loop. This inclu
 
 ### Role and Design of ToolLoopGuard
 
-Within the tool loop, an LLM may potentially call the same tool infinitely. To prevent this, `ToolLoopGuard` sequentially executes four guards:
+Within the tool loop, an LLM may potentially call the same tool infinitely. To prevent this, `ToolLoopGuard` sequentially executes five guards:
 
 1. **Cycle Detection** — If the same set of tool calls is repeated within the last $N$ rounds.
 2. **Deduplication** — If the same `(name, args)` is detected more than a certain number of times.
 3. **Retry Suppression** — If a failed tool call is invoked again with the same arguments.
 4. **Consecutive Errors** — If all tools in a round fail consecutively for a certain number of rounds.
+5. **Empty Result Repeat** — If the same tool returns empty results repeatedly within a single turn.
 
 If any guard is triggered, subsequent checks are skipped and the loop terminates. After a guard is triggered, a fallback attempt is made to generate a final answer without calling any further tools.
 
@@ -71,6 +72,7 @@ Upon each guard trigger, a hint is saved to `session_diagnostics` with `kind='gu
 | cycle | "A cyclic planning pattern was detected: the same set of tool calls is being requested repeatedly across multiple rounds." |
 | dedup | "The same tool was called with identical arguments multiple times." |
 | retry | "A tool call that previously failed is being retried with the same arguments." |
+| empty_result_repeat | "A tool returned empty results repeatedly within a single turn." |
 
 These hints are stored exclusively for offline diagnostics and are NOT injected into `ctx.conv.history`. They are distinct from the short messages displayed to the user at the end of the loop.
 
@@ -95,11 +97,13 @@ Messages constructed by the LLM client's streaming aggregation logic consist onl
 
 - The final answer fallback after a guard trigger uses a temporary system message to prompt the LLM to respond without tools.
 - Incomplete outputs can be checked via the `/stats` command but cannot be accessed via normal conversation history.
+- Empty result repeat detection requires `tool_empty_result_max_repeats > 0` to be enabled.
 
 ## Known Limitations
 
 - Cycle detection is fingerprint-based, so tool calls that are functionally equivalent but have different orderings might not be detected as the same pattern.
 - Retry suppression is only effective if `tool_error_retry_max > 0`.
+- Empty result repeat detection is only effective if `tool_empty_result_max_repeats > 0`.
 
 ## Related Docs
 
