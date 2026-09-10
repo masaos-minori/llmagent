@@ -57,9 +57,15 @@ At-least-once. Duplicate publishing is suppressed by the `event_id` UNIQUE const
 
 **IMPORTANT:** Consumers MUST implement idempotent processing. Since multiple deliveries of the same event can occur, duplicate ACKs or duplicate processing for the same `event_id` must be safe.
 
+**Overflow guarantee:** When a subscriber's queue overflows, the subscription is disconnected rather than silently continuing. This prevents permanent event loss — the client can reconnect and resume from its last committed offset.
+
+## Overflow Disconnection
+
+When a subscriber's queue becomes full, the subscription is disconnected (SSE stream ends) instead of silently dropping the event. The client can reconnect using `since_seq`/`GET /replay` to resume from its last acknowledged position. This ensures that slow consumers never create undetected permanent gaps — the server terminates the affected subscription so the client can recover via reconnection.
+
 ## Consumer ID Collision Risk
 
-If different clients use the same `consumer_id`, the last write wins and the offset is overwritten. This is an intentional design choice but can lead to offset inconsistencies due to collisions.
+With the one-connection-per-`consumer_id` policy, the collision scenario described above no longer applies. A second client attempting to connect with the same non-empty `consumer_id` receives HTTP 409 (Conflict), preventing concurrent connections and eliminating the "last write wins" offset overwrite risk. Anonymous connections (empty `consumer_id`) are exempt from this restriction.
 
 ## Reliability Limits
 
