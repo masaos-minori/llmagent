@@ -29,20 +29,7 @@ source:
 
 `DocumentManager` manages the lifecycle of documents for `RagIngester`. It handles detection of existing documents, updating ETags, and post-ingestion consistency reporting. It was extracted from `RagIngester` to reduce class size and separate concerns.
 
-**Module-level Functions**
-
-| Function | Signature | Description |
-|---|---|---|
-| `delete_document_chain` | `(db: SQLiteHelper, doc_id: int) -> None` | Deletes in order: `chunks_vec` $\rightarrow$ `chunks` $\rightarrow$ `documents`. `chunks_vec` must be deleted first as it lacks an FK constraint to `chunks`. |
-
-**Class: `DocumentManager`**
-
-| Method | Signature | Description |
-|---|---|---|
-| `__init__` | `(db: SQLiteHelper) -> None` | Holds a reference to the DB connection |
-| `handle_existing_document` | `(url: str, existing_doc_id: int, force: bool, etag\|None, last_modified\|None, fetched_at: str, is_file_url: Callable[[str], bool]) -> bool` | Processes an existing document; returns `True` if the caller should skip insertion. If `force=False` $\rightarrow$ updates ETag via ETagManager; if `file://` URL and SHA-256 hasn't changed $\rightarrow$ skips; if `force=True` $\rightarrow$ deletes the document chain and returns `False` to allow re-insertion. `fetched_at` is a required, non-optional `str` parameter in both this method and `ETagManager.update()`; an empty `fetched_at` reaching `ETagManager.update()` raises `ValueError` — see [03_rag_02_06_ingestion_pipeline-supporting-components.md](03_rag_02_06_ingestion_pipeline-supporting-components.md). |
-| `delete_existing_document` | `(doc_id: int) -> None` | Deletes the document and its chunks; `chunks_vec` is deleted first because it lacks an FK constraint to `chunks`. |
-| `check_consistency` | `(embed_failed: int, on_ingest_complete: Callable[[], None]\|None = None) -> RagConsistencyReport \| None` | Executes post-ingestion consistency checks and callbacks; returns a report or `None` if the check fails (e.g., DB error during checking). If the consistency check completes successfully (even if the report contains issues), the `on_ingest_complete` callback is called. If the consistency check itself raises an exception, the callback is not called. |
+For exhaustive signature detail, see `scripts/rag/ingestion/document_manager.py`.
 
 
 
