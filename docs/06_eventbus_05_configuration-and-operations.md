@@ -92,7 +92,7 @@ above.
 EVENTBUS_CONFIG_PATH=/opt/llm/config/eventbus.toml python -m eventbus.app
 ```
 
-Or `uvicorn eventbus.app:app --host 127.0.0.1 --port 8010`.
+Or `uvicorn eventbus.app:app --host 127.0.0.1`.
 
 ---
 
