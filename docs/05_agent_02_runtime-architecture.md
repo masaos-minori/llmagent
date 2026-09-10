@@ -21,18 +21,11 @@ Describes the primary runtime components, their dependencies, and responsibility
 
 ### Component Dependencies
 
-``` text
-AgentREPL (agent/repl.py)          — REPL coordinator; input loop + output only
-   ├─ StartupOrchestrator (agent/startup.py) — startup sequence; created once in run()
-   ├─ AgentContext (agent/context.py) — per-session DI hub; shared mutable state
-   │    ├─ LLMClient            — SSE streaming, retry
-    │    ├─ ToolExecutor         — MCP routing
-   │    ├─ HistoryManager       — char counting, LLM compression
-   │    └─ ServerLifecycleRouter — HTTP subprocess lifecycle
-   ├─ CLIView (agent/cli_view.py)    — readline, progress display, multiline input
-   └─ Orchestrator (agent/orchestrator.py) — turn-level facade
-        └─ LLMTurnRunner             — SSE stream + inner tool-call loop
-```
+- **Component Responsibilities**: AgentREPL (UI loop, command dispatching, output display), StartupOrchestrator (startup sequence orchestration), Orchestrator (turn-level facade), AgentContext (per-session DI hub), LLMClient (SSE streaming, retry), ToolExecutor (MCP routing), HistoryManager (char counting, LLM compression), CLIView (readline, progress display), CommandRegistry (built-in command dispatch), LifecycleState (transport state enum), AgentSession (CRUD for sessions/messages), Memory Services (injection, ingestion, store, retriever).
+- **Owned State**: AgentREPL owns the input loop and UI state; AgentContext owns shared mutable state and component references; each service owns its own runtime state.
+- **Allowed Dependency Direction**: AgentREPL depends on StartupOrchestrator, AgentContext, CLIView, Orchestrator; Orchestrator depends on LLMTurnRunner; AgentContext depends on LLMClient, ToolExecutor, HistoryManager, ServerLifecycleRouter; no circular dependencies among services.
+- **Reason for Process Separation**: Decoupling StartupOrchestrator from AgentREPL allows complexity during startup to be separated from REPL's responsibility; decoupling Orchestrator from LLMTurnRunner separates turn-level coordination from LLM streaming and tool loop execution.
+- **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
 
 ### Responsibility Boundary Supplement
 
