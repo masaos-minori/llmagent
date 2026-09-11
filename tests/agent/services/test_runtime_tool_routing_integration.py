@@ -269,6 +269,7 @@ class TestDiscoveryToLlmVisibilityEndToEnd:
         resp = MagicMock()
         resp.status_code = 200
         resp.json.return_value = {
+            "schema_version": "1.0",
             "tools": [
                 {
                     "name": "visible_tool",
@@ -290,7 +291,7 @@ class TestDiscoveryToLlmVisibilityEndToEnd:
                     "resource_scope_kind": "",
                     "resource_scope_keys": [],
                 },
-            ]
+            ],
         }
         http.get = AsyncMock(return_value=resp)
         return http

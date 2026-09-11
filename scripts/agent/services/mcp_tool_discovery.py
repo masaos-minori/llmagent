@@ -8,8 +8,12 @@ validates each entry's shape (richer than `repl_health.py`'s existing
 name-only check), normalizes valid entries into `shared.runtime_tool.RuntimeTool`
 instances via `build_runtime_tool()`, detects cross-server duplicate tool
 names, validates live tool lists against the static `ToolRegistry` for drift,
-absorbs `_check_tool_definitions` startup validation, and reads optional
-`schema_version`/`capabilities` keys on the response body and per-tool entries.
+absorbs `_check_tool_definitions` startup validation, and reads
+`schema_version`/`capabilities` keys on the response body and per-tool
+entries. A response body missing `schema_version`, or declaring one other
+than `mcp_servers.server.MCP_TOOL_SCHEMA_VERSION`, is rejected outright (all
+of that server's tools excluded, one WARNING/FATAL finding) — the server and
+this discovery client must speak the same tool-schema version.
 Returns a built `shared.runtime_tool_registry.RuntimeToolRegistry` plus a list
 of findings the startup pipeline can report.
 
@@ -42,6 +46,7 @@ from logging import getLogger
 from typing import TYPE_CHECKING
 
 import httpx
+from mcp_servers.server import MCP_TOOL_SCHEMA_VERSION
 from shared.mcp_config import (
     McpServerConfig,
     TransportType,
@@ -206,17 +211,30 @@ class McpToolDiscoveryService:
             )
 
         schema_version = body.get("schema_version")
-        if schema_version is not None:
-            logger.debug(
-                "mcp_tool_discovery: server_key=%s schema_version=%s",
-                key,
-                schema_version,
-            )
-        elif schema_version is None:
+        if schema_version is None:
             logger.warning(
                 "mcp_tool_discovery: server_key=%s missing schema_version in /v1/tools response",
                 key,
             )
+            return _warning_fetch_result(
+                f"{key}: /v1/tools response is missing schema_version "
+                f"(expected {MCP_TOOL_SCHEMA_VERSION!r})"
+            )
+        if schema_version != MCP_TOOL_SCHEMA_VERSION:
+            logger.warning(
+                "mcp_tool_discovery: server_key=%s unsupported schema_version=%s",
+                key,
+                schema_version,
+            )
+            return _warning_fetch_result(
+                f"{key}: /v1/tools response has unsupported schema_version "
+                f"{schema_version!r} (expected {MCP_TOOL_SCHEMA_VERSION!r})"
+            )
+        logger.debug(
+            "mcp_tool_discovery: server_key=%s schema_version=%s",
+            key,
+            schema_version,
+        )
 
         tools = body.get("tools")
         if not isinstance(tools, list):

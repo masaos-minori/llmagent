@@ -236,11 +236,21 @@ class TestClassifyOperationType:
         for name in ("git_checkout", "git_pull", "git_push"):
             assert classify_risk(cfg, name, {"repo_path": "/tmp/repo"}) == "high"
 
-    def test_real_config_resolves_git_tools_to_high_risk(self) -> None:
+    def test_real_config_resolves_git_tools_to_high_risk(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """REQ-002: The shipped config/agent.toml resolves git_checkout/git_pull/git_push
         to HIGH through the actual risk-classification pipeline."""
         from agent.config_builders import build_agent_config
 
+        # config/agent.toml's [mcp.mcp_servers.git] resolves auth_token from
+        # MCP_GIT_AUTH_TOKEN, which tests/conftest.py deliberately defaults to
+        # "" for the standalone git MCP server config (many tests rely on that
+        # empty-token accept-all behavior) — but McpServerConfig itself
+        # requires a non-empty auth_token, so override it locally here rather
+        # than changing the shared conftest default.
+        monkeypatch.setenv("MCP_GIT_AUTH_TOKEN", "test-token")
+        monkeypatch.setenv("MCP_CICD_AUTH_TOKEN", "test-token")
         cfg = build_agent_config()
         for name in ("git_checkout", "git_pull", "git_push"):
             assert classify_risk(cfg, name, {"repo_path": "/tmp/repo"}) == "high"

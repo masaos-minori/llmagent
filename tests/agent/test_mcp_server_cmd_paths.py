@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from agent.config_builders import build_agent_config
 from shared.mcp_config import StartupMode
 
@@ -25,7 +26,18 @@ def _repo_relative_cmd_path(cmd: list[str]) -> Path:
 
 
 class TestSubprocessServerCmdPathsExist:
-    def test_every_subprocess_cmd_script_exists(self) -> None:
+    def test_every_subprocess_cmd_script_exists(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # config/agent.toml's [mcp.mcp_servers.git]/[cicd] resolve auth_token
+        # from the same MCP_GIT_AUTH_TOKEN/MCP_CICD_AUTH_TOKEN env vars that
+        # tests/conftest.py deliberately defaults to "" for the *standalone*
+        # git/cicd MCP server configs (many tests rely on that empty-token
+        # accept-all behavior) — but McpServerConfig itself requires a
+        # non-empty auth_token, so this test needs a real value of its own
+        # rather than changing the shared conftest default.
+        monkeypatch.setenv("MCP_GIT_AUTH_TOKEN", "test-token")
+        monkeypatch.setenv("MCP_CICD_AUTH_TOKEN", "test-token")
         cfg = build_agent_config()
         subprocess_servers = {
             key: server_cfg
@@ -48,7 +60,11 @@ class TestSubprocessServerCmdPathsExist:
 
 
 class TestSubprocessCmdNoSyncFlag:
-    def test_every_subprocess_cmd_has_no_sync(self) -> None:
+    def test_every_subprocess_cmd_has_no_sync(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("MCP_GIT_AUTH_TOKEN", "test-token")
+        monkeypatch.setenv("MCP_CICD_AUTH_TOKEN", "test-token")
         cfg = build_agent_config()
         subprocess_servers = {
             key: server_cfg

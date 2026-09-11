@@ -1038,6 +1038,7 @@ async def test_resource_scope_field_ignored_after_removal_synthetic() -> None:
         _resp(
             200,
             {
+                "schema_version": "1.0",
                 "tools": [
                     {
                         "name": "test_tool_ok",
@@ -1049,7 +1050,7 @@ async def test_resource_scope_field_ignored_after_removal_synthetic() -> None:
                         "resource_scope_kind": "",
                         "resource_scope_keys": [],
                     }
-                ]
+                ],
             },
         )
     )

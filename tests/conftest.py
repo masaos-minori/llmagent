@@ -24,6 +24,26 @@ os.environ.setdefault("MCP_GIT_AUTH_TOKEN", "")
 os.environ.setdefault("MCP_CICD_AUTH_TOKEN", "")
 os.environ.setdefault("MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN", "")
 
+# config/agent.toml's own [mcp.mcp_servers.*] table references the same
+# ${ENV:...} pattern for every subprocess-started server's auth_token,
+# resolved by build_agent_config() -> shared.mcp_config._build_single_server().
+# Unlike the standalone *_mcp_server.toml layer above, McpServerConfig
+# requires a non-empty auth_token (production-strict validation), so these
+# need a real (dummy) value rather than "". Tests that call
+# build_agent_config() against the real agent.toml (e.g.
+# tests/agent/test_mcp_server_cmd_paths.py) need all of these set.
+for _mcp_env_var in (
+    "MCP_SHELL_AUTH_TOKEN",
+    "MCP_WEB_SEARCH_AUTH_TOKEN",
+    "MCP_FILE_DELETE_AUTH_TOKEN",
+    "MCP_FILE_WRITE_AUTH_TOKEN",
+    "MCP_FILE_READ_AUTH_TOKEN",
+    "MCP_GITHUB_AUTH_TOKEN",
+    "MCP_RAG_PIPELINE_AUTH_TOKEN",
+    "MCP_MDQ_AUTH_TOKEN",
+):
+    os.environ.setdefault(_mcp_env_var, "test-token")
+
 
 @pytest.fixture(autouse=True)
 def _reset_tool_registry() -> Generator[None]:
