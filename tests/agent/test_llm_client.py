@@ -582,23 +582,16 @@ class TestLLMClientStream:
 
 class TestAgentConfigSseValidation:
     def _build(self, **overrides: object) -> None:
+        from unittest.mock import patch
+
         from agent.config_builders import build_agent_config
 
         base: dict = {
             "context_char_limit": 8000,
             "context_compress_turns": 4,
-            "tool_cache_ttl": 300,
-            "top_k_search": 20,
-            "top_k_rerank": 15,
-            "rag_top_k": 5,
             "llm_max_retries": 3,
             "llm_retry_base_delay": 1.0,
-            "rag_min_score": 0.0,
-            "max_chunks_per_doc": 2,
-            "two_stage_max_docs": 2,
-            "use_two_stage_fetch": False,
-            " serial_tool_calls": False,
-            "tool_definitions_strict": False,
+            "serial_tool_calls": False,
             "llm_temperature": 0.2,
             "llm_max_tokens": 1024,
             "use_refiner": False,
@@ -615,11 +608,18 @@ class TestAgentConfigSseValidation:
                 "dummy": {
                     "transport": "http",
                     "url": "http://localhost:8000",
+                    "auth_token": "test-token",
                 }
             },
             **overrides,
         }
-        build_agent_config(base)
+        # This test only cares about SSE field validation raising/not raising;
+        # ProductionConfigValidator's production-readiness checks are a
+        # different concern (bypassed here, same as tool_policy.py's tests).
+        with patch("agent.config_builders.ProductionConfigValidator") as mock_validator:
+            mock_validator.return_value.validate.return_value.errors = []
+            mock_validator.return_value.validate.return_value.warnings = []
+            build_agent_config(base)
 
     def test_negative_sse_heartbeat_timeout_raises(self) -> None:
         with pytest.raises(ValueError, match="sse_heartbeat_timeout"):

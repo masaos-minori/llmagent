@@ -14,29 +14,22 @@ from agent.tool_audit import audit_tool_exec, log_approval_decision, write_round
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_models import ApprovalOutcome
 
+from tests.agent._config_test_defaults import (
+    ALL_TOOL_NAMES,
+    STRICT_PRODUCTION_OVERRIDES,
+)
+
 
 def _make_cfg(**overrides: Any) -> AgentConfig:
     """Build a minimal AgentConfig with test-safe defaults."""
     base = build_agent_config(
         {
+            **STRICT_PRODUCTION_OVERRIDES,
+            "allowed_tools": ALL_TOOL_NAMES,
             "context_char_limit": 8000,
             "context_compress_turns": 4,
-            "tool_cache_ttl": 300,
-            "top_k_search": 20,
-            "top_k_rerank": 15,
-            "rag_top_k": 5,
-            "use_mqe": True,
-            "use_search": True,
-            "use_rrf": True,
-            "use_rerank": True,
             "llm_max_retries": 3,
             "llm_retry_base_delay": 1.0,
-            "rag_min_score": 0.0,
-            "max_chunks_per_doc": 2,
-            "use_two_stage_fetch": False,
-            "two_stage_max_docs": 2,
-            "   serial_tool_calls": False,
-            "tool_definitions_strict": False,
             "masked_fields": [],
             "plan_blocked_tools": [],
             "llm_temperature": 0.2,
@@ -52,7 +45,11 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             # to satisfy AgentConfig.__post_init__'s cross-field validation.
             "embed_url": "http://127.0.0.1:9999",
             "mcp_servers": {
-                "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
+                "_dummy": {
+                    "transport": "http",
+                    "url": "http://127.0.0.1:9999",
+                    "auth_token": "test-token",
+                }
             },
             **overrides,
         }

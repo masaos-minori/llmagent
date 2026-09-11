@@ -57,7 +57,6 @@ def _make_executor(
     http = MagicMock(spec=httpx.AsyncClient)
     return ToolExecutor(
         http,
-        cache_ttl=60.0,
         server_configs=configs or {"file_read": _http()},
         concurrency_limits=concurrency_limits,
     )

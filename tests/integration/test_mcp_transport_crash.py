@@ -189,7 +189,6 @@ async def test_d05_http_timeout_races_lifecycle_termination() -> None:
         async with httpx.AsyncClient() as http:
             executor = ToolExecutor(
                 http=http,
-                cache_ttl=0,
                 server_configs={"d05_server": cfg},
             )
             executor._resolver.resolve = lambda _: "d05_server"

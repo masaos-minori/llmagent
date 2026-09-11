@@ -6,6 +6,7 @@ Unit tests for tool_policy.py: risk classification, path/repo checks, pre-flight
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from agent.config_builders import build_agent_config
@@ -23,23 +24,19 @@ from shared.runtime_tool_registry import RuntimeTool, RuntimeToolRegistry
 
 
 def _cfg(**overrides: Any) -> AgentConfig:
+    """Build an AgentConfig for tool_policy.py unit tests.
+
+    This intentionally bypasses ProductionConfigValidator (patched below):
+    these tests construct deliberately empty/narrow allowed_tools,
+    tool_safety_tiers, and approval_risk_rules to exercise tool_policy.py's
+    own fallback logic, which is a different concern from whether the
+    resulting config would be accepted as production-ready.
+    """
     defaults: dict[str, Any] = {
         "context_char_limit": 8000,
         "context_compress_turns": 4,
-        "tool_cache_ttl": 300,
-        "top_k_search": 20,
-        "top_k_rerank": 15,
-        "rag_top_k": 5,
-        "use_mqe": True,
-        "use_search": True,
-        "use_rrf": True,
-        "use_rerank": True,
         "llm_max_retries": 3,
         "llm_retry_base_delay": 1.0,
-        "rag_min_score": 0.0,
-        "max_chunks_per_doc": 2,
-        "use_two_stage_fetch": False,
-        "two_stage_max_docs": 2,
         "serial_tool_calls": False,
         "tool_result_max_llm_chars": 4000,
         "masked_fields": [],
@@ -57,11 +54,18 @@ def _cfg(**overrides: Any) -> AgentConfig:
         # to satisfy AgentConfig.__post_init__'s cross-field validation.
         "embed_url": "http://127.0.0.1:9999",
         "mcp_servers": {
-            "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
+            "_dummy": {
+                "transport": "http",
+                "url": "http://127.0.0.1:9999",
+                "auth_token": "test-token",
+            }
         },
     }
     defaults.update(overrides)
-    return build_agent_config(defaults)
+    with patch("agent.config_builders.ProductionConfigValidator") as mock_validator:
+        mock_validator.return_value.validate.return_value.errors = []
+        mock_validator.return_value.validate.return_value.warnings = []
+        return build_agent_config(defaults)
 
 
 class TestClassifyOperationType:

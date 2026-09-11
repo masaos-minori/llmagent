@@ -188,7 +188,6 @@ class TestErrorInjectionChaos:
             async with httpx.AsyncClient() as http:
                 executor = ToolExecutor(
                     http=http,
-                    cache_ttl=0,
                     server_configs={"chaos_b1": cfg},
                 )
                 _pin_resolver(executor, "chaos_b1")
@@ -225,7 +224,6 @@ class TestErrorInjectionChaos:
             async with httpx.AsyncClient() as http:
                 executor = ToolExecutor(
                     http=http,
-                    cache_ttl=0,
                     server_configs={"chaos_b2": cfg},
                 )
                 _pin_resolver(executor, "chaos_b2")
@@ -266,7 +264,6 @@ class TestErrorInjectionChaos:
             async with httpx.AsyncClient() as http:
                 executor = ToolExecutor(
                     http=http,
-                    cache_ttl=0,
                     server_configs={"chaos_b3": cfg},
                 )
                 _pin_resolver(executor, "chaos_b3")
@@ -384,7 +381,6 @@ class TestNetworkChaos:
             async with httpx.AsyncClient() as http:
                 executor = ToolExecutor(
                     http=http,
-                    cache_ttl=0,
                     server_configs={"chaos_d1": cfg},
                 )
                 _pin_resolver(executor, "chaos_d1")
@@ -416,7 +412,6 @@ class TestNetworkChaos:
             async with httpx.AsyncClient() as http:
                 executor = ToolExecutor(
                     http=http,
-                    cache_ttl=0,
                     server_configs={"chaos_d2": cfg},
                 )
                 _pin_resolver(executor, "chaos_d2")
@@ -447,7 +442,6 @@ class TestNetworkChaos:
             async with httpx.AsyncClient() as http:
                 executor = ToolExecutor(
                     http=http,
-                    cache_ttl=0,
                     server_configs={"chaos_d3": cfg},
                 )
                 _pin_resolver(executor, "chaos_d3")

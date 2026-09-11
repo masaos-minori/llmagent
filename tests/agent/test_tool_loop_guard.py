@@ -4,7 +4,7 @@ Unit tests for agent/tool_loop_guard.py — ToolLoopGuard.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import orjson
 from agent.config_builders import build_agent_config
@@ -13,14 +13,18 @@ from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
 
 
 def _cfg(**overrides: dict) -> AgentConfig:
+    """Build an AgentConfig for tool_loop_guard.py unit tests.
+
+    This intentionally bypasses ProductionConfigValidator (patched below):
+    these tests construct a deliberately empty allowed_tools/tool_safety_tiers/
+    approval_risk_rules config, which is a different concern from whether the
+    resulting config would be accepted as production-ready.
+    """
     defaults: dict = {
         "context_char_limit": 8000,
         "context_compress_turns": 4,
-        "tool_cache_ttl": 300,
         "llm_max_retries": 3,
         "llm_retry_base_delay": 1.0,
-        "use_two_stage_fetch": False,
-        "two_stage_max_docs": 2,
         "serial_tool_calls": False,
         "tool_result_max_llm_chars": 4000,
         "masked_fields": [],
@@ -42,11 +46,18 @@ def _cfg(**overrides: dict) -> AgentConfig:
         # to satisfy AgentConfig.__post_init__'s cross-field validation.
         "embed_url": "http://127.0.0.1:9999",
         "mcp_servers": {
-            "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
+            "_dummy": {
+                "transport": "http",
+                "url": "http://127.0.0.1:9999",
+                "auth_token": "test-token",
+            }
         },
     }
     defaults.update(overrides)
-    return build_agent_config(defaults)
+    with patch("agent.config_builders.ProductionConfigValidator") as mock_validator:
+        mock_validator.return_value.validate.return_value.errors = []
+        mock_validator.return_value.validate.return_value.warnings = []
+        return build_agent_config(defaults)
 
 
 def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:

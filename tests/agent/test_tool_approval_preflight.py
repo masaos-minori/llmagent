@@ -25,6 +25,13 @@ from agent.tool_runner import execute_one_tool_call
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
 
+from tests.agent._config_test_defaults import (
+    ALL_APPROVAL_RISK_RULES,
+    ALL_TOOL_NAMES,
+    ALL_TOOL_SAFETY_TIERS,
+    STRICT_PRODUCTION_OVERRIDES,
+)
+
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
@@ -32,24 +39,12 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
     """Build a minimal AgentConfig with test-safe defaults."""
     base = build_agent_config(
         {
+            **STRICT_PRODUCTION_OVERRIDES,
+            "allowed_tools": ALL_TOOL_NAMES,
             "context_char_limit": 8000,
             "context_compress_turns": 4,
-            "tool_cache_ttl": 300,
-            "top_k_search": 20,
-            "top_k_rerank": 15,
-            "rag_top_k": 5,
-            "use_mqe": True,
-            "use_search": True,
-            "use_rrf": True,
-            "use_rerank": True,
             "llm_max_retries": 3,
             "llm_retry_base_delay": 1.0,
-            "rag_min_score": 0.0,
-            "max_chunks_per_doc": 2,
-            "use_two_stage_fetch": False,
-            "two_stage_max_docs": 2,
-            "  serial_tool_calls": False,
-            "tool_definitions_strict": False,
             "masked_fields": [],
             "plan_blocked_tools": [],
             "llm_temperature": 0.2,
@@ -65,35 +60,15 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             # to satisfy AgentConfig.__post_init__'s cross-field validation.
             "embed_url": "http://127.0.0.1:9999",
             "mcp_servers": {
-                "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
+                "_dummy": {
+                    "transport": "http",
+                    "url": "http://127.0.0.1:9999",
+                    "auth_token": "test-token",
+                }
             },
-            # Standard tier classification; mirrors config/agent.json defaults
-            "tool_safety_tiers": {
-                "list_directory": "READ_ONLY",
-                "read_text_file": "READ_ONLY",
-                "directory_tree": "READ_ONLY",
-                "search_files": "READ_ONLY",
-                "grep_files": "READ_ONLY",
-                "search_web": "READ_ONLY",
-                "github_search_repositories": "READ_ONLY",
-                "github_get_file_contents": "READ_ONLY",
-                "write_file": "WRITE_SAFE",
-                "edit_file": "WRITE_SAFE",
-                "create_directory": "WRITE_SAFE",
-                "move_file": "WRITE_SAFE",
-                "github_create_branch": "WRITE_SAFE",
-                "github_create_issue": "WRITE_SAFE",
-                "github_add_issue_comment": "WRITE_SAFE",
-                "delete_file": "WRITE_DANGEROUS",
-                "delete_directory": "WRITE_DANGEROUS",
-                "github_push_files": "WRITE_DANGEROUS",
-                "github_create_or_update_file": "WRITE_DANGEROUS",
-                "github_delete_file": "WRITE_DANGEROUS",
-                "github_merge_pull_request": "WRITE_DANGEROUS",
-                "github_create_pull_request": "WRITE_DANGEROUS",
-                "github_update_pull_request": "WRITE_DANGEROUS",
-                "shell_run": "ADMIN",
-            },
+            # Standard tier classification; mirrors config/agent.toml defaults
+            "tool_safety_tiers": ALL_TOOL_SAFETY_TIERS,
+            "approval_risk_rules": ALL_APPROVAL_RISK_RULES,
             **overrides,
         }
     )
@@ -740,7 +715,9 @@ def _pc(name: str, args: dict, call_id: str = "call_1") -> PreparedToolCall:
 class TestRunApprovalChecks:
     @pytest.mark.asyncio
     async def test_approved_calls_returned(self) -> None:
-        cfg = _make_cfg(approval_risk_rules={"list_directory": "none"})
+        cfg = _make_cfg(
+            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "list_directory": "none"}
+        )
         ctx = _make_ctx(cfg)
         prepared = [_pc("list_directory", {"path": "/tmp"})]
         approved, denied = await run_approval_checks(ctx, prepared)
@@ -749,7 +726,9 @@ class TestRunApprovalChecks:
 
     @pytest.mark.asyncio
     async def test_denied_calls_collected(self) -> None:
-        cfg = _make_cfg(approval_risk_rules={"write_file": "medium"})
+        cfg = _make_cfg(
+            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "medium"}
+        )
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = MagicMock()
         prepared = [_pc("write_file", {"path": "/tmp/f"})]
@@ -761,7 +740,7 @@ class TestRunApprovalChecks:
     @pytest.mark.asyncio
     async def test_plan_mode_blocks_configured_tools(self) -> None:
         cfg = _make_cfg(
-            approval_risk_rules={"write_file": "medium"},
+            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "medium"},
             plan_blocked_tools=["write_file"],
         )
         ctx = _make_ctx(cfg)
@@ -778,7 +757,7 @@ class TestRunApprovalChecks:
     @pytest.mark.asyncio
     async def test_plan_mode_does_not_block_unlisted_tools(self) -> None:
         cfg = _make_cfg(
-            approval_risk_rules={"list_directory": "none"},
+            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "list_directory": "none"},
             plan_blocked_tools=["write_file"],
         )
         ctx = _make_ctx(cfg)

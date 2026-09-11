@@ -46,21 +46,7 @@ def test_shell_config_failure_production_raises():
         ),
     ):
         with pytest.raises(RuntimeError, match="shell config"):
-            audit_security_defaults(ctx, production_mode=True)
-
-
-def test_shell_config_failure_local_warning():
-    from agent.services.security_audit import audit_security_defaults
-
-    ctx = _make_ctx()
-    with patch(
-        "agent.services.security_audit.load_shell_audit_config",
-        side_effect=RuntimeError(
-            "Security audit: failed to load shell config: disk fail"
-        ),
-    ):
-        warnings = audit_security_defaults(ctx, production_mode=False)
-    assert any("shell config" in w for w in warnings)
+            audit_security_defaults(ctx)
 
 
 # --- Git config load failure ---
@@ -81,25 +67,7 @@ def test_git_config_failure_production_raises():
                 ),
             ):
                 with pytest.raises(RuntimeError, match="git config"):
-                    audit_security_defaults(ctx, production_mode=True)
-
-
-def test_git_config_failure_local_warning():
-    from agent.services.security_audit import audit_security_defaults
-
-    ctx = _make_ctx()
-    with patch(
-        "agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK
-    ):
-        with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch(
-                "agent.services.security_audit.load_git_audit_config",
-                side_effect=RuntimeError(
-                    "Security audit: failed to load git config: not found"
-                ),
-            ):
-                warnings = audit_security_defaults(ctx, production_mode=False)
-    assert any("git config" in w for w in warnings)
+                    audit_security_defaults(ctx)
 
 
 # --- GitHub config load failure ---
@@ -124,29 +92,7 @@ def test_github_config_failure_production_raises():
                     ),
                 ):
                     with pytest.raises(RuntimeError, match="GitHub config"):
-                        audit_security_defaults(ctx, production_mode=True)
-
-
-def test_github_config_failure_local_warning():
-    from agent.services.security_audit import audit_security_defaults
-
-    ctx = _make_ctx()
-    with patch(
-        "agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK
-    ):
-        with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch(
-                "agent.services.security_audit.load_git_audit_config",
-                return_value=_GIT_OK,
-            ):
-                with patch(
-                    "agent.services.security_audit.load_github_audit_config",
-                    side_effect=RuntimeError(
-                        "Security audit: failed to load GitHub config: bad value"
-                    ),
-                ):
-                    warnings = audit_security_defaults(ctx, production_mode=False)
-    assert any("GitHub config" in w for w in warnings)
+                        audit_security_defaults(ctx)
 
 
 # --- CI/CD config load failure ---
@@ -175,33 +121,7 @@ def test_cicd_config_failure_production_raises():
                         ),
                     ):
                         with pytest.raises(RuntimeError, match="CI/CD config"):
-                            audit_security_defaults(ctx, production_mode=True)
-
-
-def test_cicd_config_failure_local_warning():
-    from agent.services.security_audit import audit_security_defaults
-
-    ctx = _make_ctx()
-    with patch(
-        "agent.services.security_audit.load_shell_audit_config", return_value=_SHELL_OK
-    ):
-        with patch("shutil.which", return_value="/usr/bin/firejail"):
-            with patch(
-                "agent.services.security_audit.load_git_audit_config",
-                return_value=_GIT_OK,
-            ):
-                with patch(
-                    "agent.services.security_audit.load_github_audit_config",
-                    return_value=_GITHUB_OK,
-                ):
-                    with patch(
-                        "agent.services.security_audit.load_cicd_audit_config",
-                        side_effect=RuntimeError(
-                            "Security audit: failed to load CI/CD config: io error"
-                        ),
-                    ):
-                        warnings = audit_security_defaults(ctx, production_mode=False)
-    assert any("CI/CD config" in w for w in warnings)
+                            audit_security_defaults(ctx)
 
 
 # --- lockdown=True does not suppress config load failures ---
@@ -216,7 +136,7 @@ def test_lockdown_does_not_suppress_production_failure():
         side_effect=RuntimeError("Security audit: failed to load shell config: fail"),
     ):
         with pytest.raises(RuntimeError, match="shell config"):
-            audit_security_defaults(ctx, production_mode=True)
+            audit_security_defaults(ctx)
 
 
 # --- Optional dependency not installed stays silent ---
@@ -238,5 +158,5 @@ def test_import_error_stays_silent():
                     "agent.services.security_audit.load_github_audit_config",
                     return_value=None,
                 ):
-                    warnings = audit_security_defaults(ctx, production_mode=True)
+                    warnings = audit_security_defaults(ctx)
     assert not any("GitHub config" in w for w in (warnings or []))

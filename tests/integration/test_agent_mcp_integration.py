@@ -33,7 +33,6 @@ def _make_http_executor(http: httpx.AsyncClient) -> ToolExecutor:
     )
     executor = ToolExecutor(
         http=http,
-        cache_ttl=0,
         server_configs={_HTTP_KEY: cfg},
     )
     executor._resolver.resolve = lambda _: _HTTP_KEY

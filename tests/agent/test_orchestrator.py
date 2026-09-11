@@ -75,6 +75,12 @@ def _make_ctx() -> MagicMock:
     llm_svc.stat_parse_errors = 0
     llm_svc.stat_heartbeat_timeouts = 0
     llm_svc.stat_reconnects = 0
+    llm_svc.stream = AsyncMock(
+        return_value=LLMResponse(
+            message=LLMMessage(role="assistant", content="ok"),
+            finish_reason="stop",
+        )
+    )
     ctx.services_required.llm = llm_svc
     ctx.services_required.audit_logger = None
     ctx.services_required.memory = None
@@ -123,7 +129,7 @@ def _make_orchestrator(
     )
     orch._diagnostic_store = MagicMock()
     ctx.diagnostics = orch._diagnostic_store  # keep ctx.diagnostics in sync with mock
-    orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store
+    orch._llm_executor._diagnostic_store = orch._diagnostic_store
     return orch
 
 
@@ -762,7 +768,7 @@ class TestHandleLlmTurnOptionalCallbacks:
         )
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
-        orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store
+        orch._llm_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(
             orch._llm_runner,
@@ -797,7 +803,7 @@ class TestHandleLlmTurnOptionalCallbacks:
         )
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
-        orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store
+        orch._llm_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(
             orch._llm_runner,
@@ -828,7 +834,7 @@ class TestHandleLlmTurnOptionalCallbacks:
         orch = Orchestrator(ctx, on_llm_wait_end=on_llm_wait_end)
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
-        orch._llm_turn_executor._diagnostic_store = orch._diagnostic_store
+        orch._llm_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("hello")

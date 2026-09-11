@@ -15,6 +15,14 @@ from agent.config_dataclasses import AgentConfig
 from agent.tool_policy import classify_risk as _classify_risk
 from agent.tool_result_formatter import build_preview as _build_preview
 
+from tests.agent._config_test_defaults import (
+    ALL_APPROVAL_RISK_RULES,
+    ALL_TOOL_NAMES,
+    ALL_TOOL_SAFETY_TIERS,
+    GIT_RISK_FLOOR,
+    STRICT_PRODUCTION_OVERRIDES,
+)
+
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
@@ -22,24 +30,12 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
     """Build a minimal AgentConfig with test-safe defaults."""
     base = build_agent_config(
         {
+            **STRICT_PRODUCTION_OVERRIDES,
+            "allowed_tools": ALL_TOOL_NAMES,
             "context_char_limit": 8000,
             "context_compress_turns": 4,
-            "tool_cache_ttl": 300,
-            "top_k_search": 20,
-            "top_k_rerank": 15,
-            "rag_top_k": 5,
-            "use_mqe": True,
-            "use_search": True,
-            "use_rrf": True,
-            "use_rerank": True,
             "llm_max_retries": 3,
             "llm_retry_base_delay": 1.0,
-            "rag_min_score": 0.0,
-            "max_chunks_per_doc": 2,
-            "use_two_stage_fetch": False,
-            "two_stage_max_docs": 2,
-            "   serial_tool_calls": False,
-            "tool_definitions_strict": False,
             "masked_fields": [],
             "plan_blocked_tools": [],
             "llm_temperature": 0.2,
@@ -55,35 +51,15 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             # to satisfy AgentConfig.__post_init__'s cross-field validation.
             "embed_url": "http://127.0.0.1:9999",
             "mcp_servers": {
-                "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
+                "_dummy": {
+                    "transport": "http",
+                    "url": "http://127.0.0.1:9999",
+                    "auth_token": "test-token",
+                }
             },
-            # Standard tier classification; mirrors config/agent.json defaults
-            "tool_safety_tiers": {
-                "list_directory": "READ_ONLY",
-                "read_text_file": "READ_ONLY",
-                "directory_tree": "READ_ONLY",
-                "search_files": "READ_ONLY",
-                "grep_files": "READ_ONLY",
-                "search_web": "READ_ONLY",
-                "github_search_repositories": "READ_ONLY",
-                "github_get_file_contents": "READ_ONLY",
-                "write_file": "WRITE_SAFE",
-                "edit_file": "WRITE_SAFE",
-                "create_directory": "WRITE_SAFE",
-                "move_file": "WRITE_SAFE",
-                "github_create_branch": "WRITE_SAFE",
-                "github_create_issue": "WRITE_SAFE",
-                "github_add_issue_comment": "WRITE_SAFE",
-                "delete_file": "WRITE_DANGEROUS",
-                "delete_directory": "WRITE_DANGEROUS",
-                "github_push_files": "WRITE_DANGEROUS",
-                "github_create_or_update_file": "WRITE_DANGEROUS",
-                "github_delete_file": "WRITE_DANGEROUS",
-                "github_merge_pull_request": "WRITE_DANGEROUS",
-                "github_create_pull_request": "WRITE_DANGEROUS",
-                "github_update_pull_request": "WRITE_DANGEROUS",
-                "shell_run": "ADMIN",
-            },
+            # Standard tier classification; mirrors config/agent.toml defaults
+            "tool_safety_tiers": ALL_TOOL_SAFETY_TIERS,
+            "approval_risk_rules": ALL_APPROVAL_RISK_RULES,
             **overrides,
         }
     )
@@ -221,18 +197,18 @@ class TestClassifyRisk:
         assert _classify_risk(cfg, "delete_file", {"path": "/etc/hosts"}) == "high"
 
     def test_custom_risk_rules_override_default(self) -> None:
-        cfg = _make_cfg(approval_risk_rules={"my_tool": "medium"})
+        cfg = _make_cfg(approval_risk_rules={**GIT_RISK_FLOOR, "my_tool": "medium"})
         assert _classify_risk(cfg, "my_tool", {}) == "medium"
 
     def test_empty_risk_rules_falls_back_to_tier(self) -> None:
         # With empty approval_risk_rules, tier classification kicks in.
         # delete_file tier=WRITE_DANGEROUS → "medium" (Fail-Safe, not "none")
-        cfg = _make_cfg(approval_risk_rules={})
+        cfg = _make_cfg(approval_risk_rules=dict(GIT_RISK_FLOOR))
         assert _classify_risk(cfg, "delete_file", {}) == "medium"
 
     def test_empty_risk_rules_read_only_still_none(self) -> None:
         # READ_ONLY tier tools remain "none" even with empty approval_risk_rules
-        cfg = _make_cfg(approval_risk_rules={})
+        cfg = _make_cfg(approval_risk_rules=dict(GIT_RISK_FLOOR))
         assert _classify_risk(cfg, "list_directory", {}) == "none"
 
     def test_file_path_arg_key_also_escalates(self) -> None:
