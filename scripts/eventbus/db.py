@@ -187,14 +187,28 @@ def ack_event(conn: sqlite3.Connection, event_id: str, now: str) -> tuple[bool, 
 def nack_event(conn: sqlite3.Connection, event_id: str) -> tuple[int, int]:
     """Increment delivery_failure_count and cycle_failure_count for an event.
 
-    Returns (delivery_failure_count, cycle_failure_count), or (-1, -1) if the event was not found.
+    Only increments if the event is in Normal/Delivered state (acked_at IS NULL
+    AND dlq_at IS NULL). Events that are already ACKed or DLQ'd cannot have their
+    failure counts incremented — attempting to do so would corrupt state.
+
+    Returns (delivery_failure_count, cycle_failure_count) on success, or:
+      - (-1, -1) if the event was not found
+      - (-2, -2) if the event is in an invalid state for NACK (already ACKed or DLQ'd)
     """
     cur = conn.execute(
-        "UPDATE events SET delivery_failure_count = delivery_failure_count + 1, cycle_failure_count = cycle_failure_count + 1 WHERE event_id = ?",
+        "UPDATE events SET delivery_failure_count = delivery_failure_count + 1, cycle_failure_count = cycle_failure_count + 1 WHERE event_id = ? AND acked_at IS NULL AND dlq_at IS NULL",
         (event_id,),
     )
     conn.commit()
     if cur.rowcount == 0:
+        # Check if event exists but is in invalid state vs truly not found
+        existing = conn.execute(
+            "SELECT acked_at, dlq_at FROM events WHERE event_id = ?",
+            (event_id,),
+        ).fetchone()
+        if existing:
+            # Event exists but is already ACKed or DLQ'd — invalid transition
+            return (-2, -2)
         return (-1, -1)
     row = conn.execute(
         "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
