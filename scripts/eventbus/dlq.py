@@ -44,51 +44,8 @@ def _build_dlq_record(row: sqlite3.Row, now: str) -> DlqEventRecord:
     )
 
 
-def promote_to_dlq(
-    db: sqlite3.Connection,
-    deadletter_dir: str,
-    max_retry: int,
-) -> int:
-    """Promote failed events to the dead-letter queue and write them to disk."""
-    now = now_iso()
-    rows = db.execute(
-        "SELECT seq, event_id, topic, payload, producer, published_at,"
-        " delivery_failure_count, cycle_failure_count"
-        " FROM events WHERE delivery_failure_count >= ? AND dlq_at IS NULL",
-        (max_retry,),
-    ).fetchall()
-
-    promoted = 0
-    for row in rows:
-        event_id = row["event_id"]
-        record = _build_dlq_record(row, now)
-        _atomic_write(deadletter_dir, event_id, record)
-        db.execute(
-            "UPDATE events SET dlq_at = ? WHERE event_id = ?",
-            (now, event_id),
-        )
-        db.commit()
-        logger.warning(
-            "dlq promoted event_id=%s delivery_failure_count=%d",
-            event_id,
-            row["delivery_failure_count"],
-        )
-        promoted += 1
-
-    return promoted
-
-
-def sweep_orphans(
-    db: sqlite3.Connection,
-    deadletter_dir: str,
-    max_retry: int,
-) -> int:
-    """Sweep events that reached retry limit but were not promoted inline.
-
-    This is a safety-net sweep only. Under normal operation (inline promotion via
-    the nack endpoint working correctly), this returns 0.
-    Non-zero return value indicates a bug in the inline promotion path.
-    """
+def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int) -> int:
+    """Shared promotion logic for sweep and inline paths."""
     now = now_iso()
     rows = db.execute(
         "SELECT seq, event_id, topic, payload, producer, published_at,"
@@ -113,17 +70,10 @@ def sweep_orphans(
     return promoted
 
 
-def promote_single(
-    db: sqlite3.Connection,
-    deadletter_dir: str,
-    event_id: str,
+def _shared_promote_single(
+    db: sqlite3.Connection, deadletter_dir: str, event_id: str
 ) -> bool:
-    """Promote one event to DLQ immediately (inline on nack threshold).
-
-    Returns True if promoted, False if already in DLQ or not found.
-    Write the JSON file before updating the DB row to preserve consistency:
-    if _atomic_write fails, the DB row is not updated and the event remains live.
-    """
+    """Shared promotion logic for single inline promotion."""
     now = now_iso()
     row = db.execute(
         "SELECT seq, event_id, topic, payload, producer, published_at,"
@@ -148,6 +98,34 @@ def promote_single(
             row["delivery_failure_count"],
         )
     return cur.rowcount > 0
+
+
+def sweep_orphans(
+    db: sqlite3.Connection,
+    deadletter_dir: str,
+    max_retry: int,
+) -> int:
+    """Sweep events that reached retry limit but were not promoted inline.
+
+    This is a safety-net sweep only. Under normal operation (inline promotion via
+    the nack endpoint working correctly), this returns 0.
+    Non-zero return value indicates a bug in the inline promotion path.
+    """
+    return _shared_promote(db, deadletter_dir, max_retry)
+
+
+def promote_single(
+    db: sqlite3.Connection,
+    deadletter_dir: str,
+    event_id: str,
+) -> bool:
+    """Promote one event to DLQ immediately (inline on nack threshold).
+
+    Returns True if promoted, False if already in DLQ or not found.
+    Write the JSON file before updating the DB row to preserve consistency:
+    if _atomic_write fails, the DB row is not updated and the event remains live.
+    """
+    return _shared_promote_single(db, deadletter_dir, event_id)
 
 
 def _atomic_write(deadletter_dir: str, event_id: str, record: DlqEventRecord) -> None:

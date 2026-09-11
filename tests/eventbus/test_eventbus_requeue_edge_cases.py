@@ -83,7 +83,7 @@ class TestRequeueEdgeCases:
     def test_requeue_valid_dmq_event(self, client: TestClient, tmp_path: Path) -> None:
         """POST /dlq/{event_id}/requeue for valid DLQ event succeeds."""
         from eventbus.db import open_db
-        from eventbus.dlq import promote_to_dlq
+        from eventbus.dlq import sweep_orphans
 
         body = _event()
         resp = client.post("/publish", json=body)
@@ -96,7 +96,7 @@ class TestRequeueEdgeCases:
             (body["event_id"],),
         )
         db.commit()
-        promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
         # Requeue should succeed
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
@@ -114,7 +114,7 @@ class TestRequeueEdgeCases:
     ) -> None:
         """Repeated requeue of same event increments dlq_requeue_count each time."""
         from eventbus.db import open_db
-        from eventbus.dlq import promote_to_dlq
+        from eventbus.dlq import sweep_orphans
 
         body = _event()
         resp = client.post("/publish", json=body)
@@ -127,7 +127,7 @@ class TestRequeueEdgeCases:
             (body["event_id"],),
         )
         db.commit()
-        promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
         # First requeue
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
@@ -136,7 +136,7 @@ class TestRequeueEdgeCases:
 
         # Re-promote to DLQ before second requeue (delivery_failure_count >= max_retry so it will be promoted)
         db = open_db(str(tmp_path / "eventbus.sqlite"))
-        n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
         assert n == 1
 
         # Second requeue
@@ -146,7 +146,7 @@ class TestRequeueEdgeCases:
 
         # Re-promote to DLQ before third requeue
         db = open_db(str(tmp_path / "eventbus.sqlite"))
-        n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
         assert n == 1
 
         # Third requeue
@@ -159,7 +159,7 @@ class TestRequeueEdgeCases:
     ) -> None:
         """Requeue of event at delivery_failure_count >= max_retry succeeds but re-promoted on next DLQ tick."""
         from eventbus.db import open_db
-        from eventbus.dlq import promote_to_dlq
+        from eventbus.dlq import sweep_orphans
 
         body = _event()
         resp = client.post("/publish", json=body)
@@ -172,7 +172,7 @@ class TestRequeueEdgeCases:
             (body["event_id"],),
         )
         db.commit()
-        promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
         dlq_file_1 = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file_1.exists()
@@ -189,7 +189,7 @@ class TestRequeueEdgeCases:
 
         # Next DLQ loop tick should re-promote (delivery_failure_count still >= max_retry)
         db = open_db(str(tmp_path / "eventbus.sqlite"))
-        n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
         assert n == 1
 
         dlq_file_2 = tmp_path / "deadletter" / f"{body['event_id']}.json"

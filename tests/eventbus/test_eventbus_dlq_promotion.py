@@ -87,7 +87,7 @@ class TestDLQPROMotionSemantics:
     ) -> None:
         """Event is promoted to DLQ when delivery_failure_count >= max_retry."""
         from eventbus.db import open_db
-        from eventbus.dlq import promote_to_dlq
+        from eventbus.dlq import sweep_orphans
 
         body = _event("dlq_promo")
         resp = client.post("/publish", json=body)
@@ -102,7 +102,7 @@ class TestDLQPROMotionSemantics:
         db.commit()
 
         # Promote via the DLQ function
-        n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
         assert n == 1
 
         dlq_file = tmp_path / "deadletter" / f"{body['event_id']}.json"
@@ -113,7 +113,7 @@ class TestDLQPROMotionSemantics:
     ) -> None:
         """Requeue of event at delivery_failure_count >= max_retry returns dlq_imminent warning."""
         from eventbus.db import open_db
-        from eventbus.dlq import promote_to_dlq
+        from eventbus.dlq import sweep_orphans
 
         body = _event("dlq_promo")
         resp = client.post("/publish", json=body)
@@ -126,7 +126,7 @@ class TestDLQPROMotionSemantics:
             (body["event_id"],),
         )
         db.commit()
-        promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
         # Requeue the event — should return dlq_imminent warning
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
@@ -141,7 +141,7 @@ class TestDLQPROMotionSemantics:
     ) -> None:
         """DLQ requeue increments dlq_requeue_count but does NOT modify delivery_failure_count."""
         from eventbus.db import open_db
-        from eventbus.dlq import promote_to_dlq
+        from eventbus.dlq import sweep_orphans
 
         body = _event("dlq_promo")
         resp = client.post("/publish", json=body)
@@ -154,7 +154,7 @@ class TestDLQPROMotionSemantics:
             (body["event_id"],),
         )
         db.commit()
-        promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
         dfc_before = _get_field(client, body["event_id"], "delivery_failure_count")
 
@@ -177,7 +177,7 @@ class TestDLQPROMotionSemantics:
     ) -> None:
         """After requeue, next DLQ loop tick will re-promote if delivery_failure_count >= max_retry."""
         from eventbus.db import open_db
-        from eventbus.dlq import promote_to_dlq
+        from eventbus.dlq import sweep_orphans
 
         body = _event("dlq_promo")
         resp = client.post("/publish", json=body)
@@ -190,7 +190,7 @@ class TestDLQPROMotionSemantics:
             (body["event_id"],),
         )
         db.commit()
-        promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
         dlq_file_1 = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file_1.exists()
@@ -201,7 +201,7 @@ class TestDLQPROMotionSemantics:
 
         # Next DLQ loop tick should re-promote
         db = open_db(str(tmp_path / "eventbus.sqlite"))
-        n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
         assert n == 1
 
         dlq_file_2 = tmp_path / "deadletter" / f"{body['event_id']}.json"

@@ -46,7 +46,7 @@ def _event(topic: str = "t") -> dict[str, Any]:
 
 def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) -> None:
     from eventbus.db import open_db
-    from eventbus.dlq import promote_to_dlq
+    from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
@@ -57,7 +57,7 @@ def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) 
     )
     db.commit()
 
-    n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+    n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
     assert n == 1
     dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
     assert dlq_file.exists()
@@ -68,7 +68,7 @@ def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) 
 
 def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
     from eventbus.db import open_db
-    from eventbus.dlq import promote_to_dlq
+    from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
@@ -78,7 +78,7 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
         (ev["event_id"],),
     )
     db.commit()
-    promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     r = client.get("/dlq")
     assert r.status_code == 200
@@ -89,7 +89,7 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
 
 def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     from eventbus.db import open_db
-    from eventbus.dlq import promote_to_dlq
+    from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
@@ -99,7 +99,7 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
         (ev["event_id"],),
     )
     db.commit()
-    promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     r = client.post(f"/dlq/{ev['event_id']}/requeue")
     assert r.status_code == 200
@@ -115,7 +115,7 @@ def test_requeue_increments_dlq_requeue_count(
     client: TestClient, tmp_path: Path
 ) -> None:
     from eventbus.db import open_db
-    from eventbus.dlq import promote_to_dlq
+    from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
@@ -125,7 +125,7 @@ def test_requeue_increments_dlq_requeue_count(
         (ev["event_id"],),
     )
     db.commit()
-    promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     # Requeue once — dlq_requeue_count should increment to 1
     r = client.post(f"/dlq/{ev['event_id']}/requeue")
@@ -146,7 +146,7 @@ def test_requeue_increments_dlq_requeue_count(
         (ev["event_id"],),
     )
     db.commit()
-    n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+    n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
     assert n == 1
     dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
     assert dlq_file.exists()
@@ -219,7 +219,7 @@ def test_nack_on_already_dlq_event_does_not_repromote(
     client: TestClient, tmp_path: Path
 ) -> None:
     from eventbus.db import open_db
-    from eventbus.dlq import promote_to_dlq
+    from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
@@ -229,7 +229,7 @@ def test_nack_on_already_dlq_event_does_not_repromote(
         (ev["event_id"],),
     )
     db.commit()
-    promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     # Nack an already-DLQ'd event — should return 409 Conflict, not increment count
     r = client.post(f"/nack?event_id={ev['event_id']}")
