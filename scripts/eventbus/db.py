@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 import threading
+import uuid
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,21 @@ def _migrate(conn: sqlite3.Connection) -> None:
             else:
                 raise
 
+    for col in ("cycle_failure_count", "redelivered_from"):
+        try:
+            if col == "cycle_failure_count":
+                conn.execute(
+                    f"ALTER TABLE events ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0"
+                )
+            else:
+                conn.execute(f"ALTER TABLE events ADD COLUMN {col} TEXT")
+            logger.info("migrated: added column %s to events", col)
+        except sqlite3.OperationalError as exc:
+            if exc.args and "duplicate column name" in exc.args[0]:
+                pass  # column already exists
+            else:
+                raise
+
     try:
         conn.execute("ALTER TABLE events DROP COLUMN retry_count")
         logger.info("migrated: dropped column retry_count from events")
@@ -168,22 +184,24 @@ def ack_event(conn: sqlite3.Connection, event_id: str, now: str) -> tuple[bool, 
     return False, False
 
 
-def nack_event(conn: sqlite3.Connection, event_id: str) -> int:
-    """Increment delivery_failure_count for an event.
+def nack_event(conn: sqlite3.Connection, event_id: str) -> tuple[int, int]:
+    """Increment delivery_failure_count and cycle_failure_count for an event.
 
-    Returns the new delivery_failure_count, or -1 if the event was not found.
+    Returns (delivery_failure_count, cycle_failure_count), or (-1, -1) if the event was not found.
     """
     cur = conn.execute(
-        "UPDATE events SET delivery_failure_count = delivery_failure_count + 1 WHERE event_id = ?",
+        "UPDATE events SET delivery_failure_count = delivery_failure_count + 1, cycle_failure_count = cycle_failure_count + 1 WHERE event_id = ?",
         (event_id,),
     )
     conn.commit()
     if cur.rowcount == 0:
-        return -1
+        return (-1, -1)
     row = conn.execute(
-        "SELECT delivery_failure_count FROM events WHERE event_id = ?", (event_id,)
+        "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?", (event_id,)
     ).fetchone()
-    return int(row["delivery_failure_count"]) if row else -1
+    if row:
+        return (int(row["delivery_failure_count"]), int(row["cycle_failure_count"]))
+    return (-1, -1)
 
 
 def ack_event_for_consumer(
@@ -359,6 +377,39 @@ def requeue_event(conn: sqlite3.Connection, event_id: str) -> bool:
     )
     conn.commit()
     return cur.rowcount > 0
+
+
+def redeliver_event(conn: sqlite3.Connection, event_id: str) -> tuple[bool, str | None]:
+    """Redeliver a dead-lettered event by inserting a new row with lineage.
+
+    Performs conditional-update guard on the original row (WHERE event_id = ? AND dlq_at IS NOT NULL)
+    then inserts a new row with a fresh UUID v4 event_id, copied delivery_failure_count,
+    cycle_failure_count=0, and redelivered_from set to the original event_id.
+
+    Returns (success, new_event_id):
+      - (True, new_event_id)   = event found and redelivered
+      - (False, None)          = event not found in DLQ
+    """
+    original_row = conn.execute(
+        "SELECT delivery_failure_count FROM events WHERE event_id = ? AND dlq_at IS NOT NULL",
+        (event_id,),
+    ).fetchone()
+    if not original_row:
+        return (False, None)
+
+    new_event_id = uuid.uuid4().hex
+    conn.execute(
+        "UPDATE events SET dlq_requeue_count = dlq_requeue_count + 1 WHERE event_id = ? AND dlq_at IS NOT NULL",
+        (event_id,),
+    )
+    conn.execute(
+        "INSERT INTO events (event_id, topic, payload, producer, published_at, delivery_failure_count, cycle_failure_count, redelivered_from) "
+        "SELECT ?, topic, payload, producer, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), delivery_failure_count, 0, ? "
+        "FROM events WHERE event_id = ?",
+        (new_event_id, event_id, event_id),
+    )
+    conn.commit()
+    return (True, new_event_id)
 
 
 def migrate_legacy_offsets(
