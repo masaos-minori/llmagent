@@ -43,10 +43,6 @@ def _make_cfg(**kwargs: object) -> SimpleNamespace:
 
 
 class TestAugmentHttpMode:
-    @pytest.mark.skip(
-        reason="HTTP-mode selected_hits -> last_fetch_result wiring is unimplemented; "
-        "see issues/20260911-132739_raghits01_http-mode-selected-hits-unparsed.md"
-    )
     @pytest.mark.asyncio
     async def test_stores_selected_hits_in_last_fetch_result(self) -> None:
         hits = [
@@ -81,13 +77,9 @@ class TestAugmentHttpMode:
         result = await pipeline.augment("test query")
 
         assert result == "RAG context"
-        # HttpAugment.run calls _set_fetch_result(result) after call_rag_service returns
-        assert pipeline.last_fetch_result == "RAG context"
+        assert isinstance(pipeline.last_fetch_result, TwoStageFetchResult)
+        assert pipeline.last_fetch_result.hits == hits
 
-    @pytest.mark.skip(
-        reason="HTTP-mode selected_hits -> last_fetch_result wiring is unimplemented; "
-        "see issues/20260911-132739_raghits01_http-mode-selected-hits-unparsed.md"
-    )
     @pytest.mark.asyncio
     async def test_does_not_overwrite_last_fetch_result_when_hits_empty(self) -> None:
         resp_body = {"result": "some context", "selected_hits": []}
@@ -116,8 +108,9 @@ class TestAugmentHttpMode:
 
         await pipeline.augment("test query")
 
-        # HttpAugment.run always calls _set_fetch_result(result) on success path
-        assert pipeline.last_fetch_result == "some context"
+        # selected_hits is empty, so _set_fetch_result is NOT called — last_fetch_result unchanged
+        assert pipeline.last_fetch_result is not None
+        assert pipeline.last_fetch_result.hits == [initial_hit]
 
     @pytest.mark.asyncio
     async def test_returns_context_string(self) -> None:
@@ -137,10 +130,6 @@ class TestAugmentHttpMode:
 
         assert result == "Expected context text"
 
-    @pytest.mark.skip(
-        reason="HTTP-mode selected_hits -> last_fetch_result wiring is unimplemented; "
-        "see issues/20260911-132739_raghits01_http-mode-selected-hits-unparsed.md"
-    )
     @pytest.mark.asyncio
     async def test_missing_selected_hits_key_does_not_raise(self) -> None:
         resp_body = {"result": "ctx"}  # selected_hits key absent
@@ -158,7 +147,8 @@ class TestAugmentHttpMode:
         result = await pipeline.augment("q")
 
         assert result == "ctx"
-        assert pipeline.last_fetch_result == "ctx"
+        # selected_hits is absent, so _set_fetch_result is NOT called — last_fetch_result remains unset
+        assert pipeline.last_fetch_result is None
 
     @pytest.mark.asyncio
     async def test_fallback_to_inprocess_on_http_error(self) -> None:

@@ -18,6 +18,7 @@ import dataclasses
 import logging
 import time
 from collections.abc import Callable
+from typing import Any
 
 import httpx
 from shared.types import RagConfig, RagHit
@@ -44,7 +45,7 @@ class AugmentRefiner:
         cfg: RagConfig,
         *,
         on_status: Callable[[str], None] | None = None,
-        set_fetch_result: Callable[[str], None] | None = None,
+        set_fetch_result: Callable[[list[dict[str, Any]]], None] | None = None,
         set_fallback_reason: Callable[[str], None] | None = None,
         search_diagnostics: SearchDiagnostics | None = None,
         llm: RagLLM | None = None,

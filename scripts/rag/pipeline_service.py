@@ -9,6 +9,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Callable
+from typing import Any
 
 import httpx
 from shared.json_utils import parse_http_json
@@ -38,8 +39,8 @@ def _set_fallback_reason(
 
 
 def _set_fetch_result(
-    set_fetch_result: Callable[[str], None] | None,
-    fetch_result: str,
+    set_fetch_result: Callable[[list[dict[str, Any]]], None] | None,
+    fetch_result: list[dict[str, Any]],
 ) -> None:
     """Call the fetch result callback if provided."""
     if set_fetch_result is not None:
@@ -53,7 +54,7 @@ async def call_rag_service(
     history_context: str,
     *,
     auth_token: str = "",
-    set_fetch_result: Callable[[str], None] | None = None,
+    set_fetch_result: Callable[[list[dict[str, Any]]], None] | None = None,
     set_fallback_reason: Callable[[str], None] | None = None,
 ) -> tuple[str | None, int | None, float]:
     """Delegate to external RAG service for context augmentation.
@@ -92,8 +93,8 @@ async def call_rag_service(
         - JSON parse errors: no retry (malformed response)
 
     Side effects:
-        If ``set_fetch_result`` is provided, it is called with a ``str``
-        on success paths. If ``set_fallback_reason`` is provided, it is called with a reason
+        If ``set_fetch_result`` is provided, it is called with a ``list[dict[str, Any]]``
+        on success paths when ``selected_hits`` is present. If ``set_fallback_reason`` is provided, it is called with a reason
         string on each non-success path (4xx, transport error, etc.).
 
     Args:
@@ -132,13 +133,18 @@ async def call_rag_service(
             status_code = resp.status_code
             resp.raise_for_status()
             body = parse_http_json(resp)
+            selected_hits = body.get("selected_hits")
             result_raw = body.get("result")
             if result_raw is None:
+                if selected_hits:
+                    _set_fetch_result(set_fetch_result, selected_hits)
                 return "", status_code, elapsed_ms
             if not isinstance(result_raw, str):
                 raise ValueError(
                     f"RAG service 'result' field must be str, got {type(result_raw).__name__}"
                 )
+            if selected_hits:
+                _set_fetch_result(set_fetch_result, selected_hits)
             return result_raw, status_code, elapsed_ms
         except httpx.HTTPStatusError as e:
             if e.response.status_code < 500:

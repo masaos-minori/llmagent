@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from rag.pipeline_service import call_rag_service
 
@@ -63,7 +63,7 @@ class HttpAugment:
         http: httpx.AsyncClient,
         rag_url: str,
         auth_token: str = "",
-        set_fetch_result: Callable[[str], None] | None = None,
+        set_fetch_result: Callable[[list[dict[str, Any]]], None] | None = None,
         set_fallback_reason: Callable[[str], None] | None = None,
     ) -> None:
         """Initialize with HTTP client, RAG URL, optional auth token, and callbacks."""
@@ -116,10 +116,7 @@ class HttpAugment:
             if result == ""
             else "in_process_fallback"
         )
-        # Call user-provided callbacks after determining result
-        if result is not None:
-            self._set_fetch_result(result)
-        elif result is None:
+        if result is None:
             self._set_fallback_reason(http_fallback_reason)
         return HttpAugmentResult(
             result=result,
