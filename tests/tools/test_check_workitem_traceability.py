@@ -208,3 +208,89 @@ class TestNoProcedureYet:
             findings = cwt.find_no_procedure_yet(documents, age_threshold_days)
 
         assert findings == []
+
+
+class TestTargetFileMismatch:
+    """`implementation`-kind documents: the Traceability `Related target
+    files` value must equal the body's `### Target file` value.
+    """
+
+    def _write_implementation(
+        self, tmp_path: Path, traceability_value: str, target_file_value: str
+    ) -> Path:
+        impl_path = tmp_path / "implementations" / "20260801-120000_01_sample.md"
+        _write(
+            impl_path,
+            "# Sample Implementation Procedure\n\n"
+            "### Target file\n"
+            f"{target_file_value}\n\n"
+            "## Traceability\n"
+            f"- **Related target files**: {traceability_value}\n",
+        )
+        return impl_path
+
+    def test_matching_values_report_no_finding(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        self._write_implementation(
+            tmp_path, "scripts/eventbus/db.py", "scripts/eventbus/db.py"
+        )
+
+        documents = cwt.discover_documents()
+
+        assert cwt.find_target_file_mismatches(documents) == []
+
+    def test_mismatched_values_are_reported(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        self._write_implementation(
+            tmp_path, "scripts/eventbus/config.py", "scripts/eventbus/broker.py"
+        )
+
+        documents = cwt.discover_documents()
+        findings = cwt.find_target_file_mismatches(documents)
+
+        assert len(findings) == 1
+        assert findings[0]["category"] == "target-file-mismatch"
+        assert findings[0]["file"] == "implementations/20260801-120000_01_sample.md"
+        assert "scripts/eventbus/config.py" in findings[0]["detail"]
+        assert "scripts/eventbus/broker.py" in findings[0]["detail"]
+
+    def test_plan_kind_multi_path_value_is_not_reported(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A `plan`-kind document's `Related target files` legitimately
+        holds a multi-path list or prose — this check must not fire there.
+        """
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        plan_path = tmp_path / "plans" / "20260801-110000_plan.md"
+        _write(
+            plan_path,
+            "# Sample Plan\n\n## Traceability\n"
+            "- **Related target files**: see Target Files or Areas above\n",
+        )
+
+        documents = cwt.discover_documents()
+
+        assert cwt.find_target_file_mismatches(documents) == []
+
+    def test_missing_target_file_heading_is_not_reported(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Neither value present (or one absent) is a "no data" case, not a
+        mismatch — only two present-and-differing values are a finding.
+        """
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        impl_path = tmp_path / "implementations" / "20260801-120000_01_sample.md"
+        _write(
+            impl_path,
+            "# Sample Implementation Procedure\n\n"
+            "## Traceability\n"
+            "- **Related target files**: scripts/eventbus/db.py\n",
+        )
+
+        documents = cwt.discover_documents()
+
+        assert cwt.find_target_file_mismatches(documents) == []

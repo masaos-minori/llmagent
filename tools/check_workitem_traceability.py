@@ -19,6 +19,19 @@ is walked more than once):
   `docs/....md` path) that was modified (via `git log`, falling back to file
   mtime) after the issue's own filename timestamp — surfaced as a candidate
   only, never a verdict.
+- target-file-mismatch: an `implementations/*.md` document's Traceability
+  `Related target files` value does not exactly match its own body's
+  `### Target file` value. `templates/implementation-procedure.md` guarantees
+  these are the same single path for a given document — a mismatch means
+  either a copy-paste error in Traceability (the field was carried over from
+  a different row/document without updating), or something more serious: a
+  concurrent write interleaved a different document's content into this
+  file. Confirmed live in this repository (see
+  implementations/done/20260911-065129_02_scripts_eventbus_broker.py.md,
+  whose Traceability names a different Plan's target file, and
+  implementations/20260911-073720_01_scripts_eventbus_db.py.md, whose body
+  content switches partway through to an unrelated Plan's material) — both
+  were only caught by a human reading the full document end-to-end.
 
 Never writes, renames, moves, or deletes anything under `issues/`, `plans/`,
 or `implementations/`.
@@ -29,9 +42,10 @@ Usage:
     python tools/check_workitem_traceability.py --format csv
     python tools/check_workitem_traceability.py --age-threshold-days 30
 
-Exit code: 0 when zero missing-source-file findings exist (the only category
-that gates exit status — no-plan-yet/no-procedure-yet/stale-target-heuristic
-are informational); 1 otherwise.
+Exit code: 0 when zero missing-source-file and zero target-file-mismatch
+findings exist (the two categories that gate exit status —
+no-plan-yet/no-procedure-yet/stale-target-heuristic are informational);
+1 otherwise.
 """
 
 from __future__ import annotations
@@ -67,6 +81,18 @@ SOURCE_FIELD_NAMES = (
     "Source implementation procedure",
     "Source requirement",
 )
+
+# Deliberately NOT part of SOURCE_FIELD_NAMES / extract_traceability_fields:
+# for `plan`-kind documents this field legitimately holds a multi-path list
+# or prose (e.g. "see Target Files or Areas above", confirmed live in at
+# least 2 processed plans), which would falsely read as a broken single
+# path. It is only meaningful as a single-path equality check for
+# `implementation`-kind documents, where the template guarantees a single
+# target file — see find_target_file_mismatches().
+RELATED_TARGET_FILES_FIELD_NAME = "Related target files"
+
+_TARGET_FILE_HEADING_RE = re.compile(r"(?m)^### Target file\s*$")
+_ANY_HEADING_RE = re.compile(r"(?m)^#+\s")
 
 # (kind, directory relative to ROOT_DIR, is_done)
 _WORK_ITEM_DIRS: tuple[tuple[str, str, bool], ...] = (
@@ -119,6 +145,18 @@ def _clean_field_value(value: str) -> str:
     return first_token
 
 
+def _traceability_section_text(text: str) -> str | None:
+    """Return the raw `## Traceability` section body, or None if absent."""
+    heading_match = _HEADING_RE.search(text)
+    if heading_match is None:
+        return None
+
+    section_start = heading_match.end()
+    next_heading = _NEXT_HEADING_RE.search(text, section_start)
+    section_end = next_heading.start() if next_heading else len(text)
+    return text[section_start:section_end]
+
+
 def extract_traceability_fields(text: str) -> tuple[bool, dict[str, str]]:
     """Return (heading_found, {source_field_name: cleaned_value}).
 
@@ -126,14 +164,9 @@ def extract_traceability_fields(text: str) -> tuple[bool, dict[str, str]]:
     `N/A` (case-insensitive) is dropped, matching every sampled Traceability
     section's convention.
     """
-    heading_match = _HEADING_RE.search(text)
-    if heading_match is None:
+    section_text = _traceability_section_text(text)
+    if section_text is None:
         return False, {}
-
-    section_start = heading_match.end()
-    next_heading = _NEXT_HEADING_RE.search(text, section_start)
-    section_end = next_heading.start() if next_heading else len(text)
-    section_text = text[section_start:section_end]
 
     fields: dict[str, str] = {}
     for line in section_text.splitlines():
@@ -159,6 +192,52 @@ def extract_traceability_fields(text: str) -> tuple[bool, dict[str, str]]:
             continue
         fields[field_name] = cleaned_value
     return True, fields
+
+
+def extract_related_target_files_value(text: str) -> str | None:
+    """Return the cleaned `Related target files` Traceability value, or None
+    if the heading/field is absent or its value is `N/A`.
+
+    Unlike extract_traceability_fields(), this does not drop values without
+    a `/` — for `implementation`-kind documents this field is expected to be
+    a single bare path, and a missing-path value here (e.g. accidentally
+    left as prose) is itself evidence of a mismatch, not something to
+    silently tolerate.
+    """
+    section_text = _traceability_section_text(text)
+    if section_text is None:
+        return None
+
+    for line in section_text.splitlines():
+        line_match = _FIELD_LINE_RE.match(line)
+        if line_match is None:
+            continue
+        if line_match.group(1).strip() != RELATED_TARGET_FILES_FIELD_NAME:
+            continue
+        raw_value = line_match.group(2)
+        if _is_na(raw_value):
+            return None
+        return _clean_field_value(raw_value)
+    return None
+
+
+def extract_target_file_value(text: str) -> str | None:
+    """Return the cleaned value of the body's `### Target file` heading, or
+    None if the heading is absent or nothing but another heading follows it.
+    """
+    heading_match = _TARGET_FILE_HEADING_RE.search(text)
+    if heading_match is None:
+        return None
+
+    remainder = text[heading_match.end() :]
+    for line in remainder.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if _ANY_HEADING_RE.match(line):
+            return None
+        return _clean_field_value(stripped)
+    return None
 
 
 def discover_documents() -> list[WorkItemDocument]:
@@ -423,6 +502,43 @@ def find_stale_targets(documents: list[WorkItemDocument]) -> list[dict[str, str]
     return findings
 
 
+def find_target_file_mismatches(
+    documents: list[WorkItemDocument],
+) -> list[dict[str, str]]:
+    """`implementation`-kind documents only: the Traceability
+    `Related target files` value must equal the body's `### Target file`
+    value — the template's one-file-per-document contract guarantees these
+    are the same single path. A mismatch means either a copy-paste error in
+    Traceability, or something more serious: content interleaved from a
+    different document (a corruption pattern confirmed live in this
+    repository, see this function's module docstring).
+
+    Deliberately restricted to `implementation`-kind documents: `plan`-kind
+    documents legitimately use a multi-path list or prose value for the
+    same field name, so the same equality check would misfire there.
+    """
+    findings: list[dict[str, str]] = []
+    for doc in documents:
+        if doc.kind != "implementation":
+            continue
+        related = extract_related_target_files_value(doc.text)
+        target = extract_target_file_value(doc.text)
+        if related is None or target is None:
+            continue
+        if related != target:
+            findings.append(
+                make_finding(
+                    "target-file-mismatch",
+                    doc.rel_path,
+                    f"Traceability 'Related target files' ({related}) does "
+                    f"not match body '### Target file' ({target}) -- check "
+                    f"for a copy-paste error or interleaved/corrupted "
+                    f"content",
+                )
+            )
+    return findings
+
+
 def collect_findings(
     documents: list[WorkItemDocument], age_threshold_days: int
 ) -> list[dict[str, str]]:
@@ -433,6 +549,7 @@ def collect_findings(
     findings.extend(find_no_plan_yet(documents, age_threshold_days))
     findings.extend(find_no_procedure_yet(documents, age_threshold_days))
     findings.extend(find_stale_targets(documents))
+    findings.extend(find_target_file_mismatches(documents))
     return findings
 
 
@@ -472,8 +589,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
         description=(
             "Read-only cross-check of Traceability sections across issues/, "
             "plans/, and implementations/ (including done/ subdirectories). "
-            "Reports missing-source-file, no-plan-yet, no-procedure-yet, and "
-            "stale-target-heuristic findings."
+            "Reports missing-source-file, no-plan-yet, no-procedure-yet, "
+            "stale-target-heuristic, and target-file-mismatch findings."
         )
     )
     parser.add_argument(
@@ -509,10 +626,9 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(render_text(findings), end="")
 
-    has_missing_source_file = any(
-        f["category"] == "missing-source-file" for f in findings
-    )
-    return 1 if has_missing_source_file else 0
+    gating_categories = {"missing-source-file", "target-file-mismatch"}
+    has_gating_finding = any(f["category"] in gating_categories for f in findings)
+    return 1 if has_gating_finding else 0
 
 
 if __name__ == "__main__":
