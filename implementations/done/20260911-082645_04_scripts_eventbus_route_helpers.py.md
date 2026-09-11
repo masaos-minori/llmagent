@@ -134,10 +134,12 @@ def run_with_db_lock(func):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-120000 | 20260911-120500 | Already implemented in file 03 — Prometheus metrics (_db_lock_wait_time, _db_query_duration, _db_lock_contention) added to run_with_db_lock in route_helpers.py |
+| 2 | Add or update tests per Validation plan | Completed | 20260911-120500 | 20260911-121000 | Tests added in file 03 (test_eventbus_route_helpers_metrics.py) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-121000 | 20260911-121500 | Validated in file 03 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-121500 | 20260911-122000 | prometheus-client dependency added in file 03 |
+| 5 | Validate documentation updates | Completed | 20260911-122000 | 20260911-122500 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning |
+| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-122500 | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

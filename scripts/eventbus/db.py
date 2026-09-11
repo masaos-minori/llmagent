@@ -390,7 +390,7 @@ def insert_event(
 
 def _canonical_payload(payload_str: str) -> bytes:
     """Return canonical JSON representation of a payload string."""
-    import orjson  # noqa: PLC0415
+    import orjson  # noqa: PLC0415 — orjson not available in all environments
 
     return orjson.dumps(orjson.loads(payload_str), option=orjson.OPT_SORT_KEYS)
 

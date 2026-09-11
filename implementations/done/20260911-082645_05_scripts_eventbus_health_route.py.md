@@ -123,10 +123,12 @@ async def health():
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-130000 | 20260911-131000 | Added lock contention metrics to health endpoint response; added capacity limit checks (subscribers_at_capacity, lock_wait_high, query_duration_high) |
+| 2 | Add or update tests per Validation plan | Completed | 20260911-131000 | 20260911-131500 | Existing health tests pass (4 passed); metric tests already in test_eventbus_route_helpers_metrics.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-131500 | 20260911-132000 | ruff format/check + mypy pass; full suite: 21 config + 3 metric + 4 health = 28 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-132000 | 20260911-132500 | Health endpoint now exposes metrics dict with lock_wait_avg_seconds, query_duration_avg_seconds, lock_contention_total |
+| 5 | Validate documentation updates | Completed | 20260911-132500 | 20260911-133000 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning |
+| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-133000 | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

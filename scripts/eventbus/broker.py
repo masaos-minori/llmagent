@@ -7,9 +7,18 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from prometheus_client import Counter
+
 from eventbus.config import EventBusConfig
 
 logger = logging.getLogger(__name__)
+
+# -- Metrics ------------------------------------------------------------------
+
+_slow_consumer_total = Counter(
+    "eventbus_slow_consumer_total",
+    "Number of slow consumer events detected",
+)
 
 
 @dataclass
@@ -109,11 +118,14 @@ class EventBroker:
 
     def slow_consumer_count(self) -> int:
         """Count subscribers whose queue depth exceeds the slow consumer threshold."""
-        return sum(
+        count = sum(
             1
             for sub in list(self._subscribers)
             if sub.queue.qsize() >= self._slow_consumer_threshold
         )
+        if count > 0:
+            _slow_consumer_total.inc(count)
+        return count
 
     def overflow_disconnect_count(self) -> int:
         """Return the number of disconnects caused by queue overflow."""

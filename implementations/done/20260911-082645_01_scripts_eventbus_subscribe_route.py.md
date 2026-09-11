@@ -129,10 +129,12 @@ Note: The actual implementation will need to handle async iteration properly —
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-090000 | 20260911-091000 | Changed `_fetch_replay()` to use bounded batched fetch with `LIMIT ? OFFSET ?`; added `replay_batch_size` config field |
+| 2 | Add or update tests per Validation plan | Completed | 20260911-091000 | 20260911-091500 | Added `test_replay_batch_size_default_is_1000` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-091500 | 20260911-092000 | ruff/mypy/bandit pass; full suite: 218 passed, 4 pre-existing failures |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-092000 | 20260911-092500 | Added `replay_batch_size` to Event Bus config docs |
+| 5 | Validate documentation updates | Completed | 20260911-092500 | 20260911-093000 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning |
+| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-093000 | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

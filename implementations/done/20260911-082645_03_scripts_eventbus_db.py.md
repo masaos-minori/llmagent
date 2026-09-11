@@ -140,10 +140,12 @@ async def run_with_db_lock(func):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-110000 | 20260911-111000 | Added Prometheus metrics (_db_lock_wait_time, _db_query_duration, _db_lock_contention) to run_with_db_lock; added prometheus-client dependency |
+| 2 | Add or update tests per Validation plan | Completed | 20260911-111000 | 20260911-111500 | Added test_eventbus_route_helpers_metrics.py with 3 metric tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-111500 | 20260911-112000 | ruff format/check + mypy pass; full suite: 21 passed + 3 new metric tests |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-112000 | 20260911-112500 | Added prometheus-client to project dependencies |
+| 5 | Validate documentation updates | Completed | 20260911-112500 | 20260911-113000 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning |
+| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-113000 | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

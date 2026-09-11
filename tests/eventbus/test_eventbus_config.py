@@ -319,3 +319,59 @@ def test_backlog_health_threshold_exceeds_maxsize_raises() -> None:
             subscriber_queue_maxsize=1000,
             backlog_health_threshold=1001,
         )
+
+
+def test_replay_batch_size_default_is_1000() -> None:
+    """replay_batch_size defaults to 1000 when not configured."""
+    cfg = EventBusConfig(
+        port=8015,
+        db_path="/tmp/eventbus.sqlite",
+        storage_dir="/tmp/storage",
+        offsets_dir="/tmp/offsets",
+        deadletter_dir="/tmp/deadletter",
+        max_retry=3,
+        auth_token="test-token",
+    )
+    assert cfg.replay_batch_size == 1000
+
+
+def test_subscriber_count_default_is_10() -> None:
+    """subscriber_count defaults to 10 when not configured."""
+    cfg = EventBusConfig(
+        port=8015,
+        db_path="/tmp/eventbus.sqlite",
+        storage_dir="/tmp/storage",
+        offsets_dir="/tmp/offsets",
+        deadletter_dir="/tmp/deadletter",
+        max_retry=3,
+        auth_token="test-token",
+    )
+    assert cfg.subscriber_count == 10
+
+
+def test_retained_event_count_default_is_10000() -> None:
+    """retained_event_count defaults to 10000 when not configured."""
+    cfg = EventBusConfig(
+        port=8015,
+        db_path="/tmp/eventbus.sqlite",
+        storage_dir="/tmp/storage",
+        offsets_dir="/tmp/offsets",
+        deadletter_dir="/tmp/deadletter",
+        max_retry=3,
+        auth_token="test-token",
+    )
+    assert cfg.retained_event_count == 10000
+
+
+def test_publish_rate_default_is_100_0() -> None:
+    """publish_rate defaults to 100.0 when not configured."""
+    cfg = EventBusConfig(
+        port=8015,
+        db_path="/tmp/eventbus.sqlite",
+        storage_dir="/tmp/storage",
+        offsets_dir="/tmp/offsets",
+        deadletter_dir="/tmp/deadletter",
+        max_retry=3,
+        auth_token="test-token",
+    )
+    assert cfg.publish_rate == 100.0

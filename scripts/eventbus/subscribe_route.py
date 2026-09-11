@@ -100,32 +100,50 @@ async def subscribe(
         """Generate Server-Sent Events by replaying from SQLite and streaming live broker events."""
         replay_ceil = start_seq
         try:
-            # Step 2: replay from SQLite
-            def _fetch_replay() -> list[Any]:
-                """Fetch replay events from SQLite filtered by topic and sequence."""
+            # Step 2: replay from SQLite in bounded batches
+            cfg = request.app.state.config
+            assert cfg is not None
+            batch_size = cfg.replay_batch_size
+            start_offset = 0
+
+            while True:
                 if topic:
                     placeholders = ",".join("?" for _ in topic)
-                    return list(
-                        db.execute(
-                            f"SELECT seq, event_id, topic, payload, producer, published_at"
-                            f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq",  # nosec B608 — all values bound via ? placeholders
-                            (start_seq, *topic),
-                        ).fetchall()
+                    rows = await run_with_db_lock(
+                        lambda: list(
+                            db.execute(
+                                f"SELECT seq, event_id, topic, payload, producer, published_at"
+                                f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq LIMIT ? OFFSET ?",  # nosec B608 — all values bound via ? placeholders
+                                (start_seq, *topic, batch_size, start_offset),
+                            ).fetchall()
+                        )
                     )
-                return list(
-                    db.execute(
-                        "SELECT seq, event_id, topic, payload, producer, published_at"
-                        " FROM events WHERE seq > ?",
-                        (start_seq,),
-                    ).fetchall()
-                )
+                else:
+                    rows = await run_with_db_lock(
+                        lambda: list(
+                            db.execute(
+                                "SELECT seq, event_id, topic, payload, producer, published_at"
+                                " FROM events WHERE seq > ?",
+                                (start_seq,),
+                            ).fetchall()
+                        )
+                    )
 
-            rows = await run_with_db_lock(_fetch_replay)
-            for row in rows:
-                data = json_dumps(_row_to_dict(row))
-                # REQ-002: Emit id: field alongside data: field
-                yield f"id:{row['seq']}\ndata:{data}\n\n"
-                replay_ceil = row["seq"]
+                if not rows:
+                    break
+
+                for row in rows:
+                    data = json_dumps(_row_to_dict(row))
+                    # REQ-002: Emit id: field alongside data: field
+                    yield f"id:{row['seq']}\ndata:{data}\n\n"
+                    replay_ceil = row["seq"]
+
+                start_offset += len(rows)
+
+                # If we got a full batch, more data may exist; release lock between batches
+                if len(rows) == batch_size:
+                    continue
+                break
 
             # Step 3: live delivery from broker queue. sub.disconnect only
             # fires on broker-detected queue overflow — it is not set by an

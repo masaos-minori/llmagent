@@ -40,6 +40,10 @@ class EventBusConfig:
     offsets_dir: str
     deadletter_dir: str
     max_retry: int
+    replay_batch_size: int = 1000
+    subscriber_count: int = 10
+    retained_event_count: int = 10000
+    publish_rate: float = 100.0
     host: str = "127.0.0.1"
     auth_token: str = ""
     sse_heartbeat_interval: float = 30.0
@@ -68,6 +72,20 @@ class EventBusConfig:
             raise ValueError(
                 "backlog_health_threshold must be less than or equal to subscriber_queue_maxsize"
             )
+        if self.replay_batch_size < 1:
+            raise ValueError(
+                f"replay_batch_size must be >= 1, got {self.replay_batch_size}"
+            )
+        if self.subscriber_count < 1:
+            raise ValueError(
+                f"subscriber_count must be >= 1, got {self.subscriber_count}"
+            )
+        if self.retained_event_count < 1:
+            raise ValueError(
+                f"retained_event_count must be >= 1, got {self.retained_event_count}"
+            )
+        if self.publish_rate <= 0:
+            raise ValueError(f"publish_rate must be > 0, got {self.publish_rate}")
 
 
 _KNOWN_CONFIG_KEYS = frozenset(
@@ -84,6 +102,10 @@ _KNOWN_CONFIG_KEYS = frozenset(
         "slow_consumer_threshold",
         "subscriber_queue_maxsize",
         "backlog_health_threshold",
+        "replay_batch_size",
+        "subscriber_count",
+        "retained_event_count",
+        "publish_rate",
     )
 )
 
@@ -115,6 +137,10 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
     "slow_consumer_threshold": int,
     "subscriber_queue_maxsize": int,
     "backlog_health_threshold": int,
+    "replay_batch_size": int,
+    "subscriber_count": int,
+    "retained_event_count": int,
+    "publish_rate": float,
 }
 
 
@@ -160,6 +186,10 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         offsets_dir=data["offsets_dir"],
         deadletter_dir=data["deadletter_dir"],
         max_retry=data["max_retry"],
+        replay_batch_size=int(data.get("replay_batch_size", 1000)),
+        subscriber_count=int(data.get("subscriber_count", 10)),
+        retained_event_count=int(data.get("retained_event_count", 10000)),
+        publish_rate=float(data.get("publish_rate", 100.0)),
         host=data.get("host", "127.0.0.1"),
         auth_token=data["auth_token"],
         sse_heartbeat_interval=float(data.get("sse_heartbeat_interval", 30.0)),

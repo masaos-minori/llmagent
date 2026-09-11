@@ -137,10 +137,12 @@ These metrics can be queried via the health endpoint (`/health`) or Prometheus s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-150000 | 20260911-151000 | Added batched-replay design, capacity limits table, database-lock contention monitoring, and slow consumer metrics sections to config/ops docs |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-151000 | 20260911-151500 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning (missing '## Keywords') |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-151500 | 20260911-152000 | Docs updated with all new sections |
+| 5 | Validate documentation updates | Completed | 20260911-152000 | 20260911-152500 | All checks pass |
+| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-152500 | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

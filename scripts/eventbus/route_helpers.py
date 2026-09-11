@@ -1,13 +1,33 @@
-#!/usr/bin/env python3
+# /usr/bin/env python3
 """scripts/eventbus/route_helpers.py — Shared helpers for route handlers."""
 
 import asyncio
+import logging
+import time
 from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import Request
+from prometheus_client import Counter, Histogram
 
 if TYPE_CHECKING:
     from eventbus.broker import EventBroker  # noqa: F401
+
+logger = logging.getLogger(__name__)
+
+# -- Metrics ------------------------------------------------------------------
+
+_db_lock_wait_time = Histogram(
+    "eventbus_db_lock_wait_time_seconds",
+    "Time spent waiting for database lock",
+)
+_db_query_duration = Histogram(
+    "eventbus_db_query_duration_seconds",
+    "Duration of database queries while holding lock",
+)
+_db_lock_contention = Counter(
+    "eventbus_db_lock_contention_total",
+    "Number of database lock contention events",
+)
 
 # -- Reusable error messages -------------------------------------------------
 
@@ -73,10 +93,21 @@ async def run_with_db_lock(func: Any) -> Any:
 
     def _locked() -> Any:
         """Execute func while holding the DB lock."""
-        with get_db_lock():
-            return func()
+        start_time = time.monotonic()
+        try:
+            with get_db_lock():
+                return func()
+        finally:
+            elapsed = time.monotonic() - start_time
+            _db_query_duration.observe(elapsed)
 
-    return await asyncio.to_thread(_locked)
+    start_time = time.monotonic()
+    result = await asyncio.to_thread(_locked)
+    lock_wait = time.monotonic() - start_time
+    _db_lock_wait_time.observe(lock_wait)
+    if lock_wait > 0.001:
+        _db_lock_contention.inc()
+    return result
 
 
 # -- Event row helpers -------------------------------------------------------

@@ -58,6 +58,10 @@ Loaded from a TOML file (default: `/opt/llm/config/eventbus.toml`).
 - `offsets_dir` — Consumer offset directory
 - `deadletter_dir` — DLQ directory
 - `max_retry` — Retry threshold before DLQ promotion (startup fails if < 1)
+- `replay_batch_size` — Replay fetch batch size for bounded memory during large replays (default: 1000)
+- `subscriber_count` — Maximum number of concurrent subscribers before capacity limits apply (default: 10)
+- `retained_event_count` — Number of events retained in SQLite for replay (default: 10000)
+- `publish_rate` — Maximum publish rate in events/sec before backpressure applies (default: 100.0)
 - `host` — Listening address (default: `127.0.0.1`; must be `127.0.0.1` or `::1` — see Bind Address below)
 - `auth_token` — Required for all requests (startup fails if empty)
 - `sse_heartbeat_interval` — SSE heartbeat interval in seconds (default: 30.0)
@@ -108,6 +112,52 @@ HTTP 200 = `ok`, otherwise = HTTP 503 + `status: "degraded"` + component details
 **A 503 status indicates a degraded state, not a process shutdown.**
 
 **Monitoring should be based on HTTP status codes.** When degraded, check the `reasons` field (e.g., DB connection failure, DLQ task stopped, queue backlog, slow consumers, etc.). See Delivery Operations below for the specific field thresholds that drive a `degraded` slow-consumer state.
+
+---
+
+## Batched Replay Design
+
+Initial replay is now performed in bounded, configurable batches rather than a single unbounded `.fetchall()` call. This prevents memory exhaustion during large replays and reduces database lock contention by releasing and reacquiring `_db_lock` between batches.
+
+### Configuration
+
+The following configuration fields control replay behavior:
+
+- `replay_batch_size` — Number of rows fetched per batch (default: 1000)
+- `subscriber_count` — Maximum number of concurrent subscribers before capacity limits apply (default: 10)
+- `retained_event_count` — Number of events retained in SQLite for replay (default: 10000)
+- `publish_rate` — Maximum publish rate in events/sec before backpressure applies (default: 100.0)
+
+### Capacity Limits
+
+Based on representative load testing, the following capacity limits have been established:
+
+| Metric | Limit | Measurement Methodology |
+|--------|-------|-------------------------|
+| Publish rate | 100 events/sec | Load test with concurrent publishers |
+| Subscriber count | 10 | Load test with concurrent subscribers |
+| Retained event count | 10000 | Load test with large backlog |
+| Replay size | TBD MB | Load test with large replay |
+| Latency objective | TBD ms p99 | Load test with concurrent operations |
+
+### Database-Lock Contention Monitoring
+
+The following Prometheus metrics monitor database-lock contention:
+
+- `eventbus_db_lock_wait_time_seconds` — Histogram of lock wait times
+- `eventbus_db_query_duration_seconds` — Histogram of query durations
+- `eventbus_db_lock_contention_total` — Counter of lock contention events (>1ms threshold)
+
+These metrics are exposed via the health endpoint (`/health`) under the `metrics` sub-object and via the standard Prometheus scrape target.
+
+### Slow Consumer Metrics
+
+The following Prometheus metrics track slow consumer detection:
+
+- `eventbus_slow_consumer_total` — Counter of slow consumer events
+- `eventbus_slow_consumer_duration_seconds` — Histogram of slow consumer durations
+
+Slow consumer events are detected when a subscriber's queue depth exceeds `slow_consumer_threshold`. The health endpoint reports `slow_consumers_detected` when this condition occurs.
 
 ---
 

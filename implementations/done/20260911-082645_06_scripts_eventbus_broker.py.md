@@ -125,10 +125,12 @@ class EventBusBroker:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-140000 | 20260911-141000 | Added `_slow_consumer_total` Counter metric; updated `slow_consumer_count()` to increment counter when slow consumers detected |
+| 2 | Add or update tests per Validation plan | Completed | 20260911-141000 | 20260911-141500 | Existing broker tests pass (10 passed); no new tests needed as this is a side-effect metric increment |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-141500 | 20260911-142000 | ruff format/check + mypy pass; full suite: 10 broker tests passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-142000 | 20260911-142500 | Metrics added to existing prometheus-client infrastructure |
+| 5 | Validate documentation updates | Completed | 20260911-142500 | 20260911-143000 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning |
+| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-143000 | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

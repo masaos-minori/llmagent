@@ -147,10 +147,12 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-100000 | 20260911-101000 | Added subscriber_count, retained_event_count, publish_rate fields; post-init validation; updated _KNOWN_CONFIG_KEYS/_CONFIG_KEY_TYPES/load_config() |
+| 2 | Add or update tests per Validation plan | Completed | 20260911-101000 | 20260911-101500 | Added test_subscriber_count_default_is_10, test_retained_event_count_default_is_10000, test_publish_rate_default_is_100_0 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-101500 | 20260911-102000 | ruff format/check + mypy pass; full suite: 21 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-102000 | 20260911-102500 | Added subscriber_count, retained_event_count, publish_rate to Event Bus config docs |
+| 5 | Validate documentation updates | Completed | 20260911-102500 | 20260911-103000 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning |
+| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-103000 | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
