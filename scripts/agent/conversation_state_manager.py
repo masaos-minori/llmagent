@@ -152,12 +152,19 @@ class ConversationStateManager:
                     ctx.conv.memory_warning_shown = True
 
     async def handle_history_compression(self) -> None:
-        """Compress conversation history if it exceeds configured limits."""
+        """Compress conversation history if it exceeds configured limits.
+
+        Persists the compressed history via session.replace_messages() only
+        when compression actually changed something (compressed_count > 0) —
+        a no-op compress leaves the session's stored history untouched.
+        """
         ctx = self._ctx
         if ctx.services_required.hist_mgr is not None:
-            ctx.conv.history, _result = await ctx.services_required.hist_mgr.compress(
+            ctx.conv.history, result = await ctx.services_required.hist_mgr.compress(
                 ctx.conv.history
             )
+            if result.compressed_count > 0:
+                ctx.session.replace_messages(ctx.conv.history)
 
     @contextmanager
     def tool_override(self, allowed: list[str] | None) -> Iterator[None]:

@@ -70,6 +70,7 @@ class WorkflowEngineAdapter:
         diagnostic_store: DiagnosticStore | None = None,
         tracer: Any = None,
         on_error: Callable[[Exception], None] | None = None,
+        allowed_tools: list[str] | None = None,
     ) -> None:
         """Initialize the workflow engine adapter."""
         self._ctx = ctx
@@ -80,6 +81,7 @@ class WorkflowEngineAdapter:
         self._diagnostic_store = diagnostic_store
         self._tracer = tracer
         self._on_error = on_error
+        self._allowed_tools = allowed_tools
 
     # ── Backward-compatible public API ────────────────────────────────────────
 
@@ -367,7 +369,7 @@ class WorkflowEngineAdapter:
         error_kind = None
         is_partial = False
 
-        with self._tool_override(None):
+        with self._tool_override(self._allowed_tools):
             self._conversation_manager.clear_previous_turn_ephemeral_messages()
             await self._conversation_manager.handle_memory_injection(line)
             await classify_and_inject_mode(line, ctx)
@@ -389,6 +391,8 @@ class WorkflowEngineAdapter:
                     and result.exception.partial_text
                 ):
                     is_partial = True
+            elif result.persist_as_assistant:
+                ctx.session.save("assistant", answer)
 
         return answer, error_kind, is_partial
 

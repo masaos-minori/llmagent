@@ -34,6 +34,7 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.tool.tool_cycle_detect_window = 0
     ctx.cfg.tool.tool_error_max_consecutive = 3
     ctx.cfg.tool.progress_stagnation_window = 3
+    ctx.cfg.tool.tool_empty_result_max_repeats = 0
     ctx.conv = ConversationState(llm_url="http://llm-test")
     ctx.stats.stat_turns = 1
     ctx.stats.stat_latency = {}
@@ -60,6 +61,12 @@ def _make_ctx() -> MagicMock:
     llm_svc.stat_parse_errors = 0
     llm_svc.stat_heartbeat_timeouts = 0
     llm_svc.stat_reconnects = 0
+    llm_svc.stream = AsyncMock(
+        return_value=LLMResponse(
+            message=LLMMessage(role="assistant", content="ok"),
+            finish_reason="stop",
+        )
+    )
     ctx.services_required.llm = llm_svc
     ctx.services_required.audit_logger = None
     ctx.services_required.memory = None
@@ -143,8 +150,8 @@ class TestCompleteTurnExecution:
             return TurnResult(action="continue", answer="hello world")
 
         with patch.object(
-            orch._llm_runner,
-            "run",
+            orch._llm_executor,
+            "handle_llm_turn",
             AsyncMock(side_effect=_capture_and_return),
         ):
             await orch.handle_turn("hello")
@@ -161,13 +168,14 @@ class TestCompleteTurnExecution:
         """Successful turns save assistant messages via session.save()."""
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
+        ctx.services_required.llm.stream = AsyncMock(
+            return_value=LLMResponse(
+                message=LLMMessage(role="assistant", content="response"),
+                finish_reason="stop",
+            )
+        )
 
-        with patch.object(
-            orch._llm_runner,
-            "run",
-            AsyncMock(return_value=TurnResult(action="continue", answer="response")),
-        ):
-            await orch.handle_turn("question")
+        await orch.handle_turn("question")
 
         ctx.session.save.assert_called_with("assistant", "response")
 
@@ -178,8 +186,8 @@ class TestCompleteTurnExecution:
         orch = _make_orchestrator(ctx)
 
         with patch.object(
-            orch._llm_runner,
-            "run",
+            orch._llm_executor,
+            "handle_llm_turn",
             AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
         ):
             await orch.handle_turn("user question")
@@ -200,8 +208,8 @@ class TestCompleteTurnExecution:
         orch = _make_orchestrator(ctx)
 
         with patch.object(
-            orch._llm_runner,
-            "run",
+            orch._llm_executor,
+            "handle_llm_turn",
             AsyncMock(
                 return_value=TurnResult(action="continue", answer="second reply")
             ),
@@ -222,8 +230,8 @@ class TestCompleteTurnExecution:
         orch = _make_orchestrator(ctx)
 
         with patch.object(
-            orch._llm_runner,
-            "run",
+            orch._llm_executor,
+            "handle_llm_turn",
             AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
         ):
             await orch.handle_turn("test")
@@ -237,8 +245,8 @@ class TestCompleteTurnExecution:
         orch = _make_orchestrator(ctx)
 
         with patch.object(
-            orch._llm_runner,
-            "run",
+            orch._llm_executor,
+            "handle_llm_turn",
             AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
         ):
             await orch.handle_turn("test")
@@ -252,12 +260,8 @@ class TestCompleteTurnExecution:
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
 
-        with patch.object(
-            orch._llm_runner,
-            "run",
-            AsyncMock(side_effect=err),
-        ):
-            await orch.handle_turn("test")
+        ctx.services_required.llm.stream = AsyncMock(side_effect=err)
+        await orch.handle_turn("test")
 
         assert ctx.stats.stat_latency is not None
 
@@ -268,12 +272,8 @@ class TestCompleteTurnExecution:
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
 
-        with patch.object(
-            orch._llm_runner,
-            "run",
-            AsyncMock(side_effect=err),
-        ):
-            await orch.handle_turn("test")
+        ctx.services_required.llm.stream = AsyncMock(side_effect=err)
+        await orch.handle_turn("test")
 
         orch._diagnostic_store.save.assert_called_once()
         call_args = orch._diagnostic_store.save.call_args[0]
@@ -286,12 +286,8 @@ class TestCompleteTurnExecution:
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
 
-        with patch.object(
-            orch._llm_runner,
-            "run",
-            AsyncMock(side_effect=err),
-        ):
-            await orch.handle_turn("test")
+        ctx.services_required.llm.stream = AsyncMock(side_effect=err)
+        await orch.handle_turn("test")
 
         assistant_saves = [
             call
@@ -310,12 +306,8 @@ class TestCompleteTurnExecution:
         orch = _make_orchestrator(ctx, on_error=on_error)
         err = _make_err(kind="HTTP_500", partial_text="")
 
-        with patch.object(
-            orch._llm_runner,
-            "run",
-            AsyncMock(side_effect=err),
-        ):
-            await orch.handle_turn("test")
+        ctx.services_required.llm.stream = AsyncMock(side_effect=err)
+        await orch.handle_turn("test")
 
         on_error.assert_called_once_with(err)
 
@@ -327,8 +319,8 @@ class TestCompleteTurnExecution:
         orch = _make_orchestrator(ctx)
 
         with patch.object(
-            orch._llm_runner,
-            "run",
+            orch._llm_executor,
+            "handle_llm_turn",
             AsyncMock(return_value=TurnResult(action="continue", answer="answer")),
         ):
             await orch.handle_turn("hello")
@@ -347,12 +339,8 @@ class TestCompleteTurnExecution:
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="PREMATURE_EOF", partial_text="partial answer")
 
-        with patch.object(
-            orch._llm_runner,
-            "run",
-            AsyncMock(side_effect=err),
-        ):
-            await orch.handle_turn("hello")
+        ctx.services_required.llm.stream = AsyncMock(side_effect=err)
+        await orch.handle_turn("hello")
 
         event = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
         assert event.get("partial_completion") is True
@@ -365,12 +353,8 @@ class TestCompleteTurnExecution:
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
 
-        with patch.object(
-            orch._llm_runner,
-            "run",
-            AsyncMock(side_effect=err),
-        ):
-            await orch.handle_turn("hello")
+        ctx.services_required.llm.stream = AsyncMock(side_effect=err)
+        await orch.handle_turn("hello")
 
         event = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
         assert event.get("partial_completion") is False
@@ -384,7 +368,7 @@ class TestCompleteTurnExecution:
         ctx.turn.pending_approval_id = "approval-123"
         orch = _make_orchestrator(ctx, on_error=on_error)
 
-        with patch.object(orch._llm_runner, "run", AsyncMock()):
+        with patch.object(orch._llm_executor, "handle_llm_turn", AsyncMock()):
             await orch.handle_turn("do something")
 
         on_error.assert_called_once()
@@ -408,11 +392,13 @@ class TestCompleteTurnExecution:
         orch._llm_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(
-            orch, "_handle_memory_injection", side_effect=_capture_allowed
+            orch._conversation_manager,
+            "handle_memory_injection",
+            side_effect=_capture_allowed,
         ):
             with patch.object(
-                orch._llm_runner,
-                "run",
+                orch._llm_executor,
+                "handle_llm_turn",
                 AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
             ):
                 await orch.handle_turn("test")
@@ -431,8 +417,8 @@ class TestCompleteTurnExecution:
 
         with patch.object(orch, "_handle_memory_injection", AsyncMock()):
             with patch.object(
-                orch._llm_runner,
-                "run",
+                orch._llm_executor,
+                "handle_llm_turn",
                 AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
             ):
                 await orch.handle_turn("test")
@@ -883,8 +869,8 @@ class TestApprovalWorkflowWithRealDB:
         mock_engine_instance.run = AsyncMock(side_effect=_engine_run)
 
         with patch.object(
-            orch._llm_runner,
-            "run",
+            orch._llm_executor,
+            "handle_llm_turn",
             AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
         ):
             with patch(
@@ -955,7 +941,7 @@ class TestApprovalWorkflowWithRealDB:
         orch = _make_orchestrator(ctx)
 
         with patch(
-            "agent.turnd_coordinator.validate_message",
+            "agent.conversation_state_manager.validate_message",
             return_value=ValidationResult(False, "forced failure"),
         ):
             orch._sync_system_prompt()

@@ -146,7 +146,25 @@ class LLMTurnRunner:
         """Store mid-turn LLM error in diagnostic channel and return a fail TurnResult."""
         ctx = self._ctx
         summary = e.detail or str(e)
-        if ctx.diagnostics is not None:
+        if e.partial_text:
+            incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
+            if ctx.diagnostics is not None:
+                ctx.diagnostics.save(
+                    ctx.session.session_id,
+                    "llm_transport_error",
+                    incomplete_msg,
+                    workflow_id=workflow_id,
+                    task_id=task_id,
+                )
+                ctx.diagnostics.save_partial_completion(
+                    session_id=ctx.session.session_id,
+                    turn=turn,
+                    reason=e.kind,
+                    content_length=len(e.partial_text),
+                )
+            ctx.services_required.llm.stat_partial_completions += 1
+            logger.warning("Partial LLM completion saved: %s", e.kind)
+        elif ctx.diagnostics is not None:
             ctx.diagnostics.save(
                 ctx.session.session_id,
                 "mid_turn_error",
@@ -169,6 +187,7 @@ class LLMTurnRunner:
         return TurnResult(
             action="fail",
             answer=summary,
+            error_kind=e.kind,
             reason="llm_transport_error",
             exception=e,
             persist_as_assistant=False,

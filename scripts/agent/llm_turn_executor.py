@@ -87,13 +87,16 @@ class LlmTurnExecutor:
             guard,
             tracer=self._tracer,
         )
-        return await runner.run(
+        result = await runner.run(
             llm_url,
             workflow_id=workflow_id,
             task_id=task_id,
             stage_id=stage_id,
             attempt_id=attempt_id,
         )
+        if result.exception is not None:
+            self.call_on_error(result.exception)
+        return result
 
     def process_turn_result(
         self,

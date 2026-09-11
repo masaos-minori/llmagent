@@ -187,6 +187,7 @@ class Orchestrator:
             diagnostic_store=self._diagnostic_store,
             tracer=tracer,
             on_error=on_error,
+            allowed_tools=self._allowed_tools,
         )
 
     # ── Public entry point ────────────────────────────────────────────────────
@@ -284,7 +285,11 @@ class Orchestrator:
             await self._conversation_manager.handle_history_compression()
 
             result: TurnResult = await self._llm_executor.handle_llm_turn(
-                ctx.conv.llm_url
+                ctx.conv.llm_url,
+                workflow_id=ctx.workflow.workflow_id or "",
+                task_id=ctx.workflow.current_task_id or "",
+                stage_id="execute",
+                attempt_id=ctx.turn.current_turn_id or "",
             )
             answer = result.answer
             if result.action != "continue":
@@ -294,6 +299,8 @@ class Orchestrator:
                     and result.exception.partial_text
                 ):
                     is_partial = True
+            elif result.persist_as_assistant:
+                ctx.session.save("assistant", answer)
 
         return answer, error_kind, is_partial
 
@@ -341,11 +348,3 @@ class Orchestrator:
     @_bg_pause_state.setter
     def _bg_pause_state(self, value: dict[str, bool]) -> None:
         self._bg_task_monitor._bg_pause_state = value
-
-    @property
-    def _consecutive_bg_failures(self) -> int:
-        return self._bg_task_monitor.get_consecutive_failures("unknown_bg_task")
-
-    @_consecutive_bg_failures.setter
-    def _consecutive_bg_failures(self, value: int) -> None:
-        self._bg_task_monitor.reset_consecutive_failures("unknown_bg_task")
