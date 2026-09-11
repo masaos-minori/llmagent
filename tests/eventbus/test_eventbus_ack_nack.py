@@ -279,13 +279,14 @@ class TestNackEvent:
         db.commit()
 
         result = nack_event(db, ev["event_id"])
-        assert result == 1
+        assert result == (1, 1)
 
         row = db.execute(
-            "SELECT delivery_failure_count FROM events WHERE event_id = ?",
+            "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
             (ev["event_id"],),
         ).fetchone()
         assert row["delivery_failure_count"] == 1
+        assert row["cycle_failure_count"] == 1
 
     def test_nack_event_increments_again(self, db: sqlite3.Connection) -> None:
         from eventbus.db import nack_event
@@ -304,19 +305,20 @@ class TestNackEvent:
         db.commit()
 
         result1 = nack_event(db, ev["event_id"])
-        assert result1 == 1
+        assert result1 == (1, 1)
 
         result2 = nack_event(db, ev["event_id"])
-        assert result2 == 2
+        assert result2 == (2, 2)
 
         row = db.execute(
-            "SELECT delivery_failure_count FROM events WHERE event_id = ?",
+            "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
             (ev["event_id"],),
         ).fetchone()
         assert row["delivery_failure_count"] == 2
+        assert row["cycle_failure_count"] == 2
 
     def test_nack_event_not_found(self, db: sqlite3.Connection) -> None:
         from eventbus.db import nack_event
 
         result = nack_event(db, "nonexistent-event")
-        assert result == -1
+        assert result == (-1, -1)
