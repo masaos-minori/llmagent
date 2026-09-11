@@ -88,21 +88,21 @@ class TestGetWorkflowStatus:
     def test_returns_unknown_when_orchestrator_is_none(self) -> None:
         repl = _make_bare_repl()
         repl._orchestrator = None
-        assert repl._banner._get_workflow_status() == "unknown"
+        assert repl._banner._get_workflow_status(repl._orchestrator) == "unknown"
 
     def test_returns_enabled_when_tracking_enabled(self) -> None:
         repl = _make_bare_repl()
         repl._orchestrator.workflow_status = MagicMock(
             return_value={"tracking": "enabled"}
         )
-        assert repl._banner._get_workflow_status() == "enabled"
+        assert repl._banner._get_workflow_status(repl._orchestrator) == "enabled"
 
     def test_returns_not_loaded_when_tracking_not_loaded(self) -> None:
         repl = _make_bare_repl()
         repl._orchestrator.workflow_status = MagicMock(
             return_value={"tracking": "not_loaded"}
         )
-        assert repl._banner._get_workflow_status() == "not loaded"
+        assert repl._banner._get_workflow_status(repl._orchestrator) == "not loaded"
 
 
 class TestGetChunkCount:
@@ -479,7 +479,7 @@ class TestPersistSessionDiagnostics:
             patch(
                 "agent.workflow.state_store.StateStore", return_value=mock_state_store
             ),
-            patch("agent.wal_checkpoint_manager.logger") as mock_logger,
+            patch("agent.session_persister.logger") as mock_logger,
         ):
             await repl._persister.persist_session_diagnostics()
 
@@ -512,7 +512,7 @@ class TestPersistSessionDiagnostics:
             patch(
                 "agent.workflow.state_store.StateStore", return_value=mock_state_store
             ),
-            patch("agent.wal_checkpoint_manager.logger") as mock_logger,
+            patch("agent.session_persister.logger") as mock_logger,
         ):
             await repl._persister.persist_session_diagnostics()
 
@@ -540,7 +540,7 @@ class TestPersistSessionDiagnostics:
             patch(
                 "agent.workflow.state_store.StateStore", return_value=mock_state_store
             ),
-            patch("agent.wal_checkpoint_manager.logger") as mock_logger,
+            patch("agent.session_persister.logger") as mock_logger,
         ):
             await repl._persister.persist_session_diagnostics()
 
@@ -640,7 +640,7 @@ class TestRunSqliteErrorMessage:
     """Tests for sqlite3.Error error message formatting in AgentREPL.run()."""
 
     @pytest.mark.asyncio
-    async def test_error_message_includes_class_name(self) -> None:
+    async def test_error_message_includes_class_name(self, tmp_path) -> None:
         """Error message includes the sqlite3 error subclass name."""
         import sqlite3
 
@@ -652,14 +652,14 @@ class TestRunSqliteErrorMessage:
 
         # Patch startup.run() to succeed, then simulate OperationalError during session start
         valid_cfg = DbConfig(
-            rag_db_path="/tmp/llm/db/rag.sqlite",
-            session_db_path="/tmp/llm/db/session.db",
-            workflow_db_path="/tmp/llm/db/workflow.sqlite",
-            eventbus_db_path="/tmp/llm/db/eventbus.sqlite",
+            rag_db_path=str(tmp_path / "rag.sqlite"),
+            session_db_path=str(tmp_path / "session.db"),
+            workflow_db_path=str(tmp_path / "workflow.sqlite"),
+            eventbus_db_path=str(tmp_path / "eventbus.sqlite"),
         )
         with (
             patch("db.helper.build_db_config", return_value=valid_cfg),
-            patch("agent.startup.StartupOrchestrator") as MockStartup,
+            patch("agent.repl.StartupOrchestrator") as MockStartup,
         ):
             MockStartup.return_value.run = AsyncMock(
                 return_value=(MagicMock(), MagicMock(), [])
@@ -678,7 +678,7 @@ class TestRunSqliteErrorMessage:
         assert "disk I/O error" in last_fatal
 
     @pytest.mark.asyncio
-    async def test_runtime_error_includes_class_name(self) -> None:
+    async def test_runtime_error_includes_class_name(self, tmp_path) -> None:
         """Raised RuntimeError includes the sqlite3 error subclass name."""
         import sqlite3
 
@@ -689,14 +689,14 @@ class TestRunSqliteErrorMessage:
         repl._cmds = MagicMock()
 
         valid_cfg = DbConfig(
-            rag_db_path="/tmp/llm/db/rag.sqlite",
-            session_db_path="/tmp/llm/db/session.db",
-            workflow_db_path="/tmp/llm/db/workflow.sqlite",
-            eventbus_db_path="/tmp/llm/db/eventbus.sqlite",
+            rag_db_path=str(tmp_path / "rag.sqlite"),
+            session_db_path=str(tmp_path / "session.db"),
+            workflow_db_path=str(tmp_path / "workflow.sqlite"),
+            eventbus_db_path=str(tmp_path / "eventbus.sqlite"),
         )
         with (
             patch("db.helper.build_db_config", return_value=valid_cfg),
-            patch("agent.startup.StartupOrchestrator") as MockStartup,
+            patch("agent.repl.StartupOrchestrator") as MockStartup,
         ):
             MockStartup.return_value.run = AsyncMock(
                 return_value=(MagicMock(), MagicMock(), [])
@@ -1077,9 +1077,18 @@ class TestCloseResourcesServiceCleanupGuards:
 # ── run() _sigterm_handler _turn_active guard ──────────────────────────────────
 
 
-class TestSigtermHandlerTurnActiveGuard:
-    """Tests for the _turn_active guard in run()'s _sigterm_handler closure:
-    the input coroutine must only be cancelled while no turn is active."""
+class TestSigtermHandlerShutdownCoordination:
+    """Tests for run()'s _sigterm_handler closure.
+
+    SignalHandler no longer cancels the input coroutine directly (that was
+    removed in commit 44d7f2e4f in favor of shutdown_event-based
+    coordination with ReplInputLoop — see ReplInputLoop._read_input()/
+    _repl_loop(), covered by TestReplLoop's signal tests). Its
+    _sigterm_handler now unconditionally sets ctx.conv.shutdown_requested
+    and shutdown_event regardless of whether a turn is active; the
+    previous _turn_active/_input_coro attributes were dead code and have
+    been removed from SignalHandler.
+    """
 
     @staticmethod
     async def _run_and_capture_handler(repl: AgentREPL) -> list:
@@ -1108,36 +1117,28 @@ class TestSigtermHandlerTurnActiveGuard:
         return captured
 
     @pytest.mark.asyncio
-    async def test_input_coro_not_cancelled_when_turn_active(self) -> None:
+    async def test_sets_shutdown_requested_and_event_when_turn_active(self) -> None:
         repl = _make_bare_repl()
         repl._turn_active = True
-        repl._signal._turn_active = True
-        mock_task = MagicMock()
-        mock_task.done.return_value = False
-        repl._signal._input_coro = mock_task
 
         handlers = await self._run_and_capture_handler(repl)
         assert handlers, "signal handler was not registered via add_signal_handler"
         handlers[0]()
 
-        mock_task.cancel.assert_not_called()
         assert repl._ctx.conv.shutdown_requested is True
         assert repl._shutdown_event.is_set()
 
     @pytest.mark.asyncio
-    async def test_input_coro_cancelled_when_turn_not_active(self) -> None:
+    async def test_sets_shutdown_requested_and_event_when_turn_not_active(
+        self,
+    ) -> None:
         repl = _make_bare_repl()
         repl._turn_active = False
-        repl._signal._turn_active = False
-        mock_task = MagicMock()
-        mock_task.done.return_value = False
-        repl._signal._input_coro = mock_task
 
         handlers = await self._run_and_capture_handler(repl)
         assert handlers, "signal handler was not registered via add_signal_handler"
         handlers[0]()
 
-        mock_task.cancel.assert_called_once()
         assert repl._ctx.conv.shutdown_requested is True
         assert repl._shutdown_event.is_set()
 

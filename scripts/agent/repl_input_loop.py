@@ -243,11 +243,18 @@ class ReplInputLoop:
                         {dispatch_task, shutdown_task},
                         return_when=asyncio.FIRST_COMPLETED,
                     )
+                    if dispatch_task in done and shutdown_task not in done:
+                        # dispatch finished first and shutdown has not (yet)
+                        # fired — the normal, no-shutdown-race case.
+                        dispatch_task.result()  # propagate exception if any
+                        if shutdown_task in pending:
+                            shutdown_task.cancel()
+                        continue
+                    # shutdown_task completed first, or both completed in the
+                    # same tick (dispatch finishing right as shutdown fires) —
+                    # either way, exit rather than looping back to _read_input.
                     if dispatch_task in done:
                         dispatch_task.result()  # propagate exception if any
-                        continue
-                    # shutdown_task completed first — cancel both tasks and exit
-                    assert shutdown_task in pending or shutdown_task in done
                     if shutdown_task in pending:
                         shutdown_task.cancel()
                     if dispatch_task in pending:

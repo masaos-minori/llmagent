@@ -47,8 +47,6 @@ class SignalHandler:
         """
         self._ctx = ctx
         self._shutdown_event = shutdown_event
-        self._turn_active: bool = False
-        self._input_coro: asyncio.Task[str] | None = None
 
     def register(self, loop: asyncio.AbstractEventLoop) -> None:
         """Register signal handlers for SIGTERM and SIGINT."""

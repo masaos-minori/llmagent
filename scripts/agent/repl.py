@@ -144,7 +144,7 @@ class AgentREPL:
 
         # Delegate to input loop
         await self._input_loop.run(
-            lambda: self._banner.print_startup_banner(),
+            lambda: self._banner.print_startup_banner(self._orchestrator),
             self._persist_after_loop,
         )
 
