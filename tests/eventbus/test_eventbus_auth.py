@@ -155,7 +155,7 @@ async def _init_local_state(app: FastAPI, cfg: Any) -> None:
     )
     app.state.envelope_schema = eb_app.orjson.loads(schema_path.read_bytes())
     pathlib.Path(cfg.storage_dir).mkdir(parents=True, exist_ok=True)
-    app.state.broker = eb_app.EventBroker()
+    app.state.broker = eb_app.EventBroker(cfg)
 
 
 async def _do_cleanup_eb(app: FastAPI) -> None:

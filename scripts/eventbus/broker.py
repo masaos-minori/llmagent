@@ -7,9 +7,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from eventbus.config import EventBusConfig
 
-_SLOW_CONSUMER_THRESHOLD = 100
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -29,12 +29,19 @@ class ConsumerAlreadyConnectedError(Exception):
 class EventBroker:
     """In-memory pub/sub broker with per-subscriber queues and topic filtering."""
 
-    def __init__(self) -> None:
-        """Initialize with empty subscriber list."""
+    def __init__(self, config: EventBusConfig) -> None:
+        """Initialize with empty subscriber list.
+
+        Args:
+            config: EventBusConfig containing operational thresholds.
+        """
         self._subscribers: list[_Subscriber] = []
         self._consumer_subs: dict[str, _Subscriber] = {}
         self._overflow_disconnect_count = 0
         self._duplicate_rejection_count = 0
+        self._slow_consumer_threshold = config.slow_consumer_threshold
+        self._subscriber_queue_maxsize = config.subscriber_queue_maxsize
+        self._backlog_health_threshold = config.backlog_health_threshold
 
     def subscribe(self, topics: list[str], consumer_id: str = "") -> _Subscriber:
         """Register a new subscriber. topics=[] means all topics."""
@@ -42,7 +49,7 @@ class EventBroker:
             self._duplicate_rejection_count += 1
             raise ConsumerAlreadyConnectedError(consumer_id)
         sub = _Subscriber(
-            queue=asyncio.Queue(maxsize=1000),
+            queue=asyncio.Queue(maxsize=self._subscriber_queue_maxsize),
             topics=list(topics),
             consumer_id=consumer_id,
         )
@@ -105,7 +112,7 @@ class EventBroker:
         return sum(
             1
             for sub in list(self._subscribers)
-            if sub.queue.qsize() >= _SLOW_CONSUMER_THRESHOLD
+            if sub.queue.qsize() >= self._slow_consumer_threshold
         )
 
     def overflow_disconnect_count(self) -> int:
@@ -115,3 +122,8 @@ class EventBroker:
     def duplicate_rejection_count(self) -> int:
         """Return the number of duplicate consumer_id rejections."""
         return self._duplicate_rejection_count
+
+    @property
+    def backlog_health_threshold(self) -> int:
+        """Return the configured backlog health threshold."""
+        return self._backlog_health_threshold

@@ -4,11 +4,24 @@ import asyncio
 
 import pytest
 from eventbus.broker import ConsumerAlreadyConnectedError, EventBroker
+from eventbus.config import EventBusConfig
+
+
+def _make_config() -> EventBusConfig:
+    return EventBusConfig(
+        port=8015,
+        db_path="/tmp/eventbus.sqlite",
+        storage_dir="/tmp/storage",
+        offsets_dir="/tmp/offsets",
+        deadletter_dir="/tmp/deadletter",
+        max_retry=3,
+        auth_token="test-token",
+    )
 
 
 @pytest.mark.asyncio
 async def test_fan_out_all_subscribers():
-    broker = EventBroker()
+    broker = EventBroker(_make_config())
     sub1 = broker.subscribe([])
     sub2 = broker.subscribe([])
     broker.publish({"seq": 1, "topic": "t", "event_id": "a"})
@@ -18,7 +31,7 @@ async def test_fan_out_all_subscribers():
 
 @pytest.mark.asyncio
 async def test_topic_filter_excludes_non_matching():
-    broker = EventBroker()
+    broker = EventBroker(_make_config())
     sub_t = broker.subscribe(["target"])
     sub_all = broker.subscribe([])
     broker.publish({"seq": 1, "topic": "other", "event_id": "a"})
@@ -28,7 +41,7 @@ async def test_topic_filter_excludes_non_matching():
 
 @pytest.mark.asyncio
 async def test_topic_filter_delivers_matching():
-    broker = EventBroker()
+    broker = EventBroker(_make_config())
     sub = broker.subscribe(["target"])
     broker.publish({"seq": 1, "topic": "target", "event_id": "a"})
     assert sub.queue.qsize() == 1
@@ -36,7 +49,7 @@ async def test_topic_filter_delivers_matching():
 
 @pytest.mark.asyncio
 async def test_unsubscribe_stops_delivery():
-    broker = EventBroker()
+    broker = EventBroker(_make_config())
     sub = broker.subscribe([])
     broker.unsubscribe(sub)
     broker.publish({"seq": 1, "topic": "t", "event_id": "a"})
@@ -45,7 +58,7 @@ async def test_unsubscribe_stops_delivery():
 
 @pytest.mark.asyncio
 async def test_unsubscribe_idempotent():
-    broker = EventBroker()
+    broker = EventBroker(_make_config())
     sub = broker.subscribe([])
     broker.unsubscribe(sub)
     broker.unsubscribe(sub)  # should not raise
@@ -53,7 +66,7 @@ async def test_unsubscribe_idempotent():
 
 @pytest.mark.asyncio
 async def test_shutdown_sends_sentinel():
-    broker = EventBroker()
+    broker = EventBroker(_make_config())
     sub = broker.subscribe([])
     broker.shutdown()
     sentinel = await asyncio.wait_for(sub.queue.get(), timeout=1.0)
@@ -62,7 +75,7 @@ async def test_shutdown_sends_sentinel():
 
 @pytest.mark.asyncio
 async def test_duplicate_consumer_id_rejected():
-    broker = EventBroker()
+    broker = EventBroker(_make_config())
     _ = broker.subscribe([], consumer_id="c1")
     with pytest.raises(ConsumerAlreadyConnectedError):
         broker.subscribe([], consumer_id="c1")
@@ -73,7 +86,7 @@ async def test_duplicate_consumer_id_rejected():
 
 @pytest.mark.asyncio
 async def test_anonymous_connection_not_rejected():
-    broker = EventBroker()
+    broker = EventBroker(_make_config())
     _ = broker.subscribe([])
     _ = broker.subscribe([])
     assert len(broker._subscribers) == 2
@@ -85,7 +98,7 @@ async def test_anonymous_connection_not_rejected():
 
 @pytest.mark.asyncio
 async def test_unsubscribe_clears_registry_entry():
-    broker = EventBroker()
+    broker = EventBroker(_make_config())
     sub = broker.subscribe([], consumer_id="c1")
     assert len(broker._consumer_subs) == 1
     assert broker._consumer_subs["c1"] is sub
@@ -96,7 +109,7 @@ async def test_unsubscribe_clears_registry_entry():
 
 @pytest.mark.asyncio
 async def test_overflow_disconnect_on_queue_full():
-    broker = EventBroker()
+    broker = EventBroker(_make_config())
     sub = broker.subscribe([], consumer_id="c1")
     # Fill the queue to capacity
     for i in range(1000):

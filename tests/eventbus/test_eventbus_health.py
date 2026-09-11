@@ -26,7 +26,7 @@ async def _init_state(cfg: Any) -> None:
     eb_app.app.state.db = eb_app.open_db(cfg.db_path)
     eb_app.app.state.envelope_schema = eb_app.orjson.loads(schema_path.read_bytes())
     pathlib.Path(cfg.storage_dir).mkdir(parents=True, exist_ok=True)
-    eb_app.app.state.broker = eb_app.EventBroker()
+    eb_app.app.state.broker = eb_app.EventBroker(cfg)
 
 
 async def _do_cleanup() -> None:

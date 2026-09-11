@@ -204,11 +204,34 @@ storage_dir = "/opt/llm/storage"
 offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
+host = "127.0.0.1"
 auth_token = "test-token"
 unknown_key = "should-be-rejected"
 """)
     with pytest.raises(ValueError, match="unknown key"):
         load_config(config_file)
+
+
+def test_load_config_accepts_new_optional_keys(tmp_path: Path) -> None:
+    """load_config() should accept the three new threshold keys and use them."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-token"
+slow_consumer_threshold = 200
+subscriber_queue_maxsize = 2000
+backlog_health_threshold = 1000
+""")
+    cfg = load_config(config_file)
+    assert cfg.slow_consumer_threshold == 200
+    assert cfg.subscriber_queue_maxsize == 2000
+    assert cfg.backlog_health_threshold == 1000
 
 
 def test_load_config_rejects_wrong_type(tmp_path: Path) -> None:
@@ -243,3 +266,56 @@ auth_token = ""
 """)
     with pytest.raises(ValueError, match="auth_token"):
         load_config(config_file)
+
+
+def test_valid_threshold_configuration() -> None:
+    """Valid thresholds should not raise during initialization."""
+    cfg = EventBusConfig(
+        port=8015,
+        db_path="/tmp/eventbus.sqlite",
+        storage_dir="/tmp/storage",
+        offsets_dir="/tmp/offsets",
+        deadletter_dir="/tmp/deadletter",
+        max_retry=3,
+        auth_token="test-token",
+        slow_consumer_threshold=100,
+        subscriber_queue_maxsize=1000,
+        backlog_health_threshold=500,
+    )
+    assert cfg.slow_consumer_threshold == 100
+    assert cfg.subscriber_queue_maxsize == 1000
+    assert cfg.backlog_health_threshold == 500
+
+
+def test_slow_consumer_threshold_equal_to_maxsize_raises() -> None:
+    """slow_consumer_threshold must be strictly less than subscriber_queue_maxsize."""
+    with pytest.raises(ValueError, match="slow_consumer_threshold"):
+        EventBusConfig(
+            port=8015,
+            db_path="/tmp/eventbus.sqlite",
+            storage_dir="/tmp/storage",
+            offsets_dir="/tmp/offsets",
+            deadletter_dir="/tmp/deadletter",
+            max_retry=3,
+            auth_token="test-token",
+            slow_consumer_threshold=1000,
+            subscriber_queue_maxsize=1000,
+            backlog_health_threshold=500,
+        )
+
+
+def test_backlog_health_threshold_exceeds_maxsize_raises() -> None:
+    """backlog_health_threshold must be <= subscriber_queue_maxsize."""
+    with pytest.raises(ValueError, match="backlog_health_threshold"):
+        EventBusConfig(
+            port=8015,
+            db_path="/tmp/eventbus.sqlite",
+            storage_dir="/tmp/storage",
+            offsets_dir="/tmp/offsets",
+            deadletter_dir="/tmp/deadletter",
+            max_retry=3,
+            auth_token="test-token",
+            slow_consumer_threshold=100,
+            subscriber_queue_maxsize=1000,
+            backlog_health_threshold=1001,
+        )

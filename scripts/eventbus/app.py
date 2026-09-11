@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         logger.exception("failed to migrate legacy offsets")
     app.state.envelope_schema = orjson.loads(get_schema_path().read_bytes())
     Path(app.state.config.storage_dir).mkdir(parents=True, exist_ok=True)
-    app.state.broker = EventBroker()
+    app.state.broker = EventBroker(app.state.config)
     app.state.dlq_task = asyncio.create_task(_dlq_loop(app))
     if _is_public_host(app.state.config.host):
         logger.warning(

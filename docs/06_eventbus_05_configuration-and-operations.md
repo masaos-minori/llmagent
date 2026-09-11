@@ -59,8 +59,13 @@ Loaded from a TOML file (default: `/opt/llm/config/eventbus.toml`).
 - `deadletter_dir` — DLQ directory
 - `max_retry` — Retry threshold before DLQ promotion (startup fails if < 1)
 - `host` — Listening address (default: `127.0.0.1`; must be `127.0.0.1` or `::1` — see Bind Address below)
+- `auth_token` — Required for all requests (startup fails if empty)
+- `sse_heartbeat_interval` — SSE heartbeat interval in seconds (default: 30.0)
+- `slow_consumer_threshold` — Queue depth at which a subscriber is considered slow (default: 100)
+- `subscriber_queue_maxsize` — Per-subscriber queue capacity (default: 1000)
+- `backlog_health_threshold` — Max queue depth before health endpoint reports `broker_queue_backlog_high` (default: 500)
 
-Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`.
+Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`.
 
 ### Deprecated Keys
 
@@ -122,10 +127,10 @@ Verify live push using `GET /subscribe?consumer_id=test`. Events should be recei
 
 ### Monitoring Slow Consumers
 
-A process queue exceeding 100 events is considered slow. This can be verified via the health endpoint:
+A process queue exceeding `slow_consumer_threshold` (default: 100) is considered slow. This can be verified via the health endpoint:
 
 - `slow_consumers > 0` → `degraded`
-- `max_queue_depth >= 500` → `broker_queue_backlog_high`
+- `max_queue_depth >= backlog_health_threshold` (default: 500) → `broker_queue_backlog_high`
 
 If a consumer is slow, events are discarded from the queue. The consumer must reconnect and replay from SQLite.
 
