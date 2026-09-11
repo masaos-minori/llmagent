@@ -3,6 +3,7 @@
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -33,7 +34,7 @@ async def subscribe(
     _identity: dict = Depends(require_consumer_identity),  # noqa: ANN001,ANN202 — FastAPI dependency protocol
 ) -> Any:
     """Subscribe to events via SSE with optional topic filtering and offset recovery."""
-    from eventbus.db import get_consumer_offset  # noqa: PLC0415
+    from eventbus.db import get_consumer_offset  # noqa: PLC0415, RUF100
 
     cfg = request.app.state.config
     assert cfg is not None
@@ -57,9 +58,38 @@ async def subscribe(
                     status_code=403, detail=f"Forbidden: topic '{t}' not allowed"
                 )
 
+    # REQ-003: Read Last-Event-ID header as additional resume-position input
+    last_event_id_str = request.headers.get("last-event-id", "")
+    last_event_id: int | None = None
+    if last_event_id_str:
+        try:
+            last_event_id = int(last_event_id_str, 10)
+        except ValueError:
+            logger.warning("Invalid Last-Event-ID header: %r", last_event_id_str)
+
+    # REQ-003: Stale reconnect rejection
+    if last_event_id is not None:
+
+        def _get_max_seq() -> int:
+            """Get the current maximum seq in SQLite."""
+            row = db.execute("SELECT MAX(seq) FROM events").fetchone()
+            return int(row[0]) if row else 0
+
+        max_seq = await run_with_db_lock(_get_max_seq)
+        if last_event_id > max_seq:
+            raise HTTPException(
+                status_code=412,
+                detail=f"Last-Event-ID ({last_event_id}) exceeds current max seq ({max_seq})",
+            )
+
+    # REQ-004: Implement precedence: since_seq > consumer offset > Last-Event-ID
     start_seq = since_seq
     if consumer_id and start_seq == 0:
         start_seq = get_consumer_offset(db, consumer_id)
+
+    # REQ-003: Fallback to Last-Event-ID only if both since_seq and consumer offset are unavailable
+    if start_seq == 0 and last_event_id is not None:
+        start_seq = last_event_id + 1
 
     try:
         sub = broker.subscribe(list(topic), consumer_id=consumer_id)
@@ -93,7 +123,8 @@ async def subscribe(
             rows = await run_with_db_lock(_fetch_replay)
             for row in rows:
                 data = json_dumps(_row_to_dict(row))
-                yield f"data: {data}\n\n"
+                # REQ-002: Emit id: field alongside data: field
+                yield f"id:{row['seq']}\ndata:{data}\n\n"
                 replay_ceil = row["seq"]
 
             # Step 3: live delivery from broker queue. sub.disconnect only
@@ -102,6 +133,10 @@ async def subscribe(
             # on a timeout to avoid leaking this generator (and its
             # subscriber registration) forever when a client goes away
             # without ever overflowing its queue.
+            # REQ-001: Heartbeat tracking for idle connection keepalive
+            last_heartbeat_time = time.time()
+            heartbeat_interval = cfg.sse_heartbeat_interval
+
             while True:
                 get_task = asyncio.ensure_future(sub.queue.get())
                 disc_task = asyncio.ensure_future(sub.disconnect.wait())
@@ -124,7 +159,13 @@ async def subscribe(
                 if event["seq"] <= replay_ceil:
                     continue  # duplicate from replay; discard
                 data = json_dumps(event)
-                yield f"data: {data}\n\n"
+                # REQ-002: Emit id: field alongside data: field
+                yield f"id:{event['seq']}\ndata:{data}\n\n"
+                # REQ-001: Periodic heartbeat during active delivery
+                now = time.time()
+                if now - last_heartbeat_time >= heartbeat_interval:
+                    yield ": heartbeat\n\n"
+                    last_heartbeat_time = now
 
         except asyncio.CancelledError:
             logger.info(
