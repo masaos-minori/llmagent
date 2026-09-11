@@ -52,8 +52,8 @@ def promote_to_dlq(
     """Promote failed events to the dead-letter queue and write them to disk."""
     now = now_iso()
     rows = db.execute(
-        "SELECT seq, event_id, topic, payload, producer, published_at, delivery_failure_count"
-        " FROM events WHERE delivery_failure_count >= ? AND dlq_at IS NULL",
+        "SELECT seq, event_id, topic, payload, producer, published_at, cycle_failure_count"
+        " FROM events WHERE cycle_failure_count >= ? AND dlq_at IS NULL",
         (max_retry,),
     ).fetchall()
 
@@ -68,9 +68,9 @@ def promote_to_dlq(
         )
         db.commit()
         logger.warning(
-            "dlq promoted event_id=%s delivery_failure_count=%d",
+            "dlq promoted event_id=%s cycle_failure_count=%d",
             event_id,
-            row["delivery_failure_count"],
+            row["cycle_failure_count"],
         )
         promoted += 1
 
@@ -90,8 +90,8 @@ def sweep_orphans(
     """
     now = now_iso()
     rows = db.execute(
-        "SELECT seq, event_id, topic, payload, producer, published_at, delivery_failure_count"
-        " FROM events WHERE delivery_failure_count >= ? AND dlq_at IS NULL",
+        "SELECT seq, event_id, topic, payload, producer, published_at, cycle_failure_count"
+        " FROM events WHERE cycle_failure_count >= ? AND dlq_at IS NULL",
         (max_retry,),
     ).fetchall()
 
@@ -124,7 +124,7 @@ def promote_single(
     """
     now = now_iso()
     row = db.execute(
-        "SELECT seq, event_id, topic, payload, producer, published_at, delivery_failure_count"
+        "SELECT seq, event_id, topic, payload, producer, published_at, cycle_failure_count"
         " FROM events WHERE event_id = ? AND dlq_at IS NULL",
         (event_id,),
     ).fetchone()
@@ -140,9 +140,9 @@ def promote_single(
     db.commit()
     if cur.rowcount:
         logger.warning(
-            "dlq inline promoted event_id=%s delivery_failure_count=%d",
+            "dlq inline promoted event_id=%s cycle_failure_count=%d",
             event_id,
-            row["delivery_failure_count"],
+            row["cycle_failure_count"],
         )
     return cur.rowcount > 0
 
@@ -163,3 +163,27 @@ def _atomic_write(deadletter_dir: str, event_id: str, record: DlqEventRecord) ->
         except OSError:
             pass
         raise
+
+
+def archive_dlq_record(deadletter_dir: str, event_id: str) -> bool:
+    """Move {deadletter_dir}/{event_id}.json to {deadletter_dir}/requeued/{event_id}_{timestamp}.json.
+
+    Creates the requeued/ subdirectory if it doesn't exist. Uses os.replace() for atomic move.
+    Returns True if the file was moved, False if the source file didn't exist.
+    """
+    src_dir = Path(deadletter_dir)
+    src_file = src_dir / f"{event_id}.json"
+    if not src_file.exists():
+        return False
+    
+    requeued_dir = src_dir / "requeued"
+    requeued_dir.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = now_iso().replace(":", "-").replace(".", "-")
+    dst_file = requeued_dir / f"{event_id}_{timestamp}.json"
+    
+    try:
+        os.replace(str(src_file), str(dst_file))
+        return True
+    except OSError:
+        return False
