@@ -262,3 +262,17 @@ class TestPublishContract:
         assert replay_resp.status_code == 200
         events = replay_resp.json()
         assert len(events) >= 1
+
+
+class TestCanonicalEquality:
+    def test_reordered_key_equality(self, client: TestClient) -> None:
+        """Reordered JSON object keys in the payload do not create a false conflict."""
+        ev = _event()
+        ev["payload"] = {"b": 2, "a": 1}  # Keys in one order
+        resp1 = client.post("/publish", json=ev)
+        assert resp1.status_code == 200
+
+        reordered = dict(ev)
+        reordered["payload"] = {"a": 1, "b": 2}  # Keys in reverse order
+        resp2 = client.post("/publish", json=reordered)
+        assert resp2.status_code == 200  # Should be 200, not 409

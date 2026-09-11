@@ -17,6 +17,7 @@ ERR_EVENT_NOT_IN_DLQ = "event is not in DLQ"
 ERR_EVENT_ALREADY_ACKED = "event already acknowledged"
 ERR_EVENT_IN_DLQ = "event already in dead letter queue"
 ERR_CONSUMER_ALREADY_CONNECTED = "consumer already connected"
+ERR_EVENT_CONFLICT = "event already exists with different content"
 
 
 def _require_state(app: Any, attr: str) -> Any:

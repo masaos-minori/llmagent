@@ -101,3 +101,29 @@ def test_publish_succeeds_if_jsonl_append_fails(client: TestClient) -> None:
     body = replay.json()
     event_ids = [e["event_id"] for e in body["items"]]
     assert ev["event_id"] in event_ids
+
+
+def test_identical_content_retry_returns_same_seq(client: TestClient) -> None:
+    """Identical retries return the existing sequence and do not cause redelivery."""
+    ev = _event()
+    resp1 = client.post("/publish", json=ev)
+    assert resp1.status_code == 200
+    seq1 = resp1.json()["seq"]
+
+    resp2 = client.post("/publish", json=ev)
+    assert resp2.status_code == 200
+    seq2 = resp2.json()["seq"]
+
+    assert seq1 == seq2  # Same seq returned
+
+
+def test_conflicting_content_retry_returns_409(client: TestClient) -> None:
+    """Conflicting retries return HTTP 409 and do not modify the stored row."""
+    resp1 = client.post("/publish", json=_event())
+    assert resp1.status_code == 200
+
+    conflicting = _event()
+    conflicting["event_id"] = resp1.json()["event_id"]
+    conflicting["payload"] = {"key": "different_value"}
+    resp2 = client.post("/publish", json=conflicting)
+    assert resp2.status_code == 409

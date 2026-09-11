@@ -434,6 +434,10 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Impact**: 低い（イベントが削除されるのは稀なケース）
 - **Resolution Target**: 409応答前に再度イベント状態を確認するか、エラーメッセージを改善する
 
+- **Resolved**: INV-07 (at-least-once delivery) — Now enforced by duplicate detection in `insert_event()`. Duplicate events with identical canonical fields return the original seq; conflicting content returns HTTP 409. No stored data corruption possible.
+- **Not affected**: INV-12 (ACK failure handling) — Not affected by this change.
+- **Not affected**: INV-13 (DLQ promotion priority) — Not affected by this change.
+
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
 ## Review Triggers

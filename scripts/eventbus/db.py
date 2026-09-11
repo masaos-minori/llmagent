@@ -15,6 +15,7 @@ Return value conventions for nack_event():
 
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 import threading
@@ -340,18 +341,54 @@ def insert_event(
     payload_str: str,
     producer: str,
     published_at: str,
-) -> tuple[int, bool]:
-    """INSERT OR IGNORE. Returns (seq, inserted). seq is lastrowid or fetched if duplicate."""
+) -> tuple[int | None, bool, str]:
+    """INSERT OR IGNORE. Returns (seq, inserted, status).
+
+    For duplicates:
+      - status="duplicate": identical content, return original seq
+      - status="conflict": conflicting content, return None
+
+    Canonical equality fields: topic, payload (canonical JSON), producer.
+    published_at is excluded from canonical equality (server-generated).
+    """
     cur = conn.execute(
         "INSERT OR IGNORE INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
         (event_id, topic, payload_str, producer, published_at),
     )
     conn.commit()
     inserted = cur.rowcount > 0
-    seq = (
-        int(cur.lastrowid) if (inserted and cur.lastrowid) else get_seq(conn, event_id)
-    )
-    return seq, inserted
+
+    if inserted:
+        seq = int(cur.lastrowid) if cur.lastrowid else 0
+        return seq, True, "inserted"
+
+    # Duplicate detected — compare canonical fields
+    existing_row = conn.execute(
+        "SELECT topic, payload, producer FROM events WHERE event_id = ?",
+        (event_id,),
+    ).fetchone()
+
+    if existing_row is None:
+        # Race condition: row was deleted between INSERT and SELECT
+        return None, False, "conflict"
+
+    # Compare canonical fields
+    from . import json_utils
+
+    existing_payload_canonical = json_utils.dumps(json.loads(existing_row["payload"]))
+    incoming_payload_canonical = json_utils.dumps(json.loads(payload_str))
+
+    if (
+        existing_row["topic"] == topic
+        and existing_payload_canonical == incoming_payload_canonical
+        and existing_row["producer"] == producer
+    ):
+        # Identical content — idempotent success
+        seq = get_seq(conn, event_id)
+        return seq, False, "duplicate"
+    else:
+        # Conflicting content — reject without modifying stored data
+        return None, False, "conflict"
 
 
 def get_seq(conn: sqlite3.Connection, event_id: str) -> int:
