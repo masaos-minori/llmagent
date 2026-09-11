@@ -59,7 +59,8 @@ async def replay(
     async def _sse_gen() -> AsyncGenerator[str]:
         """Generate SSE stream events from fetched rows."""
         for row in rows:
+            seq = row[0]
             data = json_dumps(_row_to_dict(row))
-            yield f"data: {data}\n\n"
+            yield f"id:{seq}\ndata:{data}\n\n"
 
     return StreamingResponse(_sse_gen(), media_type="text/event-stream")

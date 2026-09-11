@@ -369,12 +369,14 @@ if start_seq == 0 and last_event_id is not None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add Last-Event-ID parsing and stale reconnect rejection | Pending | — | — | |
-| 2 | Add event IDs to subscribe route | Pending | — | — | |
-| 3 | Add heartbeat to subscribe route | Pending | — | — | |
-| 4 | Implement precedence order | Pending | — | — | |
-| 5 | Add or update tests per Validation plan | Pending | — | — | |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add Last-Event-ID parsing and stale reconnect rejection | Completed | — | — | REQ-003 already implemented in current source |
+| 2 | Add event IDs to subscribe route | Completed | — | — | REQ-002 already implemented in current source |
+| 3 | Add heartbeat to subscribe route | Completed | — | — | REQ-001 already implemented in current source |
+| 4 | Implement precedence order | Completed | — | — | REQ-004 already implemented in current source |
+| 5 | Add or update tests per Validation plan | Completed | — | — | Added 2 new tests for sse_heartbeat_interval |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy/bandit/lint-imports all pass; 214 tests pass |
+| 7 | Update documentation per `docs/00_index.md` task-scope mapping | Completed | — | — | Updated 06_eventbus_02_operations.md, 06_eventbus_05_configuration-and-operations.md, 06_eventbus_06_reference-api.md |
+| 8 | Validate documentation updates | Completed | — | — | check_docs_quality.py + check_docs_structure.py pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -56,7 +56,7 @@ Replays past events. Returns events where `seq > since_seq`. Supports pagination
 
 **Response (`format=json`):** A pagination object containing `{total, limit, offset, items}`. `total` is the total count regardless of `limit`/`offset`.
 
-**Response (`format=sse`):** Each event is output as a `data: {...}` line. The SSE format does not support paginated incremental consumption. The stream terminates after `limit` items are output.
+**Response (`format=sse`):** Each event is output as an `id:<seq>\ndata: {...}\n\n` SSE frame. The `id:` field contains the monotonic sequence number, enabling `EventSource`-based clients to auto-reconnect. The SSE format does not support paginated incremental consumption. The stream terminates after `limit` items are output.
 
 **Error Response:** 422 — if parameter values are invalid.
 
@@ -66,7 +66,18 @@ Replays past events. Returns events where `seq > since_seq`. Supports pagination
 
 A hybrid model combining replay and push, streaming events to the caller.
 
-**Phase 1 — Replay**: Upon connection, all events matching the topic filter where `seq > start_seq` are retrieved from SQLite and output as `data:` SSE lines.
+**SSE Heartbeat:** During the live delivery phase, the server emits `: heartbeat\n\n` comments at `cfg.sse_heartbeat_interval` intervals (default 30 seconds) to keep idle connections alive through proxies and load balancers. Heartbeat frames do not alter offsets or delivery state.
+
+**SSE Event IDs:** Each event frame includes `id:<seq>` where `seq` is the monotonic sequence number. This enables `EventSource`-based clients to auto-reconnect by sending the `Last-Event-ID` header.
+
+**Reconnection with `Last-Event-ID`:** Clients can send the `HTTP Last-Event-ID` header with a sequence number to resume from that point. Precedence for determining `start_seq`:
+1. `since_seq` query parameter (highest priority)
+2. Persisted consumer offset (from `consumer_id`)
+3. `Last-Event-ID` header value + 1 (lowest — fallback for `EventSource` clients)
+
+If `Last-Event-ID` exceeds the current max seq in SQLite, the server returns HTTP 412 Precondition Failed with the current max seq in the response body.
+
+**Phase 1 — Replay**: Upon connection, all events matching the topic filter where `seq > start_seq` are retrieved from SQLite and output as `id:<seq>\ndata: {...}\n\n` SSE frames.
 
 **Phase 2 — Live Push**: After replay completion, the process subscribes to the internal `EventBroker` and streams new events published via `POST /publish` to the SSE stream in real-time.
 
