@@ -117,11 +117,11 @@ async def subscribe(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add authentication dependency to subscribe() | Pending | — | — | |
-| 2 | Implement consumer identity validation | Pending | — | — | |
-| 3 | Implement topic access control | Pending | — | — | |
-| 4 | Add or update tests per Validation plan | Pending | — | — | |
-| 5 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add authentication dependency to subscribe() | Completed | — | — | |
+| 2 | Implement consumer identity validation | Completed | — | — | |
+| 3 | Implement topic access control | Completed | — | — | |
+| 4 | Add or update tests per Validation plan | Completed | — | — | |
+| 5 | Run the validation sequence (rules/toolchain.md) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

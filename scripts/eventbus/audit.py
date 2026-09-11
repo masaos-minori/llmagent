@@ -55,6 +55,7 @@ class AuditRecord(TypedDict):
     error_type: str
     detail: NotRequired[str]
 
+
 def _build_audit_record(
     event: str,
     consumer_id: str,
@@ -89,6 +90,7 @@ def _build_audit_record(
         record["detail"] = detail
     return record
 
+
 def log_auth_failure(
     consumer_id: str,
     route: str,
@@ -115,6 +117,7 @@ def log_auth_failure(
         detail=detail,
     )
     logger.warning(orjson.dumps(record, option=orjson.OPT_SORT_KEYS).decode())
+
 
 def log_privileged_action(
     consumer_id: str,

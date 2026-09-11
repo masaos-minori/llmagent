@@ -231,15 +231,15 @@ class TestReplayAuth:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create test file with positive/negative tests | Pending | — | — | |
-| 2 | Add publish auth tests | Pending | — | — | |
-| 3 | Add subscribe auth tests | Pending | — | — | |
-| 4 | Add ack auth tests | Pending | — | — | |
-| 5 | Add nack auth tests | Pending | — | — | |
-| 6 | Add dlq list auth tests | Pending | — | — | |
-| 7 | Add dlq requeue auth tests | Pending | — | — | |
-| 8 | Add replay auth tests | Pending | — | — | |
-| 9 | Validate tests pass | Pending | — | — | |
+| 1 | Create test file with positive/negative tests | Completed | — | — | |
+| 2 | Add publish auth tests | Completed | — | — | |
+| 3 | Add subscribe auth tests | Completed | — | — | |
+| 4 | Add ack auth tests | Completed | — | — | |
+| 5 | Add nack auth tests | Completed | — | — | |
+| 6 | Add dlq list auth tests | Completed | — | — | |
+| 7 | Add dlq requeue auth tests | Completed | — | — | |
+| 8 | Add replay auth tests | Completed | — | — | |
+| 9 | Validate tests pass | Completed | — | — | 11/11 pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

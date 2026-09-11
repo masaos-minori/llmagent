@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,8 @@ def get_auth_token(config: Any) -> str:
             "auth_token is required but not configured. "
             "Add auth_token to config/eventbus.toml before starting."
         )
-    return cast(str, token)
+    assert isinstance(token, str), f"Expected str, got {type(token).__name__}"
+    return token
 
 
 async def verify_bearer_token(
@@ -83,43 +85,31 @@ async def verify_bearer_token(
     return token
 
 
-def require_role(role: Role):
-    """FastAPI dependency factory: verify caller has the required role.
+async def require_role(
+    role: Role,
+    request: Request,
+    token: str = Depends(verify_bearer_token),
+) -> None:
+    """FastAPI dependency: verify caller has the required role."""
+    if not token:
+        # Authentication already failed in verify_bearer_token
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
-    Returns a dependency bound to `role` via closure, since FastAPI's
-    `Depends(...)` calls the dependency itself rather than passing extra
-    arguments to it.
-    """
+    # Determine which route category is being accessed
+    path = request.url.path
+    for route_path, allowed_roles in _ROUTE_ROLE_MAP.items():
+        if path.startswith(route_path):
+            if role not in allowed_roles:
+                logger.warning(
+                    "Authorization failed: %s requires role=%s, caller has none",
+                    path,
+                    role,
+                )
+                raise HTTPException(
+                    status_code=403, detail=f"Forbidden: requires {role} role"
+                )
+            return
 
-    async def _check_role(
-        request: Request,
-        token: str = Depends(verify_bearer_token),
-    ) -> None:
-        if not token:
-            # Authentication already failed in verify_bearer_token
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-        # Determine which route category is being accessed
-        path = request.url.path
-        for route_path, allowed_roles in _ROUTE_ROLE_MAP.items():
-            if path.startswith(route_path):
-                if role not in allowed_roles:
-                    logger.warning(
-                        "Authorization failed: %s requires role=%s, caller has none",
-                        path,
-                        role,
-                    )
-                    raise HTTPException(
-                        status_code=403, detail=f"Forbidden: requires {role} role"
-                    )
-                return
-
-        # Fallback: check exact match
-        if path not in _ROUTE_ROLE_MAP:
-            logger.warning("Unknown route accessed: %s", path)
-            raise HTTPException(status_code=403, detail="Forbidden")
-
-    return _check_role
 
 
 async def require_consumer_identity(
@@ -195,7 +185,6 @@ def attach_auth_middleware(app: Any) -> None:
             return True
         return request.headers.get("Authorization", "") == f"Bearer {tok}"
 
-    @app.middleware("http")
     async def _auth_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol
         """Authenticate requests by validating Bearer token header."""
         req_id = str(__import__("uuid").uuid4())
@@ -205,3 +194,5 @@ def attach_auth_middleware(app: Any) -> None:
         response = await call_next(request)
         response.headers["X-Request-Id"] = req_id
         return response
+
+    app.add_middleware(BaseHTTPMiddleware, dispatch=_auth_middleware)

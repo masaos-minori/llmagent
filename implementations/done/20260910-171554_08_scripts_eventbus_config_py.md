@@ -208,13 +208,13 @@ def load_config(path: Path | None = None) -> EventBusConfig:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define _KNOWN_CONFIG_KEYS and _CONFIG_KEY_TYPES | Pending | — | — | |
-| 2 | Add unknown-key rejection | Pending | — | — | |
-| 3 | Add missing-key rejection | Pending | — | — | |
-| 4 | Add per-key type validation | Pending | — | — | |
-| 5 | Add auth_token to EventBusConfig | Pending | — | — | |
-| 6 | Add or update tests per Validation plan | Pending | — | — | |
-| 7 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Define _KNOWN_CONFIG_KEYS and _CONFIG_KEY_TYPES | Completed | — | — | |
+| 2 | Add unknown-key rejection | Completed | — | — | |
+| 3 | Add missing-key rejection | Completed | — | — | |
+| 4 | Add per-key type validation | Completed | — | — | |
+| 5 | Add auth_token to EventBusConfig | Completed | — | — | |
+| 6 | Add or update tests per Validation plan | Completed | — | — | |
+| 7 | Run the validation sequence (rules/toolchain.md) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

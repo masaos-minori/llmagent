@@ -56,16 +56,19 @@ class EventBusConfig:
         if not self.auth_token:
             raise ValueError("auth_token is required but not configured")
 
-_KNOWN_CONFIG_KEYS = frozenset((
-    "port",
-    "db_path",
-    "storage_dir",
-    "offsets_dir",
-    "deadletter_dir",
-    "max_retry",
-    "host",
-    "auth_token",
-))
+
+_KNOWN_CONFIG_KEYS = frozenset(
+    (
+        "port",
+        "db_path",
+        "storage_dir",
+        "offsets_dir",
+        "deadletter_dir",
+        "max_retry",
+        "host",
+        "auth_token",
+    )
+)
 
 _CONFIG_KEY_TYPES: dict[str, type] = {
     "port": int,

@@ -138,10 +138,10 @@ async def replay(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add authentication dependency to replay() | Pending | — | — | |
-| 2 | Implement operator role validation | Pending | — | — | |
-| 3 | Add or update tests per Validation plan | Pending | — | — | |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add authentication dependency to replay() | Completed | — | — | |
+| 2 | Implement operator role validation | Completed | — | — | |
+| 3 | Add or update tests per Validation plan | Completed | — | — | |
+| 4 | Run the validation sequence (rules/toolchain.md) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

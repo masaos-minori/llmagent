@@ -143,11 +143,11 @@ async def nack(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add authentication dependency to ack_event() | Pending | — | — | |
-| 2 | Add authentication dependency to nack() | Pending | — | — | |
-| 3 | Implement consumer identity validation | Pending | — | — | |
-| 4 | Add or update tests per Validation plan | Pending | — | — | |
-| 5 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add authentication dependency to ack_event() | Completed | — | — | |
+| 2 | Add authentication dependency to nack() | Completed | — | — | |
+| 3 | Implement consumer identity validation | Completed | — | — | |
+| 4 | Add or update tests per Validation plan | Completed | — | — | |
+| 5 | Run the validation sequence (rules/toolchain.md) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

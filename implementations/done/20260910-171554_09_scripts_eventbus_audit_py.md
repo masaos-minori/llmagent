@@ -245,11 +245,11 @@ def log_privileged_action(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create audit.py with AuditRecord TypedDict | Pending | — | — | |
-| 2 | Implement log_auth_failure() | Pending | — | — | |
-| 3 | Implement log_privileged_action() | Pending | — | — | |
-| 4 | Add or update tests per Validation plan | Pending | — | — | |
-| 5 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Create audit.py with AuditRecord TypedDict | Completed | — | — | |
+| 2 | Implement log_auth_failure() | Completed | — | — | |
+| 3 | Implement log_privileged_action() | Completed | — | — | |
+| 4 | Add or update tests per Validation plan | Completed | — | — | |
+| 5 | Run the validation sequence (rules/toolchain.md) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

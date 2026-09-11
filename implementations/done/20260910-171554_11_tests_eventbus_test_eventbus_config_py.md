@@ -168,11 +168,11 @@ auth_token = ""
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add loopback-bind regression test | Pending | — | — | |
-| 2 | Add unknown-key rejection test | Pending | — | — | |
-| 3 | Add wrong-type rejection test | Pending | — | — | |
-| 4 | Add empty auth_token rejection test | Pending | — | — | |
-| 5 | Validate tests pass | Pending | — | — | |
+| 1 | Add loopback-bind regression test | Completed | — | — | |
+| 2 | Add unknown-key rejection test | Completed | — | — | |
+| 3 | Add wrong-type rejection test | Completed | — | — | |
+| 4 | Add empty auth_token rejection test | Completed | — | — | |
+| 5 | Validate tests pass | Completed | — | — | 13/13 pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -121,11 +121,11 @@ from eventbus.auth import attach_auth_middleware  # noqa: PLC0415 — new module
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Register authentication middleware | Pending | — | — | |
-| 2 | Replace existing warning message | Pending | — | — | |
-| 3 | Add startup validation for auth_token | Pending | — | — | |
-| 4 | Add or update tests per Validation plan | Pending | — | — | |
-| 5 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Register authentication middleware | Completed | — | — | |
+| 2 | Replace existing warning message | Completed | — | — | |
+| 3 | Add startup validation for auth_token | Completed | — | — | |
+| 4 | Add or update tests per Validation plan | Completed | — | — | |
+| 5 | Run the validation sequence (rules/toolchain.md) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

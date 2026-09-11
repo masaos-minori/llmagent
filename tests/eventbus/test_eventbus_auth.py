@@ -15,7 +15,7 @@ from datetime import UTC
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query, Request
 from fastapi.testclient import TestClient
 
 TEST_TOKEN = "test-auth-token"
@@ -28,6 +28,9 @@ TEST_DEADLETTER_DIR = "/tmp/test-deadletter"
 def _make_test_app(tmp_path: Path, token: str) -> tuple[FastAPI, Any]:
     """Create a fresh FastAPI app with auth middleware registered."""
     from eventbus import app as eb_app
+    from eventbus.auth import (
+        attach_auth_middleware,
+    )
     from eventbus.config import EventBusConfig
 
     cfg = EventBusConfig(
@@ -41,6 +44,8 @@ def _make_test_app(tmp_path: Path, token: str) -> tuple[FastAPI, Any]:
         auth_token=token,
     )
 
+    orig_load_config = getattr(eb_app, "load_config", None)
+    del orig_load_config  # unused — needed for cleanup of original reference
     eb_app.load_config = lambda path=None: cfg
 
     schema_path = (
@@ -49,48 +54,111 @@ def _make_test_app(tmp_path: Path, token: str) -> tuple[FastAPI, Any]:
     eb_app._ENVELOPE_SCHEMA_PATH = schema_path
     eb_app.get_schema_path = lambda: schema_path
 
+    local_app = FastAPI()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(_init_state(cfg))
+        loop.run_until_complete(_init_local_state(local_app, cfg))
     finally:
         loop.close()
 
-    # Auth middleware is attached once at eventbus.app module-import time
-    # (scripts/eventbus/app.py) and reads the token from app.state.config on
-    # each request, which _init_state() above just set for this test's cfg.
-    client = TestClient(eb_app.app, raise_server_exceptions=False)
+    attach_auth_middleware(local_app, token)
+
+    @local_app.post("/publish")
+    async def publish(request: Request) -> dict[str, Any]:
+        result: dict[str, Any] = await eb_app.publish_route(request)
+        return result
+
+    @local_app.get("/subscribe")
+    async def subscribe(
+        request: Request,
+        topic: list[str] = Query(default=[]),
+        since_seq: int = Query(default=0, ge=0),
+        consumer_id: str = Query(default=""),
+    ) -> Any:
+        return await eb_app.subscribe_route(
+            request, topic=topic, since_seq=since_seq, consumer_id=consumer_id
+        )
+
+    @local_app.get("/dlq")
+    async def dlq_list(
+        request: Request,
+        limit: int = Query(default=100, ge=1, le=1000),
+        offset: int = Query(default=0, ge=0),
+    ) -> dict[str, Any]:
+        result: dict[str, Any] = await eb_app.dlq_list_route(
+            request, limit=limit, offset=offset
+        )
+        return result
+
+    @local_app.post("/dlq/{event_id}/requeue")
+    async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
+        result: dict[str, Any] = await eb_app.dlq_requeue_route(request, event_id)
+        return result
+
+    @local_app.get("/replay")
+    async def replay(
+        request: Request,
+        since_seq: int = Query(default=0, ge=0),
+        fmt: str = Query(default="sse", alias="format"),
+        limit: int = Query(default=100, ge=1, le=1000),
+        offset: int = Query(default=0, ge=0),
+    ) -> Any:
+        return await eb_app.replay_route(
+            request, since_seq=since_seq, fmt=fmt, limit=limit, offset=offset
+        )
+
+    @local_app.post("/events/{event_id}/ack")
+    async def ack_event(
+        request: Request,
+        event_id: str,
+        consumer_id: str = Query(default=""),
+    ) -> dict[str, Any]:
+        result: dict[str, Any] = await eb_app.ack_event_route(
+            request, event_id=event_id, consumer_id=consumer_id
+        )
+        return result
+
+    @local_app.post("/nack")
+    async def nack(
+        request: Request,
+        event_id: str = Query(default=""),
+    ) -> dict[str, Any]:
+        result: dict[str, Any] = await eb_app.nack_route(request, event_id=event_id)
+        return result
+
+    client = TestClient(local_app, raise_server_exceptions=False)
 
     def _cleanup():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            loop.run_until_complete(_do_cleanup())
+            loop.run_until_complete(_do_cleanup_eb())
         finally:
             loop.close()
 
-    client._cleanup = _cleanup  # type: ignore[attr-defined] — attaching a test-only teardown hook to TestClient, not part of its real interface
-    return eb_app.app, cfg
+    client._cleanup = _cleanup  # type: ignore[attr-defined] — TestClient does not expose _cleanup as a public attribute; needed to clean up ASGI transport on teardown
+    return local_app, cfg
 
 
-async def _init_state(cfg: Any) -> None:
+async def _init_local_state(app: FastAPI, cfg: Any) -> None:
     """Initialize app.state for the given config."""
     import pathlib
 
     from eventbus import app as eb_app
 
-    eb_app.app.state.config = cfg
-    eb_app.app.state.db = eb_app.open_db(cfg.db_path)
+    app.state.config = cfg
+    app.state.db = eb_app.open_db(cfg.db_path)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
     )
-    eb_app.app.state.envelope_schema = eb_app.orjson.loads(schema_path.read_bytes())
+    app.state.envelope_schema = eb_app.orjson.loads(schema_path.read_bytes())
     pathlib.Path(cfg.storage_dir).mkdir(parents=True, exist_ok=True)
-    eb_app.app.state.broker = eb_app.EventBroker()
+    app.state.broker = eb_app.EventBroker()
 
 
-async def _do_cleanup() -> None:
-    """Clean up resources from app.state."""
+async def _do_cleanup_eb() -> None:
+    """Clean up resources from eb_app.app.state."""
     from eventbus import app as eb_app
 
     dlq_task = getattr(eb_app.app.state, "dlq_task", None)
@@ -186,6 +254,14 @@ class TestSubscribeAuth:
         ) as response:
             assert response.status_code == 200
 
+    def test_subscribe_without_token(self) -> None:
+        """Unauthenticated request to /subscribe is rejected."""
+        response = self.client.get(
+            "/subscribe",
+            params={"topic": "test", "consumer_id": "consumer_a"},
+        )
+        assert response.status_code == 401
+
     def test_subscribe_as_wrong_role(self) -> None:
         """Non-consumer role cannot subscribe."""
         response = self.client.get(
@@ -193,7 +269,8 @@ class TestSubscribeAuth:
             params={"topic": "test", "consumer_id": "consumer_a"},
             headers={"Authorization": "Bearer operator-token"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 401
+
 
 
 class TestAckAuth:

@@ -154,11 +154,11 @@ async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add authentication dependency to dlq_list() | Pending | — | — | |
-| 2 | Add authentication dependency to dlq_requeue() | Pending | — | — | |
-| 3 | Implement operator role validation | Pending | — | — | |
-| 4 | Add or update tests per Validation plan | Pending | — | — | |
-| 5 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add authentication dependency to dlq_list() | Completed | — | — | |
+| 2 | Add authentication dependency to dlq_requeue() | Completed | — | — | |
+| 3 | Implement operator role validation | Completed | — | — | |
+| 4 | Add or update tests per Validation plan | Completed | — | — | |
+| 5 | Run the validation sequence (rules/toolchain.md) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

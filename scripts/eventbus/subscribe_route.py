@@ -6,9 +6,12 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from fastapi import HTTPException, Query, Request
+from fastapi import Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
+from eventbus.auth import (
+    require_consumer_identity,  # noqa: PLC0415 — new module, REQ-003
+)
 from eventbus.broker import ConsumerAlreadyConnectedError
 from eventbus.json_utils import dumps as json_dumps
 from eventbus.route_helpers import (
@@ -27,6 +30,7 @@ async def subscribe(
     topic: list[str] = Query(default=[]),
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
+    _identity: dict = Depends(require_consumer_identity),  # noqa: ANN001,ANN202 — FastAPI dependency protocol
 ) -> Any:
     """Subscribe to events via SSE with optional topic filtering and offset recovery."""
     from eventbus.db import get_consumer_offset  # noqa: PLC0415
@@ -35,6 +39,13 @@ async def subscribe(
     assert cfg is not None
     broker = get_broker(request)
     db = get_db(request)
+
+    caller_topics = _identity.get("topics", set())
+    for t in topic:
+        if t not in caller_topics:
+            raise HTTPException(
+                status_code=403, detail=f"Forbidden: topic '{t}' not allowed"
+            )
 
     start_seq = since_seq
     if consumer_id and start_seq == 0:

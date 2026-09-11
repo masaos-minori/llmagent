@@ -6,10 +6,12 @@ from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Query, Request
 
-from eventbus.auth import require_consumer_identity  # noqa: PLC0415 — new module, REQ-003
-from eventbus.db import ack_event as _ack_event
+from eventbus.auth import (
+    require_consumer_identity,  # noqa: PLC0415 — new module, REQ-003
+)
 from eventbus.db import nack_event as _nack_event
 from eventbus.json_utils import now_iso
+
 # write_offset removed — replaced by ack_event_for_consumer() transactional path
 from eventbus.route_helpers import (
     ERR_EVENT_ID_REQUIRED,
@@ -37,9 +39,7 @@ async def _do_ack(
         from eventbus.db import ack_event_for_consumer  # noqa: PLC0415
 
         now = now_iso()
-        found, newly_acked, seq = ack_event_for_consumer(
-            db, event_id, consumer_id, now
-        )
+        found, newly_acked, seq = ack_event_for_consumer(db, event_id, consumer_id, now)
         return (found, newly_acked, seq)
 
     found, newly_acked, seq = await run_with_db_lock(_ack_and_offset)
