@@ -241,6 +241,8 @@ CREATE TABLE IF NOT EXISTS events (
     published_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     acked_at               TEXT,
     delivery_failure_count INTEGER NOT NULL DEFAULT 0,
+    cycle_failure_count    INTEGER NOT NULL DEFAULT 0,
+    redelivered_from       TEXT,
     dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
     dlq_at                 TEXT
 );
