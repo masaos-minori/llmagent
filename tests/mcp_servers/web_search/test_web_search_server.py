@@ -52,7 +52,16 @@ class TestCallToolErrorClassification:
 
 
 class TestBrowserFetchErrorClassification:
-    def test_disallowed_domain_returns_403(self) -> None:
+    def test_disallowed_domain_returns_403(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # browser_fetch is gated on _cfg.browser_allowed_domains being
+        # non-empty (_web_search_tool_availability) — the real config has
+        # none configured, which would otherwise report the tool as disabled
+        # before ever reaching the per-domain check this test targets.
+        monkeypatch.setattr(
+            web_search_server._cfg, "browser_allowed_domains", ["example.com"]
+        )
         client = TestClient(web_search_server.app)
 
         resp = client.post(
@@ -65,7 +74,9 @@ class TestBrowserFetchErrorClassification:
 
         assert resp.status_code == 403
 
-    def test_bad_scheme_returns_200_with_is_error(self) -> None:
+    def test_bad_scheme_returns_200_with_is_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         # BrowserValidationError is a ValueError subclass, so
         # mcp_servers.dispatch.dispatch_tool() catches it before it can reach
         # the @app.exception_handler(BrowserValidationError) 422 handler —
@@ -73,6 +84,9 @@ class TestBrowserFetchErrorClassification:
         # also surfaces as a 200 response with is_error=True rather than an
         # HTTP error status. This mirrors the pre-merge standalone
         # browser-mcp server's behavior (it used the same shared dispatch_tool()).
+        monkeypatch.setattr(
+            web_search_server._cfg, "browser_allowed_domains", ["example.com"]
+        )
         client = TestClient(web_search_server.app)
 
         resp = client.post(

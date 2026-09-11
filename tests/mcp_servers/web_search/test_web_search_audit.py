@@ -218,6 +218,16 @@ class TestAuditBrowserFetch:
     """browser_fetch shares call_tool()'s audit-logging code path with
     search_web, but its target/detail is built from `url`, not `query`."""
 
+    @pytest.fixture(autouse=True)
+    def _allow_browser_fetch(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # browser_fetch is gated on _cfg.browser_allowed_domains being
+        # non-empty (_web_search_tool_availability) — the real config has
+        # none configured, which would otherwise report the tool as disabled
+        # before ever reaching the audit-logging behavior these tests target.
+        monkeypatch.setattr(
+            web_search_server._cfg, "browser_allowed_domains", ["example.com"]
+        )
+
     def test_audit_emitted_on_success_with_url_preview(
         self,
         monkeypatch: pytest.MonkeyPatch,

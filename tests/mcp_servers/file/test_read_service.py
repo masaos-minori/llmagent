@@ -993,13 +993,22 @@ class TestGetFileInfo:
         real_stat = Path.stat
         target_path = tmp_workspace / "file_a.py"
 
-        # Path.exists() (CPython 3.14) uses os.path.exists() rather than
-        # self.stat(), so patching Path.stat only affects get_file_info's
-        # explicit `target.stat()` call inside the try/except being
-        # characterized, not the preceding existence check.
+        # On this Python version, Path.exists() itself calls self.stat()
+        # internally (unlike CPython 3.14's os.path.exists()-based
+        # implementation), so patching Path.stat unconditionally would also
+        # break get_file_info's preceding `if not target.exists()` check
+        # rather than reaching the explicit `target.stat()` call inside the
+        # try/except being characterized here. Let the first stat() call
+        # (from .exists()) succeed normally, and only fail the second
+        # (get_file_info's own explicit stat()).
+        call_count = 0
+
         def boom(self: Path, *, follow_symlinks: bool = True):
+            nonlocal call_count
             if self == target_path:
-                raise OSError("simulated stat failure")
+                call_count += 1
+                if call_count > 1:
+                    raise OSError("simulated stat failure")
             return real_stat(self, follow_symlinks=follow_symlinks)
 
         monkeypatch.setattr(Path, "stat", boom)

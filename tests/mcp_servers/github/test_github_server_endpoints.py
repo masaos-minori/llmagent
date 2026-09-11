@@ -47,6 +47,14 @@ class _FakeService:
 def fake_service(monkeypatch: pytest.MonkeyPatch) -> _FakeService:
     svc = _FakeService()
     monkeypatch.setattr(github_server, "_service", svc)
+    # /v1/call_tool's disabled-tool gate (_github_tool_availability) checks
+    # github_server._GITHUB_TOKEN before ever reaching dispatch — set a fake
+    # token so TestCallToolEndpoint's tests exercise the dispatch/audit path
+    # rather than always hitting the "Tool disabled" short-circuit. Doesn't
+    # affect TestToolsListEndpoint (deliberately token-less) or
+    # TestDispatchGithubTool/TestGithubMCPServerDispatch (call the dispatch
+    # functions directly, bypassing this gate).
+    monkeypatch.setattr(github_server, "_GITHUB_TOKEN", "fake-token")
     return svc
 
 

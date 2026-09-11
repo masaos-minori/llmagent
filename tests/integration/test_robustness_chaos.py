@@ -30,6 +30,8 @@ def _make_ctx(
     ctx.cfg.tool.tool_dedup_max_repeats = dedup_max
     ctx.cfg.tool.tool_cycle_detect_window = cycle_window
     ctx.cfg.tool.tool_error_retry_max = retry_max
+    ctx.cfg.tool.progress_stagnation_window = 0  # disabled; not under test here
+    ctx.cfg.tool.tool_empty_result_max_repeats = 0  # disabled; not under test here
     ctx.diagnostics = None
     return ctx
 

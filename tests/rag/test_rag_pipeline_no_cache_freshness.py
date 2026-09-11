@@ -87,8 +87,7 @@ class TestNoCacheFreshness:
         """Document addition is visible on the next identical query without invalidation."""
         cfg = _make_no_cache_cfg()
         http = _make_http()
-        with patch("rag.pipeline._ModuleConfig.get", return_value={}):
-            pipeline = RagPipeline(http, cfg)
+        pipeline = RagPipeline(http, cfg)
 
         assert hasattr(pipeline, "invalidate_cache") is False
 
@@ -109,8 +108,7 @@ class TestNoCacheFreshness:
         """Document update is visible on the next identical query without invalidation."""
         cfg = _make_no_cache_cfg()
         http = _make_http()
-        with patch("rag.pipeline._ModuleConfig.get", return_value={}):
-            pipeline = RagPipeline(http, cfg)
+        pipeline = RagPipeline(http, cfg)
 
         assert hasattr(pipeline, "invalidate_cache") is False
 
@@ -134,8 +132,7 @@ class TestNoCacheFreshness:
         """Document deletion is visible on the next identical query without invalidation."""
         cfg = _make_no_cache_cfg()
         http = _make_http()
-        with patch("rag.pipeline._ModuleConfig.get", return_value={}):
-            pipeline = RagPipeline(http, cfg)
+        pipeline = RagPipeline(http, cfg)
 
         assert hasattr(pipeline, "invalidate_cache") is False
 

@@ -22,15 +22,12 @@ from tools.check_canonical_source_conflicts import (
 def _entry(
     target: str = "target-a",
     claim_type: str = "specification",
-    status: str = "active",
 ) -> RegistryEntry:
     return RegistryEntry(
-        id=f"reg-{target}-{claim_type}",
-        target=target,
+        decision_target=target,
         claim_type=claim_type,
-        authority="test-authority",
-        precedence="normative",
-        status=status,
+        source_paths=[f"docs/{target}.md"],
+        area="test-area",
     )
 
 
@@ -88,17 +85,16 @@ class TestDetectDuplicateActiveRecords:
         candidate = _entry(target="y", claim_type="specification")
         assert detect_duplicate_active_records(entries, candidate) is False
 
-    def test_no_duplicate_when_matching_status_deprecated(self) -> None:
-        entries = [_entry(target="a", claim_type="specification", status="deprecated")]
-        candidate = _entry(target="a", claim_type="specification")
-        assert detect_duplicate_active_records(entries, candidate) is False
-
-    def test_duplicate_detected_when_matching_active(self) -> None:
-        entries = [_entry(target="b", claim_type="specification", status="active")]
+    def test_duplicate_detected_when_matching_entry(self) -> None:
+        """M-01-04 removed the status field from RegistryEntry, so a matching
+        decision_target+claim_type pair is always a duplicate — there is no
+        longer a status-based exemption (see detect_duplicate_active_records's
+        own docstring: "No-op for status since M-01-04 removed it")."""
+        entries = [_entry(target="b", claim_type="specification")]
         candidate = _entry(target="b", claim_type="specification")
         assert detect_duplicate_active_records(entries, candidate) is True
 
     def test_no_duplicate_different_claim_type(self) -> None:
-        entries = [_entry(target="c", claim_type="specification", status="active")]
+        entries = [_entry(target="c", claim_type="specification")]
         candidate = _entry(target="c", claim_type="acceptance_test")
         assert detect_duplicate_active_records(entries, candidate) is False

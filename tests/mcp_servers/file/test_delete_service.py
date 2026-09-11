@@ -145,11 +145,20 @@ class TestDeleteFile:
                 )
 
     def test_delete_file_dry_run_stat_error(self, service: tuple):
+        """A stat() failure inside _stat_info_for_dry_run() must be caught and
+        reported as file_info, not raised. Bypass _require_file so the
+        earlier existence check isn't itself affected by the patched
+        Path.stat -- this test targets _stat_info_for_dry_run's own error
+        handling specifically, mirroring test_delete_file_os_error_raises_400's
+        use of the same bypass."""
         svc, tmp_path = service
         fpath = tmp_path / "test.txt"
         fpath.write_text("hello")
 
-        with patch("pathlib.Path.stat") as mock_stat:
+        with (
+            patch.object(svc, "_require_file"),
+            patch("pathlib.Path.stat") as mock_stat,
+        ):
             mock_stat.side_effect = OSError("stat failed")
             result = svc.delete_file(
                 type("Request", (), {"path": str(fpath), "dry_run": True})()

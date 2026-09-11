@@ -129,6 +129,20 @@ CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
 CREATE INDEX IF NOT EXISTS idx_events_seq   ON events(seq);
 CREATE INDEX IF NOT EXISTS idx_events_dlq_at ON events(dlq_at);
 CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
+
+-- Per-consumer delivery state: tracks acked_at per (consumer_id, event_id)
+CREATE TABLE IF NOT EXISTS consumer_delivery (
+    consumer_id          TEXT    NOT NULL,
+    event_id             TEXT    NOT NULL,
+    acked_at             TEXT,
+    PRIMARY KEY (consumer_id, event_id)
+);
+
+-- Per-consumer offset: tracks last-committed sequence offset per consumer
+CREATE TABLE IF NOT EXISTS consumer_offsets (
+    consumer_id          TEXT    PRIMARY KEY,
+    offset               INTEGER NOT NULL DEFAULT 0
+);
 """
 
 
@@ -984,17 +998,44 @@ class TestCreateSchemaWrapper:
         assert calls == ["rag", "session", "workflow", "eventbus"]
 
 
-class TestEventBusTablesExist:
-    """Verify consumer_delivery and consumer_offsets tables exist after schema creation."""
+def _create_eventbus_schema_at(tmp_path: Path, db_name: str) -> str:
+    """Run create_eventbus_schema() against tmp_path/db_name, capturing the
+    actual path SQLiteHelper wrote to.
 
-    def test_consumer_delivery_table_exists(self, tmp_path: Path) -> None:
-        db_file = tmp_path / "eventbus_td.sqlite"
+    create_eventbus_schema() resolves its own DB path internally via
+    SQLiteHelper("eventbus").open(write_mode=True) — build_db_config() (and
+    thus the real, config-derived eventbus DB path) is not something this
+    test controls, so sqlite3.connect()-ing a bare tmp_path file after the
+    fact (the naive approach) verifies nothing, since create_eventbus_schema()
+    never wrote there. Stubbing SQLiteHelper.__init__ to redirect its target
+    path to tmp_path (mirroring TestEventBusSchemaNewColumns below) captures
+    the path actually used instead.
+    """
+    db_path = str(tmp_path / db_name)
+
+    def capture_init(self, target="rag", **kwargs):
+        self._target = target
+        self._db_path = db_path
+        self._default_load_vec = False
+        self._vec_so = None
+        self._sqlite_timeout = 5000
+        self._busy_timeout_ms = 5000
+
+    with patch.object(cs.SQLiteHelper, "__init__", capture_init):
         with patch(
             "db.create_schema.build_eventbus_schema_sql",
             return_value=_EVENTBUS_SCHEMA_NO_VEC0,
         ):
             cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
+    return db_path
+
+
+class TestEventBusTablesExist:
+    """Verify consumer_delivery and consumer_offsets tables exist after schema creation."""
+
+    def test_consumer_delivery_table_exists(self, tmp_path: Path) -> None:
+        db_path = _create_eventbus_schema_at(tmp_path, "eventbus_td.sqlite")
+        conn = sqlite3.connect(db_path)
         try:
             cursor = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='consumer_delivery'"
@@ -1005,13 +1046,8 @@ class TestEventBusTablesExist:
             conn.close()
 
     def test_consumer_offsets_table_exists(self, tmp_path: Path) -> None:
-        db_file = tmp_path / "eventbus_co.sqlite"
-        with patch(
-            "db.create_schema.build_eventbus_schema_sql",
-            return_value=_EVENTBUS_SCHEMA_NO_VEC0,
-        ):
-            cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
+        db_path = _create_eventbus_schema_at(tmp_path, "eventbus_co.sqlite")
+        conn = sqlite3.connect(db_path)
         try:
             cursor = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='consumer_offsets'"
@@ -1022,35 +1058,29 @@ class TestEventBusTablesExist:
             conn.close()
 
     def test_consumer_delivery_columns(self, tmp_path: Path) -> None:
-        db_file = tmp_path / "eventbus_cd_cols.sqlite"
-        with patch(
-            "db.create_schema.build_eventbus_schema_sql",
-            return_value=_EVENTBUS_SCHEMA_NO_VEC0,
-        ):
-            cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
+        db_path = _create_eventbus_schema_at(tmp_path, "eventbus_cd_cols.sqlite")
+        conn = sqlite3.connect(db_path)
         try:
             cursor = conn.execute("PRAGMA table_info(consumer_delivery)")
             cols = {row[1]: row[2] for row in cursor.fetchall()}
-            assert "consumer_id" in cols, "consumer_delivery should have consumer_id column"
+            assert "consumer_id" in cols, (
+                "consumer_delivery should have consumer_id column"
+            )
             assert "event_id" in cols, "consumer_delivery should have event_id column"
             assert "acked_at" in cols, "consumer_delivery should have acked_at column"
         finally:
             conn.close()
 
     def test_consumer_offsets_columns(self, tmp_path: Path) -> None:
-        db_file = tmp_path / "eventbus_co_cols.sqlite"
-        with patch(
-            "db.create_schema.build_eventbus_schema_sql",
-            return_value=_EVENTBUS_SCHEMA_NO_VEC0,
-        ):
-            cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
+        db_path = _create_eventbus_schema_at(tmp_path, "eventbus_co_cols.sqlite")
+        conn = sqlite3.connect(db_path)
         try:
             cursor = conn.execute("PRAGMA table_info(consumer_offsets)")
             cols = {row[1]: row[2] for row in cursor.fetchall()}
-            assert "consumer_id" in cols, "consumer_offsets should have consumer_id column"
-            assert "last_offset" in cols, "consumer_offsets should have last_offset column"
+            assert "consumer_id" in cols, (
+                "consumer_offsets should have consumer_id column"
+            )
+            assert "offset" in cols, "consumer_offsets should have offset column"
         finally:
             conn.close()
 
@@ -1061,7 +1091,6 @@ class TestEventBusSchemaNewColumns:
     def test_events_table_has_cycle_failure_count_column(self, tmp_path: Path) -> None:
         import unittest.mock as mock
 
-        db_file = tmp_path / "eventbus_cfc.sqlite"
         captured_path = {}
 
         def capture_init(self, target="rag", **kwargs):
@@ -1075,7 +1104,6 @@ class TestEventBusSchemaNewColumns:
             if target == "eventbus":
                 captured_path["path"] = self._db_path
 
-        original_init = cs.SQLiteHelper.__init__
         with mock.patch.object(cs.SQLiteHelper, "__init__", capture_init):
             with mock.patch(
                 "db.create_schema.build_eventbus_schema_sql",
@@ -1088,14 +1116,15 @@ class TestEventBusSchemaNewColumns:
             try:
                 cursor = conn.execute("PRAGMA table_info(events)")
                 cols = {row[1]: row[2] for row in cursor.fetchall()}
-                assert "cycle_failure_count" in cols, "events should have cycle_failure_count column"
+                assert "cycle_failure_count" in cols, (
+                    "events should have cycle_failure_count column"
+                )
             finally:
                 conn.close()
 
     def test_events_table_has_redelivered_from_column(self, tmp_path: Path) -> None:
         import unittest.mock as mock
 
-        db_file = tmp_path / "eventbus_rf.sqlite"
         captured_path = {}
 
         def capture_init(self, target="rag", **kwargs):
@@ -1109,7 +1138,6 @@ class TestEventBusSchemaNewColumns:
             if target == "eventbus":
                 captured_path["path"] = self._db_path
 
-        original_init = cs.SQLiteHelper.__init__
         with mock.patch.object(cs.SQLiteHelper, "__init__", capture_init):
             with mock.patch(
                 "db.create_schema.build_eventbus_schema_sql",
@@ -1122,6 +1150,8 @@ class TestEventBusSchemaNewColumns:
             try:
                 cursor = conn.execute("PRAGMA table_info(events)")
                 cols = {row[1]: row[2] for row in cursor.fetchall()}
-                assert "redelivered_from" in cols, "events should have redelivered_from column"
+                assert "redelivered_from" in cols, (
+                    "events should have redelivered_from column"
+                )
             finally:
                 conn.close()

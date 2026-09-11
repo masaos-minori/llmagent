@@ -123,10 +123,13 @@ class TestFullIngestionPipeline:
 
         ingester = RagIngester(mock_cfg)
 
-        # Verify the move logic exists in the codebase
-        # The actual move happens in _move_to_registered method using shutil.move
+        # Verify the move logic exists in the codebase.
+        # The actual move happens in FileRouter.route() (file_routing.py) using
+        # shutil.move — extracted out of RagIngester's own _move_to_registered().
         import inspect
 
-        source = inspect.getsource(RagIngester._move_to_registered)
+        from rag.ingestion.file_routing import FileRouter
+
+        source = inspect.getsource(FileRouter.route)
         assert "shutil.move" in source
         ingester.close()

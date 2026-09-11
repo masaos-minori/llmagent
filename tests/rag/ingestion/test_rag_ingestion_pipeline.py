@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from rag.ingestion.chunk_splitter import ChunkSplitter
+from rag.ingestion.embedding import EmbeddingService
 from rag.ingestion.ingester import RagIngester
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -241,7 +242,7 @@ class TestJsonLifecycle:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
-            patch.object(RagIngester, "_get_embedding", return_value=[0.1] * 128),
+            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
         ):
             result = ingester.ingest_all()
             assert result is not None
@@ -284,7 +285,7 @@ class TestJsonLifecycle:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
-            patch.object(RagIngester, "_get_embedding", return_value=[0.1] * 128),
+            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
         ):
             ingester.ingest_all()
 
@@ -307,8 +308,8 @@ class TestReingest:
 
     @pytest.fixture(autouse=True)
     def mock_embedding(self):
-        """Automatically mock _get_embedding for all tests in this class."""
-        with patch.object(RagIngester, "_get_embedding", return_value=[0.1] * 128):
+        """Automatically mock EmbeddingService.get_embedding for all tests in this class."""
+        with patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128):
             yield
 
     @pytest.fixture

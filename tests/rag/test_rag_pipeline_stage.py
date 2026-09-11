@@ -371,11 +371,11 @@ class TestRagPipelineLastTimings:
 
         noop = AsyncMock()
         with (
-            patch("rag.pipeline.MqeStage") as MockMqe,
-            patch("rag.pipeline.SearchStage") as MockSearch,
-            patch("rag.pipeline.FusionStage") as MockFusion,
-            patch("rag.pipeline.RerankStage") as MockRerank,
-            patch("rag.pipeline.AugmentStage") as MockAugment,
+            patch("rag.stage_lifecycle.MqeStage") as MockMqe,
+            patch("rag.stage_lifecycle.SearchStage") as MockSearch,
+            patch("rag.stage_lifecycle.FusionStage") as MockFusion,
+            patch("rag.stage_lifecycle.RerankStage") as MockRerank,
+            patch("rag.stage_lifecycle.AugmentStage") as MockAugment,
         ):
             for M in (MockMqe, MockSearch, MockFusion, MockRerank, MockAugment):
                 inst = MagicMock()
@@ -404,11 +404,11 @@ class TestRagPipelineLastTimings:
 
         noop = AsyncMock()
         with (
-            patch("rag.pipeline.MqeStage") as MockMqe,
-            patch("rag.pipeline.SearchStage") as MockSearch,
-            patch("rag.pipeline.FusionStage") as MockFusion,
-            patch("rag.pipeline.RerankStage") as MockRerank,
-            patch("rag.pipeline.AugmentStage") as MockAugment,
+            patch("rag.stage_lifecycle.MqeStage") as MockMqe,
+            patch("rag.stage_lifecycle.SearchStage") as MockSearch,
+            patch("rag.stage_lifecycle.FusionStage") as MockFusion,
+            patch("rag.stage_lifecycle.RerankStage") as MockRerank,
+            patch("rag.stage_lifecycle.AugmentStage") as MockAugment,
         ):
             for M in (MockMqe, MockSearch, MockFusion, MockRerank, MockAugment):
                 inst = MagicMock()

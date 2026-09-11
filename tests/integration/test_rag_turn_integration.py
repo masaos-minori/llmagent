@@ -127,6 +127,7 @@ def _make_guard() -> MagicMock:
     guard = MagicMock()
     guard.check_all.return_value = None
     guard.check_error_limit.return_value = None
+    guard.check_empty_result_repeat.return_value = None
     return guard
 
 

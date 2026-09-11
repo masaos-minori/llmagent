@@ -628,8 +628,16 @@ class TestRecoverCorruption:
         from unittest.mock import MagicMock, patch
 
         mock_cursor = MagicMock()
-        # DB check (corrupt), backup check (ok), post-restore re-verification (ok)
-        mock_cursor.fetchone.side_effect = [("corrupt",), ("ok",), ("ok",)]
+        # DB check (corrupt), backup check (ok), domain-identity check
+        # (required table present), post-restore re-verification (ok).
+        # _run_logical_verification() is bypassed below since it isn't
+        # this test's concern (covered by tests/db/test_db_recovery.py).
+        mock_cursor.fetchone.side_effect = [
+            ("corrupt",),
+            ("ok",),
+            ("documents",),
+            ("ok",),
+        ]
         mock_db = MagicMock()
         mock_db.execute.return_value = mock_cursor
 
@@ -645,7 +653,10 @@ class TestRecoverCorruption:
             def __exit__(self, *args: object) -> None:
                 pass
 
-        with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
+        with (
+            patch("db.recovery.SQLiteHelper") as mock_helper_cls,
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
+        ):
             mock_helper_cls.return_value.open.return_value = FakeContext()
             result = recover_corruption(backup_path=str(backup_file))
 
@@ -658,7 +669,10 @@ class TestRecoverCorruption:
         from unittest.mock import MagicMock, patch
 
         mock_cursor = MagicMock()
-        mock_cursor.fetchone.side_effect = [("corrupt",), ("ok",)]
+        # DB check (corrupt), backup check (ok), domain-identity check
+        # (required table present) — reached before the copy2() call below
+        # ever raises.
+        mock_cursor.fetchone.side_effect = [("corrupt",), ("ok",), ("documents",)]
         mock_db = MagicMock()
         mock_db.execute.return_value = mock_cursor
 
@@ -684,7 +698,10 @@ class TestRecoverCorruption:
         assert result.action == "error"
 
     def test_open_db_exception_returns_error(self) -> None:
-        """OperationalError during DB open -> error."""
+        """An unclassifiable OperationalError during DB open -> preserved,
+        operator intervention required (not automatically treated as
+        CORRUPTION/restorable) — see _classify_error()'s UNKNOWN fallback
+        and recover_corruption()'s DbCondition.UNKNOWN branch."""
         import sqlite3 as _sqlite3
         from unittest.mock import MagicMock, patch
 
@@ -694,7 +711,7 @@ class TestRecoverCorruption:
         with patch("db.recovery.SQLiteHelper", return_value=mock_helper):
             result = recover_corruption()
         assert result.success is False
-        assert result.action == "no_backup"
+        assert result.action == "preserved_operator_intervention_required"
 
     def test_unsupported_target_returns_error(self) -> None:
         """target outside rag/session/workflow/eventbus -> unsupported_target, no DB access."""
@@ -914,8 +931,10 @@ class TestRecoverCorruptionUnknown:
             recover_corruption,
         )
 
-        # Create a valid minimal SQLite file
-        db_path = tmp_path / "rag_unknown.sqlite"
+        # Create a valid minimal SQLite file at the path _make_db_cfg's
+        # default rag_name points to, so the unmodified-content assertion
+        # below is actually checking the file recover_corruption() operates on.
+        db_path = tmp_path / "rag.sqlite"
         conn = sqlite3.connect(str(db_path))
         conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY)")
         conn.execute("INSERT INTO test_table VALUES (1)")
@@ -924,15 +943,18 @@ class TestRecoverCorruptionUnknown:
 
         original_content = db_path.read_bytes()
 
+        # Patch _run_integrity_check directly (mirrors
+        # TestRecoverCorruption::test_unknown_condition_preserves_db_and_does_not_restore)
+        # rather than _classify_error, which is only reached from
+        # _run_integrity_check's except-branch — a genuinely valid SQLite
+        # file never raises, so _classify_error would never be invoked.
         with (
-            patch("db.recovery._classify_error") as mock_classify,
+            patch(
+                "db.recovery._run_integrity_check",
+                return_value=(DbCondition.UNKNOWN, "unknown integrity error"),
+            ),
             patch("db.recovery._restore_from_backup") as mock_restore,
         ):
-            mock_classify.return_value = (
-                DbCondition.UNKNOWN,
-                "unknown integrity error",
-            )
-
             result = recover_corruption(target="rag")
 
             mock_restore.assert_not_called()

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from rag.ingestion.document_manager import DocumentManager
-from rag.ingestion.ingester import RagIngester
+from rag.ingestion.document_persistence import DocumentStore
 
 # ── _is_file_unchanged() ─────────────────────────────────────────────────────
 
@@ -106,16 +106,13 @@ class TestCrawlFilePayload:
         assert payload["etag"] == hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-# ── _get_or_create_document() freshness for file:// ──────────────────────────
-
-
-def _make_ingester(tmp_path: Path) -> RagIngester:
-    cfg: dict[str, Any] = {
-        "rag_src_dir": str(tmp_path / "rag-src"),
-        "embed_url": "http://localhost:8081",
-        "embed_retry": 3,
-    }
-    return RagIngester(cfg)
+# ── DocumentStore.get_or_create() freshness for file:// ──────────────────────
+#
+# get_or_create() (and the freshness/reingest decision it delegates to
+# DocumentManager.handle_existing_document()) used to live on RagIngester as
+# _get_or_create_document(); it was extracted into DocumentStore
+# (document_persistence.py) as part of isolating document CRUD concerns out
+# of ingester.py.
 
 
 def _make_fake_db(
@@ -154,12 +151,10 @@ class TestGetOrCreateDocumentFreshness:
         sha = "abc123"
         url = "file:///tmp/test.txt"
         db, _doc_id = _make_fake_db(url, sha, "2024-01-01")
-        ingester = _make_ingester(tmp_path)
-        ingester.close()
 
         doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
-        result = ingester._get_or_create_document(
-            doc_mgr,
+        store = DocumentStore(db, doc_mgr)  # type: ignore[arg-type]
+        result = store.get_or_create(
             db,
             url,
             "test.txt",
@@ -178,12 +173,10 @@ class TestGetOrCreateDocumentFreshness:
         new_sha = "new_sha"
         url = "file:///tmp/test.txt"
         db, _doc_id = _make_fake_db(url, old_sha, "2024-01-01")
-        ingester = _make_ingester(tmp_path)
-        ingester.close()
 
         doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
-        result = ingester._get_or_create_document(
-            doc_mgr,
+        store = DocumentStore(db, doc_mgr)  # type: ignore[arg-type]
+        result = store.get_or_create(
             db,
             url,
             "test.txt",
@@ -202,13 +195,11 @@ class TestGetOrCreateDocumentFreshness:
 
         url = "file:///tmp/test.txt"
         db, _doc_id = _make_fake_db(url, "old_sha", "2024-01-01")
-        ingester = _make_ingester(tmp_path)
-        ingester.close()
 
         mock_doc_mgr = MagicMock()
         mock_doc_mgr.handle_existing_document.return_value = (42, False, True)
-        ingester._get_or_create_document(
-            mock_doc_mgr,
+        store = DocumentStore(db, mock_doc_mgr)  # type: ignore[arg-type]
+        store.get_or_create(
             db,
             url,
             "test.txt",
@@ -225,13 +216,11 @@ class TestGetOrCreateDocumentFreshness:
         sha = "abc123"
         url = "file:///tmp/test.txt"
         db, _doc_id = _make_fake_db(url, sha, "2024-01-01")
-        ingester = _make_ingester(tmp_path)
-        ingester.close()
 
         mock_doc_mgr = MagicMock()
         mock_doc_mgr.handle_existing_document.return_value = (42, False, True)
-        ingester._get_or_create_document(
-            mock_doc_mgr,
+        store = DocumentStore(db, mock_doc_mgr)  # type: ignore[arg-type]
+        store.get_or_create(
             db,
             url,
             "test.txt",
@@ -247,13 +236,11 @@ class TestGetOrCreateDocumentFreshness:
 
         url = "https://example.com/doc"
         db, doc_id = _make_fake_db(url, "old_etag", "2024-01-01")
-        ingester = _make_ingester(tmp_path)
-        ingester.close()
 
         mock_doc_mgr = MagicMock()
         mock_doc_mgr.handle_existing_document.return_value = (doc_id, True, False)
-        result = ingester._get_or_create_document(
-            mock_doc_mgr,
+        store = DocumentStore(db, mock_doc_mgr)  # type: ignore[arg-type]
+        result = store.get_or_create(
             db,
             url,
             "doc",

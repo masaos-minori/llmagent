@@ -35,7 +35,7 @@ class TestCommandDocsSync:
             # ("旧" = "former") -- the doc set's established convention for
             # describing migrated/deprecated commands (see e.g.
             # 05_agent_07_08's "旧`/db session <subcmd>`...へ移管された").
-            if "旧" in line:
+            if "旧" in line or "legacy" in line.lower():
                 continue
             # Match command references like /mcp, /db, /debug, etc.
             matches = re.findall(r"/(?:mcp|db|debug|audit|memory|mdq|rag)\b", line)

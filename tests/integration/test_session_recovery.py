@@ -71,21 +71,18 @@ def test_e01_session_start_on_corrupted_db_raises(
 def test_e02_recover_corruption_raises_uncaught_database_error(
     corrupt_wal_db: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Documents a latent bug in recover_corruption() (plan Risk R-2 -- test-only
-    scope, not fixed here): scripts/db/recovery.py::_run_integrity_check()'s
-    except clause only catches (sqlite3.OperationalError, ValueError,
-    RuntimeError). Real SQLite page-level corruption (confirmed empirically
-    against the corrupt_wal_db fixture) raises sqlite3.DatabaseError from the
-    `PRAGMA journal_mode=WAL` call inside SQLiteHelper.open() -- DatabaseError
-    is not a subclass of OperationalError, so it propagates uncaught instead
-    of _run_integrity_check() returning (None, error_detail) as its own
-    docstring implies for "cannot be opened" cases. recover_corruption() never
-    reaches _restore_from_backup(), so this holds regardless of whether a
-    valid backup_path is supplied (see test_e03/test_e04 below for the
-    no-backup and dry_run variants of the same root cause).
+    """_run_integrity_check()'s except clause now catches Exception broadly
+    (widened since this test was first written, per its own follow-up
+    candidate below), so sqlite3.DatabaseError from the corrupt target no
+    longer propagates uncaught -- recover_corruption() classifies it and
+    proceeds to _restore_from_backup(), which then finds the supplied
+    backup_path itself isn't a valid SQLite file either (placeholder text),
+    and returns a graceful "bad_backup" result rather than raising.
 
-    Follow-up candidate: widen _run_integrity_check()'s except clause to also
-    catch sqlite3.DatabaseError (or sqlite3.Error, the common base).
+    Historical note (no longer current): this test used to document a latent
+    bug where _run_integrity_check()'s except clause only caught
+    (sqlite3.OperationalError, ValueError, RuntimeError), letting
+    sqlite3.DatabaseError from `PRAGMA journal_mode=WAL` propagate uncaught.
     """
     from db.recovery import recover_corruption
 
@@ -95,44 +92,44 @@ def test_e02_recover_corruption_raises_uncaught_database_error(
         b"placeholder backup -- presence is all that matters here"
     )
 
-    with pytest.raises(sqlite3.DatabaseError):
-        recover_corruption(backup_path, target="session")
+    result = recover_corruption(backup_path, target="session")
+    assert result.success is False
+    assert result.action == "bad_backup"
 
 
 def test_e03_recover_corruption_no_backup_raises_uncaught_database_error(
     corrupt_wal_db: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Same latent bug as test_e02 (see its docstring), with no backup_path at
-    all -- confirms the crash happens before _restore_from_backup()'s own
-    None-check, so action="no_backup" (this plan's originally expected
-    result for this scenario) is not actually reached for this corruption mode.
-    """
+    """Same widened except-clause behavior as test_e02 (see its docstring),
+    with no backup_path at all -- the corrupt target is classified rather
+    than raising, and _restore_from_backup()'s own None-check then produces
+    action="no_backup"."""
     from db.recovery import recover_corruption
 
     _patch_db_config(monkeypatch, tmp_path, corrupt_wal_db)
 
-    with pytest.raises(sqlite3.DatabaseError):
-        recover_corruption(None, target="session")
+    result = recover_corruption(None, target="session")
+    assert result.success is False
+    assert result.action == "no_backup"
 
 
 def test_e04_recover_corruption_dry_run_raises_before_mutation_check(
     corrupt_wal_db: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Same latent bug as test_e02 (see its docstring). dry_run=True does not
-    change the outcome: the crash happens inside _run_integrity_check(),
-    before recover_corruption() ever inspects dry_run. The file happens to
-    stay unmutated (the crash occurs on a read-only open/pragma sequence
-    before any write), so the dry-run "no mutation" guarantee holds -- but not
-    via the clean _handle_dry_run() branch the plan originally described.
-    """
+    """Same widened except-clause behavior as test_e02 (see its docstring).
+    dry_run=True short-circuits recover_corruption() before it ever reaches
+    _restore_from_backup(): the corrupt-condition dry_run branch returns
+    action="error" without touching the file, preserving the "no mutation"
+    guarantee."""
     from db.recovery import recover_corruption
 
     _patch_db_config(monkeypatch, tmp_path, corrupt_wal_db)
     before_mtime = Path(corrupt_wal_db).stat().st_mtime
     before_size = Path(corrupt_wal_db).stat().st_size
 
-    with pytest.raises(sqlite3.DatabaseError):
-        recover_corruption(None, target="session", dry_run=True)
+    result = recover_corruption(None, target="session", dry_run=True)
+    assert result.success is False
+    assert result.dry_run is True
 
     after_mtime = Path(corrupt_wal_db).stat().st_mtime
     after_size = Path(corrupt_wal_db).stat().st_size
@@ -308,8 +305,12 @@ CREATE TABLE IF NOT EXISTS sessions(
             (DbCondition.HEALTHY, None),  # post-restore
         ],
     ):
-        with patch("pathlib.Path.exists", return_value=True):
-            result = recover_corruption(backup_path=str(backup_db), target="session")
+        # session_db/backup_db are real files created above, so their own
+        # .exists() checks resolve naturally -- no need to (and, since
+        # _restore_from_backup() now also probes for nonexistent -wal/-shm
+        # sidecar files via Path.exists(), actively harmful to) blanket-patch
+        # Path.exists() to always return True.
+        result = recover_corruption(backup_path=str(backup_db), target="session")
 
     assert result.success is False
     assert result.action == "logical_verify_failed"
