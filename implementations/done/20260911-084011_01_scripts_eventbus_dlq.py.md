@@ -151,10 +151,10 @@ def _shared_promote_single(db, deadletter_dir, event_id):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-190000 | 20260911-191000 | Removed promote_to_dlq(); extracted _shared_promote/_shared_promote_single; aligned dlq_at IS NULL guard uniformly |
+| 2 | Add or update tests per Validation plan | Completed | 20260911-191000 | 20260911-191500 | All DLQ tests pass (16 passed); no new tests needed as existing tests cover consolidated logic |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-191500 | 20260911-192000 | ruff format/check + mypy pass; full suite: 16 DLQ tests passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-192000 | 20260911-192500 | No docs edits required — no changed file matched a Task scope row in docs/00_index.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

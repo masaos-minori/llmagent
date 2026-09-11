@@ -4,9 +4,9 @@ Update tests to stop referencing `promote_to_dlq()` directly.
 
 ## Scope
 
-Modify `tests/eventbus/test_eventbus_dlq.py`:
-- Update tests to stop referencing `promote_to_dlq()` directly (REQ-005; `tests/eventbus/test_eventbus_dlq.py`).
-- Retarget assertions to the surviving function(s) without weakening what each test actually verifies (REQ-005; `tests/eventbus/test_eventbus_dlq.py`).
+Modify `tests/eventbus/test_eventbus_dlq_promotion.py`:
+- Update tests to stop referencing `promote_to_dlq()` directly (REQ-005; `tests/eventbus/test_eventbus_dlq_promotion.py`).
+- Retarget assertions to the surviving function(s) without weakening what each test actually verifies (REQ-005; `tests/eventbus/test_eventbus_dlq_promotion.py`).
 
 ## Assumptions
 
@@ -30,7 +30,7 @@ Modify `tests/eventbus/test_eventbus_dlq.py`:
 
 ## Implementation
 ### Target file
-`samples/tests/eventbus/test_eventbus_dlq.py`
+`samples/tests/eventbus/test_eventbus_dlq_promotion.py`
 
 ### Procedure
 Update tests to stop referencing `promote_to_dlq()` directly; retarget assertions to surviving function(s).
@@ -42,7 +42,7 @@ Update tests to stop referencing `promote_to_dlq()` directly; retarget assertion
 
 ### Details
 ```python
-# In test_eventbus_dlq.py:
+# In test_eventbus_dlq_promotion.py:
 
 # Before:
 from eventbus.dlq import promote_to_dlq
@@ -101,10 +101,10 @@ assert promoted is True
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-203000 | 20260911-203500 | All promote_to_dlq references already removed; tests use sweep_orphans/promote_single |
+| 2 | Add or update tests per Validation plan | Completed | 20260911-203500 | 20260911-203500 | No new tests needed; existing tests cover consolidated logic |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-203500 | 20260911-204000 | ruff format/check + mypy pass; full suite: 16 DLQ tests passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-204000 | 20260911-204000 | N/A — no documentation changes required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

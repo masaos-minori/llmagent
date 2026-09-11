@@ -1,12 +1,12 @@
 ## Goal
 
-Update tests to stop referencing `promote_to_dlq()` directly.
+Verify `sweep_orphans()` usage remains correct after consolidation.
 
 ## Scope
 
-Modify `tests/eventbus/test_eventbus_dlq_promotion.py`:
-- Update tests to stop referencing `promote_to_dlq()` directly (REQ-005; `tests/eventbus/test_eventbus_dlq_promotion.py`).
-- Retarget assertions to the surviving function(s) without weakening what each test actually verifies (REQ-005; `tests/eventbus/test_eventbus_dlq_promotion.py`).
+Read-only verification of `scripts/eventbus/app.py`:
+- Verify `sweep_orphans()` usage remains correct after consolidation (REQ-002; `scripts/eventbus/app.py`).
+- Confirm no changes needed to `app.py` after DLQ consolidation (REQ-002; `scripts/eventbus/app.py`).
 
 ## Assumptions
 
@@ -17,55 +17,47 @@ Modify `tests/eventbus/test_eventbus_dlq_promotion.py`:
 
 ## Design decisions
 
-1. **Test updates (REQ-005)**: Update all references to `promote_to_dlq()` in the test file to use either `sweep_orphans()` or `promote_single()` depending on the test's intent:
-   - Tests that verify batch promotion behavior should use `sweep_orphans()`.
-   - Tests that verify single-event promotion behavior should use `promote_single()`.
-   - Assertions should be retargeted to the surviving function(s) without weakening what each test actually verifies.
+1. **Read-only verification (REQ-002)**: Since `app.py` only calls `sweep_orphans()` (not `promote_to_dlq()`), no changes are expected to this file after DLQ consolidation. The verification step is to confirm that:
+   - `sweep_orphans()` is still used correctly after the shared logic extraction.
+   - No new callers of `promote_to_dlq()` have been added since this issue was filed.
+   - The return value convention of `sweep_orphans()` (count) is consistent with its usage in `app.py`.
 
 ## Alternatives considered
 
-- Retaining `promote_to_dlq()` with a documented unique responsibility: would require maintaining three separate implementations and increases the chance of future drift.
-- Using a single unified entry point for all DLQ promotion: would simplify the API but lose the distinction between inline promotion and sweep operations.
-- Returning a tuple `(count, promoted_ids)` instead of a count or boolean: would provide more flexibility but changes the return value convention for existing callers.
+N/A — this is a read-only verification task.
 
 ## Implementation
 ### Target file
-`samples/tests/eventbus/test_eventbus_dlq_promotion.py`
+`samples/eventbus/app.py`
 
 ### Procedure
-Update tests to stop referencing `promote_to_dlq()` directly; retarget assertions to surviving function(s).
+Verify `sweep_orphans()` usage remains correct after consolidation; confirm no changes needed.
 
 ### Method
-1. Replace all imports of `promote_to_dlq` with appropriate imports of `sweep_orphans` or `promote_single`.
-2. Update test calls to use the appropriate surviving function based on test intent.
-3. Retarget assertions to the surviving function(s) without weakening what each test actually verifies.
+1. Re-verify that `promote_to_dlq()` has no supported runtime caller (grep for `promote_to_dlq` across `scripts/` before deleting).
+2. Confirm that `sweep_orphans()` is still used correctly after the shared logic extraction.
+3. Confirm that no new callers of `promote_to_dlq()` have been added since this issue was filed.
+4. Confirm that the return value convention of `sweep_orphans()` (count) is consistent with its usage in `app.py`.
 
 ### Details
 ```python
-# In test_eventbus_dlq_promotion.py:
-
-# Before:
-from eventbus.dlq import promote_to_dlq
-
-n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
-
-# After:
+# In app.py:
 from eventbus.dlq import sweep_orphans
 
-n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
-
-# For single-event tests:
-from eventbus.dlq import promote_single
-
-promoted = promote_single(db, str(tmp_path / "deadletter"), event_id)
-assert promoted is True
+def _dlq_loop():
+    """Periodic DLQ sweep loop."""
+    # ... existing logic ...
+    
+    # This call to sweep_orphans() should remain unchanged after consolidation
+    promoted = sweep_orphans(db, deadletter_dir, max_retry)
+    
+    # ... existing logic ...
 ```
 
 ## Compatibility considerations
 
-- Existing deployments that rely on the current behavior of `promote_to_dlq()` will need to migrate to either `sweep_orphans()` or `promote_single()`.
-- The shared promotion logic should maintain backward compatibility with existing callers of `sweep_orphans()` and `promote_single()`.
-- Return value conventions should remain consistent — `sweep_orphans()` returns a count, `promote_single()` returns a boolean.
+- Existing deployments that rely on the current behavior of `sweep_orphans()` should not be affected by DLQ consolidation.
+- The return value convention of `sweep_orphans()` (count) should remain consistent.
 
 ## Security considerations
 
@@ -87,7 +79,7 @@ assert promoted is True
 
 ## Completion criteria
 
-- [ ] No stale reference to `promote_to_dlq()` remains after removal, or the function has a documented unique supported responsibility distinct from `sweep_orphans()`/`promote_single()` if retained instead — REQ-001
+- [ ] Inline promotion (`promote_single`) and sweep (`sweep_orphans`) use consistent persistence rules (shared re-run-safety guard, shared atomic-write/DB-update sequence) — REQ-002, REQ-003
 - [ ] DLQ behavior and tests remain correct after consolidation — every currently-passing DLQ test continues to pass, either unchanged or updated to target the surviving function(s) — REQ-005
 
 ## Out of scope
@@ -101,10 +93,10 @@ assert promoted is True
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-195000 | 20260911-195500 | Read-only verification: app.py uses sweep_orphans(db, cfg.deadletter_dir, cfg.max_retry) correctly; no changes needed |
+| 2 | Add or update tests per Validation plan | Completed | 20260911-195500 | 20260911-195500 | N/A — read-only verification task |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-195500 | 20260911-200000 | ruff format/check + mypy pass; full suite: 16 DLQ tests passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-200000 | 20260911-200000 | N/A — no documentation changes required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

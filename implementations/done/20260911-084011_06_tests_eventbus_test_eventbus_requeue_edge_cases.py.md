@@ -1,12 +1,12 @@
 ## Goal
 
-Update if any describes `promote_to_dlq()` as a supported entry point.
+Update tests to stop referencing `promote_to_dlq()` directly.
 
 ## Scope
 
-Modify `docs/06_eventbus_04_dlq_offsets_and_delivery_semantics.md`:
-- Update if any describes `promote_to_dlq()` as a supported entry point (REQ-005; `docs/06_eventbus_04_dlq_offsets_and_delivery_semantics.md`).
-- Retarget assertions to the surviving function(s) without weakening what each test actually verifies (REQ-005; `docs/06_eventbus_04_dlq_offsets_and_delivery_semantics.md`).
+Modify `tests/eventbus/test_eventbus_requeue_edge_cases.py`:
+- Update tests to stop referencing `promote_to_dlq()` directly (REQ-005; `tests/eventbus/test_eventbus_requeue_edge_cases.py`).
+- Retarget assertions to the surviving function(s) without weakening what each test actually verifies (REQ-005; `tests/eventbus/test_eventbus_requeue_edge_cases.py`).
 
 ## Assumptions
 
@@ -17,9 +17,9 @@ Modify `docs/06_eventbus_04_dlq_offsets_and_delivery_semantics.md`:
 
 ## Design decisions
 
-1. **Documentation updates (REQ-005)**: Update all references to `promote_to_dlq()` in the documentation to use either `sweep_orphans()` or `promote_single()` depending on the context:
-   - Documentation that describes batch promotion behavior should use `sweep_orphans()`.
-   - Documentation that describes single-event promotion behavior should use `promote_single()`.
+1. **Test updates (REQ-005)**: Update all references to `promote_to_dlq()` in the test file to use either `sweep_orphans()` or `promote_single()` depending on the test's intent:
+   - Tests that verify batch promotion behavior should use `sweep_orphans()`.
+   - Tests that verify single-event promotion behavior should use `promote_single()`.
    - Assertions should be retargeted to the surviving function(s) without weakening what each test actually verifies.
 
 ## Alternatives considered
@@ -30,30 +30,35 @@ Modify `docs/06_eventbus_04_dlq_offsets_and_delivery_semantics.md`:
 
 ## Implementation
 ### Target file
-`samples/docs/06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
+`samples/tests/eventbus/test_eventbus_requeue_edge_cases.py`
 
 ### Procedure
-Update if any describes `promote_to_dlq()` as a supported entry point.
+Update tests to stop referencing `promote_to_dlq()` directly; retarget assertions to surviving function(s).
 
 ### Method
-1. Replace all references to `promote_to_dlq()` with appropriate references to `sweep_orphans()` or `promote_single()`.
-2. Update documentation calls to use the appropriate surviving function based on context.
+1. Replace all imports of `promote_to_dlq` with appropriate imports of `sweep_orphans` or `promote_single`.
+2. Update test calls to use the appropriate surviving function based on test intent.
 3. Retarget assertions to the surviving function(s) without weakening what each test actually verifies.
 
 ### Details
-```markdown
-# In docs/06_eventbus_04_dlq_offsets_and_delivery_semantics.md:
+```python
+# In test_eventbus_requeue_edge_cases.py:
 
 # Before:
-## promote_to_dlq()
-Promotes events to the dead-letter queue when they exceed the maximum retry count.
+from eventbus.dlq import promote_to_dlq
+
+n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
 
 # After:
-## sweep_orphans()
-Periodically promotes orphaned events to the dead-letter queue.
+from eventbus.dlq import sweep_orphans
 
-## promote_single()
-Promotes a single event to the dead-letter queue immediately after a nack.
+n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+
+# For single-event tests:
+from eventbus.dlq import promote_single
+
+promoted = promote_single(db, str(tmp_path / "deadletter"), event_id)
+assert promoted is True
 ```
 
 ## Compatibility considerations
@@ -96,10 +101,10 @@ Promotes a single event to the dead-letter queue immediately after a nack.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-205000 | 20260911-205500 | All promote_to_dlq references already removed; tests use sweep_orphans/promote_single |
+| 2 | Add or update tests per Validation plan | Completed | 20260911-205500 | 20260911-205500 | No new tests needed; existing tests cover consolidated logic |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-205500 | 20260911-210000 | ruff format/check + mypy pass; full suite: 16 DLQ tests passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-210000 | 20260911-210000 | N/A — no documentation changes required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

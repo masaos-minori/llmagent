@@ -93,10 +93,10 @@ def _nack_and_promote(db, deadletter_dir, event_id):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260911-193000 | 20260911-193500 | Read-only verification: ack_route.py uses promote_single(db, cfg.deadletter_dir, event_id) correctly; no changes needed |
+| 2 | Add or update tests per Validation plan | Completed | 20260911-193500 | 20260911-193500 | N/A — read-only verification task |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-193500 | 20260911-194000 | ruff format/check + mypy pass; full suite: 16 DLQ tests passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-194000 | 20260911-194000 | N/A — no documentation changes required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
