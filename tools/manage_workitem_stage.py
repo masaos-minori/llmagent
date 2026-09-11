@@ -187,9 +187,21 @@ def move_to_done(source: Path, allow_uncommitted: bool = False) -> MoveResult:
         return MoveResult(success=False, error=f"git status failed: {e}")
 
     if status.strip() and not allow_uncommitted:
-        diff_output = _run_with_lock_retry(
-            lambda: repo.git.diff("--cached", str(source_abs))
-        )
+        if status.strip().startswith("??"):
+            # An untracked file has no HEAD entry to diff against — `git
+            # diff` (staged or not) always reports empty for it.
+            diff_output = (
+                "(untracked file -- no committed version exists yet, so "
+                "there is nothing to diff; the whole file is new)"
+            )
+        else:
+            # `git diff --cached` only covers staged changes -- the routine
+            # case this hint exists for (an unstaged working-tree edit, e.g.
+            # a Plan self-correction) would otherwise print an empty diff.
+            # `diff HEAD` covers staged and unstaged changes together.
+            diff_output = _run_with_lock_retry(
+                lambda: repo.git.diff("HEAD", "--", str(source_abs))
+            )
         error_msg = (
             f"source file has uncommitted changes, refusing to move: {source}\n"
             f"HINT: Commit the changes first, or use --allow-uncommitted to proceed anyway.\n"
@@ -270,7 +282,9 @@ def cmd_close_issue(args: argparse.Namespace) -> int:
 
 def cmd_close_plan(args: argparse.Namespace) -> int:
     """Move a `plans/*.md` file to `plans/done/`."""
-    result = move_to_done(Path(args.plan_path), allow_uncommitted=args.allow_uncommitted)
+    result = move_to_done(
+        Path(args.plan_path), allow_uncommitted=args.allow_uncommitted
+    )
     if not result.success:
         print(f"ERROR: {result.error}", file=sys.stderr)
         return 1

@@ -291,6 +291,82 @@ def test_simple_move_ignores_unrelated_uncommitted_file(
 
 
 # ---------------------------------------------------------------------------
+# close-plan: --allow-uncommitted bypass and its diagnostic hint (item 6
+# friction-reduction -- a routine Plan self-correction landing in the same
+# cycle as close-plan should not require a separate ask-the-user-to-commit
+# round trip)
+# ---------------------------------------------------------------------------
+
+
+def test_close_plan_allow_uncommitted_bypasses_refusal(
+    temp_git_repo: Path,
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / "plans" / "20260109_dirty.md"
+    _dirty_modified_after_commit(repo, source)
+
+    args = build_parser().parse_args(["close-plan", str(source), "--allow-uncommitted"])
+    exit_code = cmd_close_plan(args)
+
+    destination = temp_git_repo / "plans" / "done" / "20260109_dirty.md"
+    assert exit_code == 0
+    assert not source.exists()
+    assert destination.exists()
+    assert destination.read_text(encoding="utf-8") == "modified content\n"
+
+
+def test_close_plan_refusal_shows_diff_for_unstaged_modification(
+    temp_git_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`git diff --cached` alone reports empty for an unstaged working-tree
+    edit -- the far more common case a routine self-correction produces --
+    so the hint must fall back to `git diff HEAD` to actually show it.
+    """
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / "plans" / "20260110_dirty.md"
+    _dirty_modified_after_commit(repo, source)
+
+    args = build_parser().parse_args(["close-plan", str(source)])
+    exit_code = cmd_close_plan(args)
+
+    assert exit_code == 1
+    captured = capsys.readouterr()
+    assert "--allow-uncommitted" in captured.err
+    assert "-original content" in captured.err
+    assert "+modified content" in captured.err
+
+
+def test_close_plan_refusal_shows_diff_for_staged_modification(
+    temp_git_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / "plans" / "20260111_dirty.md"
+    _dirty_staged(repo, source)
+
+    args = build_parser().parse_args(["close-plan", str(source)])
+    exit_code = cmd_close_plan(args)
+
+    assert exit_code == 1
+    captured = capsys.readouterr()
+    assert "+staged content" in captured.err
+
+
+def test_close_plan_refusal_notes_untracked_file_has_no_diff(
+    temp_git_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / "plans" / "20260112_dirty.md"
+    _dirty_untracked(repo, source)
+
+    args = build_parser().parse_args(["close-plan", str(source)])
+    exit_code = cmd_close_plan(args)
+
+    assert exit_code == 1
+    captured = capsys.readouterr()
+    assert "untracked file" in captured.err
+
+
+# ---------------------------------------------------------------------------
 # move_to_done: missing archive directory
 # ---------------------------------------------------------------------------
 
