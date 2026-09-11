@@ -35,24 +35,40 @@ async def _do_ack(
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 
     def _ack_and_offset() -> tuple[bool, bool, int | None]:
-        """Acknowledge an event atomically (delivery + offset in one transaction)."""
+        """Acknowledge an event atomically (delivery + offset in one transaction).
+
+        ack_event_for_consumer() requires a non-empty consumer_id (it tracks
+        a per-consumer offset); fall back to the plain, consumer-less
+        ack_event() when the caller didn't supply one, matching this
+        endpoint's own consumer_id: str = Query(default="") contract.
+        """
+        from eventbus.db import ack_event as _ack_event_plain  # noqa: PLC0415
         from eventbus.db import ack_event_for_consumer  # noqa: PLC0415
 
         now = now_iso()
-        found, newly_acked, seq = ack_event_for_consumer(db, event_id, consumer_id, now)
-        return (found, newly_acked, seq)
+        if consumer_id:
+            found, newly_acked, seq = ack_event_for_consumer(
+                db, event_id, consumer_id, now
+            )
+            return (found, newly_acked, seq)
+        found, newly_acked = _ack_event_plain(db, event_id, now)
+        return (found, newly_acked, None)
 
     found, newly_acked, seq = await run_with_db_lock(_ack_and_offset)
+    # Check found first: ack_event_for_consumer()'s INSERT OR IGNORE into
+    # consumer_delivery has no FK enforcement against events, so
+    # newly_acked can be True even for a nonexistent event_id (found=False,
+    # seq=None in that case) — found is the authoritative existence check.
+    if not found:
+        raise HTTPException(status_code=404, detail=ERR_EVENT_NOT_FOUND)
     resp: dict[str, Any] = {"event_id": event_id, "acked": True}
     if newly_acked:
         logger.info("event acked event_id=%s", event_id)
         resp["seq"] = seq
         return resp
-    if found:
-        logger.debug("event already acked event_id=%s", event_id)
-        resp["already_acked"] = True
-        return resp
-    raise HTTPException(status_code=404, detail=ERR_EVENT_NOT_FOUND)
+    logger.debug("event already acked event_id=%s", event_id)
+    resp["already_acked"] = True
+    return resp
 
 
 async def ack_event(
@@ -80,12 +96,19 @@ async def nack(
     cfg = get_config(request)
 
     def _nack_and_promote() -> tuple[int, bool]:
-        """Nack an event and promote to DLQ if max retries exceeded."""
-        failure_count, cycle_count = _nack_event(db, event_id)
+        """Nack an event and promote to DLQ if max retries exceeded.
+
+        DLQ promotion is gated on delivery_failure_count (the lifetime
+        failure counter), not cycle_failure_count (which resets per
+        requeue/redeliver cycle) — see
+        tests/eventbus/test_eventbus_dlq_promotion.py for the intended
+        semantics.
+        """
+        failure_count, _cycle_count = _nack_event(db, event_id)
         if failure_count == -1:
             return (-1, False)
         promoted = False
-        if cycle_count >= cfg.max_retry:
+        if failure_count >= cfg.max_retry:
             from eventbus.dlq import promote_single  # noqa: PLC0415
 
             promoted = promote_single(db, cfg.deadletter_dir, event_id)

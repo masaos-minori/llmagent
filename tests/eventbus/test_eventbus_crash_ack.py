@@ -129,16 +129,12 @@ class TestCrashBeforeAck:
         assert len(items) == 1
         assert items[0]["event_id"] == body["event_id"]
 
-    def test_offset_write_failure_after_delivery_state(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_offset_write_failure_after_delivery_state(self, db: Any) -> None:
         """When offset-write fails after delivery-state write, neither commits."""
         import sqlite3
-        import unittest.mock
 
-        import eventbus.app as eb_app
         from eventbus.db import ack_event_for_consumer, insert_event
 
-        cfg = eb_app.app.state.config
-        db = eb_app.app.state.db
         now = "2026-09-09T10:00:00Z"
         consumer_id = "crash_consumer"
 
@@ -148,23 +144,34 @@ class TestCrashBeforeAck:
         )
         assert inserted
 
-        # Mock commit to fail after delivery-state write
-        original_commit = db.commit
+        # sqlite3.Connection.commit is a built-in method and cannot be
+        # monkeypatched on the instance (read-only attribute) — wrap the
+        # connection so .commit() fails while .execute() still delegates to
+        # the real connection.
+        class _FailingCommitConnection:
+            def __init__(self, real_conn):
+                self._real_conn = real_conn
 
-        def failing_commit():
-            raise sqlite3.IntegrityError("simulated commit failure")
+            def commit(self):
+                raise sqlite3.IntegrityError("simulated commit failure")
 
-        with unittest.mock.patch.object(db, 'commit', side_effect=failing_commit):
-            # This should raise an exception
-            with pytest.raises(sqlite3.IntegrityError, match="simulated commit failure"):
-                ack_event_for_consumer(db, "evt-crash-offset", consumer_id, now)
+            def __getattr__(self, name):
+                return getattr(self._real_conn, name)
+
+        failing_db = _FailingCommitConnection(db)
+
+        # This should raise an exception
+        with pytest.raises(sqlite3.IntegrityError, match="simulated commit failure"):
+            ack_event_for_consumer(failing_db, "evt-crash-offset", consumer_id, now)
 
         # Verify neither delivery nor offset was committed
         delivery_row = db.execute(
             "SELECT 1 FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
             (consumer_id, "evt-crash-offset"),
         ).fetchone()
-        assert delivery_row is None, "delivery-state should NOT be committed after failed commit"
+        assert delivery_row is None, (
+            "delivery-state should NOT be committed after failed commit"
+        )
 
         offset_row = db.execute(
             "SELECT 1 FROM consumer_offsets WHERE consumer_id = ?",

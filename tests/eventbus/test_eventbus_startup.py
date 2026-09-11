@@ -170,6 +170,8 @@ def test_main_post_start_verification_binds_loopback(tmp_path: Path) -> None:
         f'offsets_dir = "{tmp_path / "offsets"}"\n'
         f'deadletter_dir = "{tmp_path / "deadletter"}"\n'
         f"max_retry = 3\n"
+        f'host = "127.0.0.1"\n'
+        f'auth_token = "test-token"\n'
     )
 
     proc = subprocess.Popen(

@@ -450,7 +450,7 @@ def migrate_legacy_offsets(
         List of consumer_ids that were migrated.
     """
     from eventbus.offsets import (
-        read_offset,  # noqa: PLC0415 — deferred to avoid a circular import with eventbus.offsets at module load time
+        _sanitize_consumer_id,  # noqa: PLC0415 — deferred to avoid a circular import with eventbus.offsets at module load time
     )
 
     migrated: list[str] = []
@@ -460,28 +460,43 @@ def migrate_legacy_offsets(
         logger.warning("offsets_dir does not exist: %s", offsets_dir)
         return migrated
 
-    for map_file in sorted(dir_path.glob("*.map")):
-        safe_id = map_file.stem  # filename without .map extension
+    # Iterate every offset file (not just ones with a .map companion) —
+    # legacy files predating .map tracking, or written by any other means,
+    # never get a .map companion and would otherwise be invisible to a
+    # glob("*.map")-only scan.
+    for offset_file in sorted(dir_path.iterdir()):
+        if not offset_file.is_file() or offset_file.suffix == ".map":
+            continue
+        safe_id = offset_file.name
+        map_file = dir_path / f"{safe_id}.map"
         try:
             stored_id = map_file.read_text().strip()
             if stored_id:
                 consumer_id = stored_id
             else:
                 # Empty .map file — fall back to sanitized filename
-                consumer_id = safe_id
+                consumer_id = _sanitize_consumer_id(safe_id)
                 logger.warning(
                     "empty .map file for %s, using sanitized filename as consumer_id",
                     safe_id,
                 )
         except FileNotFoundError:
             # No .map companion — use sanitized filename
-            consumer_id = safe_id
+            consumer_id = _sanitize_consumer_id(safe_id)
             logger.warning(
                 "no .map companion for %s, using sanitized filename as consumer_id",
                 safe_id,
             )
 
-        offset_val = read_offset(offsets_dir, consumer_id)
+        # Read directly from the on-disk file rather than via read_offset(),
+        # which re-sanitizes its consumer_id argument to build the path — since
+        # safe_id here IS the raw on-disk filename (possibly unsanitized, e.g.
+        # a legacy artifact), re-sanitizing it would look up a different path
+        # than the one we just found.
+        try:
+            offset_val = int(offset_file.read_text().strip())
+        except (FileNotFoundError, ValueError):
+            offset_val = 0
         if offset_val > 0:
             try:
                 conn.execute(

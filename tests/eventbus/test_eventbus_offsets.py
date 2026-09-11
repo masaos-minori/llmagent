@@ -485,13 +485,14 @@ class TestLegacyOffsetMigrationHttp:
         # Migrate — should fall back to sanitized filename
         migrated = migrate_legacy_offsets(db, offsets_dir)
         assert len(migrated) == 1
-        # Sanitized filename: ".." → "_", "." → "_" → "bad_consumer_id__path"
-        assert "bad_consumer_id__path" in migrated
+        # _sanitize_consumer_id() collapses ".." to a single "_" (not "__") —
+        # see its docstring: "'..' becomes '_' not '__'".
+        assert "bad_consumer_id_path" in migrated
 
         # Verify offset was migrated under sanitized name
         row = db.execute(
             "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
-            ("bad_consumer_id__path",),
+            ("bad_consumer_id_path",),
         ).fetchone()
         assert row is not None
         assert int(row["offset"]) == 25

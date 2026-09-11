@@ -66,13 +66,17 @@ class TestAckEndpoint:
         assert data["acked"] is True
         assert data["seq"] is not None
 
-        # Verify offset was written (check via DB state)
+        # Verify the per-consumer delivery state was written (check via DB
+        # state). ack_event_for_consumer() records acked_at on
+        # consumer_delivery, not on events — a single event can be acked
+        # independently by multiple consumers, so events.acked_at is no
+        # longer the source of truth once a consumer_id is supplied.
         import eventbus.app as eb_app
 
         db = eb_app.app.state.db
         row = db.execute(
-            "SELECT acked_at FROM events WHERE event_id = ?",
-            (body["event_id"],),
+            "SELECT acked_at FROM consumer_delivery WHERE event_id = ? AND consumer_id = ?",
+            (body["event_id"], "consumer-A"),
         ).fetchone()
         assert row is not None and row["acked_at"] is not None
 
@@ -126,12 +130,24 @@ class TestAckEndpoint:
 
 
 class TestAckMonotonicOffset:
-    """Verify non-monotonic offset behavior: acking an older-seq event rolls offset back."""
+    """Verify monotonic offset behavior: acking an older-seq event does not move the
+    consumer's offset backward.
 
-    def test_older_seq_ack_moves_offset_backward(
-        self, client: TestClient, tmp_path: Path
+    This deliberately supersedes an older test (test_older_seq_ack_moves_offset_backward,
+    removed here) that asserted the opposite — a rollback on an older-seq ack — and
+    checked the legacy file-based read_offset(), which ack_event_for_consumer()'s
+    SQLite-backed consumer_offsets table has replaced. The monotonic (non-regressing)
+    behavior is the current, intentional design: see
+    ack_event_for_consumer()'s `WHERE excluded.offset > consumer_offsets.offset` clause
+    in scripts/eventbus/db.py, and the equivalent lower-level coverage in
+    tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq.
+    """
+
+    def test_older_seq_ack_does_not_move_offset_backward(
+        self, client: TestClient
     ) -> None:
-        from eventbus.offsets import read_offset
+        import eventbus.app as eb_app
+        from eventbus.db import get_consumer_offset
 
         event1 = _event()
         event2 = _event()
@@ -149,15 +165,16 @@ class TestAckMonotonicOffset:
         )
         assert resp.status_code == 200
         assert resp.json()["seq"] == 2
-        assert read_offset(str(tmp_path / "offsets"), consumer_id) == 2
+        db = eb_app.app.state.db
+        assert get_consumer_offset(db, consumer_id) == 2
 
-        # ack event1 (seq=1, older) → offset rolls back to 1
+        # ack event1 (seq=1, older) → offset stays at 2, does not regress
         resp = client.post(
             f"/events/{event1['event_id']}/ack",
             params={"consumer_id": consumer_id},
         )
         assert resp.status_code == 200
         assert resp.json()["seq"] == 1
-        assert read_offset(str(tmp_path / "offsets"), consumer_id) == 1, (
-            "Non-monotonic: offset rolled back after acking older-seq event"
+        assert get_consumer_offset(db, consumer_id) == 2, (
+            "Monotonic: offset must not regress after acking an older-seq event"
         )
