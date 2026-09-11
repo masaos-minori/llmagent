@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import dataclasses
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from dataclasses import fields as dataclass_fields
@@ -190,38 +189,6 @@ class ProductionConfigValidator:
     Checks strict mode flags, tool safety tier consistency, and other
     production-critical settings.
     """
-
-    def _check_unknown_top_level_keys(self, config: Mapping[str, object]) -> list[str]:
-        """Check for unknown top-level config keys not in dataclass fields."""
-        from agent.config_dataclasses import (
-            AgentConfig,
-            ApprovalConfig,
-            DiagnosticsConfig,
-            LLMConfig,
-            MCPConfig,
-            MemoryConfig,
-            MessageRoleConfig,
-            ObservabilityConfig,
-            RAGConfig,
-            ToolConfig,
-        )
-
-        known_fields: set[str] = set()
-        for dc in (
-            LLMConfig,
-            RAGConfig,
-            ToolConfig,
-            MemoryConfig,
-            MCPConfig,
-            ApprovalConfig,
-            ObservabilityConfig,
-            DiagnosticsConfig,
-            MessageRoleConfig,
-        ):
-            known_fields.update(f.name for f in dataclasses.fields(dc))
-        # Include AgentConfig's own fields (e.g. agent_memory_max_startup_snippets)
-        known_fields.update(f.name for f in dataclasses.fields(AgentConfig))
-        return [k for k in config if k not in known_fields]
 
     def validate(
         self,
