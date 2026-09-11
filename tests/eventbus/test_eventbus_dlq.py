@@ -231,11 +231,10 @@ def test_nack_on_already_dlq_event_does_not_repromote(
     db.commit()
     promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
 
-    # Nack an already-DLQ'd event — should not promote again
+    # Nack an already-DLQ'd event — should return 409 Conflict, not increment count
     r = client.post(f"/nack?event_id={ev['event_id']}")
-    assert r.status_code == 200
-    assert r.json()["delivery_failure_count"] == 3
-    assert "dlq_promoted" not in r.json()
+    assert r.status_code == 409
+    assert "event already in dead letter queue" in r.json()["detail"]
 
     dlq_files = list((tmp_path / "deadletter").glob("*.json"))
     assert len(dlq_files) == 1

@@ -14,7 +14,9 @@ from eventbus.json_utils import now_iso
 
 # write_offset removed — replaced by ack_event_for_consumer() transactional path
 from eventbus.route_helpers import (
+    ERR_EVENT_ALREADY_ACKED,
     ERR_EVENT_ID_REQUIRED,
+    ERR_EVENT_IN_DLQ,
     ERR_EVENT_NOT_FOUND,
     get_config,
     get_db,
@@ -117,6 +119,18 @@ async def nack(
     failure_count, promoted = await run_with_db_lock(_nack_and_promote)
     if failure_count == -1:
         raise HTTPException(status_code=404, detail=ERR_EVENT_NOT_FOUND)
+    if failure_count == -2:
+        # Invalid transition: event is already ACKed or DLQ'd
+        # Determine which state by checking the event directly
+        row = await run_with_db_lock(lambda: db.execute(
+            "SELECT acked_at, dlq_at FROM events WHERE event_id = ?", (event_id,)
+        ).fetchone())
+        if row and row["acked_at"] is not None:
+            raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
+        elif row and row["dlq_at"] is not None:
+            raise HTTPException(status_code=409, detail=ERR_EVENT_IN_DLQ)
+        else:
+            raise HTTPException(status_code=409, detail="invalid NACK transition")
     logger.info(
         "event nacked event_id=%s delivery_failure_count=%d", event_id, failure_count
     )

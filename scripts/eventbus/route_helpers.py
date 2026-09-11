@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 ERR_EVENT_NOT_FOUND = "event not found"
 ERR_EVENT_ID_REQUIRED = "event_id is required"
 ERR_EVENT_NOT_IN_DLQ = "event is not in DLQ"
+ERR_EVENT_ALREADY_ACKED = "event already acknowledged"
+ERR_EVENT_IN_DLQ = "event already in dead letter queue"
 ERR_CONSUMER_ALREADY_CONNECTED = "consumer already connected"
 
 
