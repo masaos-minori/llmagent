@@ -81,11 +81,11 @@ async def nack(
 
     def _nack_and_promote() -> tuple[int, bool]:
         """Nack an event and promote to DLQ if max retries exceeded."""
-        failure_count = _nack_event(db, event_id)
+        failure_count, cycle_count = _nack_event(db, event_id)
         if failure_count == -1:
             return (-1, False)
         promoted = False
-        if failure_count >= cfg.max_retry:
+        if cycle_count >= cfg.max_retry:
             from eventbus.dlq import promote_single  # noqa: PLC0415
 
             promoted = promote_single(db, cfg.deadletter_dir, event_id)
