@@ -1,5 +1,32 @@
 # rules/toolchain.md — Shared Validation Sequence
 
+## Impact-radius check (before broad behavior changes)
+
+Before changing the default behavior, required arguments, or return contract of a
+symbol referenced widely across the codebase (a shared validator, a config
+dataclass, a widely-imported helper), measure its blast radius first — do not let a
+full test run be the first place the scale of the change shows up:
+
+```bash
+rg -l '\bSymbolName\b' tests/ | wc -l   # files that could be affected
+rg -c '\bSymbolName\b' tests/           # per-file reference counts
+```
+
+Motivated by: a single commit made `ProductionConfigValidator`'s validation
+unconditionally strict. The change was correct in isolation, but its blast radius
+was never measured before landing, and it broke ~231 tests across 12 files — a
+scale that was only discovered after the fact, via a full-suite run.
+
+- Run the `rg` count above (or equivalent) before changing a broadly-referenced
+  symbol's behavior in a way existing callers/tests may rely on.
+- If the count is large (rule of thumb: more than ~10 files, or more than ~20
+  references), record the blast radius — in the Plan's `## Risks` section for a
+  `plan`-driven change, or the commit message for a same-session refactor — so the
+  follow-up work is budgeted as part of the same unit of work rather than
+  discovered mid-implementation.
+- This is a measurement step, not a blocker: a large blast radius does not mean
+  "don't do it," only "know it before you start."
+
 ## Standard validation sequence
 
 Run in this order after each implementation step.
