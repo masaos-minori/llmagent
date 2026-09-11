@@ -61,6 +61,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=3,
+        auth_token="test-token",
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
@@ -78,6 +79,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         loop.close()
 
     with TestClient(eb_app.app) as c:
+        c.headers["Authorization"] = "Bearer test-token"
         yield c
 
     # Cleanup on teardown
@@ -382,7 +384,7 @@ class TestSqliteOffsetMonotonicity:
         assert int(row["offset"]) == seq2  # Not seq1
 
 
-class TestLegacyOffsetMigration:
+class TestLegacyOffsetMigrationHttp:
     """Tests for legacy offset file migration idempotency and edge cases."""
 
     def test_migration_is_idempotent(self, tmp_path: Path, client: TestClient) -> None:
@@ -603,7 +605,7 @@ class TestConsumerOffsetsTable:
             db.close()
 
 
-class TestLegacyOffsetMigration:
+class TestLegacyOffsetMigrationDirect:
     def test_migration_is_idempotent(self, tmp_path: Path) -> None:
         from eventbus.config import EventBusConfig
         from eventbus.db import migrate_legacy_offsets, open_db
@@ -615,6 +617,7 @@ class TestLegacyOffsetMigration:
             offsets_dir=str(tmp_path / "offsets"),
             deadletter_dir=str(tmp_path / "deadletter"),
             max_retry=3,
+            auth_token="test-token",
         )
         (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
         # Create one offset file + .map companion — both named after the consumer_id
@@ -652,6 +655,7 @@ class TestLegacyOffsetMigration:
             offsets_dir=str(tmp_path / "offsets"),
             deadletter_dir=str(tmp_path / "deadletter"),
             max_retry=3,
+            auth_token="test-token",
         )
         (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
         # Create multiple offset files + .map companions — names match .map content
@@ -692,6 +696,7 @@ class TestLegacyOffsetMigration:
             offsets_dir=str(tmp_path / "offsets"),
             deadletter_dir=str(tmp_path / "deadletter"),
             max_retry=3,
+            auth_token="test-token",
         )
         (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
         # Create an offset file WITHOUT a .map companion

@@ -27,6 +27,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=2,
+        auth_token="test-token",
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
@@ -35,6 +36,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
+        c.headers["Authorization"] = "Bearer test-token"
         yield c
 
 

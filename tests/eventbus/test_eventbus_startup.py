@@ -59,6 +59,7 @@ def test_safe_bind_127_0_0_1() -> None:
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
         host="127.0.0.1",
+        auth_token="test-token",
     )
     assert cfg.host == "127.0.0.1"
 
@@ -72,6 +73,7 @@ def test_safe_bind_loopback_v6() -> None:
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
         host="::1",
+        auth_token="test-token",
     )
     assert cfg.host == "::1"
 
@@ -86,6 +88,7 @@ def test_unsafe_bind_0000_fails_without_override() -> None:
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="0.0.0.0",
+            auth_token="test-token",
         )
 
 
@@ -99,6 +102,7 @@ def test_unsafe_bind_ipv6_wildcard_fails_without_override() -> None:
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="::",
+            auth_token="test-token",
         )
 
 
@@ -112,6 +116,7 @@ def test_private_ip_rejected() -> None:
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="192.168.1.1",
+            auth_token="test-token",
         )
 
 
@@ -125,6 +130,7 @@ def test_unsafe_bind_private_10_fails() -> None:
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="10.0.0.1",
+            auth_token="test-token",
         )
 
 
@@ -138,6 +144,7 @@ def test_unsafe_bind_private_172_fails() -> None:
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="172.16.0.1",
+            auth_token="test-token",
         )
 
 

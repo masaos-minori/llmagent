@@ -54,6 +54,7 @@ def _make_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
         offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=3,
+        auth_token="test-token",
     )
 
     # Monkeypatch load_config to prevent app from trying to load from default path
@@ -81,7 +82,9 @@ def _make_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     finally:
         loop.close()
 
-    return TestClient(eb_app.app)
+    client = TestClient(eb_app.app)
+    client.headers["Authorization"] = "Bearer test-token"
+    return client
 
 
 class TestAppStateIsolation:

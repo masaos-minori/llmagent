@@ -20,6 +20,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=3,
+        auth_token="test-token",
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
@@ -28,6 +29,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
+        c.headers["Authorization"] = "Bearer test-token"
         yield c
 
 
@@ -51,5 +53,14 @@ def test_health_ok(client: TestClient) -> None:
 
 
 def test_subscribe_duplicate_consumer_id_returns_409(client: TestClient) -> None:
-    resp = client.get("/subscribe?consumer_id=duplicate&topic=t")
-    assert resp.status_code == 409
+    # Pre-register a connected subscriber with this consumer_id directly on
+    # the broker (not via HTTP — that would open its own infinite SSE stream
+    # and block this test), so the HTTP request below hits an actual conflict.
+    from eventbus import app as eb_app
+
+    sub = eb_app.app.state.broker.subscribe(["t"], consumer_id="duplicate")
+    try:
+        resp = client.get("/subscribe?consumer_id=duplicate&topic=t")
+        assert resp.status_code == 409
+    finally:
+        eb_app.app.state.broker.unsubscribe(sub)

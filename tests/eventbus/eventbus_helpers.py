@@ -23,6 +23,7 @@ def make_eventbus_client(
         offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=max_retry,
+        auth_token="test-token",
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
@@ -40,6 +41,7 @@ def make_eventbus_client(
         loop.close()
 
     client = TestClient(eb_app.app)
+    client.headers["Authorization"] = "Bearer test-token"
 
     # Store cleanup callback on client for teardown
     def _cleanup():

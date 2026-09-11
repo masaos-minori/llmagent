@@ -19,6 +19,7 @@ def test_invalid_port_too_low() -> None:
             offsets_dir="",
             deadletter_dir="",
             max_retry=3,
+            auth_token="test-token",
         )
 
 
@@ -31,6 +32,7 @@ def test_invalid_port_too_high() -> None:
             offsets_dir="",
             deadletter_dir="",
             max_retry=3,
+            auth_token="test-token",
         )
 
 
@@ -43,6 +45,7 @@ def test_invalid_max_retry_zero() -> None:
             offsets_dir="",
             deadletter_dir="",
             max_retry=0,
+            auth_token="test-token",
         )
 
 
@@ -161,6 +164,7 @@ def test_load_config_call_sites_pass_get_config_path() -> None:
 
     assert count >= 2, f"Expected at least 2 load_config() calls, found {count}"
 
+
 def test_non_loopback_host_raises_value_error() -> None:
     """REQ-007: Regression test confirming EventBusConfig rejects non-loopback hosts."""
     # IPv4 non-loopback
@@ -173,6 +177,7 @@ def test_non_loopback_host_raises_value_error() -> None:
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="0.0.0.0",
+            auth_token="test-token",
         )
 
     # IPv6 non-loopback
@@ -185,7 +190,9 @@ def test_non_loopback_host_raises_value_error() -> None:
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="::ffff:192.168.1.1",
+            auth_token="test-token",
         )
+
 
 def test_load_config_rejects_unknown_key(tmp_path: Path) -> None:
     """REQ-005: load_config() raises ValueError for unknown TOML keys."""
@@ -203,6 +210,7 @@ unknown_key = "should-be-rejected"
     with pytest.raises(ValueError, match="unknown key"):
         load_config(config_file)
 
+
 def test_load_config_rejects_wrong_type(tmp_path: Path) -> None:
     """REQ-005: load_config() raises ValueError for wrong-type keys."""
     config_file = tmp_path / "eventbus.toml"
@@ -218,6 +226,7 @@ auth_token = "test-token"
 """)
     with pytest.raises(ValueError, match="type"):
         load_config(config_file)
+
 
 def test_load_config_rejects_empty_auth_token(tmp_path: Path) -> None:
     """REQ-005: load_config() raises ValueError for empty auth_token."""

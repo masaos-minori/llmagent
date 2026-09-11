@@ -28,7 +28,6 @@ TEST_DEADLETTER_DIR = "/tmp/test-deadletter"
 def _make_test_app(tmp_path: Path, token: str) -> tuple[FastAPI, Any]:
     """Create a fresh FastAPI app with auth middleware registered."""
     from eventbus import app as eb_app
-    from eventbus.auth import attach_auth_middleware
     from eventbus.config import EventBusConfig
 
     cfg = EventBusConfig(
@@ -57,8 +56,9 @@ def _make_test_app(tmp_path: Path, token: str) -> tuple[FastAPI, Any]:
     finally:
         loop.close()
 
-    attach_auth_middleware(eb_app.app, token)
-
+    # Auth middleware is attached once at eventbus.app module-import time
+    # (scripts/eventbus/app.py) and reads the token from app.state.config on
+    # each request, which _init_state() above just set for this test's cfg.
     client = TestClient(eb_app.app, raise_server_exceptions=False)
 
     def _cleanup():
@@ -175,12 +175,16 @@ class TestSubscribeAuth:
 
     def test_subscribe_with_valid_consumer_token(self) -> None:
         """Authorized consumer can subscribe to events."""
-        response = self.client.get(
+        # /subscribe is an infinite SSE stream, so use .stream() and only
+        # check the response headers — a plain .get() blocks forever
+        # waiting for the (never-ending) body to complete.
+        with self.client.stream(
+            "GET",
             "/subscribe",
             params={"topic": "test", "consumer_id": "consumer_a"},
             headers={"Authorization": f"Bearer {TEST_TOKEN}"},
-        )
-        assert response.status_code == 200
+        ) as response:
+            assert response.status_code == 200
 
     def test_subscribe_as_wrong_role(self) -> None:
         """Non-consumer role cannot subscribe."""
