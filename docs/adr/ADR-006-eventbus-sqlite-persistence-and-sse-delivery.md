@@ -420,12 +420,19 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Summary**: NACKの冪等性ガード欠如、ACK後のNACK許可
 - **Impact**: 重複NACKによりDLQ昇格が意図せぬタイミングで発生する可能性
 - **Resolution Target**: `nack_event`に冪等性ガードと`acked_at`チェックを追加
+- **Status**: Partially Resolved — `acked_at`/`dlq_at` predicates added to WHERE clause (returns `-2,-2` for invalid transitions); HTTP 409 response added in `ack_route.py`; idempotency guard for duplicate NACK remains unresolved
 
 - **Known Issue**: EVENTBUS-010 — When `since_seq=0` is explicitly provided alongside a `consumer_id`, it is indistinguishable from omitting `since_seq` entirely. Both resolve to "read from the saved offset". Clients cannot express "full replay while providing a consumer_id". Documented in `06_eventbus_02_operations.md` under `since_seq`/Offset Precedence Rules.
 - **Type**: API Design Gap
 - **Summary**: `since_seq=0`と省略時の区別不能
 - **Impact**: consumer_id付きで全Replayを実行できない
 - **Resolution Target**: API仕様の変更検討
+
+- **Known Issue（2026-09-11追加）**: EVENTBUS-011 — `nack_event()` now returns `(-2,-2)` for invalid transitions (already ACKed or DLQ'd), and `ack_route.py` converts this to HTTP 409. However, the caller (`_nack_and_promote()`) checks `failure_count == -2` but does not verify whether the event is actually in the database before raising 409 — if the event was deleted between the NACK call and the status check, a spurious 409 could be returned.
+- **Type**: Race Condition
+- **Summary**: NACK後の409応答がイベント削除時に誤って返る可能性がある
+- **Impact**: 低い（イベントが削除されるのは稀なケース）
+- **Resolution Target**: 409応答前に再度イベント状態を確認するか、エラーメッセージを改善する
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
