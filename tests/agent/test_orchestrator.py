@@ -130,7 +130,6 @@ def _make_orchestrator(
     )
     orch._diagnostic_store = MagicMock()
     ctx.diagnostics = orch._diagnostic_store  # keep ctx.diagnostics in sync with mock
-    orch._llm_executor._diagnostic_store = orch._diagnostic_store
     return orch
 
 
@@ -798,7 +797,6 @@ class TestHandleLlmTurnOptionalCallbacks:
         )
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
-        orch._llm_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(
             orch._llm_executor,
@@ -838,7 +836,6 @@ class TestHandleLlmTurnOptionalCallbacks:
         )
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
-        orch._llm_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(
             orch._llm_executor,
@@ -874,7 +871,6 @@ class TestHandleLlmTurnOptionalCallbacks:
         orch = Orchestrator(ctx, on_llm_wait_end=on_llm_wait_end)
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
-        orch._llm_executor._diagnostic_store = orch._diagnostic_store
 
         ctx.services_required.llm.stream = AsyncMock(side_effect=err)
         await orch.handle_turn("hello")

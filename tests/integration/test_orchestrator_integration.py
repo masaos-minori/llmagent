@@ -113,7 +113,6 @@ def _make_orchestrator(
     )
     orch._diagnostic_store = MagicMock()
     ctx.diagnostics = orch._diagnostic_store
-    orch._llm_executor._diagnostic_store = orch._diagnostic_store
     return orch
 
 
@@ -389,7 +388,6 @@ class TestCompleteTurnExecution:
         orch = Orchestrator(ctx, allowed_tools=["search_web"])
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
-        orch._llm_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(
             orch._conversation_manager,
@@ -413,7 +411,6 @@ class TestCompleteTurnExecution:
         orch = Orchestrator(ctx, allowed_tools=["search_web"])
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
-        orch._llm_executor._diagnostic_store = orch._diagnostic_store
 
         with patch.object(orch, "_handle_memory_injection", AsyncMock()):
             with patch.object(
