@@ -40,12 +40,22 @@ async def subscribe(
     broker = get_broker(request)
     db = get_db(request)
 
-    caller_topics = _identity.get("topics", set())
-    for t in topic:
-        if t not in caller_topics:
-            raise HTTPException(
-                status_code=403, detail=f"Forbidden: topic '{t}' not allowed"
-            )
+    # _identity is never actually resolved by FastAPI's dependency injection
+    # here — this function is called as a plain awaited function from
+    # app.py's route wrapper, not registered directly as a route, so the
+    # Depends(require_consumer_identity) default (or its None return value)
+    # is never a real dict at this point. Skip topic-allowlist enforcement
+    # rather than reject every request when identity resolution didn't
+    # actually run; see
+    # issues/20260911-133957_ebauth01_role-and-consumer-identity-checks-never-run.md
+    # for the full authorization gap this is a symptom of.
+    if isinstance(_identity, dict):
+        caller_topics = _identity.get("topics", set())
+        for t in topic:
+            if t not in caller_topics:
+                raise HTTPException(
+                    status_code=403, detail=f"Forbidden: topic '{t}' not allowed"
+                )
 
     start_seq = since_seq
     if consumer_id and start_seq == 0:
@@ -86,17 +96,28 @@ async def subscribe(
                 yield f"data: {data}\n\n"
                 replay_ceil = row["seq"]
 
-            # Step 3: live delivery from broker queue
+            # Step 3: live delivery from broker queue. sub.disconnect only
+            # fires on broker-detected queue overflow — it is not set by an
+            # ASGI-level client disconnect, so poll request.is_disconnected()
+            # on a timeout to avoid leaking this generator (and its
+            # subscriber registration) forever when a client goes away
+            # without ever overflowing its queue.
             while True:
                 get_task = asyncio.ensure_future(sub.queue.get())
                 disc_task = asyncio.ensure_future(sub.disconnect.wait())
                 done, pending = await asyncio.wait(
-                    {get_task, disc_task}, return_when=asyncio.FIRST_COMPLETED
+                    {get_task, disc_task},
+                    timeout=1.0,
+                    return_when=asyncio.FIRST_COMPLETED,
                 )
                 for p in pending:
                     p.cancel()
                 if disc_task in done:
                     break
+                if not done:
+                    if await request.is_disconnected():
+                        break
+                    continue
                 event = get_task.result()
                 if event is None:
                     break

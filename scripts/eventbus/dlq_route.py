@@ -11,7 +11,7 @@ from eventbus.db import count_dlq, fetch_dlq, requeue_event
 from eventbus.route_helpers import (
     ERR_EVENT_NOT_FOUND,
     ERR_EVENT_NOT_IN_DLQ,
-    get_broker,
+    get_config,
     get_db,
     run_with_db_lock,
 )
@@ -55,6 +55,7 @@ async def dlq_requeue(
 ) -> dict[str, Any]:
     """Requeue a dead-letter queue entry back into the active event queue."""
     db = get_db(request)
+    cfg = get_config(request)
 
     def _requeue() -> tuple[bool, int | None]:
         """Requeue a single event from the dead letter queue and return its failure count."""

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from enum import StrEnum
-from typing import Any, cast
+from typing import Any
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -85,31 +85,38 @@ async def verify_bearer_token(
     return token
 
 
-async def require_role(
-    role: Role,
-    request: Request,
-    token: str = Depends(verify_bearer_token),
-) -> None:
-    """FastAPI dependency: verify caller has the required role."""
-    if not token:
-        # Authentication already failed in verify_bearer_token
-        raise HTTPException(status_code=401, detail="Unauthorized")
+def require_role(role: Role):
+    """FastAPI dependency factory: verify caller has the required role.
 
-    # Determine which route category is being accessed
-    path = request.url.path
-    for route_path, allowed_roles in _ROUTE_ROLE_MAP.items():
-        if path.startswith(route_path):
-            if role not in allowed_roles:
-                logger.warning(
-                    "Authorization failed: %s requires role=%s, caller has none",
-                    path,
-                    role,
-                )
-                raise HTTPException(
-                    status_code=403, detail=f"Forbidden: requires {role} role"
-                )
-            return
+    Returns a dependency bound to `role` via closure, since FastAPI's
+    `Depends(...)` calls the dependency itself rather than passing extra
+    arguments to it.
+    """
 
+    async def _check_role(
+        request: Request,
+        token: str = Depends(verify_bearer_token),
+    ) -> None:
+        if not token:
+            # Authentication already failed in verify_bearer_token
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
+        # Determine which route category is being accessed
+        path = request.url.path
+        for route_path, allowed_roles in _ROUTE_ROLE_MAP.items():
+            if path.startswith(route_path):
+                if role not in allowed_roles:
+                    logger.warning(
+                        "Authorization failed: %s requires role=%s, caller has none",
+                        path,
+                        role,
+                    )
+                    raise HTTPException(
+                        status_code=403, detail=f"Forbidden: requires {role} role"
+                    )
+                return
+
+    return _check_role
 
 
 async def require_consumer_identity(
