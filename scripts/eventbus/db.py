@@ -197,7 +197,8 @@ def nack_event(conn: sqlite3.Connection, event_id: str) -> tuple[int, int]:
     if cur.rowcount == 0:
         return (-1, -1)
     row = conn.execute(
-        "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?", (event_id,)
+        "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
+        (event_id,),
     ).fetchone()
     if row:
         return (int(row["delivery_failure_count"]), int(row["cycle_failure_count"]))

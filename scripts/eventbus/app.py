@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
-import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -17,6 +16,7 @@ from fastapi.responses import JSONResponse
 
 from eventbus.ack_route import ack_event as ack_event_route
 from eventbus.ack_route import nack as nack_route
+from eventbus.auth import attach_auth_middleware  # noqa: PLC0415 — new module, REQ-002
 from eventbus.broker import EventBroker
 from eventbus.config import (
     _is_public_host,
@@ -45,7 +45,6 @@ from eventbus.route_helpers import (
     run_with_db_lock,
 )
 from eventbus.subscribe_route import subscribe as subscribe_route
-from eventbus.auth import attach_auth_middleware  # noqa: PLC0415 — new module, REQ-002
 
 logger = logging.getLogger(__name__)
 
@@ -78,13 +77,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         logger.info(
             "eventbus starting on %s:%d", app.state.config.host, app.state.config.port
         )
-    
-    # Register authentication middleware after config is loaded
-    try:
-        attach_auth_middleware(app, app.state.config.auth_token)
-    except ValueError:
-        logger.error("auth_token not configured in config/eventbus.toml")
-        sys.exit(1)
     yield
     if app.state.dlq_task:
         app.state.dlq_task.cancel()
@@ -121,6 +113,7 @@ async def _dlq_loop(app: FastAPI) -> None:
 
 
 app = FastAPI(lifespan=lifespan)
+attach_auth_middleware(app)
 
 
 @app.get("/health")

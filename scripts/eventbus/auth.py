@@ -160,25 +160,37 @@ async def require_consumer_identity(
                 )
 
 
-def attach_auth_middleware(app: Any, token: str) -> None:
+def attach_auth_middleware(app: Any) -> None:
     """Register Bearer-token auth middleware on a FastAPI app.
 
-    When token is non-empty, requests without a matching Authorization header
-    receive a 401 response.  When token is empty, auth is skipped and the
-    middleware only injects the X-Request-Id response header.
+    Must be called exactly once, immediately after the FastAPI app object is
+    constructed — Starlette freezes the middleware stack the moment the app
+    receives its first ASGI call (including the "lifespan" scope), so calling
+    this from inside a `lifespan` handler raises "Cannot add middleware after
+    an application has started".
 
-    An empty token is not a supported production configuration: Agent
-    startup (scripts/agent/startup_validation.py) rejects any MCP server
-    configuration with an empty auth_token before this middleware would ever
-    run for a real Agent-managed server. The accept-all fallback above
-    exists for this function's own standalone testability, not as a
-    supported deployment mode.
+    The expected auth_token is read from `request.app.state.config.auth_token`
+    on each request rather than captured at attach time, since app.state.config
+    is only populated once `lifespan` runs `load_config()` — which happens
+    after this function has already registered the middleware, and which
+    tests re-run per-test (via a monkeypatched `load_config`) against the same
+    module-level `app` object.
+
+    When the configured token is non-empty, requests without a matching
+    Authorization header receive a 401 response. When it is empty, auth is
+    skipped and the middleware only injects the X-Request-Id response
+    header. An empty token is not a supported production configuration:
+    EventBusConfig rejects an empty auth_token before this middleware would
+    ever see one for a real deployment. The accept-all fallback exists for
+    this function's own standalone testability, not as a supported
+    deployment mode.
     """
     from fastapi import Request  # noqa: F401 — used in closure type annotations below
     from fastapi.responses import JSONResponse
 
-    def _is_authorized(request: Request, tok: str) -> bool:
+    def _is_authorized(request: Request) -> bool:
         """Return True when no token is required or the Bearer header matches."""
+        tok = getattr(request.app.state.config, "auth_token", "") or ""
         if not tok:
             return True
         return request.headers.get("Authorization", "") == f"Bearer {tok}"
@@ -188,7 +200,7 @@ def attach_auth_middleware(app: Any, token: str) -> None:
         """Authenticate requests by validating Bearer token header."""
         req_id = str(__import__("uuid").uuid4())
         request.state.request_id = req_id
-        if not _is_authorized(request, token):
+        if not _is_authorized(request):
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
         response = await call_next(request)
         response.headers["X-Request-Id"] = req_id
