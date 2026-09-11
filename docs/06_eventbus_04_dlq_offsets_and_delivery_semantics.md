@@ -232,6 +232,45 @@ At-least-once. Duplicate publishing is suppressed by the `event_id` UNIQUE const
 
 **IMPORTANT:** Consumers MUST implement idempotent processing. Since multiple deliveries of the same event can occur, duplicate ACKs or duplicate processing for the same `event_id` must be safe.
 
+## State Diagram and Transition Rules
+
+### States
+
+| State | Definition |
+|-------|------------|
+| Normal/Delivered | `acked_at IS NULL AND dlq_at IS NULL` |
+| ACKed | `acked_at IS NOT NULL` |
+| Failed | `acked_at IS NULL AND delivery_failure_count >= max_retry AND dlq_at IS NULL` |
+| DLQ | `dlq_at IS NOT NULL` |
+| Requeued | `dlq_at IS NULL AND delivery_failure_count < max_retry` (after requeue) |
+
+### Allowed Transitions
+
+```
+Normal ──ACK──> ACKed
+Normal ──NACK──> Failed (if delivery_failure_count >= max_retry)
+Failed ──NACK──> Failed (increment delivery_failure_count)
+Failed ──ACK──> ACKed
+DLQ ──REQUEUE──> Normal (cycle_failure_count reset, delivery_failure_count preserved)
+```
+
+### Prohibited Transitions
+
+```
+ACKed ✗ NACK → HTTP 409 "event already acknowledged"
+DLQ ✗ NACK → HTTP 409 "event already in dead letter queue"
+ACKed ✗ ACK → HTTP 409 (idempotent duplicate ACK)
+DLQ ✗ REQUEUE → HTTP 409 "event is not in DLQ"
+```
+
+### Return Value Conventions
+
+| Return Value | Meaning |
+|--------------|---------|
+| `(failure_count, cycle_count)` | Success — event in Normal/Delivered state |
+| `(-1, -1)` | Event not found |
+| `(-2, -2)` | Invalid NACK transition (already ACKed or DLQ'd) |
+
 ## Consumer ID Collision Risk
 
 A second concurrent `/subscribe` connection using the same non-empty `consumer_id` as an already-active connection is rejected with HTTP 409. Only one active connection per non-empty `consumer_id` is permitted at a time. The underlying `.map`-file-based raw-string-collision detection for the legacy offset-file path remains unchanged.

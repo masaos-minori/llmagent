@@ -1,4 +1,17 @@
-"""scripts/eventbus/db.py"""
+"""scripts/eventbus/db.py
+
+Event states derived from column values:
+  Normal/Delivered: acked_at IS NULL AND dlq_at IS NULL
+  ACKed:          acked_at IS NOT NULL
+  Failed:         acked_at IS NULL AND delivery_failure_count >= max_retry AND dlq_at IS NULL
+  DLQ:            dlq_at IS NOT NULL
+  Requeued:       dlq_at IS NULL AND delivery_failure_count < max_retry
+  Archived:       Not yet implemented — would require a new column or TTL-based cleanup
+
+Return value conventions for nack_event():
+  (-1, -1)  = event not found
+  (-2, -2)  = invalid NACK transition (already ACKed or DLQ'd)
+"""
 
 from __future__ import annotations
 
