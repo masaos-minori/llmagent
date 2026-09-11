@@ -295,6 +295,9 @@ class RagPipeline:
             self.last_search_diagnostics = self._augment_refiner.search_diagnostics
             self.last_stage_results = list(self._augment_refiner.last_stage_results)
             if result is not None:
+                fetch_result = getattr(self._augment_refiner, "last_fetch_result", None)
+                if fetch_result is not None:
+                    self.last_fetch_result = cast(TwoStageFetchResult, fetch_result)
                 return result
         try:
             with RagDatabaseConnection(

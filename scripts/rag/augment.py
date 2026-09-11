@@ -18,7 +18,7 @@ import dataclasses
 import logging
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from shared.types import RagConfig, RagHit
@@ -28,6 +28,9 @@ from rag.llm_client import RagLLM
 from rag.models_result import HttpResultKind, ResultSource, SearchDiagnostics
 from rag.pipeline_refiner import RefineResult, refine_context
 from rag.stage import StageResult
+
+if TYPE_CHECKING:
+    from rag.models_data import TwoStageFetchResult
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +62,7 @@ class AugmentRefiner:
         self._search_diagnostics = search_diagnostics or SearchDiagnostics()
         self._llm = llm
         self._last_stage_results: list[StageResult] = []
+        self._last_fetch_result: "TwoStageFetchResult | None" = None  # noqa: UP037 — TYPE_CHECKING import; string annotation required by static analyzer
 
     async def run_http_augment(
         self,
@@ -71,7 +75,7 @@ class AugmentRefiner:
             self._http,
             rag_url,
             auth_token=self._cfg.rag_auth_token or "",
-            set_fetch_result=lambda r: self._set_fetch_result(r),
+            set_fetch_result=lambda r: self._handle_selected_hits(r),
             set_fallback_reason=lambda _: self._set_fallback_reason(_),
         )
         result = await http_aug.run(query, history_context)
@@ -93,6 +97,28 @@ class AugmentRefiner:
             self._last_stage_results.append(http_aug.stage_result)
         http_result: str | None = result.result
         return http_result
+
+    def _handle_selected_hits(self, raw_hits: list[dict[str, Any]]) -> None:
+        """Convert raw hit dicts to TwoStageFetchResult and store; invoke original callback."""
+        from rag.models_data import TwoStageFetchResult as TSRF
+
+        if not raw_hits:
+            return
+        self._last_fetch_result = TSRF(
+            hits=raw_hits,
+            min_score_applied=self._cfg.rag_min_score,
+            max_chunks_per_doc=self._cfg.max_chunks_per_doc,
+        )
+        # Invoke the original set_fetch_result callback if one was provided
+        if self._set_fetch_result is not None and self._set_fetch_result != (
+            lambda _: None
+        ):
+            self._set_fetch_result(raw_hits)
+
+    @property
+    def last_fetch_result(self) -> "TwoStageFetchResult | None":  # noqa: UP037 — TYPE_CHECKING import; string annotation required by static analyzer
+        """Return the last fetch result from HTTP augment."""
+        return self._last_fetch_result
 
     @property
     def last_stage_results(self) -> list[StageResult]:
