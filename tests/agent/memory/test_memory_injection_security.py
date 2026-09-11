@@ -224,7 +224,7 @@ class TestSystemMessagePriority:
         policy = InjectionPolicy()
         assert policy.max_semantic == 5
         assert policy.max_episodic == 3
-        assert policy.min_importance == 0.5
+        assert policy.min_importance == 0.3
         assert policy.max_snippet_length == 500
 
     def test_injection_policy_format_prefixes_match_constants(self) -> None:

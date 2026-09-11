@@ -9,7 +9,7 @@ Unit tests for agent_repl_tool_exec security functions:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from agent.tool_policy import (
@@ -369,6 +369,7 @@ def _make_ctx_for_dag(
     ctx.cfg.tools_results_turn_max_chars = 50000
     ctx.cfg.tool.tool_results_turn_max_chars = 50000
     ctx.conv.history = []
+    ctx.conv.extend_messages = AsyncMock()
     ctx.services = MagicMock()
     ctx.services_required.gateway = None
     ctx.services_required.runtime_tools = _runtime_tools_for_dag(is_write_by_name or {})
