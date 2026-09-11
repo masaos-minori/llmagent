@@ -135,17 +135,17 @@ For NACK's state-transition behavior (initial/duplicate NACK, NACK after ACK, un
 
 The following table summarizes the current code behavior for ACK and NACK operations.
 
-| Scenario | Current Code Behavior | HTTP Status | Response Body | Side Effects on Persistence |
-|---|---|---|---|---|
-| Initial ACK | `ack_event` returns `(True, True)` | 200 | `{event_id, acked: true, seq: <int>}` | Sets `acked_at`; writes offset if `consumer_id` is provided |
-| Duplicate ACK | `ack_event` returns `(True, False)` | 200 | `{event_id, acked: true, already_acked: true}` | No additional write; no offset rewrite |
-| Initial NACK | `nack_event` increases `delivery_failure_count` from 0 $\to$ 1 | 200 | `{event_id, delivery_failure_count}` | `delivery_failure_count` increases; promoted to DLQ if `>= max_retry` |
-| Duplicate NACK | No idempotency guard in `nack_event`; `delivery_failure_count` increases with every call | 200 | `{event_id, delivery_failure_count}` | Counter keeps increasing, potentially triggering DLQ promotion on subsequent calls — **Implementation fix required** |
-| NACK followed by ACK | `ack_event`'s `WHERE acked_at IS NULL` check remains true (NACK does not set `acked_at`) | 200 | `{event_id, acked: true, seq: <int>}` | ACK succeeds, `delivery_failure_count` remains at the value from NACK — No readjustment |
-| ACK followed by NACK | No `acked_at` check in `nack_event` | 200 | `{event_id, delivery_failure_count}` | Even if already ACKed, NACK succeeds and `delivery_failure_count` increases — **Implementation fix required** |
-| Unknown Event ID (ACK) | `ack_event` returns `(False, False)` | 404 | `ERR_EVENT_NOT_FOUND` | None |
-| Unknown Event ID (NACK) | `nack_event` returns `-1` | 404 | `ERR_EVENT_NOT_FOUND` | None |
-| Simultaneous ACK/NACK | Both go through `run_with_db_lock` and are serialized at the DB layer | 200/200 | Depends on lock order | No true contention — Lock enforces total ordering, and the second call observes the first call's committed state |
+| Scenario | Current Code Behavior | HTTP Status | Response Body | Side Effects on Persistence | Notes |
+|---|---|---|---|---|---|
+| Initial ACK | `ack_event` returns `(True, True)` | 200 | `{event_id, acked: true, seq: <int>}` | Sets `acked_at`; writes offset if `consumer_id` is provided | — |
+| Duplicate ACK | `ack_event` returns `(True, False)` | 200 | `{event_id, acked: true, already_acked: true}` | No additional write; no offset rewrite | Idempotent |
+| Initial NACK | `nack_event` increases `delivery_failure_count` from 0 → 1 | 200 | `{event_id, delivery_failure_count}` | `delivery_failure_count` increases; promoted to DLQ if `>= max_retry` | — |
+| Duplicate NACK | No idempotency guard in `nack_event`; `delivery_failure_count` increases with every call | 200 | `{event_id, delivery_failure_count}` | Counter keeps increasing, potentially triggering DLQ promotion on subsequent calls | **Known Issue: Implementation fix required** |
+| NACK followed by ACK | `ack_event`'s `WHERE acked_at IS NULL` check remains true (NACK does not set `acked_at`) | 200 | `{event_id, acked: true, seq: <int>}` | ACK succeeds, `delivery_failure_count` remains at the value from NACK | No readjustment |
+| ACK followed by NACK | No `acked_at` check in `nack_event` | 200 | `{event_id, delivery_failure_count}` | Even if already ACKed, NACK succeeds and `delivery_failure_count` increases | **Known Issue: Implementation fix required** |
+| Unknown Event ID (ACK) | `ack_event` returns `(False, False)` | 404 | `ERR_EVENT_NOT_FOUND` | None | — |
+| Unknown Event ID (NACK) | `nack_event` returns `-1` | 404 | `ERR_EVENT_NOT_FOUND` | None | — |
+| Simultaneous ACK/NACK | Both go through `run_with_db_lock` and are serialized at the DB layer | 200/200 | Depends on lock order | No true contention — Lock enforces total ordering, and the second call observes the first call's committed state | — |
 
 ---
 
@@ -206,3 +206,4 @@ Promotion follows the same procedure as inline processing (atomic write to JSON 
 - `06_eventbus_01_system-overview.md`
 - `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
 - `06_eventbus_05_configuration-and-operations.md`
+- `06_eventbus_06_reference-api.md`

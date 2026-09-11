@@ -415,6 +415,18 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Impact**: 同一Host内/SSHトンネル経由のアクセスに認証層がない(外部への直接公開は設定上不可能)
 - **Resolution Target**: 認証の実装が必要
 
+- **Known Issue**: EVENTBUS-009 — `nack_event` lacks idempotency guard; duplicate NACK increases `delivery_failure_count` without bound. Also, `nack_event` does not check `acked_at` before incrementing failure count, allowing NACK after ACK. Both are documented as **Implementation fix required** in `06_eventbus_02_operations.md`.
+- **Type**: Implementation Gap
+- **Summary**: NACKの冪等性ガード欠如、ACK後のNACK許可
+- **Impact**: 重複NACKによりDLQ昇格が意図せぬタイミングで発生する可能性
+- **Resolution Target**: `nack_event`に冪等性ガードと`acked_at`チェックを追加
+
+- **Known Issue**: EVENTBUS-010 — When `since_seq=0` is explicitly provided alongside a `consumer_id`, it is indistinguishable from omitting `since_seq` entirely. Both resolve to "read from the saved offset". Clients cannot express "full replay while providing a consumer_id". Documented in `06_eventbus_02_operations.md` under `since_seq`/Offset Precedence Rules.
+- **Type**: API Design Gap
+- **Summary**: `since_seq=0`と省略時の区別不能
+- **Impact**: consumer_id付きで全Replayを実行できない
+- **Resolution Target**: API仕様の変更検討
+
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
 ## Review Triggers

@@ -123,6 +123,35 @@ If inconsistencies are detected, follow this controlled restart procedure:
 
 4. Start the EventBus process again:
    ```bash
+   uvicorn eventbus.app:app --host 127.0.0.1 --port 8080 &
+   ```
+
+5. Verify the process started successfully:
+   ```bash
+   curl http://127.0.0.1:8080/health
+   ```
+
+6. Re-run Steps 1–4 to confirm consistency.
+
+If inconsistencies are detected, follow this controlled restart procedure:
+
+1. Stop the EventBus process gracefully:
+   ```bash
+   kill -TERM $(pgrep -f "uvicorn scripts.eventbus.app:app")
+   ```
+
+2. Wait for the process to stop completely:
+   ```bash
+   sleep 5
+   ```
+
+3. Run the checkpoint command to flush WAL to the main database:
+   ```bash
+   sqlite3 /path/to/eventbus.db "PRAGMA wal_checkpoint(TRUNCATE);"
+   ```
+
+4. Start the EventBus process again:
+   ```bash
    uvicorn scripts.eventbus.app:app --host 127.0.0.1 --port 8080 &
    ```
 

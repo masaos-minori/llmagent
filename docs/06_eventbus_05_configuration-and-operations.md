@@ -127,12 +127,18 @@ Verify live push using `GET /subscribe?consumer_id=test`. Events should be recei
 
 ### Monitoring Slow Consumers
 
-A process queue exceeding `slow_consumer_threshold` (default: 100) is considered slow. This can be verified via the health endpoint:
+A process queue exceeding `slow_consumer_threshold` events is considered slow. This value is configurable via the `slow_consumer_threshold` field in the Event Bus TOML configuration (default: `100`). This can be verified via the health endpoint:
 
 - `slow_consumers > 0` → `degraded`
-- `max_queue_depth >= backlog_health_threshold` (default: 500) → `broker_queue_backlog_high`
+- `max_queue_depth >= backlog_health_threshold` → `broker_queue_backlog_high`
 
 If a consumer is slow, events are discarded from the queue. The consumer must reconnect and replay from SQLite.
+
+**Threshold validation rules:**
+- `slow_consumer_threshold` must be strictly less than `subscriber_queue_maxsize`
+- `backlog_health_threshold` must be less than or equal to `subscriber_queue_maxsize`
+
+Invalid combinations fail startup with actionable error messages naming both conflicting values.
 
 ### Recovery on Reconnection
 
@@ -164,4 +170,6 @@ Sweep results are recorded in the logs but are not exposed via the health endpoi
 - `06_eventbus_01_system-overview.md`
 - `06_eventbus_02_operations.md`
 - `06_eventbus_03_persistence_schema_and_replay.md`
+- `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
 - `06_eventbus_05_07_validation-status.md`
+- `06_eventbus_06_reference-api.md`
