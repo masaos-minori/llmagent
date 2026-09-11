@@ -777,11 +777,6 @@ class TestHandleLlmTurnOptionalCallbacks:
     """
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(
-        reason="on_turn_start/on_turn_end/on_llm_wait_start/on_llm_wait_end are "
-        "never invoked anywhere in current code (call_on_error was the only one "
-        "wired; fixed separately this session) — see issues/20260911-150000_orchcb01_turn-and-llm-wait-callbacks-never-invoked.md"
-    )
     async def test_wait_and_turn_callbacks_invoked_on_success(self) -> None:
         ctx = _make_ctx()
         on_turn_start = MagicMock()
@@ -798,11 +793,9 @@ class TestHandleLlmTurnOptionalCallbacks:
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
 
-        with patch.object(
-            orch._llm_executor,
-            "handle_llm_turn",
-            AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
-        ):
+        mock_runner = AsyncMock()
+        mock_runner.run.return_value = TurnResult(action="continue", answer="ok")
+        with patch("agent.llm_turn_executor.LLMTurnRunner", return_value=mock_runner):
             await orch.handle_turn("hello")
 
         on_llm_wait_start.assert_called_once()
@@ -811,11 +804,6 @@ class TestHandleLlmTurnOptionalCallbacks:
         on_turn_end.assert_called_once()
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(
-        reason="on_turn_start/on_turn_end/on_llm_wait_start/on_llm_wait_end are "
-        "never invoked anywhere in current code (call_on_error was the only one "
-        "wired; fixed separately this session) — see issues/20260911-150000_orchcb01_turn-and-llm-wait-callbacks-never-invoked.md"
-    )
     async def test_wait_end_error_and_turn_end_invoked_when_run_returns_exception(
         self,
     ) -> None:
@@ -837,18 +825,14 @@ class TestHandleLlmTurnOptionalCallbacks:
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
 
-        with patch.object(
-            orch._llm_executor,
-            "handle_llm_turn",
-            AsyncMock(
-                return_value=TurnResult(
-                    action="fail",
-                    answer="",
-                    exception=err,
-                    persist_as_assistant=False,
-                )
-            ),
-        ):
+        mock_runner = AsyncMock()
+        mock_runner.run.return_value = TurnResult(
+            action="fail",
+            answer="",
+            exception=err,
+            persist_as_assistant=False,
+        )
+        with patch("agent.llm_turn_executor.LLMTurnRunner", return_value=mock_runner):
             await orch.handle_turn("hello")
 
         on_error.assert_called_once_with(err)
@@ -856,11 +840,6 @@ class TestHandleLlmTurnOptionalCallbacks:
         on_turn_end.assert_called_once()
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(
-        reason="on_turn_start/on_turn_end/on_llm_wait_start/on_llm_wait_end are "
-        "never invoked anywhere in current code (call_on_error was the only one "
-        "wired; fixed separately this session) — see issues/20260911-150000_orchcb01_turn-and-llm-wait-callbacks-never-invoked.md"
-    )
     async def test_wait_end_invoked_in_except_branch(self) -> None:
         """Covers the `except LLMTransportError` branch's on_llm_wait_end call,
         reached when run() itself raises (rather than returning a TurnResult

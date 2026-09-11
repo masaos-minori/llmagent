@@ -38,18 +38,14 @@ class LlmTurnExecutor:
         *,
         diagnostic_store: DiagnosticStore | None = None,
         tracer: Any = None,
-        on_turn_start: Callable[[], None] | None = None,
-        on_turn_end: Callable[[], None] | None = None,
         on_error: Callable[[Exception], None] | None = None,
-        on_llm_wait_start: Callable[[], Any] | None = None,
+        on_llm_wait_start: Callable[..., Any] | None = None,
         on_llm_wait_end: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the LLM turn executor."""
         self._ctx = ctx
         self._diagnostic_store = diagnostic_store
         self._tracer = tracer
-        self._on_turn_start = on_turn_start
-        self._on_turn_end = on_turn_end
         self._on_error = on_error
         self._on_llm_wait_start = on_llm_wait_start
         self._on_llm_wait_end = on_llm_wait_end
@@ -61,10 +57,10 @@ class LlmTurnExecutor:
         if self._on_llm_wait_end:
             self._on_llm_wait_end()
 
-    def call_on_turn_end(self) -> None:
-        """Invoke on_turn_end if configured."""
-        if self._on_turn_end:
-            self._on_turn_end()
+    def call_on_llm_wait_start(self) -> None:
+        """Invoke on_llm_wait_start if configured."""
+        if self._on_llm_wait_start:
+            self._on_llm_wait_start()
 
     def call_on_error(self, exc: Exception) -> None:
         """Invoke on_error with exc if configured."""
@@ -87,15 +83,19 @@ class LlmTurnExecutor:
             guard,
             tracer=self._tracer,
         )
-        result = await runner.run(
-            llm_url,
-            workflow_id=workflow_id,
-            task_id=task_id,
-            stage_id=stage_id,
-            attempt_id=attempt_id,
-        )
-        if result.exception is not None:
-            self.call_on_error(result.exception)
+        try:
+            self.call_on_llm_wait_start()
+            result = await runner.run(
+                llm_url,
+                workflow_id=workflow_id,
+                task_id=task_id,
+                stage_id=stage_id,
+                attempt_id=attempt_id,
+            )
+            if result.exception is not None:
+                self.call_on_error(result.exception)
+        finally:
+            self.call_on_llm_wait_end()
         return result
 
     def process_turn_result(

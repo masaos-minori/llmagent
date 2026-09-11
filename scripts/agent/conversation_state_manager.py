@@ -59,8 +59,6 @@ class ConversationStateManager:
         on_discard: Callable[[asyncio.Task[Any]], None],
         tracer: Any = None,
         on_first_turn: Callable[[str], Any] | None = None,
-        on_turn_start: Callable[[], None] | None = None,
-        on_turn_end: Callable[[], None] | None = None,
         on_error: Callable[[Exception], None] | None = None,
     ) -> None:
         """Initialize the conversation state manager."""
@@ -70,8 +68,6 @@ class ConversationStateManager:
         self._on_discard = on_discard
         self._tracer = tracer
         self._on_first_turn = on_first_turn
-        self._on_turn_start = on_turn_start
-        self._on_turn_end = on_turn_end
         self._on_error = on_error
 
     @property

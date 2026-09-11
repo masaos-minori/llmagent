@@ -53,8 +53,6 @@ class AuditEventEmitter:
         on_turn_end: Callable[[], None] | None = None,
         on_error: Callable[[Exception], None] | None = None,
         on_first_turn: Callable[[str], Any] | None = None,
-        on_llm_wait_start: Callable[[], Any] | None = None,
-        on_llm_wait_end: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the audit event emitter."""
         self._ctx = ctx
@@ -64,8 +62,6 @@ class AuditEventEmitter:
         self._on_turn_end = on_turn_end
         self._on_error = on_error
         self._on_first_turn = on_first_turn
-        self._on_llm_wait_start = on_llm_wait_start
-        self._on_llm_wait_end = on_llm_wait_end
 
     @staticmethod
     def format_session_id(session_id: int | None) -> str:
@@ -74,6 +70,8 @@ class AuditEventEmitter:
 
     async def emit_turn_start(self) -> None:
         """Emit a turn_start audit event."""
+        if self._on_turn_start:
+            self._on_turn_start()
         ctx = self._ctx
         ctx.turn.current_turn_id = str(uuid.uuid4())
         if ctx.services_required.audit_logger is not None:
@@ -142,4 +140,6 @@ class AuditEventEmitter:
                 elapsed_ms, error_kind, ctx.turn.current_turn_id, is_partial
             )
             ctx.services_required.audit_logger.info(_json_dumps(event))
+        if self._on_turn_end:
+            self._on_turn_end()
         ctx.turn.current_turn_id = None

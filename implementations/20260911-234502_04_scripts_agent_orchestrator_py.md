@@ -221,7 +221,7 @@ N/A: no new security-sensitive behavior introduced.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | |
 | 2 | Add or update tests per Validation plan | Pending | — | — | |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |

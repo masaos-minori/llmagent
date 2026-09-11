@@ -95,7 +95,7 @@ class Orchestrator:
         on_turn_end: Callable[[], None] | None = None,
         on_error: Callable[[Exception], None] | None = None,
         on_first_turn: Callable[[str], Any] | None = None,
-        on_llm_wait_start: Callable[[], Any] | None = None,
+        on_llm_wait_start: Callable[..., Any] | None = None,
         on_llm_wait_end: Callable[[], None] | None = None,
         tracer: Any = None,
         pause_on_critical_failure: bool = False,
@@ -103,11 +103,7 @@ class Orchestrator:
         self._ctx = ctx
         self._allowed_tools = allowed_tools
         self._on_first_turn = on_first_turn
-        self._on_turn_start = on_turn_start
-        self._on_turn_end = on_turn_end
         self._on_error = on_error
-        self._on_llm_wait_start = on_llm_wait_start
-        self._on_llm_wait_end = on_llm_wait_end
         self._tracer = tracer
         self._pause_on_critical_failure = pause_on_critical_failure
         self._diagnostic_store = DiagnosticStore()
@@ -138,8 +134,6 @@ class Orchestrator:
             on_turn_end=on_turn_end,
             on_error=on_error,
             on_first_turn=on_first_turn,
-            on_llm_wait_start=on_llm_wait_start,
-            on_llm_wait_end=on_llm_wait_end,
         )
         self._conversation_manager = ConversationStateManager(
             ctx,
@@ -148,16 +142,12 @@ class Orchestrator:
             on_discard=self._on_discard,
             tracer=tracer,
             on_first_turn=on_first_turn,
-            on_turn_start=on_turn_start,
-            on_turn_end=on_turn_end,
             on_error=on_error,
         )
         self._llm_executor = LlmTurnExecutor(
             ctx,
             diagnostic_store=self._diagnostic_store,
             tracer=tracer,
-            on_turn_start=on_turn_start,
-            on_turn_end=on_turn_end,
             on_error=on_error,
             on_llm_wait_start=on_llm_wait_start,
             on_llm_wait_end=on_llm_wait_end,
