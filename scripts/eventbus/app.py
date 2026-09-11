@@ -8,7 +8,7 @@ import sqlite3
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import orjson
 from fastapi import FastAPI, Query, Request
@@ -134,7 +134,7 @@ async def publish(request: Request) -> dict[str, Any]:
 async def replay(
     request: Request,
     since_seq: int = Query(default=0, ge=0),
-    fmt: str = Query(default="sse", alias="format"),
+    fmt: Literal["sse", "json"] = Query(default="sse", alias="format"),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> Any:

@@ -73,17 +73,23 @@ Common route helpers. See code for details.
 
 ### scripts/eventbus/dlq_route.py
 
-`dlq_list(request, limit=100, offset=0)`: `GET /dlq`. `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. If `failure_count >= max_retry`, it may be re-moved to the DLQ.
+`dlq_list(request, limit=100, offset=0)`: `GET /dlq`. `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. If `failure_count >= max_retry`, it may be re-moved to the DLQ. See `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
 
 ### scripts/eventbus/replay_route.py
 
-`replay(request, since_seq=0, fmt=sse, limit=100, offset=0)`: `GET /replay`. SSE stream or paginated JSON.
+`replay(request, since_seq=0, fmt=sse, limit=100, offset=0)`: `GET /replay`. SSE stream or paginated JSON. See `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` for replay semantics.
+
+**Format parameter:** Accepts only `sse` or `json`. Unsupported values return HTTP 422. Default is `sse`.
+
+**Snapshot consistency:** When `fmt=json`, both `total` and `items` represent one internally consistent database snapshot — they are fetched under a single `run_with_db_lock()` acquisition, preventing interleaving with concurrent `/publish` calls.
+
+**Paging behavior:** When `offset` exceeds available results, the response returns an empty `items` array with `total` reflecting the actual count of matching events.
 
 **SSE event IDs:** Each SSE frame includes `id:<seq>` field where `seq` is the event's sequence number, enabling `EventSource`-based clients to auto-reconnect after interruption.
 
 ### scripts/eventbus/subscribe_route.py
 
-`subscribe(request, topic=[], since_seq=0, consumer_id="")`: `GET /subscribe`. SSE streaming + replay+push.
+`subscribe(request, topic=[], since_seq=0, consumer_id="")`: `GET /subscribe`. SSE streaming + replay+push. See `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` for delivery semantics, offset semantics, and backpressure behavior.
 
 **SSE-standard features (REQ-001 through REQ-005):**
 - Heartbeat: During live delivery phase, emits `: heartbeat\n\n` comments at `cfg.sse_heartbeat_interval` intervals to keep idle connections alive through proxies/LBs.
@@ -93,7 +99,7 @@ Common route helpers. See code for details.
 
 ### scripts/eventbus/health_route.py
 
-`health_check(request)`: `GET /health`.
+`health_check(request)`: `GET /health`. See `06_eventbus_05_configuration-and-operations.md` for monitoring thresholds.
 
 ### HTTP Endpoints Summary
 

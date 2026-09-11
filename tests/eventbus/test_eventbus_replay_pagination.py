@@ -100,3 +100,8 @@ def test_replay_json_limit_min(client: TestClient) -> None:
 def test_replay_json_offset_negative(client: TestClient) -> None:
     r = client.get("/replay?since_seq=0&format=json&offset=-1")
     assert r.status_code == 422
+
+
+def test_replay_invalid_format_returns_422(client: TestClient) -> None:
+    r = client.get("/replay?since_seq=0&format=xml")
+    assert r.status_code == 422
