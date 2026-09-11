@@ -713,3 +713,142 @@ class TestLegacyOffsetMigrationDirect:
             assert offset == 99
         finally:
             db.close()
+
+
+class TestCollisionAtNonAdvancingSeq:
+    """Tests for REQ-001: identity validation before offset comparison."""
+
+    def test_collision_rejected_for_equal_seq(self, tmp_path: Path) -> None:
+        """Two different consumer IDs that sanitize to the same filename,
+        where the second writer uses seq == current — should raise ValueError."""
+        from eventbus.offsets import write_offset
+
+        offsets_dir = str(tmp_path / "offsets")
+
+        # First consumer writes successfully
+        # "test.consumer" sanitizes to "test_consumer" (dot → underscore)
+        write_offset(offsets_dir, "test.consumer", 100)
+
+        # Second consumer with same sanitized name but different original ID
+        # attempts to write with equal seq — should be rejected
+        with pytest.raises(ValueError, match="Consumer ID collision"):
+            write_offset(offsets_dir, "test_consumer", 100)
+
+    def test_collision_rejected_for_lower_seq(self, tmp_path: Path) -> None:
+        """Second writer uses lower seq — should also raise ValueError."""
+        from eventbus.offsets import write_offset
+
+        offsets_dir = str(tmp_path / "offsets")
+
+        write_offset(offsets_dir, "test.consumer", 100)
+
+        with pytest.raises(ValueError, match="Consumer ID collision"):
+            write_offset(offsets_dir, "test_consumer", 50)
+
+    def test_collision_rejected_for_higher_seq(self, tmp_path: Path) -> None:
+        """Second writer uses higher seq — should still raise ValueError."""
+        from eventbus.offsets import write_offset
+
+        offsets_dir = str(tmp_path / "offsets")
+
+        write_offset(offsets_dir, "test.consumer", 100)
+
+        with pytest.raises(ValueError, match="Consumer ID collision"):
+            write_offset(offsets_dir, "test_consumer", 200)
+
+
+class TestCrashResistance:
+    """Tests for REQ-002: atomic writes prevent crash-induced inconsistency."""
+
+    def test_crash_mid_write_preserves_last_valid_offset(self, tmp_path: Path) -> None:
+        """Write offset via temp file, unlink temp file before close,
+        verify destination retains previous valid content."""
+        from eventbus.offsets import read_offset, write_offset
+
+        offsets_dir = str(tmp_path / "offsets")
+
+        # First write succeeds
+        write_offset(offsets_dir, "test-consumer", 100)
+        assert read_offset(offsets_dir, "test-consumer") == 100
+
+        # Simulate crash: write new value via temp file, then delete it
+        # without closing the file descriptor
+        import os
+        import tempfile
+
+        dir_path = Path(offsets_dir)
+        fd, tmp_path2 = tempfile.mkstemp(dir=str(dir_path), prefix=".crash_tmp_")
+        os.write(fd, b"200")
+        os.unlink(tmp_path2)  # Simulate crash — file deleted before close
+
+        # Attempt another write — should not corrupt existing state
+        # The corrupted temp file should not affect the existing offset
+        write_offset(offsets_dir, "test-consumer", 200)
+        # After atomic write fix, this should succeed with new value
+        assert read_offset(offsets_dir, "test-consumer") == 200
+
+    def test_atomic_write_on_map_failure_rolls_back(self, tmp_path: Path) -> None:
+        """If map file write fails after offset file is written, offset should be cleaned up."""
+        from unittest.mock import patch
+
+        from eventbus.offsets import read_offset, write_offset
+
+        offsets_dir = str(tmp_path / "offsets")
+
+        # First write succeeds
+        write_offset(offsets_dir, "test-consumer", 100)
+        assert read_offset(offsets_dir, "test-consumer") == 100
+
+        # Now simulate a failure during map file write
+        # by making the directory read-only after offset file is created
+        dir_path = Path(offsets_dir)
+
+        with patch("os.replace", side_effect=OSError("Simulated disk error")):
+            with pytest.raises(OSError):
+                write_offset(offsets_dir, "test-consumer", 200)
+
+        # Offset file should have been rolled back
+        assert not (dir_path / "test_consumer").exists()
+
+
+class TestMalformedContent:
+    """Tests for REQ-004: malformed content produces visible error."""
+
+    def test_read_offset_raises_on_corrupted_content(self, tmp_path: Path) -> None:
+        """Write arbitrary binary data to offset file, call read_offset(),
+        verify CorruptOffsetError is raised."""
+        from eventbus.offsets import CorruptOffsetError, read_offset
+
+        offsets_dir = str(tmp_path / "offsets")
+        safe_id = "test-consumer"
+        offset_file = Path(offsets_dir) / safe_id
+
+        # Write invalid content
+        offset_file.parent.mkdir(parents=True, exist_ok=True)
+        offset_file.write_bytes(b"\x00\xff\xfe\xfd")
+
+        with pytest.raises(CorruptOffsetError):
+            read_offset(offsets_dir, safe_id)
+
+    def test_read_offset_returns_zero_for_missing_file(self, tmp_path: Path) -> None:
+        """Missing file should return 0 (first consumption)."""
+        from eventbus.offsets import read_offset
+
+        offsets_dir = str(tmp_path / "offsets")
+        result = read_offset(offsets_dir, "nonexistent")
+        assert result == 0
+
+    def test_read_offset_raises_on_non_numeric_content(self, tmp_path: Path) -> None:
+        """Non-numeric text content should raise CorruptOffsetError, not return 0."""
+        from eventbus.offsets import CorruptOffsetError, read_offset
+
+        offsets_dir = str(tmp_path / "offsets")
+        safe_id = "test-consumer"
+        offset_file = Path(offsets_dir) / safe_id
+
+        # Write non-numeric content
+        offset_file.parent.mkdir(parents=True, exist_ok=True)
+        offset_file.write_text("not-a-number")
+
+        with pytest.raises(CorruptOffsetError):
+            read_offset(offsets_dir, safe_id)

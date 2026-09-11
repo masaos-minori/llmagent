@@ -233,11 +233,11 @@ def read_offset(offsets_dir: str, consumer_id: str) -> int:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define CorruptOffsetError and shared validation helper | Pending | — | — | |
-| 2 | Fix identity validation ordering and add atomic writes | Pending | — | — | |
-| 3 | Fix malformed content handling | Pending | — | — | |
-| 4 | Add tests per Validation plan | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Define CorruptOffsetError and shared validation helper | Completed | — | — | |
+| 2 | Fix identity validation ordering and add atomic writes | Completed | — | — | |
+| 3 | Fix malformed content handling | Completed | — | — | |
+| 4 | Add tests per Validation plan | Completed | — | — | |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

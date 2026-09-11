@@ -203,11 +203,11 @@ All existing tests must pass. If any fail due to the new behavior changes (e.g.,
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add collision-at-non-advancing-seq test | Pending | — | — | |
-| 2 | Add simulated-crash-mid-write test | Pending | — | — | |
-| 3 | Add malformed-content test | Pending | — | — | |
-| 4 | Verify regression coverage | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add collision-at-non-advancing-seq test | Completed | — | — | |
+| 2 | Add simulated-crash-mid-write test | Completed | — | — | |
+| 3 | Add malformed-content test | Completed | — | — | |
+| 4 | Verify regression coverage | Completed | — | — | |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
