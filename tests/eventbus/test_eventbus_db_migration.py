@@ -63,6 +63,8 @@ class TestMigrateAddsNewColumns:
         cols = {row[1] for row in info}
         assert "delivery_failure_count" in cols
         assert "dlq_requeue_count" in cols
+        assert "cycle_failure_count" in cols
+        assert "redelivered_from" in cols
         assert "retry_count" not in cols
 
     def test_migrate_creates_dlq_indexes(

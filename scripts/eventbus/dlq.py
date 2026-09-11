@@ -52,7 +52,7 @@ def promote_to_dlq(
     """Promote failed events to the dead-letter queue and write them to disk."""
     now = now_iso()
     rows = db.execute(
-        "SELECT seq, event_id, topic, payload, producer, published_at, cycle_failure_count"
+        "SELECT seq, event_id, topic, payload, producer, published_at, cycle_failure_count, delivery_failure_count"
         " FROM events WHERE cycle_failure_count >= ? AND dlq_at IS NULL",
         (max_retry,),
     ).fetchall()
@@ -90,7 +90,7 @@ def sweep_orphans(
     """
     now = now_iso()
     rows = db.execute(
-        "SELECT seq, event_id, topic, payload, producer, published_at, cycle_failure_count"
+        "SELECT seq, event_id, topic, payload, producer, published_at, cycle_failure_count, delivery_failure_count"
         " FROM events WHERE cycle_failure_count >= ? AND dlq_at IS NULL",
         (max_retry,),
     ).fetchall()
@@ -124,7 +124,7 @@ def promote_single(
     """
     now = now_iso()
     row = db.execute(
-        "SELECT seq, event_id, topic, payload, producer, published_at, cycle_failure_count"
+        "SELECT seq, event_id, topic, payload, producer, published_at, delivery_failure_count, cycle_failure_count"
         " FROM events WHERE event_id = ? AND dlq_at IS NULL",
         (event_id,),
     ).fetchone()

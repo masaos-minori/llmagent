@@ -167,6 +167,18 @@ class TestConcurrentDlqRequeue:
             f"Expected exactly 1 requeue success, got {len(requeued)}"
         )
 
+        # Successful response includes new_event_id and new_seq
+        success_resp = requeued[0]
+        assert "new_event_id" in success_resp, "successful response should include new_event_id"
+        assert "new_seq" in success_resp, "successful response should include new_seq"
+        # Validate new_event_id is a valid UUID v4 string
+        uuid.UUID(success_resp["new_event_id"], version=4)
+        # Validate new_seq is an integer greater than the original event's seq
+        assert isinstance(success_resp["new_seq"], int), "new_seq should be an integer"
+        assert success_resp["new_seq"] > resp.json()["seq"], (
+            f"new_seq ({success_resp['new_seq']}) should be greater than original seq ({resp.json()['seq']})"
+        )
+
         # The other concurrent requests should fail with 409 Conflict (event no longer in DLQ)
         conflicts = [r for r in results if r.get("detail") == "event is not in DLQ"]
         assert len(conflicts) == 4, f"Expected 4 conflicts, got {len(conflicts)}"
