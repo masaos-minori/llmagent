@@ -400,22 +400,22 @@ If inconsistencies are detected, follow this controlled restart procedure:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read all documents and identify contradictions | Pending | — | — | |
-| 2 | Map each invariant in ADR-006 to existing tests or identify gaps | Pending | — | — | |
-| 3 | Map each invariant in ADR-008 to existing tests or identify gaps | Pending | — | — | |
-| 4 | Add consumer identity section to 06_eventbus_04 | Pending | — | — | |
-| 5 | Add ordering section to 06_eventbus_04 | Pending | — | — | |
-| 6 | Add ACK/NACK rules section to 06_eventbus_04 | Pending | — | — | |
-| 7 | Add offset semantics section to 06_eventbus_04 | Pending | — | — | |
-| 8 | Add replay section to 06_eventbus_04 | Pending | — | — | |
-| 9 | Add backpressure section to 06_eventbus_04 | Pending | — | — | |
-| 10 | Add DLQ promotion/requeue section to 06_eventbus_04 | Pending | — | — | |
-| 11 | Add retention section to 06_eventbus_04 | Pending | — | — | |
-| 12 | Convert recovery procedure to executable runbook | Pending | — | — | |
-| 13 | Correct contradictions in related documents | Pending | — | — | |
-| 14 | Update cross-references in related documents | Pending | — | — | |
-| 15 | Identify Known Deviations in ADRs | Pending | — | — | |
-| 16 | Run documentation quality checks | Pending | — | — | |
+| 1 | Read all documents and identify contradictions | Completed | — | — | |
+| 2 | Map each invariant in ADR-006 to existing tests or identify gaps | Completed | — | — | No new gaps identified |
+| 3 | Map each invariant in ADR-008 to existing tests or identify gaps | Completed | — | — | No new gaps identified |
+| 4 | Add consumer identity section to 06_eventbus_04 | Completed | — | — | Consumer Identity + Monotonicity Guarantee sections added |
+| 5 | Add ordering section to 06_eventbus_04 | Completed | — | — | Per-Topic Ordering + Seq-Based Ordering sections added |
+| 6 | Add ACK/NACK rules section to 06_eventbus_04 | Completed | — | — | ACK/NACK Preconditions, Postconditions, Error Responses added |
+| 7 | Add offset semantics section to 06_eventbus_04 | Completed | — | — | Offset Semantics + Resume Behavior sections added |
+| 8 | Add replay section to 06_eventbus_04 | Completed | — | — | since_seq, Consumer Offset, Last-Event-ID precedence sections added |
+| 9 | Add backpressure section to 06_eventbus_04 | Completed | — | — | Queue Overflow Behavior + Slow Consumer Detection sections added |
+| 10 | Add DLQ promotion/requeue section to 06_eventbus_04 | Completed | — | — | Inline Promotion Path + Background Loop Promotion + Requeue Semantics sections added |
+| 11 | Add retention section to 06_eventbus_04 | Completed | — | — | TTL Policy + Cleanup Procedure + JSONL Archive Retention sections added |
+| 12 | Convert recovery procedure to executable runbook | Completed | — | — | Steps 1–5 converted from detection-only to executable runbook |
+| 13 | Correct contradictions in related documents | Completed | — | — | Fixed offset persistence description in 06_eventbus_01; added EVENTBUS-001 Known Issue section |
+| 14 | Update cross-references in related documents | Completed | — | — | Added canonical delivery spec reference in subscribe route; updated related documents list |
+| 15 | Identify Known Deviations in ADRs | Completed | — | — | No new deviations identified beyond existing EVENTBUS-001/003/004/007/008 entries |
+| 16 | Run documentation quality checks | Completed | — | — | Quality: 0 errors, 1 warning (pre-existing); Structure: 8 issues (all pre-existing); Consistency: not applicable for eventbus domain |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -97,6 +97,8 @@ Common route helpers. See code for details.
 - Last-Event-ID: Client can send `Last-Event-ID` HTTP header with a sequence number to resume from that point. Precedence: `since_seq` query param > persisted consumer offset > `Last-Event-ID` header.
 - Stale reconnect rejection: If `Last-Event-ID` exceeds current max seq in SQLite, returns HTTP 412 Precondition Failed.
 
+For detailed delivery semantics (ordering guarantees, ACK/NACK rules, offset semantics, backpressure), see `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`.
+
 ### scripts/eventbus/health_route.py
 
 `health_check(request)`: `GET /health`. See `06_eventbus_05_configuration-and-operations.md` for monitoring thresholds.
@@ -124,3 +126,5 @@ Methods: `subscribe(topics→_Subscriber, consumer_id=str)`, `unsubscribe(sub→
 - `06_eventbus_00_document-guide.md`
 - `06_eventbus_01_system-overview.md`
 - `06_eventbus_02_operations.md`
+- `06_eventbus_03_persistence_schema_and_replay.md`
+- `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`

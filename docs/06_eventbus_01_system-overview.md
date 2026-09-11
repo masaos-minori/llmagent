@@ -33,7 +33,7 @@ The Event Bus uses an in-memory pub/sub broker (`EventBroker`) for live event de
 - **Live Delivery**: `EventBroker` provides topic-based fan-out via `asyncio.Queue`.
 - **Replay**: Past events are replayed from SQLite through the `/replay` and `/subscribe` endpoints.
 - **Persistence**: All events are stored in SQLite, and DLQ events are written as JSONL files.
-- **Offset Management**: Offsets are persisted using files to facilitate consumer recovery.
+- **Offset Management**: Offsets are persisted in SQLite (`consumer_offsets` table) to facilitate consumer recovery.
 
 ## Security Model
 
@@ -53,6 +53,12 @@ The following Agent-side integrations are intentionally unimplemented at this ti
 - **Agent event topics**: No topics defined by the Agent exist at this time. Topic naming conventions for Agent lifecycle events will be defined when Agent integration is implemented.
 
 These items are also documented as Deferred Items in `docs/00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus).
+
+## Known Issues
+
+### EVENTBUS-001: Offset Monotonicity Not Guaranteed
+
+Offset monotonicity is NOT guaranteed across all scenarios. If ACKs are not received in `seq` order, the offset may become non-monotonic (skipped `seq` values will not be re-acquired later). See `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` for details.
 
 ## Related Documents
 
