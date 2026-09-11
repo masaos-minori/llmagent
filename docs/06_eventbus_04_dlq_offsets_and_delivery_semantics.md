@@ -31,9 +31,29 @@ When a NACK occurs and `delivery_failure_count` reaches `>= max_retry`, the even
 1. Atomic write of a JSON file to `{deadletter_dir}/{event_id}.json`.
 2. Setting the `dlq_at` timestamp in SQLite.
 
-### Requeue
+### Failure Count Split
 
-`POST /dlq/{event_id}/requeue` clears `dlq_at` and increments `dlq_requeue_count` (`delivery_failure_count` is not reset). If `delivery_failure_count >= max_retry`, it will be re-promoted during the next DLQ loop.
+The system tracks two independent failure counters:
+
+- **`delivery_failure_count`** (lifetime): Accumulates across the event's entire lifecycle, including after redelivery. This counter represents the total number of failures since the event was first published.
+- **`cycle_failure_count`** (cycle-scoped): Resets to 0 on each redelivery. This counter governs DLQ promotion decisions within a single retry cycle.
+
+DLQ promotion thresholds use `cycle_failure_count`, not `delivery_failure_count`. This means an event that was previously promoted to the DLQ and then redelivered starts fresh — its lifetime failure history does not cause immediate re-promotion.
+
+### Requeue (Redelivery)
+
+`POST /dlq/{event_id}/requeue` performs actual redelivery rather than flag-only requeue:
+
+1. Inserts a new row into the `events` table with:
+   - A fresh UUID v4 `event_id`
+   - `redelivered_from` set to the original `event_id`
+   - `cycle_failure_count = 0` (fresh retry budget)
+   - `delivery_failure_count` copied from the original row (lifetime continuity)
+2. Increments `dlq_requeue_count` on the original row as audit trail.
+3. Archives the original `{event_id}.json` DLQ file to `requeued/{event_id}_{timestamp}.json` subdirectory.
+4. Publishes the new event via `EventBroker.publish()` so active subscribers receive it immediately.
+
+Active subscribers receive the redelivered event via `EventBroker.publish()`. Reconnecting subscribers reach it via the existing `seq > since_seq` replay path in the subscribe endpoint.
 
 ## Consumer Offset
 
