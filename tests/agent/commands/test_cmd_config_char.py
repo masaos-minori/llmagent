@@ -50,7 +50,6 @@ class TestPrintConfigValues:
         assert "llm_url" in out
         assert "SSE stream settings:" in out
         assert "Execution settings:" in out
-        assert "Semantic cache:" in out
         assert "MCP / security settings:" in out
         assert "Approval settings:" in out
         assert "Security settings (tool safety):" in out

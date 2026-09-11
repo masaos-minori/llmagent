@@ -192,7 +192,7 @@ Monitor these indicators during normal operation using `/db health` and `/sessio
 
 > **Note:** The numerical thresholds above are estimates and not guaranteed by benchmarking. Actual limits depend on hardware, embedding dimensions, query patterns, and corpus characteristics. Always verify in individual deployment environments before treating any threshold as definitive.
 
-## 12. Schema Change Checklist
+## 13. Schema Change Checklist
 
 Before performing a schema change task, answer all of the following:
 

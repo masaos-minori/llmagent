@@ -45,43 +45,51 @@ class TestSkillsDirResolution:
 
 
 class TestCmdSkillList:
-    def test_no_args_lists_directories_only(self, skills_root: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_no_args_lists_directories_only(self, skills_root: Path) -> None:
         mixin = _make_mixin(skills_root)
-        mixin._cmd_skill("")
+        await mixin._cmd_skill("")
         written = [c.args[0] for c in mixin._out.write.call_args_list]
         assert written == ["alpha", "beta"]  # DESIGN.md excluded, sorted
 
-    def test_list_does_not_touch_history(self, skills_root: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_list_does_not_touch_history(self, skills_root: Path) -> None:
         mixin = _make_mixin(skills_root)
-        mixin._cmd_skill("")
+        await mixin._cmd_skill("")
         assert mixin._ctx.conv.history == []
 
 
 class TestCmdSkillLoad:
-    def test_unknown_skill_writes_error_no_history_mutation(
+    @pytest.mark.asyncio
+    async def test_unknown_skill_writes_error_no_history_mutation(
         self, skills_root: Path
     ) -> None:
         mixin = _make_mixin(skills_root)
-        mixin._cmd_skill("nonexistent")
+        await mixin._cmd_skill("nonexistent")
         mixin._out.write.assert_called_once_with("Unknown skill: nonexistent")
         assert mixin._ctx.conv.history == []
 
-    def test_file_entry_treated_as_unknown(self, skills_root: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_file_entry_treated_as_unknown(self, skills_root: Path) -> None:
         mixin = _make_mixin(skills_root)
-        mixin._cmd_skill("DESIGN")
+        await mixin._cmd_skill("DESIGN")
         mixin._out.write.assert_called_once_with("Unknown skill: DESIGN")
         assert mixin._ctx.conv.history == []
 
-    def test_known_skill_appends_ephemeral_message(self, skills_root: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_known_skill_appends_ephemeral_message(
+        self, skills_root: Path
+    ) -> None:
         mixin = _make_mixin(skills_root)
-        mixin._cmd_skill("alpha")
+        await mixin._cmd_skill("alpha")
         assert len(mixin._ctx.conv.history) == 1
         msg = mixin._ctx.conv.history[0]
         assert msg["role"] == "system"
         assert msg["content"] == "Alpha content"
         assert msg["_skill_ephemeral"] is True
 
-    def test_appended_message_routed_through_append_message_strips_ephemeral(
+    @pytest.mark.asyncio
+    async def test_appended_message_routed_through_append_message_strips_ephemeral(
         self, skills_root: Path
     ) -> None:
         """Regression: _cmd_skill() routes its message through
@@ -96,28 +104,31 @@ class TestCmdSkillLoad:
         again should be a deliberate, reviewed change — this test should fail
         loudly if that happens silently."""
         mixin = _make_mixin(skills_root)
-        mixin._cmd_skill("alpha")
+        await mixin._cmd_skill("alpha")
         msg = mixin._ctx.conv.history[0]
         assert "_ephemeral" not in msg
         assert msg["_skill_ephemeral"] is True
         assert "source" not in msg
 
-    def test_args_appended_to_content(self, skills_root: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_args_appended_to_content(self, skills_root: Path) -> None:
         mixin = _make_mixin(skills_root)
-        mixin._cmd_skill("alpha extra context")
+        await mixin._cmd_skill("alpha extra context")
         msg = mixin._ctx.conv.history[0]
         assert "Invocation args: extra context" in msg["content"]
 
-    def test_repeated_call_replaces_previous_skill_message(
+    @pytest.mark.asyncio
+    async def test_repeated_call_replaces_previous_skill_message(
         self, skills_root: Path
     ) -> None:
         mixin = _make_mixin(skills_root)
-        mixin._cmd_skill("alpha")
-        mixin._cmd_skill("beta")
+        await mixin._cmd_skill("alpha")
+        await mixin._cmd_skill("beta")
         assert len(mixin._ctx.conv.history) == 1
         assert mixin._ctx.conv.history[0]["content"] == "Beta content"
 
-    def test_unrelated_ephemeral_messages_are_preserved(
+    @pytest.mark.asyncio
+    async def test_unrelated_ephemeral_messages_are_preserved(
         self, skills_root: Path
     ) -> None:
         mixin = _make_mixin(skills_root)
@@ -127,7 +138,7 @@ class TestCmdSkillLoad:
         mixin._ctx.conv.history.append(
             {"role": "system", "content": "memory", "_memory_injected": True}
         )
-        mixin._cmd_skill("alpha")
+        await mixin._cmd_skill("alpha")
         assert len(mixin._ctx.conv.history) == 3
         contents = [m["content"] for m in mixin._ctx.conv.history]
         assert "mode hint" in contents

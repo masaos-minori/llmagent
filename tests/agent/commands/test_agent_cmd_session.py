@@ -61,14 +61,16 @@ def _make_cmd(
 
 
 class TestCmdSessionList:
-    def test_list_no_sessions_prints_message(
+    @pytest.mark.asyncio
+    async def test_list_no_sessions_prints_message(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cmd = _make_cmd(sessions=[])
-        cmd._cmd_session("list")
+        await cmd._cmd_session("list")
         assert "No sessions" in capsys.readouterr().out
 
-    def test_list_shows_sessions(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_list_shows_sessions(self, capsys: pytest.CaptureFixture) -> None:
         sessions = [
             {
                 "session_id": 1,
@@ -78,21 +80,24 @@ class TestCmdSessionList:
             }
         ]
         cmd = _make_cmd(sessions=sessions)
-        cmd._cmd_session("list")
+        await cmd._cmd_session("list")
         out = capsys.readouterr().out
         assert "Test" in out
 
-    def test_list_default_limit_is_20(self) -> None:
+    @pytest.mark.asyncio
+    async def test_list_default_limit_is_20(self) -> None:
         cmd = _make_cmd(sessions=[])
-        cmd._cmd_session("list")
+        await cmd._cmd_session("list")
         cmd._ctx.session.list_sessions.assert_called_once_with(20)
 
-    def test_list_custom_limit(self) -> None:
+    @pytest.mark.asyncio
+    async def test_list_custom_limit(self) -> None:
         cmd = _make_cmd(sessions=[])
-        cmd._cmd_session("list 5")
+        await cmd._cmd_session("list 5")
         cmd._ctx.session.list_sessions.assert_called_once_with(5)
 
-    def test_list_shows_generating_when_title_pending(
+    @pytest.mark.asyncio
+    async def test_list_shows_generating_when_title_pending(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         sessions = [
@@ -104,11 +109,12 @@ class TestCmdSessionList:
             }
         ]
         cmd = _make_cmd(sessions=sessions, title_pending=True)
-        cmd._cmd_session("list")
+        await cmd._cmd_session("list")
         out = capsys.readouterr().out
         assert "(generating...)" in out
 
-    def test_list_shows_no_title_when_title_is_none(
+    @pytest.mark.asyncio
+    async def test_list_shows_no_title_when_title_is_none(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         sessions = [
@@ -120,11 +126,12 @@ class TestCmdSessionList:
             }
         ]
         cmd = _make_cmd(sessions=sessions)
-        cmd._cmd_session("list")
+        await cmd._cmd_session("list")
         out = capsys.readouterr().out
         assert "(no title)" in out
 
-    def test_list_shows_no_title_when_title_is_empty_string(
+    @pytest.mark.asyncio
+    async def test_list_shows_no_title_when_title_is_empty_string(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         sessions = [
@@ -136,87 +143,97 @@ class TestCmdSessionList:
             }
         ]
         cmd = _make_cmd(sessions=sessions)
-        cmd._cmd_session("list")
+        await cmd._cmd_session("list")
         out = capsys.readouterr().out
         assert "(no title)" in out
 
 
 class TestCmdSessionDelete:
-    def test_delete_success(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_success(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd(session_id=1)
         cmd._ctx.session.delete_session.return_value = True
-        cmd._cmd_session("delete 2")
+        await cmd._cmd_session("delete 2")
         assert "deleted" in capsys.readouterr().out.lower()
 
-    def test_delete_not_found(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_not_found(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd(session_id=1)
         cmd._ctx.session.delete_session.return_value = False
-        cmd._cmd_session("delete 99")
+        await cmd._cmd_session("delete 99")
         assert "not found" in capsys.readouterr().out.lower()
 
-    def test_delete_current_session_blocked(
+    @pytest.mark.asyncio
+    async def test_delete_current_session_blocked(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cmd = _make_cmd(session_id=1)
-        cmd._cmd_session("delete 1")
+        await cmd._cmd_session("delete 1")
         assert "Cannot delete" in capsys.readouterr().out
         cmd._ctx.session.delete_session.assert_not_called()
 
-    def test_delete_invalid_id(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_invalid_id(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        cmd._cmd_session("delete abc")
+        await cmd._cmd_session("delete abc")
         assert "Invalid" in capsys.readouterr().out
 
 
 class TestCmdSessionLoad:
     """Characterization tests for _session_load_safe — previously untested."""
 
-    def test_load_valid_id_calls_load_session(self) -> None:
+    @pytest.mark.asyncio
+    async def test_load_valid_id_calls_load_session(self) -> None:
         cmd = _make_cmd()
         with patch.object(cmd, "_load_session") as mock_load:
-            cmd._cmd_session("load 5")
+            await cmd._cmd_session("load 5")
         mock_load.assert_called_once_with(5)
 
-    def test_load_invalid_id_shows_validation_error(
+    @pytest.mark.asyncio
+    async def test_load_invalid_id_shows_validation_error(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cmd = _make_cmd()
         with patch.object(cmd, "_load_session") as mock_load:
-            cmd._cmd_session("load abc")
+            await cmd._cmd_session("load abc")
         out = capsys.readouterr().out
         assert "Invalid session ID" in out
         mock_load.assert_not_called()
 
-    def test_load_zero_id_shows_validation_error(
+    @pytest.mark.asyncio
+    async def test_load_zero_id_shows_validation_error(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cmd = _make_cmd()
         with patch.object(cmd, "_load_session") as mock_load:
-            cmd._cmd_session("load 0")
+            await cmd._cmd_session("load 0")
         out = capsys.readouterr().out
         assert "Invalid session ID" in out
         mock_load.assert_not_called()
 
 
 class TestCmdSessionRename:
-    def test_rename_updates_title(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_rename_updates_title(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        cmd._cmd_session("rename My New Title")
+        await cmd._cmd_session("rename My New Title")
         cmd._ctx.session.set_title.assert_called_once_with("My New Title")
         assert "renamed" in capsys.readouterr().out.lower()
 
 
 class TestCmdSessionUsage:
-    def test_unknown_subcommand_shows_usage(
+    @pytest.mark.asyncio
+    async def test_unknown_subcommand_shows_usage(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cmd = _make_cmd()
-        cmd._cmd_session("unknown")
+        await cmd._cmd_session("unknown")
         assert "usage" in capsys.readouterr().out.lower()
 
-    def test_empty_args_defaults_to_list(self) -> None:
+    @pytest.mark.asyncio
+    async def test_empty_args_defaults_to_list(self) -> None:
         cmd = _make_cmd(sessions=[])
-        cmd._cmd_session("")
+        await cmd._cmd_session("")
         cmd._ctx.session.list_sessions.assert_called_once()
 
 
@@ -360,7 +377,8 @@ class TestGenerateSessionTitleVisibility:
 
 
 class TestCmdSessionHealth:
-    def test_health_prints_metrics(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_health_prints_metrics(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         from agent.services.models import DbHealth
@@ -372,12 +390,13 @@ class TestCmdSessionHealth:
                 integrity_ok=True, wal_pages=0, size_bytes=10240
             )
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("health")
+            await cmd._cmd_session("health")
             out = capsys.readouterr().out
             assert "integrity_ok" in out
             assert "True" in out
 
-    def test_health_error_raises(self) -> None:
+    @pytest.mark.asyncio
+    async def test_health_error_raises(self) -> None:
         import sqlite3
         from unittest.mock import patch
 
@@ -387,14 +406,15 @@ class TestCmdSessionHealth:
             mock_svc.health.side_effect = sqlite3.Error("health error")
             MockSvc.return_value = mock_svc
             with pytest.raises(sqlite3.Error, match="health error"):
-                cmd._cmd_session("health")
+                await cmd._cmd_session("health")
 
 
 # ── /session checkpoint ─────────────────────────────────────────────────────────
 
 
 class TestCmdSessionCheckpoint:
-    def test_checkpoint_success(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_checkpoint_success(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         from agent.services.models import DbCheckpointResult
@@ -406,11 +426,12 @@ class TestCmdSessionCheckpoint:
                 mode="TRUNCATE", pages_written=10
             )
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("checkpoint")
+            await cmd._cmd_session("checkpoint")
             out = capsys.readouterr().out
             assert "complete" in out.lower()
 
-    def test_checkpoint_with_mode(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_checkpoint_with_mode(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         from agent.services.models import DbCheckpointResult
@@ -422,7 +443,7 @@ class TestCmdSessionCheckpoint:
                 mode="FULL", pages_written=5
             )
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("checkpoint FULL")
+            await cmd._cmd_session("checkpoint FULL")
             out = capsys.readouterr().out
             assert "complete" in out.lower()
 
@@ -431,18 +452,20 @@ class TestCmdSessionCheckpoint:
 
 
 class TestCmdSessionVacuum:
-    def test_vacuum_success(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_vacuum_success(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         cmd = _make_cmd()
         with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
             mock_svc = MagicMock()
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("vacuum")
+            await cmd._cmd_session("vacuum")
             out = capsys.readouterr().out
             assert "complete" in out.lower()
 
-    def test_vacuum_error_raises(self) -> None:
+    @pytest.mark.asyncio
+    async def test_vacuum_error_raises(self) -> None:
         import sqlite3
         from unittest.mock import patch
 
@@ -452,14 +475,15 @@ class TestCmdSessionVacuum:
             mock_svc.vacuum.side_effect = sqlite3.Error("vac error")
             MockSvc.return_value = mock_svc
             with pytest.raises(sqlite3.Error, match="vac error"):
-                cmd._cmd_session("vacuum")
+                await cmd._cmd_session("vacuum")
 
 
 # ── /session purge ──────────────────────────────────────────────────────────────
 
 
 class TestCmdSessionPurge:
-    def test_purge_success(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_purge_success(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         from agent.services.models import DbPurgeResult
@@ -469,11 +493,12 @@ class TestCmdSessionPurge:
             mock_svc = MagicMock()
             mock_svc.purge.return_value = DbPurgeResult(sessions_removed=8)
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("purge")
+            await cmd._cmd_session("purge")
             out = capsys.readouterr().out
             assert "Purged" in out
 
-    def test_purge_with_max_sessions(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_purge_with_max_sessions(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         from agent.services.models import DbPurgeResult
@@ -483,10 +508,11 @@ class TestCmdSessionPurge:
             mock_svc = MagicMock()
             mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("purge --max-sessions 10")
+            await cmd._cmd_session("purge --max-sessions 10")
             mock_svc.purge.assert_called_once_with(10, None)
 
-    def test_purge_with_max_age_days(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_purge_with_max_age_days(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         from agent.services.models import DbPurgeResult
@@ -496,10 +522,11 @@ class TestCmdSessionPurge:
             mock_svc = MagicMock()
             mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("purge --max-age-days 30")
+            await cmd._cmd_session("purge --max-age-days 30")
             mock_svc.purge.assert_called_once_with(None, 30)
 
-    def test_purge_error_raises(self) -> None:
+    @pytest.mark.asyncio
+    async def test_purge_error_raises(self) -> None:
         import sqlite3
         from unittest.mock import patch
 
@@ -509,9 +536,10 @@ class TestCmdSessionPurge:
             mock_svc.purge.side_effect = sqlite3.Error("purge error")
             MockSvc.return_value = mock_svc
             with pytest.raises(sqlite3.Error, match="purge error"):
-                cmd._cmd_session("purge")
+                await cmd._cmd_session("purge")
 
-    def test_purge_with_non_numeric_max_sessions_treated_as_none(
+    @pytest.mark.asyncio
+    async def test_purge_with_non_numeric_max_sessions_treated_as_none(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         """A non-numeric --max-sessions value falls back to None rather than raising."""
@@ -524,10 +552,11 @@ class TestCmdSessionPurge:
             mock_svc = MagicMock()
             mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("purge --max-sessions not-a-number")
+            await cmd._cmd_session("purge --max-sessions not-a-number")
             mock_svc.purge.assert_called_once_with(None, None)
 
-    def test_purge_with_non_numeric_max_age_days_treated_as_none(
+    @pytest.mark.asyncio
+    async def test_purge_with_non_numeric_max_age_days_treated_as_none(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         """A non-numeric --max-age-days value falls back to None rather than raising."""
@@ -540,7 +569,7 @@ class TestCmdSessionPurge:
             mock_svc = MagicMock()
             mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("purge --max-age-days not-a-number")
+            await cmd._cmd_session("purge --max-age-days not-a-number")
             mock_svc.purge.assert_called_once_with(None, None)
 
 
@@ -555,7 +584,8 @@ class TestCmdSessionRecover:
         result.detail = "integrity ok" if success else "integrity failed"
         return result
 
-    def test_recover_success(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_recover_success(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         cmd = _make_cmd()
@@ -563,11 +593,14 @@ class TestCmdSessionRecover:
             mock_svc = MagicMock()
             mock_svc.recover_session.return_value = self._make_recovery_result(True)
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("recover")
+            await cmd._cmd_session("recover")
             out = capsys.readouterr().out
             assert "succeeded" in out.lower() or "usage" in out.lower()
 
-    def test_recover_with_backup_path(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_recover_with_backup_path(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
         from unittest.mock import patch
 
         cmd = _make_cmd()
@@ -578,12 +611,13 @@ class TestCmdSessionRecover:
             )
             MockSvc.return_value = mock_svc
             try:
-                cmd._cmd_session("recover /path/to/backup.db")
+                await cmd._cmd_session("recover /path/to/backup.db")
                 mock_svc.recover_session.assert_called_once_with("/path/to/backup.db")
             except Exception:  # noqa: BLE001 — mock recovery call may or may not raise depending on internal flow; either outcome is acceptable for this smoke test
                 pass
 
-    def test_recover_failure(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_recover_failure(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         cmd = _make_cmd()
@@ -593,7 +627,7 @@ class TestCmdSessionRecover:
                 False, "no_backup"
             )
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("recover")
+            await cmd._cmd_session("recover")
             out = capsys.readouterr().out
             assert (
                 "no_backup" in out.lower()
@@ -601,7 +635,8 @@ class TestCmdSessionRecover:
                 or "usage" in out.lower()
             )
 
-    def test_recover_error_raises(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_recover_error_raises(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         cmd = _make_cmd()
@@ -610,7 +645,7 @@ class TestCmdSessionRecover:
             mock_svc.recover_session.side_effect = Exception("fail")
             MockSvc.return_value = mock_svc
             try:
-                cmd._cmd_session("recover")
+                await cmd._cmd_session("recover")
                 out = capsys.readouterr().out
                 assert "fail" in out.lower() or "error" in out.lower()
             except Exception as e:  # noqa: BLE001 — asserting on error message; the exact exception type raised by the command handler is not under test
@@ -621,7 +656,8 @@ class TestCmdSessionRecover:
 
 
 class TestCmdSessionStats:
-    def test_stats_prints_counts(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_stats_prints_counts(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         from agent.services.models import DbStats
@@ -633,12 +669,15 @@ class TestCmdSessionStats:
                 docs=0, chunks=0, sessions=5, messages=100
             )
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("stats")
+            await cmd._cmd_session("stats")
             out = capsys.readouterr().out
             assert "sessions" in out
             assert "messages" in out
 
-    def test_stats_ignores_extra_args(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_stats_ignores_extra_args(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
         from unittest.mock import patch
 
         from agent.services.models import DbStats
@@ -650,14 +689,17 @@ class TestCmdSessionStats:
                 docs=0, chunks=0, sessions=5, messages=100
             )
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("stats extra_arg")
+            await cmd._cmd_session("stats extra_arg")
             out = capsys.readouterr().out
             assert "sessions" in out
             assert "messages" in out
 
-    def test_stats_no_subcmd_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_stats_no_subcmd_shows_usage(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
         cmd = _make_cmd()
-        cmd._cmd_session("stats")
+        await cmd._cmd_session("stats")
         out = capsys.readouterr().out
         assert "sessions" in out or "messages" in out
 
@@ -666,7 +708,8 @@ class TestCmdSessionStats:
 
 
 class TestCmdSessionRagConsistency:
-    def test_rag_consistency_prints_ok_when_consistent(
+    @pytest.mark.asyncio
+    async def test_rag_consistency_prints_ok_when_consistent(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         from unittest.mock import patch
@@ -680,12 +723,13 @@ class TestCmdSessionRagConsistency:
                 is_consistent=True, issues=[], report=MagicMock()
             )
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("rag-consistency")
+            await cmd._cmd_session("rag-consistency")
             out = capsys.readouterr().out
             assert "is_consistent" in out
             assert "True" in out
 
-    def test_rag_consistency_prints_issues_when_inconsistent(
+    @pytest.mark.asyncio
+    async def test_rag_consistency_prints_issues_when_inconsistent(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         from unittest.mock import patch
@@ -701,12 +745,13 @@ class TestCmdSessionRagConsistency:
                 report=MagicMock(),
             )
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("rag-consistency")
+            await cmd._cmd_session("rag-consistency")
             out = capsys.readouterr().out
             assert "False" in out
             assert "FTS gap detected" in out
 
-    def test_rag_consistency_ignores_extra_args(
+    @pytest.mark.asyncio
+    async def test_rag_consistency_ignores_extra_args(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         from unittest.mock import patch
@@ -720,7 +765,7 @@ class TestCmdSessionRagConsistency:
                 is_consistent=True, issues=[], report=MagicMock()
             )
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("rag-consistency extra_arg")
+            await cmd._cmd_session("rag-consistency extra_arg")
             out = capsys.readouterr().out
             assert "is_consistent" in out
 
@@ -729,7 +774,8 @@ class TestCmdSessionRagConsistency:
 
 
 class TestCmdSessionRagRebuildFts:
-    def test_rag_rebuild_fts_calls_service_and_prints_success(
+    @pytest.mark.asyncio
+    async def test_rag_rebuild_fts_calls_service_and_prints_success(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         from unittest.mock import patch
@@ -738,12 +784,13 @@ class TestCmdSessionRagRebuildFts:
         with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
             mock_svc = MagicMock()
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("rag-rebuild-fts")
+            await cmd._cmd_session("rag-rebuild-fts")
             out = capsys.readouterr().out
             mock_svc.rebuild_fts.assert_called_once()
             assert "rebuilt" in out.lower()
 
-    def test_rag_rebuild_fts_ignores_extra_args(
+    @pytest.mark.asyncio
+    async def test_rag_rebuild_fts_ignores_extra_args(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         from unittest.mock import patch
@@ -752,7 +799,7 @@ class TestCmdSessionRagRebuildFts:
         with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
             mock_svc = MagicMock()
             MockSvc.return_value = mock_svc
-            cmd._cmd_session("rag-rebuild-fts extra_arg")
+            await cmd._cmd_session("rag-rebuild-fts extra_arg")
             out = capsys.readouterr().out
             mock_svc.rebuild_fts.assert_called_once()
             assert "rebuilt" in out.lower()
@@ -762,44 +809,48 @@ class TestCmdSessionRagRebuildFts:
 
 
 class TestCmdSessionExport:
-    def test_export_default_md(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_export_default_md(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         cmd = _make_cmd()
         with patch("agent.commands.cmd_session.render_export") as mock_render:
             mock_render.return_value = "# Hello\n"
             with patch("agent.commands.cmd_session.write_export") as mock_write:
-                cmd._cmd_session("export")
+                await cmd._cmd_session("export")
                 mock_render.assert_called_once()
                 fmt_arg = mock_render.call_args[0][1]
                 assert fmt_arg == "md"
                 mock_write.assert_called_once()
 
-    def test_export_json(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_export_json(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         cmd = _make_cmd()
         with patch("agent.commands.cmd_session.render_export") as mock_render:
             mock_render.return_value = "{}\n"
             with patch("agent.commands.cmd_session.write_export") as mock_write:
-                cmd._cmd_session("export json")
+                await cmd._cmd_session("export json")
                 fmt_arg = mock_render.call_args[0][1]
                 assert fmt_arg == "json"
                 mock_write.assert_called_once()
 
-    def test_export_markdown(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_export_markdown(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
         cmd = _make_cmd()
         with patch("agent.commands.cmd_session.render_export") as mock_render:
             mock_render.return_value = "# Hello\n"
             with patch("agent.commands.cmd_session.write_export") as mock_write:
-                cmd._cmd_session("export markdown")
+                await cmd._cmd_session("export markdown")
                 fmt_arg = mock_render.call_args[0][1]
                 assert fmt_arg == "md"
                 mock_write.assert_called_once()
 
-    def test_export_to_file(self, capsys: pytest.CaptureFixture) -> None:
+    @pytest.mark.asyncio
+    async def test_export_to_file(self, capsys: pytest.CaptureFixture) -> None:
         from pathlib import Path
         from unittest.mock import patch
 
@@ -809,7 +860,7 @@ class TestCmdSessionExport:
             with patch("agent.commands.cmd_session.render_export") as mock_render:
                 mock_render.return_value = "# Hello\n"
                 with patch("agent.commands.cmd_session.write_export") as mock_write:
-                    cmd._cmd_session("export md /tmp/test_export.md")
+                    await cmd._cmd_session("export md /tmp/test_export.md")
                     mock_render.assert_called_once()
                     mock_write.assert_called_once()
                     call_args = mock_write.call_args
