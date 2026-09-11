@@ -156,6 +156,30 @@ def _get_valid_production_keys() -> frozenset[str]:
     valid_keys.add("system_prompt_tool")
     valid_keys.add("security_profile")
 
+    # Nested-table section key: _build_diagnostics_config() reads cfg["diagnostics"]
+    # as a whole table, so the section name itself (not its inner fields, already
+    # added above via DiagnosticsConfig) is a valid top-level key.
+    valid_keys.add("diagnostics")
+
+    # Keys consumed by other subsystems (scripts/db/, scripts/rag/) that share
+    # config/agent.toml but are not part of any AgentConfig sub-dataclass.
+    valid_keys.update(
+        {
+            "eventbus_db_path",
+            "rag_db_path",
+            "session_db_path",
+            "sqlite_archive_dir",
+            "sqlite_busy_timeout_ms",
+            "sqlite_corrupt_archive_max_age_days",
+            "sqlite_corrupt_archive_max_files",
+            "sqlite_retention_max_age_days",
+            "sqlite_retention_max_sessions",
+            "sqlite_timeout",
+            "sqlite_vec_so",
+            "sqlite_wal_checkpoint_mode",
+        }
+    )
+
     _VALID_PRODUCTION_KEYS = frozenset(valid_keys)
     return _VALID_PRODUCTION_KEYS
 

@@ -11,10 +11,10 @@ Precedent: scripts/mcp_servers/server.py::attach_auth_middleware() pattern
 """
 
 import asyncio
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -41,27 +41,26 @@ def _make_test_app(tmp_path: Path, token: str) -> tuple[FastAPI, Any]:
         host="127.0.0.1",
         auth_token=token,
     )
-    
-    orig_load_config = getattr(eb_app, "load_config", None)
+
     eb_app.load_config = lambda path=None: cfg
-    
+
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
     )
     eb_app._ENVELOPE_SCHEMA_PATH = schema_path
     eb_app.get_schema_path = lambda: schema_path
-    
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(_init_state(cfg))
     finally:
         loop.close()
-    
+
     attach_auth_middleware(eb_app.app, token)
-    
+
     client = TestClient(eb_app.app, raise_server_exceptions=False)
-    
+
     def _cleanup():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -69,8 +68,8 @@ def _make_test_app(tmp_path: Path, token: str) -> tuple[FastAPI, Any]:
             loop.run_until_complete(_do_cleanup())
         finally:
             loop.close()
-    
-    client._cleanup = _cleanup  # type: ignore[attr-defined]
+
+    client._cleanup = _cleanup  # type: ignore[attr-defined] — attaching a test-only teardown hook to TestClient, not part of its real interface
     return eb_app.app, cfg
 
 
@@ -120,20 +119,20 @@ class TestPublishAuth:
 
     @classmethod
     def teardown_class(cls):
-        if hasattr(cls.client, '_cleanup'):
+        if hasattr(cls.client, "_cleanup"):
             cls.client._cleanup()
 
     def test_publish_with_valid_publisher_token(self) -> None:
         """Authorized publisher can publish events."""
         import uuid
-        from datetime import datetime, timezone
-        
+        from datetime import datetime
+
         body = {
             "event_id": str(uuid.uuid4()),
             "topic": "test",
             "payload": {"key": "value"},
             "producer": "test-producer",
-            "published_at": datetime.now(timezone.utc).isoformat(),
+            "published_at": datetime.now(UTC).isoformat(),
         }
         response = self.client.post(
             "/publish",
@@ -141,21 +140,22 @@ class TestPublishAuth:
             headers={"Authorization": f"Bearer {TEST_TOKEN}"},
         )
         assert response.status_code == 200
-    
+
     def test_publish_without_token(self) -> None:
         """Unauthenticated request to /publish is rejected."""
         import uuid
-        from datetime import datetime, timezone
-        
+        from datetime import datetime
+
         body = {
             "event_id": str(uuid.uuid4()),
             "topic": "test",
             "payload": {"key": "value"},
             "producer": "test-producer",
-            "published_at": datetime.now(timezone.utc).isoformat(),
+            "published_at": datetime.now(UTC).isoformat(),
         }
         response = self.client.post("/publish", json=body)
         assert response.status_code == 401
+
 
 class TestSubscribeAuth:
     """Tests for GET /subscribe authorization."""
@@ -170,7 +170,7 @@ class TestSubscribeAuth:
 
     @classmethod
     def teardown_class(cls):
-        if hasattr(cls.client, '_cleanup'):
+        if hasattr(cls.client, "_cleanup"):
             cls.client._cleanup()
 
     def test_subscribe_with_valid_consumer_token(self) -> None:
@@ -181,7 +181,7 @@ class TestSubscribeAuth:
             headers={"Authorization": f"Bearer {TEST_TOKEN}"},
         )
         assert response.status_code == 200
-    
+
     def test_subscribe_as_wrong_role(self) -> None:
         """Non-consumer role cannot subscribe."""
         response = self.client.get(
@@ -190,6 +190,7 @@ class TestSubscribeAuth:
             headers={"Authorization": "Bearer operator-token"},
         )
         assert response.status_code == 403
+
 
 class TestAckAuth:
     """Tests for POST /events/{event_id}/ack authorization."""
@@ -204,13 +205,16 @@ class TestAckAuth:
 
     @classmethod
     def teardown_class(cls):
-        if hasattr(cls.client, '_cleanup'):
+        if hasattr(cls.client, "_cleanup"):
             cls.client._cleanup()
 
     def test_ack_without_token(self) -> None:
         """Unauthenticated request to /ack is rejected."""
-        response = self.client.post("/events/test-event-id/ack", params={"consumer_id": "consumer_a"})
+        response = self.client.post(
+            "/events/test-event-id/ack", params={"consumer_id": "consumer_a"}
+        )
         assert response.status_code == 401
+
 
 class TestNackAuth:
     """Tests for POST /nack authorization."""
@@ -225,13 +229,14 @@ class TestNackAuth:
 
     @classmethod
     def teardown_class(cls):
-        if hasattr(cls.client, '_cleanup'):
+        if hasattr(cls.client, "_cleanup"):
             cls.client._cleanup()
 
     def test_nack_without_token(self) -> None:
         """Unauthenticated request to /nack is rejected."""
         response = self.client.post("/nack", params={"event_id": "test-event-id"})
         assert response.status_code == 401
+
 
 class TestDlqListAuth:
     """Tests for GET /dlq authorization."""
@@ -246,7 +251,7 @@ class TestDlqListAuth:
 
     @classmethod
     def teardown_class(cls):
-        if hasattr(cls.client, '_cleanup'):
+        if hasattr(cls.client, "_cleanup"):
             cls.client._cleanup()
 
     def test_dlq_list_with_valid_operator_token(self) -> None:
@@ -256,11 +261,12 @@ class TestDlqListAuth:
             headers={"Authorization": f"Bearer {TEST_TOKEN}"},
         )
         assert response.status_code == 200
-    
+
     def test_dlq_list_without_token(self) -> None:
         """Unauthenticated request to /dlq is rejected."""
         response = self.client.get("/dlq")
         assert response.status_code == 401
+
 
 class TestDlqRequeueAuth:
     """Tests for POST /dlq/{event_id}/requeue authorization."""
@@ -275,13 +281,14 @@ class TestDlqRequeueAuth:
 
     @classmethod
     def teardown_class(cls):
-        if hasattr(cls.client, '_cleanup'):
+        if hasattr(cls.client, "_cleanup"):
             cls.client._cleanup()
 
     def test_dlq_requeue_without_token(self) -> None:
         """Unauthenticated request to /dlq/requeue is rejected."""
         response = self.client.post("/dlq/test-event-id/requeue")
         assert response.status_code == 401
+
 
 class TestReplayAuth:
     """Tests for GET /replay authorization."""
@@ -296,7 +303,7 @@ class TestReplayAuth:
 
     @classmethod
     def teardown_class(cls):
-        if hasattr(cls.client, '_cleanup'):
+        if hasattr(cls.client, "_cleanup"):
             cls.client._cleanup()
 
     def test_replay_with_valid_operator_token(self) -> None:
@@ -307,7 +314,7 @@ class TestReplayAuth:
             headers={"Authorization": f"Bearer {TEST_TOKEN}"},
         )
         assert response.status_code == 200
-    
+
     def test_replay_without_token(self) -> None:
         """Unauthenticated request to /replay is rejected."""
         response = self.client.get("/replay", params={"since_seq": 0, "limit": 100})

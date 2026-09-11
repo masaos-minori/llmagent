@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import logging
 from enum import StrEnum
-from typing import Any
+from typing import Any, cast
 
 from fastapi import Depends, HTTPException, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ class Role(StrEnum):
     CONSUMER = "consumer"
     OPERATOR = "operator"
     MONITORING = "monitoring"
+
 
 # Route-to-role mapping: which roles may access which route category
 _ROUTE_ROLE_MAP: dict[str, set[Role]] = {
@@ -45,6 +46,7 @@ _TOKEN_CONSUMER_MAP: dict[str, set[str]] = {}
 # Token-to-topic mapping: token -> set of permitted topics
 _TOKEN_TOPIC_MAP: dict[str, set[str]] = {}
 
+
 def get_auth_token(config: Any) -> str:
     """Return the auth_token from EventBusConfig, or raise ValueError if missing."""
     token = getattr(config, "auth_token", None)
@@ -53,7 +55,8 @@ def get_auth_token(config: Any) -> str:
             "auth_token is required but not configured. "
             "Add auth_token to config/eventbus.toml before starting."
         )
-    return token
+    return cast(str, token)
+
 
 async def verify_bearer_token(
     request: Request,
@@ -70,8 +73,7 @@ async def verify_bearer_token(
         expected_token = get_auth_token(config)
     except ValueError:
         raise HTTPException(
-            status_code=500,
-            detail="Server misconfiguration: auth_token not configured"
+            status_code=500, detail="Server misconfiguration: auth_token not configured"
         )
 
     if token != expected_token:
@@ -80,35 +82,45 @@ async def verify_bearer_token(
 
     return token
 
-async def require_role(
-    role: Role,
-    request: Request,
-    token: str = Depends(verify_bearer_token),
-) -> None:
-    """FastAPI dependency: verify caller has the required role."""
-    if not token:
-        # Authentication already failed in verify_bearer_token
-        raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Determine which route category is being accessed
-    path = request.url.path
-    for route_path, allowed_roles in _ROUTE_ROLE_MAP.items():
-        if path.startswith(route_path):
-            if role not in allowed_roles:
-                logger.warning(
-                    "Authorization failed: %s requires role=%s, caller has none",
-                    path, role,
-                )
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Forbidden: requires {role} role"
-                )
-            return
+def require_role(role: Role):
+    """FastAPI dependency factory: verify caller has the required role.
 
-    # Fallback: check exact match
-    if path not in _ROUTE_ROLE_MAP:
-        logger.warning("Unknown route accessed: %s", path)
-        raise HTTPException(status_code=403, detail="Forbidden")
+    Returns a dependency bound to `role` via closure, since FastAPI's
+    `Depends(...)` calls the dependency itself rather than passing extra
+    arguments to it.
+    """
+
+    async def _check_role(
+        request: Request,
+        token: str = Depends(verify_bearer_token),
+    ) -> None:
+        if not token:
+            # Authentication already failed in verify_bearer_token
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
+        # Determine which route category is being accessed
+        path = request.url.path
+        for route_path, allowed_roles in _ROUTE_ROLE_MAP.items():
+            if path.startswith(route_path):
+                if role not in allowed_roles:
+                    logger.warning(
+                        "Authorization failed: %s requires role=%s, caller has none",
+                        path,
+                        role,
+                    )
+                    raise HTTPException(
+                        status_code=403, detail=f"Forbidden: requires {role} role"
+                    )
+                return
+
+        # Fallback: check exact match
+        if path not in _ROUTE_ROLE_MAP:
+            logger.warning("Unknown route accessed: %s", path)
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+    return _check_role
+
 
 async def require_consumer_identity(
     request: Request,
@@ -131,7 +143,7 @@ async def require_consumer_identity(
         )
         raise HTTPException(
             status_code=403,
-            detail=f"Forbidden: consumer_id '{consumer_id}' not allowed"
+            detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
         )
 
     # Validate topic access
@@ -144,9 +156,9 @@ async def require_consumer_identity(
                     topic,
                 )
                 raise HTTPException(
-                    status_code=403,
-                    detail=f"Forbidden: topic '{topic}' not allowed"
+                    status_code=403, detail=f"Forbidden: topic '{topic}' not allowed"
                 )
+
 
 def attach_auth_middleware(app: Any, token: str) -> None:
     """Register Bearer-token auth middleware on a FastAPI app.

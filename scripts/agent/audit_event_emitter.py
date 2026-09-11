@@ -75,8 +75,8 @@ class AuditEventEmitter:
     async def emit_turn_start(self) -> None:
         """Emit a turn_start audit event."""
         ctx = self._ctx
+        ctx.turn.current_turn_id = str(uuid.uuid4())
         if ctx.services_required.audit_logger is not None:
-            ctx.turn.current_turn_id = str(uuid.uuid4())
             session_id = self.format_session_id(ctx.session.session_id) or "none"
             ctx.services_required.audit_logger.info(
                 _json_dumps(

@@ -114,10 +114,12 @@ def _event(topic: str = "t") -> dict[str, Any]:
 
 def test_ack_writes_offset(client: TestClient, tmp_path: Path) -> None:
     """Acknowledge an event writes the offset atomically via ack_event_for_consumer."""
-    from eventbus.db import ack_event_for_consumer, insert_event  # noqa: PLC0415
+    from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
+        ack_event_for_consumer,
+        insert_event,
+    )
 
     db = client.app.state.db
-    cfg = client.app.state.config
     now = "2026-09-09T10:00:00Z"
     consumer_id = "test_consumer"
 
@@ -287,7 +289,7 @@ class TestConsumerIdSanitization:
         assert offset == 42
 
 
-class TestOffsetMonotonicity:
+class TestFileOffsetMonotonicity:
     """Verify write_offset() does not lower a consumer's committed offset."""
 
     def test_write_offset_prevents_backward_jump(self, tmp_path: Path) -> None:
@@ -334,15 +336,19 @@ class TestOffsetMonotonicity:
         assert read_offset(str(tmp_path), "consumer_4") == 1
 
 
-class TestOffsetMonotonicity:
+class TestSqliteOffsetMonotonicity:
     """Tests for atomic monotonic offset enforcement in consumer_offsets."""
 
-    def test_older_seq_cannot_move_offset_backward(self, tmp_path: Path, client: TestClient) -> None:
+    def test_older_seq_cannot_move_offset_backward(
+        self, tmp_path: Path, client: TestClient
+    ) -> None:
         """An older-or-equal seq cannot move a consumer's offset backward."""
-        from eventbus.db import ack_event_for_consumer, insert_event  # noqa: PLC0415
+        from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
+            ack_event_for_consumer,
+            insert_event,
+        )
 
         db = client.app.state.db
-        cfg = client.app.state.config
         now = "2026-09-09T10:00:00Z"
         consumer_id = "monotonic_test"
 
@@ -381,7 +387,9 @@ class TestLegacyOffsetMigration:
 
     def test_migration_is_idempotent(self, tmp_path: Path, client: TestClient) -> None:
         """Re-running migration on already-migrated offsets is a no-op."""
-        from eventbus.db import migrate_legacy_offsets, insert_event  # noqa: PLC0415
+        from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
+            migrate_legacy_offsets,
+        )
 
         db = client.app.state.db
         cfg = client.app.state.config
@@ -405,9 +413,13 @@ class TestLegacyOffsetMigration:
         assert row is not None
         assert int(row["offset"]) == 100
 
-    def test_multi_consumer_legacy_directory(self, tmp_path: Path, client: TestClient) -> None:
+    def test_multi_consumer_legacy_directory(
+        self, tmp_path: Path, client: TestClient
+    ) -> None:
         """Migrate a synthetic multi-consumer legacy directory."""
-        from eventbus.db import migrate_legacy_offsets, insert_event  # noqa: PLC0415
+        from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
+            migrate_legacy_offsets,
+        )
 
         db = client.app.state.db
         cfg = client.app.state.config
@@ -449,9 +461,13 @@ class TestLegacyOffsetMigration:
         assert row_b is not None
         assert int(row_b["offset"]) == 75
 
-    def test_no_map_companion_fallback(self, tmp_path: Path, client: TestClient) -> None:
+    def test_no_map_companion_fallback(
+        self, tmp_path: Path, client: TestClient
+    ) -> None:
         """A legacy file with no .map companion uses sanitized filename as consumer_id."""
-        from eventbus.db import migrate_legacy_offsets, insert_event  # noqa: PLC0415
+        from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
+            migrate_legacy_offsets,
+        )
 
         db = client.app.state.db
         cfg = client.app.state.config

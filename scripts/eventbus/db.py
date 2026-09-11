@@ -217,9 +217,9 @@ def ack_event_for_consumer(
     end (or rolls back on exception).
 
     Returns (found, newly_acked, seq):
-      - (True, True, seq)   = event found, newly acked by this consumer
-      - (True, False, None) = event found but already acked by this consumer
-      - (False, False, None)= event not found
+      - (True, True, seq)  = event found, newly acked by this consumer
+      - (True, False, seq) = event found but already acked by this consumer
+      - (False, False, None) = event not found
 
     Args:
         conn: SQLite connection (must be the shared eventbus connection).
@@ -266,16 +266,34 @@ def ack_event_for_consumer(
         conn.rollback()
         raise
 
+    if newly_acked:
+        # seq is None only if event_id didn't actually exist in `events`
+        # (consumer_delivery has no FK enforcement), which per the documented
+        # contract means "not found" rather than a successful new ack.
+        return (seq is not None), True, seq
+
     # Check if event exists but was already acked by this consumer
-    if not newly_acked:
-        already_acked = conn.execute(
-            "SELECT 1 FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
-            (consumer_id, event_id),
+    already_acked = conn.execute(
+        "SELECT 1 FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+        (consumer_id, event_id),
+    ).fetchone()
+    if already_acked:
+        row = conn.execute(
+            "SELECT seq FROM events WHERE event_id = ?",
+            (event_id,),
         ).fetchone()
-        if already_acked:
-            return True, False, None
+        return True, False, (int(row["seq"]) if row else None)
 
     return False, False, None
+
+
+def get_consumer_offset(conn: sqlite3.Connection, consumer_id: str) -> int:
+    """Return the last-committed sequence offset for a consumer, or 0 if none exists."""
+    row = conn.execute(
+        "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+        (consumer_id,),
+    ).fetchone()
+    return int(row["offset"]) if row else 0
 
 
 def check_db(conn: sqlite3.Connection) -> bool:
@@ -430,7 +448,9 @@ def migrate_legacy_offsets(
     Returns:
         List of consumer_ids that were migrated.
     """
-    from eventbus.offsets import read_offset  # noqa: PLC0415
+    from eventbus.offsets import (
+        read_offset,  # noqa: PLC0415 — deferred to avoid a circular import with eventbus.offsets at module load time
+    )
 
     migrated: list[str] = []
     dir_path = Path(offsets_dir)

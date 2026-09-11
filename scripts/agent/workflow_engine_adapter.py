@@ -374,7 +374,13 @@ class WorkflowEngineAdapter:
             await self._conversation_manager.append_user_message(line)
             await self._conversation_manager.handle_history_compression()
 
-            result = await self._llm_executor.handle_llm_turn(ctx.conv.llm_url)
+            result = await self._llm_executor.handle_llm_turn(
+                ctx.conv.llm_url,
+                workflow_id=ctx.workflow.workflow_id or "",
+                task_id=ctx.workflow.current_task_id or "",
+                stage_id="execute",
+                attempt_id=ctx.turn.current_turn_id or "",
+            )
             answer = result.answer
             if result.action != "continue":
                 error_kind = result.error_kind or result.reason or result.action

@@ -120,7 +120,11 @@ class TestAckEvent:
 
     def test_two_consumers_ack_same_event(self, tmp_path: Path) -> None:
         """Two distinct consumer_ids can each ACK the same event independently."""
-        from eventbus.db import ack_event_for_consumer, insert_event  # noqa: PLC0415
+        from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
+            ack_event_for_consumer,
+            insert_event,
+            open_db,
+        )
 
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         now = "2026-09-09T10:00:00Z"
