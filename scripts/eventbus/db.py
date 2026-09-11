@@ -373,10 +373,8 @@ def insert_event(
         return None, False, "conflict"
 
     # Compare canonical fields
-    from . import json_utils
-
-    existing_payload_canonical = json_utils.dumps(json.loads(existing_row["payload"]))
-    incoming_payload_canonical = json_utils.dumps(json.loads(payload_str))
+    existing_payload_canonical = _canonical_payload(existing_row["payload"])
+    incoming_payload_canonical = _canonical_payload(payload_str)
 
     if (
         existing_row["topic"] == topic
@@ -389,6 +387,13 @@ def insert_event(
     else:
         # Conflicting content — reject without modifying stored data
         return None, False, "conflict"
+
+
+def _canonical_payload(payload_str: str) -> bytes:
+    """Return canonical JSON representation of a payload string."""
+    import orjson  # noqa: PLC0415
+
+    return orjson.dumps(orjson.loads(payload_str), option=orjson.OPT_SORT_KEYS)
 
 
 def get_seq(conn: sqlite3.Connection, event_id: str) -> int:

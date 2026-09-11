@@ -126,7 +126,7 @@ def test_ack_writes_offset(client: TestClient, tmp_path: Path) -> None:
     consumer_id = "test_consumer"
 
     # Insert an event first
-    seq, inserted = insert_event(
+    seq, inserted, _ = insert_event(
         db, "evt-001", "test-topic", '{"data": "value"}', "test-producer", now
     )
     assert inserted
@@ -355,8 +355,8 @@ class TestSqliteOffsetMonotonicity:
         consumer_id = "monotonic_test"
 
         # Insert two events with different seq values
-        seq1, _ = insert_event(db, "evt-mono-1", "test-topic", "{}", "producer", now)
-        seq2, _ = insert_event(db, "evt-mono-2", "test-topic", "{}", "producer", now)
+        seq1, _, _ = insert_event(db, "evt-mono-1", "test-topic", "{}", "producer", now)
+        seq2, _, _ = insert_event(db, "evt-mono-2", "test-topic", "{}", "producer", now)
         assert seq1 < seq2
 
         # Acknowledge evt-mono-2 first (higher seq)

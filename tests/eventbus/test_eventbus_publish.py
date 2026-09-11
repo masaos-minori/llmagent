@@ -73,6 +73,52 @@ def test_publish_idempotent(client: TestClient) -> None:
     assert r1.json()["seq"] == r2.json()["seq"]
 
 
+def test_identical_content_retry_returns_same_seq(client: TestClient) -> None:
+    """Identical retries return the existing sequence and do not cause redelivery."""
+    resp1 = client.post("/publish", json={
+        "event_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        "topic": "test",
+        "payload": {"key": "value"},
+        "producer": "test-producer",
+        "published_at": "2024-01-01T00:00:00Z",
+    })
+    assert resp1.status_code == 200
+    seq1 = resp1.json()["seq"]
+
+    resp2 = client.post("/publish", json={
+        "event_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        "topic": "test",
+        "payload": {"key": "value"},
+        "producer": "test-producer",
+        "published_at": "2024-01-01T00:00:01Z",
+    })
+    assert resp2.status_code == 200
+    seq2 = resp2.json()["seq"]
+
+    assert seq1 == seq2
+
+
+def test_conflicting_content_retry_returns_409(client: TestClient) -> None:
+    """Conflicting retries return HTTP 409 and do not modify the stored row."""
+    resp1 = client.post("/publish", json={
+        "event_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
+        "topic": "test",
+        "payload": {"key": "value1"},
+        "producer": "test-producer",
+        "published_at": "2024-01-01T00:00:00Z",
+    })
+    assert resp1.status_code == 200
+
+    resp2 = client.post("/publish", json={
+        "event_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
+        "topic": "test",
+        "payload": {"key": "value2"},
+        "producer": "test-producer",
+        "published_at": "2024-01-01T00:00:00Z",
+    })
+    assert resp2.status_code == 409
+
+
 def test_publish_invalid_schema(client: TestClient) -> None:
     r = client.post("/publish", json={"invalid": "body"})
     assert r.status_code == 422

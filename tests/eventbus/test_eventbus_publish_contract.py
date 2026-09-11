@@ -268,6 +268,7 @@ class TestCanonicalEquality:
     def test_reordered_key_equality(self, client: TestClient) -> None:
         """Reordered JSON object keys in the payload do not create a false conflict."""
         ev = _event()
+        ev["event_id"] = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13"
         ev["payload"] = {"b": 2, "a": 1}  # Keys in one order
         resp1 = client.post("/publish", json=ev)
         assert resp1.status_code == 200

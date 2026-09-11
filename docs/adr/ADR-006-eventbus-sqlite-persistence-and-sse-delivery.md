@@ -428,6 +428,14 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Impact**: consumer_id付きで全Replayを実行できない
 - **Resolution Target**: API仕様の変更検討
 
+### Enforced Invariants (post-implementation)
+
+The following invariants are now enforced by content comparison logic in `insert_event()`:
+
+- **INV-07 (at-least-once delivery)**: Now enforced — duplicate events cannot corrupt stored data. Identical retries return the original seq; conflicting retries return HTTP 409.
+- **INV-12 (ACK failure handling)**: Not affected by this change.
+- **INV-13 (DLQ promotion priority)**: Not affected by this change.
+
 - **Known Issue（2026-09-11追加）**: EVENTBUS-011 — `nack_event()` now returns `(-2,-2)` for invalid transitions (already ACKed or DLQ'd), and `ack_route.py` converts this to HTTP 409. However, the caller (`_nack_and_promote()`) checks `failure_count == -2` but does not verify whether the event is actually in the database before raising 409 — if the event was deleted between the NACK call and the status check, a spurious 409 could be returned.
 - **Type**: Race Condition
 - **Summary**: NACK後の409応答がイベント削除時に誤って返る可能性がある

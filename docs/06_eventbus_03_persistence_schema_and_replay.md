@@ -47,7 +47,11 @@ The `retry_count` column has been removed. Migrations for existing databases are
 
 ## JSONL Archive
 
-Appended to `{storage_dir}/events.jsonl` as a secondary storage. SQLite is the primary store; failures in appending to JSONL do not prevent a 200 response. Do NOT read primary data from JSONL; use SQLite queries instead.
+`{storage_dir}/events.jsonl` is a replica of the `events` table — one line per unique event, matching SQLite's deduplication semantics. It is appended after a successful DB insert; failures in appending do not prevent a 200 response. Do NOT read primary data from JSONL; use SQLite queries instead.
+
+### Idempotency Contract
+
+When `insert_event()` detects a duplicate (`cur.rowcount == 0`), it compares canonical equality fields (`topic`, `payload` via canonical JSON serialization, `producer`) against the existing row. Identical content returns `(seq, inserted=False, status="duplicate")`; conflicting content returns `(None, inserted=False, status="conflict")`. The JSONL append path is guarded by `if inserted:` so that only newly inserted events produce a new JSONL line. This makes `events.jsonl` behave as a true replica — one line per unique event, not per attempt.
 
 ### Declared Role: Replica
 

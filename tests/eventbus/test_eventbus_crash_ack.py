@@ -139,7 +139,7 @@ class TestCrashBeforeAck:
         consumer_id = "crash_consumer"
 
         # Insert an event first
-        seq, inserted = insert_event(
+        seq, inserted, _ = insert_event(
             db, "evt-crash-offset", "test-topic", '{"data": "value"}', "producer", now
         )
         assert inserted

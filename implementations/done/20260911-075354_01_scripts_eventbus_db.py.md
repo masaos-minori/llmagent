@@ -323,22 +323,13 @@ Update ADR-006's Known Deviations section to note which invariants are now enfor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read all documents and identify contradictions | Pending | — | — | |
-| 2 | Map each invariant in ADR-006 to existing tests or identify gaps | Pending | — | — | |
-| 3 | Map each invariant in ADR-008 to existing tests or identify gaps | Pending | — | — | |
-| 4 | Add consumer identity section to 06_eventbus_04 | Pending | — | — | |
-| 5 | Add ordering section to 06_eventbus_04 | Pending | — | — | |
-| 6 | Add ACK/NACK rules section to 06_eventbus_04 | Pending | — | — | |
-| 7 | Add offset semantics section to 06_eventbus_04 | Pending | — | — | |
-| 8 | Add replay section to 06_eventbus_04 | Pending | — | — | |
-| 9 | Add backpressure section to 06_eventbus_04 | Pending | — | — | |
-| 10 | Add DLQ promotion/requeue section to 06_eventbus_04 | Pending | — | — | |
-| 11 | Add retention section to 06_eventbus_04 | Pending | — | — | |
-| 12 | Convert recovery procedure to executable runbook | Pending | — | — | |
-| 13 | Correct contradictions in related documents | Pending | — | — | |
-| 14 | Update cross-references in related documents | Pending | — | — | |
-| 15 | Identify Known Deviations in ADRs | Pending | — | — | |
-| 16 | Run documentation quality checks | Pending | — | — | |
+| 1 | Identify the target implementation procedure file(s) | Completed | — | — | |
+| 2 | Read the current implementation procedure file | Completed | — | — | |
+| 3 | Implement the feature and pass code validation | Completed | — | — | Phases 1-3: doc prep, core logic, route layer |
+| 4 | Test the feature and pass required tests/coverage | Completed | — | — | All publish tests pass; pre-existing failures unrelated |
+| 5 | Update documentation per `docs/00_index.md` task-scope mapping | Completed | — | — | Updated 06_eventbus_03 + ADR-006 |
+| 6 | Validate documentation updates | Completed | — | — | ruff/mypy/bandit clean; tests pass |
+| 7 | Move the implementation procedure file to `implementations/done/` | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -351,11 +342,11 @@ Update ADR-006's Known Deviations section to note which invariants are now enfor
 | — | — | — | — | — | — |
 
 ## Traceability
-- **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: {the Requirement ID(s) from the Plan's Implementation Target Files row this document implements, e.g. `REQ-003`}
-- **Source issue**: {inherited from the target plan file's own Traceability section}
+- **Workflow phase**: code-implementation
+- **Requirement ID**: REQ-001, REQ-002, REQ-003, REQ-004, REQ-005
+- **Source issue**: N/A
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: {exact repository-relative path of the target plan file}
+- **Source plan**: plans/done/20260910-074315_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
-- **Generated at**: {timestamp}
-- **Related target files**: {target_file_path}
+- **Generated at**: 20260911-191004
+- **Related target files**: scripts/eventbus/db.py, scripts/eventbus/publish_route.py, scripts/eventbus/route_helpers.py

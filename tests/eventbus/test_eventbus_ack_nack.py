@@ -130,7 +130,7 @@ class TestAckEvent:
         now = "2026-09-09T10:00:00Z"
 
         # Insert an event first
-        seq, inserted = insert_event(
+        seq, inserted, _ = insert_event(
             db, "evt-multi-ack", "test-topic", '{"data": "value"}', "producer", now
         )
         assert inserted

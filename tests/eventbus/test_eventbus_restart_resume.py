@@ -191,7 +191,7 @@ def test_resume_from_sqlite_offset(client: TestClient, tmp_path: Path) -> None:
 
     db = eb_app.app.state.db
 
-    seq1, _ = insert_event(
+    seq1, _, _ = insert_event(
         db,
         "evt-resume-1",
         "t",
@@ -199,7 +199,7 @@ def test_resume_from_sqlite_offset(client: TestClient, tmp_path: Path) -> None:
         "p",
         "2026-06-25T12:00:00Z",
     )
-    seq2, _ = insert_event(
+    seq2, _, _ = insert_event(
         db,
         "evt-resume-2",
         "t",
@@ -207,7 +207,7 @@ def test_resume_from_sqlite_offset(client: TestClient, tmp_path: Path) -> None:
         "p",
         "2026-06-25T12:00:00Z",
     )
-    seq3, _ = insert_event(
+    seq3, _, _ = insert_event(
         db,
         "evt-resume-3",
         "t",
