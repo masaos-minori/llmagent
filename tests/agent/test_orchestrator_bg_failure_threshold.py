@@ -65,7 +65,7 @@ class TestConsecutiveFailuresIncrement:
 
         for i in range(BG_FAILURE_THRESHOLD + 2):
             mock_task = MagicMock(spec=asyncio.Task)
-            mock_task.get_name.return_value = f"bg_task_{i}"
+            mock_task.get_name.return_value = "bg_task_0"
             mock_task.exception.return_value = RuntimeError(f"error {i}")
             monitor.on_task_done(mock_task)
 
@@ -79,7 +79,7 @@ class TestConsecutiveFailuresIncrement:
 
         for i in range(5):
             mock_task = MagicMock(spec=asyncio.Task)
-            mock_task.get_name.return_value = f"bg_task_{i}"
+            mock_task.get_name.return_value = "bg_task_0"
             mock_task.exception.return_value = RuntimeError(f"fail {i}")
             monitor.on_task_done(mock_task)
         assert monitor.get_consecutive_failures("bg_task_0") == 5
@@ -115,7 +115,7 @@ class TestThresholdReachedBehavior:
         try:
             for i in range(BG_FAILURE_THRESHOLD):
                 mock_task = MagicMock(spec=asyncio.Task)
-                mock_task.get_name.return_value = f"bg_task_{i}"
+                mock_task.get_name.return_value = "bg_task_0"
                 mock_task.exception.return_value = RuntimeError(f"error {i}")
                 monitor.on_task_done(mock_task)
 
@@ -135,7 +135,7 @@ class TestThresholdReachedBehavior:
 
         for i in range(BG_FAILURE_THRESHOLD + 1):
             mock_task = MagicMock(spec=asyncio.Task)
-            mock_task.get_name.return_value = f"bg_task_{i}"
+            mock_task.get_name.return_value = "bg_task_0"
             mock_task.exception.return_value = RuntimeError(f"error {i}")
             monitor.on_task_done(mock_task)
 
@@ -162,7 +162,7 @@ class TestThresholdReachedBehavior:
         try:
             for i in range(BG_FAILURE_THRESHOLD - 1):
                 mock_task = MagicMock(spec=asyncio.Task)
-                mock_task.get_name.return_value = f"bg_task_{i}"
+                mock_task.get_name.return_value = "bg_task_0"
                 mock_task.exception.return_value = RuntimeError(f"error {i}")
                 monitor.on_task_done(mock_task)
 
@@ -227,7 +227,7 @@ class TestCancelledTaskCounterReset:
 
         for i in range(3):
             mock_task = MagicMock(spec=asyncio.Task)
-            mock_task.get_name.return_value = f"bg_task_{i}"
+            mock_task.get_name.return_value = "bg_task_0"
             mock_task.exception.return_value = RuntimeError(f"fail {i}")
             monitor.on_task_done(mock_task)
         assert monitor.get_consecutive_failures("bg_task_0") == 3
@@ -247,7 +247,7 @@ class TestCancelledTaskCounterReset:
 
         for i in range(5):
             mock_task = MagicMock(spec=asyncio.Task)
-            mock_task.get_name.return_value = f"bg_task_{i}"
+            mock_task.get_name.return_value = "bg_task_0"
             mock_task.exception.return_value = RuntimeError(f"fail {i}")
             monitor.on_task_done(mock_task)
         assert monitor.get_consecutive_failures("bg_task_0") == 5
