@@ -152,7 +152,7 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-101500 | 20260911-102000 | ruff format/check + mypy pass; full suite: 21 passed |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-102000 | 20260911-102500 | Added subscriber_count, retained_event_count, publish_rate to Event Bus config docs |
 | 5 | Validate documentation updates | Completed | 20260911-102500 | 20260911-103000 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning |
-| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-103000 | — | |
+| 6 | Move the implementation procedure file to `implementations/done/` | Completed | 20260911-103000 | 20260911-160000 | Source file already archived via git mv |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -142,7 +142,7 @@ These metrics can be queried via the health endpoint (`/health`) or Prometheus s
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-151000 | 20260911-151500 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning (missing '## Keywords') |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-151500 | 20260911-152000 | Docs updated with all new sections |
 | 5 | Validate documentation updates | Completed | 20260911-152000 | 20260911-152500 | All checks pass |
-| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-152500 | — | |
+| 6 | Move the implementation procedure file to `implementations/done/` | Completed | 20260911-152500 | 20260911-160000 | Source file already archived via git mv |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -128,7 +128,7 @@ async def health():
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-131500 | 20260911-132000 | ruff format/check + mypy pass; full suite: 21 config + 3 metric + 4 health = 28 passed |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-132000 | 20260911-132500 | Health endpoint now exposes metrics dict with lock_wait_avg_seconds, query_duration_avg_seconds, lock_contention_total |
 | 5 | Validate documentation updates | Completed | 20260911-132500 | 20260911-133000 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning |
-| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-133000 | — | |
+| 6 | Move the implementation procedure file to `implementations/done/` | Completed | 20260911-133000 | 20260911-160000 | Source file already archived via git mv |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

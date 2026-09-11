@@ -134,7 +134,7 @@ Note: The actual implementation will need to handle async iteration properly —
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-091500 | 20260911-092000 | ruff/mypy/bandit pass; full suite: 218 passed, 4 pre-existing failures |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-092000 | 20260911-092500 | Added `replay_batch_size` to Event Bus config docs |
 | 5 | Validate documentation updates | Completed | 20260911-092500 | 20260911-093000 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning |
-| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-093000 | — | |
+| 6 | Move the implementation procedure file to `implementations/done/` | Completed | 20260911-093000 | 20260911-160000 | Source file already archived via git mv |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

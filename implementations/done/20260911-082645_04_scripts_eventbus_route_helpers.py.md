@@ -139,7 +139,7 @@ def run_with_db_lock(func):
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260911-121000 | 20260911-121500 | Validated in file 03 |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260911-121500 | 20260911-122000 | prometheus-client dependency added in file 03 |
 | 5 | Validate documentation updates | Completed | 20260911-122000 | 20260911-122500 | check_docs_quality.py: 0 errors; check_docs_structure.py: 1 pre-existing warning |
-| 6 | Move the implementation procedure file to `implementations/done/` | In Progress | 20260911-122500 | — | |
+| 6 | Move the implementation procedure file to `implementations/done/` | Completed | 20260911-122500 | 20260911-160000 | Source file already archived via git mv |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
