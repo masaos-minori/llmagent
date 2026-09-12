@@ -25,6 +25,17 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_BUSY_TIMEOUT_MS = 30_000
 
+_COL_DELIVERY_FAILURE_COUNT = "delivery_failure_count"
+_COL_CYCLE_FAILURE_COUNT = "cycle_failure_count"
+_COL_DLQ_AT = "dlq_at"
+_COL_DLQ_REQUEUE_COUNT = "dlq_requeue_count"
+_COL_ACKED_AT = "acked_at"
+_COL_SEQ = "seq"
+_COL_EVENT_ID = "event_id"
+_COL_CONSUMER_ID = "consumer_id"
+_COL_OFFSET = "offset"
+_COL_REDISTRIBUTED_FROM = "redelivered_from"
+
 
 def _apply_eventbus_pragmas(
     conn: sqlite3.Connection,
@@ -94,7 +105,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     catch the duplicate column error and ignore it. Indexes are created
     with CREATE INDEX IF NOT EXISTS which is idempotent.
     """
-    for col in ("delivery_failure_count", "dlq_requeue_count"):
+    for col in (_COL_DELIVERY_FAILURE_COUNT, _COL_DLQ_REQUEUE_COUNT):
         try:
             conn.execute(
                 f"ALTER TABLE events ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0"
@@ -106,7 +117,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
             else:
                 raise
 
-    for col in ("cycle_failure_count", "redelivered_from"):
+    for col in (_COL_CYCLE_FAILURE_COUNT, _COL_REDISTRIBUTED_FROM):
         try:
             if col == "cycle_failure_count":
                 conn.execute(
@@ -180,21 +191,24 @@ def ack_event(conn: sqlite3.Connection, event_id: str, now: str) -> tuple[bool, 
       - (True, False) = event found but already acked
       - (False, False) = event not found
     """
-    cur = conn.execute(
-        "UPDATE events SET acked_at = ? WHERE event_id = ? AND acked_at IS NULL",
-        (now, event_id),
-    )
-    conn.commit()
-    newly_acked = cur.rowcount > 0
-    if newly_acked:
-        return True, True
-    # Check if event exists but was already acked
-    exists = conn.execute(
-        "SELECT 1 FROM events WHERE event_id = ?", (event_id,)
-    ).fetchone()
-    if exists:
-        return True, False
-    return False, False
+    try:
+        cur = conn.execute(
+            f"UPDATE events SET {_COL_ACKED_AT} = ? WHERE {_COL_EVENT_ID} = ? AND {_COL_ACKED_AT} IS NULL",  # nosec B608 — column names are module-level constants, values parameterized
+            (now, event_id),
+        )
+        conn.commit()
+        newly_acked = cur.rowcount > 0
+        if newly_acked:
+            return True, True
+        exists = conn.execute(
+            f"SELECT 1 FROM events WHERE {_COL_EVENT_ID} = ?", (event_id,)  # nosec B608 — column names are module-level constants, values parameterized
+        ).fetchone()
+        if exists:
+            return True, False
+        return False, False
+    except Exception:
+        conn.rollback()
+        raise
 
 
 def nack_event(conn: sqlite3.Connection, event_id: str) -> tuple[int, int]:
@@ -208,28 +222,33 @@ def nack_event(conn: sqlite3.Connection, event_id: str) -> tuple[int, int]:
       - (-1, -1) if the event was not found
       - (-2, -2) if the event is in an invalid state for NACK (already ACKed or DLQ'd)
     """
-    cur = conn.execute(
-        "UPDATE events SET delivery_failure_count = delivery_failure_count + 1, cycle_failure_count = cycle_failure_count + 1 WHERE event_id = ? AND acked_at IS NULL AND dlq_at IS NULL",
-        (event_id,),
-    )
-    conn.commit()
-    if cur.rowcount == 0:
-        # Check if event exists but is in invalid state vs truly not found
-        existing = conn.execute(
-            "SELECT acked_at, dlq_at FROM events WHERE event_id = ?",
+    try:
+        cur = conn.execute(
+            f"UPDATE events SET {_COL_DELIVERY_FAILURE_COUNT} = {_COL_DELIVERY_FAILURE_COUNT} + 1, {_COL_CYCLE_FAILURE_COUNT} = {_COL_CYCLE_FAILURE_COUNT} + 1 WHERE {_COL_EVENT_ID} = ? AND {_COL_ACKED_AT} IS NULL AND {_COL_DLQ_AT} IS NULL",  # nosec B608 — column names are module-level constants, values parameterized
+            (event_id,),
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            existing = conn.execute(
+                f"SELECT {_COL_ACKED_AT}, {_COL_DLQ_AT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
+                (event_id,),
+            ).fetchone()
+            if existing:
+                return (-2, -2)
+            return (-1, -1)
+        row = conn.execute(
+            f"SELECT {_COL_DELIVERY_FAILURE_COUNT}, {_COL_CYCLE_FAILURE_COUNT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
             (event_id,),
         ).fetchone()
-        if existing:
-            # Event exists but is already ACKed or DLQ'd — invalid transition
-            return (-2, -2)
+        if row:
+            return (
+                int(row[_COL_DELIVERY_FAILURE_COUNT]),
+                int(row[_COL_CYCLE_FAILURE_COUNT]),
+            )
         return (-1, -1)
-    row = conn.execute(
-        "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
-        (event_id,),
-    ).fetchone()
-    if row:
-        return (int(row["delivery_failure_count"]), int(row["cycle_failure_count"]))
-    return (-1, -1)
+    except Exception:
+        conn.rollback()
+        raise
 
 
 def ack_event_for_consumer(
@@ -422,7 +441,13 @@ def fetch_events_since(
         sql = "SELECT seq, event_id, topic, payload, producer, published_at FROM events WHERE seq > ? ORDER BY seq"
         params = (since_seq,)
     if limit is not None and offset is not None:
-        sql += f" LIMIT {limit} OFFSET {offset}"
+        # Validate bounds before parameterizing
+        if limit < 0 or offset < 0:
+            raise ValueError(
+                f"limit and offset must be non-negative, got limit={limit!r}, offset={offset!r}"
+            )
+        sql += " LIMIT ? OFFSET ?"
+        params = params + (limit, offset)
     return conn.execute(sql, params).fetchall()
 
 
@@ -437,9 +462,16 @@ def fetch_dlq(
         " delivery_failure_count, dlq_requeue_count, dlq_at"
         " FROM events WHERE dlq_at IS NOT NULL ORDER BY seq"
     )
+    params: tuple[int, ...] = ()
     if limit is not None and offset is not None:
-        sql += f" LIMIT {limit} OFFSET {offset}"
-    return conn.execute(sql).fetchall()
+        # Validate bounds before parameterizing
+        if limit < 0 or offset < 0:
+            raise ValueError(
+                f"limit and offset must be non-negative, got limit={limit!r}, offset={offset!r}"
+            )
+        sql += " LIMIT ? OFFSET ?"
+        params = params + (limit, offset)
+    return conn.execute(sql, params).fetchall()
 
 
 def count_dlq(conn: sqlite3.Connection) -> int:
@@ -452,21 +484,17 @@ def count_dlq(conn: sqlite3.Connection) -> int:
 
 def requeue_event(conn: sqlite3.Connection, event_id: str) -> bool:
     """Increment dlq_requeue_count and clear dlq_at. Returns True if the event was found in DLQ."""
-    row = conn.execute(
-        "SELECT 1 FROM events WHERE event_id = ? AND dlq_at IS NOT NULL",
-        (event_id,),
-    ).fetchone()
-    if not row:
-        return False
     cur = conn.execute(
-        "UPDATE events SET dlq_requeue_count = dlq_requeue_count + 1, dlq_at = NULL WHERE event_id = ? AND dlq_at IS NOT NULL",
+        f"UPDATE events SET {_COL_DLQ_REQUEUE_COUNT} = {_COL_DLQ_REQUEUE_COUNT} + 1, {_COL_DLQ_AT} = NULL WHERE {_COL_EVENT_ID} = ? AND {_COL_DLQ_AT} IS NOT NULL",  # nosec B608 — column names are module-level constants, values parameterized
         (event_id,),
     )
     conn.commit()
     return cur.rowcount > 0
 
 
-def redeliver_event(conn: sqlite3.Connection, event_id: str) -> tuple[bool, str | None]:
+def redeliver_event(
+    conn: sqlite3.Connection, event_id: str, now: str | None = None
+) -> tuple[bool, str | None]:
     """Redeliver a dead-lettered event by inserting a new row with lineage.
 
     Performs conditional-update guard on the original row (WHERE event_id = ? AND dlq_at IS NOT NULL)
@@ -477,22 +505,18 @@ def redeliver_event(conn: sqlite3.Connection, event_id: str) -> tuple[bool, str 
       - (True, new_event_id)   = event found and redelivered
       - (False, None)          = event not found in DLQ
     """
-    original_row = conn.execute(
-        "SELECT delivery_failure_count FROM events WHERE event_id = ? AND dlq_at IS NOT NULL",
-        (event_id,),
-    ).fetchone()
-    if not original_row:
-        return (False, None)
-
+    ts = now if now is not None else "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"
     new_event_id = uuid.uuid4().hex
-    conn.execute(
-        "UPDATE events SET dlq_requeue_count = dlq_requeue_count + 1 WHERE event_id = ? AND dlq_at IS NOT NULL",
+    cur = conn.execute(
+        f"UPDATE events SET {_COL_DLQ_REQUEUE_COUNT} = {_COL_DLQ_REQUEUE_COUNT} + 1 WHERE {_COL_EVENT_ID} = ? AND {_COL_DLQ_AT} IS NOT NULL",  # nosec B608 — column names are module-level constants, values parameterized
         (event_id,),
     )
+    if cur.rowcount == 0:
+        return (False, None)
     conn.execute(
-        "INSERT INTO events (event_id, topic, payload, producer, published_at, delivery_failure_count, cycle_failure_count, redelivered_from) "
-        "SELECT ?, topic, payload, producer, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), delivery_failure_count, 0, ? "
-        "FROM events WHERE event_id = ?",
+        f"INSERT INTO events ({_COL_EVENT_ID}, topic, payload, producer, published_at, {_COL_DELIVERY_FAILURE_COUNT}, {_COL_CYCLE_FAILURE_COUNT}, redelivered_from) "
+        f"SELECT ?, topic, payload, producer, {ts}, {_COL_DELIVERY_FAILURE_COUNT}, 0, ? "
+        f"FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
         (new_event_id, event_id, event_id),
     )
     conn.commit()

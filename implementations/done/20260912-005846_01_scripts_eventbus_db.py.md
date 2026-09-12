@@ -381,16 +381,16 @@ _COL_OFFSET = "offset"
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extract column name constants | Pending | — | — | |
-| 2 | Replace inline column names with constants | Pending | — | — | |
-| 3 | Fix SQL injection in fetch_events_since() | Pending | — | — | |
-| 4 | Fix SQL injection in fetch_dlq() | Pending | — | — | |
-| 5 | Add try/finally to ack_event() | Pending | — | — | |
-| 6 | Add try/finally to nack_event() | Pending | — | — | |
-| 7 | Remove pre-check from requeue_event() | Pending | — | — | |
-| 8 | Replace pre-check in redeliver_event() | Pending | — | — | |
-| 9 | Unify timestamp handling | Pending | — | — | |
-| 10 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Extract column name constants | Completed | — | — | Applied: 10 column name constants added at module level |
+| 2 | Replace inline column names with constants | Completed | — | — | Applied: _migrate() loop variables replaced with constants |
+| 3 | Fix SQL injection in fetch_events_since() | Completed | — | — | Applied: added bounds validation + parameterized LIMIT/OFFSET |
+| 4 | Fix SQL injection in fetch_dlq() | Completed | — | — | Applied: added bounds validation + parameterized LIMIT/OFFSET |
+| 5 | Add try/finally to ack_event() | Completed | — | — | Applied: added try/except with conn.rollback() |
+| 6 | Add try/finally to nack_event() | Completed | — | — | Applied: added try/except with conn.rollback() |
+| 7 | Remove pre-check from requeue_event() | Completed | — | — | Applied: removed pre-check SELECT, rely on UPDATE rowcount |
+| 8 | Replace pre-check in redeliver_event() | Completed | — | — | Applied: replaced pre-check SELECT with UPDATE rowcount |
+| 9 | Unify timestamp handling | Completed | — | — | Applied: added now parameter with strftime fallback |
+| 10 | Run validation sequence (rules/toolchain.md) | Completed | — | — | ruff/mypy/bandit pass; targeted tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
