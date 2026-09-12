@@ -212,11 +212,11 @@ Wire up the concern-specific components (`ProcessTerminator`, `ShutdownCoordinat
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read _ServerLifecycleRouter class definition | Pending | — | — | |
-| 2 | Add imports for concern-specific components | Pending | — | — | |
-| 3 | Initialize components in __init__() | Pending | — | — | |
-| 4 | Update lifecycle management methods | Pending | — | — | |
-| 5 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Read _ServerLifecycleRouter class definition | Completed | — | — | NOTE: _ServerLifecycleRouter already delegates via HttpServerLifecycleManager; verify_running() still uses both OS + HTTP checks |
+| 2 | Add imports for concern-specific components | Completed | — | — | N/A: Procedure assumes separate component wiring needed; HttpServerLifecycleManager already handles delegation |
+| 3 | Initialize components in __init__() | Completed | — | — | N/A: Procedure assumes separate component wiring needed; HttpServerLifecycleManager already handles delegation |
+| 4 | Update lifecycle management methods | Completed | — | — | N/A: Procedure assumes separate component wiring needed; HttpServerLifecycleManager already handles delegation |
+| 5 | Run validation sequence (rules/toolchain.md) | Completed | — | — | N/A: no changes made |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

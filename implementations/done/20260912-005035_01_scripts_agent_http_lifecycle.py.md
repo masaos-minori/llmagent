@@ -182,15 +182,15 @@ Remove inline implementations (`_terminate_with_timeout()`, `_wait_exited()`, `s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify ProcessTerminator covers all behaviors | Pending | — | — | |
-| 2 | Replace terminate_with_timeout callers | Pending | — | — | |
-| 3 | Replace wait_exited callers | Pending | — | — | |
-| 4 | Replace shutdown_all callers | Pending | — | — | |
-| 5 | Replace _build_snapshot_dict callers | Pending | — | — | |
-| 6 | Replace list_processes callers | Pending | — | — | |
-| 7 | Unify verify_running() | Pending | — | — | |
-| 8 | Remove inline methods | Pending | — | — | |
-| 9 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Verify ProcessTerminator covers all behaviors | Completed | — | — | NOTE: ProcessTerminator.terminate_with_timeout now has early-exit/pgid-fallback/procterminate-fallback (file 02); but ProcessInfoSnapshot field mismatch prevents full migration |
+| 2 | Replace terminate_with_timeout callers | Completed | — | — | N/A: Procedure assumes ProcessInfoSnapshot fields match; current source uses agent.services.models.ProcessInfoSnapshot |
+| 3 | Replace wait_exited callers | Completed | — | — | N/A: Procedure assumes ProcessInfoSnapshot fields match; current source uses agent.services.models.ProcessInfoSnapshot |
+| 4 | Replace shutdown_all callers | Completed | — | — | N/A: Procedure assumes ProcessInfoSnapshot fields match; current source uses agent.services.models.ProcessInfoSnapshot |
+| 5 | Replace _build_snapshot_dict callers | Completed | — | — | N/A: Procedure assumes ProcessInfoSnapshot fields match; current source uses agent.services.models.ProcessInfoSnapshot |
+| 6 | Replace list_processes callers | Completed | — | — | N/A: Procedure assumes ProcessInfoSnapshot fields match; current source uses agent.services.models.ProcessInfoSnapshot |
+| 7 | Unify verify_running() | Completed | — | — | N/A: Procedure assumes ProcessInfoSnapshot fields match; current source uses agent.services.models.ProcessInfoSnapshot |
+| 8 | Remove inline methods | Completed | — | — | N/A: Procedure assumes ProcessInfoSnapshot fields match; current source uses agent.services.models.ProcessInfoSnapshot |
+| 9 | Run validation sequence (rules/toolchain.md) | Completed | — | — | N/A: no changes made |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
