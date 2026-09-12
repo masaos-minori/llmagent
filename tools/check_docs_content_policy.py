@@ -34,6 +34,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
 
 _TREE_CHARS_RE = re.compile(r"[├│└]")
+_FILE_TREE_HEADING_RE = re.compile(
+    r"^#{1,6}\s+(?:file\s+structure|directory|file\s+tree)\b",
+    re.IGNORECASE,
+)
+_HEADINGS_WINDOW = 10
 _INLINE_COMMENT_DESCRIPTION_RE = re.compile(r"[├│└].*#\s*\S")
 _TABLE_DESCRIPTION_RE = re.compile(r"^\s*\|.*\|.*\|.*\|\s*$")
 _INDEX_TABLE_HEADER_RE = re.compile(
@@ -70,23 +75,39 @@ def discover_all_md_files(docs_dir: Path) -> list[DocFile]:
 
 
 def check_full_file_tree(files: list[DocFile]) -> list[Issue]:
-    """Flag lines containing ASCII tree-drawing characters (a full file tree)."""
+    """Flag lines containing ASCII tree-drawing characters inside a true file-tree section.
+
+    A true file-tree section is identified by a nearby heading matching
+    'File Structure', 'Directory', or 'File Tree' (case-insensitive).
+    Box-drawing characters outside such sections (e.g. state-transition diagrams)
+    are not flagged.
+    """
     issues: list[Issue] = []
     for doc in files:
         for i, line in enumerate(doc.lines, 1):
-            if _TREE_CHARS_RE.search(line):
-                issues.append(
-                    Issue(
-                        file=doc.rel_path,
-                        line_no=i,
-                        severity="WARNING",
-                        message=(
-                            "full file tree: line contains ASCII tree-drawing "
-                            "characters (├/│/└) — see skills/DESIGN.md Docs "
-                            "content policy — remove"
-                        ),
-                    )
+            if not _TREE_CHARS_RE.search(line):
+                continue
+            # Check for a file-tree heading within the last HEADINGS_WINDOW lines.
+            has_file_tree_heading = False
+            for j in range(max(0, i - _HEADINGS_WINDOW), i):
+                candidate = doc.lines[j]
+                if _FILE_TREE_HEADING_RE.search(candidate):
+                    has_file_tree_heading = True
+                    break
+            if not has_file_tree_heading:
+                continue
+            issues.append(
+                Issue(
+                    file=doc.rel_path,
+                    line_no=i,
+                    severity="WARNING",
+                    message=(
+                        "full file tree: line contains ASCII tree-drawing "
+                        "characters (├/│/└) inside a file-tree section — see "
+                        "skills/DESIGN.md Docs content policy — remove"
+                    ),
                 )
+            )
     return issues
 
 

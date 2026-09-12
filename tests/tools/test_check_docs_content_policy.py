@@ -31,6 +31,23 @@ def test_full_file_tree_detected() -> None:
     assert all("full file tree" in i.message for i in issues)
 
 
+def test_non_tree_diagram_not_flagged() -> None:
+    """State-transition diagram should NOT be flagged as a full file tree."""
+    doc = _doc(
+        "## McpServerHealthRegistry State Transitions\n"
+        "\n"
+        "HEALTHY ──(failure × threshold)──→ UNAVAILABLE\n"
+        "   ↑                                    │\n"
+        "   │                            (cooldown 30s elapsed)\n"
+        "   │                                    ↓\n"
+        "   └──(record_success)────────── HALF_OPEN (trial probe)\n"
+        "                                         │\n"
+        "                               (failure)─┘ → UNAVAILABLE (cooldown reset)\n"
+    )
+    issues = check_full_file_tree([doc])
+    assert issues == []
+
+
 def test_per_file_description_detected() -> None:
     doc = _doc("├─ registered/  # Files ingested into DB\n")
     issues = check_per_file_description([doc])

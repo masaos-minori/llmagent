@@ -21,7 +21,7 @@ source:
 
 ### HttpTransport
 
-**Inconsistency (Record of required fix):** This section header was previously `shared/tool_executor.py`, but the actual implementation of the `HttpTransport` class is defined in `shared/http_transport.py` (Explicit in code). Instantiation and retention are handled by `shared/tool_transport_invoker.py`, while `shared/tool_executor.py` only imports the `TransportError` exception type from the same module. Although the module docstring of `shared/tool_executor.py` states "Provides HttpTransport implementation for POST /v1/call_tool over httpx.", the actual implementation does not exist in that file (Explicit in code).
+`HttpTransport` provides POST `/v1/call_tool` over httpx. Its instantiation and retention are handled by `ToolTransportInvoker`, while `ToolExecutor` only imports the `TransportError` exception type from the same module as `HttpTransport`.
 
 ```python
 HttpTransport(http, base_url, server_key, cfg=McpServerConfig)
