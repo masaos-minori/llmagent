@@ -51,6 +51,7 @@ class EventBusConfig:
     consumer_token: str = ""
     operator_token: str = ""
     monitoring_token: str = ""
+    admin_token: str = ""
     sse_heartbeat_interval: float = 30.0
     slow_consumer_threshold: int = 100
     subscriber_queue_maxsize: int = 1000
@@ -107,6 +108,7 @@ _KNOWN_CONFIG_KEYS = frozenset(
         "consumer_token",
         "operator_token",
         "monitoring_token",
+        "admin_token",
         "sse_heartbeat_interval",
         "slow_consumer_threshold",
         "subscriber_queue_maxsize",
@@ -146,6 +148,7 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
     "consumer_token": str,
     "operator_token": str,
     "monitoring_token": str,
+    "admin_token": str,
     "sse_heartbeat_interval": float,
     "slow_consumer_threshold": int,
     "subscriber_queue_maxsize": int,
@@ -188,9 +191,13 @@ def load_config(path: Path | None = None) -> EventBusConfig:
                     f"expected {expected_type.__name__}."
                 )
 
-    # Validate auth_token is non-empty
-    if not data["auth_token"]:
-        raise ValueError("eventbus config 'auth_token' must not be empty.")
+        # Validate auth_token is non-empty
+        if not data["auth_token"]:
+            raise ValueError("eventbus config 'auth_token' must not be empty.")
+
+        # Validate per-role tokens: at least one must be configured
+        if not any([data.get("consumer_token"), data.get("operator_token"), data.get("admin_token")]):
+            raise ValueError("At least one per-role token must be configured")
 
     return EventBusConfig(
         port=data["port"],
@@ -209,6 +216,7 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         consumer_token=data.get("consumer_token", ""),
         operator_token=data.get("operator_token", ""),
         monitoring_token=data.get("monitoring_token", ""),
+        admin_token=data.get("admin_token", ""),
         sse_heartbeat_interval=float(data.get("sse_heartbeat_interval", 30.0)),
         slow_consumer_threshold=int(data.get("slow_consumer_threshold", 100)),
         subscriber_queue_maxsize=int(data.get("subscriber_queue_maxsize", 1000)),

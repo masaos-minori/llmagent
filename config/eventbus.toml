@@ -6,3 +6,9 @@ storage_dir = "/opt/llm/storage"
 offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
+
+# REQ-004: Per-role tokens for authorization
+# If not set, the system falls back to the shared token mechanism
+consumer_token = ""
+operator_token = ""
+admin_token = ""

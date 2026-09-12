@@ -26,7 +26,13 @@ TEST_OFFSETS_DIR = "/tmp/test-offsets"
 TEST_DEADLETTER_DIR = "/tmp/test-deadletter"
 
 
-def _make_test_app(tmp_path: Path, token: str) -> tuple[FastAPI, Any]:
+def _make_test_app(
+    tmp_path: Path,
+    token: str | None = None,
+    consumer_token: str | None = None,
+    operator_token: str | None = None,
+    admin_token: str | None = None,
+) -> tuple[FastAPI, Any]:
     """Create a fresh FastAPI app with auth middleware registered."""
     from eventbus import app as eb_app
     from eventbus.auth import (
@@ -43,6 +49,9 @@ def _make_test_app(tmp_path: Path, token: str) -> tuple[FastAPI, Any]:
         max_retry=3,
         host="127.0.0.1",
         auth_token=token,
+        consumer_token=consumer_token,
+        operator_token=operator_token,
+        admin_token=admin_token,
     )
 
     orig_load_config = getattr(eb_app, "load_config", None)
@@ -187,7 +196,13 @@ class TestPublishAuth:
     def setup_class(cls):
         cls.tmp_path = Path("/tmp/test-eventbus-auth-publish")
         cls.tmp_path.mkdir(exist_ok=True)
-        cls.app, cls.cfg = _make_test_app(cls.tmp_path, TEST_TOKEN)
+        cls.app, cls.cfg = _make_test_app(
+            cls.tmp_path,
+            token=None,  # No shared token — using per-role tokens only
+            consumer_token=None,
+            operator_token=None,
+            admin_token=None,
+        )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
 
@@ -211,7 +226,7 @@ class TestPublishAuth:
         response = self.client.post(
             "/publish",
             json=body,
-            headers={"Authorization": f"Bearer {TEST_TOKEN}"},
+            headers={"Authorization": f"Bearer {cls.cfg.admin_token}"},
         )
         assert response.status_code == 200
 
@@ -238,7 +253,13 @@ class TestSubscribeAuth:
     def setup_class(cls):
         cls.tmp_path = Path("/tmp/test-eventbus-auth-subscribe")
         cls.tmp_path.mkdir(exist_ok=True)
-        cls.app, cls.cfg = _make_test_app(cls.tmp_path, TEST_TOKEN)
+        cls.app, cls.cfg = _make_test_app(
+            cls.tmp_path,
+            token=None,
+            consumer_token=None,
+            operator_token=None,
+            admin_token=None,
+        )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
 
@@ -260,7 +281,7 @@ class TestSubscribeAuth:
             "GET",
             "/subscribe",
             params={"topic": "test", "consumer_id": "consumer_a"},
-            headers={"Authorization": f"Bearer {TEST_TOKEN}"},
+            headers={"Authorization": f"Bearer {cls.cfg.consumer_token}"},
         ) as response:
             assert response.status_code == 200
 
@@ -289,7 +310,13 @@ class TestAckAuth:
     def setup_class(cls):
         cls.tmp_path = Path("/tmp/test-eventbus-auth-ack")
         cls.tmp_path.mkdir(exist_ok=True)
-        cls.app, cls.cfg = _make_test_app(cls.tmp_path, TEST_TOKEN)
+        cls.app, cls.cfg = _make_test_app(
+            cls.tmp_path,
+            token=None,
+            consumer_token=None,
+            operator_token=None,
+            admin_token=None,
+        )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
 
@@ -313,7 +340,13 @@ class TestNackAuth:
     def setup_class(cls):
         cls.tmp_path = Path("/tmp/test-eventbus-auth-nack")
         cls.tmp_path.mkdir(exist_ok=True)
-        cls.app, cls.cfg = _make_test_app(cls.tmp_path, TEST_TOKEN)
+        cls.app, cls.cfg = _make_test_app(
+            cls.tmp_path,
+            token=None,
+            consumer_token=None,
+            operator_token=None,
+            admin_token=None,
+        )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
 
@@ -335,7 +368,13 @@ class TestDlqListAuth:
     def setup_class(cls):
         cls.tmp_path = Path("/tmp/test-eventbus-auth-dlq-list")
         cls.tmp_path.mkdir(exist_ok=True)
-        cls.app, cls.cfg = _make_test_app(cls.tmp_path, TEST_TOKEN)
+        cls.app, cls.cfg = _make_test_app(
+            cls.tmp_path,
+            token=None,
+            consumer_token=None,
+            operator_token=None,
+            admin_token=None,
+        )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
 
@@ -348,7 +387,7 @@ class TestDlqListAuth:
         """Authorized operator can list DLQ entries."""
         response = self.client.get(
             "/dlq",
-            headers={"Authorization": f"Bearer {TEST_TOKEN}"},
+            headers={"Authorization": f"Bearer {cls.cfg.operator_token}"},
         )
         assert response.status_code == 200
 
@@ -365,7 +404,13 @@ class TestDlqRequeueAuth:
     def setup_class(cls):
         cls.tmp_path = Path("/tmp/test-eventbus-auth-dlq-requeue")
         cls.tmp_path.mkdir(exist_ok=True)
-        cls.app, cls.cfg = _make_test_app(cls.tmp_path, TEST_TOKEN)
+        cls.app, cls.cfg = _make_test_app(
+            cls.tmp_path,
+            token=None,
+            consumer_token=None,
+            operator_token=None,
+            admin_token=None,
+        )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
 
@@ -387,7 +432,13 @@ class TestReplayAuth:
     def setup_class(cls):
         cls.tmp_path = Path("/tmp/test-eventbus-auth-replay")
         cls.tmp_path.mkdir(exist_ok=True)
-        cls.app, cls.cfg = _make_test_app(cls.tmp_path, TEST_TOKEN)
+        cls.app, cls.cfg = _make_test_app(
+            cls.tmp_path,
+            token=None,
+            consumer_token=None,
+            operator_token=None,
+            admin_token=None,
+        )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
 
@@ -401,7 +452,7 @@ class TestReplayAuth:
         response = self.client.get(
             "/replay",
             params={"since_seq": 0, "limit": 100},
-            headers={"Authorization": f"Bearer {TEST_TOKEN}"},
+            headers={"Authorization": f"Bearer {cls.cfg.operator_token}"},
         )
         assert response.status_code == 200
 
