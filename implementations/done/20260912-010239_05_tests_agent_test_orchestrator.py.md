@@ -159,11 +159,11 @@ Remove the 3 `@pytest.mark.skip(...)` markers from `TestHandleLlmTurnOptionalCal
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read TestHandleLlmTurnOptionalCallbacks | Pending | — | — | |
-| 2 | Remove @pytest.mark.skip(...) markers | Pending | — | — | |
-| 3 | Correct mocking strategy for 2 tests | Pending | — | — | |
-| 4 | Leave test_wait_end_invoked_in_except_branch as-is | Pending | — | — | |
-| 5 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Read TestHandleLlmTurnOptionalCallbacks | Completed | — | — | NOTE: skip markers already removed; mocking strategy already corrected |
+| 2 | Remove @pytest.mark.skip(...) markers | Completed | — | — | N/A: Already absent in current source |
+| 3 | Correct mocking strategy for 2 tests | Completed | — | — | N/A: Already using patch("agent.llm_turn_executor.LLMTurnRunner") in current source |
+| 4 | Leave test_wait_end_invoked_in_except_branch as-is | Completed | — | — | N/A: No changes needed |
+| 5 | Run validation sequence (rules/toolchain.md) | Completed | — | — | N/A: no changes made |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

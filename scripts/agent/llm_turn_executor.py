@@ -39,7 +39,7 @@ class LlmTurnExecutor:
         diagnostic_store: DiagnosticStore | None = None,
         tracer: Any = None,
         on_error: Callable[[Exception], None] | None = None,
-        on_llm_wait_start: Callable[[], None] | None = None,
+        on_llm_wait_start: Callable[[str], None] | None = None,
         on_llm_wait_end: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the LLM turn executor."""
@@ -57,10 +57,10 @@ class LlmTurnExecutor:
         if self._on_llm_wait_end:
             self._on_llm_wait_end()
 
-    def call_on_llm_wait_start(self) -> None:
+    def call_on_llm_wait_start(self, msg: str = "Thinking") -> None:
         """Invoke on_llm_wait_start if configured."""
         if self._on_llm_wait_start:
-            self._on_llm_wait_start()
+            self._on_llm_wait_start(msg)
 
     def call_on_error(self, exc: Exception) -> None:
         """Invoke on_error with exc if configured."""

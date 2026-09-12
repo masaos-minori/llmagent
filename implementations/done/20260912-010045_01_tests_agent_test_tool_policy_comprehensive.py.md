@@ -126,11 +126,11 @@ Add 3 missing configuration keys (`tool_definitions_strict=True`, `routing_drift
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read test_agent_negative_paths.py's _cfg() | Pending | — | — | |
-| 2 | Add tool_definitions_strict=True | Pending | — | — | |
-| 3 | Add routing_drift_strict=True | Pending | — | — | |
-| 4 | Replace allowed_tools=[] | Pending | — | — | |
-| 5 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Read test_agent_negative_paths.py's _cfg() | Completed | — | — | NOTE: confirmed pattern matches; added tool_definitions_strict=True, routing_drift_strict=True, allowed_tools=["shell_execute"] |
+| 2 | Add tool_definitions_strict=True | Completed | — | — | Applied: added to defaults dict |
+| 3 | Add routing_drift_strict=True | Completed | — | — | Applied: added to defaults dict |
+| 4 | Replace allowed_tools=[] | Completed | — | — | Applied: replaced with ["shell_execute"]; also fixed test_none_values_in_args by adding allowed_tools=["write_file"] override |
+| 5 | Run validation sequence (rules/toolchain.md) | Completed | — | — | ruff/mypy/bandit clean; all 38 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

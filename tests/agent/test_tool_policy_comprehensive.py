@@ -40,7 +40,9 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "serial_tool_calls": False,
         "tool_result_max_llm_chars": 4000,
         "masked_fields": [],
-        "allowed_tools": [],
+        "allowed_tools": ["shell_execute"],
+        "tool_definitions_strict": True,
+        "routing_drift_strict": True,
         "tool_definitions": [],
         "tool_safety_tiers": {},
         "approval_risk_rules": {},
@@ -306,7 +308,7 @@ class TestCheckPreflightEdgeCases:
         )  # Should not deny when allowed_tools is empty
 
     def test_none_values_in_args(self) -> None:
-        cfg = _cfg(allowed_root="/tmp")
+        cfg = _cfg(allowed_root="/tmp", allowed_tools=["write_file"])
         # Test with None values in args — should not fail because the path check doesn't trigger on None
         check_preflight(
             cfg, "write_file", {"path": None}

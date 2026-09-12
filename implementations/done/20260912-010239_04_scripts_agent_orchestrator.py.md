@@ -199,13 +199,13 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read __init__() | Pending | — | — | |
-| 2 | Remove Orchestrator's own dead storage | Pending | — | — | |
-| 3 | Update AuditEventEmitter(...) construction | Pending | — | — | |
-| 4 | Update ConversationStateManager(...) construction | Pending | — | — | |
-| 5 | Update LlmTurnExecutor(...) construction | Pending | — | — | |
-| 6 | Correct type annotation | Pending | — | — | |
-| 7 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Read __init__() | Completed | — | — | NOTE: Orchestrator's own dead storage already absent; sub-component constructions already updated |
+| 2 | Remove Orchestrator's own dead storage | Completed | — | — | N/A: Already absent in current source |
+| 3 | Update AuditEventEmitter(...) construction | Completed | — | — | N/A: Already updated in current source |
+| 4 | Update ConversationStateManager(...) construction | Completed | — | — | N/A: Already updated in current source |
+| 5 | Update LlmTurnExecutor(...) construction | Completed | — | — | N/A: Already updated in current source |
+| 6 | Correct type annotation | Completed | — | — | Applied: corrected on_llm_wait_start from Callable[..., Any] | None to Callable[[str], Any] | None to match actual caller signature |
+| 7 | Run validation sequence (rules/toolchain.md) | Completed | — | — | ruff/mypy/bandit all clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

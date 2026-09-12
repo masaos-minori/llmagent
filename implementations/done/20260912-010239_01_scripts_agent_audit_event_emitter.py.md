@@ -170,11 +170,11 @@ Invoke `self._on_turn_start()`/`self._on_turn_end()` (each gated on being set) a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read emit_turn_start() and emit_turn_end() | Pending | — | — | |
-| 2 | Add on_turn_start() invocation | Pending | — | — | |
-| 3 | Add on_turn_end() invocation | Pending | — | — | |
-| 4 | Remove on_llm_wait_* parameters | Pending | — | — | |
-| 5 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Read emit_turn_start() and emit_turn_end() | Completed | — | — | NOTE: emit_turn_start() already has on_turn_start invocation; emit_turn_end() already has on_turn_end invocation |
+| 2 | Add on_turn_start() invocation | Completed | — | — | N/A: Already present in current source |
+| 3 | Add on_turn_end() invocation | Completed | — | — | N/A: Already present in current source |
+| 4 | Remove on_llm_wait_* parameters | Completed | — | — | N/A: No on_llm_wait_* parameters exist in current source |
+| 5 | Run validation sequence (rules/toolchain.md) | Completed | — | — | N/A: no changes made |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

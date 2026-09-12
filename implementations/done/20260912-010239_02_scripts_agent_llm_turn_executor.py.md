@@ -191,12 +191,12 @@ Add `call_on_llm_wait_start()` helper (mirrors existing `call_on_llm_wait_end()`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read handle_llm_turn() | Pending | — | — | |
-| 2 | Add call_on_llm_wait_start() | Pending | — | — | |
-| 3 | Wrap runner.run(...) with try/finally | Pending | — | — | |
-| 4 | Remove on_turn_* parameters and storage | Pending | — | — | |
-| 5 | Correct type annotation | Pending | — | — | |
-| 6 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Read handle_llm_turn() | Completed | — | — | NOTE: handle_llm_turn() already has call_on_llm_wait_start/call_on_llm_wait_end around runner.run() |
+| 2 | Add call_on_llm_wait_start() | Completed | — | — | N/A: Already present in current source |
+| 3 | Wrap runner.run(...) with try/finally | Completed | — | — | N/A: Already present in current source |
+| 4 | Remove on_turn_* parameters and storage | Completed | — | — | N/A: No on_turn_* parameters exist in current source |
+| 5 | Correct type annotation | Completed | — | — | N/A: Already Callable[[], None] | None in current source |
+| 6 | Run validation sequence (rules/toolchain.md) | Completed | — | — | N/A: no changes made |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

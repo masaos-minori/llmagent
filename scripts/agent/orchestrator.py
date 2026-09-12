@@ -95,7 +95,7 @@ class Orchestrator:
         on_turn_end: Callable[[], None] | None = None,
         on_error: Callable[[Exception], None] | None = None,
         on_first_turn: Callable[[str], Any] | None = None,
-        on_llm_wait_start: Callable[..., Any] | None = None,
+        on_llm_wait_start: Callable[[str], Any] | None = None,
         on_llm_wait_end: Callable[[], None] | None = None,
         tracer: Any = None,
         pause_on_critical_failure: bool = False,

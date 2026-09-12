@@ -128,10 +128,10 @@ Remove `on_turn_start`/`on_turn_end` constructor parameters and storage entirely
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read __init__() | Pending | — | — | |
-| 2 | Remove on_turn_start/on_turn_end parameters | Pending | — | — | |
-| 3 | Remove self._on_turn_start/self._on_turn_end storage | Pending | — | — | |
-| 4 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Read __init__() | Completed | — | — | NOTE: __init__() does not have on_turn_start/on_turn_end parameters |
+| 2 | Remove on_turn_start/on_turn_end parameters | Completed | — | — | N/A: Already absent in current source |
+| 3 | Remove self._on_turn_start/self._on_turn_end storage | Completed | — | — | N/A: Already absent in current source |
+| 4 | Run validation sequence (rules/toolchain.md) | Completed | — | — | N/A: no changes made |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
