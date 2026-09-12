@@ -6,6 +6,45 @@
 
 本ファイル自体の内容ドリフトは `check_tool_descriptions_sync.py` で検出できる(`tools/*.py` とここでの言及の突合)。
 
+## 一覧 (35モジュール)
+
+| ファイル | カテゴリ | 主な目的 |
+|---|---|---|
+| `_docs_consistency_lib.py` | 共通基盤 | DocFile/Issueデータ型、ファイル探索、汎用チェック |
+| `_front_matter_schema.py` | 共通基盤 | Front Matterスキーマの単一情報源 |
+| `check_adr_invariant_matrix.py` | ADR関連 | ADR Invariant Verification MatrixのテストノードID実在確認 |
+| `check_adr_reference.py` | ADR関連 | ADR Invariant Verification Matrixのソースファイル参照検証 |
+| `check_canonical_source_conflicts.py` | Canonical Source関連 | Canonical Source Registryのセマンティック競合検出 |
+| `check_canonical_source_registry.py` | Canonical Source関連 | Canonical Source Registryのスキーマ検証 |
+| `check_compat_shims.py` | 整合性チェッカー | 後方互換スタブ・shimの残存検出 |
+| `check_docs_content_policy.py` | ドキュメントポリシー | `skills/DESIGN.md` Docs content policy — remove の5カテゴリ違反検出 |
+| `check_docs_japanese.py` | ドキュメントポリシー | ひらがな・カタカナ・漢字を含むMarkdownファイルの列挙 |
+| `check_docs_quality.py` | ドキュメント品質 | コアチェック + カスタムルールによるドキュメント品質チェック |
+| `check_docs_structure.py` | ドキュメント構造 | `docs/*.md` の構造規約検証 |
+| `check_dependency_graph_cycles.py` | 依存性チェック | ソフトウェアランタイム依存グラフの循環検出 |
+| `check_known_deviation_sync.py` | ADR関連 | ADR Known Deviationsと正本のStatusフィールド不一致検出 |
+| `check_mock_patch_targets.py` | テスト関連 | unittest.mock.patch()の無効化ターゲット検出 |
+| `check_needs_confirmation_inventory.py` | 整合性チェッカー | Needs confirmation記載の集中インベントリ登録確認 |
+| `check_plan_target_overlaps.py` | ワークアイテム関連 | Frozen Plan間の同一ファイルパス重複検出 |
+| `check_suppression_justification.py` | Lint/Suppression | `# noqa`/`# type: ignore`/`# nosec`の正当化理由欠如検出 |
+| `check_workitem_traceability.py` | ワークアイテム関連 | Traceability節の整合性チェック |
+| `check_workitem_structure.py` | ワークアイテム関連 | 正本テンプレート見出しの網羅性検証 |
+| `check_conftest_integrity.py` | テスト関連 | conftest.pyの必須autouseフィクスチャ定義確認 |
+| `generate_mcp_inventory.py` | リファレンス生成 | エージェント設定からMCPサーバー一覧をJSON/CSV出力 |
+| `generate_reference_table.py` | リファレンス生成 | RAG/MCP/デプロイメントのリファレンス表生成 |
+| `generate_workitem.py` | ワークアイテム生成 | プレースホルダー付きワークアイテムスケルトン生成 |
+| `manage_frontmatter.py` | フロントマッター管理 | Front Matter欠落検知・重複除去・area改名 |
+| `manage_workitem_stage.py` | ワークアイテム管理 | アーカイブ移動・ステータス更新・期限切れ検出 |
+| `merge_part_files.py` | ドキュメント整形 | `-partN.md`分割ファイルの統合 |
+| `fix_part_refs.py` | ドキュメント整形 | マージ後の壊れた `-part*.md` 参照の修正 |
+| `rename_mcp_modules.py` | リネーム補助 | MCPサーバーモジュールの一括リネーム |
+| `rename_doc.py` | リネーム補助 | `docs/*.md`の`git mv`と内部リンク更新 |
+| `fix_docstring_blank_line.py` | 整形補助 | D205違反(docstring空行)の一括修正 |
+| `fix_docs_section_marks.py` | 整形補助 | `§`記号の平易な英語表現へ置き換え |
+| `fix_docstring_paths.py` | 整形補助 | scriptsモジュールdocstringヘッダーパスの更新 |
+| `check_docstrings.py` | ドキュメント品質 | スクリプトdocstringフォーマット検証 |
+| `check_tool_descriptions_sync.py` | 整合性チェッカー | 本ファイルと実際の`tools/*.py`の突合 |
+
 ## ドメイン別ドキュメント整合性チェッカー
 
 いずれも `_docs_consistency_lib.py` のDocFile/Issue/discover_md_files等を共有し、対象ドメインのdocs/配下のみを独自ロジックでチェックする。ソースコード(`config/agent.toml`、`scripts/mcp_servers/`、`scripts/db/config.py`等)を正本として突き合わせる。
@@ -24,7 +63,6 @@
 | `check_workitem_traceability.py` | `issues/`, `plans/`, `implementations/`(各`done/`含む) | 各ドキュメントの`## Traceability`節をパースし、missing-source-file(`Source *`参照先ファイルの不在)・no-plan-yet(未紐付けissue)・no-procedure-yet(未紐付けplan)・stale-target-heuristic(issue記載後に更新された参照先ドキュメントの可能性、判定は候補提示のみ)・target-file-mismatch(`implementation`種別限定、Traceabilityの`Related target files`値と本文`### Target file`値の不一致——コピペミスまたは別ドキュメントの内容が混入した破損の兆候)の5種類を検出する。読み取り専用(`issues/`/`plans/`/`implementations/`配下への書き込み・改名・移動・削除は一切行わない)。`--format json\|csv`で機械可読形式の出力にも対応 |
 | `check_workitem_structure.py` | `issues/`, `plans/`, `implementations/`(`--include-done`指定時のみ各`done/`含む) | 各ドキュメントが対応する正本テンプレート(`templates/issue.md`/`templates/plan.md`/`templates/implementation-procedure.md`)の`` ```markdown `` フェンス内で定義された`## `見出しをすべて含んでいるかを検証する(`Implementation Target Files`や`Traceability`節の丸ごとの欠落など、構造そのものの不備を検出——既存の`check_workitem_traceability.py`は`## Traceability`節の中身の整合性のみを検証し、節自体の有無は見ない)。`--file <path>`で単一ファイルのみを対象にでき(kindはパスから自動推定)、`--kind`で対象種別を絞り込み可能。読み取り専用。`--format json\|csv`で機械可読形式の出力にも対応 |
 | `check_compat_shims.py` | `scripts/`, `docs/`, `tests/`, `tools/` | 後方互換スタブ・shimの残存検出。`--check-removed-names`(デフォルトOFF)で`docs/*.md`限定の削除済み識別子再出現チェック(`_update_null_fill`の不在確認、`ToolRouteResolver`+`server_configs`のセクション内共起検出、いずれも履歴/resolved文脈は除外)を追加実行できる。既知の指摘1件(`docs/05_agent_13_reference-api.md:114`、対応Plan: `plans/20260903-090104_plan.md`)が解消されるまでは`.pre-commit-config.yaml`のデフォルト呼び出し(フラグなし)には含めないreport-only運用 |
-| `check_suppression_justification.py` | `scripts/`, `tests/` | `# noqa`/`# type: ignore`/`# nosec` にルール/エラーコードとem-dash(` — `)区切りの正当化理由が伴っているかを検出。`DEFAULT_ALLOWLIST`で既存の非準拠行をベースライン許容 |
 | `check_docs_quality.py` | `docs/*.md` 全体 | コアチェック(壊れた見出し、不正なMarkdownテーブル、閉じられていないコードブロック、JSON例のフェンス漏れ、重複見出し番号、Migration Notesの配置、解決済みissueの記載等)+ カスタムルール(`config/doc_quality_rules.json`から動的ロード)。`--core-only`/`--custom-only`/`--skip <check>`/`--only <check>`でフィルタリング可能 |
 | `check_docs_content_policy.py` | `docs/*.md` 全体(`docs/adr/`等サブディレクトリ含む再帰スキャン) | `skills/DESIGN.md`の「Docs content policy — remove」が定める5つの実装詳細カテゴリ(ASCIIファイルツリー、ツリー/テーブルに埋め込まれた1行説明、クラス/関数/メソッドのインデックス表、実装箇所マッピング、リテラルなポート番号)を検出する。report-only(Warning)運用、`rules/env.md`は`docs/*.md`外のためスキャン対象外(`GV-021`) |
 | `check_docs_japanese.py` | `docs/*.md` 全体 | ひらがな・カタカナ・漢字(`U+3040`-`U+9FFF`)を含むMarkdownファイルを列挙する。`skills/DESIGN.md` §Output language の英語化ポリシー(`docs/`配下は常に英語)への違反箇所を洗い出す用途。 |
@@ -46,18 +84,39 @@
 | `check_docs_structure.py` | `docs/*.md` の構造規約(ファイルサイズ、H1見出し数、Front Matter、Related Documents/Keywordsセクション、内部 `.md` リンクの到達可能性)を検証する。`uv run python tools/check_docs_structure.py [glob ...]`。`--schema [PATH]`(値省略時は`schemas/doc_front_matter.json`)でスキーマ駆動のFront Matter検証(必須フィールド・`area`/`status`のenum制約)を追加実行できる(デフォルトでは無効、既存動作に影響なし)。スキーマ本体は`tools/_front_matter_schema.py`経由で読み込み、未存在時は現行の必須4フィールドにフォールバックする |
 | `check_dependency_graph_cycles.py` | `docs/00_governance_01_documentation-policy.md`の`## Software Runtime Dependency Graph`節からエッジ一覧(`- A → B`形式)をパースし、Agent/MCP/RAG/EventBus/Shared-DBの5ノード間に循環が存在すれば非ゼロで終了する。`Confirmed edges`/`Needs Confirmation`双方のエッジを循環検出対象に含める |
 | `manage_frontmatter.py` | `add-missing` サブコマンドでFront Matter欠落を検知・追加(ファイル名から`area`を確信を持って推定できない場合は`overview`等へ推測せず`[AMBIGUOUS]`として報告のみに留める)、`dedupe-lists` サブコマンドでリストフィールドの重複エントリを除去、`rename-category-to-area` サブコマンド(新規)で`---`フェンス済みの有効なFront Matter内の`category:`キーを値そのままに`area:`へ改名(両キー併存時は改名せず報告のみ)。`AREA_PREFIX_MAP`の`06_eventbus`プレフィックス欠落バグ(実在しない`06_config`/`91_eventbus`が誤って登録され、実在する`06_eventbus_*.md`が`area: overview`に誤推定されていた)を2026-09-03に修正 |
-| `manage_workitem_stage.py` | `close-issue`/`close-plan`/`close-implementation` の3サブコマンドで、`issues/`→`issues/done/`、`plans/`→`plans/done/`、`implementations/`→`implementations/done/`のアーカイブ移動を`git mv`(GitPython経由)で実行する。全サブコマンド共通の事前チェック(`move_to_done()`): sourceファイルの存在、destinationの未存在、`done/`ディレクトリの存在(明示的にエラーメッセージを返す)、source単体の`git status --porcelain`による未コミット変更の有無(未追跡・staged・commit後の変更いずれも拒否対象。他ファイルの未コミット変更は無視)。`origin`リモートが設定されていればfetchし、移動先パスがリモート追跡ブランチに既に存在する場合(他セッションが既にアーカイブ済みの可能性)は移動を拒否する(fetch失敗時はチェックをスキップして続行する非ブロッキング動作)。`git status`/`git mv`実行時に`.git/index.lock`競合を検出した場合は最大3回リトライする。`close-implementation`は対象ファイルの`### Execution Status`テーブルに`Pending`行が残っている場合は移動をブロックし、`--force`と`--reason <理由>`を両方指定した場合のみ強制移動する。`Status`列自体が見つからない(列名変更等)場合はブロック機構が無効化される代わりにエラーで停止する。いずれのサブコマンドもファイル移動のみを行い、ファイル内容(Execution Status行等)の編集は行わない。 |
-| `fix_docstring_blank_line.py` | D205(docstringサマリー行の直後に空行がない)を検出し、空行を挿入する一括修正スクリプト。三重引用符文字列の判定を堅牢にし、SQL文字列リテラルの誤検出を回避する。`--dir` でスキャン対象ディレクトリを指定可能。 |
-| `fix_docs_section_marks.py` | `docs/`・`skills/` 配下の Markdown ファイルから節記号 `§`(表示崩れの原因)を除去し、平易な英語表現(`section N`、`sections N-M` 等)に置き換える。`--dir <path...>` でスキャン対象を変更可能(デフォルト `docs skills`)。`--apply` を付けない限り dry-run。 |
-| `fix_docstring_paths.py` | `scripts/**/*.py` のモジュールレベルdocstringヘッダーパスをリポジトリルートからの相対パス（scripts/<relpath>形式）に書き換える。--dry-run で変更内容を表示、--apply で実際に適用。 |
-| `check_tool_descriptions_sync.py` | 本ファイル(`TOOL_DESCRIPTIONS.md`)に列挙されたファイル名と実際の`tools/*.py`を突合し、両方向のドリフト(未記載/削除済み参照)を検出する。 |
-| `check_mock_patch_targets.py` | `tests/**/test_*.py` | `unittest.mock.patch("module.Symbol")`のターゲット文字列が、実際にテスト対象と思われるモジュール(テストファイル自身がimportしている既知のソースモジュール)が同じSymbolをモジュールレベルの`from module import Symbol`で自モジュールへ束縛している場合に、そのpatchが無効化される(束縛済み参照はpatchで書き換わらない)パターンをAST静的解析で検出する(`ineffective-patch-target`)。関数内で行われるdeferred import、および`if TYPE_CHECKING:`配下のimportはモジュールレベル扱いしない(`ast.Module.body`直下のみを対象とすることで自然に除外)ため誤検出しない。`patch.object(...)`は対象外(dotted文字列でないため)。ヒューリスティックのreport-onlyツール(`check_workitem_traceability.py`の`stale-target-heuristic`と同様、候補提示のみで断定はしない)、終了コードは常に0。読み取り専用。`--format json\|csv`で機械可読形式の出力にも対応 |
-| `check_conftest_integrity.py` | `tests/conftest.py` | `tests/conftest.py`の存在確認、`conftest.py.*`形式の疑わしいリネーム済みバックアップファイルの兄弟存在確認(conftest-suspicious-backup-file)、および`REQUIRED_AUTOUSE_FIXTURES`(ハードコード manifest)に列挙された既知の必須autouseフィクスチャ(例: `_reset_tool_registry`)が`@pytest.fixture(autouse=True)`として定義され続けているかを検証する。`tests/conftest.py`が無関係なコミットで約1ヶ月`.bak`へリネームされ、pytestが黙って収集をスキップし続けたことで約130件のテスト順序依存汚染failureが検出されずに蓄積した実際のインシデントが動機。読み取り専用。3カテゴリいずれも(ヒューリスティックではなく)確定的な不備のため終了コードをgateする。`--format json\|csv`で機械可読形式の出力にも対応 |
-| `check_plan_target_overlaps.py` | `plans/*.md`(`plans/done/`除く) | 複数の`Frozen`状態のPlanが`## Implementation Target Files`表で同一ファイルパスを対象としているケースを検出する(`cross-plan-target-overlap`)。設計の矛盾自体は静的解析では判定できないため、機械的に安価な前提条件(同一ファイルへの複数Plan同時ターゲット)のみを候補として提示する——SSEハートビートPlanとdelivery-state-transition PlanがDLQ requeueモデルを矛盾した形で同時に対象としていた実インシデント(両者とも単体では自己整合的で、テストスイート衝突として初めて表面化した)が動機。`Draft`状態のPlanは対象外(`Implementation Target Files`は`Frozen`まで正本ではないため)。ヒューリスティックのreport-onlyツール、終了コードは常に0。読み取り専用。`--format json\|csv`で機械可読形式の出力にも対応 |
 | `merge_part_files.py` | `docs/` 内の `-partN.md` 形式分割ファイルを統合する。`find_groups()` で単純ペア(2ファイル)と多パートシリーズ(3ファイル以上)の両方を検出し、それぞれ適切なマージ戦略を適用。`update_internal_refs_for_multi()` でマージ後の内部リンクを更新。 |
 | `fix_part_refs.py` | マージ後のドキュメント間で壊れた `-part*.md` 参照を修正する。8つの正規表現パターンでmarkdownリンクURL/テキスト、バッククォート、プレーンテキスト、アンカー、セクション名の各形式に対応。 |
 | `rename_mcp_modules.py` | `mcp_servers/<server>/` 配下のモジュール名を一括リネームするためのスクリプト。絶対インポート・相対インポート・patchターゲット・ドキュメント文字列の更新を自動処理。 |
 | `rename_doc.py` | `docs/*.md`(`docs/adr/*.md`含む)を`<old-path> <new-path>`引数で`git mv`し、`docs/`配下の全Markdownファイルを走査して該当ファイルへのMarkdownリンクパスを書き換える。オプションの`--old-title`/`--new-title`を両方指定した場合はリンクテキストも置換(非リンクのプレーンテキスト言及は書き換えず報告のみ)。書き込みは`docs/`配下に限定。`--apply`を付けない限り`--dry-run`相当(デフォルト)で変更内容の表示のみ。 |
+| `fix_docstring_blank_line.py` | D205(docstringサマリー行の直後に空行がない)を検出し、空行を挿入する一括修正スクリプト。三重引用符文字列の判定を堅牢にし、SQL文字列リテラルの誤検出を回避する。`--dir` でスキャン対象ディレクトリを指定可能。 |
+| `fix_docs_section_marks.py` | `docs/`・`skills/` 配下の Markdown ファイルから節記号 `§`(表示崩れの原因)を除去し、平易な英語表現(`section N`、`sections N-M` 等)に置き換える。`--dir <path...>` でスキャン対象を変更可能(デフォルト `docs skills`)。`--apply` を付けない限り dry-run。 |
+| `fix_docstring_paths.py` | `scripts/**/*.py` のモジュールレベルdocstringヘッダーパスをリポジトリルートからの相対パス（scripts/<relpath>形式）に書き換える。--dry-run で変更内容を表示、--apply で実際に適用。 |
+
+## テスト関連チェッカー
+
+テスト環境の健全性を静的に検証するツール。ヒューリスティックなreport-onlyツールと確定的な不備を検出するgateツールの両方が含まれる。
+
+| ファイル | 概要 |
+|---|---|
+| `check_mock_patch_targets.py` | `tests/**/test_*.py` | `unittest.mock.patch("module.Symbol")`のターゲット文字列が、実際にテスト対象と思われるモジュール(テストファイル自身がimportしている既知のソースモジュール)が同じSymbolをモジュールレベルの`from module import Symbol`で自モジュールへ束縛している場合に、そのpatchが無効化される(束縛済み参照はpatchで書き換わらない)パターンをAST静的解析で検出する(`ineffective-patch-target`)。関数内で行われるdeferred import、および`if TYPE_CHECKING:`配下のimportはモジュールレベル扱いしない(`ast.Module.body`直下のみを対象とすることで自然に除外)ため誤検出しない。`patch.object(...)`は対象外(dotted文字列でないため)。ヒューリスティックのreport-onlyツール(`check_workitem_traceability.py`の`stale-target-heuristic`と同様、候補提示のみで断定はしない)、終了コードは常に0。読み取り専用。`--format json\|csv`で機械可読形式の出力にも対応 |
+| `check_conftest_integrity.py` | `tests/conftest.py` | `tests/conftest.py`の存在確認、`conftest.py.*`形式の疑わしいリネーム済みバックアップファイルの兄弟存在確認(conftest-suspicious-backup-file)、および`REQUIRED_AUTOUSE_FIXTURES`(ハードコード manifest)に列挙された既知の必須autouseフィクスチャ(例: `_reset_tool_registry`)が`@pytest.fixture(autouse=True)`として定義され続けているかを検証する。`tests/conftest.py`が無関係なコミットで約1ヶ月`.bak`へリネームされ、pytestが黙って収集をスキップし続けたことで約130件のテスト順序依存汚染failureが検出されずに蓄積した実際のインシデントが動機。読み取り専用。3カテゴリいずれも(ヒューリスティックではなく)確定的な不備のため終了コードをgateする。`--format json\|csv`で機械可読形式の出力にも対応 |
+
+## Lint/Suppression関連
+
+Pythonの静的解析抑制コメント(`# noqa`, `# type: ignore`, `# nosec`)の正当化理由の欠如を検出する。
+
+| ファイル | 概要 |
+|---|---|
+| `check_suppression_justification.py` | `scripts/`, `tests/` | `# noqa`/`# type: ignore`/`# nosec` にルール/エラーコードとem-dash(` — `)区切りの正当化理由が伴っているかを検出。`DEFAULT_ALLOWLIST`で既存の非準拠行をベースライン許容 |
+
+## ワークアイテム関連
+
+ワークアイテム(issues/plans/implementations)の整合性とライフサイクル管理を行うスクリプト。
+
+| ファイル | 概要 |
+|---|---|
+| `check_plan_target_overlaps.py` | `plans/*.md`(`plans/done/`除く) | 複数の`Frozen`状態のPlanが`## Implementation Target Files`表で同一ファイルパスを対象としているケースを検出する(`cross-plan-target-overlap`)。設計の矛盾自体は静的解析では判定できないため、機械的に安価な前提条件(同一ファイルへの複数Plan同時ターゲット)のみを候補として提示する——SSEハートビートPlanとdelivery-state-transition PlanがDLQ requeueモデルを矛盾した形で同時に対象としていた実インシデント(両者とも単体では自己整合的で、テストスイート衝突として初めて表面化した)が動機。`Draft`状態のPlanは対象外(`Implementation Target Files`は`Frozen`まで正本ではないため)。ヒューリスティックのreport-onlyツール、終了コードは常に0。読み取り専用。`--format json\|csv`で機械可読形式の出力にも対応 |
+| `manage_workitem_stage.py` | `issues/`, `plans/`, `implementations/` | `close-issue`/`close-plan`/`close-implementation` の3サブコマンドで、`issues/`→`issues/done/`、`plans/`→`plans/done/`、`implementations/`→`implementations/done/`のアーカイブ移動を`git mv`(GitPython経由)で実行する。全サブコマンド共通の事前チェック(`move_to_done()`): sourceファイルの存在、destinationの未存在、`done/`ディレクトリの存在(明示的にエラーメッセージを返す)、source単体の`git status --porcelain`による未コミット変更の有無(未追跡・staged・commit後の変更いずれも拒否対象。他ファイルの未コミット変更は無視)。`origin`リモートが設定されていればfetchし、移動先パスがリモート追跡ブランチに既に存在する場合(他セッションが既にアーカイブ済みの可能性)は移動を拒否する(fetch失敗時はチェックをスキップして続行する非ブロッキング動作)。`git status`/`git mv`実行時に`.git/index.lock`競合を検出した場合は最大3回リトライする。`close-implementation`は対象ファイルの`### Execution Status`テーブルに`Pending`行が残っている場合は移動をブロックし、`--force`と`--reason <理由>`を両方指定した場合のみ強制移動する。`Status`列自体が見つからない(列名変更等)場合はブロック機構が無効化される代わりにエラーで停止する。いずれのサブコマンドもファイル移動のみを行い、ファイル内容(Execution Status行等)の編集は行わない。`set-status`/`set-step-status` サブコマンドで`### Execution Status`テーブルのステータス更新が可能: `set-status` は全ステップのStatus列を同じ値に更新、`set-step-status` は`--step N`または`--description "text"`で特定ステップのみ更新。両コマンドに`--notes`オプションを追加でき、Notes列に追記(空の場合は直接設定、既にある場合はスペース区切りで追記)。`detect-stale` サブコマンドで期限切れのIn Progress/Pendingワークアイテムを検出(`--days 7`で閾値指定)。`list` サブコマンドでkind/status別のワークアイテム一覧を取得。`show` サブコマンドでワークアイテムのExecution Statusテーブルを表示。 |
 
 ## モジュールドキュメント文字列チェックスクリプト
 
