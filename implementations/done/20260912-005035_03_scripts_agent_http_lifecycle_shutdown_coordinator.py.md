@@ -182,9 +182,9 @@ def _absorb_sigint_during_shutdown(signum: int, frame: object) -> None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add SIGINT handler static method | Pending | — | — | |
-| 2 | Wrap shutdown_all() with SIGINT handler | Pending | — | — | |
-| 3 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add SIGINT handler static method | Completed | — | — | |
+| 2 | Wrap shutdown_all() with SIGINT handler | Completed | — | — | |
+| 3 | Run validation sequence (rules/toolchain.md) | Completed | — | — | ruff + mypy passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

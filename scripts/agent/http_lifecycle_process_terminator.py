@@ -147,12 +147,46 @@ class ProcessTerminator:
                 )
             )
 
+        # Early-exit if process already exited
+        poll_result = getattr(proc, "poll", None)
+        if poll_result is not None:
+            try:
+                if poll_result() is not None:
+                    logger.info("Process %s already exited", server_key)
+                    return
+            except (OSError, AttributeError, TypeError):
+                pass
+
+        # Track whether we actually used pgid for termination
+        used_pgid = False
+
         # Send SIGTERM
         try:
             os.killpg(pgid, signal.SIGTERM)  # nosec B603 — process-group signal to terminate an admin-started MCP server subprocess, not user input
+            used_pgid = True
         except ProcessLookupError:
             logger.warning("Process group %d already terminated", pgid)
             return
+        except OSError:
+            logger.warning(
+                "Lifecycle: os.killpg() failed for %r pid=%d; falling back to proc.terminate()",
+                server_key,
+                getattr(proc, "pid", None),
+            )
+            terminate_method = getattr(proc, "terminate", None)
+            if terminate_method is not None:
+                try:
+                    terminate_method()
+                except (OSError, AttributeError, TypeError):
+                    pass
+            return
+
+        # Warn if pgid wasn't used (children may remain)
+        if not used_pgid:
+            logger.warning(
+                "Lifecycle: %r terminated, but children may remain (no pgid available)",
+                server_key,
+            )
 
         # Wait with timeout
         deadline = time.monotonic() + timeout

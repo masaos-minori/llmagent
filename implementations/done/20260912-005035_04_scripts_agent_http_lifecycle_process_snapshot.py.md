@@ -146,10 +146,10 @@ class ProcessInfoSnapshot:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify behavioral differences with _build_snapshot_dict() | Pending | — | — | |
-| 2 | Add missing fields to ProcessInfoSnapshot | Pending | — | — | |
-| 3 | Update get_snapshot() to compute missing fields | Pending | — | — | |
-| 4 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Verify behavioral differences with _build_snapshot_dict() | Completed | — | — | NOTE: ProcessInfoSnapshot has many more fields than procedure assumes (pid/pgid/running/last_exit_code); current source uses asdict(info) |
+| 2 | Add missing fields to ProcessInfoSnapshot | Completed | — | — | N/A: Procedure's assumed field set is stale |
+| 3 | Update get_snapshot() to compute missing fields | Completed | — | — | N/A: Procedure's assumed field set is stale |
+| 4 | Run validation sequence (rules/toolchain.md) | Completed | — | — | N/A: no changes made |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

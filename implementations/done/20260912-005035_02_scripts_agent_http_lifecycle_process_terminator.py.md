@@ -135,11 +135,11 @@ Ensure full coverage of termination logic — verify that `terminate_with_timeou
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify behavioral differences with _terminate_with_timeout() | Pending | — | — | |
-| 2 | Add early-exit check | Pending | — | — | |
-| 3 | Add pgid fallback warning | Pending | — | — | |
-| 4 | Add proc.terminate() fallback | Pending | — | — | |
-| 5 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Verify behavioral differences with _terminate_with_timeout() | Completed | — | — | |
+| 2 | Add early-exit check | Completed | — | — | |
+| 3 | Add pgid fallback warning | Completed | — | — | |
+| 4 | Add proc.terminate() fallback | Completed | — | — | |
+| 5 | Run validation sequence (rules/toolchain.md) | Completed | — | — | ruff + mypy passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

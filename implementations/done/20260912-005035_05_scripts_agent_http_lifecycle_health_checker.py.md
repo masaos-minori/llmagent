@@ -198,9 +198,9 @@ Ensure full coverage of health-check logic — verify that `HealthChecker.check_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify behavioral differences with verify_running_async() | Pending | — | — | |
-| 2 | Add missing checks to check_health() | Pending | — | — | |
-| 3 | Run validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Verify behavioral differences with verify_running_async() | Completed | — | — | NOTE: No check_health() method exists; verify_running_async() already handles HTTP errors/retry via startup_poll |
+| 2 | Add missing checks to check_health() | Completed | — | — | N/A: Procedure's assumed method name is stale |
+| 3 | Run validation sequence (rules/toolchain.md) | Completed | — | — | N/A: no changes made |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
