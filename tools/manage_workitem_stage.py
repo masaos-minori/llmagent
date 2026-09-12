@@ -57,6 +57,9 @@ _LOCK_CONTENTION_MARKERS = ("index.lock", "Unable to create")
 _LOCK_RETRY_ATTEMPTS = 3
 _LOCK_RETRY_DELAY_SECONDS = 0.2
 
+_VALID_STATUSES = frozenset({"Pending", "In Progress", "Blocked", "Completed"})
+_KIND_IMPL = "implementation-procedure"
+
 
 @dataclass(frozen=True)
 class MoveResult:
@@ -275,6 +278,215 @@ def _describe_rows(rows: list[dict[str, str]]) -> str:
     )
 
 
+def _find_implementation_dir(path: Path) -> Path:
+    """Return the implementations/ directory containing `path`."""
+    resolved = path.resolve()
+    for parent in resolved.parents:
+        if parent.name == "implementations":
+            return parent
+    raise ValueError(f"no 'implementations' ancestor found for {resolved}")
+
+
+def _find_plan_dir(path: Path) -> Path:
+    """Return the plans/ directory containing `path`."""
+    resolved = path.resolve()
+    for parent in resolved.parents:
+        if parent.name == "plans":
+            return parent
+    raise ValueError(f"no 'plans' ancestor found for {resolved}")
+
+
+def update_execution_status(
+    source: Path,
+    kind: str,
+    step_number: int | None = None,
+    description_match: str | None = None,
+    new_status: str = "",
+    new_notes: str | None = None,
+) -> bool:
+    """Update the Execution Status table on an implementation or plan file.
+
+    If ``step_number`` is given, only that row's ``Status`` column is changed.
+    If ``description_match`` is given, the first row whose ``Description`` contains
+    the substring (case-insensitive) is updated.
+    Otherwise every row's ``Status`` column is set to ``new_status``.
+
+    When ``new_notes`` is provided, the Notes column of the matched row(s) is
+    appended with the text (a single space separator is inserted before appending).
+
+    Returns ``True`` when at least one row was modified; ``False`` when nothing
+    matched or the file could not be written.
+    """
+    if new_status not in _VALID_STATUSES:
+        print(
+            f"ERROR: invalid status '{new_status}', must be one of: "
+            f"{', '.join(sorted(_VALID_STATUSES))}",
+            file=sys.stderr,
+        )
+        return False
+
+    content = source.read_text(encoding="utf-8")
+    heading, header, data_rows = parse_execution_status_table(content)
+    if heading is None or header is None or data_rows is None:
+        print(
+            f"ERROR: '{EXECUTION_STATUS_HEADING}' table missing or malformed "
+            f"(no 'Status' column) in {source}",
+            file=sys.stderr,
+        )
+        return False
+
+    status_col_idx = header.index("Status")
+    notes_col_idx = header.index("Notes")
+    modified = False
+
+    for row in data_rows:
+        if step_number is not None:
+            try:
+                row_step = int(row[header.index("Step")])
+            except (ValueError, IndexError):
+                continue
+            if row_step != step_number:
+                continue
+        elif description_match is not None:
+            desc_col_idx = header.index("Description")
+            row_desc = row[desc_col_idx].lower()
+            if description_match.lower() not in row_desc:
+                continue
+        # else: update every row
+
+        row[status_col_idx] = new_status
+        modified = True
+
+        if new_notes is not None:
+            existing_notes = row[notes_col_idx]
+            if existing_notes.strip():
+                row[notes_col_idx] = f"{existing_notes} {new_notes}"
+            else:
+                row[notes_col_idx] = new_notes
+            modified = True
+
+    if not modified:
+        if step_number is not None:
+            print(
+                f"ERROR: no row with Step={step_number} found in {source}",
+                file=sys.stderr,
+            )
+        elif description_match is not None:
+            print(
+                f"ERROR: no row with Description containing '{description_match}' "
+                f"found in {source}",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"ERROR: no rows found in {source}",
+                file=sys.stderr,
+            )
+        return False
+
+    # Rebuild the entire table section from modified data_rows
+    new_lines: list[str] = []
+    in_table = False
+    separator_appended = False
+    for i, line in enumerate(content.splitlines()):
+        if line.strip() == EXECUTION_STATUS_HEADING:
+            new_lines.append(line)
+            in_table = True
+            continue
+        if in_table:
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if all(re.fullmatch(r"-+", c) for c in cells):
+                # Separator line — keep it
+                new_lines.append(line)
+                separator_appended = True
+                continue
+            if len(cells) == len(header):
+                # Data row — skip, will be replaced with rebuilt rows
+                continue
+            # Empty line or non-table line after table — stop tracking
+            in_table = False
+        new_lines.append(line)
+
+    # Append the rebuilt table rows after the separator line
+    if separator_appended:
+        for dr in data_rows:
+            new_lines.append(build_data_row_line(header, dr))
+
+    # Write back
+    new_content = "\n".join(new_lines)
+    source.write_text(new_content, encoding="utf-8")
+    return True
+
+
+def _rows_equal(a: list[str], b: list[str], header: list[str]) -> bool:
+    """Check whether two rows match on all columns except Status and Notes."""
+    status_idx = header.index("Status")
+    notes_idx = header.index("Notes")
+    for i, col in enumerate(header):
+        if i == status_idx or i == notes_idx:
+            continue
+        if a[i] != b[i]:
+            return False
+    return True
+
+
+def parse_execution_status_table(
+    content: str,
+) -> tuple[str | None, list[str] | None, list[list[str]] | None]:
+    """Parse the `### Execution Status` table into components.
+
+    Returns (heading_line, header_cells, data_rows) where each data row is a list of
+    cell strings matching the header length. Returns None for any component if parsing
+    fails.
+    """
+    lines = content.splitlines()
+    heading_idx = next(
+        (i for i, line in enumerate(lines) if line.strip() == EXECUTION_STATUS_HEADING),
+        None,
+    )
+    if heading_idx is None:
+        return None, None, None
+
+    header: list[str] | None = None
+    separator_seen = False
+    data_rows: list[list[str]] = []
+    for line in lines[heading_idx + 1 :]:
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            if header is not None:
+                break
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if header is None:
+            header = cells
+            if "Status" not in header:
+                return None, None, None
+            continue
+        if not separator_seen:
+            separator_seen = True
+            if all(re.fullmatch(r"-+", cell) for cell in cells):
+                continue
+        if len(cells) != len(header):
+            continue
+        data_rows.append(cells)
+    return EXECUTION_STATUS_HEADING, header, data_rows
+
+
+def build_table_header_line(header: list[str]) -> str:
+    """Rebuild a Markdown table header line from header cells."""
+    return "| " + " | ".join(header) + " |"
+
+
+def build_table_separator_line(header_len: int) -> str:
+    """Rebuild a Markdown table separator line."""
+    return "|" + "|".join(["------"] * header_len) + "|"
+
+
+def build_data_row_line(header: list[str], cells: list[str]) -> str:
+    """Rebuild a Markdown table data row line."""
+    return "| " + " | ".join(cells) + " |"
+
+
 def cmd_close_issue(args: argparse.Namespace) -> int:
     """Move an `issues/*.md` file to `issues/done/`."""
     return _run_simple_move(Path(args.issue_path))
@@ -386,10 +598,266 @@ def build_parser() -> argparse.ArgumentParser:
         "--reason", help="Justification for --force (required alongside --force)"
     )
 
+    # set-status: update all rows' Status column
+    set_status_parser = subparsers.add_parser(
+        "set-status",
+        help="Update the Execution Status table on an implementation-procedure or plan file",
+    )
+    set_status_parser.add_argument(
+        "kind",
+        choices=["implementation-procedure", "plan"],
+        help="Kind of workitem file",
+    )
+    set_status_parser.add_argument("path", help="Path to the file")
+    set_status_parser.add_argument(
+        "status",
+        choices=sorted(_VALID_STATUSES),
+        help="New status value for all rows",
+    )
+    set_status_parser.add_argument(
+        "--notes",
+        default=None,
+        help="Optional notes text to append to each row's Notes column",
+    )
+
+    # set-step-status: update a single step's Status column
+    set_step_parser = subparsers.add_parser(
+        "set-step-status",
+        help="Update the Status column of a specific step in the Execution Status table",
+    )
+    set_step_parser.add_argument(
+        "kind",
+        choices=["implementation-procedure", "plan"],
+        help="Kind of workitem file",
+    )
+    set_step_parser.add_argument("path", help="Path to the file")
+    set_step_parser.add_argument(
+        "--step",
+        type=int,
+        default=None,
+        help="Step number to update (mutually exclusive with --description)",
+    )
+    set_step_parser.add_argument(
+        "--description",
+        default=None,
+        help="Substring match against Description column (mutually exclusive with --step)",
+    )
+    set_step_parser.add_argument(
+        "status",
+        choices=sorted(_VALID_STATUSES),
+        help="New status value for the matched row",
+    )
+    set_step_parser.add_argument(
+        "--notes",
+        default=None,
+        help="Optional notes text to append to the matched row's Notes column",
+    )
+
+    # detect-stale: find stale workitems
+    detect_parser = subparsers.add_parser(
+        "detect-stale",
+        help="Detect stale in-progress or pending workitems",
+    )
+    detect_parser.add_argument(
+        "--days",
+        type=int,
+        default=7,
+        help="Number of days since last modification to consider stale (default: 7)",
+    )
+
+    # list: list workitems by status/kind
+    list_parser = subparsers.add_parser(
+        "list",
+        help="List workitems filtered by kind and/or status",
+    )
+    list_parser.add_argument(
+        "--kind",
+        choices=["implementation-procedure", "plan"],
+        default=None,
+        help="Filter by kind (omit to show both)",
+    )
+    list_parser.add_argument(
+        "--status",
+        choices=sorted(_VALID_STATUSES),
+        default=None,
+        help="Filter by status (omit to show all statuses)",
+    )
+
+    # show: display Execution Status table
+    show_parser = subparsers.add_parser(
+        "show",
+        help="Display the Execution Status table from a workitem file",
+    )
+    show_parser.add_argument(
+        "kind",
+        choices=["implementation-procedure", "plan"],
+        help="Kind of workitem file",
+    )
+    show_parser.add_argument("path", help="Path to the file")
+
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+def cmd_set_status(args):
+    """Set the same status on all rows of the Execution Status table."""
+    source = Path(args.path)
+    if not source.is_file():
+        print(f"ERROR: source file not found: {source}", file=sys.stderr)
+        return 1
+
+    modified = update_execution_status(
+        source=source,
+        kind=args.kind,
+        new_status=args.status,
+        new_notes=args.notes,
+    )
+    if not modified:
+        return 1
+    msg_parts = [f"OK: updated all rows to '{args.status}' in {source}"]
+    if args.notes is not None:
+        msg_parts.append(f"Notes appended: '{args.notes}'")
+    print(" ".join(msg_parts))
+    return 0
+
+
+def cmd_set_step_status(args):
+    """Update the Status column of a specific step in the Execution Status table."""
+    if args.step is None and args.description is None:
+        print("ERROR: --step or --description is required", file=sys.stderr)
+        return 1
+    if args.step is not None and args.description is not None:
+        print("ERROR: --step and --description are mutually exclusive", file=sys.stderr)
+        return 1
+
+    source = Path(args.path)
+    if not source.is_file():
+        print(f"ERROR: source file not found: {source}", file=sys.stderr)
+        return 1
+
+    modified = update_execution_status(
+        source=source,
+        kind=args.kind,
+        step_number=args.step,
+        description_match=args.description,
+        new_status=args.status,
+        new_notes=args.notes,
+    )
+    if not modified:
+        return 1
+    msg_parts = []
+    if args.step is not None:
+        msg_parts.append(f"Step={args.step}")
+    elif args.description is not None:
+        msg_parts.append(f"'{args.description}'")
+    msg_parts.append(f"to '{args.status}' in {source}")
+    output_msg = f"OK: updated {' '.join(msg_parts)}"
+    if args.notes is not None:
+        output_msg += f"; Notes appended: '{args.notes}'"
+    print(output_msg)
+    return 0
+
+
+def _get_workitem_files(kind):
+    """Get list of workitem files for the given kind (excluding done/)."""
+    if kind == "implementation-procedure":
+        base = Path("implementations")
+    else:
+        base = Path("plans")
+    if not base.exists():
+        return []
+    return sorted(base.glob("*.md"))
+
+
+def _get_status_from_file(path):
+    """Extract status from Execution Status table of a workitem file."""
+    content = path.read_text(encoding="utf-8")
+    rows = parse_execution_status_rows(content)
+    if rows is None:
+        return None
+    statuses = set()
+    for row in rows:
+        s = row.get("Status", "").strip()
+        if s:
+            statuses.add(s)
+    return "; ".join(sorted(statuses)) if statuses else None
+
+
+def cmd_detect_stale(args):
+    """Detect stale in-progress or pending workitems."""
+    days = args.days
+    threshold = __import__("datetime").datetime.now() - __import__(
+        "datetime"
+    ).timedelta(days=days)
+    stale_items = []
+
+    for kind in ["implementation-procedure", "plan"]:
+        for fpath in _get_workitem_files(kind):
+            mtime = __import__("os").stat(str(fpath)).st_mtime
+            if __import__("datetime").datetime.fromtimestamp(mtime) < threshold:
+                status = _get_status_from_file(fpath)
+                if status and ("In Progress" in status or "Pending" in status):
+                    stale_items.append((fpath, status, kind))
+
+    if not stale_items:
+        print(f"No stale items found (threshold: {days} days)")
+        return 0
+
+    print(f"Found {len(stale_items)} stale item(s) (threshold: {days} days):")
+    for fpath, status, kind in stale_items:
+        print(f"  [{kind}] {fpath}: {status}")
+    return 0
+
+
+def cmd_list(args):
+    """List workitems filtered by kind and/or status."""
+    kinds = [args.kind] if args.kind else ["implementation-procedure", "plan"]
+    results = {}
+
+    for kind in kinds:
+        for fpath in _get_workitem_files(kind):
+            status = _get_status_from_file(fpath)
+            if status is None:
+                continue
+            if args.status and args.status not in status:
+                continue
+            results.setdefault(status, []).append((fpath, kind))
+
+    if not results:
+        print("No items found")
+        return 0
+
+    for status in sorted(results.keys()):
+        print(f"\nStatus: {status}")
+        for fpath, kind in results[status]:
+            print(f"  [{kind}] {fpath}")
+    return 0
+
+
+def cmd_show(args):
+    """Display the Execution Status table from a workitem file."""
+    source = Path(args.path)
+    if not source.is_file():
+        print(f"ERROR: source file not found: {source}", file=sys.stderr)
+        return 1
+
+    content = source.read_text(encoding="utf-8")
+    heading, header, data_rows = parse_execution_status_table(content)
+    if heading is None or header is None or data_rows is None:
+        print(
+            f"ERROR: '{EXECUTION_STATUS_HEADING}' table missing or malformed in {source}",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(heading)
+    print(build_table_header_line(header))
+    print(build_table_separator_line(len(header)))
+    for row in data_rows:
+        print(build_data_row_line(header, row))
+    return 0
+
+
+def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -399,6 +867,16 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_close_plan(args)
     elif args.subcommand == "close-implementation":
         return cmd_close_implementation(args)
+    elif args.subcommand == "set-status":
+        return cmd_set_status(args)
+    elif args.subcommand == "set-step-status":
+        return cmd_set_step_status(args)
+    elif args.subcommand == "detect-stale":
+        return cmd_detect_stale(args)
+    elif args.subcommand == "list":
+        return cmd_list(args)
+    elif args.subcommand == "show":
+        return cmd_show(args)
     else:
         parser.print_help()
         return 1
