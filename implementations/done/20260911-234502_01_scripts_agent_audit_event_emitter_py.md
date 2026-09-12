@@ -107,9 +107,9 @@ N/A: no new security-sensitive behavior introduced.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: no test changes needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | N/A: no changes made |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: no documentation updates needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
