@@ -515,18 +515,19 @@ class TestApprovalGitopsPushBlocked:
 
         svc = self._make_svc(gitops_push_blocked=False)
         expected_outcome = ConfigReloadOutcome(
-            applied=["hist_mgr", "tools", "runtime_tools", "gitops_push_blocked"],
+            applied=["hist_mgr", "runtime_tools"],
             needs_restart=[],
             skipped=[],
             source_files=[],
             startup_only=[],
+            always_live=[],
         )
         with patch.object(
             type(svc), "_classify_mcp_server_changes", return_value=expected_outcome
         ):
             outcome = svc.apply_config_dict({"gitops_push_blocked": True})
         assert svc._ctx.cfg.approval.gitops_push_blocked is True
-        assert "gitops_push_blocked" in outcome.applied
+        assert "gitops_push_blocked" not in outcome.applied
 
     def test_gitops_push_blocked_false_via_reload(self) -> None:
         from unittest.mock import patch
@@ -535,18 +536,19 @@ class TestApprovalGitopsPushBlocked:
 
         svc = self._make_svc(gitops_push_blocked=True)
         expected_outcome = ConfigReloadOutcome(
-            applied=["hist_mgr", "tools", "runtime_tools", "gitops_push_blocked"],
+            applied=["hist_mgr", "runtime_tools"],
             needs_restart=[],
             skipped=[],
             source_files=[],
             startup_only=[],
+            always_live=[],
         )
         with patch.object(
             type(svc), "_classify_mcp_server_changes", return_value=expected_outcome
         ):
             outcome = svc.apply_config_dict({"gitops_push_blocked": False})
         assert svc._ctx.cfg.approval.gitops_push_blocked is False
-        assert "gitops_push_blocked" in outcome.applied
+        assert "gitops_push_blocked" not in outcome.applied
 
     def test_invalid_llm_temperature_raises(self, svc: object) -> None:
         from agent.services.exceptions import ConfigReloadValidationError

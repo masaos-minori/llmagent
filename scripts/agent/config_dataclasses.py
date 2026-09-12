@@ -155,6 +155,7 @@ class RAGConfig:
     refiner_max_tokens: int = 512
     refiner_timeout: float = 30.0
     refiner_max_chars_per_chunk: int = 300
+    web_search_url: str = ""
 
     def __post_init__(self) -> None:
         """Validate RAG configuration fields after initialization."""

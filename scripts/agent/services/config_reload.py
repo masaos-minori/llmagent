@@ -5,6 +5,7 @@ ConfigReloadService — applies reloaded configuration to live service instances
 Responsibilities:
   apply_config_dict()  — update ctx.cfg fields from raw dict and sync services
   _sync_services()     — propagate already-updated cfg to live service instances (private)
+  _update_section()    — registry-driven validation helper for dataclass replacement
 
 Both return ConfigReloadOutcome so callers can display what changed.
 """
@@ -18,7 +19,6 @@ from typing import TYPE_CHECKING, Any, cast
 
 from shared.mcp_config import McpServerConfig
 
-from agent.config_dataclasses import AgentConfig
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.models import ConfigReloadRequest
 
@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from shared.runtime_tool import AgentSafetyTier
     from shared.runtime_tool_registry import RuntimeToolRegistry
 
-    from agent.config_dataclasses import AgentConfig
     from agent.context import AgentContext
     from agent.history import HistoryManager
     from agent.llm_client import LLMClient
@@ -44,27 +43,13 @@ from agent.services.config_validators import (
     validate_llm_sse_malformed_retry,
     validate_llm_sse_reconnect_max,
     validate_llm_temperature,
-    validate_progress_stagnation_window,
     validate_rag_refiner_max_chars_per_chunk,
     validate_rag_refiner_max_tokens,
     validate_rag_refiner_timeout,
-    validate_tool_cycle_detect_window,
-    validate_tool_dedup_max_repeats,
-    validate_tool_error_max_consecutive,
-    validate_tool_error_retry_max,
     validate_tool_max_tool_turns,
     validate_tool_result_max_llm_chars,
 )
-from agent.services.typed_validators import (
-    _get_bool,
-    _get_dict_nonempty,
-    _get_float,
-    _get_int,
-    _get_list,
-    _get_list_nonempty,
-    _get_str,
-    _get_str_nonempty,
-)
+from agent.services.typed_validators import _get_bool
 
 
 @dataclass(frozen=True)
@@ -249,60 +234,35 @@ class ConfigReloadService:
         The command handler only calls this method and renders the result.
         """
         ctx = self._ctx
-        llm_changes: dict[str, Any] = {}
-        rag_changes: dict[str, Any] = {}
-        tool_changes: dict[str, Any] = {}
-        for field_entry in CONFIG_FIELD_REGISTRY.values():
-            value = new_cfg.get(field_entry.field_name)
-            if value is None:
-                continue
-            section = field_entry.section_path
-            if section == "llm":
-                llm_changes[field_entry.field_name] = value
-            elif section == "rag":
-                rag_changes[field_entry.field_name] = value
-            elif section == "tool":
-                tool_changes[field_entry.field_name] = value
-        if llm_changes:
-            try:
-                new_llm = dataclasses.replace(ctx.cfg.llm, **llm_changes)
-            except ValueError as e:
-                raise ConfigReloadValidationError(str(e)) from e
+        outcome = ConfigReloadOutcome()
+        for section_path in ("llm", "rag", "tool"):
+            cfg = getattr(ctx.cfg, section_path)
+            changed_fields: dict[str, Any] = {}
             for field_entry in CONFIG_FIELD_REGISTRY.values():
-                if field_entry.section_path == "llm" and field_entry.validator_fn:
-                    try:
-                        field_entry.validator_fn(new_llm)
-                    except ValueError as e:
-                        raise ConfigReloadValidationError(str(e)) from e
-            ctx.cfg.llm = new_llm
-        if rag_changes:
-            rag_changes = {
-                k: v for k, v in rag_changes.items() if k != "web_search_url"
-            }
-            if rag_changes:
+                if field_entry.section_path != section_path:
+                    continue
+                value = new_cfg.get(field_entry.field_name)
+                if value is None or value == getattr(cfg, field_entry.field_name):
+                    continue
+                changed_fields[field_entry.field_name] = value
+            if changed_fields:
                 try:
-                    new_rag = dataclasses.replace(ctx.cfg.rag, **rag_changes)
+                    replaced = dataclasses.replace(cfg, **changed_fields)
                 except ValueError as e:
                     raise ConfigReloadValidationError(str(e)) from e
                 for field_entry in CONFIG_FIELD_REGISTRY.values():
-                    if field_entry.section_path == "rag" and field_entry.validator_fn:
+                    if (
+                        field_entry.section_path == section_path
+                        and field_entry.validator_fn
+                    ):
                         try:
-                            field_entry.validator_fn(new_rag)
+                            field_entry.validator_fn(replaced)
                         except ValueError as e:
-                            raise ConfigReloadValidationError(str(e)) from e
-                ctx.cfg.rag = new_rag
-        if tool_changes:
-            try:
-                new_tool = dataclasses.replace(ctx.cfg.tool, **tool_changes)
-            except ValueError as e:
-                raise ConfigReloadValidationError(str(e)) from e
-            for field_entry in CONFIG_FIELD_REGISTRY.values():
-                if field_entry.section_path == "tool" and field_entry.validator_fn:
-                    try:
-                        field_entry.validator_fn(new_tool)
-                    except ValueError as e:
-                        raise ConfigReloadValidationError(str(e)) from e
-            ctx.cfg.tool = new_tool
+                            raise ConfigReloadValidationError(
+                                f"{section_path}.{field_entry.field_name}: {e}"
+                            ) from e
+                setattr(ctx.cfg, section_path, replaced)
+        # web_search_url handled by registry-driven loop above
         self._reload_approval_config(ctx, new_cfg)
         self._reload_memory_runtime(ctx, new_cfg)
         self._reload_security_profile(ctx, new_cfg)
@@ -327,11 +287,11 @@ class ConfigReloadService:
             ctx.services_required.hist_mgr,
             ctx.services_required.runtime_tools,
         )
-        result.applied.extend(service_result.applied)
-        result.skipped.extend(service_result.skipped)
-        result.startup_only = self._detect_startup_only(new_cfg)
-        result.always_live = self._detect_diagnostics_live_fields(new_cfg)
-        return result
+        outcome.applied.extend(service_result.applied)
+        outcome.skipped.extend(service_result.skipped)
+        outcome.startup_only = self._detect_startup_only(new_cfg)
+        outcome.always_live = self._detect_diagnostics_live_fields(new_cfg)
+        return outcome
 
     @staticmethod
     def _req_to_dict(req: ConfigReloadRequest) -> dict[str, Any]:
@@ -400,142 +360,6 @@ class ConfigReloadService:
 
     # ── cfg-field update helpers (moved from _ConfigMixin) ────────────────────
 
-    def _apply_rag_tool_params(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-    ) -> ConfigReloadOutcome:
-        """Apply LLM/RAG/Tool settings with validation re-execution."""
-        result = ConfigReloadOutcome()
-        cfg = ctx.cfg
-
-        llm_changes: dict[str, Any] = {}
-        rag_changes: dict[str, Any] = {}
-        tool_changes: dict[str, Any] = {}
-
-        self._apply_llm_context_params(cfg, new_cfg, llm_changes)
-        self._apply_tool_params(cfg, new_cfg, tool_changes)
-        self._apply_rag_params(cfg, new_cfg, rag_changes)
-        self._apply_llm_retry_params(cfg, new_cfg, llm_changes)
-        self._apply_llm_prompt_params(
-            ctx, new_cfg, llm_changes, rag_changes, tool_changes
-        )
-        self._apply_sse_reload_params(ctx, new_cfg, llm_changes)
-
-        if llm_changes:
-            try:
-                new_llm = dataclasses.replace(cfg.llm, **llm_changes)
-            except ValueError as e:
-                raise ConfigReloadValidationError(str(e)) from e
-            # Re-validate after replacement
-            try:
-                validate_llm_temperature(new_llm)
-                validate_llm_max_tokens(new_llm)
-                validate_llm_context_char_limit(new_llm)
-                validate_llm_http_timeout(new_llm)
-                validate_llm_context_token_limit(new_llm)
-                validate_llm_max_retries(new_llm)
-                validate_llm_retry_base_delay(new_llm)
-                validate_llm_sse_heartbeat_timeout(new_llm)
-                validate_llm_sse_malformed_retry(new_llm)
-                validate_llm_sse_reconnect_max(new_llm)
-            except ValueError as e:
-                raise ConfigReloadValidationError(str(e)) from e
-            cfg.llm = new_llm
-
-        if rag_changes:
-            # Remove undeclared fields that cannot go through dataclasses.replace()
-            rag_changes = {
-                k: v for k, v in rag_changes.items() if k != "web_search_url"
-            }
-            if rag_changes:
-                try:
-                    new_rag = dataclasses.replace(cfg.rag, **rag_changes)
-                except ValueError as e:
-                    raise ConfigReloadValidationError(str(e)) from e
-                try:
-                    validate_rag_refiner_max_tokens(new_rag)
-                    validate_rag_refiner_timeout(new_rag)
-                    validate_rag_refiner_max_chars_per_chunk(new_rag)
-                except ValueError as e:
-                    raise ConfigReloadValidationError(str(e)) from e
-                cfg.rag = new_rag
-
-        if tool_changes:
-            try:
-                new_tool = dataclasses.replace(cfg.tool, **tool_changes)
-            except ValueError as e:
-                raise ConfigReloadValidationError(str(e)) from e
-            try:
-                validate_tool_dedup_max_repeats(new_tool)
-                validate_tool_cycle_detect_window(new_tool)
-                validate_tool_error_max_consecutive(new_tool)
-                validate_tool_error_retry_max(new_tool)
-                validate_progress_stagnation_window(new_tool)
-                validate_tool_max_tool_turns(new_tool)
-                validate_tool_result_max_llm_chars(new_tool)
-            except ValueError as e:
-                raise ConfigReloadValidationError(str(e)) from e
-            cfg.tool = new_tool
-
-        return result
-
-    def _apply_llm_context_params(
-        self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
-    ) -> None:
-        """Collect LLM context window setting changes."""
-        for field_entry in CONFIG_FIELD_REGISTRY.values():
-            if field_entry.section_path != "llm":
-                continue
-            if field_entry.field_name not in (
-                "context_char_limit",
-                "context_compress_turns",
-                "context_token_limit",
-            ):
-                continue
-            if field_entry.field_name == "context_char_limit":
-                if (v := _get_int(new_cfg, "context_char_limit")) is not None:
-                    changes["context_char_limit"] = v
-            elif field_entry.field_name == "context_compress_turns":
-                if (v := _get_int(new_cfg, "context_compress_turns")) is not None:
-                    changes["context_compress_turns"] = v
-            elif field_entry.field_name == "context_token_limit":
-                if (v := _get_int(new_cfg, "context_token_limit")) is not None:
-                    changes["context_token_limit"] = v
-
-    def _apply_tool_params(
-        self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
-    ) -> None:
-        """Collect tool execution setting changes."""
-        if (vb := _get_bool(new_cfg, "serial_tool_calls")) is not None:
-            changes["serial_tool_calls"] = vb
-        if (vb := _get_bool(new_cfg, "tool_definitions_strict")) is not None:
-            changes["tool_definitions_strict"] = vb
-        if (lst := _get_list(new_cfg, "plan_blocked_tools")) is not None:
-            changes["plan_blocked_tools"] = list(lst)
-
-    def _apply_rag_params(
-        self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
-    ) -> None:
-        """Collect RAG setting changes."""
-        if (vb := _get_bool(new_cfg, "use_refiner")) is not None:
-            changes["use_refiner"] = vb
-        if (vi := _get_int(new_cfg, "refiner_max_tokens")) is not None:
-            changes["refiner_max_tokens"] = vi
-        if (vf := _get_float(new_cfg, "refiner_timeout")) is not None:
-            changes["refiner_timeout"] = vf
-        if (vi := _get_int(new_cfg, "refiner_max_chars_per_chunk")) is not None:
-            changes["refiner_max_chars_per_chunk"] = vi
-
-    def _apply_llm_retry_params(
-        self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
-    ) -> None:
-        """Collect LLM retry setting changes."""
-        if (max_retries := _get_int(new_cfg, "llm_max_retries")) is not None:
-            changes["llm_max_retries"] = max_retries
-        if (base_delay := _get_float(new_cfg, "llm_retry_base_delay")) is not None:
-            changes["llm_retry_base_delay"] = base_delay
-
     def _classify_mcp_server_changes(
         self,
         ctx: AgentContext,
@@ -570,64 +394,6 @@ class ConfigReloadService:
             if key not in new_mcp:
                 result.needs_restart.append(f"mcp_servers/{key} (removed server)")
         return result
-
-    def _apply_llm_prompt_params(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-        llm_changes: dict[str, Any],
-        rag_changes: dict[str, Any],
-        tool_changes: dict[str, Any],
-    ) -> None:
-        """Collect hot-reloadable URL, HTTP, LLM generation, tool definition, and prompt settings."""
-        if (temperature := _get_float(new_cfg, "llm_temperature")) is not None:
-            llm_changes["llm_temperature"] = temperature
-        if (max_tokens := _get_int(new_cfg, "llm_max_tokens")) is not None:
-            llm_changes["llm_max_tokens"] = max_tokens
-        if (llm_url := _get_str(new_cfg, "llm_url")) is not None:
-            llm_changes["llm_url"] = llm_url
-        if (web_search_url := _get_str(new_cfg, "web_search_url")) is not None:
-            rag_changes["web_search_url"] = web_search_url
-        if (embed_url := _get_str(new_cfg, "embed_url")) is not None:
-            rag_changes["embed_url"] = embed_url
-        if (http_timeout := _get_float(new_cfg, "http_timeout")) is not None:
-            llm_changes["http_timeout"] = http_timeout
-        if (max_tool_turns := _get_int(new_cfg, "max_tool_turns")) is not None:
-            tool_changes["max_tool_turns"] = max_tool_turns
-        if (
-            tool_result_max_chars := _get_int(new_cfg, "tool_result_max_llm_chars")
-        ) is not None:
-            tool_changes["tool_result_max_llm_chars"] = tool_result_max_chars
-        if (lst := _get_list_nonempty(new_cfg, "tool_definitions")) is not None:
-            tool_changes["tool_definitions"] = list(lst)
-        if (
-            prompt_tool := _get_str_nonempty(new_cfg, "system_prompt_tool")
-        ) is not None:
-            tool_changes["system_prompt_tool"] = prompt_tool
-        if (sys_prompts := _get_dict_nonempty(new_cfg, "system_prompts")) is not None:
-            tool_changes["system_prompts"] = dict(sys_prompts)
-
-    def _apply_sse_reload_params(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-        changes: dict[str, Any],
-    ) -> None:
-        """Collect SSE stream resilience settings."""
-        if (vf := _get_float(new_cfg, "sse_heartbeat_timeout")) is not None:
-            changes["sse_heartbeat_timeout"] = vf
-        if (vi := _get_int(new_cfg, "sse_malformed_retry")) is not None:
-            changes["sse_malformed_retry"] = vi
-        if (vi := _get_int(new_cfg, "sse_reconnect_max")) is not None:
-            changes["sse_reconnect_max"] = vi
-        if (
-            vb := _get_bool(new_cfg, "llm_stream_retry_on_heartbeat_timeout")
-        ) is not None:
-            changes["llm_stream_retry_on_heartbeat_timeout"] = vb
-        if (
-            vb := _get_bool(new_cfg, "llm_stream_retry_on_malformed_chunk")
-        ) is not None:
-            changes["llm_stream_retry_on_malformed_chunk"] = vb
 
     def _reload_section(
         self,
