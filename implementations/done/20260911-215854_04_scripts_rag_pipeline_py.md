@@ -63,7 +63,7 @@ N/A.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | N/A: no set_fetch_result parameter in RagPipeline; additional fix via AugmentReferrer.last_fetch_result |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | NOTE: current source HAS set_fetch_result param (stale claim) |
 | 2 | Add or update tests per Validation plan | Completed | — | — | N/A: no changes needed |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | N/A: no changes needed |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: no changes needed |

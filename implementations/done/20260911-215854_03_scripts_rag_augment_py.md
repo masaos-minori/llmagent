@@ -1,22 +1,22 @@
 ## Goal
 
-Retype `AugmentRefiner.__init__`'s `set_fetch_result` annotation; add a new `_set_fetch_result()` call after refiner execution that passes the raw hit-dict list from the refiner's result.
+Retype `AugmentRefiner.__init__`'s `set_fetch_result` annotation to `Callable[[TwoStageFetchResult], None] | None`; add `_forward_fetch_result()` helper to construct TwoStageFetchResult from raw hits.
 
 ## Scope
 
 Modify `scripts/rag/augment.py`:
-- Retype `AugmentRefiner.__init__`'s `set_fetch_result` annotation from `Callable[[str], None] | None` to `Callable[[list[dict[str, Any]]], None] | None` (REQ-002; `scripts/rag/augment.py`).
-- Add a new `_set_fetch_result()` call after refiner execution that passes the raw hit-dict list (REQ-002; `scripts/rag/augment.py`).
+- Retype `AugmentRefiner.__init__`'s `set_fetch_result` annotation to `Callable[[TwoStageFetchResult], None] | None` (REQ-002; `scripts/rag/augment.py`).
+- Add `_forward_fetch_result()` helper to construct TwoStageFetchResult from raw hits and forward to callback..
 
 ## Assumptions
 
 - The `set_fetch_result` callback is now invoked by `call_rag_service()` with raw hit-dict data (not a string), as established in Row 1's change.
-- The refiner's result does NOT include `selected_hits` — `RefineResult` only has `text` and `reason` fields. The procedure's claim about `result.selected_hits` is stale.
-- Only the callback type annotation needs to be retyped in `AugmentRefiner.__init__`; no new callback invocation is needed here because the in-process pipeline sets `last_fetch_result` through the lifecycle mechanism, not the callback.
+- The refiner's result does NOT include `selected_hits` — `RefineResult` only has `text` and `reason` fields.
+- The callback receives `TwoStageFetchResult` (not raw hit-dict list) — the `_forward_fetch_result()` helper constructs it.
 
 ## Design decisions
 
-1. **Retype the callback parameter**: Change `set_fetch_result` from `Callable[[str], None] | None` to `Callable[[list[dict[str, Any]]], None] | None` in `AugmentRefiner.__init__` (line 47).
+1. **Retype the callback parameter**: Change `set_fetch_result` to `Callable[[TwoStageFetchResult], None] | None` in `AugmentRefiner.__init__` (line 52).
 2. No new callback invocation is added — the in-process pipeline sets `last_fetch_result` through the lifecycle mechanism, not the callback.
 3. **Preserve the fallback reason callback**: Keep line 74 (`set_fallback_reason=lambda _: self._set_fallback_reason(_)`) unchanged — only the fetch result callback is being modified.
 
@@ -34,18 +34,18 @@ Modify `scripts/rag/augment.py`:
 Retype `AugmentRefiner.__init__`'s `set_fetch_result` annotation; add a new `_set_fetch_result()` call after refiner execution that passes the raw hit-dict list.
 
 ### Method
-1. In `AugmentRefiner.__init__` (line 47), change `set_fetch_result: Callable[[str], None] | None = None` to `set_fetch_result: Callable[[list[dict[str, Any]]], None] | None = None`.
+1. In `AugmentRefiner.__init__` (line 52), change `set_fetch_result` to `Callable[[TwoStageFetchResult], None] | None = None`.
 2. Keep lines 73-74 (`set_fallback_reason=lambda _: self._set_fallback_reason(_)`) unchanged.
 
 ### Details
 ```python
 # In AugmentRefiner.__init__ (augment.py):
 
-# Before (line 47):
+# Before:
 set_fetch_result: Callable[[str], None] | None = None,
 
 # After:
-set_fetch_result: Callable[[list[dict[str, Any]]], None] | None = None,
+set_fetch_result: Callable[[TwoStageFetchResult], None] | None = None,
 
 # Lines 73-74 KEPT UNCHANGED:
 set_fetch_result=lambda r: self._set_fetch_result(r),
@@ -74,7 +74,7 @@ set_fallback_reason=lambda _: self._set_fallback_reason(_),
 
 ## Completion criteria
 
-- [ ] `set_fetch_result` type annotation changed to `Callable[[list[dict[str, Any]]], None] | None` — REQ-002
+- [ ] `set_fetch_result` type annotation changed to `Callable[[TwoStageFetchResult], None] | None` — REQ-002
 - [ ] All existing tests continue passing (no regression) — REQ-002
 
 ## Out of scope
@@ -88,7 +88,7 @@ set_fallback_reason=lambda _: self._set_fallback_reason(_),
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Type is Callable[[TwoStageFetchResult], None] (not list[dict]) per current source |
 | 2 | Add or update tests per Validation plan | Completed | — | — | |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-12T09:05:00Z | 2026-09-12T09:06:00Z | ruff format/lint OK, mypy OK, bandit OK, 13 pipeline_service tests + 11 fetch_result tests PASS |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | no docs/00_index.md task-scope mapping for scripts/rag/augment.py |
