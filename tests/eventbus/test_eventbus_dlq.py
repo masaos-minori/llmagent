@@ -103,12 +103,24 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
 
     r = client.post(f"/dlq/{ev['event_id']}/requeue")
     assert r.status_code == 200
-    assert r.json()["requeued"] is True
+    body = r.json()
+    assert body["requeued"] is True
+    assert "new_event_id" in body
+    assert body["new_event_id"] != ev["event_id"]
 
+    # Original event remains in DLQ (lineage model: original row's dlq_at IS NOT NULL)
     r2 = client.get("/dlq")
     body2 = r2.json()
     ids = [e["event_id"] for e in body2["items"]]
-    assert ev["event_id"] not in ids
+    assert ev["event_id"] in ids
+
+    # New event exists with redelivered_from set
+    new_row = db.execute(
+        "SELECT event_id, redelivered_from FROM events WHERE event_id = ?",
+        (body["new_event_id"],),
+    ).fetchone()
+    assert new_row is not None
+    assert new_row["redelivered_from"] == ev["event_id"]
 
 
 def test_requeue_increments_dlq_requeue_count(
@@ -127,18 +139,31 @@ def test_requeue_increments_dlq_requeue_count(
     db.commit()
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
-    # Requeue once — dlq_requeue_count should increment to 1
+    # Requeue once — new row inserted with redelivered_from
     r = client.post(f"/dlq/{ev['event_id']}/requeue")
     assert r.status_code == 200
-    assert r.json()["requeued"] is True
+    body = r.json()
+    assert body["requeued"] is True
+    new_event_id = body["new_event_id"]
 
-    row = db.execute(
+    # Original row's dlq_requeue_count incremented
+    orig_row = db.execute(
         "SELECT dlq_requeue_count, delivery_failure_count, dlq_at FROM events WHERE event_id = ?",
         (ev["event_id"],),
     ).fetchone()
-    assert row["dlq_requeue_count"] == 1
-    assert row["delivery_failure_count"] == 2
-    assert row["dlq_at"] is None
+    assert orig_row["dlq_requeue_count"] == 1
+    assert orig_row["delivery_failure_count"] == 2
+    assert orig_row["dlq_at"] is not None
+
+    # New row has redelivered_from set
+    new_row = db.execute(
+        "SELECT redelivered_from, cycle_failure_count FROM events WHERE event_id = ?",
+        (new_event_id,),
+    ).fetchone()
+    assert new_row["redelivered_from"] == ev["event_id"]
+    assert new_row["cycle_failure_count"] == 0
+    assert orig_row["delivery_failure_count"] == 2
+    assert orig_row["dlq_at"] is not None
 
     # Exhaust retries again — should promote to DLQ
     db.execute(

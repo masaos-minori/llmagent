@@ -497,14 +497,29 @@ def redeliver_event(
 ) -> tuple[bool, str | None]:
     """Redeliver a dead-lettered event by inserting a new row with lineage.
 
+    Uses a `redelivered_from`-existence check as a concurrency guard: if another
+    request has already redelivered this event (i.e., a row exists with
+    redelivered_from = event_id), return (False, None) to prevent duplicate
+    redeliveries. This prevents the race condition where two concurrent requests
+    could both see dlq_at IS NOT NULL and both insert new rows.
+
     Performs conditional-update guard on the original row (WHERE event_id = ? AND dlq_at IS NOT NULL)
     then inserts a new row with a fresh UUID v4 event_id, copied delivery_failure_count,
     cycle_failure_count=0, and redelivered_from set to the original event_id.
 
     Returns (success, new_event_id):
       - (True, new_event_id)   = event found and redelivered
-      - (False, None)          = event not found in DLQ
+      - (False, None)          = event not found in DLQ or already redelivered
     """
+    # Concurrency guard: check if this event has already been redelivered
+    # by looking for an existing row with redelivered_from = event_id
+    existing_redelivery = conn.execute(
+        "SELECT 1 FROM events WHERE redelivered_from = ?",
+        (event_id,),
+    ).fetchone()
+    if existing_redelivery:
+        return (False, None)
+
     ts = now if now is not None else "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"
     new_event_id = uuid.uuid4().hex
     cur = conn.execute(

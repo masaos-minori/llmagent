@@ -103,11 +103,24 @@ class TestRequeueEdgeCases:
         assert resp.status_code == 200
         data = resp.json()
         assert data["requeued"] is True
-        assert data["dlq_imminent"] is True
+        assert "new_event_id" in data
+        assert data["new_event_id"] != body["event_id"]
 
-        # Verify dlq_at was cleared
-        dlq_at = _get_field(client, body["event_id"], "dlq_at")
-        assert dlq_at is None
+        # Original event remains in DLQ (lineage model: original row's dlq_at IS NOT NULL)
+        orig_row = db.execute(
+            "SELECT dlq_at, dlq_requeue_count FROM events WHERE event_id = ?",
+            (body["event_id"],),
+        ).fetchone()
+        assert orig_row["dlq_at"] is not None
+        assert orig_row["dlq_requeue_count"] == 1
+
+        # New event exists with redelivered_from set
+        new_row = db.execute(
+            "SELECT redelivered_from, cycle_failure_count FROM events WHERE event_id = ?",
+            (data["new_event_id"],),
+        ).fetchone()
+        assert new_row["redelivered_from"] == body["event_id"]
+        assert new_row["cycle_failure_count"] == 0
 
     def test_repeated_requeue_increments_dlq_requeue_count(
         self, client: TestClient, tmp_path: Path
@@ -129,20 +142,33 @@ class TestRequeueEdgeCases:
         db.commit()
         sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
-        # First requeue
+        # First requeue — new row inserted, original row's dlq_requeue_count incremented
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
-        assert _get_field(client, body["event_id"], "dlq_requeue_count") == 1
+        data = resp.json()
+        assert "new_event_id" in data
+        orig_row = db.execute(
+            "SELECT dlq_requeue_count FROM events WHERE event_id = ?",
+            (body["event_id"],),
+        ).fetchone()
+        assert orig_row["dlq_requeue_count"] == 1
 
         # Re-promote to DLQ before second requeue (delivery_failure_count >= max_retry so it will be promoted)
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
         assert n == 1
 
-        # Second requeue
+        # Second requeue — new row inserted again
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
-        assert _get_field(client, body["event_id"], "dlq_requeue_count") == 2
+        data2 = resp.json()
+        assert "new_event_id" in data2
+        assert data2["new_event_id"] != data["new_event_id"]
+        orig_row2 = db.execute(
+            "SELECT dlq_requeue_count FROM events WHERE event_id = ?",
+            (body["event_id"],),
+        ).fetchone()
+        assert orig_row2["dlq_requeue_count"] == 2
 
         # Re-promote to DLQ before third requeue
         db = open_db(str(tmp_path / "eventbus.sqlite"))

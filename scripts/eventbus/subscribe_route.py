@@ -25,6 +25,8 @@ from eventbus.route_helpers import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SSE_IDLE_TIMEOUT = 60  # seconds — default idle timeout for SSE subscribers
+
 
 async def subscribe(
     request: Request,
@@ -156,6 +158,13 @@ async def subscribe(
             last_heartbeat_time = time.time()
             heartbeat_interval = cfg.sse_heartbeat_interval
 
+            # REQ-001: Timeout-based disconnect detection as fallback
+            # when is_disconnected() doesn't fire under certain transports
+            # (e.g., TestClient). Track last event arrival time and break
+            # if no events arrive within the configured idle timeout window.
+            idle_timeout = getattr(cfg, "sse_idle_timeout", DEFAULT_SSE_IDLE_TIMEOUT)
+            last_event_time = time.time()
+
             while True:
                 get_task = asyncio.ensure_future(sub.queue.get())
                 disc_task = asyncio.ensure_future(sub.disconnect.wait())
@@ -171,6 +180,14 @@ async def subscribe(
                 if not done:
                     if await request.is_disconnected():
                         break
+                    # REQ-001: Check idle timeout before continuing
+                    if time.time() - last_event_time > idle_timeout:
+                        logger.info(
+                            "subscribe idle timeout exceeded consumer=%s timeout=%.1f",
+                            consumer_id,
+                            idle_timeout,
+                        )
+                        break
                     continue
                 event = get_task.result()
                 if event is None:
@@ -180,6 +197,8 @@ async def subscribe(
                 data = json_dumps(event)
                 # REQ-002: Emit id: field alongside data: field
                 yield f"id:{event['seq']}\ndata:{data}\n\n"
+                # REQ-001: Update last event time after successful delivery
+                last_event_time = time.time()
                 # REQ-001: Periodic heartbeat during active delivery
                 now = time.time()
                 if now - last_heartbeat_time >= heartbeat_interval:

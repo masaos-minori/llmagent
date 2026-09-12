@@ -268,13 +268,6 @@ class TestSubscribeAuth:
         if hasattr(cls.client, "_cleanup"):
             cls.client._cleanup()
 
-    @pytest.mark.skip(
-        reason="Hangs indefinitely: the /subscribe SSE generator never detects "
-        "this client disconnecting (TestClient's in-process ASGI transport never "
-        "delivers http.disconnect here, and sub.disconnect only fires on broker "
-        "queue overflow), regardless of .stream()/.send(stream=True)/timeout — see "
-        "issues/20260911-135626_ebsse01_subscribe-generator-never-detects-client-disconnect.md"
-    )
     def test_subscribe_with_valid_consumer_token(self) -> None:
         """Authorized consumer can subscribe to events."""
         with self.client.stream(
@@ -285,11 +278,42 @@ class TestSubscribeAuth:
         ) as response:
             assert response.status_code == 200
 
+    def test_subscribe_with_timeout_disconnect_detection(self) -> None:
+        """Verify disconnect detection works under TestClient when no events arrive."""
+        start_time = time.time()
+        with self.client.stream(
+            "GET",
+            "/subscribe",
+            params={"topic": "test", "consumer_id": "consumer_b"},
+            headers={"Authorization": f"Bearer {cls.cfg.consumer_token}"},
+        ) as response:
+            assert response.status_code == 200
+            data = b""
+            while True:
+                chunk = response.read(1)
+                if not chunk:
+                    break
+                data += chunk
+                if b"\n\n" in data:
+                    break
+        
+        elapsed = time.time() - start_time
+        assert elapsed < 120, f"Stream did not close within expected timeout: {elapsed}s"
+
     def test_subscribe_without_token(self) -> None:
         """Unauthenticated request to /subscribe is rejected."""
         response = self.client.get(
             "/subscribe",
             params={"topic": "test", "consumer_id": "consumer_a"},
+        )
+        assert response.status_code == 401
+
+    def test_subscribe_as_wrong_role(self) -> None:
+        """Non-consumer role cannot subscribe."""
+        response = self.client.get(
+            "/subscribe",
+            params={"topic": "test", "consumer_id": "consumer_a"},
+            headers={"Authorization": "Bearer operator-token"},
         )
         assert response.status_code == 401
 

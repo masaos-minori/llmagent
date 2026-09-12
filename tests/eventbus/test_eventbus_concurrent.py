@@ -137,15 +137,6 @@ class TestConcurrentReplay:
 class TestConcurrentDlqRequeue:
     """Verify concurrent DLQ requeue operations do not cause data corruption."""
 
-    @pytest.mark.skip(
-        reason="Asserts the new-event-id lineage requeue model (new_event_id/"
-        "new_seq in the response), which conflicts with the in-place requeue "
-        "model asserted by test_eventbus_dlq.py and "
-        "test_eventbus_requeue_edge_cases.py — see "
-        "issues/20260911-142700_ebdlq01_requeue-model-in-place-vs-lineage-"
-        "conflict.md for the design decision needed before either side's "
-        "tests can be reconciled."
-    )
     def test_concurrent_dlq_requeue(self, client: TestClient) -> None:
         body = {**_event("dlq"), "event_id": str(uuid.uuid4())}
         resp = client.post("/publish", json=body)

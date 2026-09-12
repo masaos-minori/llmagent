@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import HTTPException, Query, Request
 
 from eventbus.auth import Role  # noqa: PLC0415 — new module, REQ-004
-from eventbus.db import count_dlq, fetch_dlq, requeue_event
+from eventbus.db import count_dlq, fetch_dlq, redeliver_event
 from eventbus.route_helpers import (
     ERR_EVENT_NOT_FOUND,
     ERR_EVENT_NOT_IN_DLQ,
@@ -53,29 +53,38 @@ async def dlq_requeue(
     event_id: str,
     _role: Role | None = None,  # type: ignore[assignment] — set by app.py wrapper
 ) -> dict[str, Any]:
-    """Requeue a dead-letter queue entry back into the active event queue."""
+    """Requeue a dead-letter queue entry back into the active event queue.
+
+    Uses the lineage model: each requeue creates a new event row with
+    redelivered_from pointing to the original event_id. The original row's
+    dlq_at is intentionally left set so only one redeliver succeeds per
+    original event.
+    """
     db = get_db(request)
     cfg = get_config(request)
 
-    def _requeue() -> tuple[bool, int | None]:
-        """Requeue a single event from the dead letter queue and return its failure count."""
-        found = requeue_event(db, event_id)
-        if not found:
-            return False, None
-        row = db.execute(
-            "SELECT delivery_failure_count FROM events WHERE event_id = ?",
-            (event_id,),
-        ).fetchone()
-        return True, int(row[0]) if row else None
+    def _redeliver() -> tuple[bool, str | None]:
+        """Redeliver a single event from the dead letter queue using the lineage model."""
+        success, new_event_id = redeliver_event(db, event_id)
+        return (success, new_event_id)
 
-    requeued, failure_count = await run_with_db_lock(_requeue)
-    if requeued:
-        logger.info("dlq requeued event_id=%s", event_id)
-        resp: dict[str, Any] = {"event_id": event_id, "requeued": True}
-        if failure_count is not None and failure_count >= cfg.max_retry:
-            resp["dlq_imminent"] = True
+    success, new_event_id = await run_with_db_lock(_redeliver)
+    if success:
+        logger.info("dlq redelivered event_id=%s -> %s", event_id, new_event_id)
+        resp: dict[str, Any] = {
+            "event_id": event_id,
+            "requeued": True,
+            "new_event_id": new_event_id,
+        }
+        # Include new_seq by fetching the seq of the newly inserted row
+        row = db.execute(
+            "SELECT seq FROM events WHERE event_id = ?",
+            (new_event_id,),
+        ).fetchone()
+        if row is not None:
+            resp["new_seq"] = int(row[0])
         return resp
-    # Event exists but is not currently in DLQ — dlq_at IS NULL means event was already requeued or acked
+    # Event exists but is not currently in DLQ — dlq_at IS NULL means event was already redelivered or acked
     row = db.execute(
         "SELECT dlq_at FROM events WHERE event_id = ?", (event_id,)
     ).fetchone()
