@@ -97,8 +97,8 @@ elif result is None:
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | |
 | 2 | Add or update tests per Validation plan | Completed | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-12T08:59:00Z | 2026-09-12T08:59:30Z | ruff format/lint OK, mypy OK, bandit OK (pre-existing Low B107 on default ""), 28 HttpAugment tests PASS |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | no docs/00_index.md task-scope mapping for scripts/rag/http_augment.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

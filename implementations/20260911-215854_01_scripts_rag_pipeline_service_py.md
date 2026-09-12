@@ -104,8 +104,8 @@ return result_raw, status_code, elapsed_ms  # line 142
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | |
 | 2 | Add or update tests per Validation plan | Completed | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-09-12T08:55:00Z | 2026-09-12T08:56:00Z | ruff format/lint OK, mypy OK, bandit OK, 13 pipeline_service tests + 11 fetch_result tests PASS |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | no docs/00_index.md task-scope mapping for scripts/rag/pipeline_service.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
