@@ -7,11 +7,11 @@ import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from fastapi import Depends, HTTPException, Query, Request
+from fastapi import HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from eventbus.auth import (
-    require_consumer_identity,  # noqa: PLC0415 — new module, REQ-003
+    Role,
 )
 from eventbus.broker import ConsumerAlreadyConnectedError
 from eventbus.json_utils import dumps as json_dumps
@@ -31,7 +31,8 @@ async def subscribe(
     topic: list[str] = Query(default=[]),
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
-    _identity: dict = Depends(require_consumer_identity),  # noqa: ANN001,ANN202 — FastAPI dependency protocol
+    _role: Role | None = None,  # type: ignore[assignment] — set by app.py wrapper
+    _identity: dict[str, Any] | None = None,  # type: ignore[assignment] — set by app.py wrapper
 ) -> Any:
     """Subscribe to events via SSE with optional topic filtering and offset recovery."""
     from eventbus.db import get_consumer_offset  # noqa: PLC0415, RUF100

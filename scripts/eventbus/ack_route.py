@@ -2,12 +2,12 @@
 """scripts/eventbus/ack_route.py — Ack/Nack endpoint handlers."""
 
 import logging
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import Depends, HTTPException, Query, Request
+from fastapi import HTTPException, Query, Request
 
 from eventbus.auth import (
-    require_consumer_identity,  # noqa: PLC0415 — new module, REQ-003
+    Role,
 )
 from eventbus.db import nack_event as _nack_event
 from eventbus.json_utils import now_iso
@@ -31,6 +31,8 @@ async def _do_ack(
     cfg: Any,
     event_id: str,
     consumer_id: str = "",
+    _role: Role | None = None,  # type: ignore[assignment] — set by app.py wrapper
+    _identity: dict[str, Any] | None = None,  # type: ignore[assignment] — set by app.py wrapper
 ) -> dict[str, Any]:
     """Common ack logic shared by /ack and /events/{event_id}/ack."""
     if not event_id:
@@ -77,7 +79,8 @@ async def ack_event(
     request: Request,
     event_id: str,
     consumer_id: str = Query(default=""),
-    _identity: Annotated[dict, Depends(require_consumer_identity)] = {},  # noqa: ANN001,ANN202 — FastAPI dependency protocol
+    _role: Role | None = None,  # type: ignore[assignment] — set by app.py wrapper
+    _identity: dict[str, Any] | None = None,  # type: ignore[assignment] — set by app.py wrapper
 ) -> dict[str, Any]:
     """Acknowledge an event as successfully processed by a consumer."""
     db = get_db(request)
@@ -88,7 +91,8 @@ async def ack_event(
 async def nack(
     request: Request,
     event_id: str = Query(default=""),
-    _identity: Annotated[dict, Depends(require_consumer_identity)] = {},  # noqa: ANN001,ANN202 — FastAPI dependency protocol
+    _role: Role | None = None,  # type: ignore[assignment] — set by app.py wrapper
+    _identity: dict[str, Any] | None = None,  # type: ignore[assignment] — set by app.py wrapper
 ) -> dict[str, Any]:
     """Negatively acknowledge an event, triggering retry logic."""
     if not event_id:

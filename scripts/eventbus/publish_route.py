@@ -22,7 +22,7 @@ from eventbus.route_helpers import (
 logger = logging.getLogger(__name__)
 
 
-async def publish(request: Request) -> dict[str, Any]:
+async def publish(request: Request, _role: Any = None) -> dict[str, Any]:
     """Publish an event after validating its envelope against the configured schema."""
     body: dict[str, Any] = await request.json()
     try:

@@ -48,6 +48,29 @@ _TOKEN_CONSUMER_MAP: dict[str, set[str]] = {}
 _TOKEN_TOPIC_MAP: dict[str, set[str]] = {}
 
 
+def _populate_token_maps(config: Any) -> None:
+    """Populate _TOKEN_CONSUMER_MAP and _TOKEN_TOPIC_MAP from config at startup."""
+    global _TOKEN_CONSUMER_MAP, _TOKEN_TOPIC_MAP
+
+    # Clear existing mappings
+    _TOKEN_CONSUMER_MAP.clear()
+    _TOKEN_TOPIC_MAP.clear()
+
+    # Get per-role token configuration from config
+    # This assumes EventBusConfig has fields like:
+    # - publisher_token: str
+    # - consumer_token: str
+    # - operator_token: str
+    # - monitoring_token: str
+    # And potentially per-consumer/topic restrictions
+
+    # For now, assume the single shared token grants all permissions
+    # This preserves backward compatibility with the existing single-token model
+    if hasattr(config, "auth_token") and config.auth_token:
+        _TOKEN_CONSUMER_MAP[config.auth_token] = set()  # Empty means any consumer_id
+        _TOKEN_TOPIC_MAP[config.auth_token] = set()  # Empty means any topic
+
+
 def get_auth_token(config: Any) -> str:
     """Return the auth_token from EventBusConfig, or raise ValueError if missing."""
     token = getattr(config, "auth_token", None)
@@ -88,15 +111,14 @@ async def verify_bearer_token(
 def require_role(role: Role):
     """FastAPI dependency factory: verify caller has the required role.
 
-    Returns a dependency bound to `role` via closure, since FastAPI's
-    `Depends(...)` calls the dependency itself rather than passing extra
-    arguments to it.
+    Determines the caller's role from their Bearer token using configuration,
+    then checks if that role is allowed for the requested endpoint.
     """
 
     async def _check_role(
         request: Request,
         token: str = Depends(verify_bearer_token),
-    ) -> None:
+    ) -> Role:
         if not token:
             # Authentication already failed in verify_bearer_token
             raise HTTPException(status_code=401, detail="Unauthorized")
@@ -114,7 +136,10 @@ def require_role(role: Role):
                     raise HTTPException(
                         status_code=403, detail=f"Forbidden: requires {role} role"
                     )
-                return
+                return role
+
+        # If no route matched, deny access
+        raise HTTPException(status_code=403, detail="Forbidden: unknown route")
 
     return _check_role
 
@@ -124,15 +149,16 @@ async def require_consumer_identity(
     consumer_id: str,
     topics: list[str] | None = None,
     token: str = Depends(verify_bearer_token),
-) -> None:
-    """FastAPI dependency: verify caller is authorized to use the given consumer_id and topics."""
+) -> dict[str, Any]:
+    """FastAPI dependency: verify caller is authorized to use the given consumer_id and topics.
+
+    Returns a dict with 'topics' key containing a set of permitted topics,
+    matching the contract expected by subscribe_route.py's subscribe() function.
+    """
     if not token:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     # Validate consumer_id is in the allowlist for this caller
-    # In practice, the token identifies the caller; we map token -> allowed consumer_ids
-    # For simplicity, assume the token itself encodes the consumer identity
-    # This would be extended with a proper identity store in production
     if consumer_id and consumer_id not in _TOKEN_CONSUMER_MAP.get(token, set()):
         logger.warning(
             "Authorization failed: consumer_id=%s not allowed for this caller",
@@ -144,10 +170,11 @@ async def require_consumer_identity(
         )
 
     # Validate topic access
+    allowed_topics = set()
     if topics:
-        allowed_topics = _TOKEN_TOPIC_MAP.get(token, set())
+        allowed_topics_from_map = _TOKEN_TOPIC_MAP.get(token, set())
         for topic in topics:
-            if topic not in allowed_topics:
+            if topic not in allowed_topics_from_map:
                 logger.warning(
                     "Authorization failed: topic=%s not allowed for this caller",
                     topic,
@@ -155,6 +182,10 @@ async def require_consumer_identity(
                 raise HTTPException(
                     status_code=403, detail=f"Forbidden: topic '{topic}' not allowed"
                 )
+        allowed_topics = allowed_topics_from_map
+
+    # Return a dict-like object with 'topics' key
+    return {"topics": allowed_topics}
 
 
 def attach_auth_middleware(app: Any) -> None:

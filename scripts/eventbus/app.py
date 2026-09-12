@@ -11,12 +11,18 @@ from pathlib import Path
 from typing import Any, Literal
 
 import orjson
-from fastapi import FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 
 from eventbus.ack_route import ack_event as ack_event_route
 from eventbus.ack_route import nack as nack_route
-from eventbus.auth import attach_auth_middleware  # noqa: PLC0415 — new module, REQ-002
+from eventbus.auth import (
+    Role,
+    _populate_token_maps,  # noqa: PLC0415 — new module, REQ-004
+    attach_auth_middleware,  # noqa: PLC0415 — new module, REQ-002
+    require_consumer_identity,
+    require_role,
+)
 from eventbus.broker import EventBroker
 from eventbus.config import (
     _is_public_host,
@@ -58,6 +64,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown."""
     app.state.config = load_config(get_config_path())
     app.state.db = open_db(app.state.config.db_path)
+    # Populate token maps from config for authorization
+    _populate_token_maps(app.state.config)
     # Migrate legacy offset files into the new consumer_offsets table (idempotent)
     try:
         migrate_legacy_offsets(app.state.db, app.state.config.offsets_dir)
@@ -124,9 +132,12 @@ async def health(request: Request) -> JSONResponse:
 
 
 @app.post("/publish")
-async def publish(request: Request) -> dict[str, Any]:
+async def publish(
+    request: Request,
+    _role: Role = Depends(require_role(Role.PUBLISHER)),
+) -> dict[str, Any]:
     """Publish a new event to the event bus."""
-    result: dict[str, Any] = await publish_route(request)
+    result: dict[str, Any] = await publish_route(request, _role=_role)
     return result
 
 
@@ -137,10 +148,11 @@ async def replay(
     fmt: Literal["sse", "json"] = Query(default="sse", alias="format"),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    _role: Role = Depends(require_role(Role.OPERATOR)),
 ) -> Any:
     """Replay events from a given sequence number via SSE or JSON."""
     return await replay_route(
-        request, since_seq=since_seq, fmt=fmt, limit=limit, offset=offset
+        request, since_seq=since_seq, fmt=fmt, limit=limit, offset=offset, _role=_role
     )
 
 
@@ -150,10 +162,17 @@ async def subscribe(
     topic: list[str] = Query(default=[]),
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
+    _role: Role = Depends(require_role(Role.CONSUMER)),
+    _identity: dict[str, Any] = Depends(require_consumer_identity),
 ) -> Any:
     """Subscribe to events matching the specified topics via SSE."""
     return await subscribe_route(
-        request, topic=topic, since_seq=since_seq, consumer_id=consumer_id
+        request,
+        topic=topic,
+        since_seq=since_seq,
+        consumer_id=consumer_id,
+        _role=_role,
+        _identity=_identity,
     )
 
 
@@ -162,16 +181,23 @@ async def dlq_list(
     request: Request,
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    _role: Role = Depends(require_role(Role.OPERATOR)),
 ) -> dict[str, Any]:
     """List dead-letter queue entries with pagination support."""
-    result: dict[str, Any] = await dlq_list_route(request, limit=limit, offset=offset)
+    result: dict[str, Any] = await dlq_list_route(
+        request, limit=limit, offset=offset, _role=_role
+    )
     return result
 
 
 @app.post("/dlq/{event_id}/requeue")
-async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
+async def dlq_requeue(
+    request: Request,
+    event_id: str,
+    _role: Role = Depends(require_role(Role.OPERATOR)),
+) -> dict[str, Any]:
     """Requeue a dead-letter queue entry back into the active queue."""
-    result: dict[str, Any] = await dlq_requeue_route(request, event_id)
+    result: dict[str, Any] = await dlq_requeue_route(request, event_id, _role=_role)
     return result
 
 
@@ -180,10 +206,16 @@ async def ack_event(
     request: Request,
     event_id: str,
     consumer_id: str = Query(default=""),
+    _role: Role = Depends(require_role(Role.CONSUMER)),
+    _identity: dict[str, Any] = Depends(require_consumer_identity),
 ) -> dict[str, Any]:
     """Acknowledge an event as successfully processed by a consumer."""
     result: dict[str, Any] = await ack_event_route(
-        request, event_id=event_id, consumer_id=consumer_id
+        request,
+        event_id=event_id,
+        consumer_id=consumer_id,
+        _role=_role,
+        _identity=_identity,
     )
     return result
 
@@ -192,9 +224,13 @@ async def ack_event(
 async def nack(
     request: Request,
     event_id: str = Query(default=""),
+    _role: Role = Depends(require_role(Role.CONSUMER)),
+    _identity: dict[str, Any] = Depends(require_consumer_identity),
 ) -> dict[str, Any]:
     """Negatively acknowledge an event, triggering retry logic."""
-    result: dict[str, Any] = await nack_route(request, event_id=event_id)
+    result: dict[str, Any] = await nack_route(
+        request, event_id=event_id, _role=_role, _identity=_identity
+    )
     return result
 
 

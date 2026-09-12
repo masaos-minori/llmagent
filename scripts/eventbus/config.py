@@ -46,6 +46,11 @@ class EventBusConfig:
     publish_rate: float = 100.0
     host: str = "127.0.0.1"
     auth_token: str = ""
+    # Per-role tokens (optional, for role-based access control)
+    publisher_token: str = ""
+    consumer_token: str = ""
+    operator_token: str = ""
+    monitoring_token: str = ""
     sse_heartbeat_interval: float = 30.0
     slow_consumer_threshold: int = 100
     subscriber_queue_maxsize: int = 1000
@@ -98,6 +103,10 @@ _KNOWN_CONFIG_KEYS = frozenset(
         "max_retry",
         "host",
         "auth_token",
+        "publisher_token",
+        "consumer_token",
+        "operator_token",
+        "monitoring_token",
         "sse_heartbeat_interval",
         "slow_consumer_threshold",
         "subscriber_queue_maxsize",
@@ -133,6 +142,10 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
     "max_retry": int,
     "host": str,
     "auth_token": str,
+    "publisher_token": str,
+    "consumer_token": str,
+    "operator_token": str,
+    "monitoring_token": str,
     "sse_heartbeat_interval": float,
     "slow_consumer_threshold": int,
     "subscriber_queue_maxsize": int,
@@ -192,6 +205,10 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         publish_rate=float(data.get("publish_rate", 100.0)),
         host=data.get("host", "127.0.0.1"),
         auth_token=data["auth_token"],
+        publisher_token=data.get("publisher_token", ""),
+        consumer_token=data.get("consumer_token", ""),
+        operator_token=data.get("operator_token", ""),
+        monitoring_token=data.get("monitoring_token", ""),
         sse_heartbeat_interval=float(data.get("sse_heartbeat_interval", 30.0)),
         slow_consumer_threshold=int(data.get("slow_consumer_threshold", 100)),
         subscriber_queue_maxsize=int(data.get("subscriber_queue_maxsize", 1000)),

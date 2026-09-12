@@ -205,9 +205,9 @@ async def nack(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move Depends declarations to wrapper functions | Pending | — | — | |
-| 2 | Update delegated-to route functions to accept resolved values | Pending | — | — | |
-| 3 | Run validation tests | Pending | — | — | |
+| 1 | Move Depends declarations to wrapper functions | Completed | — | — | |
+| 2 | Update delegated-to route functions to accept resolved values | Completed | — | — | |
+| 3 | Run validation tests | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
