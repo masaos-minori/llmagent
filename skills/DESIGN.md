@@ -113,7 +113,8 @@ Applies whenever a phase calls for an optional/advanced tool (e.g. `ast-grep`, `
 ### Analysis-only phase constraint
 
 Applies to any skill whose core procedure is read-only by design (currently `python-design`,
-`python-code-review`, `python-debug-root-cause`, `issue-to-plan`, `issue-creator`) — i.e.
+`python-code-review`, `python-debug-root-cause`, `issue-to-plan`,
+`plan-to-implementation-procedure`, `issue-creator`) — i.e.
 skills whose purpose is to produce an analysis, review, design, plan, or issue artifact
 rather than change code.
 

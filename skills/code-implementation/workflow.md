@@ -27,7 +27,7 @@ below still requires the full inspection that rule describes):
 | `lint-imports` | 3e | Architecture/import-boundary check |
 | `bandit` | 3e | Security check |
 | `pytest` (targeted, then full suite), `pytest --testmon` | 4 | Test execution and impact-based selection |
-| `tools/check_docs_quality.py`, `tools/check_docs_structure.py`, `tools/check_docs_consistency.py --domain <domain>` | 6 | Documentation validation |
+| See `routing.md` Tools → "When to run which tool" | 6 | Documentation validation |
 
 `tools/manage_workitem_stage.py close-implementation` (see `tools/TOOL_DESCRIPTIONS.md`
 for full usage) is a `git mv`-based archival move that refuses (non-zero exit, no move)
@@ -294,13 +294,10 @@ If Step 5 made no edits (no changed file matched a Task scope row), skip this st
 content checks entirely and mark Step 6 Completed with Notes = `N/A: no documentation
 changes to validate`.
 
-Otherwise, run the checkers `routing.md` Tools → "When to run which tool" requires
-for an edited `docs/*.md` file (per `AGENTS.md` Global Rule 9 — do not rely on
-manual review alone for what these already automate): `uv run python
-tools/check_docs_quality.py` and `uv run python tools/check_docs_structure.py
-[edited files...]` always; add `uv run python tools/check_docs_consistency.py
---domain <domain>` when the edited docs fall under a domain that checker covers
-(`agent`/`mcp`/`rag`/`deployment`/`overview`).
+See `routing.md` Tools → "When to run which tool" for the checkers required on an edited
+`docs/*.md` file (per `AGENTS.md` Global Rule 9 — do not rely on manual review alone for
+what these already automate) — do not hardcode tool names or invocations here; that table
+is the single source of truth and is kept in sync with `tools/`.
 
 These tools cover most of the check below; still confirm manually whatever they do
 not automate for the edited sections:

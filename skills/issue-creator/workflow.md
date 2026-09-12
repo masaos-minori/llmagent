@@ -228,9 +228,8 @@ After the issue body is finalized, generate the filename using the convention de
    command actually targeted the `issues/` directory (confirm it exists first), not proof
    by itself.
 6. If a collision is found, regenerate with the next available disambiguator (e.g. a
-   numeric suffix on `{id}` or `{slug}`) and re-check uniqueness. Per `AGENTS.md` Loop
-   Prevention > Attempt Limit, retry up to 3 times; after 3 collisions, stop and report
-   `Blocked: repeated filename collision — {path}` rather than continuing to increment.
+   numeric suffix on `{id}` or `{slug}`) and re-check uniqueness, applying
+   `rules/filename-collision.md` Collision Retry Bound.
 
 Do NOT create issues without following this naming convention.
 

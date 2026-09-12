@@ -54,7 +54,8 @@ Additional context-hygiene guidance specific to this workflow:
 - Perform Step 2 (verifying claims in the Issue against current source) sequentially.
   Retain only a concise confirmation or correction, not full file contents.
 - Process each Steps 1-10 cycle sequentially — investigation MUST NOT carry from one
-  file's cycle into the next; cycles MUST run one at a time, not in parallel.
+  file's cycle into the next (cycles do not run in parallel — see `rules/ai-execution.md`
+  Global Safety Restrictions (Base)).
   This isolation applies to conclusions and investigation state, not to re-running an
   identical read-only command against a file confirmed unchanged — see
   `rules/ai-execution.md` Tool Usage for when such a command may be skipped instead of
@@ -75,8 +76,9 @@ destination (Step 4) — do not report for a routine, expected verification step
 
 Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
 `rules/toolchain.md`, `rules/ai-execution.md`, `rules/workflow-lifecycle.md`,
-`templates/traceability.md`, `templates/requirement-traceability.md`,
-`templates/issue.md`, `templates/plan.md`, `SKILL.md` (this skill), and this file.
+`rules/filename-collision.md`, `templates/traceability.md`,
+`templates/requirement-traceability.md`, `templates/issue.md`, `templates/plan.md`,
+`SKILL.md` (this skill), and this file.
 Do not load `workflow-path-b.md` here — see Step 5, which loads it only once Step 3
 determines Path B.
 
@@ -272,7 +274,7 @@ file/directory exists before recording "no findings" as a baseline value.
 
 See `rules/toolchain.md` section 7 for the diff-cover baseline command sequence (run
 without `--fail-under` here, just to record the current number). The Plan must include
-raising it to ≥ 90%.
+raising it to the threshold defined in `rules/toolchain.md` Completion checklist.
 
 #### Generate the Plan
 
@@ -280,11 +282,8 @@ raising it to ≥ 90%.
 - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`.
 - Save as `plans/{timestamp}_plan.md`. If that path already exists, use the lowest
   available zero-padded sequence (`plans/{timestamp}_01_plan.md`,
-  `plans/{timestamp}_02_plan.md`, ...). An existing file MUST NOT be overwritten.
-  Retry up to 3 times (per `AGENTS.md` Loop Prevention > Attempt Limit — this collision
-  retry is an instance of that rule, not a separate bound). After 3 collisions, stop and
-  report `Blocked: repeated filename collision — plans/{timestamp}_plan.md` rather than
-  continuing to increment.
+  `plans/{timestamp}_02_plan.md`, ...), applying `rules/filename-collision.md`
+  Collision Retry Bound.
 - Optionally scaffold the empty file first with `uv run python
   tools/generate_workitem.py --kind plan` — it reproduces `templates/plan.md`'s
   current field order exactly, removing manual timestamp/field-order transcription

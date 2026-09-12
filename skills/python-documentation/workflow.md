@@ -290,10 +290,8 @@ Normally remove, compress, or replace with source references:
   contents
 - exact resolved dependency versions, unless needed to explain a verified compatibility
   constraint, migration issue, or operational problem
-- full ASCII file trees, per-file descriptions embedded in a tree or table,
-  class/function/method index tables, implementation-location mappings ("this behavior is
-  implemented in `{file}`"), and literal port numbers (see `skills/DESIGN.md` Docs content
-  policy — remove)
+- full ASCII file trees, per-file descriptions, symbol index tables, implementation-location
+  mappings, literal port numbers — see `skills/DESIGN.md` Docs content policy — remove
 
 Keep: design intent, responsibility boundaries, architectural constraints, non-negotiable
 invariants, failure behavior (fail-fast/fail-open), security and operational constraints,

@@ -128,9 +128,9 @@ outdated tests. Do not execute any new command in this step.
 ## Step 6: Consolidate Findings (Analysis)
 
 Merge Step 4's confirmed failures and Step 5's gaps/inconsistencies into a single
-Finding list. Assign each a `F-{NNN}` ID, a category, and a severity, per
-`evidence.md` Finding Categories and Finding, Task, and Test Case IDs. Do not execute
-any new command in this step.
+Finding list. Assign each a `F-{NNN}` ID (per `evidence.md` Finding, Task, and Test
+Case IDs), a category (per `evidence.md` Finding Categories), and a severity (per
+`skills/DESIGN.md` Severity levels). Do not execute any new command in this step.
 
 Report the consolidated Finding list before proceeding to Step 7 — this is the single
 source Step 7's Tasks and Test Cases must cite by ID.
