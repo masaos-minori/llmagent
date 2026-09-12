@@ -505,21 +505,28 @@ class TestRunHttpAugment:
             set_fetch_result=lambda fr: captured_results.append(fr),
         )
 
+        mock_selected_hits = [{"id": "hit1", "score": 0.9}]
+
         with patch("rag.http_augment.call_rag_service") as mock_call_rag_service:
-            mock_call_rag_service.return_value = (
-                "context",
-                200,
-                100.0,
-            )
+            def side_effect(*args, **kwargs):
+                set_fetch_result = kwargs.get("set_fetch_result")
+                if set_fetch_result:
+                    set_fetch_result(mock_selected_hits)
+                return ("context", 200, 100.0)
+
+            mock_call_rag_service.side_effect = side_effect
 
             result = await refiner.run_http_augment(
                 "query", "", "http://example.com/api"
             )
 
         assert result == "context"
-        # Callback is only invoked when selected_hits is present in the response
-        # The current implementation does not include selected_hits in this mock
-        assert len(captured_results) == 0
+        expected = TwoStageFetchResult(
+            hits=mock_selected_hits,
+            min_score_applied=cfg.rag_min_score,
+            max_chunks_per_doc=cfg.max_chunks_per_doc,
+        )
+        assert captured_results[0] == expected
 
     @pytest.mark.asyncio
     async def test_set_fallback_reason_callback_called(self) -> None:

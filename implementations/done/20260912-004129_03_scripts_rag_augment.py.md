@@ -139,10 +139,10 @@ async def _forward_fetch_result(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Retype `AugmentRefiner.__init__`'s `set_fetch_result` parameter | Pending | — | — | |
-| 2 | Add `_forward_fetch_result` wrapper method | Pending | — | — | |
-| 3 | Wire wrapper into `run_http_augment()` | Pending | — | — | |
-| 4 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Retype `AugmentRefiner.__init__`'s `set_fetch_result` parameter | Completed | — | — | Changed to `Callable[[TwoStageFetchResult], None] | None` |
+| 2 | Add `_forward_fetch_result` wrapper method | Completed | — | — | Replaced `_handle_selected_hits` |
+| 3 | Wire wrapper into `run_http_augment()` | Completed | — | — | Passed `self._forward_fetch_result` directly |
+| 4 | Run validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy clean; 52 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

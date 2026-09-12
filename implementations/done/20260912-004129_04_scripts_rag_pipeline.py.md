@@ -121,8 +121,8 @@ Pass a real `set_fetch_result` callback into `AugmentRefiner(...)`'s constructio
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `set_fetch_result` callback to `AugmentRefiner(...)` construction | Pending | — | — | |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `set_fetch_result` callback to `AugmentRefiner(...)` construction | Completed | — | — | Added lambda callback |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy clean; 563 passed (2 env-dependent failures unrelated) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

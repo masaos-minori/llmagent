@@ -116,6 +116,7 @@ class RagPipeline:
                 http=self._http,
                 cfg=self._cfg,
                 on_status=self._on_status,
+                set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
                 search_diagnostics=self.last_search_diagnostics,
                 llm=self._llm,
             )

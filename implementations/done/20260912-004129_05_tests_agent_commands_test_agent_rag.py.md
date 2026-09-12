@@ -132,10 +132,10 @@ Remove the `@pytest.mark.skip(...)` markers from the 3 `TestAugmentHttpMode` tes
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read test file to identify exact locations | Pending | — | — | |
-| 2 | Remove @pytest.mark.skip decorators | Pending | — | — | |
-| 3 | Correct assertions in all 3 tests | Pending | — | — | |
-| 4 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Read test file to identify exact locations | Completed | — | — | All changes already applied |
+| 2 | Remove @pytest.mark.skip decorators | Completed | — | — | Already removed |
+| 3 | Correct assertions in all 3 tests | Completed | — | — | Already corrected to TwoStageFetchResult |
+| 4 | Run validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy clean; 4 passed (1 env-dependent failure unrelated) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

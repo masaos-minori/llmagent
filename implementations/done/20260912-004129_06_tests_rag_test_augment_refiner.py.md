@@ -123,9 +123,9 @@ Correct `test_set_fetch_result_callback_called_with_result` (currently asserts t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read test file to identify exact locations | Pending | — | — | |
-| 2 | Correct mock setup in test | Pending | — | — | |
-| 3 | Correct assertion in test | Pending | — | — | |
+| 1 | Read test file to identify exact locations | Completed | — | — | Already applied
+| 2 | Correct mock setup in test | Completed | — | — | Already applied
+| 3 | Correct assertion in test | Completed | — | — | Already applied
 | 4 | Apply identical correction to duplicate file | Pending | — | — | |
 | 5 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 

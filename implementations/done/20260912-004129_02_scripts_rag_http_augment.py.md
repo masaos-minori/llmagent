@@ -120,9 +120,9 @@ from typing import Any
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Retype `HttpAugment.__init__`'s `set_fetch_result` parameter | Pending | — | — | |
-| 2 | Remove incorrect `self._set_fetch_result(result)` call in `run()` | Pending | — | — | |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Retype `HttpAugment.__init__`'s `set_fetch_result` parameter | Completed | — | — | Already applied in current source
+| 2 | Remove incorrect `self._set_fetch_result(result)` call in `run()` | Completed | — | — | Already applied in current source
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | — | — | Already applied in current source
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

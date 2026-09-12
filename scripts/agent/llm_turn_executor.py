@@ -39,7 +39,7 @@ class LlmTurnExecutor:
         diagnostic_store: DiagnosticStore | None = None,
         tracer: Any = None,
         on_error: Callable[[Exception], None] | None = None,
-        on_llm_wait_start: Callable[..., Any] | None = None,
+        on_llm_wait_start: Callable[[], None] | None = None,
         on_llm_wait_end: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the LLM turn executor."""
