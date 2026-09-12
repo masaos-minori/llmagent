@@ -16,7 +16,9 @@ Add a new MCP server end-to-end: skeleton files, service registration, agent rou
 ## Existing MCP servers (reference)
 
 Port/role table (canonical): `docs/04_mcp_01_system_overview.md` Server Catalog.
-Module paths follow the pattern `mcp_servers/<name>/server.py` (e.g. `mcp_servers/web_search/server.py`).
+Module paths follow the pattern `scripts/mcp_servers/<name>/<name>_server.py` (plus
+`<name>_service.py`, `<name>_models.py`, `<name>_tools.py`), e.g.
+`scripts/mcp_servers/web_search/web_search_server.py`.
 
 New servers must use the next free port above every port currently assigned — derive it at
 task time (see Prerequisites), per `skills/DESIGN.md` No concrete configuration values.
@@ -43,7 +45,7 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 **This task is complete when, and only when**: every item below is confirmed true, or
 execution stopped in a `Blocked` state per `workflow.md` Step 1/Step 8's own bound.
 
-- `scripts/mcp_servers/<name>/server.py` syntax check passes
+- `scripts/mcp_servers/<name>/<name>_server.py` syntax check passes
 - `deploy/deploy.sh` updated with a `cp` line for the new server's `config/<name>_mcp_server.toml` (see `workflow.md` Step 2 for why)
 - `config/agent.toml` section `[mcp_servers.<name>]` added (verified with `rg`)
 - service running and reachable (verify port health)

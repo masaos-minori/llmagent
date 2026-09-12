@@ -6,7 +6,7 @@
 
 本ファイル自体の内容ドリフトは `check_tool_descriptions_sync.py` で検出できる(`tools/*.py` とここでの言及の突合)。
 
-## 一覧 (35モジュール)
+## 一覧 (36モジュール)
 
 | ファイル | カテゴリ | 主な目的 |
 |---|---|---|
@@ -44,6 +44,7 @@
 | `fix_docstring_paths.py` | 整形補助 | scriptsモジュールdocstringヘッダーパスの更新 |
 | `check_docstrings.py` | ドキュメント品質 | スクリプトdocstringフォーマット検証 |
 | `check_tool_descriptions_sync.py` | 整合性チェッカー | 本ファイルと実際の`tools/*.py`の突合 |
+| `check_skills_references.py` | 整合性チェッカー | `AGENTS.md`/`routing.md`/`skills/DESIGN.md`/`rules/*.md`/`skills/**/*.md`/`prompts/*.md`内のバッククォート付きファイル参照(`rules/`・`skills/`・`templates/`配下、または`AGENTS.md`/`routing.md`自身)の実在確認 |
 
 ## ドメイン別ドキュメント整合性チェッカー
 

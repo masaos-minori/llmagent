@@ -11,7 +11,6 @@ from eventbus.db import count_dlq, fetch_dlq, redeliver_event
 from eventbus.route_helpers import (
     ERR_EVENT_NOT_FOUND,
     ERR_EVENT_NOT_IN_DLQ,
-    get_config,
     get_db,
     run_with_db_lock,
 )
@@ -23,7 +22,7 @@ async def dlq_list(
     request: Request,
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
-    _role: Role | None = None,  # type: ignore[assignment] — set by app.py wrapper
+    _role: Role | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """List dead-letter queue entries with pagination support."""
     db = get_db(request)
@@ -51,7 +50,7 @@ async def dlq_list(
 async def dlq_requeue(
     request: Request,
     event_id: str,
-    _role: Role | None = None,  # type: ignore[assignment] — set by app.py wrapper
+    _role: Role | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Requeue a dead-letter queue entry back into the active event queue.
 
@@ -61,7 +60,6 @@ async def dlq_requeue(
     original event.
     """
     db = get_db(request)
-    cfg = get_config(request)
 
     def _redeliver() -> tuple[bool, str | None]:
         """Redeliver a single event from the dead letter queue using the lineage model."""

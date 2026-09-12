@@ -33,8 +33,8 @@ async def subscribe(
     topic: list[str] = Query(default=[]),
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
-    _role: Role | None = None,  # type: ignore[assignment] — set by app.py wrapper
-    _identity: dict[str, Any] | None = None,  # type: ignore[assignment] — set by app.py wrapper
+    _role: Role | None = None,  # set by app.py wrapper
+    _identity: dict[str, Any] | None = None,  # set by app.py wrapper
 ) -> Any:
     """Subscribe to events via SSE with optional topic filtering and offset recovery."""
     from eventbus.db import get_consumer_offset  # noqa: PLC0415, RUF100

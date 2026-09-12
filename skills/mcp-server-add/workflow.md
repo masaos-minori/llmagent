@@ -41,9 +41,10 @@ From the running agent REPL:
 ```
 
 This calls the MCP installer and generates:
-- `scripts/mcp_servers/<name>/server.py` — skeleton server module
-- `scripts/mcp_servers/<name>/service.py` — service logic
-- `scripts/mcp_servers/<name>/models.py` — Pydantic request/response models
+- `scripts/mcp_servers/<name>/<name>_server.py` — skeleton server module
+- `scripts/mcp_servers/<name>/<name>_service.py` — service logic
+- `scripts/mcp_servers/<name>/<name>_models.py` — Pydantic request/response models
+- `scripts/mcp_servers/<name>/<name>_tools.py` — tool definitions
 - `config/<name>_mcp_server.toml` — server config
 - `init.d/<name>` — optional startup script (subprocess management)
 
@@ -71,8 +72,10 @@ If `/mcp install` fails partway through:
 ## Option B: Manual creation
 
 If the agent is not running, create the files manually following the models / service / server
-split pattern in `mcp/file/` (`mcp/file/models.py`, `mcp/file/service.py`, `mcp/file/read_server.py`)
-and the init script in `init.d/file-mcp`.
+split pattern in `scripts/mcp_servers/file/` (e.g. `scripts/mcp_servers/file/read_models.py`,
+`scripts/mcp_servers/file/read_service.py`, `scripts/mcp_servers/file/read_server.py`) and,
+if the server needs subprocess management, an init script under `init.d/` following the
+`<name>-mcp` naming pattern (e.g. `init.d/mdq-mcp`).
 
 ---
 
@@ -86,8 +89,8 @@ fails after 3 attempts, stop and report `Blocked: {row} still failing after 3 at
 
 | Check | On failure |
 |---|---|
-| `server.py` inherits from `MCPServer` base class (`mcp/server.py`) | Add the missing base class import and inheritance |
-| Uses models defined in `scripts/mcp_servers/<name>/models.py` (Pydantic `BaseModel` subclasses) | Move inline request/response types into `models.py` |
+| `<name>_server.py` inherits from `MCPServer` base class (`scripts/mcp_servers/server.py`) | Add the missing base class import and inheritance |
+| Uses models defined in `scripts/mcp_servers/<name>/<name>_models.py` (Pydantic `BaseModel` subclasses) | Move inline request/response types into `<name>_models.py` |
 | Uses `ConfigLoader().load('<name>_mcp_server.toml')` (not `json.load()`) | Replace the `json.load()` call — see `SKILL.md` Required behavior |
 | Uses `logger = logging.getLogger(__name__)` (standard library logging) | Add the standard logger declaration |
 | Comments and log messages are in English | Translate non-English comments/log messages |

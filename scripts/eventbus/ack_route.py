@@ -31,8 +31,8 @@ async def _do_ack(
     cfg: Any,
     event_id: str,
     consumer_id: str = "",
-    _role: Role | None = None,  # type: ignore[assignment] — set by app.py wrapper
-    _identity: dict[str, Any] | None = None,  # type: ignore[assignment] — set by app.py wrapper
+    _role: Role | None = None,  # set by app.py wrapper
+    _identity: dict[str, Any] | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Common ack logic shared by /ack and /events/{event_id}/ack."""
     if not event_id:
@@ -79,8 +79,8 @@ async def ack_event(
     request: Request,
     event_id: str,
     consumer_id: str = Query(default=""),
-    _role: Role | None = None,  # type: ignore[assignment] — set by app.py wrapper
-    _identity: dict[str, Any] | None = None,  # type: ignore[assignment] — set by app.py wrapper
+    _role: Role | None = None,  # set by app.py wrapper
+    _identity: dict[str, Any] | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Acknowledge an event as successfully processed by a consumer."""
     db = get_db(request)
@@ -91,8 +91,8 @@ async def ack_event(
 async def nack(
     request: Request,
     event_id: str = Query(default=""),
-    _role: Role | None = None,  # type: ignore[assignment] — set by app.py wrapper
-    _identity: dict[str, Any] | None = None,  # type: ignore[assignment] — set by app.py wrapper
+    _role: Role | None = None,  # set by app.py wrapper
+    _identity: dict[str, Any] | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Negatively acknowledge an event, triggering retry logic."""
     if not event_id:
@@ -126,9 +126,11 @@ async def nack(
     if failure_count == -2:
         # Invalid transition: event is already ACKed or DLQ'd
         # Determine which state by checking the event directly
-        row = await run_with_db_lock(lambda: db.execute(
-            "SELECT acked_at, dlq_at FROM events WHERE event_id = ?", (event_id,)
-        ).fetchone())
+        row = await run_with_db_lock(
+            lambda: db.execute(
+                "SELECT acked_at, dlq_at FROM events WHERE event_id = ?", (event_id,)
+            ).fetchone()
+        )
         if row and row["acked_at"] is not None:
             raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
         elif row and row["dlq_at"] is not None:
