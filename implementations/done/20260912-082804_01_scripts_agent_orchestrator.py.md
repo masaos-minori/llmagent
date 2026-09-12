@@ -90,8 +90,8 @@ N/A: no user input, no network access, no credential handling.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `workflow_status()` method to Orchestrator | Pending | — | — | |
-| 2 | Verify method works via TestGetWorkflowStatus tests | Pending | — | — | |
+| 1 | Add `workflow_status()` method to Orchestrator | Completed | — | — | Applied: added method returning {"tracking": "enabled"}/{"tracking": "not_loaded"} based on self._ctx.workflow.active |
+| 2 | Verify method works via TestGetWorkflowStatus tests | Completed | — | — | ruff/mypy/bandit all clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

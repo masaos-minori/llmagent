@@ -84,20 +84,8 @@ class StartupBanner:
             return "?"
 
     def _get_workflow_status(self, orchestrator: Orchestrator | None) -> str:
-        """Return a human-readable workflow status string for the startup banner.
-
-        Orchestrator has no real workflow_status() method today — see
-        issues/20260911-153000_replbanner01_orchestrator-workflow-status-unimplemented.md.
-        getattr(..., None) keeps this from raising AttributeError against the
-        real class while still exercising the intended "enabled"/"not loaded"
-        branches wherever a caller (real or test double) does provide one.
-        """
+        """Return a human-readable workflow status string for the startup banner."""
         if orchestrator is None:
             return "unknown"
-        get_status = getattr(orchestrator, "workflow_status", None)
-        if get_status is None:
-            return "not loaded"
-        status = get_status()
-        if status["tracking"] == "enabled":
-            return "enabled"
-        return "not loaded"
+        status = orchestrator.workflow_status()["tracking"]
+        return status if status != "not_loaded" else "not loaded"

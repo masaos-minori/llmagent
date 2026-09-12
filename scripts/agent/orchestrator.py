@@ -209,6 +209,12 @@ class Orchestrator:
             line, answer, 0.0, error_kind, is_partial
         )
 
+    def workflow_status(self) -> dict[str, str]:
+        """Return the current workflow tracking status."""
+        if self._ctx.workflow.active:
+            return {"tracking": "enabled"}
+        return {"tracking": "not_loaded"}
+
     async def _on_approval_pending(self, pending_approval_id):
         logger.warning(
             "Turn blocked: workflow pending approval. Use /approve %s or /reject %s.",
