@@ -121,12 +121,12 @@ Simple revert of the three modifications (assertion addition, variable replaceme
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add assertion for non-None check | Pending | — | — | Before engine usage in execute_turn |
-| 2 | Replace WorkflowEngine(...) with self._workflow_engine | Pending | — | — | Line 162-166 |
-| 3 | Update class docstring with lifecycle note | Pending | — | — | Note engine lifecycle management |
-| 4 | Run unit test: single engine instance | Pending | — | — | test_execute_turn_single_engine_instance |
-| 5 | Run integration test: turn correctness | Pending | — | — | test_execute_turn_correctness_with_reused_engine |
-| 6 | Run regression test: backward compat | Pending | — | — | test_init_workflow_task_backwards_compat |
+| 1 | Add assertion for non-None check | Completed | 20260914-001059 | 20260914-001059 | Before engine usage in execute_turn |
+| 2 | Replace WorkflowEngine(...) with self._workflow_engine | Completed | 20260914-001059 | 20260914-001059 | Line 162-166 |
+| 3 | Update class docstring with lifecycle note | Completed | 20260914-001059 | 20260914-001059 | Note engine lifecycle management |
+| 4 | Run unit test: single engine instance | Completed | 20260914-001100 | 20260914-001100 | test_execute_turn_single_engine_instance |
+| 5 | Run integration test: turn correctness | Completed | 20260914-001100 | 20260914-001100 | test_execute_turn_correctness_with_reused_engine |
+| 6 | Run regression test: backward compat | Completed | 20260914-001100 | 20260914-001100 | test_init_workflow_task_backwards_compat |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
