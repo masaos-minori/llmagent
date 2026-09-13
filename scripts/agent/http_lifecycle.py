@@ -24,6 +24,7 @@ import shutil  # noqa: F401 — kept for tests patching agent.http_lifecycle.shu
 import signal
 import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
 import time
+from dataclasses import asdict
 from http import HTTPStatus
 from typing import IO
 
@@ -137,16 +138,9 @@ class HttpServerLifecycleManager:
         """Terminate proc; escalate to kill if terminate times out."""
         if proc.poll() is not None:
             return
-        pgid = self._http_pgids.get(server_key)
-        used_pgid = False
-        if pgid is not None:
-            try:
-                os.killpg(pgid, signal.SIGTERM)  # nosec B603
-                used_pgid = True
-            except (ProcessLookupError, OSError):
-                proc.terminate()
-        else:
-            proc.terminate()
+        used_pgid = await self._do_pgid_terminated(
+            self._http_pgids.get(server_key), proc, force=False
+        )
         if await self._wait_exited(proc, timeout):
             if not used_pgid:
                 logger.warning(
@@ -158,19 +152,43 @@ class HttpServerLifecycleManager:
             "Lifecycle: force-killing %r (terminate timed out)",
             server_key,
         )
-        pgid = self._http_pgids.get(server_key)
-        if pgid is not None:
-            try:
-                os.killpg(pgid, signal.SIGKILL)  # nosec B603
-            except (ProcessLookupError, OSError):
-                proc.kill()
-        else:
-            proc.kill()
+        await self._do_pgid_terminated(
+            self._http_pgids.get(server_key), proc, force=True
+        )
         if not await self._wait_exited(proc, timeout):
             logger.warning(
                 "Lifecycle: %r still not terminated after kill",
                 server_key,
             )
+
+    async def _do_pgid_terminated(
+        self,
+        pgid: int | None,
+        proc: subprocess.Popen[bytes],
+        force: bool = False,
+    ) -> bool:
+        """Send SIGTERM or SIGKILL to process group leader via pgid, falling back to proc-level signals.
+
+        Returns True iff pgid-based termination was used (os.killpg succeeded).
+        When pgid is not None, attempts os.killpg() first; on failure falls back
+        to proc.terminate()/proc.kill(). When pgid is None, uses proc-level signals
+        directly.  When force=True sends SIGKILL instead of SIGTERM.
+        """
+        sig = signal.SIGKILL if force else signal.SIGTERM
+        if pgid is not None:
+            try:
+                os.killpg(pgid, sig)  # nosec B603
+                return True
+            except (ProcessLookupError, OSError):
+                if force:
+                    proc.kill()
+                else:
+                    proc.terminate()
+        elif force:
+            proc.kill()
+        else:
+            proc.terminate()
+        return False
 
     def verify_running(self, server_key: str) -> bool:
         """Return True if the HTTP subprocess server is running, False if missing or exited."""
@@ -214,8 +232,8 @@ class HttpServerLifecycleManager:
         self._last_health_check.pop(server_key, None)
         return stderr_content
 
-    def _build_snapshot_dict(self, server_key: str) -> dict | None:
-        """Return a dict snapshot for a managed subprocess, or None if unknown."""
+    def _build_snapshot(self, server_key: str) -> ProcessInfoSnapshot | None:
+        """Return a typed snapshot for a managed subprocess, or None if unknown."""
         proc = self._http_procs.get(server_key)
         if proc is None:
             return None
@@ -223,34 +241,26 @@ class HttpServerLifecycleManager:
         last_exit_code = proc.poll() if not running else None
         pgid = self._http_pgids.get(server_key)
         stderr_log = self._stderr_log_paths.get(server_key, "")
-        return {
-            "server_key": server_key,
-            "managed": True,
-            "pid": proc.pid,
-            "pgid": pgid,
-            "running": running,
-            "last_exit_code": last_exit_code,
-            "stderr_log": stderr_log,
-        }
+        return ProcessInfoSnapshot(
+            server_key=server_key,
+            managed=True,
+            pid=proc.pid,
+            pgid=pgid,
+            running=running,
+            last_exit_code=last_exit_code,
+            stderr_log=stderr_log,
+        )
 
     def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
         """Return a read-only snapshot for a managed subprocess, or None if unknown."""
-        d = self._build_snapshot_dict(server_key)
-        if d is None:
-            return None
-        return ProcessInfoSnapshot(
-            server_key=d["server_key"],
-            managed=d["managed"],
-            pid=d["pid"],
-            pgid=d["pgid"],
-            running=d["running"],
-            last_exit_code=d["last_exit_code"],
-            stderr_log=d["stderr_log"],
-        )
+        return self._build_snapshot(server_key)
 
     def get_process_snapshot(self, server_key: str) -> dict | None:
         """Return a dict snapshot for a managed subprocess, or None if unknown."""
-        return self._build_snapshot_dict(server_key)
+        snap = self._build_snapshot(server_key)
+        if snap is None:
+            return None
+        return asdict(snap)
 
     def list_processes(self) -> list[ProcessInfoSnapshot]:
         """Return snapshots for all currently managed subprocess servers."""
@@ -576,4 +586,4 @@ class HttpServerLifecycleManager:
                 try:
                     signal.signal(signal.SIGINT, old_sigint)
                 except ValueError:
-                    pass
+                    logger.debug("Lifecycle: could not restore SIGINT handler")
