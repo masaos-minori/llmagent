@@ -112,10 +112,10 @@ Simple revert: restore the original "Public Methods" entry and the terse "Module
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Confirm docstring and RagRepository's method list | Pending | — | — | |
-| 2 | Phase 2: Remove mis-categorized entry | Pending | — | — | |
-| 3 | Phase 2: Expand Module-level entry | Pending | — | — | |
-| 4 | Verification: manual review | Pending | — | — | |
+| 1 | Phase 1: Confirm docstring and RagRepository's method list | Completed | — | — | |
+| 2 | Phase 2: Remove mis-categorized entry | Completed | — | — | |
+| 3 | Phase 2: Expand Module-level entry | Completed | — | — | |
+| 4 | Verification: manual review | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
