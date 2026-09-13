@@ -117,11 +117,11 @@ Simple revert of the three modifications (variable addition, keyword argument, i
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm no caller relies on stale-False behavior | Pending | — | — | Check ctx.search_diagnostics.degraded readers |
-| 2 | Add degraded variable before return statement | Pending | — | — | compute embed_failed > 0 or fts_errors > 0 |
-| 3 | Pass degraded=degraded to SearchDiagnostics constructor | Pending | — | — | Keyword argument addition |
-| 4 | Add inline comment explaining degraded computation | Pending | — | — | Cross-reference to from_run_result |
-| 5 | Run validation sequence (rules/toolchain.md) | Pending | — | — | pytest tests/rag/ |
+| 1 | Confirm no caller relies on stale-False behavior | Completed | — | — | Check ctx.search_diagnostics.degraded readers |
+| 2 | Add degraded variable before return statement | Completed | — | — | compute embed_failed > 0 or fts_errors > 0 |
+| 3 | Pass degraded=degraded to SearchDiagnostics constructor | Completed | — | — | Keyword argument addition |
+| 4 | Add inline comment explaining degraded computation | Completed | — | — | Cross-reference to from_run_result |
+| 5 | Run validation sequence (rules/toolchain.md) | Completed | — | — | pytest tests/rag/ |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
