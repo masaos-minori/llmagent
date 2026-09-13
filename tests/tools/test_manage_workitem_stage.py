@@ -790,3 +790,77 @@ def test_set_step_status_missing_step_errors(tmp_path: Path) -> None:
     exit_code = cmd_set_step_status(args)
 
     assert exit_code == 1
+
+
+# Regression test for a bug found while updating
+# implementations/*_scripts_eventbus_app_py.md's Execution Status table:
+# update_execution_status()'s table-rebuild loop appended the rebuilt data
+# rows unconditionally after the *entire file's* line loop finished, instead
+# of at the point where the original data rows ended. EXECUTION_STATUS_TWO_ROWS
+# above has nothing after the table, so it never exercised this path — the
+# bug only shows up when a later section (e.g. "### Blocker Log") follows the
+# Execution Status table, which every real implementation-procedure/plan
+# document has.
+EXECUTION_STATUS_WITH_TRAILING_SECTION = """# Fixture implementation procedure
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | First step | Pending | — | — | |
+| 2 | Second step | Pending | — | — | |
+| 3 | Third step | Pending | — | — | |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+"""
+
+
+def test_set_step_status_keeps_rows_inside_table_with_trailing_section(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "impl.md"
+    source.write_text(EXECUTION_STATUS_WITH_TRAILING_SECTION, encoding="utf-8")
+
+    args = build_parser().parse_args(
+        [
+            "set-step-status",
+            "implementation-procedure",
+            str(source),
+            "--step",
+            "1",
+            "Completed",
+        ]
+    )
+    exit_code = cmd_set_step_status(args)
+
+    assert exit_code == 0
+    written = source.read_text(encoding="utf-8")
+    _, header, rows = parse_execution_status_table(written)
+    assert header is not None
+    assert rows is not None and len(rows) == 3
+    assert rows[0][header.index("Status")] == "Completed"
+    # The Blocker Log table must still be present and untouched, and the
+    # rebuilt Execution Status rows must sit *before* it, not after.
+    assert "### Blocker Log" in written
+    execution_pos = written.index("### Execution Status")
+    blocker_pos = written.index("### Blocker Log")
+    row3_pos = written.index("Third step")
+    assert execution_pos < row3_pos < blocker_pos
+
+    # A subsequent update to a later step must still find its row — this is
+    # what failed before the fix (Step 2/3 rows were pushed past EOF).
+    args2 = build_parser().parse_args(
+        [
+            "set-step-status",
+            "implementation-procedure",
+            str(source),
+            "--step",
+            "2",
+            "Completed",
+        ]
+    )
+    assert cmd_set_step_status(args2) == 0

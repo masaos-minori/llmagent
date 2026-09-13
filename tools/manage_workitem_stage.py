@@ -423,7 +423,8 @@ def update_execution_status(
     new_lines: list[str] = []
     in_table = False
     separator_appended = False
-    for i, line in enumerate(content.splitlines()):
+    rows_inserted = False
+    for line in content.splitlines():
         if line.strip() == EXECUTION_STATUS_HEADING:
             new_lines.append(line)
             in_table = True
@@ -440,12 +441,18 @@ def update_execution_status(
             if len(cells) == len(header):
                 # Data row — skip, will be replaced with rebuilt rows
                 continue
-            # Empty line or non-table line after table — stop tracking
+            # Empty line or non-table line after the table — insert the
+            # rebuilt rows here, right where the original data rows ended,
+            # before falling through to append this non-table line.
+            for dr in data_rows:
+                new_lines.append(build_data_row_line(header, dr))
+            rows_inserted = True
             in_table = False
         new_lines.append(line)
 
-    # Append the rebuilt table rows after the separator line
-    if separator_appended:
+    # If the table ran to the end of the file (no trailing line ever
+    # triggered the insertion above), append the rebuilt rows now.
+    if separator_appended and not rows_inserted:
         for dr in data_rows:
             new_lines.append(build_data_row_line(header, dr))
 
