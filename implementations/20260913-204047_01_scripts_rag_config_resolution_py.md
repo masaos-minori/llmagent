@@ -112,10 +112,10 @@ Simple revert of the guard-clause insertion and docstring update — no data mig
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm no existing caller relies on silent-empty behavior | Pending | — | — | Check pipeline.py:98 |
-| 2 | Add guard-clause validation after filtered_cfg construction | Pending | — | — | Collect-then-raise pattern |
-| 3 | Update resolve_rag_config() docstring | Pending | — | — | Document ValueError condition |
-| 4 | Run validation sequence (rules/toolchain.md) | Pending | — | — | pytest tests/rag/ |
+| 1 | Confirm no existing caller relies on silent-empty behavior | Completed | — | — | Check pipeline.py:98 |
+| 2 | Add guard-clause validation after filtered_cfg construction | Completed | — | — | Collect-then-raise pattern |
+| 3 | Update resolve_rag_config() docstring | Completed | — | — | Document ValueError condition |
+| 4 | Run validation sequence (rules/toolchain.md) | Completed | — | — | pytest tests/rag/ |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
