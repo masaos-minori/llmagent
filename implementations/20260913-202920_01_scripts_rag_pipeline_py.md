@@ -86,9 +86,9 @@ Simple revert of the single assertion insertion — no data migration or state r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify `result` variable type at assertion insertion point | Pending | — | — | Confirm `str | None` |
-| 2 | Add assertion in `augment()` HTTP-mode branch | Pending | — | — | Insert after line 298 |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | `pytest tests/rag/` |
+| 1 | Verify `result` variable type at assertion insertion point | Completed | — | — | Confirm `str | None` |
+| 2 | Add assertion in `augment()` HTTP-mode branch | Completed | — | — | Insert after line 298 |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | — | — | `pytest tests/rag/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
