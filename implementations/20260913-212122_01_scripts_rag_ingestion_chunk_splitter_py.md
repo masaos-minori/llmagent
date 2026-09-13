@@ -196,13 +196,13 @@ No data migration or state rollback needed for any option.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Compare TypedDict schemas against ChunkDocument | Pending | — | — | Assess redundancy |
-| 2 | Search for TypedDict consumers | Pending | — | — | grep -r CrawlJsonPayload ChunkJsonPayload ChunkJsonRaw |
-| 3 | Review git history of TypedDict vs ChunkDocument | Pending | — | — | git log --follow |
-| 4 | Make decision on approach | Pending | — | — | Option 1/2/3 |
-| 5 | Implement chosen approach | Pending | — | — | See Phase 2 details |
-| 6 | Correct TypedDict name discrepancy in docs | Pending | — | — | CrawlFilePayload→CrawlJsonPayload, ChunkOutputPayload→ChunkJsonPayload |
-| 7 | Validate (mypy/import/manual review) | Pending | — | — | Per Validation plan |
+| 1 | Compare TypedDict schemas against ChunkDocument | Completed | — | — | Assess redundancy |
+| 2 | Search for TypedDict consumers | Completed | — | — | grep -r CrawlJsonPayload ChunkJsonPayload ChunkJsonRaw |
+| 3 | Review git history of TypedDict vs ChunkDocument | Completed | — | — | git log --follow |
+| 4 | Make decision on approach | Completed | — | — | Option 1/2/3 |
+| 5 | Implement chosen approach | Completed | — | — | See Phase 2 details |
+| 6 | Correct TypedDict name discrepancy in docs | Completed | — | — | CrawlFilePayload→CrawlJsonPayload, ChunkOutputPayload→ChunkJsonPayload |
+| 7 | Validate (mypy/import/manual review) | Completed | — | — | Per Validation plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
