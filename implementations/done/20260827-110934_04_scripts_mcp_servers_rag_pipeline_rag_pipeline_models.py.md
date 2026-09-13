@@ -158,9 +158,9 @@ requires no change since it reflects whatever value the instance already holds.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Change 5 dataclass field defaults | Pending | — | — | |
-| 2 | Change 5 matching `from_dict` fallback literals | Pending | — | — | |
-| 3 | Run `uv run pytest tests/mcp_servers/rag_pipeline/ -v` | Pending | — | — | Requires seq 06 and seq 07 test-file items applied first |
+| 1 | Change 5 dataclass field defaults | Completed | — | 20260913-182400 |  |
+| 2 | Change 5 matching `from_dict` fallback literals | Completed | — | 20260913-182400 |  |
+| 3 | Run `uv run pytest tests/mcp_servers/rag_pipeline/ -v` | Completed | — | 20260913-182400 | Requires seq 06 and seq 07 test-file items applied first |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

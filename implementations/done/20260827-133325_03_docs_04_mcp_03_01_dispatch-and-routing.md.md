@@ -122,11 +122,11 @@ Remove the standalone `stampede protection` line from the keyword list (line 188
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers | Pending | — | — | |
-| 2 | Remove cache-check step, renumber | Pending | — | — | |
-| 3 | Remove stampede-protection Implementation Notes bullet | Pending | — | — | |
-| 4 | Remove stampede-protection keyword entry | Pending | — | — | |
-| 5 | Run `check_docs_consistency.py --domain mcp` | Pending | — | — | |
+| 1 | Re-confirm line numbers | Completed | — | 20260913-182400 |  |
+| 2 | Remove cache-check step, renumber | Completed | — | 20260913-182400 |  |
+| 3 | Remove stampede-protection Implementation Notes bullet | Completed | — | 20260913-182400 |  |
+| 4 | Remove stampede-protection keyword entry | Completed | — | 20260913-182400 |  |
+| 5 | Run `check_docs_consistency.py --domain mcp` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

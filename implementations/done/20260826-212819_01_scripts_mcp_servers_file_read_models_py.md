@@ -94,8 +94,8 @@ N/A: This change does not affect security boundaries or authentication paths.
 | 4 | Update `test_file_read_mcp_models.py` per T-1 | Completed | — | — | Assertions updated, new non-1024 test added |
 | 5 | Update `test_read_service.py::test_build_service_with_allowed_dirs` per T-1 | Completed | — | — | max_read_bytes=512000 assertion |
 | 6 | Run full validation sequence | Completed | — | — | ruff OK, mypy OK, lint-imports OK, bandit OK, pytest 280/285 pass (4 skipped, 1 pre-existing failure) |
-| 7 | Deploy via `deploy/deploy.sh` | Pending | — | — | |
-| 8 | Restart/reload `file-read-mcp` and confirm health endpoint | Pending | — | — | |
+| 7 | Deploy via `deploy/deploy.sh` | Completed | — | 20260913-182400 |  |
+| 8 | Restart/reload `file-read-mcp` and confirm health endpoint | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

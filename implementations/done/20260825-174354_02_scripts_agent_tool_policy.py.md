@@ -154,11 +154,11 @@ the preceding frozenset checks or to `classify_risk()`'s Priority 1/2/4 logic.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `registry` parameter and RuntimeToolRegistry-based UNKNOWN/READ logic to `classify_operation_type()` | Pending | — | — | |
-| 2 | Add `registry` parameter to `classify_risk()`, thread through to Priority 3 call | Pending | — | — | |
-| 3 | Update `tests/agent/test_tool_policy_comprehensive.py:227-229` and `tests/agent/test_tool_approval_risk.py:357-358,366` to pass an explicit registry | Pending | — | — | Per Assumptions/UNK-01 |
-| 4 | Add new tests for registry-registered/unregistered/`registry=None` per source Plan AC-01/AC-02 | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) scoped to `scripts/agent/tool_policy.py` and its tests | Pending | — | — | |
+| 1 | Add `registry` parameter and RuntimeToolRegistry-based UNKNOWN/READ logic to `classify_operation_type()` | Completed | — | 20260913-182400 |  |
+| 2 | Add `registry` parameter to `classify_risk()`, thread through to Priority 3 call | Completed | — | 20260913-182400 |  |
+| 3 | Update `tests/agent/test_tool_policy_comprehensive.py:227-229` and `tests/agent/test_tool_approval_risk.py:357-358,366` to pass an explicit registry | Completed | — | 20260913-182400 | Per Assumptions/UNK-01 |
+| 4 | Add new tests for registry-registered/unregistered/`registry=None` per source Plan AC-01/AC-02 | Completed | — | 20260913-182400 |  |
+| 5 | Run the validation sequence (`rules/toolchain.md`) scoped to `scripts/agent/tool_policy.py` and its tests | Completed | — | 20260913-182400 |  |
 | 6 | Documentation update | N/A | — | — | Not in scope for this file — see companion `tool_registry.py`/`tool_constants.py`/`docs/04_mcp_03_02_tool-registry.md` documents for REQ-004 |
 
 ### Blocker Log

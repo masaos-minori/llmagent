@@ -98,10 +98,10 @@ Not a `docs/*.md` file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_unknown_condition_preserves_db_and_does_not_restore` per Method | Pending | — | — | Depends on seq 01 landing first |
-| 2 | Run validation sequence | Pending | — | — | |
-| 3 | N/A: no further test needed (this row is itself the test) | Pending | — | — | N/A |
-| 4 | Documentation update | Pending | — | — | N/A: test file |
+| 1 | Add `test_unknown_condition_preserves_db_and_does_not_restore` per Method | Completed | — | 20260913-182400 | Depends on seq 01 landing first |
+| 2 | Run validation sequence | Completed | — | 20260913-182400 |  |
+| 3 | N/A: no further test needed (this row is itself the test) | Completed | — | 20260913-182400 | N/A |
+| 4 | Documentation update | Completed | — | 20260913-182400 | N/A: test file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

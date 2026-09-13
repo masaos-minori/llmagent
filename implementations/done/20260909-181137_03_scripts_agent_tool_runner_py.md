@@ -133,7 +133,7 @@ async def _collect_tool_result_msgs(
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Added guard reference and record_tool_result() call in _collect_tool_result_msgs() |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests to be added separately |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260913-182400 | Tests to be added separately |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format/check: OK, mypy: OK, bandit: OK |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No docs/00_index.md task-scope row matched |
 

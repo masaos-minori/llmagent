@@ -88,9 +88,9 @@ Delete both rows entirely; leave the surrounding table (Max response bytes,
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers | Pending | — | — | |
-| 2 | Delete both rows | Pending | — | — | |
-| 3 | Run `check_docs_consistency.py --domain mcp` | Pending | — | — | |
+| 1 | Re-confirm line numbers | Completed | — | 20260913-182400 |  |
+| 2 | Delete both rows | Completed | — | 20260913-182400 |  |
+| 3 | Run `check_docs_consistency.py --domain mcp` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

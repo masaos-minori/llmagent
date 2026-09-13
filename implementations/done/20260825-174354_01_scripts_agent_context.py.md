@@ -137,9 +137,9 @@ Single-call insertion plus one new import; no control flow or existing field cha
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `ConfigLoader.restrict_to("agent.toml")` (guarded by AGENT_RESTRICT_CONFIG env var) and the required import to `AgentContext.__init__` | Pending | — | — | Guard added per adversarial review finding |
-| 2 | Add/update test in `tests/agent/test_context.py` verifying `ConfigLoader._allowed_files` after construction, with teardown reset per `tests/shared/test_config_loader.py` pattern | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) scoped to `scripts/agent/` and `tests/agent/` | Pending | — | — | |
+| 1 | Add `ConfigLoader.restrict_to("agent.toml")` (guarded by AGENT_RESTRICT_CONFIG env var) and the required import to `AgentContext.__init__` | Completed | — | 20260913-182400 | Guard added per adversarial review finding |
+| 2 | Add/update test in `tests/agent/test_context.py` verifying `ConfigLoader._allowed_files` after construction, with teardown reset per `tests/shared/test_config_loader.py` pattern | Completed | — | 20260913-182400 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) scoped to `scripts/agent/` and `tests/agent/` | Completed | — | 20260913-182400 |  |
 | 4 | Documentation update | N/A | — | — | Not in scope — see source Plan's Documentation Impact (covered separately by REQ-003 for `docs/adr/ADR-002-config-isolation.md`, tracked in a companion implementation procedure document) |
 
 ### Blocker Log

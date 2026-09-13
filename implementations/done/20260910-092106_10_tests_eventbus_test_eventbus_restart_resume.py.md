@@ -100,9 +100,9 @@ not corrected by this Plan.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm existing two tests pass unmodified against the new offset store | Pending | — | — | |
-| 2 | Update direct file-path inspection to `get_consumer_offset()`, if found | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Confirm existing two tests pass unmodified against the new offset store | Completed | — | 20260913-182400 |  |
+| 2 | Update direct file-path inspection to `get_consumer_offset()`, if found | Completed | — | 20260913-182400 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

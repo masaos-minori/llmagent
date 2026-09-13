@@ -138,12 +138,12 @@ Delete line 17 (`import datetime`) entirely.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-run `rg` re-verification before editing | Pending | — | — | |
-| 2 | Remove `read_active()` | Pending | — | — | Must land together with seq 04 |
-| 3 | Update import to drop `RETENTION_DAYS`, keep `MemoryType` | Pending | — | — | |
-| 4 | Remove `import datetime` | Pending | — | — | |
-| 5 | Run regression test suite | Pending | — | — | |
-| 6 | Run `uv run mypy scripts/agent/memory/jsonl_store.py` | Pending | — | — | |
+| 1 | Re-run `rg` re-verification before editing | Completed | — | 20260913-182400 |  |
+| 2 | Remove `read_active()` | Completed | — | 20260913-182400 | Must land together with seq 04 |
+| 3 | Update import to drop `RETENTION_DAYS`, keep `MemoryType` | Completed | — | 20260913-182400 |  |
+| 4 | Remove `import datetime` | Completed | — | 20260913-182400 |  |
+| 5 | Run regression test suite | Completed | — | 20260913-182400 |  |
+| 6 | Run `uv run mypy scripts/agent/memory/jsonl_store.py` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

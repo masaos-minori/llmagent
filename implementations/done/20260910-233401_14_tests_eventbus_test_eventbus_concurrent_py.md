@@ -63,8 +63,8 @@ Update `tests/eventbus/test_eventbus_concurrent.py`'s `test_concurrent_dlq_reque
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Preserve single-winner concurrency assertion | Pending | — | — | |
-| 2 | Add new_event_id/new_seq assertions on success | Pending | — | — | |
+| 1 | Preserve single-winner concurrency assertion | Completed | — | 20260913-182400 |  |
+| 2 | Add new_event_id/new_seq assertions on success | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

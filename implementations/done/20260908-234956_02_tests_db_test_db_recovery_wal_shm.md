@@ -148,9 +148,9 @@ Changing `recover_corruption()` control flow or action names; changing `_run_int
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add test for stale -wal/-shm quarantine | Pending | — | — | |
-| 2 | Add test for backup -wal/-shm staging | Pending | — | — | |
-| 3 | Run full test suite | Pending | — | — | |
+| 1 | Add test for stale -wal/-shm quarantine | Completed | — | 20260913-182400 |  |
+| 2 | Add test for backup -wal/-shm staging | Completed | — | 20260913-182400 |  |
+| 3 | Run full test suite | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

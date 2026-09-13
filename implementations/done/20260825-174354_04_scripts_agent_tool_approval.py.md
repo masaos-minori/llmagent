@@ -116,9 +116,9 @@ One-line call-site update plus a corresponding test-fixture addition; no change 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the `classify_risk()` call site in `check_approval()` (line 156) | Pending | — | — | |
-| 2 | Add explicit `ctx.services_required.runtime_tools = None` to `_make_ctx()` in `tests/agent/test_tool_approval_risk.py` | Pending | — | — | See Assumptions/Design decisions |
-| 3 | Run the validation sequence (`rules/toolchain.md`) scoped to this file and its tests | Pending | — | — | |
+| 1 | Update the `classify_risk()` call site in `check_approval()` (line 156) | Completed | — | 20260913-182400 |  |
+| 2 | Add explicit `ctx.services_required.runtime_tools = None` to `_make_ctx()` in `tests/agent/test_tool_approval_risk.py` | Completed | — | 20260913-182400 | See Assumptions/Design decisions |
+| 3 | Run the validation sequence (`rules/toolchain.md`) scoped to this file and its tests | Completed | — | 20260913-182400 |  |
 | 4 | Documentation update | N/A | — | — | Not in scope for this file |
 
 ### Blocker Log

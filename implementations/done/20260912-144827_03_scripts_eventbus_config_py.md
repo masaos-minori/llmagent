@@ -279,10 +279,10 @@ def load_config(path: Path | None = None) -> EventBusConfig:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add per-role token fields to EventBusConfig | Pending | — | — | |
-| 2 | Update _KNOWN_CONFIG_KEYS and _CONFIG_KEY_TYPES | Pending | — | — | |
-| 3 | Update load_config to handle new fields | Pending | — | — | |
-| 4 | Run validation tests | Pending | — | — | |
+| 1 | Add per-role token fields to EventBusConfig | Completed | — | 20260913-182400 |  |
+| 2 | Update _KNOWN_CONFIG_KEYS and _CONFIG_KEY_TYPES | Completed | — | 20260913-182400 |  |
+| 3 | Update load_config to handle new fields | Completed | — | 20260913-182400 |  |
+| 4 | Run validation tests | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -117,7 +117,7 @@ N/A: documentation correction only.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the module docstring's role-listing paragraph | Pending | — | — | Apply only after REQ-001 (`tool_policy.py`) is implemented and validated |
+| 1 | Correct the module docstring's role-listing paragraph | Completed | — | 20260913-182400 | Apply only after REQ-001 (`tool_policy.py`) is implemented and validated |
 | 2 | Documentation update | Completed by Step 1 | — | — | This document's entire purpose is the docstring correction itself |
 
 ### Blocker Log

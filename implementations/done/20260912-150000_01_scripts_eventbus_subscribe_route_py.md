@@ -511,10 +511,10 @@ async def subscribe(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add sse_idle_timeout field to EventBusConfig | Pending | — | — | |
-| 2 | Add timeout-based disconnect detection to _sse_gen | Pending | — | — | |
-| 3 | Preserve existing disconnect mechanisms | Pending | — | — | |
-| 4 | Run validation tests | Pending | — | — | |
+| 1 | Add sse_idle_timeout field to EventBusConfig | Completed | — | 20260913-182400 |  |
+| 2 | Add timeout-based disconnect detection to _sse_gen | Completed | — | 20260913-182400 |  |
+| 3 | Preserve existing disconnect mechanisms | Completed | — | 20260913-182400 |  |
+| 4 | Run validation tests | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

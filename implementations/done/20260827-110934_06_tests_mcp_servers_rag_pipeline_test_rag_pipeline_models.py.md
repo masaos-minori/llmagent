@@ -112,8 +112,8 @@ Place it within `TestRagPipelineConfigFromDict`, adjacent to
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_defaults_match_operational_toml` | Pending | — | — | |
-| 2 | Run `uv run pytest tests/mcp_servers/rag_pipeline/test_rag_pipeline_models.py -v` | Pending | — | — | Requires seq 04 applied first |
+| 1 | Add `test_defaults_match_operational_toml` | Completed | — | 20260913-182400 |  |
+| 2 | Run `uv run pytest tests/mcp_servers/rag_pipeline/test_rag_pipeline_models.py -v` | Completed | — | 20260913-182400 | Requires seq 04 applied first |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

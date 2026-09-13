@@ -207,10 +207,10 @@ class TestConcurrentDlqRequeue:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Un-skip test_concurrent_dlq_requeue | Pending | — | — | |
-| 2 | Verify lineage model response shape | Pending | — | — | |
-| 3 | Verify only one requeue succeeds | Pending | — | — | |
-| 4 | Run validation tests | Pending | — | — | |
+| 1 | Un-skip test_concurrent_dlq_requeue | Completed | — | 20260913-182400 |  |
+| 2 | Verify lineage model response shape | Completed | — | 20260913-182400 |  |
+| 3 | Verify only one requeue succeeds | Completed | — | 20260913-182400 |  |
+| 4 | Run validation tests | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

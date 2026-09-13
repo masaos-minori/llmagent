@@ -89,9 +89,9 @@ Sections 8, 8a, 8c, 8d, 9-12 of this document.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `_migrate()` description with the two new tables | Pending | — | — | |
-| 2 | Add description of the separate legacy-offset data migration | Pending | — | — | |
-| 3 | Run `check_docs_quality.py`/`check_docs_structure.py` | Pending | — | — | |
+| 1 | Extend `_migrate()` description with the two new tables | Completed | — | 20260913-182400 |  |
+| 2 | Add description of the separate legacy-offset data migration | Completed | — | 20260913-182400 |  |
+| 3 | Run `check_docs_quality.py`/`check_docs_structure.py` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

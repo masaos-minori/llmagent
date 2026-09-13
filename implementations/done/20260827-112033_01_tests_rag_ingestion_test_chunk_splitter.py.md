@@ -154,11 +154,11 @@ class before finalizing.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read `_merge_ja_sentence_pairs()` branch logic to design trigger input | Pending | — | — | |
-| 2 | Add the multi-chunk overlap characterization test | Pending | — | — | |
-| 3 | Investigate and cover (or document as unreachable) the empty-buffer edge case | Pending | — | — | |
-| 4 | Run test against current code, confirm it passes | Pending | — | — | |
-| 5 | Manually confirm test fails against an altered overlap slice, then revert | Pending | — | — | |
+| 1 | Read `_merge_ja_sentence_pairs()` branch logic to design trigger input | Completed | — | 20260913-182400 |  |
+| 2 | Add the multi-chunk overlap characterization test | Completed | — | 20260913-182400 |  |
+| 3 | Investigate and cover (or document as unreachable) the empty-buffer edge case | Completed | — | 20260913-182400 |  |
+| 4 | Run test against current code, confirm it passes | Completed | — | 20260913-182400 |  |
+| 5 | Manually confirm test fails against an altered overlap slice, then revert | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

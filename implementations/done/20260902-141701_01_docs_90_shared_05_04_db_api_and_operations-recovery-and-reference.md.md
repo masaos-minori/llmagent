@@ -87,10 +87,10 @@ This file is itself the Specification being corrected; no separate
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct eventbus bullet's backup-rotation claim per Method | Pending | — | — | |
-| 2 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 3 | Run validation sequence | Pending | — | — | |
-| 4 | Documentation update | Pending | — | — | N/A: this file is the documentation being updated |
+| 1 | Correct eventbus bullet's backup-rotation claim per Method | Completed | — | 20260913-182400 |  |
+| 2 | N/A: no test to add (doc-only change) | Completed | — | 20260913-182400 | N/A |
+| 3 | Run validation sequence | Completed | — | 20260913-182400 |  |
+| 4 | Documentation update | Completed | — | 20260913-182400 | N/A: this file is the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

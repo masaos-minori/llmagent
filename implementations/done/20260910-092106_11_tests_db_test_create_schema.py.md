@@ -85,8 +85,8 @@ Any change to the rag/session/workflow schema test classes in this same file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_create_eventbus_schema_produces_new_tables` | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `test_create_eventbus_schema_produces_new_tables` | Completed | — | 20260913-182400 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -109,8 +109,8 @@ production code (covered by row 03).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_offset_write_failure_rolls_back_delivery_write` to `TestCrashBeforeAck` | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `test_offset_write_failure_rolls_back_delivery_write` to `TestCrashBeforeAck` | Completed | — | 20260913-182400 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

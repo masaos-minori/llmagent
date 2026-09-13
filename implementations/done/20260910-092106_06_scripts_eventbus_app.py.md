@@ -100,9 +100,9 @@ same function.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import and call `migrate_legacy_offsets()` after `open_db()` in `lifespan()` | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (row 07) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Import and call `migrate_legacy_offsets()` after `open_db()` in `lifespan()` | Completed | — | 20260913-182400 |  |
+| 2 | Add or update tests per Validation plan (row 07) | Completed | — | 20260913-182400 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

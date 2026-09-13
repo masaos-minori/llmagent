@@ -135,11 +135,11 @@ if selected_hits := body.get("selected_hits"):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Retype `_set_fetch_result` and `call_rag_service` parameters | Pending | — | — | |
-| 2 | Add `selected_hits` parsing in empty-result success path | Pending | — | — | |
-| 3 | Add `selected_hits` parsing in non-empty-result success path | Pending | — | — | |
-| 4 | Update docstring for `set_fetch_result` parameter | Pending | — | — | |
-| 5 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Retype `_set_fetch_result` and `call_rag_service` parameters | Completed | — | 20260913-182400 |  |
+| 2 | Add `selected_hits` parsing in empty-result success path | Completed | — | 20260913-182400 |  |
+| 3 | Add `selected_hits` parsing in non-empty-result success path | Completed | — | 20260913-182400 |  |
+| 4 | Update docstring for `set_fetch_result` parameter | Completed | — | 20260913-182400 |  |
+| 5 | Run validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

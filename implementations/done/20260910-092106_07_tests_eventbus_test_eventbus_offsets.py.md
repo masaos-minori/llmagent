@@ -117,9 +117,9 @@ test-only.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestConsumerOffsetsTable` (defaults, advancement, non-regression) | Pending | — | — | |
-| 2 | Add `TestLegacyOffsetMigration` (idempotency, multi-consumer, no-.map fallback) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestConsumerOffsetsTable` (defaults, advancement, non-regression) | Completed | — | 20260913-182400 |  |
+| 2 | Add `TestLegacyOffsetMigration` (idempotency, multi-consumer, no-.map fallback) | Completed | — | 20260913-182400 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

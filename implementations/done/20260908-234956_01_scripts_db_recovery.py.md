@@ -114,14 +114,14 @@ Changing `recover_corruption()` control flow or action names; changing `_run_int
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm sqlite3.OperationalError.errno availability on Python 3.14 | Pending | — | — | |
-| 2 | Document errno-based approach in _classify_error() comments | Pending | — | — | |
-| 3 | Implement INVALID_FORMAT path | Pending | — | — | |
-| 4 | Strengthen lock detection via errno | Pending | — | — | |
-| 5 | Strengthen permission detection via errno | Pending | — | — | |
-| 6 | Preserve substring matching as documented fallback | Pending | — | — | |
-| 7 | Add or update tests per Validation plan | Pending | — | — | |
-| 8 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Confirm sqlite3.OperationalError.errno availability on Python 3.14 | Completed | — | 20260913-182400 |  |
+| 2 | Document errno-based approach in _classify_error() comments | Completed | — | 20260913-182400 |  |
+| 3 | Implement INVALID_FORMAT path | Completed | — | 20260913-182400 |  |
+| 4 | Strengthen lock detection via errno | Completed | — | 20260913-182400 |  |
+| 5 | Strengthen permission detection via errno | Completed | — | 20260913-182400 |  |
+| 6 | Preserve substring matching as documented fallback | Completed | — | 20260913-182400 |  |
+| 7 | Add or update tests per Validation plan | Completed | — | 20260913-182400 |  |
+| 8 | Run the validation sequence (rules/toolchain.md) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

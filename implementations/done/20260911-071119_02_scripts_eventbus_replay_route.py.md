@@ -220,11 +220,11 @@ Verify `ORDER BY seq` is preserved in the SQL queries within the combined functi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add Literal["sse", "json"] to fmt query parameter | Pending | — | — | |
-| 2 | Combine _fetch()/_count() into single locked closure | Pending | — | — | |
-| 3 | If Literal doesn't work, define ReplayFormat Enum class | Pending | — | — | |
-| 4 | Add or update tests per Validation plan | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add Literal["sse", "json"] to fmt query parameter | Completed | — | 20260913-182400 |  |
+| 2 | Combine _fetch()/_count() into single locked closure | Completed | — | 20260913-182400 |  |
+| 3 | If Literal doesn't work, define ReplayFormat Enum class | Completed | — | 20260913-182400 |  |
+| 4 | Add or update tests per Validation plan | Completed | — | 20260913-182400 |  |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

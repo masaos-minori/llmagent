@@ -121,7 +121,7 @@ N/A: test-only addition; no security impact.
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260913-074000 | 20260913-074100 | Added regression test for non-tree diagram case |
 | 2 | Add or update tests per Validation plan | Completed | — | — | This procedure IS the test addition; 10 tests pass |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260913-074100 | 20260913-074200 | All 10 tests pass (new + existing) |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs changes required |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260913-182400 | N/A: no docs changes required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

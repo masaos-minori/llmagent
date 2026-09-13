@@ -131,8 +131,8 @@ affected.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update `test_defaults_when_cfg_empty`'s 5 assertion values | Pending | — | — | |
-| 2 | Run `uv run pytest tests/mcp_servers/rag_pipeline/test_rag_pipeline_mcp_service.py -v` | Pending | — | — | Requires seq 04 applied first |
+| 1 | Update `test_defaults_when_cfg_empty`'s 5 assertion values | Completed | — | 20260913-182400 |  |
+| 2 | Run `uv run pytest tests/mcp_servers/rag_pipeline/test_rag_pipeline_mcp_service.py -v` | Completed | — | 20260913-182400 | Requires seq 04 applied first |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

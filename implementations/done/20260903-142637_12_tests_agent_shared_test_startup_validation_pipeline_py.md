@@ -115,9 +115,9 @@ Verification:
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Complete | — | — | No changes needed; procedure was outdated |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Verify existing tests pass |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff + pytest |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260913-182400 | Verify existing tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 | ruff + pytest |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260913-182400 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

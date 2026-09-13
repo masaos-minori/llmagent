@@ -94,9 +94,9 @@ text implies a global ACK flag or a read-then-compare offset check (AC-8).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update Monotonicity Invariant bullet in Decision Details | Pending | — | — | |
-| 2 | Update Consequences for per-consumer ACK/offset + transactional write | Pending | — | — | |
-| 3 | Run `check_docs_quality.py`/`check_docs_structure.py` | Pending | — | — | |
+| 1 | Update Monotonicity Invariant bullet in Decision Details | Completed | — | 20260913-182400 |  |
+| 2 | Update Consequences for per-consumer ACK/offset + transactional write | Completed | — | 20260913-182400 |  |
+| 3 | Run `check_docs_quality.py`/`check_docs_structure.py` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

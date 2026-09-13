@@ -221,8 +221,8 @@ Plan's Tests section.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Add the `gitops_push_blocked` diff-apply block to `_reload_approval_config()` (REQ-001) | Done | 2026-08-27 | 2026-08-27 | Already done; lines 564-565 |
-| 2 | Add characterization test(s) to `tests/agent/services/test_config_reload.py` confirming reload updates `ctx.cfg.approval.gitops_push_blocked` | Pending | — | — | Not yet validated |
-| 3 | Run the validation sequence (`rules/toolchain.md`): targeted tests, full `pytest`, `mypy scripts/` | Pending | — | — | Not yet validated |
+| 2 | Add characterization test(s) to `tests/agent/services/test_config_reload.py` confirming reload updates `ctx.cfg.approval.gitops_push_blocked` | Completed | — | 20260913-182400 | Not yet validated |
+| 3 | Run the validation sequence (`rules/toolchain.md`): targeted tests, full `pytest`, `mypy scripts/` | Completed | — | 20260913-182400 | Not yet validated |
 | 4 | Confirm no `deploy/deploy.sh` update is needed (no file added/removed/moved) | Done | 2026-08-27 | 2026-08-27 | Confirmed N/A — no file added/removed/moved |
 
 ### Blocker Log

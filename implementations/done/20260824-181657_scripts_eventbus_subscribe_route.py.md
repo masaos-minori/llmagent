@@ -102,10 +102,10 @@ SQL query construction/parameter binding changes; the other 4 target files in th
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: comment-only change, no new tests required |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation update in scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260913-182400 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260913-182400 | N/A: comment-only change, no new tests required |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260913-182400 | N/A: no documentation update in scope |
 
 ### Blocker Log
 

@@ -143,10 +143,10 @@ Plan).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the Manual Recovery runbook subsection per Method | Pending | — | — | |
-| 2 | N/A: no automated test for a documentation-only runbook addition | Pending | — | — | N/A |
-| 3 | Run `uv run python tools/check_docs_quality.py` | Pending | — | — | |
-| 4 | N/A: this file is itself the documentation being updated | Pending | — | — | N/A |
+| 1 | Add the Manual Recovery runbook subsection per Method | Completed | — | 20260913-182400 |  |
+| 2 | N/A: no automated test for a documentation-only runbook addition | Completed | — | 20260913-182400 | N/A |
+| 3 | Run `uv run python tools/check_docs_quality.py` | Completed | — | 20260913-182400 |  |
+| 4 | N/A: this file is itself the documentation being updated | Completed | — | 20260913-182400 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

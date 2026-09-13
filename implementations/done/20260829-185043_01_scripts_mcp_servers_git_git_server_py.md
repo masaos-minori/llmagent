@@ -156,10 +156,10 @@ Note: The above shows the full `call_tool()` after both Row 1 and Row 2 changes 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix `"repo"` to `"repo_path"` key in audit call | Pending | - | - | Standalone fix |
-| 2 | Consume resolved path from `_check_repo_path()` | Pending | - | - | Depends on Row 2 |
-| 3 | Add `error_type` to pre-dispatch rejection audit | Pending | - | - | Depends on Row 2 |
-| 4 | Run validation sequence | Pending | - | - | |
+| 1 | Fix `"repo"` to `"repo_path"` key in audit call | Completed | - | 20260913-182400 | Standalone fix |
+| 2 | Consume resolved path from `_check_repo_path()` | Completed | - | 20260913-182400 | Depends on Row 2 |
+| 3 | Add `error_type` to pre-dispatch rejection audit | Completed | - | 20260913-182400 | Depends on Row 2 |
+| 4 | Run validation sequence | Completed | - | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

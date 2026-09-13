@@ -418,13 +418,22 @@ cycle created. Verify that:
 If any of the above does not hold, do not proceed to the move — report `Blocked` and
 resolve the discrepancy first.
 
-This workflow MAY update the Plan's own `### Execution Status` table (in
-`plans/{filename}_plan.md`) before the move: mark an `Implementation Target Files`
-row's corresponding Execution Status row `In Progress` once its procedure document is
-generated, or `Completed` if matched as `Already implemented`. Use `uv run python
+This workflow MUST update the Plan's own `### Execution Status` table (in
+`plans/{filename}_plan.md`) before the move — do not leave any row `Pending` once
+its outcome is known: mark an `Implementation Target Files` row's corresponding
+Execution Status row `In Progress` once its procedure document is newly generated
+this cycle, or `Completed` if matched as `Already implemented`. Use `uv run python
 tools/manage_workitem_stage.py set-step-status plan {plan_path} --description
 "{target_file_path}" {status}` rather than editing the table directly. This is
-separate from each generated document's own Execution Status table.
+separate from each generated document's own Execution Status table, and separate
+from `code-implementation`'s later responsibility (see that skill's own workflow)
+to mark the same row `Completed` once the corresponding implementation procedure
+document is actually executed — this Step's own `In Progress`/`Completed` update
+reflects only what this cycle itself observed (procedure generated vs. already
+implemented), not the eventual outcome of a future `code-implementation` cycle.
+Do not proceed to the move below while any row remains `Pending` — if a row's
+outcome genuinely cannot be determined this cycle, report `Blocked` instead of
+leaving it `Pending` silently.
 
 Apply `rules/workflow-lifecycle.md` Archival Move (`plan-to-impl-procedure` row) and
 Completion Criteria in full. This workflow's move: `plans/{filename}_plan.md` to

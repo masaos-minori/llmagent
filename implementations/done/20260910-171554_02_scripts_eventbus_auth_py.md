@@ -256,13 +256,13 @@ async def require_consumer_identity(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create auth.py with Bearer-token verification | Pending | — | — | |
-| 2 | Define four-role permission model | Pending | — | — | |
-| 3 | Implement consumer identity binding | Pending | — | — | |
-| 4 | Wire middleware into app.py | Pending | — | — | |
-| 5 | Integrate audit logging | Pending | — | — | |
-| 6 | Add/update tests per Validation plan | Pending | — | — | |
-| 7 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Create auth.py with Bearer-token verification | Completed | — | 20260913-182400 |  |
+| 2 | Define four-role permission model | Completed | — | 20260913-182400 |  |
+| 3 | Implement consumer identity binding | Completed | — | 20260913-182400 |  |
+| 4 | Wire middleware into app.py | Completed | — | 20260913-182400 |  |
+| 5 | Integrate audit logging | Completed | — | 20260913-182400 |  |
+| 6 | Add/update tests per Validation plan | Completed | — | 20260913-182400 |  |
+| 7 | Run the validation sequence (rules/toolchain.md) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

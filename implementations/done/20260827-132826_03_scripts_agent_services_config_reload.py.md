@@ -140,9 +140,9 @@ changes["tool_cache_ttl"] = v` block (2 lines), leaving:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm no drift via `rg` | Pending | — | — | |
-| 2 | Remove the `tool_cache_ttl` diff-apply block | Pending | — | — | Must land before `plans/20260827-121312_plan.md` REQ-001 |
-| 3 | Run `uv run pytest tests/agent/services/test_config_reload*.py -v` | Pending | — | — | Requires seq 04 applied |
+| 1 | Re-confirm no drift via `rg` | Completed | — | 20260913-182400 |  |
+| 2 | Remove the `tool_cache_ttl` diff-apply block | Completed | — | 20260913-182400 | Must land before `plans/20260827-121312_plan.md` REQ-001 |
+| 3 | Run `uv run pytest tests/agent/services/test_config_reload*.py -v` | Completed | — | 20260913-182400 | Requires seq 04 applied |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

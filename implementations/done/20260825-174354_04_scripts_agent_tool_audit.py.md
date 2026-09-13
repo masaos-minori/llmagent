@@ -100,9 +100,9 @@ control flow.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the `classify_operation_type()` call site in `audit_approval()` (line 52) | Pending | — | — | |
-| 2 | Update the `classify_operation_type()` call site in `audit_tool_exec()` (line 183) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) scoped to this file and its tests | Pending | — | — | |
+| 1 | Update the `classify_operation_type()` call site in `audit_approval()` (line 52) | Completed | — | 20260913-182400 |  |
+| 2 | Update the `classify_operation_type()` call site in `audit_tool_exec()` (line 183) | Completed | — | 20260913-182400 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) scoped to this file and its tests | Completed | — | 20260913-182400 |  |
 | 4 | Documentation update | N/A | — | — | Not in scope for this file |
 
 ### Blocker Log

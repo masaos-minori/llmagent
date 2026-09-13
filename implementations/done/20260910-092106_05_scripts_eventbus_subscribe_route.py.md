@@ -109,10 +109,10 @@ Any change to `_sse_gen()`'s replay/live-delivery logic, or to the
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace `read_offset()` call with `get_consumer_offset(db, consumer_id)` | Pending | — | — | |
-| 2 | Remove the now-unused `read_offset` import | Pending | — | — | |
-| 3 | Add or update tests per Validation plan (row 10) | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace `read_offset()` call with `get_consumer_offset(db, consumer_id)` | Completed | — | 20260913-182400 |  |
+| 2 | Remove the now-unused `read_offset` import | Completed | — | 20260913-182400 |  |
+| 3 | Add or update tests per Validation plan (row 10) | Completed | — | 20260913-182400 |  |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

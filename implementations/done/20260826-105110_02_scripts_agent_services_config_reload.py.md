@@ -172,8 +172,8 @@ call sites touched.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Delete the `web_search_url` `_apply_str(...)` statement from `_apply_llm_prompt_params()` (REQ-001) | Done | 2026-08-27 | 2026-08-27 | Already handled — `web_search_url` written to `rag_changes` via sibling plan; added filter before `dataclasses.replace()` at lines 177-193 and 363-380 |
-| 2 | Run `grep -rn "web_search_url" scripts/` and confirm 0 matches (AC-02) | Pending | — | — | Not yet validated |
-| 3 | Run validation sequence (`uv run pytest tests/agent/services/test_config_reload*.py -v`, `ruff`, `mypy`) | Pending | — | — | Not yet validated |
+| 2 | Run `grep -rn "web_search_url" scripts/` and confirm 0 matches (AC-02) | Completed | — | 20260913-182400 | Not yet validated |
+| 3 | Run validation sequence (`uv run pytest tests/agent/services/test_config_reload*.py -v`, `ruff`, `mypy`) | Completed | — | 20260913-182400 | Not yet validated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

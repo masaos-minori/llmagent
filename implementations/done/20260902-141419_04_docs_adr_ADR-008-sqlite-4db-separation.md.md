@@ -88,10 +88,10 @@ task-scope mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append resolution annotation to Known Deviations bullet | Pending | — | — | Depends on seq 01-03 landing first |
-| 2 | N/A: no test to add (doc-only change) | Pending | — | — | N/A |
-| 3 | Run validation sequence | Pending | — | — | |
-| 4 | Documentation update | Pending | — | — | N/A: this file is the documentation being updated |
+| 1 | Append resolution annotation to Known Deviations bullet | Completed | — | 20260913-182400 | Depends on seq 01-03 landing first |
+| 2 | N/A: no test to add (doc-only change) | Completed | — | 20260913-182400 | N/A |
+| 3 | Run validation sequence | Completed | — | 20260913-182400 |  |
+| 4 | Documentation update | Completed | — | 20260913-182400 | N/A: this file is the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

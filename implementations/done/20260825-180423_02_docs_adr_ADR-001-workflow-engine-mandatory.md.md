@@ -151,11 +151,11 @@ N/A: no security-relevant behavior is described or changed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm current line numbers before editing (this file is also edited by a companion `WF-003` document) | Pending | — | — | |
-| 2 | Correct `INV-05`'s text | Pending | — | — | |
-| 3 | Update `WF-001`'s `Recommended Action`, add `Status: Resolved` | Pending | — | — | |
-| 4 | Add one `Change History` line (append, do not overwrite the companion document's line) | Pending | — | — | |
-| 5 | Run documentation validation (`grep`, `validate_docs_structure.py`) | Pending | — | — | |
+| 1 | Re-confirm current line numbers before editing (this file is also edited by a companion `WF-003` document) | Completed | — | 20260913-182400 |  |
+| 2 | Correct `INV-05`'s text | Completed | — | 20260913-182400 |  |
+| 3 | Update `WF-001`'s `Recommended Action`, add `Status: Resolved` | Completed | — | 20260913-182400 |  |
+| 4 | Add one `Change History` line (append, do not overwrite the companion document's line) | Completed | — | 20260913-182400 |  |
+| 5 | Run documentation validation (`grep`, `validate_docs_structure.py`) | Completed | — | 20260913-182400 |  |
 | 6 | Documentation update | Completed by Steps 2-4 | — | — | This document's entire purpose is the documentation update itself |
 
 ### Blocker Log

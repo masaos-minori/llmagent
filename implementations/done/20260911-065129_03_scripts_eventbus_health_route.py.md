@@ -120,11 +120,11 @@ if max_queue_depth >= broker.backlog_health_threshold:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add three threshold fields to EventBusConfig dataclass | Pending | — | — | |
-| 2 | Add relationship validation in __post_init__ | Pending | — | — | |
-| 3 | Update load_config() to handle new fields | Pending | — | — | |
-| 4 | Add or update tests per Validation plan | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add three threshold fields to EventBusConfig dataclass | Completed | — | 20260913-182400 |  |
+| 2 | Add relationship validation in __post_init__ | Completed | — | 20260913-182400 |  |
+| 3 | Update load_config() to handle new fields | Completed | — | 20260913-182400 |  |
+| 4 | Add or update tests per Validation plan | Completed | — | 20260913-182400 |  |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

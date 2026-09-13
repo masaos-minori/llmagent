@@ -266,9 +266,9 @@ AC-03/REQ-004.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Replace the `getattr()` call with `lifecycle.cleanup_server_resources(server_key)` (REQ-003) | Done | 2026-08-27 | 2026-08-27 | Already done; line 143 |
-| 2 | Add regression test(s) to `tests/agent/services/test_config_reload.py` (REQ-004) | Pending | — | — | Not yet validated |
-| 3 | Run the validation sequence (targeted tests, full `pytest`, `mypy scripts/agent/`) | Pending | — | — | Not yet validated |
-| 4 | Confirm zero `getattr(lifecycle, "_cleanup_server_resources")` matches repo-wide (AC-02) | Pending | — | — | Not yet validated |
+| 2 | Add regression test(s) to `tests/agent/services/test_config_reload.py` (REQ-004) | Completed | — | 20260913-182400 | Not yet validated |
+| 3 | Run the validation sequence (targeted tests, full `pytest`, `mypy scripts/agent/`) | Completed | — | 20260913-182400 | Not yet validated |
+| 4 | Confirm zero `getattr(lifecycle, "_cleanup_server_resources")` matches repo-wide (AC-02) | Completed | — | 20260913-182400 | Not yet validated |
 | 5 | Confirm no `deploy/deploy.sh` update is needed | Done | 2026-08-27 | 2026-08-27 | Confirmed N/A — no file added/removed/moved |
 
 ### Blocker Log

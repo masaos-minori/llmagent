@@ -88,10 +88,10 @@ live-service store (AC-8).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite "Consumer Offset" opening statement for the SQLite-backed store | Pending | — | — | |
-| 2 | Add note on the idempotent legacy-file migration | Pending | — | — | |
-| 3 | Review "Explicit Ack-only Offset" subsection for file-based assumptions | Pending | — | — | |
-| 4 | Run `check_docs_quality.py`/`check_docs_structure.py` | Pending | — | — | |
+| 1 | Rewrite "Consumer Offset" opening statement for the SQLite-backed store | Completed | — | 20260913-182400 |  |
+| 2 | Add note on the idempotent legacy-file migration | Completed | — | 20260913-182400 |  |
+| 3 | Review "Explicit Ack-only Offset" subsection for file-based assumptions | Completed | — | 20260913-182400 |  |
+| 4 | Run `check_docs_quality.py`/`check_docs_structure.py` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

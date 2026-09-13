@@ -105,9 +105,9 @@ dict) and any other symbol in this file unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-run `rg` re-verification before editing | Pending | — | — | |
-| 2 | Remove `RETENTION_DAYS` dict | Pending | — | — | Must land together with seq 05 |
-| 3 | Run `uv run pytest tests/agent/memory/test_jsonl_store.py -v` | Pending | — | — | Requires seq 05 applied |
+| 1 | Re-run `rg` re-verification before editing | Completed | — | 20260913-182400 |  |
+| 2 | Remove `RETENTION_DAYS` dict | Completed | — | 20260913-182400 | Must land together with seq 05 |
+| 3 | Run `uv run pytest tests/agent/memory/test_jsonl_store.py -v` | Completed | — | 20260913-182400 | Requires seq 05 applied |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

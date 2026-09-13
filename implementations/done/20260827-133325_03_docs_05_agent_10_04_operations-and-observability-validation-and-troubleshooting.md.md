@@ -94,10 +94,10 @@ Delete line 174 entirely.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers | Pending | — | — | |
-| 2 | Remove `Cache hits` from example output | Pending | — | — | |
-| 3 | Remove "Cache hits" description bullet | Pending | — | — | |
-| 4 | Run `check_docs_consistency.py --domain agent` | Pending | — | — | |
+| 1 | Re-confirm line numbers | Completed | — | 20260913-182400 |  |
+| 2 | Remove `Cache hits` from example output | Completed | — | 20260913-182400 |  |
+| 3 | Remove "Cache hits" description bullet | Completed | — | 20260913-182400 |  |
+| 4 | Run `check_docs_consistency.py --domain agent` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

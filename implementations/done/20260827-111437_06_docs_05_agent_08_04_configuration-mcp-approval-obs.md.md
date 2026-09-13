@@ -110,7 +110,7 @@ confirm the correct target doc reference at implementation time)."
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Rewrite line 102 (Key Constraints) | Skipped | — | — | Already states: "/reload reports cfg.diagnostics.* changes under a distinct LIVE category; they take effect immediately on every DiagnosticStore save()/fetch() call without requiring a restart" |
 | 2 | Rewrite line 110 (Known Limitations) | Skipped | — | — | Same text as line 102; already reflects LIVE category reporting instead of "not implemented" |
-| 3 | Run `uv run python tools/check_docs_consistency.py --domain agent` | Pending | — | — | |
+| 3 | Run `uv run python tools/check_docs_consistency.py --domain agent` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

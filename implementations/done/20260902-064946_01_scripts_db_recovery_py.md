@@ -123,7 +123,7 @@ Change the action value and detail message in the existing UNKNOWN branch (line 
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Complete | — | — | Corrected action value from "unknown_preserved" to "preserved_operator_intervention_required" |
 | 2 | Add or update tests per Validation plan | Complete | — | — | Updated test assertions in test_db_maintenance.py and test_session_recovery.py |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | — | — | ruff OK, mypy OK, all 13 recovery tests pass |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Handled by separate procedure: 20260902-064946_02_docs_adr_ADR-008_sqlite_4db_separation_md.md |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260913-182400 | Handled by separate procedure: 20260902-064946_02_docs_adr_ADR-008_sqlite_4db_separation_md.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

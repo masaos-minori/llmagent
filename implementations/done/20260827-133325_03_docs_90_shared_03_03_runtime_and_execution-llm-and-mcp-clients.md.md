@@ -126,11 +126,11 @@ $\rightarrow$ health gate $\rightarrow$ raw MCP call.`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers | Pending | — | — | |
-| 2 | Rewrite "Execution Flow" | Pending | — | — | |
-| 3 | Remove "Caching Behavior" | Pending | — | — | |
-| 4 | Rewrite "Tool Execution" summary (section 12) | Pending | — | — | |
-| 5 | Run `check_docs_consistency.py` (correct domain) | Pending | — | — | |
+| 1 | Re-confirm line numbers | Completed | — | 20260913-182400 |  |
+| 2 | Rewrite "Execution Flow" | Completed | — | 20260913-182400 |  |
+| 3 | Remove "Caching Behavior" | Completed | — | 20260913-182400 |  |
+| 4 | Rewrite "Tool Execution" summary (section 12) | Completed | — | 20260913-182400 |  |
+| 5 | Run `check_docs_consistency.py` (correct domain) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

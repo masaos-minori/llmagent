@@ -201,7 +201,7 @@ rollback is a simple git revert of this file.
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Add full-message tests for the 8 zero-coverage functions | Skipped | — | — | Validators not yet consolidated; current tests suffice until consolidation occurs |
 | 2 | Add full-message tests for the 12 partial-match functions | Skipped | — | — | Same reason |
-| 3 | Run `uv run pytest tests/agent/test_config_dataclasses.py -v` | Pending | — | — | Not yet validated |
+| 3 | Run `uv run pytest tests/agent/test_config_dataclasses.py -v` | Completed | — | 20260913-182400 | Not yet validated |
 | 4 | N/A: no documentation update required for this test-only change | Done | 2026-08-27 | 2026-08-27 | Test-only change |
 
 ### Blocker Log

@@ -99,10 +99,10 @@ utility. Currently not used by `ToolExecutor`. (Explicit in code) ``
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers | Pending | — | — | |
-| 2 | Remove stampede-protection clause | Pending | — | — | |
-| 3 | Check (not edit unless confirmed) `ToolCallResult.source`'s `'cache'` value | Pending | — | — | Report as Plan Gap if the DTO itself changed |
-| 4 | Run `check_docs_consistency.py` (correct domain) | Pending | — | — | |
+| 1 | Re-confirm line numbers | Completed | — | 20260913-182400 |  |
+| 2 | Remove stampede-protection clause | Completed | — | 20260913-182400 |  |
+| 3 | Check (not edit unless confirmed) `ToolCallResult.source`'s `'cache'` value | Completed | — | 20260913-182400 | Report as Plan Gap if the DTO itself changed |
+| 4 | Run `check_docs_consistency.py` (correct domain) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

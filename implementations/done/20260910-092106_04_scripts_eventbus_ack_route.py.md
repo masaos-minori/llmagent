@@ -122,10 +122,10 @@ offset write step fails.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace `_ack_and_offset()`'s two-call body with `ack_event_for_consumer()` (non-empty consumer_id) | Pending | — | — | |
-| 2 | Preserve `_ack_event()`-only behavior for empty `consumer_id` | Pending | — | — | |
-| 3 | Add or update tests per Validation plan (row 09) | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace `_ack_and_offset()`'s two-call body with `ack_event_for_consumer()` (non-empty consumer_id) | Completed | — | 20260913-182400 |  |
+| 2 | Preserve `_ack_event()`-only behavior for empty `consumer_id` | Completed | — | 20260913-182400 |  |
+| 3 | Add or update tests per Validation plan (row 09) | Completed | — | 20260913-182400 |  |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

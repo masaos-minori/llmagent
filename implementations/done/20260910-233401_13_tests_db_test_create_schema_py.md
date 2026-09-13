@@ -60,8 +60,8 @@ Add an assertion to `tests/db/test_create_schema.py` that `create_eventbus_schem
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add assertion for cycle_failure_count column | Pending | — | — | |
-| 2 | Add assertion for redelivered_from column | Pending | — | — | |
+| 1 | Add assertion for cycle_failure_count column | Completed | — | 20260913-182400 |  |
+| 2 | Add assertion for redelivered_from column | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -64,8 +64,8 @@ Update `tests/eventbus/test_eventbus_dlq_promotion.py` to:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count | Pending | — | — | |
-| 2 | Add promotion predicate assertion for cycle_failure_count | Pending | — | — | |
+| 1 | Update test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count | Completed | — | 20260913-182400 |  |
+| 2 | Add promotion predicate assertion for cycle_failure_count | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -108,10 +108,10 @@ mapping applies.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add Specifications bullet | Pending | — | — | Depends on seq 01 landing first |
-| 2 | Rewrite line-453 Known Deviations clause | Pending | — | — | |
-| 3 | Update line-535 Completion Checklist item | Pending | — | — | |
-| 4 | Run validation sequence | Pending | — | — | |
+| 1 | Add Specifications bullet | Completed | — | 20260913-182400 | Depends on seq 01 landing first |
+| 2 | Rewrite line-453 Known Deviations clause | Completed | — | 20260913-182400 |  |
+| 3 | Update line-535 Completion Checklist item | Completed | — | 20260913-182400 |  |
+| 4 | Run validation sequence | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

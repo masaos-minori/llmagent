@@ -215,10 +215,10 @@ Call this function during the FastAPI lifespan initialization in `app.py`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-architect require_role to map token → Role | Pending | — | — | |
-| 2 | Fix require_consumer_identity return type | Pending | — | — | |
-| 3 | Populate _TOKEN_CONSUMER_MAP/_TOKEN_TOPIC_MAP from config | Pending | — | — | |
-| 4 | Run validation tests | Pending | — | — | |
+| 1 | Re-architect require_role to map token → Role | Completed | — | 20260913-182400 |  |
+| 2 | Fix require_consumer_identity return type | Completed | — | 20260913-182400 |  |
+| 3 | Populate _TOKEN_CONSUMER_MAP/_TOKEN_TOPIC_MAP from config | Completed | — | 20260913-182400 |  |
+| 4 | Run validation tests | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

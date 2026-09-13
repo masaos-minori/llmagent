@@ -141,13 +141,13 @@ Changing `recover_corruption()` control flow or action names; changing `_run_int
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add helper function _quarantine_sidecar_files() | Pending | — | — | |
-| 2 | Add helper function _stage_backup_sidecars() | Pending | — | — | |
-| 3 | Integrate _quarantine_sidecar_files() into _restore_from_backup() | Pending | — | — | |
-| 4 | Integrate _stage_backup_sidecars() into _restore_from_backup() | Pending | — | — | |
-| 5 | Rename staged -wal/-shm files after os.replace | Pending | — | — | |
-| 6 | Add test cases per Validation plan | Pending | — | — | |
-| 7 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add helper function _quarantine_sidecar_files() | Completed | — | 20260913-182400 |  |
+| 2 | Add helper function _stage_backup_sidecars() | Completed | — | 20260913-182400 |  |
+| 3 | Integrate _quarantine_sidecar_files() into _restore_from_backup() | Completed | — | 20260913-182400 |  |
+| 4 | Integrate _stage_backup_sidecars() into _restore_from_backup() | Completed | — | 20260913-182400 |  |
+| 5 | Rename staged -wal/-shm files after os.replace | Completed | — | 20260913-182400 |  |
+| 6 | Add test cases per Validation plan | Completed | — | 20260913-182400 |  |
+| 7 | Run the validation sequence (rules/toolchain.md) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

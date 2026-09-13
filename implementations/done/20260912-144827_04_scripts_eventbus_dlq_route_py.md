@@ -235,10 +235,10 @@ async def dlq_requeue(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove Depends declarations from dlq_list | Pending | — | — | |
-| 2 | Remove Depends declarations from dlq_requeue | Pending | — | — | |
-| 3 | Update parameter names and types | Pending | — | — | |
-| 4 | Run validation tests | Pending | — | — | |
+| 1 | Remove Depends declarations from dlq_list | Completed | — | 20260913-182400 |  |
+| 2 | Remove Depends declarations from dlq_requeue | Completed | — | 20260913-182400 |  |
+| 3 | Update parameter names and types | Completed | — | 20260913-182400 |  |
+| 4 | Run validation tests | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -148,11 +148,11 @@ format? | \`{tool_name}:{json_dumps(args)}\` (using \`shared.json_utils.dumps\`)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm current section content | Pending | — | — | |
-| 2 | Rewrite section 9 | Pending | — | — | |
-| 3 | Remove stampede-protection clause from section 15 | Pending | — | — | |
-| 4 | Remove 2 AI Reference Guide rows | Pending | — | — | |
-| 5 | Run `check_docs_consistency.py` (correct domain) | Pending | — | — | |
+| 1 | Re-confirm current section content | Completed | — | 20260913-182400 |  |
+| 2 | Rewrite section 9 | Completed | — | 20260913-182400 |  |
+| 3 | Remove stampede-protection clause from section 15 | Completed | — | 20260913-182400 |  |
+| 4 | Remove 2 AI Reference Guide rows | Completed | — | 20260913-182400 |  |
+| 5 | Run `check_docs_consistency.py` (correct domain) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

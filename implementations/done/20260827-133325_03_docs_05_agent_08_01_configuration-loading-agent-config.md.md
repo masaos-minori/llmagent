@@ -81,9 +81,9 @@ Delete this line entirely from the "Hot-Reloadable Scope" list.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line number | Pending | — | — | |
-| 2 | Delete the bullet | Pending | — | — | |
-| 3 | Run `check_docs_consistency.py --domain agent` | Pending | — | — | |
+| 1 | Re-confirm line number | Completed | — | 20260913-182400 |  |
+| 2 | Delete the bullet | Completed | — | 20260913-182400 |  |
+| 3 | Run `check_docs_consistency.py --domain agent` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

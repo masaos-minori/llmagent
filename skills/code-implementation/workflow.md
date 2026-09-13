@@ -48,6 +48,13 @@ use if the tool is unavailable.
 - Correct the implementation procedure file itself (`implementations/{filename}.md`,
   via Edit) when Step 3's adversarial verification finds an unconfirmed item or an
   inconsistency, in addition to its `## Execution Status` section.
+- Update the source Plan's own `### Execution Status` table (`plans/{filename}_plan.md`
+  or `plans/done/{filename}_plan.md` if already archived) — specifically, the row
+  matching this implementation procedure's Traceability `Related target files` value
+  — to `Completed`, once Step 7's move succeeds (see Step 7). This is the other half
+  of `plan-to-implementation-procedure` Step 4's own `In Progress` update for that
+  same row; without it, the Plan would never reflect that its implementation actually
+  landed.
 - Do not modify files outside the scope specified in the plan/procedure.
 - Do not edit documentation before Step 5.
 
@@ -370,6 +377,19 @@ only and does not apply to this workflow at all.
   applied and validated, and its implementation procedure document remains generated
   but unarchived — then continue Multi-file processing with the next target file in
   the batch. Do not halt the entire batch because one file's Archival Move failed.
+- **After the move succeeds**, update the source Plan's own Execution Status: read
+  this implementation procedure's Traceability `Source plan` and `Related target
+  files` values (already extracted in Step 2), locate that Plan file (it may already
+  be in `plans/done/` if `plan-to-implementation-procedure` archived it before this
+  cycle ran), and set the Execution Status row matching this cycle's target file to
+  `Completed` via `uv run python tools/manage_workitem_stage.py set-step-status plan
+  {plan_path} --description "{target_file_path}" Completed --completed {timestamp
+  from date +%Y%m%d-%H%M%S}`. If `Source plan` is `N/A` (no Plan produced this
+  procedure document), skip this update — there is no Plan row to close. If the Plan
+  file cannot be found at either location, report this as a non-blocking Note in the
+  Final Report (`Plan Execution Status not updated: {reason}`) rather than treating
+  it as a cycle failure — the implementation procedure's own move has already
+  succeeded and must not be reverted or blocked on this secondary update.
 
 ## Rollback on Failure
 

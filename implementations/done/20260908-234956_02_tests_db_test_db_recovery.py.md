@@ -177,15 +177,15 @@ Changing `recover_corruption()` control flow or action names; changing `_run_int
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add HEALTHY path test | Pending | — | — | |
-| 2 | Add CORRUPTION test | Pending | — | — | |
-| 3 | Add LOCK_CONTENTION via errno test | Pending | — | — | |
-| 4 | Add LOCK_CONTENTION via substring test | Pending | — | — | |
-| 5 | Add PERMISSION_FAILURE via errno test | Pending | — | — | |
-| 6 | Add PERMISSION_FAILURE via substring test | Pending | — | — | |
-| 7 | Add INVALID_FORMAT test | Pending | — | — | |
-| 8 | Add UNKNOWN test | Pending | — | — | |
-| 9 | Run full test suite | Pending | — | — | |
+| 1 | Add HEALTHY path test | Completed | — | 20260913-182400 |  |
+| 2 | Add CORRUPTION test | Completed | — | 20260913-182400 |  |
+| 3 | Add LOCK_CONTENTION via errno test | Completed | — | 20260913-182400 |  |
+| 4 | Add LOCK_CONTENTION via substring test | Completed | — | 20260913-182400 |  |
+| 5 | Add PERMISSION_FAILURE via errno test | Completed | — | 20260913-182400 |  |
+| 6 | Add PERMISSION_FAILURE via substring test | Completed | — | 20260913-182400 |  |
+| 7 | Add INVALID_FORMAT test | Completed | — | 20260913-182400 |  |
+| 8 | Add UNKNOWN test | Completed | — | 20260913-182400 |  |
+| 9 | Run full test suite | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

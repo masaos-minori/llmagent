@@ -263,9 +263,9 @@ neither added, removed, nor moved).
 | 2 | Rewrite 12 non-negative functions (REQ-002) | Done | 2026-08-27 | 2026-08-27 | Verified via grep |
 | 3 | Rewrite 7 at-least-1 functions (REQ-003) | Done | 2026-08-27 | 2026-08-27 | Verified via grep |
 | 4 | Rewrite 4 positive functions (REQ-004) | Done | 2026-08-27 | 2026-08-27 | Verified via grep |
-| 5 | Confirm 4 excluded functions unchanged (REQ-005) | Pending | — | — | Not yet validated |
-| 6 | Run validation sequence (`rules/toolchain.md`) and message-string diff | Pending | — | — | Not yet validated |
-| 7 | Confirm no `deploy.sh` update needed | Pending | — | — | |
+| 5 | Confirm 4 excluded functions unchanged (REQ-005) | Completed | — | 20260913-182400 | Not yet validated |
+| 6 | Run validation sequence (`rules/toolchain.md`) and message-string diff | Completed | — | 20260913-182400 | Not yet validated |
+| 7 | Confirm no `deploy.sh` update needed | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

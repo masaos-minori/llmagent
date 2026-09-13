@@ -124,10 +124,10 @@ decisions).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify seq 01's precondition (runbook subsection exists) | Pending | — | — | Blocking precondition — see Method step 1 |
-| 2 | Add the anchor-specific `### Operations` bullet per Method | Pending | — | — | |
-| 3 | N/A: no automated test for a documentation cross-reference | Pending | — | — | N/A |
-| 4 | Run `check_docs_quality.py` / `check_docs_structure.py` | Pending | — | — | |
+| 1 | Verify seq 01's precondition (runbook subsection exists) | Completed | — | 20260913-182400 | Blocking precondition — see Method step 1 |
+| 2 | Add the anchor-specific `### Operations` bullet per Method | Completed | — | 20260913-182400 |  |
+| 3 | N/A: no automated test for a documentation cross-reference | Completed | — | 20260913-182400 | N/A |
+| 4 | Run `check_docs_quality.py` / `check_docs_structure.py` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

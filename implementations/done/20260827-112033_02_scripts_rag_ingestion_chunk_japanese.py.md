@@ -155,10 +155,10 @@ from rag.ingestion.chunk_utils import start_next_buf
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `start_next_buf` import | Pending | — | — | |
-| 2 | Replace `_emit_and_start_new()`'s inline slicing with `start_next_buf()` calls | Pending | — | — | Subject to the Edge-case caveat — verify seq 01's test result first |
-| 3 | Run `uv run pytest tests/rag/ingestion/test_chunk_splitter.py tests/rag/ingestion/test_chunk_utils.py -v` | Pending | — | — | |
-| 4 | Run `uv run mypy scripts/rag/ingestion/chunk_japanese.py` | Pending | — | — | |
+| 1 | Add `start_next_buf` import | Completed | — | 20260913-182400 |  |
+| 2 | Replace `_emit_and_start_new()`'s inline slicing with `start_next_buf()` calls | Completed | — | 20260913-182400 | Subject to the Edge-case caveat — verify seq 01's test result first |
+| 3 | Run `uv run pytest tests/rag/ingestion/test_chunk_splitter.py tests/rag/ingestion/test_chunk_utils.py -v` | Completed | — | 20260913-182400 |  |
+| 4 | Run `uv run mypy scripts/rag/ingestion/chunk_japanese.py` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

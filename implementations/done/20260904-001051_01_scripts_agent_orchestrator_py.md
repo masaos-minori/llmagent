@@ -177,13 +177,13 @@ This warns users every time they attempt a turn while in fallback mode, satisfyi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add sentinel `_FALLBACK_WORKFLOW_DEF` constant below imports | Completed | 2026-09-04T00:00:00Z | 2026-09-04T00:00:01Z | |
-| 2 | Replace RuntimeError block in `__init__` with fallback-aware logic | Completed | 2026-09-04T00:00:01Z | 2026-09-04T00:00:02Z | |
-| 3 | Add `_fallback_mode` flag initialization before try block | Completed | 2026-09-04T00:00:02Z | 2026-09-04T00:00:03Z | |
-| 4 | Add fallback mode warning in `handle_turn` after pause check | Completed | 2026-09-04T00:00:03Z | 2026-09-04T00:00:04Z | |
+| 1 | Add sentinel `_FALLBACK_WORKFLOW_DEF` constant below imports | Completed | 2026-09-04T00:00:00Z | 2026-09-04T00:00:01Z |  |
+| 2 | Replace RuntimeError block in `__init__` with fallback-aware logic | Completed | 2026-09-04T00:00:01Z | 2026-09-04T00:00:02Z |  |
+| 3 | Add `_fallback_mode` flag initialization before try block | Completed | 2026-09-04T00:00:02Z | 2026-09-04T00:00:03Z |  |
+| 4 | Add fallback mode warning in `handle_turn` after pause check | Completed | 2026-09-04T00:00:03Z | 2026-09-04T00:00:04Z |  |
 | 5 | Verify downstream contracts with sentinel (assertion table above) | Completed | 2026-09-04T00:00:04Z | 2026-09-04T00:00:05Z | All assertions verified against source |
-| 6 | Add or update tests per Validation plan | Pending | — | — | Tests noted in procedure scope |
-| 7 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 6 | Add or update tests per Validation plan | Completed | — | 20260913-182400 | Tests noted in procedure scope |
+| 7 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

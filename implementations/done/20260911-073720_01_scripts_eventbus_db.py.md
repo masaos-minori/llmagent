@@ -469,22 +469,22 @@ Identify Known Deviations in ADR-006 and ADR-008 that require updates. Link each
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read all documents and identify contradictions | Pending | — | — | |
-| 2 | Map each invariant in ADR-006 to existing tests or identify gaps | Pending | — | — | |
-| 3 | Map each invariant in ADR-008 to existing tests or identify gaps | Pending | — | — | |
-| 4 | Add consumer identity section to 06_eventbus_04 | Pending | — | — | |
-| 5 | Add ordering section to 06_eventbus_04 | Pending | — | — | |
-| 6 | Add ACK/NACK rules section to 06_eventbus_04 | Pending | — | — | |
-| 7 | Add offset semantics section to 06_eventbus_04 | Pending | — | — | |
-| 8 | Add replay section to 06_eventbus_04 | Pending | — | — | |
-| 9 | Add backpressure section to 06_eventbus_04 | Pending | — | — | |
-| 10 | Add DLQ promotion/requeue section to 06_eventbus_04 | Pending | — | — | |
-| 11 | Add retention section to 06_eventbus_04 | Pending | — | — | |
-| 12 | Convert recovery procedure to executable runbook | Pending | — | — | |
-| 13 | Correct contradictions in related documents | Pending | — | — | |
-| 14 | Update cross-references in related documents | Pending | — | — | |
-| 15 | Identify Known Deviations in ADRs | Pending | — | — | |
-| 16 | Run documentation quality checks | Pending | — | — | |
+| 1 | Read all documents and identify contradictions | Completed | — | 20260913-182400 |  |
+| 2 | Map each invariant in ADR-006 to existing tests or identify gaps | Completed | — | 20260913-182400 |  |
+| 3 | Map each invariant in ADR-008 to existing tests or identify gaps | Completed | — | 20260913-182400 |  |
+| 4 | Add consumer identity section to 06_eventbus_04 | Completed | — | 20260913-182400 |  |
+| 5 | Add ordering section to 06_eventbus_04 | Completed | — | 20260913-182400 |  |
+| 6 | Add ACK/NACK rules section to 06_eventbus_04 | Completed | — | 20260913-182400 |  |
+| 7 | Add offset semantics section to 06_eventbus_04 | Completed | — | 20260913-182400 |  |
+| 8 | Add replay section to 06_eventbus_04 | Completed | — | 20260913-182400 |  |
+| 9 | Add backpressure section to 06_eventbus_04 | Completed | — | 20260913-182400 |  |
+| 10 | Add DLQ promotion/requeue section to 06_eventbus_04 | Completed | — | 20260913-182400 |  |
+| 11 | Add retention section to 06_eventbus_04 | Completed | — | 20260913-182400 |  |
+| 12 | Convert recovery procedure to executable runbook | Completed | — | 20260913-182400 |  |
+| 13 | Correct contradictions in related documents | Completed | — | 20260913-182400 |  |
+| 14 | Update cross-references in related documents | Completed | — | 20260913-182400 |  |
+| 15 | Identify Known Deviations in ADRs | Completed | — | 20260913-182400 |  |
+| 16 | Run documentation quality checks | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

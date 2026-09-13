@@ -89,9 +89,9 @@ spacing before the em-dash, so the diagram's column alignment with sibling lines
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line number | Pending | — | — | |
-| 2 | Edit the line, preserve alignment | Pending | — | — | |
-| 3 | Run `check_docs_consistency.py` (correct domain) | Pending | — | — | |
+| 1 | Re-confirm line number | Completed | — | 20260913-182400 |  |
+| 2 | Edit the line, preserve alignment | Completed | — | 20260913-182400 |  |
+| 3 | Run `check_docs_consistency.py` (correct domain) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

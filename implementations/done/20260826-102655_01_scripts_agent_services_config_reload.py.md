@@ -228,9 +228,9 @@ def _detect_startup_only(
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Add the `memory_embed_enabled` block to `_detect_startup_only()` (REQ-001) | Done | 2026-08-27 | 2026-08-27 | Already done; lines 618-620 |
-| 2 | Add `test_memory_embed_enabled_change_detected` / `test_memory_embed_enabled_no_change_returns_empty` to `TestStartupOnlyDetection` in `tests/agent/services/test_config_reload.py` (AC-01) | Pending | — | — | Not yet validated |
-| 3 | Run `uv run pytest tests/agent/services/test_config_reload.py tests/agent/services/test_config_reload_classification.py -v`, confirm green incl. pre-existing `use_memory_layer` tests (AC-02, partial) | Pending | — | — | Not yet validated |
-| 4 | Run `uv run mypy scripts/` and `uv run ruff check scripts/agent/services/config_reload.py` | Pending | — | — | Not yet validated |
+| 2 | Add `test_memory_embed_enabled_change_detected` / `test_memory_embed_enabled_no_change_returns_empty` to `TestStartupOnlyDetection` in `tests/agent/services/test_config_reload.py` (AC-01) | Completed | — | 20260913-182400 | Not yet validated |
+| 3 | Run `uv run pytest tests/agent/services/test_config_reload.py tests/agent/services/test_config_reload_classification.py -v`, confirm green incl. pre-existing `use_memory_layer` tests (AC-02, partial) | Completed | — | 20260913-182400 | Not yet validated |
+| 4 | Run `uv run mypy scripts/` and `uv run ruff check scripts/agent/services/config_reload.py` | Completed | — | 20260913-182400 | Not yet validated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

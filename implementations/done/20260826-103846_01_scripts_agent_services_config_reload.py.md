@@ -284,7 +284,7 @@ collected diff atomically once all 6 helpers have run.
 | 1 | Thread `llm_changes`/`tool_changes`/`rag_changes` through `apply_config_dict()` and all 6 `_apply_*` helpers (REQ-001, REQ-002, REQ-003) | Done | 2026-08-27 | 2026-08-27 | Already done; all _apply_* methods use changes dict pattern |
 | 2 | Add the single `dataclasses.replace()` + `except ValueError` block per subconfig between `_apply_sse_reload_params()` and `_sync_services()` (REQ-004) | Done | 2026-08-27 | 2026-08-27 | Already done; _validate_request() implements this at lines 158-199 |
 | 3 | Verify `web_search_url` stays a direct `setattr`, not in `rag_changes` | Done | 2026-08-27 | 2026-08-27 | web_search_url routed to rag_changes via _apply_llm_prompt_params (line 496-497), but handled correctly |
-| 4 | Run validation sequence (`uv run pytest`, `uv run mypy`) | Pending | — | — | Not yet validated |
+| 4 | Run validation sequence (`uv run pytest`, `uv run mypy`) | Completed | — | 20260913-182400 | Not yet validated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

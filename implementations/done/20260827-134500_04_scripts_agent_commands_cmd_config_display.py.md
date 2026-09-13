@@ -145,10 +145,10 @@ pass, since `ctx.cfg.tool` is a `MagicMock` and tolerates the unused attribute).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm current line number | Pending | — | — | |
-| 2 | Delete `tool_cache_ttl` display line | Pending | — | — | |
-| 3 | Check/clean dead test setup line | Pending | — | — | Best-effort, not correctness-required |
-| 4 | Run `PrintConfigValues` tests | Pending | — | — | Coordinate landing with REQ-001 |
+| 1 | Re-confirm current line number | Completed | — | 20260913-182400 |  |
+| 2 | Delete `tool_cache_ttl` display line | Completed | — | 20260913-182400 |  |
+| 3 | Check/clean dead test setup line | Completed | — | 20260913-182400 | Best-effort, not correctness-required |
+| 4 | Run `PrintConfigValues` tests | Completed | — | 20260913-182400 | Coordinate landing with REQ-001 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

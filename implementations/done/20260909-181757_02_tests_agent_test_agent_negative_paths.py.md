@@ -54,10 +54,10 @@ The 12 obsolete keys no longer appear in `_cfg()`'s `defaults` dict, and re-runn
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the 12 obsolete keys from `_cfg()`'s `defaults` dict | Pending | — | — | |
-| 2 | Run `uv run pytest tests/agent/test_agent_negative_paths.py -q` and confirm zero failures | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation update in scope |
+| 1 | Remove the 12 obsolete keys from `_cfg()`'s `defaults` dict | Completed | — | 20260913-182400 |  |
+| 2 | Run `uv run pytest tests/agent/test_agent_negative_paths.py -q` and confirm zero failures | Completed | — | 20260913-182400 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260913-182400 | N/A: no documentation update in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

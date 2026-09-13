@@ -130,11 +130,11 @@ and remains in effect as defense-in-depth.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add new section for EventBus authentication/authorization | Pending | — | — | |
-| 2 | Document four-role authorization model | Pending | — | — | |
-| 3 | Add cross-reference to ADR-013 | Pending | — | — | |
-| 4 | Note loopback-only binding predates this work | Pending | — | — | |
-| 5 | Validate documentation quality and structure | Pending | — | — | |
+| 1 | Add new section for EventBus authentication/authorization | Completed | — | 20260913-182400 |  |
+| 2 | Document four-role authorization model | Completed | — | 20260913-182400 |  |
+| 3 | Add cross-reference to ADR-013 | Completed | — | 20260913-182400 |  |
+| 4 | Note loopback-only binding predates this work | Completed | — | 20260913-182400 |  |
+| 5 | Validate documentation quality and structure | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

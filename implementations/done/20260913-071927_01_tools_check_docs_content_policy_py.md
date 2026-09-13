@@ -130,9 +130,9 @@ N/A: tool behavior change only; no security impact.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260913-073000 | 20260913-073200 | Added heading-based heuristic; zero full file tree findings remain (all were false positives) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: handled in companion procedure |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260913-182400 | N/A: handled in companion procedure |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260913-073200 | 20260913-073300 | ruff format/lint/mypy/bandit pass; all 9 tests pass |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs changes required |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260913-182400 | N/A: no docs changes required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

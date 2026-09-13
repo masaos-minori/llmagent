@@ -116,7 +116,7 @@ tool's own CLI output.
 | 4 | Test the feature and pass required tests/coverage | Completed | — | — | 12 existing tests pass |
 | 5 | Update documentation per `docs/00_index.md` task-scope mapping | N/A | — | — | No docs files matched |
 | 6 | Validate documentation updates | N/A | — | — | No documentation changes to validate |
-| 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
+| 7 | Move the implementation procedure file to `implementations/done/` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

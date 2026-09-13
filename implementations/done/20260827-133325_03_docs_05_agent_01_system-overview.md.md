@@ -87,10 +87,10 @@ Delete line 63 entirely.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers | Pending | — | — | |
-| 2 | Edit `ToolExecutor` row | Pending | — | — | |
-| 3 | Delete "Tool result cache TTL" row | Pending | — | — | |
-| 4 | Run `check_docs_consistency.py --domain agent` | Pending | — | — | |
+| 1 | Re-confirm line numbers | Completed | — | 20260913-182400 |  |
+| 2 | Edit `ToolExecutor` row | Completed | — | 20260913-182400 |  |
+| 3 | Delete "Tool result cache TTL" row | Completed | — | 20260913-182400 |  |
+| 4 | Run `check_docs_consistency.py --domain agent` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -95,7 +95,7 @@ appears.
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-09-06 | 2026-09-06 | Adversarial verification confirmed: line 190 already contains live-path test citations for TestLiveCallToolAuthorization, TestDryRunAndDetachedHeadLivePath, and TestPostConditionBypassPrevention; no edit needed |
 | 2 | Add or update tests per Validation plan | N/A | — | — | No code change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-09-06 | 2026-09-06 | No substantive edit required — document already correctly describes implemented behavior |
 
 ### Blocker Log

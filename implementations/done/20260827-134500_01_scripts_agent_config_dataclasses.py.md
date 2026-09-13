@@ -179,12 +179,12 @@ Change to:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm current line numbers | Pending | — | — | |
-| 2 | Remove `_v_tool_cms` import | Pending | — | — | |
-| 3 | Remove `tool_cache_ttl`/`tool_cache_max_size` fields | Pending | — | — | |
-| 4 | Remove `_v_tool_cms(self)` call | Pending | — | — | |
-| 5 | Update `ToolConfig` docstring | Pending | — | — | |
-| 6 | Run validation sequence | Pending | — | — | Coordinate with REQ-002/REQ-003 commits |
+| 1 | Re-confirm current line numbers | Completed | — | 20260913-182400 |  |
+| 2 | Remove `_v_tool_cms` import | Completed | — | 20260913-182400 |  |
+| 3 | Remove `tool_cache_ttl`/`tool_cache_max_size` fields | Completed | — | 20260913-182400 |  |
+| 4 | Remove `_v_tool_cms(self)` call | Completed | — | 20260913-182400 |  |
+| 5 | Update `ToolConfig` docstring | Completed | — | 20260913-182400 |  |
+| 6 | Run validation sequence | Completed | — | 20260913-182400 | Coordinate with REQ-002/REQ-003 commits |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

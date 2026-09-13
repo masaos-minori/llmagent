@@ -177,9 +177,9 @@ async def replay(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove Depends declaration from replay | Pending | — | — | |
-| 2 | Update parameter names and types | Pending | — | — | |
-| 3 | Run validation tests | Pending | — | — | |
+| 1 | Remove Depends declaration from replay | Completed | — | 20260913-182400 |  |
+| 2 | Update parameter names and types | Completed | — | 20260913-182400 |  |
+| 3 | Run validation tests | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

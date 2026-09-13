@@ -63,7 +63,7 @@ Update `tests/eventbus/test_eventbus_dlq.py` to reflect the new row/lineage mode
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update test_requeue_increments_dlq_requeue_count for new row model | Pending | — | — | |
+| 1 | Update test_requeue_increments_dlq_requeue_count for new row model | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

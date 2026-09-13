@@ -68,8 +68,8 @@ Update `tests/eventbus/test_eventbus_requeue_edge_cases.py` to assert actual red
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update test_repeated_requeue_increments_dlq_requeue_count | Pending | — | — | |
-| 2 | Update test_requeue_event_at_max_retry_then_re_promoted | Pending | — | — | |
+| 1 | Update test_repeated_requeue_increments_dlq_requeue_count | Completed | — | 20260913-182400 |  |
+| 2 | Update test_requeue_event_at_max_retry_then_re_promoted | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

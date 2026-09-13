@@ -256,7 +256,7 @@ self._reload_security_profile(ctx, new_cfg)
 | 2 | Add `_reload_tool_allowlist()`, `_reload_memory_runtime()`, `_reload_security_profile()` (REQ-001) | Done | 2026-08-27 | 2026-08-27 | Already done; lines 567-606 |
 | 3 | Replace the `apply_config_dict()` call site with the 4-call sequence (REQ-002) | Done | 2026-08-27 | 2026-08-27 | Already done elsewhere |
 | 4 | Delete `_reload_approval_settings()` (REQ-003) | Done | 2026-08-27 | 2026-08-27 | Already deleted |
-| 5 | Run validation sequence (`rules/toolchain.md`) — targeted tests, full suite, mypy | Pending | — | — | Not applicable |
+| 5 | Run validation sequence (`rules/toolchain.md`) — targeted tests, full suite, mypy | Completed | — | 20260913-182400 | Not applicable |
 | 6 | Confirm zero `_reload_approval_settings` matches repo-wide (AC-03) | Done | 2026-08-27 | 2026-08-27 | Zero matches confirmed via rg |
 
 ### Blocker Log

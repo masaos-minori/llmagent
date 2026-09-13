@@ -215,9 +215,9 @@ class TestSubscribeAuth:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Un-skip test_subscribe_with_valid_consumer_token | Pending | — | — | |
-| 2 | Add replacement test for disconnect detection | Pending | — | — | |
-| 3 | Run validation tests | Pending | — | — | |
+| 1 | Un-skip test_subscribe_with_valid_consumer_token | Completed | — | 20260913-182400 |  |
+| 2 | Add replacement test for disconnect detection | Completed | — | 20260913-182400 |  |
+| 3 | Run validation tests | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

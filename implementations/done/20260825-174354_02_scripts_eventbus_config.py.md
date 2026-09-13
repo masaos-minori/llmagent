@@ -130,9 +130,9 @@ file (no changes to the four existing tests, which remain valid exercises of
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update `load_config()` docstring with the single-path invariant | Pending | — | — | |
-| 2 | Add call-site regression test to `tests/eventbus/test_eventbus_config.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) scoped to `scripts/eventbus/` and `tests/eventbus/`, including `lint-imports` | Pending | — | — | |
+| 1 | Update `load_config()` docstring with the single-path invariant | Completed | — | 20260913-182400 |  |
+| 2 | Add call-site regression test to `tests/eventbus/test_eventbus_config.py` | Completed | — | 20260913-182400 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) scoped to `scripts/eventbus/` and `tests/eventbus/`, including `lint-imports` | Completed | — | 20260913-182400 |  |
 | 4 | Documentation update | N/A | — | — | Not in scope for this file — see companion `docs/adr/ADR-002-config-isolation.md` implementation procedure document for REQ-003 |
 
 ### Blocker Log

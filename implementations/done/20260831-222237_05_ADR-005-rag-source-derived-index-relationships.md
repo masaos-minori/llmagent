@@ -127,7 +127,7 @@ Document-only modification: selective deletion of deprecated sections, content r
 | 1 | Phase 1: Preparation | Done | — | — | Read full ADR and governance policy |
 | 2 | Phase 2: Analyze Migration and Rollout section | Done | — | — | All statements are historical narrative → delete |
 | 3 | Phase 3: Analyze Change History section | Done | — | — | All entries are historical narrative → delete |
-| 4 | Phase 4: Section reordering | Pending | — | — | Not applicable — no new sections added |
+| 4 | Phase 4: Section reordering | Completed | — | 20260913-182400 | Not applicable — no new sections added |
 | 5 | Phase 5: Verification | Done | — | — | check_docs_quality.py passed; rg confirmed no deprecated sections remain |
 
 ### Blocker Log

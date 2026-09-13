@@ -360,12 +360,12 @@ if start_seq == 0 and last_event_id is not None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add Last-Event-ID parsing and stale reconnect rejection | Pending | — | — | |
-| 2 | Add event IDs to subscribe route | Pending | — | — | |
-| 3 | Add heartbeat to subscribe route | Pending | — | — | |
-| 4 | Implement precedence order | Pending | — | — | |
-| 5 | Add or update tests per Validation plan | Pending | — | — | |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add Last-Event-ID parsing and stale reconnect rejection | Completed | — | 20260913-182400 |  |
+| 2 | Add event IDs to subscribe route | Completed | — | 20260913-182400 |  |
+| 3 | Add heartbeat to subscribe route | Completed | — | 20260913-182400 |  |
+| 4 | Implement precedence order | Completed | — | 20260913-182400 |  |
+| 5 | Add or update tests per Validation plan | Completed | — | 20260913-182400 |  |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

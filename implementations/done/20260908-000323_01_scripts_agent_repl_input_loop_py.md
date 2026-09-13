@@ -87,7 +87,7 @@ Reverting this change means re-adding the removed block. No operational impact s
 | 4 | Test the feature and pass required tests/coverage | Completed | — | — | 14 passed, 1 pre-existing failure (unrelated); no regression introduced |
 | 5 | Update documentation per `docs/00_index.md` task-scope mapping | N/A | — | — | No changed files matched a Task scope row; no code changes made |
 | 6 | Validate documentation updates | N/A | — | — | No documentation changes to validate |
-| 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
+| 7 | Move the implementation procedure file to `implementations/done/` | Completed | — | 20260913-182400 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
