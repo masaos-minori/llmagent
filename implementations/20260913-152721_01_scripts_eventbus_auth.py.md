@@ -135,10 +135,10 @@ functionally reverting the fix).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260913-162615 | 20260913-162615 | require_consumer_identity now returns topics=None when the token has no non-empty _TOKEN_TOPIC_MAP entry; docstring updated to document the contract |
+| 2 | Add or update tests per Validation plan | Completed | 20260913-162615 | 20260913-162615 | Added TestRequireConsumerIdentityTopicSemantics (2 unit tests): unrestricted token returns None; restricted token still enforces and returns the expected set |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260913-162615 | 20260913-162615 | ruff/mypy/bandit/lint-imports/diff-cover(100%)/pre-commit all passed; full tests/eventbus/ suite: only pre-existing/flaky failures remain (test_subscribe_duplicate_consumer_id_returns_409 now fails with TypeError instead of 403, expected until companion subscribe_route.py document lands) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260913-162615 | 20260913-162615 | N/A: no docs/00_index.md task-scope mapping for scripts/eventbus/auth.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
