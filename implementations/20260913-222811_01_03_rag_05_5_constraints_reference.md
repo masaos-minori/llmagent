@@ -90,9 +90,9 @@ Simple revert: remove the added row from the Constraints table and the correspon
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Confirm the exact current evidence line numbers | Pending | — | — | |
-| 2 | Phase 2: Add the row and evidence bullet | Pending | — | — | |
-| 3 | Verification: manual review | Pending | — | — | |
+| 1 | Phase 1: Confirm the exact current evidence line numbers | Completed | — | — | |
+| 2 | Phase 2: Add the row and evidence bullet | Completed | — | — | |
+| 3 | Verification: manual review | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
