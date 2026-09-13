@@ -44,15 +44,14 @@ async def subscribe(
     broker = get_broker(request)
     db = get_db(request)
 
-    # _identity is never actually resolved by FastAPI's dependency injection
-    # here — this function is called as a plain awaited function from
-    # app.py's route wrapper, not registered directly as a route, so the
-    # Depends(require_consumer_identity) default (or its None return value)
-    # is never a real dict at this point. Skip topic-allowlist enforcement
-    # rather than reject every request when identity resolution didn't
-    # actually run; see
-    # issues/20260911-133957_ebauth01_role-and-consumer-identity-checks-never-run.md
-    # for the full authorization gap this is a symptom of.
+    # _identity is resolved by app.py's route wrapper via
+    # Depends(require_consumer_identity) and passed in here as a real dict —
+    # the wiring gap this comment used to describe (Depends(...) never
+    # actually invoked, tracked by
+    # issues/20260911-133957_ebauth01_role-and-consumer-identity-checks-never-run.md)
+    # is already fixed, see plans/done/20260912-111042_plan.md. The isinstance
+    # guard remains as a defensive check for any future caller that invokes
+    # this function directly, bypassing that dependency chain.
     if isinstance(_identity, dict):
         caller_topics = _identity.get("topics")
         if caller_topics is not None:
