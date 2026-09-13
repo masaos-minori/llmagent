@@ -87,10 +87,10 @@ Revert the deletion commit to restore the class and import. The class's logic re
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Confirm crawler does not depend on CrawlTarget | Pending | — | — | |
-| 2 | Phase 2: Delete CrawlTarget class | Pending | — | — | |
-| 3 | Phase 2: Remove unused LanguageCode import | Pending | — | — | |
-| 4 | Verification: run tests and lint | Pending | — | — | |
+| 1 | Phase 1: Confirm crawler does not depend on CrawlTarget | Completed | 20260914-002758 | 20260914-002758 |  |
+| 2 | Phase 2: Delete CrawlTarget class | Completed | 20260914-002758 | 20260914-002758 |  |
+| 3 | Phase 2: Remove unused LanguageCode import | Completed | 20260914-002758 | 20260914-002758 |  |
+| 4 | Verification: run tests and lint | Completed | 20260914-002759 | 20260914-002759 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
