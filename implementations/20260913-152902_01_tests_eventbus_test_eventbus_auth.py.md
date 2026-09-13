@@ -167,10 +167,10 @@ re-applying this document if that ever happens.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260913-164236 | 20260913-164236 | Precondition check passed (eb005 landed); added Depends(require_role(...))/Depends(require_consumer_identity) to all 7 local routes in _make_test_app(), threaded _role/_identity through to each delegated-to call |
+| 2 | Add or update tests per Validation plan | Completed | 20260913-164236 | 20260913-164236 | Added 7 wrong-role negative tests (one per role-gated route); replaced the unit-level stopgap with an HTTP-level test for /publish; all 22 tests in this file pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260913-164236 | 20260913-164236 | ruff/mypy/bandit/lint-imports/diff-cover(100%, unchanged since this is test-only)/pre-commit all passed; full tests/eventbus/ suite: only pre-existing dlq-requeue/metrics/startup failures remain, 0 new regressions |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260913-164236 | 20260913-164236 | N/A: test-only file, no docs/00_index.md task-scope mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
