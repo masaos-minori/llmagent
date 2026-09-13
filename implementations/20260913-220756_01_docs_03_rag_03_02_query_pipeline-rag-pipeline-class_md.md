@@ -138,13 +138,13 @@ Simple revert of the text consolidation changes — no data migration or state r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify existing overlapping sections at lines 23-196 | Pending | — | — | Record exact wording |
-| 2 | Remove duplicate ## 2a. RagPipeline Class section | Pending | — | — | Lines 67-104 |
-| 3 | Rename ## 2b. RagPipeline Class to ## 2. RagPipeline Class | Pending | — | — | Integrate content |
-| 4 | Consolidate Documentation vs. Implementation Mismatch note | Pending | — | — | Single authoritative statement |
-| 5 | Consolidate Related Documents list | Pending | — | — | Merge and deduplicate |
-| 6 | Consolidate Keywords list | Pending | — | — | Merge and deduplicate |
-| 7 | Manual review of accuracy against source code | Pending | — | — | Verify all claims |
+| 1 | Verify existing overlapping sections at lines 23-196 | Completed | — | — | Record exact wording |
+| 2 | Remove duplicate ## 2a. RagPipeline Class section | Completed | — | — | Lines 67-104 |
+| 3 | Rename ## 2b. RagPipeline Class to ## 2. RagPipeline Class | Completed | — | — | Integrate content |
+| 4 | Consolidate Documentation vs. Implementation Mismatch note | Completed | — | — | Single authoritative statement |
+| 5 | Consolidate Related Documents list | Completed | — | — | Merge and deduplicate |
+| 6 | Consolidate Keywords list | Completed | — | — | Merge and deduplicate |
+| 7 | Manual review of accuracy against source code | Completed | — | — | Verify all claims |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
