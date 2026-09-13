@@ -37,48 +37,40 @@ class _ConfigDisplayMixin(MixinBase):
     def _print_llm_settings(self, ctx: AgentContext) -> None:
         """Print LLM endpoint and core settings."""
         self._out.write("Settings:")
-        self._out.write(f"  llm_url             : {ctx.cfg.llm.llm_url}")
-        self._out.write(f"  max_tool_turns      : {ctx.cfg.tool.max_tool_turns}")
-        self._out.write(f"  http_timeout        : {ctx.cfg.llm.http_timeout}s")
-        self._out.write(f"  context_char_limit  : {ctx.cfg.llm.context_char_limit}")
-        self._out.write(
-            f"  context_compress    : {ctx.cfg.llm.context_compress_turns} turn pairs",
-        )
-        self._out.write(f"  llm_max_retries     : {ctx.cfg.llm.llm_max_retries}")
-        self._out.write(f"  llm_retry_base_delay: {ctx.cfg.llm.llm_retry_base_delay}s")
-        self._out.write(f"  llm_temperature     : {ctx.cfg.llm.llm_temperature}")
-        self._out.write(f"  llm_max_tokens      : {ctx.cfg.llm.llm_max_tokens}")
+        pairs = [
+            ("llm_url", str(ctx.cfg.llm.llm_url)),
+            ("max_tool_turns", str(ctx.cfg.tool.max_tool_turns)),
+            ("http_timeout", f"{ctx.cfg.llm.http_timeout}s"),
+            ("context_char_limit", str(ctx.cfg.llm.context_char_limit)),
+            ("context_compress", f"{ctx.cfg.llm.context_compress_turns} turn pairs"),
+            ("llm_max_retries", str(ctx.cfg.llm.llm_max_retries)),
+            ("llm_retry_base_delay", f"{ctx.cfg.llm.llm_retry_base_delay}s"),
+            ("llm_temperature", str(ctx.cfg.llm.llm_temperature)),
+            ("llm_max_tokens", str(ctx.cfg.llm.llm_max_tokens)),
+        ]
+        self._out.write_kv(pairs, key_width=20)
 
     def _print_sse_settings(self, ctx: AgentContext) -> None:
         """Print SSE streaming settings."""
         self._out.write("SSE stream settings:")
-        self._out.write(
-            f"  sse_heartbeat_timeout              : {ctx.cfg.llm.sse_heartbeat_timeout}s",
-        )
-        self._out.write(
-            f"  sse_malformed_retry                : {ctx.cfg.llm.sse_malformed_retry}",
-        )
-        self._out.write(
-            f"  sse_reconnect_max                  : {ctx.cfg.llm.sse_reconnect_max}",
-        )
-        self._out.write(
-            f"  llm_stream_retry_on_heartbeat_timeout: {ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout}",
-        )
-        self._out.write(
-            f"  llm_stream_retry_on_malformed_chunk  : {ctx.cfg.llm.llm_stream_retry_on_malformed_chunk}",
-        )
+        pairs = [
+            ("sse_heartbeat_timeout", f"{ctx.cfg.llm.sse_heartbeat_timeout}s"),
+            ("sse_malformed_retry", str(ctx.cfg.llm.sse_malformed_retry)),
+            ("sse_reconnect_max", str(ctx.cfg.llm.sse_reconnect_max)),
+            ("llm_stream_retry_on_heartbeat_timeout", str(ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout)),
+            ("llm_stream_retry_on_malformed_chunk", str(ctx.cfg.llm.llm_stream_retry_on_malformed_chunk)),
+        ]
+        self._out.write_kv(pairs, key_width=35)
 
     def _print_execution_settings(self, ctx: AgentContext) -> None:
         """Print execution settings."""
         self._out.write("Execution settings:")
-        self._out.write(f"  serial_tool_calls   : {ctx.cfg.tool.serial_tool_calls}")
+        self._out.write_kv([("serial_tool_calls", str(ctx.cfg.tool.serial_tool_calls))], key_width=20)
 
     def _print_mcp_settings(self, ctx: AgentContext) -> None:
         """Print MCP and security settings."""
         self._out.write("MCP / security settings:")
-        self._out.write(
-            f"  tool_def_strict     : {ctx.cfg.tool.tool_definitions_strict}"
-        )
+        self._out.write_kv([("tool_def_strict", str(ctx.cfg.tool.tool_definitions_strict))], key_width=20)
 
     def _print_approval_settings(self, ctx: AgentContext) -> None:
         """Print approval and risk rule settings."""
@@ -86,44 +78,41 @@ class _ConfigDisplayMixin(MixinBase):
         rules = ctx.cfg.approval.approval_risk_rules
         if rules:
             rule_str = ", ".join(f"{k}={v}" for k, v in sorted(rules.items()))
-            self._out.write(f"  risk_rules          : {rule_str}")
+            pairs = [("risk_rules", rule_str)]
         else:
-            self._out.write("  risk_rules          : (none)")
-        self._out.write(
-            f"  protected_paths     : {ctx.cfg.approval.approval_protected_paths}"
-        )
-        self._out.write(
-            f"  high_risk_branches  : {ctx.cfg.approval.approval_high_risk_branches}",
-        )
+            pairs = [("risk_rules", "(none)")]
+        pairs.extend([
+            ("protected_paths", ", ".join(ctx.cfg.approval.approval_protected_paths)),
+            ("high_risk_branches", ", ".join(ctx.cfg.approval.approval_high_risk_branches)),
+        ])
         dry_run_tools = ctx.cfg.approval.approval_dry_run_tools
-        self._out.write(f"  dry_run_tools       : {dry_run_tools or '(none)'}")
         masked = ctx.cfg.tool.masked_fields
-        self._out.write(f"  masked_fields       : {masked or '(none)'}")
+        pairs.append(("dry_run_tools", ", ".join(dry_run_tools) if dry_run_tools else "(none)"))
+        pairs.append(("masked_fields", ", ".join(masked) if masked else "(none)"))
+        self._out.write_kv(pairs, key_width=20)
 
     def _print_tool_safety_settings(self, ctx: AgentContext) -> None:
         """Print tool safety and allowed-tools settings."""
         self._out.write("Security settings (tool safety):")
         allowed_root = ctx.cfg.approval.allowed_root
-        self._out.write(
-            f"  allowed_root        : {repr(allowed_root) if allowed_root else '(disabled)'}",
-        )
+        allowed_root_str = repr(allowed_root) if allowed_root else "(disabled)"
+        pairs = [("allowed_root", allowed_root_str)]
         allowed_repos = ctx.cfg.approval.approval_github_allowed_repos
         if allowed_repos:
-            self._out.write(f"  github_allowed_repos: {allowed_repos}")
+            pairs.append(("github_allowed_repos", ", ".join(allowed_repos)))
         else:
-            self._out.write(
-                "  github_allowed_repos: (Fail-Closed — all write ops denied)",
-            )
+            pairs.append(("github_allowed_repos", "(Fail-Closed — all write ops denied)"))
         tier_count = len(ctx.cfg.approval.tool_safety_tiers)
-        self._out.write(f"  tool_safety_tiers   : {tier_count} tools classified")
+        pairs.append(("tool_safety_tiers", f"{tier_count} tools classified"))
         allowed_tools = ctx.cfg.tool.allowed_tools
         if allowed_tools:
-            self._out.write(f"  allowed_tools       : {allowed_tools}")
+            pairs.append(("allowed_tools", ", ".join(allowed_tools)))
         else:
-            self._out.write("  allowed_tools       : (unrestricted)")
+            pairs.append(("allowed_tools", "(unrestricted)"))
         plan_blocked = ctx.cfg.tool.plan_blocked_tools
         plan_state = "ON" if ctx.conv.plan_mode else "OFF"
-        self._out.write(f"  plan_mode           : {plan_state}")
+        pairs.append(("plan_mode", plan_state))
+        self._out.write_kv(pairs, key_width=20)
         if plan_blocked:
             self._out.write("  plan_blocked_tools  :")
             for t in plan_blocked:
@@ -134,22 +123,15 @@ class _ConfigDisplayMixin(MixinBase):
     def _print_memory_settings(self, ctx: AgentContext) -> None:
         """Print memory layer configuration settings."""
         self._out.write("Memory layer settings:")
-        self._out.write(f"  use_memory_layer    : {ctx.cfg.memory.use_memory_layer}")
-        self._out.write(
-            f"  memory_embed_enabled: {ctx.cfg.memory.memory_embed_enabled}"
-        )
-        self._out.write(
-            f"  memory_jsonl_dir    : {ctx.cfg.memory.memory_jsonl_dir or '(not set)'}"
-        )
-        self._out.write(
-            f"  max_inject_semantic : {ctx.cfg.memory.memory_max_inject_semantic}"
-        )
-        self._out.write(
-            f"  max_inject_episodic : {ctx.cfg.memory.memory_max_inject_episodic}"
-        )
-        self._out.write(
-            f"  min_importance      : {ctx.cfg.memory.memory_min_importance}"
-        )
+        pairs = [
+            ("use_memory_layer", str(ctx.cfg.memory.use_memory_layer)),
+            ("memory_embed_enabled", str(ctx.cfg.memory.memory_embed_enabled)),
+            ("memory_jsonl_dir", ctx.cfg.memory.memory_jsonl_dir or "(not set)"),
+            ("max_inject_semantic", str(ctx.cfg.memory.memory_max_inject_semantic)),
+            ("max_inject_episodic", str(ctx.cfg.memory.memory_max_inject_episodic)),
+            ("min_importance", str(ctx.cfg.memory.memory_min_importance)),
+        ]
+        self._out.write_kv(pairs, key_width=20)
 
     def _print_config_values(self) -> None:
         """Print static endpoint/LLM settings and execution settings."""
@@ -176,11 +158,17 @@ class _ConfigDisplayMixin(MixinBase):
 
         try:
             _db_cfg = _build_db_cfg()
-            self._out.write(f"  rag_db_path         : {_db_cfg.rag_db_path}")
-            self._out.write(f"  session_db_path     : {_db_cfg.session_db_path}")
+            pairs = [
+                ("rag_db_path", _db_cfg.rag_db_path),
+                ("session_db_path", _db_cfg.session_db_path),
+            ]
+            self._out.write_kv(pairs, key_width=20)
         except (ValueError, RuntimeError) as e:
-            self._out.write(f"  rag_db_path         : (config error: {e})")
-            self._out.write(f"  session_db_path     : (config error: {e})")
+            pairs = [
+                ("rag_db_path", f"(config error: {e})"),
+                ("session_db_path", f"(config error: {e})"),
+            ]
+            self._out.write_kv(pairs, key_width=20)
 
     def _cmd_config(self) -> None:
         """Print current configuration and source file paths."""

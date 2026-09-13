@@ -21,82 +21,7 @@ from agent.services.enums import McpAvailability
 from agent.services.mcp_status import TIER_LABELS, McpStatusService
 from agent.services.models import McpProbeResult
 from agent.shared.health_models import interpret_health_body
-
 logger = logging.getLogger(__name__)
-
-
-def _format_mcp_table(rows: list[McpProbeResult]) -> str:
-    """Format MCP server status rows as a fixed-width table string."""
-    col = "{:<14} {:<6} {:<11} {:<5} {:<12} {:<12} {:<16} {:<8} {:>5} {}"
-    lines = [
-        col.format(
-            "SERVER",
-            "TRANS",
-            "MODE",
-            "AUTH",
-            "WRITE",
-            "ROLE",
-            "STATUS",
-            "LIFECYCLE",
-            "PID",
-            "ENDPOINT/CMD",
-        ),
-        "-" * 110,
-    ]
-    for r in rows:
-        role_display = (
-            f"{r.role} [sb:{r.sandbox_backend}]".strip()
-            if r.sandbox_backend
-            else r.role
-        )
-        lifecycle_display = str(r.lifecycle_state) if r.lifecycle_state else "-"
-        pid_display = str(r.pid) if r.pid is not None else "-"
-        lines.append(
-            col.format(
-                r.key,
-                r.transport,
-                r.startup_mode,
-                "yes" if r.auth else "no",
-                TIER_LABELS.get(r.tier, r.tier.value),
-                role_display,
-                f"{r.availability.value}/{r.health}",
-                lifecycle_display,
-                pid_display,
-                r.endpoint,
-            )
-        )
-    return "\n".join(lines)
-
-
-def _format_tool_diagnostics_table(rows: list[dict[str, Any]]) -> str:
-    """Format per-tool diagnostics rows as a fixed-width table string."""
-    col = "{:<28} {:<14} {:<10} {:<8} {:<16} {:<9}"
-    lines = [
-        col.format(
-            "NAME",
-            "SERVER",
-            "CONFIG_DEP",
-            "ENABLED",
-            "DISABLED_REASON",
-            "LLM_VISIBLE",
-        ),
-        "-" * 85,
-    ]
-    for row in rows:
-        name_display = row.get("name", "-")
-        marker = "[DISABLED] " if not row.get("enabled", True) else ""
-        name_with_marker = f"{marker}{name_display}"
-        lines.append(
-            col.format(
-                name_with_marker,
-                row.get("server_key", "-"),
-                str(row.get("config_dependent", "-")),
-                str(row.get("enabled", "-")),
-                row.get("disabled_reason", "-") or "-",
-                str(row.get("enabled_for_llm", "-")),
-            )
-        )
-    return "\n".join(lines)
 
 
 def _format_health_interpretation(result: McpProbeResult) -> str:
@@ -171,7 +96,32 @@ class _McpMixin(MixinBase):
         )
         self._out.write("")
         rows = await svc.probe_all()
-        self._out.write(_format_mcp_table(rows))
+        mcp_headers = [
+            "SERVER", "TRANS", "MODE", "AUTH", "WRITE", "ROLE",
+            "STATUS", "LIFECYCLE", "PID", "ENDPOINT/CMD",
+        ]
+        mcp_rows: list[list[str]] = []
+        for r in rows:
+            role_display = (
+                f"{r.role} [sb:{r.sandbox_backend}]".strip()
+                if r.sandbox_backend
+                else r.role
+            )
+            lifecycle_display = str(r.lifecycle_state) if r.lifecycle_state else "-"
+            pid_display = str(r.pid) if r.pid is not None else "-"
+            mcp_rows.append([
+                r.key,
+                r.transport,
+                r.startup_mode,
+                "yes" if r.auth else "no",
+                TIER_LABELS.get(r.tier, r.tier.value),
+                role_display,
+                f"{r.availability.value}/{r.health}",
+                lifecycle_display,
+                pid_display,
+                r.endpoint,
+            ])
+        self._out.write_table(mcp_headers, mcp_rows)
         _UNREACHABLE = {
             McpAvailability.FAIL,
             McpAvailability.HTTP_ERROR,
@@ -241,7 +191,23 @@ class _McpMixin(MixinBase):
             if diag_rows:
                 self._out.write("")
                 self._out.write("  Tools (RuntimeToolRegistry):")
-                self._out.write(_format_tool_diagnostics_table(diag_rows))
+                diag_headers = [
+                    "NAME", "SERVER", "CONFIG_DEP", "ENABLED",
+                    "DISABLED_REASON", "LLM_VISIBLE",
+                ]
+                diag_list: list[list[str]] = []
+                for row in diag_rows:
+                    name_display = row.get("name", "-")
+                    marker = "[DISABLED] " if not row.get("enabled", True) else ""
+                    diag_list.append([
+                        f"{marker}{name_display}",
+                        row.get("server_key", "-"),
+                        str(row.get("config_dependent", "-")),
+                        str(row.get("enabled", "-")),
+                        row.get("disabled_reason", "-") or "-",
+                        str(row.get("enabled_for_llm", "-")),
+                    ])
+                self._out.write_table(diag_headers, diag_list)
 
     async def _cmd_mcp(self, args: str = "") -> None:
         """MCP server status probe."""
@@ -268,4 +234,20 @@ class _McpMixin(MixinBase):
         if not diag_rows:
             self._out.write("  No tools registered.")
             return
-        self._out.write(_format_tool_diagnostics_table(diag_rows))
+        diag_headers = [
+            "NAME", "SERVER", "CONFIG_DEP", "ENABLED",
+            "DISABLED_REASON", "LLM_VISIBLE",
+        ]
+        diag_list: list[list[str]] = []
+        for row in diag_rows:
+            name_display = row.get("name", "-")
+            marker = "[DISABLED] " if not row.get("enabled", True) else ""
+            diag_list.append([
+                f"{marker}{name_display}",
+                row.get("server_key", "-"),
+                str(row.get("config_dependent", "-")),
+                str(row.get("enabled", "-")),
+                row.get("disabled_reason", "-") or "-",
+                str(row.get("enabled_for_llm", "-")),
+            ])
+        self._out.write_table(diag_headers, diag_list)

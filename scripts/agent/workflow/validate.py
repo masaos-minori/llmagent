@@ -13,6 +13,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from agent.commands.output_port import CliOutputPort
 from agent.output_tags import OutputTag
 from agent.workflow.models import WorkflowDef
 from agent.workflow.workflow_loader import WorkflowLoader, WorkflowLoadError
@@ -26,6 +27,7 @@ def validate_path(path: Path) -> WorkflowDef:
 
 def main() -> int:
     """Validate a workflow definition JSON file against the schema."""
+    port = CliOutputPort()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "path", type=Path, help="Path to a workflow definition JSON file"
@@ -40,17 +42,14 @@ def main() -> int:
     try:
         wdef = validate_path(args.path)
     except WorkflowLoadError as exc:
-        print(
-            f"{OutputTag.FATAL} Invalid workflow definition {args.path}: {exc}",
-            file=sys.stderr,
-        )
+        port.write_stderr(f"{OutputTag.FATAL} Invalid workflow definition {args.path}: {exc}")
         return 1
 
-    print(f"OK: {args.path} is a valid workflow definition")
+    port.write(f"OK: {args.path} is a valid workflow definition")
     if args.print_metadata:
-        print(f"Name     : {wdef.name}")
-        print(f"Version  : {wdef.version}")
-        print(f"Stages   : {', '.join(s.id for s in wdef.stages)}")
+        port.write(f"Name     : {wdef.name}")
+        port.write(f"Version  : {wdef.version}")
+        port.write(f"Stages   : {', '.join(s.id for s in wdef.stages)}")
     return 0
 
 

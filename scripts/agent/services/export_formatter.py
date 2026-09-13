@@ -9,16 +9,15 @@ can be tested independently and reused outside the command layer.
 from __future__ import annotations
 
 import logging
-import sys
 from pathlib import Path
 
 import orjson
 from shared.json_utils import dumps as _json_dumps
 from shared.types import LLMMessage
 
+from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.services.enums import ExportFormat
 from agent.services.exceptions import ExportWriteError
-from agent.services.io_ports import ExportOutputPort
 
 logger = logging.getLogger(__name__)
 
@@ -52,25 +51,11 @@ def render_export(history: list[LLMMessage], fmt: ExportFormat | str) -> str:
     return render_history_md(history)
 
 
-class _CliExportOutput:
-    """Default CLI implementation of ExportOutputPort used when no port is supplied."""
-
-    def write(self, content: str) -> None:
-        """Write content to stdout with a trailing newline."""
-        sys.stdout.write(content + "\n")
-
-    def write_file(self, content: str, path: str, n_messages: int) -> None:
-        """Confirm file export by writing status message to stdout."""
-        sys.stdout.write(
-            f"Exported {n_messages} messages to {path} ({len(content)} chars)\n"
-        )
-
-
 def write_export(
     content: str,
     outfile: str | None,
     n_messages: int,
-    out: ExportOutputPort = _CliExportOutput(),
+    out: OutputPort = CliOutputPort(),
 ) -> None:
     """Write export content to stdout or a file."""
     if not outfile:

@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
-from agent.cli_view import CLIView, Writer, WriterBase
+from agent.cli_view import CLIView, WriterBase
+from agent.commands.output_port import CliOutputPort, OutputPort
 
 if TYPE_CHECKING:
     from pytest import CaptureFixture
@@ -182,6 +183,152 @@ class TestDisplayHelpers:
         captured = capsys.readouterr()
         assert captured.out == "[warn] disk space low\n"
 
+
+# ── Delegation verification (T-002) ────────────────────────────────────────────
+
+
+class TestDelegationVerification:
+    """Verify CLIView delegates to OutputPort instance rather than implementing Writer directly."""
+
+    @pytest.fixture
+    def mock_port(self) -> MagicMock:
+        return MagicMock(spec=OutputPort)
+
+    @pytest.fixture
+    def view_with_mock_port(self, mock_rl: MagicMock, mock_port: MagicMock) -> CLIView:
+        return CLIView(["/help", "/exit", "/session"], port=mock_port)
+
+    def test_delegates_write_token_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_token("hello")
+        mock_port.write_token.assert_called_once_with("hello")
+
+    def test_delegates_write_compress_notice_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_compress_notice(3)
+        mock_port.write_compress_notice.assert_called_once_with(3)
+
+    def test_delegates_write_turn_start_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_turn_start()
+        mock_port.write_turn_start.assert_called_once()
+
+    def test_delegates_write_turn_end_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_turn_end()
+        mock_port.write_turn_end.assert_called_once()
+
+    def test_delegates_write_llm_error_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        exc = RuntimeError("connection failed")
+        view_with_mock_port.write_llm_error(exc)
+        mock_port.write_llm_error.assert_called_once_with(exc)
+
+    def test_delegates_write_progress_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_progress("searching...")
+        mock_port.write_progress.assert_called_once_with("searching...")
+
+    def test_delegates_clear_progress_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.clear_progress()
+        mock_port.clear_progress.assert_called_once()
+
+    def test_delegates_write_warning_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_warning("disk space low")
+        mock_port.write_warning.assert_called_once_with("disk space low")
+
+    def test_delegates_write_fatal_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_fatal("unrecoverable error")
+        mock_port.write_fatal.assert_called_once_with("unrecoverable error")
+
+    def test_delegates_write_startup_banner_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_startup_banner("12345", 10)
+        mock_port.write_startup_banner.assert_called_once_with(
+            "12345", 10, "", None
+        )
+
+    def test_delegates_write_table_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        headers = ["A", "B"]
+        rows = [["1", "2"]]
+        view_with_mock_port.write_table(headers, rows)
+        mock_port.write_table.assert_called_once_with(headers, rows)
+
+    def test_delegates_write_kv_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        pairs = [("key", "val")]
+        view_with_mock_port.write_kv(pairs)
+        mock_port.write_kv.assert_called_once_with(pairs, 22)
+
+    def test_delegates_write_stderr_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_stderr("stderr msg")
+        mock_port.write_stderr.assert_called_once_with("stderr msg")
+
+    def test_delegates_write_error_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_error("fail")
+        mock_port.write_error.assert_called_once_with("fail")
+
+    def test_delegates_write_success_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_success("ok")
+        mock_port.write_success.assert_called_once_with("ok")
+
+    def test_delegates_write_no_data_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_no_data("empty")
+        mock_port.write_no_data.assert_called_once_with("empty")
+
+    def test_delegates_write_validation_error_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_validation_error("bad input")
+        mock_port.write_validation_error.assert_called_once_with("bad input")
+
+    def test_delegates_write_file_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_file("content", "/tmp/out.json", 10)
+        mock_port.write_file.assert_called_once_with("content", "/tmp/out.json", 10)
+
+    def test_cliview_uses_default_cliooutputport_when_none_provided(
+        self, mock_rl: MagicMock
+    ) -> None:
+        view = CLIView(["/help"])
+        assert isinstance(view.port, CliOutputPort)
+
+    def test_cliview_uses_injected_outputport(
+        self, mock_rl: MagicMock, mock_port: MagicMock
+    ) -> None:
+        view = CLIView(["/help"], port=mock_port)
+        assert view.port is mock_port
+
+    def test_t002_cliooutputport_satisfies_merged_protocol(self) -> None:
+        """T-002: CliOutputPort satisfies the merged Protocol."""
+        port = CliOutputPort()
+        assert isinstance(port, OutputPort)
+
     def test_write_fatal(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
         view.write_fatal("unrecoverable error")
         captured = capsys.readouterr()
@@ -344,14 +491,14 @@ class FullWriter(WriterBase):
         print(chunk_count)
 
 
-def test_partial_writer_satisfies_writer_protocol() -> None:
+def test_partial_writer_satisfies_writer_base() -> None:
     pw = PartialWriter()
-    assert isinstance(pw, Writer)
+    assert isinstance(pw, WriterBase)
 
 
-def test_full_writer_satisfies_writer_protocol() -> None:
+def test_full_writer_satisfies_writer_base() -> None:
     fw = FullWriter()
-    assert isinstance(fw, Writer)
+    assert isinstance(fw, WriterBase)
 
 
 def test_partial_writer_raises_on_unimplemented_method() -> None:
@@ -362,5 +509,4 @@ def test_partial_writer_raises_on_unimplemented_method() -> None:
 
 def test_cliview_inherits_writerbase() -> None:
     view = CLIView([])
-    assert isinstance(view, Writer)
     assert isinstance(view, WriterBase)

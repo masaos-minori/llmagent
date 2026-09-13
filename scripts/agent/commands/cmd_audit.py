@@ -42,7 +42,7 @@ class _AuditMixin(MixinBase):
         """Return the audit log path if it exists; else write a not-found message and return None."""
         path = self._audit_log_path()
         if not path.exists():
-            self._out.write(f"Audit log not found: {path}")
+            self._out.write_error(f"Audit log not found: {path}")
             return None
         return path
 

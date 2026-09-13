@@ -4,8 +4,9 @@
 CLI presentation layer: readline setup, multiline continuation input,
 and progress display.
 
-Writer and Reader Protocols allow test doubles and alternative I/O backends
+The Reader Protocol allows test doubles and alternative I/O backends
 to replace the default terminal implementation without touching callers.
+Writer functionality is now provided via delegation to an OutputPort instance.
 """
 
 import asyncio
@@ -16,6 +17,7 @@ from abc import ABC
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.output_tags import OutputTag
 
 logger = logging.getLogger(__name__)
@@ -25,9 +27,9 @@ _SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇"
 
 
 class WriterBase(ABC):
-    """Base class providing default implementations for Writer Protocol methods.
+    """Base class providing default implementations for output methods.
 
-    Allows partial test doubles to satisfy the Writer Protocol without
+    Allows partial test doubles to satisfy the output interface without
     implementing all methods. Calling an unimplemented method raises
     NotImplementedError with a clear message.
     """
@@ -70,57 +72,6 @@ class WriterBase(ABC):
 
 
 @runtime_checkable
-class Writer(Protocol):
-    """Output-side interface for LLM streaming and status messages."""
-
-    def write_token(self, token: str) -> None:
-        """Write one streaming token to stdout without a trailing newline."""
-        ...
-
-    def write_compress_notice(self, n: int) -> None:
-        """Notify the user that history was compressed."""
-        ...
-
-    def write_turn_start(self) -> None:
-        """Print a blank line before each LLM streaming turn."""
-        ...
-
-    def write_turn_end(self) -> None:
-        """Print a blank line after the final LLM answer."""
-        ...
-
-    def write_llm_error(self, e: Exception) -> None:
-        """Notify the user of an LLM request failure."""
-        ...
-
-    def write_progress(self, msg: str) -> None:
-        """Overwrite the current line with a progress indicator."""
-        ...
-
-    def clear_progress(self) -> None:
-        """Erase the progress line."""
-        ...
-
-    def write_warning(self, msg: str) -> None:
-        """Print a startup or runtime warning prefixed with [warn]."""
-        ...
-
-    def write_fatal(self, msg: str) -> None:
-        """Print a fatal error prefixed with [fatal]."""
-        ...
-
-    def write_startup_banner(
-        self,
-        chunk_count: str,
-        n_tools: int,
-        workflow_status: str = "",
-        memory_mode: str | None = None,
-    ) -> None:
-        """Print the agent startup line for display purposes."""
-        ...
-
-
-@runtime_checkable
 class Reader(Protocol):
     """Input-side interface for multiline continuation prompts."""
 
@@ -136,13 +87,27 @@ class Reader(Protocol):
 class CLIView(WriterBase):
     """Manages terminal I/O: readline history, tab completion, multiline
     continuation input, and progress status line.
+
+    Delegates output operations to an OutputPort instance for separation of
+    concerns between terminal management and output formatting.
     """
 
     HISTORY_FILE = Path.home() / ".agent_history"
 
-    def __init__(self, slash_commands: list[str]) -> None:
-        """Initialize with available slash commands for tab completion."""
+    def __init__(
+        self,
+        slash_commands: list[str],
+        port: OutputPort | None = None,
+    ) -> None:
+        """Initialize with available slash commands for tab completion.
+
+        Args:
+            slash_commands: Available slash commands for tab completion.
+            port: OutputPort instance for delegating output operations.
+                  Defaults to CliOutputPort if not provided.
+        """
         self._slash_commands = slash_commands
+        self._port = port or CliOutputPort()
         self._spinner_task: asyncio.Task[None] | None = None
         self._stop_spinner_event: asyncio.Event | None = None
         self._input_executor: concurrent.futures.ThreadPoolExecutor | None = None
@@ -152,6 +117,11 @@ class CLIView(WriterBase):
         if self._input_executor is not None:
             self._input_executor.shutdown(wait=False)
             self._input_executor = None
+
+    @property
+    def port(self) -> OutputPort:
+        """The OutputPort instance used for delegating output operations."""
+        return self._port
 
     def setup_readline(self) -> None:
         """Configure readline for bash-equivalent editing and tab completion."""
@@ -186,31 +156,32 @@ class CLIView(WriterBase):
     def write_token(self, token: str) -> None:
         """Write one streaming token to stdout without a trailing newline."""
         self.stop_spinner()
-        print(token, end="", flush=True)
+        self._port.write_token(token)
 
     def write_compress_notice(self, n: int) -> None:
         """Notify the user that history was compressed."""
-        print(f"  {OutputTag.CONTEXT} history compressed ({n} messages summarized)")
+        self._port.write_compress_notice(n)
 
     def write_turn_start(self) -> None:
         """Print a blank line before each LLM streaming turn."""
-        print()
+        self._port.write_turn_start()
 
     def write_turn_end(self) -> None:
         """Print a blank line after the final LLM answer."""
-        print()
+        self._port.write_turn_end()
 
     def write_llm_error(self, e: Exception) -> None:
         """Notify the user of an LLM request failure."""
-        print(f"\n{OutputTag.ERROR} {e}\n")
+        self._port.write_llm_error(e)
 
     def write_progress(self, msg: str) -> None:
         """Overwrite the current line with a progress indicator."""
-        print(f"  {OutputTag.RAG} {msg:<24}", end="\r", flush=True)
+        self.stop_spinner()
+        self._port.write_progress(msg)
 
     def clear_progress(self) -> None:
         """Erase the progress line."""
-        print(" " * 32, end="\r", flush=True)
+        self._port.clear_progress()
 
     async def start_spinner(self, msg: str = "Thinking") -> None:
         """Start an async spinner animation on the current line."""
@@ -238,11 +209,11 @@ class CLIView(WriterBase):
 
     def write_warning(self, msg: str) -> None:
         """Print a startup or runtime warning prefixed with [warn]."""
-        print(f"{OutputTag.WARN} {msg}")
+        self._port.write_warning(msg)
 
     def write_fatal(self, msg: str) -> None:
         """Print a fatal error prefixed with [fatal]."""
-        print(f"{OutputTag.FATAL} {msg}")
+        self._port.write_fatal(msg)
 
     def write_startup_banner(
         self,
@@ -252,12 +223,45 @@ class CLIView(WriterBase):
         memory_mode: str | None = None,
     ) -> None:
         """Print the agent startup line for display purposes."""
-        print(f"DB: {chunk_count} chunks | Tools: {n_tools}")
-        if memory_mode is not None:
-            print(f"Memory: {memory_mode}")
-        if workflow_status:
-            print(f"Workflow: {workflow_status}")
-        print("Type /help for commands, /exit to quit.")
+        self._port.write_startup_banner(chunk_count, n_tools, workflow_status, memory_mode)
+
+    # --- OutputPort methods (delegated) ---
+
+    def write(self, text: str) -> None:
+        """Write plain text output."""
+        self._port.write(text)
+
+    def write_table(self, headers: list[str], rows: list[list[str]]) -> None:
+        """Write a formatted table with aligned columns."""
+        self._port.write_table(headers, rows)
+
+    def write_error(self, text: str) -> None:
+        """Write an error message prefixed with '[error]'."""
+        self._port.write_error(text)
+
+    def write_success(self, text: str) -> None:
+        """Write a success message prefixed with a space."""
+        self._port.write_success(text)
+
+    def write_no_data(self, text: str) -> None:
+        """Write a no-data message prefixed with a space."""
+        self._port.write_no_data(text)
+
+    def write_validation_error(self, text: str) -> None:
+        """Write a validation error message prefixed with '[usage]'."""
+        self._port.write_validation_error(text)
+
+    def write_kv(self, pairs: list[tuple[str, str]], key_width: int = 22) -> None:
+        """Write key-value pairs as aligned lines."""
+        self._port.write_kv(pairs, key_width)
+
+    def write_file(self, content: str, path: str, n_messages: int) -> None:
+        """Write exported content to a file."""
+        self._port.write_file(content, path, n_messages)
+
+    def write_stderr(self, text: str) -> None:
+        """Write text to stderr."""
+        self._port.write_stderr(text)
 
     async def read_multiline(
         self,

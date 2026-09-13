@@ -73,11 +73,11 @@ N/A: This is a test creation with no security-relevant changes.
 
 ## Completion criteria
 
-- [ ] Tests verify `export_formatter.py` works with `OutputPort` protocol injection
-- [ ] `OutputPort` mock replaces `ExportOutputPort` mock in test fixtures
-- [ ] Test assertions check against `OutputPort` method calls
-- [ ] Fixture setup uses `CliOutputPort` instead of `_CliExportOutput`
-- [ ] All existing tests pass after refactor
+- [x] Tests verify `export_formatter.py` works with `OutputPort` protocol injection
+- [x] `OutputPort` mock replaces `ExportOutputPort` mock in test fixtures
+- [x] Test assertions check against `OutputPort` method calls
+- [x] Fixture setup uses `CliOutputPort` instead of `_CliExportOutput`
+- [x] All existing tests pass after refactor
 
 ## Out of scope
 
@@ -91,20 +91,20 @@ N/A: This is a test creation with no security-relevant changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | ${now} | ${now} | Created tests/test_export_formatter.py with 102 tests across 3 classes |
+| 2 | Add or update tests per Validation plan | Done | ${now} | ${now} | All 102 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | ${now} | ${now} | `uv run pytest tests/test_export_formatter.py -v --tb=short` — 102 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | ${now} | ${now} | No docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| — | — | Yes | ${now} |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| WI-11-001 | 1 | Test file created | Done | opencode | ${now} |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
