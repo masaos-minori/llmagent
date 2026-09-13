@@ -139,13 +139,13 @@ Simple revert of the added text — no data migration or state rollback needed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify existing inline command at line 77 | Pending | — | — | Record exact wording |
-| 2 | Add concrete working example with placeholder path | Pending | — | — | Example: /path/to/crawl_<timestamp>.json |
-| 3 | Explain binary mode ('rb') requirement | Pending | — | — | orjson.loads() accepts bytes |
-| 4 | Add expected output format description | Pending | — | — | Crawl: 8 keys; Chunk: 12 keys |
-| 5 | Explain orjson vs json rationale | Pending | — | — | Performance, determinism, strict compliance |
-| 6 | Evaluate REQ-005 helper script necessity | Pending | — | — | Optional, defer if inline suffices |
-| 7 | Manual review of accuracy against source code | Pending | — | — | Verify all claims |
+| 1 | Verify existing inline command at line 77 | Completed | 20260913-235106 | 20260913-235106 | Record exact wording |
+| 2 | Add concrete working example with placeholder path | Completed | 20260913-235106 | 20260913-235106 | Example: /path/to/crawl_<timestamp>.json |
+| 3 | Explain binary mode ('rb') requirement | Completed | 20260913-234918 | 20260913-234918 | orjson.loads() accepts bytes |
+| 4 | Add expected output format description | Completed | 20260913-234927 | 20260913-234927 | Crawl: 8 keys; Chunk: 12 keys |
+| 5 | Explain orjson vs json rationale | Completed | 20260913-234936 | 20260913-234936 | Performance, determinism, strict compliance |
+| 6 | Evaluate REQ-005 helper script necessity | Completed | 20260913-235038 | 20260913-235038 | Optional, defer if inline suffices |
+| 7 | Manual review of accuracy against source code | Completed | 20260913-235106 | 20260913-235106 | Verify all claims |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
