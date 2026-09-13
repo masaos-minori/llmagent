@@ -123,10 +123,10 @@ revert this file's diff to roll back. No migration or data cleanup is implied.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260913-110646 | 20260913-110646 | get_db_lock()-based fix implemented in scripts/eventbus/app.py |
+| 2 | Add or update tests per Validation plan | Completed | 20260913-110646 | 20260913-110646 | Added tests/eventbus/test_eventbus_shutdown.py (2 tests): forced in-flight sweep via threading.Event, confirmed no segfault; timeout-fallback warning path |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260913-110646 | 20260913-110646 | ruff/mypy/lint-imports/bandit/pytest(full suite, diff-cover 100%)/pre-commit all passed; 12+ consecutive full test-suite runs with 0 segfaults (was 2/5 before fix) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260913-110646 | 20260913-110646 | N/A: docs/06_eventbus_*.md already documents shutdown behavior at the contract level; no doc change needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

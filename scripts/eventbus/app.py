@@ -30,7 +30,7 @@ from eventbus.config import (
     get_schema_path,
     load_config,
 )
-from eventbus.db import migrate_legacy_offsets, open_db
+from eventbus.db import get_db_lock, migrate_legacy_offsets, open_db
 from eventbus.dlq import sweep_orphans
 from eventbus.dlq_route import (
     dlq_list as dlq_list_route,
@@ -57,6 +57,7 @@ logger = logging.getLogger(__name__)
 
 _ENVELOPE_SCHEMA_PATH = Path("/opt/llm/schemas/event_envelope.json")
 _DLQ_INTERVAL = 60.0
+_SHUTDOWN_DB_LOCK_TIMEOUT_SECONDS = 5.0
 
 
 @asynccontextmanager
@@ -95,7 +96,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     if app.state.broker:
         app.state.broker.shutdown()
     if app.state.db:
-        app.state.db.close()
+        # _dlq_loop's sweep runs on a worker thread via asyncio.to_thread();
+        # cancelling the task above cannot interrupt a sweep already running on
+        # that thread. Acquire the same lock run_with_db_lock() uses before
+        # closing, so a still-running sweep finishes before the connection goes
+        # away, instead of racing db.close() and segfaulting.
+        lock = get_db_lock()
+        acquired = await asyncio.to_thread(
+            lock.acquire, timeout=_SHUTDOWN_DB_LOCK_TIMEOUT_SECONDS
+        )
+        try:
+            app.state.db.close()
+        finally:
+            if acquired:
+                lock.release()
+            else:
+                logger.warning(
+                    "shutdown: db lock not acquired within %.1fs; closing db "
+                    "anyway (a sweep thread may still be using it)",
+                    _SHUTDOWN_DB_LOCK_TIMEOUT_SECONDS,
+                )
 
 
 async def _dlq_loop(app: FastAPI) -> None:
