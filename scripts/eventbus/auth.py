@@ -180,7 +180,9 @@ async def require_consumer_identity(
 ) -> dict[str, Any]:
     """FastAPI dependency: verify caller is authorized to use the given consumer_id and topics.
 
-    Returns a dict with 'topics' key containing a set of permitted topics,
+    Returns a dict with a 'topics' key: either `None`, meaning the caller's token
+    has no configured topic restriction (any topic is allowed), or a non-empty
+    `set[str]` of the specific topics the caller's token is restricted to —
     matching the contract expected by subscribe_route.py's subscribe() function.
     """
     if not token:
@@ -201,19 +203,26 @@ async def require_consumer_identity(
             detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
         )
 
-    # Validate topic access
-    allowed_topics = set()
-    if topics:
-        allowed_topics_from_map = _TOKEN_TOPIC_MAP.get(token, set())
-        for topic in topics:
-            if topic not in allowed_topics_from_map:
-                logger.warning(
-                    "Authorization failed: topic=%s not allowed for this caller",
-                    topic,
-                )
-                raise HTTPException(
-                    status_code=403, detail=f"Forbidden: topic '{topic}' not allowed"
-                )
+    # Validate topic access. An empty _TOKEN_TOPIC_MAP entry (no entry, or an
+    # explicit empty set) means "no topic restriction" for this token, per
+    # _populate_token_maps()'s own "Empty means any topic" convention — mirrors
+    # the consumer_id-allowlist convention above.
+    allowed_topics_from_map = _TOKEN_TOPIC_MAP.get(token, set())
+    allowed_topics: set[str] | None
+    if not allowed_topics_from_map:
+        allowed_topics = None
+    else:
+        if topics:
+            for topic in topics:
+                if topic not in allowed_topics_from_map:
+                    logger.warning(
+                        "Authorization failed: topic=%s not allowed for this caller",
+                        topic,
+                    )
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Forbidden: topic '{topic}' not allowed",
+                    )
         allowed_topics = allowed_topics_from_map
 
     # Return a dict-like object with 'topics' key

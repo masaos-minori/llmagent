@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.testclient import TestClient
 
 TEST_TOKEN = "test-auth-token"
@@ -38,7 +38,10 @@ def _make_test_app(
     """Create a fresh FastAPI app with auth middleware registered."""
     from eventbus import app as eb_app
     from eventbus.auth import (
+        Role,
         attach_auth_middleware,
+        require_consumer_identity,
+        require_role,
     )
     from eventbus.config import EventBusConfig
 
@@ -78,8 +81,11 @@ def _make_test_app(
     attach_auth_middleware(local_app)
 
     @local_app.post("/publish")
-    async def publish(request: Request) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.publish_route(request)
+    async def publish(
+        request: Request,
+        _role: Role = Depends(require_role(Role.PUBLISHER)),
+    ) -> dict[str, Any]:
+        result: dict[str, Any] = await eb_app.publish_route(request, _role=_role)
         return result
 
     @local_app.get("/subscribe")
@@ -88,9 +94,16 @@ def _make_test_app(
         topic: list[str] = Query(default=[]),
         since_seq: int = Query(default=0, ge=0),
         consumer_id: str = Query(default=""),
+        _role: Role = Depends(require_role(Role.CONSUMER)),
+        _identity: dict[str, Any] = Depends(require_consumer_identity),
     ) -> Any:
         return await eb_app.subscribe_route(
-            request, topic=topic, since_seq=since_seq, consumer_id=consumer_id
+            request,
+            topic=topic,
+            since_seq=since_seq,
+            consumer_id=consumer_id,
+            _role=_role,
+            _identity=_identity,
         )
 
     @local_app.get("/dlq")
@@ -98,15 +111,22 @@ def _make_test_app(
         request: Request,
         limit: int = Query(default=100, ge=1, le=1000),
         offset: int = Query(default=0, ge=0),
+        _role: Role = Depends(require_role(Role.OPERATOR)),
     ) -> dict[str, Any]:
         result: dict[str, Any] = await eb_app.dlq_list_route(
-            request, limit=limit, offset=offset
+            request, limit=limit, offset=offset, _role=_role
         )
         return result
 
     @local_app.post("/dlq/{event_id}/requeue")
-    async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.dlq_requeue_route(request, event_id)
+    async def dlq_requeue(
+        request: Request,
+        event_id: str,
+        _role: Role = Depends(require_role(Role.OPERATOR)),
+    ) -> dict[str, Any]:
+        result: dict[str, Any] = await eb_app.dlq_requeue_route(
+            request, event_id, _role=_role
+        )
         return result
 
     @local_app.get("/replay")
@@ -116,9 +136,15 @@ def _make_test_app(
         fmt: str = Query(default="sse", alias="format"),
         limit: int = Query(default=100, ge=1, le=1000),
         offset: int = Query(default=0, ge=0),
+        _role: Role = Depends(require_role(Role.OPERATOR)),
     ) -> Any:
         return await eb_app.replay_route(
-            request, since_seq=since_seq, fmt=fmt, limit=limit, offset=offset
+            request,
+            since_seq=since_seq,
+            fmt=fmt,
+            limit=limit,
+            offset=offset,
+            _role=_role,
         )
 
     @local_app.post("/events/{event_id}/ack")
@@ -126,9 +152,15 @@ def _make_test_app(
         request: Request,
         event_id: str,
         consumer_id: str = Query(default=""),
+        _role: Role = Depends(require_role(Role.CONSUMER)),
+        _identity: dict[str, Any] = Depends(require_consumer_identity),
     ) -> dict[str, Any]:
         result: dict[str, Any] = await eb_app.ack_event_route(
-            request, event_id=event_id, consumer_id=consumer_id
+            request,
+            event_id=event_id,
+            consumer_id=consumer_id,
+            _role=_role,
+            _identity=_identity,
         )
         return result
 
@@ -136,8 +168,12 @@ def _make_test_app(
     async def nack(
         request: Request,
         event_id: str = Query(default=""),
+        _role: Role = Depends(require_role(Role.CONSUMER)),
+        _identity: dict[str, Any] = Depends(require_consumer_identity),
     ) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.nack_route(request, event_id=event_id)
+        result: dict[str, Any] = await eb_app.nack_route(
+            request, event_id=event_id, _role=_role, _identity=_identity
+        )
         return result
 
     client = TestClient(local_app, raise_server_exceptions=False)
@@ -251,29 +287,30 @@ class TestPublishAuth:
         response = self.client.post("/publish", json=body)
         assert response.status_code == 401
 
-    @pytest.mark.asyncio
-    async def test_check_role_rejects_wrong_role_token(self) -> None:
-        """AC-4: require_role()'s _check_role rejects a token whose _TOKEN_ROLE_MAP
-        entry does not include the endpoint's required role — a consumer_token
-        holder is not authorized for a Role.PUBLISHER-gated endpoint. Unit-level
-        (calls _check_role directly) rather than through this file's own
-        `_make_test_app()` HTTP fixture: that fixture's locally-defined routes
-        (unlike the real `app.py`) never declare `Depends(require_role(...))`
-        themselves (a separate, pre-existing gap — see the new issue this
-        discovery was filed under), so an HTTP-level request through it cannot
-        exercise this check at all.
+    def test_publish_with_consumer_token_is_rejected(self) -> None:
+        """AC-2: a consumer_token bearer is not authorized for /publish
+        (Role.PUBLISHER-gated), even though the token is otherwise valid. Now
+        HTTP-level (through this fixture's own `Depends(require_role(...))`
+        declaration) — supersedes the earlier unit-level stopgap that called
+        `_check_role` directly, which existed only because this fixture's
+        routes previously declared no `Depends(...)` at all.
         """
-        from unittest.mock import MagicMock
+        import uuid
+        from datetime import datetime
 
-        from eventbus.auth import Role, _populate_token_maps, require_role
-
-        _populate_token_maps(self.cfg)
-        request = MagicMock()
-        request.url.path = "/publish"
-        check_role = require_role(Role.PUBLISHER)
-        with pytest.raises(HTTPException) as exc_info:
-            await check_role(request, token=self.cfg.consumer_token)
-        assert exc_info.value.status_code == 403
+        body = {
+            "event_id": str(uuid.uuid4()),
+            "topic": "test",
+            "payload": {"key": "value"},
+            "producer": "test-producer",
+            "published_at": datetime.now(UTC).isoformat(),
+        }
+        response = self.client.post(
+            "/publish",
+            json=body,
+            headers={"Authorization": f"Bearer {self.cfg.consumer_token}"},
+        )
+        assert response.status_code == 403
 
 
 class TestSubscribeAuth:
@@ -286,6 +323,7 @@ class TestSubscribeAuth:
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
             token="test-shared-token",
+            publisher_token="test-publisher-token",
             consumer_token="test-consumer-token",
             operator_token=None,
             admin_token=None,
@@ -297,6 +335,16 @@ class TestSubscribeAuth:
     def teardown_class(cls):
         if hasattr(cls.client, "_cleanup"):
             cls.client._cleanup()
+
+    def test_subscribe_with_publisher_token_is_rejected(self) -> None:
+        """AC-2: a publisher_token bearer is not authorized for /subscribe
+        (Role.CONSUMER-gated)."""
+        response = self.client.get(
+            "/subscribe",
+            params={"topic": "test", "consumer_id": "consumer_a"},
+            headers={"Authorization": f"Bearer {self.cfg.publisher_token}"},
+        )
+        assert response.status_code == 403
 
     def test_subscribe_with_valid_consumer_token(self) -> None:
         """Authorized consumer can subscribe to events."""
@@ -357,6 +405,7 @@ class TestAckAuth:
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
             token="test-shared-token",
+            publisher_token="test-publisher-token",
             consumer_token=None,
             operator_token=None,
             admin_token="test-admin-token",
@@ -376,6 +425,16 @@ class TestAckAuth:
         )
         assert response.status_code == 401
 
+    def test_ack_with_publisher_token_is_rejected(self) -> None:
+        """AC-2: a publisher_token bearer is not authorized for
+        /events/{event_id}/ack (Role.CONSUMER-gated)."""
+        response = self.client.post(
+            "/events/test-event-id/ack",
+            params={"consumer_id": "consumer_a"},
+            headers={"Authorization": f"Bearer {self.cfg.publisher_token}"},
+        )
+        assert response.status_code == 403
+
 
 class TestNackAuth:
     """Tests for POST /nack authorization."""
@@ -387,6 +446,7 @@ class TestNackAuth:
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
             token="test-shared-token",
+            publisher_token="test-publisher-token",
             consumer_token=None,
             operator_token=None,
             admin_token="test-admin-token",
@@ -404,6 +464,16 @@ class TestNackAuth:
         response = self.client.post("/nack", params={"event_id": "test-event-id"})
         assert response.status_code == 401
 
+    def test_nack_with_publisher_token_is_rejected(self) -> None:
+        """AC-2: a publisher_token bearer is not authorized for /nack
+        (Role.CONSUMER-gated)."""
+        response = self.client.post(
+            "/nack",
+            params={"event_id": "test-event-id"},
+            headers={"Authorization": f"Bearer {self.cfg.publisher_token}"},
+        )
+        assert response.status_code == 403
+
 
 class TestDlqListAuth:
     """Tests for GET /dlq authorization."""
@@ -415,6 +485,7 @@ class TestDlqListAuth:
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
             token="test-shared-token",
+            publisher_token="test-publisher-token",
             consumer_token=None,
             operator_token="test-operator-token",
             admin_token=None,
@@ -426,6 +497,15 @@ class TestDlqListAuth:
     def teardown_class(cls):
         if hasattr(cls.client, "_cleanup"):
             cls.client._cleanup()
+
+    def test_dlq_list_with_publisher_token_is_rejected(self) -> None:
+        """AC-2: a publisher_token bearer is not authorized for /dlq
+        (Role.OPERATOR-gated)."""
+        response = self.client.get(
+            "/dlq",
+            headers={"Authorization": f"Bearer {self.cfg.publisher_token}"},
+        )
+        assert response.status_code == 403
 
     def test_dlq_list_with_valid_operator_token(self) -> None:
         """Authorized operator can list DLQ entries."""
@@ -451,6 +531,7 @@ class TestDlqRequeueAuth:
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
             token="test-shared-token",
+            publisher_token="test-publisher-token",
             consumer_token=None,
             operator_token=None,
             admin_token="test-admin-token",
@@ -468,6 +549,15 @@ class TestDlqRequeueAuth:
         response = self.client.post("/dlq/test-event-id/requeue")
         assert response.status_code == 401
 
+    def test_dlq_requeue_with_publisher_token_is_rejected(self) -> None:
+        """AC-2: a publisher_token bearer is not authorized for
+        /dlq/{event_id}/requeue (Role.OPERATOR-gated)."""
+        response = self.client.post(
+            "/dlq/test-event-id/requeue",
+            headers={"Authorization": f"Bearer {self.cfg.publisher_token}"},
+        )
+        assert response.status_code == 403
+
 
 class TestReplayAuth:
     """Tests for GET /replay authorization."""
@@ -479,6 +569,7 @@ class TestReplayAuth:
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
             token="test-shared-token",
+            publisher_token="test-publisher-token",
             consumer_token=None,
             operator_token="test-operator-token",
             admin_token=None,
@@ -490,6 +581,16 @@ class TestReplayAuth:
     def teardown_class(cls):
         if hasattr(cls.client, "_cleanup"):
             cls.client._cleanup()
+
+    def test_replay_with_publisher_token_is_rejected(self) -> None:
+        """AC-2: a publisher_token bearer is not authorized for /replay
+        (Role.OPERATOR-gated)."""
+        response = self.client.get(
+            "/replay",
+            params={"since_seq": 0, "limit": 100},
+            headers={"Authorization": f"Bearer {self.cfg.publisher_token}"},
+        )
+        assert response.status_code == 403
 
     def test_replay_with_valid_operator_token(self) -> None:
         """Authorized operator can replay events."""
@@ -504,3 +605,53 @@ class TestReplayAuth:
         """Unauthenticated request to /replay is rejected."""
         response = self.client.get("/replay", params={"since_seq": 0, "limit": 100})
         assert response.status_code == 401
+
+
+class TestRequireConsumerIdentityTopicSemantics:
+    """Unit-level tests for require_consumer_identity's 'topics' return contract.
+
+    See implementations/done/20260913-152721_01_scripts_eventbus_auth.py.md: a
+    token with no configured topic restriction must return `"topics": None`
+    (unrestricted), distinct from a genuinely non-empty allowlist.
+    """
+
+    @pytest.mark.asyncio
+    async def test_no_topic_restriction_returns_none(self) -> None:
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import _TOKEN_TOPIC_MAP, require_consumer_identity
+
+        token = "test-unrestricted-token"
+        _TOKEN_TOPIC_MAP.pop(token, None)
+        try:
+            result = await require_consumer_identity(
+                MagicMock(), consumer_id="", topics=["any-topic"], token=token
+            )
+            assert result["topics"] is None
+        finally:
+            _TOKEN_TOPIC_MAP.pop(token, None)
+
+    @pytest.mark.asyncio
+    async def test_non_empty_topic_restriction_is_enforced_and_returned(self) -> None:
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import _TOKEN_TOPIC_MAP, require_consumer_identity
+
+        token = "test-restricted-token"
+        _TOKEN_TOPIC_MAP[token] = {"allowed-topic"}
+        try:
+            result = await require_consumer_identity(
+                MagicMock(), consumer_id="", topics=["allowed-topic"], token=token
+            )
+            assert result["topics"] == {"allowed-topic"}
+
+            with pytest.raises(HTTPException) as exc_info:
+                await require_consumer_identity(
+                    MagicMock(),
+                    consumer_id="",
+                    topics=["disallowed-topic"],
+                    token=token,
+                )
+            assert exc_info.value.status_code == 403
+        finally:
+            _TOKEN_TOPIC_MAP.pop(token, None)

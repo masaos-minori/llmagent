@@ -67,3 +67,17 @@ def test_subscribe_duplicate_consumer_id_returns_409(client: TestClient) -> None
         assert resp.status_code == 409
     finally:
         eb_app.app.state.broker.unsubscribe(sub)
+
+
+def test_subscribe_with_restricted_topic_rejects_disallowed_topic(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AC-3: a token with a genuinely non-empty _TOKEN_TOPIC_MAP entry is still
+    rejected for a topic outside it — no regression from the None-means-
+    unrestricted fix (implementations/done/20260913-152721_02_scripts_eventbus_subscribe_route.py.md).
+    """
+    from eventbus.auth import _TOKEN_TOPIC_MAP
+
+    monkeypatch.setitem(_TOKEN_TOPIC_MAP, "consumer-token", {"allowed-topic"})
+    resp = client.get("/subscribe?consumer_id=c1&topic=disallowed-topic")
+    assert resp.status_code == 403

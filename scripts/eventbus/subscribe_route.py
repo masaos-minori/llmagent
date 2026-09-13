@@ -54,12 +54,14 @@ async def subscribe(
     # issues/20260911-133957_ebauth01_role-and-consumer-identity-checks-never-run.md
     # for the full authorization gap this is a symptom of.
     if isinstance(_identity, dict):
-        caller_topics = _identity.get("topics", set())
-        for t in topic:
-            if t not in caller_topics:
-                raise HTTPException(
-                    status_code=403, detail=f"Forbidden: topic '{t}' not allowed"
-                )
+        caller_topics = _identity.get("topics")
+        if caller_topics is not None:
+            for t in topic:
+                if t not in caller_topics:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Forbidden: topic '{t}' not allowed",
+                    )
 
     # REQ-003: Read Last-Event-ID header as additional resume-position input
     last_event_id_str = request.headers.get("last-event-id", "")
