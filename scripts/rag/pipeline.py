@@ -30,10 +30,7 @@ from typing import Literal, cast
 import httpx
 from db.helper import SQLiteHelper
 from shared.llm_client import build_embed_url, build_llm_url
-from shared.types import (
-    RagConfig,
-    RagHit,
-)
+from shared.types import RagConfig
 
 from rag.augment import AugmentRefiner
 from rag.config_resolution import resolve_rag_config
@@ -44,13 +41,11 @@ from rag.llm_client import RagLLM
 from rag.models_config import RagConfigImpl
 from rag.models_data import TwoStageFetchResult
 from rag.models_result import HttpResultKind, SearchDiagnostics
-from rag.repository import deduplicate_chunks
 from rag.stage import PipelineContext, PipelineStage, StageResult
 from rag.stage_lifecycle import RagPipelineStageLifecycle
 from rag.stages.augment import (
     _format_chunks as _augment_format_chunks,
 )
-from rag.stages.search import _search_all_queries
 from rag.types import PipelineRunResult
 
 logger = logging.getLogger(__name__)
@@ -177,47 +172,6 @@ class RagPipeline:
             )
         )
 
-    async def search_queries(
-        self,
-        queries: list[str],
-        db: SQLiteHelper,
-    ) -> list[list[RagHit]]:
-        """Fetch embeddings concurrently then perform vector + FTS searches sequentially.
-
-        Sequential DB execution avoids shared-connection conflicts across queries.
-        Returns an empty list when all embedding fetches fail.
-        """
-        results, diagnostics = await _search_all_queries(
-            queries, db, self._cfg, self._http, self._embed_url
-        )
-        self.stat_search_embed_failed += diagnostics.embed_failed
-        self.stat_search_fts_errors += diagnostics.fts_errors
-        return cast(list[list[RagHit]], results)
-
-    async def rerank_candidates(self, query: str, merged: list[RagHit]) -> list[RagHit]:
-        """Apply Cross-Encoder rerank then dedup.
-
-        When ``use_rerank=False``, returns the top-k merged hits without reranking.
-
-        Raises RagRerankError on LLM failure when use_rerank=True.
-        """
-        if not self._cfg.use_rerank:
-            result = merged[: self._cfg.rag_top_k]
-            deduped: list[RagHit] = deduplicate_chunks(
-                result, self._cfg.max_chunks_per_doc
-            )
-            return deduped
-        result = await self._llm.cross_encoder_rerank(
-            query,
-            merged[: self._cfg.top_k_rerank],
-            self._cfg.rag_top_k,
-            rag_min_score=self._cfg.rag_min_score,
-        )
-        deduped2: list[RagHit] = deduplicate_chunks(
-            result, self._cfg.max_chunks_per_doc
-        )
-        return deduped2
-
     async def run(
         self,
         query: str,
@@ -300,6 +254,10 @@ class RagPipeline:
                 if fetch_result is not None:
                     self.last_fetch_result = cast(TwoStageFetchResult, fetch_result)
                 return result
+        assert result is None or result == "", (
+            f"HTTP augment returned unexpected falsy value: {result!r}; "
+            "expected str (non-empty or empty) or None"
+        )
         try:
             with RagDatabaseConnection(
                 rag_db_path=self._rag_db_path,

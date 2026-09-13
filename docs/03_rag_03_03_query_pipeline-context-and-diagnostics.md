@@ -82,7 +82,7 @@ Returns structured diagnostic information with the following keys:
 | `hit_counts` | `dict[str, int]` | `{merged: int}` — Hits after merging |
 | `search_diagnostics` | `dict` | `{embed_ok, embed_failed, fts_errors, degraded}` |
 
-> **Note:** In HTTP mode, `fetch_result` might contain stale values from the previous in-process execution rather than the current call's result. This is because `RagPipeline._run_http_augment()` does not call `self.run()` upon an HTTP success (see `self.last_fetch_result` updates in `RagPipeline.run()`, `RagPipeline._run_http_augment()`, and the `call_rag_service` function for details).
+> **Note:** In HTTP mode, `fetch_result` may be stale when the HTTP call succeeds but returns zero hits (`selected_hits` is empty). In that case `_forward_fetch_result()` skips the callback invocation (augments.py:104: `if selected_hits:` guard), so `last_fetch_result` retains its prior value. On normal HTTP success with non-empty hits, the callback chain is: `HttpAugment` → `AugmentRefiner._forward_fetch_result(selected_hits)` → `RagPipeline.__init__`'s `set_fetch_result` callback → `setattr(self, "last_fetch_result", fetch_result)`.
 
 **Safe to call before `run()` / `augment()`** — returns empty/zero values. Callers should serialize using `orjson.dumps(pipeline.get_diagnostics())`.
 

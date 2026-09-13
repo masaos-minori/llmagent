@@ -76,6 +76,20 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 > JSON files are parsed using `orjson.loads()`. For verification: `python -c "import orjson; print(orjson.loads(open('FILE', 'rb').read()))"`
 
+**Example:** To verify a crawl artifact:
+
+```bash
+python -c "import orjson; print(orjson.loads(open('/path/to/crawl_<timestamp>.json', 'rb').read()))"
+```
+
+Replace `/path/to/crawl_<timestamp>.json` with the actual file path.
+
+**Note:** The `'rb'` (binary read) mode is required because `orjson.loads()` accepts `bytes` input directly, unlike Python's standard `json.load()` which reads text. This matches how the ingestion pipeline writes these files — all use `orjson.dumps()` with binary write (`wb`).
+
+**Expected output:** A valid JSON object. For crawl artifacts, look for keys: `url`, `content`, `title`, `lang`, `code_blocks`, `etag`, `last_modified`, `fetched_at`. For chunk artifacts, look for additional keys: `normalized_content`, `chunk_index`, `source_file`, `chunk_type`, `chunking_strategy`.
+
+**Why `orjson`?** The ingestion pipeline uses `orjson` (not the standard `json` module) for faster serialization/deserialization, deterministic output ordering, and strict JSON compliance. These properties ensure consistency when reading back artifacts written by the pipeline.
+
 Production setting: `rag_src_dir = "/opt/llm/rag-src"`. The default value `rag-src` is used only if no configuration is provided.
 
 ---

@@ -33,23 +33,6 @@ class CrawlJsonPayload(TypedDict):
     fetched_at: str
 
 
-class ChunkJsonPayload(TypedDict):
-    """Strict TypedDict for chunk JSON payload — all keys mandatory."""
-
-    url: str
-    content: str
-    title: str | None
-    lang: str
-    code_blocks: list[str]
-    etag: str | None
-    last_modified: str | None
-    normalized_content: str | None
-    chunk_index: int
-    source_file: str
-    chunk_type: str
-    fetched_at: str
-
-
 def _validate_str(data: dict[str, Any], key: str, label: str) -> str:
     """Validate that *key* maps to a non-empty string; raise ChunkFormatError otherwise."""
     val = data.get(key)

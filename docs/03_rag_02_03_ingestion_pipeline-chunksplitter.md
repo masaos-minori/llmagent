@@ -43,11 +43,11 @@ This module defines the following constants. See source code for details. Note t
 
 | TypedDict | Purpose |
 |---|---|
-| `CrawlFilePayload` | Typed dictionary for crawl output JSON files (url, title, lang, content, code_blocks are required; etag, last_modified are optional via NotRequired) |
-| `ChunkOutputPayload` | Typed dictionary for chunk output JSON files (schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, content are required; normalized_content is optional via NotRequired) |
+| `CrawlJsonPayload` | Typed dictionary for crawl output JSON files (url, title, lang, content, code_blocks are required; etag, last_modified are optional via NotRequired) |
+| `ChunkJsonPayload` | Typed dictionary for chunk output JSON files (schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, content are required; normalized_content is optional via NotRequired) |
 | `ChunkMetadata` | Optional metadata dictionary to be expanded with ** in the output payload (total=False). Fields: url, title, lang, fetched_at (str, mandatory), etag, last_modified, source_file, chunking_strategy. |
 
-> Evidence: Explicit in code — `CrawlFilePayload` and `ChunkOutputPayload` are declared as types in `chunk_splitter.py`, but they are not used as type annotations in the actual implementation within the same file (actual input/output is handled via `ChunkJsonRaw` (`pipeline_utils.py`) or `dict[str, object]`).
+> Evidence: Explicit in code — `CrawlJsonPayload` and `ChunkJsonPayload` are declared as types in `chunk_splitter.py`, but they are not used as type annotations in the actual implementation within `chunk_splitter.py` (actual input/output is handled via `ChunkJsonRaw` from `pipeline_utils.py` or `dict[str, object]`).
 
 **Inheritance**
 
@@ -105,81 +105,6 @@ rag
 ---
 
 ## 3a. ChunkSplitter (`scripts/rag/ingestion/chunk_splitter.py`)
-
-### 3.1 Class Overview
-
-`ChunkSplitter` splits `rag-src/*.json` files into chunks based on language and content type, saving them to `rag-src/chunk/`. It is idempotent: if a `{stem}-0000.json` sentinel exists, processing is skipped (can be overwritten with `--force`).
-
-**Module-level Constants**
-
-This module defines the following constants. See source code for details. Note that the rationale for `MIN_HEADING_LINES_FOR_MARKDOWN = 2` is unconfirmed (Needs Confirmation).
-
-**Typed dict**
-
-| TypedDict | Purpose |
-|---|---|
-| `CrawlFilePayload` | Typed dictionary for crawl output JSON files (url, title, lang, content, code_blocks are required; etag, last_modified are optional via NotRequired) |
-| `ChunkOutputPayload` | Typed dictionary for chunk output JSON files (schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, content are required; normalized_content is optional via NotRequired) |
-| `ChunkMetadata` | Optional metadata dictionary to be expanded with ** in the output payload (total=False). Fields: url, title, lang, fetched_at (str, mandatory), etag, last_modified, source_file, chunking_strategy. |
-
-> Evidence: Explicit in code — `CrawlFilePayload` and `ChunkOutputPayload` are declared as types in `chunk_splitter.py`, but they are not used as type annotations in the actual implementation within the same file (actual input/output is handled via `ChunkJsonRaw` (`pipeline_utils.py`) or `dict[str, object]`).
-
-**Inheritance**
-
-`ChunkSplitter` uses multiple inheritance from both `ChunkEnglishMixin` and `ChunkJapaneseMixin`.
-Method Resolution Order (MRO): `ChunkSplitter → ChunkEnglishMixin → ChunkJapaneseMixin → object`.
-
-**Public Methods**
-
-This module provides the following public methods. See source code for details.
-
-### 3.1.1 Markdown Heading Chunking Configuration
-
-| Parameter | Default | Description |
-|---|---|---|
-| `md_index_enable` | False | Enables heuristic Markdown detection for non-.md files |
-| `md_snippet_max_chars` | 600 | Maximum characters per single Markdown heading section before falling back to sentence-based chunking |
-
-### 3.1.2 Chunking Parameters (Shared with crawler)
-
-| Parameter | Default | Description |
-|---|---|---|
-| `min_chunk` | 40 | Minimum number of characters per chunk. Chunks smaller than this are discarded as noise. |
-| `max_chunk` | 500 | Maximum number of characters per chunk. Text exceeding this limit will be split. |
-| `chunk_overlap` | 50 | Sliding window chunk overlap (in characters). Adds this many characters from the end of the previous chunk to the beginning of the next; 0 disables it. |
-| `en_stopwords` | — | English stopwords to exclude from chunking (defined in `config/chunk_splitter.toml`. Corrected from old docs mentioning `rag_pipeline.toml` which does not exist). |
-| `ja_stop_pos` | — | Sudachi part-of-speech categories treated as stopwords in Japanese. Default value: `["Particle", "Auxiliary", "Symbol", "Whitespace", "Interjection", "Conjunction"]` (defined in `config/chunk_splitter.toml`). |
-
-> Evidence: Explicit in code — `scripts/rag/ingestion/chunk_splitter.py::__init__` uses `ConfigLoader().load("chunk_splitter.toml")`, and `en_stopwords`/`ja_stop_pos` are defined in `config/chunk_splitter.toml`. The file `config/rag_pipeline.toml` does not exist in this repository.
-
-## Related Documents
-
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
-- `03_rag_02_02_ingestion_pipeline-crawler.md`
-- `03_rag_02_04_ingestion_pipeline-ingester.md`
-- `03_rag_02_07_ingestion_pipeline-utils.md`
-- `03_rag_05_1-configuration-reference.md`
-- `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
-
-## Keywords
-
-chunk-splitter
-chunking-strategies
-sudachi
-markdown-heading
-crawler
-rag
-
-# RAG Ingestion Pipeline
-
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-
----
-
-## 3b. ChunkSplitter (`scripts/rag/ingestion/chunk_splitter.py`)
 
 ### 3.1.3 Markdown Source Detection Behavior
 

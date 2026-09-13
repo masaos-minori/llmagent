@@ -103,6 +103,10 @@ def resolve_rag_config(
     as fallback (same behavior as the removed _ModuleConfig.get()).
 
     Returns a validated RagConfigImpl populated with defaults for any missing fields.
+
+    Raises:
+        ValueError: If ``use_search=True`` and any of ``rag_db_path``, ``llm_url``,
+            ``embed_url`` is empty or ``None``.
     """
     if isinstance(cfg, RagConfigImpl):
         return cfg
@@ -140,4 +144,16 @@ def resolve_rag_config(
         logger.error("rag config error: %s", error)
     if not validation_result.ok:
         raise ValueError(f"RAG config validation failed: {validation_result.errors}")
+    # Validate critical fields when search is enabled
+    if filtered_cfg.get("use_search", False):
+        empty_fields: list[str] = []
+        for field_name in ("rag_db_path", "llm_url", "embed_url"):
+            value = filtered_cfg.get(field_name)
+            if value == "" or value is None:
+                empty_fields.append(field_name)
+        if empty_fields:
+            raise ValueError(
+                f"RAG config requires non-empty {', '.join(empty_fields)} "
+                f"when use_search=True"
+            )
     return RagConfigImpl(**filtered_cfg)

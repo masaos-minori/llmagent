@@ -8,13 +8,6 @@ from __future__ import annotations
 from enum import StrEnum
 
 
-class LanguageCode(StrEnum):
-    """Supported language codes for document processing."""
-
-    EN = "en"
-    JA = "ja"
-
-
 class PipelineStageName(StrEnum):
     """Names of stages in the RAG pipeline execution flow."""
 

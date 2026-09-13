@@ -49,15 +49,17 @@ def _kill_pg_force(pgid: int) -> None:
         pass
 
 
+def _absorb_sigint_during_shutdown(signum: int, frame: object) -> None:
+    """Absorb SIGINT signals during shutdown_all() cleanup."""
+    logger.warning(
+        "Lifecycle: SIGINT received during shutdown_all(); ignoring until cleanup completes"
+    )
+
+
 class ShutdownCoordinator:
     """Coordinates shutdown of HTTP server process and associated resources."""
 
-    @staticmethod
-    def _absorb_sigint_during_shutdown(signum: int, frame: object) -> None:
-        """Silently absorb SIGINT signals during shutdown_all() to prevent orphaned subprocesses."""
-        logger.warning(
-            "Lifecycle: SIGINT received during shutdown_all(); ignoring until cleanup completes"
-        )
+    _absorb_sigint_during_shutdown = staticmethod(_absorb_sigint_during_shutdown)
 
     @staticmethod
     async def shutdown_all(manager: HttpServerLifecycleManager) -> None:
@@ -74,7 +76,9 @@ class ShutdownCoordinator:
 
         if old_sigint is not None:
             try:
-                signal.signal(signal.SIGINT, ShutdownCoordinator._absorb_sigint_during_shutdown)
+                signal.signal(
+                    signal.SIGINT, ShutdownCoordinator._absorb_sigint_during_shutdown
+                )
             except ValueError:
                 logger.debug("Lifecycle: could not set SIGINT guard handler")
 
@@ -98,7 +102,9 @@ class ShutdownCoordinator:
                     poll_result = proc.poll()
                     if poll_result is not None:
                         logger.info(
-                            "%s terminated gracefully with code %d", server_key, poll_result
+                            "%s terminated gracefully with code %d",
+                            server_key,
+                            poll_result,
                         )
                         break
                     await asyncio.sleep(0.05)
@@ -114,13 +120,17 @@ class ShutdownCoordinator:
                         else:
                             proc.kill()
                     except _KILL_ERRORS as exc:
-                        logger.warning("%s: failed to send SIGKILL: %s", server_key, exc)
+                        logger.warning(
+                            "%s: failed to send SIGKILL: %s", server_key, exc
+                        )
 
                     kill_deadline = asyncio.get_event_loop().time() + _KILL_TIMEOUT_SEC
                     while asyncio.get_event_loop().time() < kill_deadline:
                         poll_result = proc.poll()
                         if poll_result is not None:
-                            logger.info("%s killed with code %d", server_key, poll_result)
+                            logger.info(
+                                "%s killed with code %d", server_key, poll_result
+                            )
                             break
                         await asyncio.sleep(0.05)
                     else:

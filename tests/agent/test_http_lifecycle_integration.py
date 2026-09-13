@@ -165,7 +165,7 @@ class TestSignalHandling:
                     captured = True
 
         handler = WarningCapture()
-        logger = logging.getLogger("agent.http_lifecycle")
+        logger = logging.getLogger("agent.http_lifecycle_shutdown_coordinator")
         logger.addHandler(handler)
         try:
             manager = HttpServerLifecycleManager()

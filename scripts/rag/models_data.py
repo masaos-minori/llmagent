@@ -9,8 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from rag.enums import LanguageCode
-
 
 @dataclass(frozen=True)
 class EmbeddingResponse:
@@ -18,14 +16,6 @@ class EmbeddingResponse:
 
     embedding: list[float]
     model: str | None = None
-
-
-@dataclass(frozen=True)
-class CrawlTarget:
-    """URL and language specification for document crawling."""
-
-    url: str
-    lang: LanguageCode
 
 
 @dataclass(frozen=True)

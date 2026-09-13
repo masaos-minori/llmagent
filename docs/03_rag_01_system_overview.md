@@ -115,6 +115,49 @@ When `use_semantic_cache=True`, if the cosine similarity of the query embedding 
 | Configuration files exist | `config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml` |
 | Target URLs or files specified | `--url` in CLI, or `target_urls` in config |
 
+**Embedding server health check:**
+
+Expected success response:
+
+```json
+{
+  "status": "ok",
+  "ready": true,
+  "liveness": "alive",
+  "restart_recommended": false,
+  "operator_action_required": false,
+  "dependencies": {},
+  "details": {}
+}
+```
+
+Expected failure response:
+
+```json
+{
+  "status": "degraded",
+  "ready": false,
+  "liveness": "alive",
+  "restart_recommended": false,
+  "operator_action_required": true,
+  "dependencies": {
+    "embed_url": "not configured"
+  },
+  "details": {}
+}
+```
+
+Troubleshooting:
+- If `status` is `"degraded"` and `dependencies.embed_url` is `"not configured"`: verify the embedding server URL is set in your configuration
+- If the request times out: verify the embedding server is running and accessible at the specified address
+- If you receive an HTTP 503: the service is running but has failed dependency checks; inspect the `dependencies` field for specific failures
+
+**sqlite-vec extension:** Success criteria: command exits with return code 0 and produces no error output. A non-zero exit code indicates the extension is not loadable.
+
+**Configuration files:** Success criteria: each `ls` command outputs the file path without error. Missing files will produce "No such file or directory" errors.
+
+**Target URLs or files:** Success criteria: the Python script completes without raising `FileNotFoundError` or `ValueError`. These exceptions indicate missing config files or empty target lists respectively.
+
 ---
 
 ## Constraints
@@ -133,7 +176,17 @@ When `use_semantic_cache=True`, if the cosine similarity of the query embedding 
 
 ## MCP Server Responsibility Division
 
-For details on responsibilities of `rag_pipeline_server.py`, `rag_pipeline_service.py`, and `scripts/rag/pipeline.py`, please refer to `docs/03_rag_03_01_query_pipeline-overview.md`.
+For operators who prefer a quick reference without navigating away from this document, here is a concise summary of each component's role:
+
+- **`rag_pipeline_server.py`**: HTTP route handling and request/response formatting. This FastAPI application exposes MCP endpoints (`/v1/call_tool`, `/health`, `/rag_run_pipeline`, etc.), builds the tool list, and handles exceptions for `RagPipelineServiceError`.
+
+- **`rag_pipeline_service.py`**: Pipeline orchestration and error handling. The `RagPipelineMCPService` class wraps `RagPipeline`, manages lifecycle (start/stop), formats results for MCP tool responses, and maintains the dispatch table mapping tool names to service methods.
+
+- **`scripts/rag/pipeline.py`**: Core search logic and stage execution. The `RagPipeline` class orchestrates the MQE → Search → RRF → Rerank pipeline stages, implements the `augment()` method with its fallback chain (HTTP → cache → search → refiner → raw chunks), and collects diagnostics.
+
+The interaction flow is: MCP client → `rag_pipeline_server.py` (HTTP routing) → `rag_pipeline_service.py` (orchestration) → `scripts/rag/pipeline.py` (search execution).
+
+For details on responsibilities of these components, please refer to `docs/03_rag_03_01_query_pipeline-overview.md`.
 
 ## Related Chapters
 

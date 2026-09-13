@@ -57,6 +57,10 @@ class WorkflowEngineAdapter:
       - Activate/deactivate workflow state on context
       - Handle approval-pending and halt events
       - Run the workflow engine with plan/execute/verify callbacks
+
+    Engine lifecycle: ``self._workflow_engine`` is the single source of truth for
+    engine lifecycle — it is injected once and reused across turns. Do not recreate
+    it per-turn; reuse ``self._workflow_engine`` directly.
     """
 
     def __init__(
@@ -82,6 +86,7 @@ class WorkflowEngineAdapter:
         self._tracer = tracer
         self._on_error = on_error
         self._allowed_tools = allowed_tools
+        self._owns_state_store = False
 
     # ── Backward-compatible public API ────────────────────────────────────────
 
@@ -159,11 +164,10 @@ class WorkflowEngineAdapter:
             )
             self._ctx.turn.pending_approval_task_id = None
             self._activate_workflow(self._ctx, task)
-            engine = WorkflowEngine(
-                self._workflow_engine._wdef,
-                self._state_store,
-                tracer=self._tracer,
+            assert self._workflow_engine is not None, (
+                "WorkflowEngine must be injected via constructor"
             )
+            engine = self._workflow_engine
 
             async def plan_fn() -> str | None:
                 """No-op placeholder: planning work is done by TurnCoordinator.handle_turn_start before engine.run()."""
@@ -211,7 +215,9 @@ class WorkflowEngineAdapter:
             except Exception as e:  # noqa: BLE001 — updating task status on engine exit is best-effort; failure must not abort the turn
                 logger.warning("Failed to update task status on engine exit: %s", e)
             self._deactivate_workflow(self._ctx)
-            self._state_store.close()
+            if self._owns_state_store:
+                self._state_store.close()
+            self._owns_state_store = False
 
         return answer, error_kind, is_partial
 
@@ -274,6 +280,7 @@ class WorkflowEngineAdapter:
         if store is None:
             store = StateStore()
             close_store = True
+            self._owns_state_store = True
         try:
             if existing_task_id is None:
                 workflow_id = str(uuid.uuid4())

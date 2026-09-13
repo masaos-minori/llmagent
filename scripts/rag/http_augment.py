@@ -82,7 +82,19 @@ class HttpAugment:
         return "success", None
 
     async def run(self, query: str, history_context: str) -> HttpAugmentResult:
-        """Run HTTP augment and return result."""
+        """Run HTTP augment and return result.
+
+        Return value contract:
+          - ``str`` (non-empty): valid augmented result
+          - ``""`` (empty string): valid but empty result; caller should fall back
+            to in-process search
+          - ``None``: augmentation failed; caller must use in-process search
+
+        Identity-vs-truthiness note: ``""`` and ``None`` are both falsy but have
+        different meanings.  ``""`` means the remote returned a valid response with
+        no hits; ``None`` means the remote could not produce a response at all.
+        Callers MUST check ``is not None`` rather than truthiness to distinguish them.
+        """
         t0 = time.perf_counter()
         http_fallback_reasons: list[str] = []
         result, status_code, latency_ms = await call_rag_service(
@@ -93,6 +105,10 @@ class HttpAugment:
             auth_token=self._auth_token,
             set_fetch_result=lambda fr: self._set_fetch_result(fr),
             set_fallback_reason=http_fallback_reasons.append,
+        )
+        assert result is None or isinstance(result, str), (
+            f"call_rag_service() returned unexpected type: {type(result).__name__} ({result!r}); "
+            "expected str or None"
         )
         elapsed = time.perf_counter() - t0
         http_status: Literal["success", "fallback"] = (

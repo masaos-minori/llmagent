@@ -143,9 +143,12 @@ def _mqe_prompt(query: str, context: str, cfg: RagConfig) -> str:
 def _parse_mqe_response(raw: str, original_query: str) -> MqeParseResult:
     """Extract and validate a JSON array of paraphrases from raw LLM output.
 
+    Matches only the innermost bracket pair (non-greedy); does not span across
+    multiple ``[...]`` fragments.
+
     Raises MqeParseError when the response cannot be parsed as a string list.
     """
-    m = re.search(r"\[.*\]", raw, re.DOTALL)
+    m = re.search(r"\[[^\]]*\]", raw)
     if not m:
         raise MqeParseError(f"MQE response contains no JSON array: {raw!r}")
     try:
@@ -184,9 +187,12 @@ def _apply_rerank_scores(
 ) -> list[RagHit] | None:
     """Parse LLM score output and return top_k candidates sorted by score.
 
+    Matches only the innermost brace pair (non-greedy); does not span across
+    multiple ``{...}`` fragments.
+
     Returns None on parse failure so the caller can fall back to RRF order.
     """
-    m = re.search(r"\{.*\}", raw, re.DOTALL)
+    m = re.search(r"\{[^{}]*\}", raw)
     if not m:
         return None
     try:

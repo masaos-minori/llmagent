@@ -41,6 +41,7 @@ class PipelineContext:
     queries: list[str] = dataclasses.field(default_factory=list)
     search_results: list[list[RawHit]] = dataclasses.field(default_factory=list)
     merged: list[RagHit] = dataclasses.field(default_factory=list)
+    # Never None — always a list, possibly empty; no identity check applies to this field.
     reranked: list[RagHit] = dataclasses.field(default_factory=list)
     augment_result: str = ""
     stage_results: list[StageResult] = dataclasses.field(default_factory=list)

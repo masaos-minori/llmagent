@@ -15,20 +15,13 @@ from collections.abc import Callable
 from typing import Any
 
 from shared.json_utils import dumps as _json_dumps
-from shared.logger import Logger
-from shared.types import LLMMessage
 
 from agent.audit_event_emitter import _format_session_id
 from agent.context import AgentContext
-from agent.conversation_state_manager import EPHEMERAL_KEYS
-from agent.message_schema import validate_message
-
-logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
 class TurnCoordinator:
-    """Coordinates per-turn lifecycle: start/end audit events, ephemeral
-    message cleanup, system prompt sync, and user message append."""
+    """Coordinates per-turn lifecycle: start/end audit events only."""
 
     def __init__(
         self,
@@ -83,49 +76,3 @@ class TurnCoordinator:
             )
             ctx.services_required.audit_logger.info(_json_dumps(event))
         ctx.turn.current_turn_id = None
-
-    def clear_previous_turn_ephemeral_messages(self, ctx: AgentContext) -> None:
-        """Strip ephemeral/memory-injected system messages left over from the
-        previous turn. Must run before this turn's own injections
-        (ConversationStateManager.handle_memory_injection, classify_and_inject_mode)
-        so it never strips content just added for the current turn.
-        """
-        ctx.conv.history = [
-            m
-            for m in ctx.conv.history
-            if not any(k in EPHEMERAL_KEYS for k in m.keys())
-        ]
-
-    def sync_system_prompt(self, ctx: AgentContext) -> None:
-        """Sync history[0] from ctx.conv.system_prompt_content before each turn."""
-        if not ctx.conv.system_prompt_content:
-            return
-        if ctx.conv.history and ctx.conv.history[0]["role"] == "system":
-            ctx.conv.history[0]["content"] = ctx.conv.system_prompt_content
-        else:
-            msg: LLMMessage = {
-                "role": "system",
-                "content": ctx.conv.system_prompt_content,
-            }
-            result = validate_message(dict(msg))
-            if not result.success:
-                logger.error(
-                    "Dropping system prompt sync message that failed validation: %s",
-                    result.reason,
-                )
-                return
-            ctx.conv.history.insert(0, msg)
-
-    async def append_user_message(self, ctx: AgentContext, line: str) -> None:
-        """Append user message to history, sync system prompt, and increment turn counter."""
-        self.sync_system_prompt(ctx)
-        await ctx.conv.append_message({"role": "user", "content": line})
-        ctx.stats.stat_turns += 1
-        if ctx.stats.stat_turns == 1 and self._on_first_turn is not None:
-            _task = asyncio.create_task(
-                self._on_first_turn(line),
-                name=getattr(self._on_first_turn, "__name__", "unknown_bg_task"),
-            )
-            self._background_tasks.add(_task)
-            _task.add_done_callback(self._discard_and_log)
-        ctx.session.save("user", line)

@@ -39,7 +39,10 @@ from .http_lifecycle_errors import HttpStartupError, StartupFailure
 from .http_lifecycle_health_checker import HealthChecker
 from .http_lifecycle_process_snapshot import ProcessSnapshotProvider
 from .http_lifecycle_process_terminator import ProcessTerminator
-from .http_lifecycle_shutdown_coordinator import ShutdownCoordinator
+from .http_lifecycle_shutdown_coordinator import (
+    ShutdownCoordinator,
+    _absorb_sigint_during_shutdown,
+)
 from .http_lifecycle_stderr_log import StderrLogManager
 
 logger = logging.getLogger(__name__)
@@ -525,17 +528,7 @@ class HttpServerLifecycleManager:
         self._http_pgids.pop(server_key, None)
         await self.start(server_key, cfg)
 
-    @staticmethod
-    def _absorb_sigint_during_shutdown(signum: int, frame: object) -> None:
-        """Silently absorb SIGINT signals during shutdown_all() to prevent orphaned subprocesses.
-
-        When a user presses Ctrl-C twice while shutdown_all() is running, the second signal would
-        normally interrupt the cleanup loop and leave HTTP subprocesses alive. This handler
-        catches those signals and logs a warning instead of propagating the exception.
-        """
-        logger.warning(
-            "Lifecycle: SIGINT received during shutdown_all(); ignoring until cleanup completes"
-        )
+    _absorb_sigint_during_shutdown = staticmethod(_absorb_sigint_during_shutdown)
 
     async def shutdown_all(self) -> None:
         """Terminate all HTTP subprocess servers and clear internal state."""
