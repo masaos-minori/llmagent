@@ -111,12 +111,12 @@ Simple revert of the two regex pattern replacements and the two docstring update
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm no caller depends on greedy-match behavior | Pending | — | — | Check callers of _parse_mqe_response/_apply_rerank_scores |
-| 2 | Replace r"\\[.*\\]"/re.DOTALL with r"\\[[^\\]]*\\]" in _parse_mqe_response | Pending | — | — | Line 148 |
-| 3 | Replace r"\\{.*\\}"/re.DOTALL with r"\\{[^{}]*\\}" in _apply_rerank_scores | Pending | — | — | Line 189 |
-| 4 | Update _parse_mqe_response docstring | Pending | — | — | Note innermost-pair-only extraction |
-| 5 | Update _apply_rerank_scores docstring | Pending | — | — | Note innermost-pair-only extraction |
-| 6 | Run pytest tests/rag/test_rag_pipeline.py -k mqe | Pending | — | — | Verify existing and new tests pass |
+| 1 | Confirm no caller depends on greedy-match behavior | Completed | — | — | Check callers of _parse_mqe_response/_apply_rerank_scores |
+| 2 | Replace r"\\[.*\\]"/re.DOTALL with r"\\[[^\\]]*\\]" in _parse_mqe_response | Completed | — | — | Line 148 |
+| 3 | Replace r"\\{.*\\}"/re.DOTALL with r"\\{[^{}]*\\}" in _apply_rerank_scores | Completed | — | — | Line 189 |
+| 4 | Update _parse_mqe_response docstring | Completed | — | — | Note innermost-pair-only extraction |
+| 5 | Update _apply_rerank_scores docstring | Completed | — | — | Note innermost-pair-only extraction |
+| 6 | Run pytest tests/rag/test_rag_pipeline.py -k mqe | Completed | — | — | Verify existing and new tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
