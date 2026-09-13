@@ -168,14 +168,14 @@ Simple revert of the added text — no data migration or state rollback needed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify existing Prerequisites section at lines 109-117 | Pending | — | — | Record exact wording |
-| 2 | Add expected success response example | Pending | — | — | JSON with status="ok", ready=true |
-| 3 | Add expected failure response example | Pending | — | — | JSON with status="degraded", ready=false |
-| 4 | Add troubleshooting guidance | Pending | — | — | Service down, wrong port, missing config |
-| 5 | Add sqlite-vec extension success criteria | Pending | — | — | Exit code 0, no error output |
-| 6 | Add config file check success criteria | Pending | — | — | ls outputs file path without error |
-| 7 | Add target URLs/files check success criteria | Pending | — | — | No FileNotFoundError/ValueError |
-| 8 | Manual review of accuracy against source code | Pending | — | — | Verify all claims |
+| 1 | Verify existing Prerequisites section at lines 109-117 | Completed | — | — | Record exact wording |
+| 2 | Add expected success response example | Completed | — | — | JSON with status="ok", ready=true |
+| 3 | Add expected failure response example | Completed | — | — | JSON with status="degraded", ready=false |
+| 4 | Add troubleshooting guidance | Completed | — | — | Service down, wrong port, missing config |
+| 5 | Add sqlite-vec extension success criteria | Completed | — | — | Exit code 0, no error output |
+| 6 | Add config file check success criteria | Completed | — | — | ls outputs file path without error |
+| 7 | Add target URLs/files check success criteria | Completed | — | — | No FileNotFoundError/ValueError |
+| 8 | Manual review of accuracy against source code | Completed | — | — | Verify all claims |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
