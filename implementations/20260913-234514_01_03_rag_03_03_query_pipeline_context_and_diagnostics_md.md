@@ -99,9 +99,9 @@ Simple revert: restore the original Boundary Conditions note and table row. The 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Confirm conversion mapping and non-existent citations | Pending | — | — | |
-| 2 | Phase 2: Rewrite Boundary Conditions note | Pending | — | — | |
-| 3 | Verification: manual review | Pending | — | — | |
+| 1 | Phase 1: Confirm conversion mapping and non-existent citations | Completed | — | — | |
+| 2 | Phase 2: Rewrite Boundary Conditions note | Completed | — | — | |
+| 3 | Verification: manual review | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
