@@ -136,14 +136,14 @@ Simple revert of the three modifications (module-level function addition, two `s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm alias preserves test assertions | Pending | — | — | Read TestSignalHandling 4 tests |
-| 2 | Add module-level _absorb_sigint_during_shutdown() function | Pending | — | — | Alongside _get_pgid/_kill_pg/_kill_pg_force |
-| 3 | Replace ShutdownCoordinator._absorb_sigint_during_shutdown with staticmethod alias | Pending | — | — | Line 55-60 |
-| 4 | Import shared function in http_lifecycle.py | Pending | — | — | from .http_lifecycle_shutdown_coordinator import |
-| 5 | Replace HttpServerLifecycleManager._absorb_sigint_during_shutdown with staticmethod alias | Pending | — | — | Line 528-538 |
-| 6 | Update HttpServerLifecycleManager.shutdown_all() docstring | Pending | — | — | Note shared handler |
-| 7 | Update ShutdownCoordinator.shutdown_all() docstring | Pending | — | — | Note shared handler |
-| 8 | Run pytest tests/agent/test_http_lifecycle_integration.py tests/agent/test_lifecycle.py | Pending | — | — | Verify existing and new tests pass |
+| 1 | Confirm alias preserves test assertions | Completed | — | — | Read TestSignalHandling 4 tests |
+| 2 | Add module-level _absorb_sigint_during_shutdown() function | Completed | — | — | Alongside _get_pgid/_kill_pg/_kill_pg_force |
+| 3 | Replace ShutdownCoordinator._absorb_sigint_during_shutdown with staticmethod alias | Completed | — | — | Line 55-60 |
+| 4 | Import shared function in http_lifecycle.py | Completed | — | — | from .http_lifecycle_shutdown_coordinator import |
+| 5 | Replace HttpServerLifecycleManager._absorb_sigint_during_shutdown with staticmethod alias | Completed | — | — | Line 528-538 |
+| 6 | Update HttpServerLifecycleManager.shutdown_all() docstring | Completed | — | — | Note shared handler |
+| 7 | Update ShutdownCoordinator.shutdown_all() docstring | Completed | — | — | Note shared handler |
+| 8 | Run pytest tests/agent/test_http_lifecycle_integration.py tests/agent/test_lifecycle.py | Completed | — | — | Verify existing and new tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
