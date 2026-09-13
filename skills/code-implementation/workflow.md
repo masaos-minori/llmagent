@@ -22,6 +22,7 @@ below still requires the full inspection that rule describes):
 | Tool | Step | Role |
 |---|---|---|
 | `tools/manage_workitem_stage.py close-implementation` | 1, 7 | `git mv`-based archival move (see below for its refusal condition) |
+| `tools/manage_workitem_stage.py set-step-status` | 3-6 | Update one `### Execution Status` row's Status/Started/Completed/Notes without hand-editing the table |
 | `ruff format`, `ruff check` | 3e | Formatting and lint |
 | `mypy` / `pyright` | 3e | Type checking |
 | `lint-imports` | 3e | Architecture/import-boundary check |
@@ -31,7 +32,7 @@ below still requires the full inspection that rule describes):
 
 `tools/manage_workitem_stage.py close-implementation` (see `tools/TOOL_DESCRIPTIONS.md`
 for full usage) is a `git mv`-based archival move that refuses (non-zero exit, no move)
-if the target's `## Execution Status` table still has a `Pending` row, without
+if the target's `### Execution Status` table still has a `Pending` row, without
 `--force --reason`. Per `rules/ai-execution.md` Repository Tool Usage, prefer it over a
 direct `git mv` when it covers the need; Step 1 and Step 7 below state the fallback to
 use if the tool is unavailable.
@@ -87,13 +88,18 @@ Adversarial Verification finding, etc.) do that.
 
 **Execution Status file write** (unconditional, independent of the chat-report
 frequency gate above): update the implementation procedure file's own
-`## Execution Status` section (via Edit) with the current step's Status/Started/
-Completed at every Step transition or completion within Steps 3-6, regardless of
-whether a chat report is also made for that transition — this is the persisted
-record if the session is interrupted before Step 7's move. Also update the final
-report's Execution Status table. This Edit targets only the `## Execution Status`
-section — it is never itself a claim about current source that Step 3a's Adversarial
-Verification would need to re-check on a later cycle.
+`### Execution Status` table with the current step's Status/Started/Completed at
+every Step transition or completion within Steps 3-6, regardless of whether a chat
+report is also made for that transition — this is the persisted record if the
+session is interrupted before Step 7's move. Use `uv run python
+tools/manage_workitem_stage.py set-step-status implementation-procedure {path}
+--step {N} {status} --started {timestamp} --completed {timestamp}` (timestamps from
+`date +%Y%m%d-%H%M%S`, per `templates/execution-status.md` Notes) rather than editing
+the table's Markdown directly — a manual Edit risks corrupting the row/column
+structure `close-implementation`'s Pending-row check parses. Also update the final
+report's Execution Status table. This update is never itself a claim about current
+source that Step 3a's Adversarial Verification would need to re-check on a later
+cycle.
 
 ## Step 0: Load Required Instructions
 

@@ -19,7 +19,10 @@ from tools.manage_workitem_stage import (
     cmd_close_implementation,
     cmd_close_issue,
     cmd_close_plan,
+    cmd_set_status,
+    cmd_set_step_status,
     move_to_done,
+    parse_execution_status_table,
 )
 
 # Well-formed `### Execution Status` table matching
@@ -704,3 +707,149 @@ def test_close_implementation_renamed_status_column_errors_instead_of_silently_p
     captured = capsys.readouterr()
     assert "Status" in captured.err
     assert "missing or malformed" in captured.err
+
+
+# ---------------------------------------------------------------------------
+# set-status / set-step-status: Execution Status table mutation.
+#
+# test_set_step_status_preserves_header_row is a regression test for a bug
+# found while adding --started/--completed: update_execution_status()'s
+# table-rebuild loop classified the header row itself as a data row (same
+# cell count as the header) before the separator row had been seen, so it was
+# silently dropped from the rewritten file on every set-status/set-step-status
+# call.
+# ---------------------------------------------------------------------------
+
+EXECUTION_STATUS_TWO_ROWS = """# Fixture implementation procedure
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | First step | Pending | — | — | |
+| 2 | Second step | Pending | — | — | |
+"""
+
+
+def test_set_step_status_preserves_header_row(tmp_path: Path) -> None:
+    source = tmp_path / "impl.md"
+    source.write_text(EXECUTION_STATUS_TWO_ROWS, encoding="utf-8")
+
+    args = build_parser().parse_args(
+        [
+            "set-step-status",
+            "implementation-procedure",
+            str(source),
+            "--step",
+            "1",
+            "In Progress",
+        ]
+    )
+    exit_code = cmd_set_step_status(args)
+
+    assert exit_code == 0
+    _, header, rows = parse_execution_status_table(source.read_text(encoding="utf-8"))
+    assert header == ["Step", "Description", "Status", "Started", "Completed", "Notes"]
+    assert rows is not None and len(rows) == 2
+    assert rows[0][2] == "In Progress"
+    assert rows[1][2] == "Pending"  # untouched row unaffected
+
+
+def test_set_step_status_sets_started_and_completed(tmp_path: Path) -> None:
+    source = tmp_path / "impl.md"
+    source.write_text(EXECUTION_STATUS_TWO_ROWS, encoding="utf-8")
+
+    args = build_parser().parse_args(
+        [
+            "set-step-status",
+            "implementation-procedure",
+            str(source),
+            "--step",
+            "1",
+            "Completed",
+            "--started",
+            "20260913-090000",
+            "--completed",
+            "20260913-091500",
+        ]
+    )
+    exit_code = cmd_set_step_status(args)
+
+    assert exit_code == 0
+    _, header, rows = parse_execution_status_table(source.read_text(encoding="utf-8"))
+    assert header is not None and rows is not None
+    row = rows[0]
+    assert row[header.index("Started")] == "20260913-090000"
+    assert row[header.index("Completed")] == "20260913-091500"
+    # the untouched row keeps its original placeholder value
+    assert rows[1][header.index("Started")] == "—"
+
+
+def test_set_step_status_by_description_match(tmp_path: Path) -> None:
+    source = tmp_path / "impl.md"
+    source.write_text(EXECUTION_STATUS_TWO_ROWS, encoding="utf-8")
+
+    args = build_parser().parse_args(
+        [
+            "set-step-status",
+            "implementation-procedure",
+            str(source),
+            "--description",
+            "Second",
+            "Blocked",
+            "--notes",
+            "waiting on review",
+        ]
+    )
+    exit_code = cmd_set_step_status(args)
+
+    assert exit_code == 0
+    _, header, rows = parse_execution_status_table(source.read_text(encoding="utf-8"))
+    assert header is not None and rows is not None
+    assert rows[0][header.index("Status")] == "Pending"  # first row untouched
+    assert rows[1][header.index("Status")] == "Blocked"
+    assert rows[1][header.index("Notes")] == "waiting on review"
+
+
+def test_set_status_updates_all_rows_and_preserves_header(tmp_path: Path) -> None:
+    source = tmp_path / "impl.md"
+    source.write_text(EXECUTION_STATUS_TWO_ROWS, encoding="utf-8")
+
+    args = build_parser().parse_args(
+        [
+            "set-status",
+            "implementation-procedure",
+            str(source),
+            "Completed",
+            "--completed",
+            "20260913-100000",
+        ]
+    )
+    exit_code = cmd_set_status(args)
+
+    assert exit_code == 0
+    _, header, rows = parse_execution_status_table(source.read_text(encoding="utf-8"))
+    assert header == ["Step", "Description", "Status", "Started", "Completed", "Notes"]
+    assert rows is not None and len(rows) == 2
+    assert all(row[header.index("Status")] == "Completed" for row in rows)
+    assert all(row[header.index("Completed")] == "20260913-100000" for row in rows)
+
+
+def test_set_step_status_missing_step_errors(tmp_path: Path) -> None:
+    source = tmp_path / "impl.md"
+    source.write_text(EXECUTION_STATUS_TWO_ROWS, encoding="utf-8")
+
+    args = build_parser().parse_args(
+        [
+            "set-step-status",
+            "implementation-procedure",
+            str(source),
+            "--step",
+            "99",
+            "Completed",
+        ]
+    )
+    exit_code = cmd_set_step_status(args)
+
+    assert exit_code == 1

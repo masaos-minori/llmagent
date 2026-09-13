@@ -47,11 +47,13 @@ See `rules/workflow-lifecycle.md` Global Safety Restrictions for the full list.
 Repository scaffolding/archival tools relevant to this workflow (see
 `tools/TOOL_DESCRIPTIONS.md` for full usage): `tools/generate_workitem.py --kind
 implementation-procedure` (Step 3, procedure-document skeleton generation — see
-Allowed file operations above for its Plan-file timestamp-marker side effect) and
-`tools/manage_workitem_stage.py close-plan` (Step 4, `git mv`-based archival move).
-Per `rules/ai-execution.md` Repository Tool Usage, prefer these over the equivalent
-manual command when they cover the need; Step 3 and Step 4 above state the
-fallback to use if a tool is unavailable or refuses.
+Allowed file operations above for its Plan-file timestamp-marker side effect),
+`tools/manage_workitem_stage.py set-step-status` (Step 3d and Step 4, `### Execution
+Status` row updates without hand-editing the table), and `tools/manage_workitem_stage.py
+close-plan` (Step 4, `git mv`-based archival move). Per `rules/ai-execution.md`
+Repository Tool Usage, prefer these over the equivalent manual command when they cover
+the need; Step 3 and Step 4 above state the fallback to use if a tool is unavailable or
+refuses.
 
 Step 3's narrow delegation to `skills/python-design/SKILL.md` (for the
 Design-decisions-family fields only, per Step 3 above) inspects `skills/python-design/
@@ -84,7 +86,8 @@ Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
 `rules/toolchain.md`, `skills/python-design/SKILL.md`,
 `skills/python-design/workflow.md`, `rules/ai-execution.md`,
 `rules/workflow-lifecycle.md`, `templates/traceability.md`, `templates/plan.md`,
-`templates/implementation-procedure.md`, `SKILL.md` (this skill), and this file.
+`templates/implementation-procedure.md`, `templates/execution-status.md`,
+`SKILL.md` (this skill), and this file.
 
 Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of shared files
 across cycles.
@@ -366,14 +369,17 @@ When reporting, note which target file you are working on, record the current st
 (In Progress / Blocked / Completed), and if blocked, describe the blocker and whether
 it requires user intervention.
 
-**Execution Status table write** (unconditional, per row): update the Execution
-Status table in the output document every time a row's status changes, regardless of
+**Execution Status table write** (unconditional, per row): update the `### Execution
+Status` table in the output document every time a row's status changes, regardless of
 whether an interim chat report is also made for that row. This persisted record is
 the recovery mechanism if the session is interrupted mid-pass — it must not be
 skipped merely because the chat-report frequency gate above did not trigger for that
-row. This Edit targets only the generated document's own `## Execution Status`
-section — it is never itself a claim about current source that a later cycle's Step
-3a Adversarial Verification would need to re-check.
+row. Use `uv run python tools/manage_workitem_stage.py set-step-status
+implementation-procedure {generated_path} --step {N} {status}` (add `--started
+{timestamp}`/`--completed {timestamp}` from `date +%Y%m%d-%H%M%S` when applicable,
+per `templates/execution-status.md` Notes) rather than editing the table's Markdown
+directly. This update is never itself a claim about current source that a later
+cycle's Step 3a Adversarial Verification would need to re-check.
 
 ---
 
@@ -412,11 +418,13 @@ cycle created. Verify that:
 If any of the above does not hold, do not proceed to the move — report `Blocked` and
 resolve the discrepancy first.
 
-This workflow MAY update the Plan's own `## Execution Status` section (in
-`plans/{filename}_plan.md`) via Edit before the move: mark an `Implementation Target
-Files` row `In Progress` once its procedure document is generated, or `Completed` if
-matched as `Already implemented`. This is separate from each generated document's own
-Execution Status section.
+This workflow MAY update the Plan's own `### Execution Status` table (in
+`plans/{filename}_plan.md`) before the move: mark an `Implementation Target Files`
+row's corresponding Execution Status row `In Progress` once its procedure document is
+generated, or `Completed` if matched as `Already implemented`. Use `uv run python
+tools/manage_workitem_stage.py set-step-status plan {plan_path} --description
+"{target_file_path}" {status}` rather than editing the table directly. This is
+separate from each generated document's own Execution Status table.
 
 Apply `rules/workflow-lifecycle.md` Archival Move (`plan-to-impl-procedure` row) and
 Completion Criteria in full. This workflow's move: `plans/{filename}_plan.md` to

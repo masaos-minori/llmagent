@@ -24,6 +24,13 @@ Subcommands:
   close-issue           issues/{file}.md -> issues/done/{file}.md
   close-plan            plans/{file}.md -> plans/done/{file}.md
   close-implementation  implementations/{file}.md -> implementations/done/{file}.md
+  set-status            set every row's Status (+ optional Started/Completed/Notes)
+                         in a plan's or implementation procedure's Execution Status table
+  set-step-status       same, but only for one row (--step N or --description text)
+  detect-stale          list plans/implementations not modified in --days (default 7)
+                         that are still In Progress or Pending
+  list                  list plans/implementations, optionally filtered by --kind/--status
+  show                  print a plan's or implementation procedure's Execution Status table
 
 Usage:
     python tools/manage_workitem_stage.py close-issue issues/20260101_foo.md
@@ -33,6 +40,13 @@ Usage:
         implementations/20260101_x.md
     python tools/manage_workitem_stage.py close-implementation \\
         implementations/20260101_x.md --force --reason "manually verified complete"
+    python tools/manage_workitem_stage.py set-step-status implementation-procedure \\
+        implementations/20260101_x.md --step 3 Completed \\
+        --started 20260101-090000 --completed 20260101-091500
+    python tools/manage_workitem_stage.py set-status plan plans/20260101_plan.md Completed
+    python tools/manage_workitem_stage.py detect-stale --days 14
+    python tools/manage_workitem_stage.py list --kind implementation-procedure --status "In Progress"
+    python tools/manage_workitem_stage.py show plan plans/20260101_plan.md
 """
 
 from __future__ import annotations
@@ -303,6 +317,8 @@ def update_execution_status(
     description_match: str | None = None,
     new_status: str = "",
     new_notes: str | None = None,
+    new_started: str | None = None,
+    new_completed: str | None = None,
 ) -> bool:
     """Update the Execution Status table on an implementation or plan file.
 
@@ -313,6 +329,11 @@ def update_execution_status(
 
     When ``new_notes`` is provided, the Notes column of the matched row(s) is
     appended with the text (a single space separator is inserted before appending).
+
+    When ``new_started`` / ``new_completed`` is provided, the matched row(s)' Started /
+    Completed column is overwritten (not appended) with that value — pass the output of
+    `date +%Y%m%d-%H%M%S` (per `templates/execution-status.md` Notes) to record an actual
+    execution timestamp; this function does not generate one itself.
 
     Returns ``True`` when at least one row was modified; ``False`` when nothing
     matched or the file could not be written.
@@ -357,6 +378,14 @@ def update_execution_status(
         row[status_col_idx] = new_status
         modified = True
 
+        if new_started is not None:
+            row[header.index("Started")] = new_started
+            modified = True
+
+        if new_completed is not None:
+            row[header.index("Completed")] = new_completed
+            modified = True
+
         if new_notes is not None:
             existing_notes = row[notes_col_idx]
             if existing_notes.strip():
@@ -395,10 +424,12 @@ def update_execution_status(
             continue
         if in_table:
             cells = [c.strip() for c in line.strip("|").split("|")]
-            if all(re.fullmatch(r"-+", c) for c in cells):
-                # Separator line — keep it
+            if not separator_appended:
+                # Header row, then the separator row — keep both as-is; only
+                # rows seen *after* the separator are data rows to rebuild.
                 new_lines.append(line)
-                separator_appended = True
+                if all(re.fullmatch(r"-+", c) for c in cells):
+                    separator_appended = True
                 continue
             if len(cells) == len(header):
                 # Data row — skip, will be replaced with rebuilt rows
@@ -619,6 +650,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional notes text to append to each row's Notes column",
     )
+    set_status_parser.add_argument(
+        "--started",
+        default=None,
+        help="Optional Started timestamp to set on each row (overwrites, does not "
+        "append) — pass the output of `date +%%Y%%m%%d-%%H%%M%%S`",
+    )
+    set_status_parser.add_argument(
+        "--completed",
+        default=None,
+        help="Optional Completed timestamp to set on each row (overwrites, does not "
+        "append) — pass the output of `date +%%Y%%m%%d-%%H%%M%%S`",
+    )
 
     # set-step-status: update a single step's Status column
     set_step_parser = subparsers.add_parser(
@@ -651,6 +694,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--notes",
         default=None,
         help="Optional notes text to append to the matched row's Notes column",
+    )
+    set_step_parser.add_argument(
+        "--started",
+        default=None,
+        help="Optional Started timestamp to set on the matched row (overwrites, "
+        "does not append) — pass the output of `date +%%Y%%m%%d-%%H%%M%%S`",
+    )
+    set_step_parser.add_argument(
+        "--completed",
+        default=None,
+        help="Optional Completed timestamp to set on the matched row (overwrites, "
+        "does not append) — pass the output of `date +%%Y%%m%%d-%%H%%M%%S`",
     )
 
     # detect-stale: find stale workitems
@@ -710,10 +765,16 @@ def cmd_set_status(args):
         kind=args.kind,
         new_status=args.status,
         new_notes=args.notes,
+        new_started=args.started,
+        new_completed=args.completed,
     )
     if not modified:
         return 1
     msg_parts = [f"OK: updated all rows to '{args.status}' in {source}"]
+    if args.started is not None:
+        msg_parts.append(f"Started set: '{args.started}'")
+    if args.completed is not None:
+        msg_parts.append(f"Completed set: '{args.completed}'")
     if args.notes is not None:
         msg_parts.append(f"Notes appended: '{args.notes}'")
     print(" ".join(msg_parts))
@@ -741,6 +802,8 @@ def cmd_set_step_status(args):
         description_match=args.description,
         new_status=args.status,
         new_notes=args.notes,
+        new_started=args.started,
+        new_completed=args.completed,
     )
     if not modified:
         return 1
@@ -751,6 +814,10 @@ def cmd_set_step_status(args):
         msg_parts.append(f"'{args.description}'")
     msg_parts.append(f"to '{args.status}' in {source}")
     output_msg = f"OK: updated {' '.join(msg_parts)}"
+    if args.started is not None:
+        output_msg += f"; Started set: '{args.started}'"
+    if args.completed is not None:
+        output_msg += f"; Completed set: '{args.completed}'"
     if args.notes is not None:
         output_msg += f"; Notes appended: '{args.notes}'"
     print(output_msg)
