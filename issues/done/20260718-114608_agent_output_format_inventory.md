@@ -1,5 +1,51 @@
 # エージェント実行時の画面出力機能の洗い出しと分類(フォーマット統一の事前調査)
 
+## 最新検証結果 (2026-09-13)
+
+### ✅ 完了済みの項目
+
+1. **角括弧プレフィックスの一元化** (`scripts/agent/output_tags.py`)
+   - `OutputTag(StrEnum)` が新設済み
+   - `cli_view.py`, `output_port.py`, `tool_output.py` の全出力箇所が `OutputTag.*` を使用
+   - 生文字列リテラルでのタグ使用は残っていない（docstring内の言及のみ）
+   - `[fatal]`/`[FATAL]` の大文字小文字不統一は解消済み
+   - `tests/test_startup.py::test_production_profile_raises_on_start_failure` の `match=r"\[fatal\]"` は更新済み
+
+2. **`write_debug_rag` の削除**
+   - プロダクションコード・テストコードの両方で完全に削除済み
+   - `grep -rn "write_debug_rag"` でヒットなし
+
+3. **ロギングとの二重化**
+   - `startup.py` に `logger.warning` + `write_warning` の同時呼び出しは存在しない
+   - `orchestrator.py` の `logger.warning` はログ出力のみで画面表示を伴わない
+
+### ⚠️ まだ対応が必要な項目（ユーザー判断待ち）
+
+1. **`OutputPort` / `Writer` の1系統への統合**
+   - `Writer` Protocol（`cli_view.py`）と `OutputPort` Protocol（`output_port.py`）がまだ別個に存在
+   - 両者は異なるメソッドシグネチャ・責任範囲を持つため、単純な統合は設計判断が必要
+
+2. **`services/export_formatter.py` の `sys.stdout.write()`**
+   - 現在も `sys.stdout.write(content + "\n")` を使用
+   - 他の出力口（`print()` / `CliOutputPort`）と統一するか判断待ち
+
+3. **テーブル表示の不統一**
+   - `cmd_mcp.py`: `_format_mcp_table()` で独自固定幅フォーマット
+   - `cmd_config_display.py`: `write()` で個別インデント/コロン整形
+   - `write_table()` は `cmd_session.py`, `cmd_memory.py` のみで使用
+
+4. **エラー表現の不統一**
+   - `cmd_context.py:152`: `write_no_data(f"{OutputTag.WARN} {result.warning}")` — タグをテキスト内に埋め込み
+   - `cmd_audit.py:45`: `"Audit log not found: {path}"` — `write_error()` ではなく生の `write()`
+
+### 📋 追加で発見した事項
+
+- `OutputTag` に `[debug]` タグがない（issueでは `[debug]` が未統一として言及されていたが、現在は使用されていない）
+- `OutputTag` に `[tool-call]` / `[tool-result]` タグがない（`emit_tool_call` / `emit_tool_result` は `{OutputTag.TOOL}` を共用）
+- `cmd_context.py` の一部出力が `write()` で直接行われており、`write_kv()` や `write_table()` の活用余地がある
+
+---
+
 **部分対応 (2026-07-19).** 本ファイル「推奨アクション」のうち以下2点を実施:
 
 - `write_debug_rag`(`cli_view.py:206-240` 相当 および `commands/output_port.py:94-133` 相当。
