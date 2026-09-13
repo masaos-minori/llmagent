@@ -251,12 +251,12 @@ Callers:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Preparation — Remove redundant items | Pending | — | — | REQ-003, REQ-004 |
-| 2 | Phase 2: Core Logic — Consolidate reload methods | Pending | — | — | REQ-002, REQ-005 |
-| 3 | Phase 3: Eliminate duplicate classification | Pending | — | — | REQ-001 |
-| 4 | Update tests per Validation plan | Pending | — | — | REQ-001, REQ-002 |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | REQ-005, REQ-006 |
-| 6 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation files need updating |
+| 1 | Phase 1: Preparation — Remove redundant items | Completed | 20260913-100224 | 20260913-100224 | REQ-003, REQ-004 |
+| 2 | Phase 2: Core Logic — Consolidate reload methods | Completed | 20260913-100224 | 20260913-100224 | REQ-002, REQ-005 |
+| 3 | Phase 3: Eliminate duplicate classification | Completed | 20260913-100224 | 20260913-100224 | REQ-001 |
+| 4 | Update tests per Validation plan | Completed | 20260913-100224 | 20260913-100224 | REQ-001, REQ-002 |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260913-100224 | 20260913-100224 | REQ-005, REQ-006 |
+| 6 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | no docs/00_index.md task-scope mapping for scripts/agent/services/config_reload.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -272,7 +272,7 @@ Callers:
 
 - **Workflow phase**: plan-to-implementation-procedure
 - **Requirement ID**: REQ-001 through REQ-006
-- **Source issue**: issues/20260913-064743_refactor_config_reload_eliminate_duplication.md
+- **Source issue**: issues/20260913-064743_refactor_config_reload_elimination.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20260913-070431_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure

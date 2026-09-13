@@ -52,13 +52,13 @@ from agent.services.config_validators import (
 )
 
 
-
 @dataclass(frozen=True)
 class ConfigFieldRegistry:
     name: str
     section_path: str
     hot_reloadable: bool
     validator_fn: Callable[[Any], None] | None = None
+
 
 CONFIG_FIELD_REGISTRY: Mapping[str, ConfigFieldRegistry] = {
     entry.name: entry
@@ -146,18 +146,7 @@ CONFIG_FIELD_REGISTRY: Mapping[str, ConfigFieldRegistry] = {
     ]
 }
 
-_MCP_SERVER_FIELDS = (
-    "transport",
-    "url",
-    "startup_mode",
-    "call_timeout_sec",
-    "startup_timeout_sec",
-    "tool_names",
-    "auth_token",  # restart-only, intentional: a live credential change must not apply mid-session
-    "role",
-    "cmd",
-    "env",
-)
+_MCP_SERVER_FIELDS = tuple(f.name for f in dataclasses.fields(McpServerConfig))
 
 
 def _diff_mcp_server_config(old: McpServerConfig, new: McpServerConfig) -> list[str]:
@@ -262,8 +251,12 @@ class ConfigReloadService:
         self._reload_section_fields(ctx, new_cfg, "approval")
         self._reload_section_fields(ctx, new_cfg, "memory")
         self._reload_section_fields(
-            ctx, new_cfg, "mcp",
-            field_filter=lambda e: e.name in ("security_profile", "security_lockdown_enabled")
+            ctx,
+            new_cfg,
+            "mcp",
+            field_filter=lambda e: (
+                e.name in ("security_profile", "security_lockdown_enabled")
+            ),
         )
         if "system_prompt_tool" in new_cfg:
             ctx.conv.system_prompt_content = new_cfg["system_prompt_tool"]
@@ -280,6 +273,8 @@ class ConfigReloadService:
                 lifecycle = ctx.services_required.lifecycle
                 if lifecycle is not None:
                     lifecycle.cleanup_server_resources(server_key)
+            else:
+                outcome.needs_restart.append(item)
         service_result = self._sync_services(
             new_cfg,
             ctx.services_required.llm,
@@ -418,7 +413,8 @@ class ConfigReloadService:
 
         # Determine which entries to process
         entries_to_process = [
-            entry for entry in CONFIG_FIELD_REGISTRY.values()
+            entry
+            for entry in CONFIG_FIELD_REGISTRY.values()
             if entry.section_path == section_path
         ]
         if field_filter is not None:

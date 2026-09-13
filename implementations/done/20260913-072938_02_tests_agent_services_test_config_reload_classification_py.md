@@ -109,11 +109,11 @@ Lines 57-84 remain unchanged. These tests verify `_detect_diagnostics_live_field
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete _detect_startup_only tests | Pending | — | — | REQ-001 |
-| 2 | Delete _apply_tool_params tests | Pending | — | — | REQ-002 |
-| 3 | Verify _detect_diagnostics_live_fields tests still pass | Pending | — | — | REQ-001, REQ-002 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | REQ-005, REQ-006 |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation files need updating |
+| 1 | Delete _detect_startup_only tests | Completed | 20260913-100224 | 20260913-100224 | REQ-001 |
+| 2 | Delete _apply_tool_params tests | Completed | 20260913-100224 | 20260913-100224 | REQ-002 |
+| 3 | Verify _detect_diagnostics_live_fields tests still pass | Completed | 20260913-100224 | 20260913-100224 | REQ-001, REQ-002 |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260913-100224 | 20260913-100224 | REQ-005, REQ-006 |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | no docs/00_index.md task-scope mapping for tests/agent/services/test_config_reload_classification.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
