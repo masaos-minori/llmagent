@@ -176,14 +176,14 @@ Simple revert of the three method migrations and the logging standardization —
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify no callers invoke TurnCoordinator's duplicate methods | Pending | — | — | Check orchestrator.py, workflow_engine_adapter.py |
-| 2 | Document behavioral differences between implementations | Pending | — | — | Comment during refactor |
-| 3 | Move clear_previous_turn_ephemeral_messages to CSM + delegate | Pending | — | — | Extract + delegation |
-| 4 | Move sync_system_prompt to CSM + delegate | Pending | — | — | Extract + delegation |
-| 5 | Move append_user_message to CSM + delegate | Pending | — | — | Extract + delegation |
-| 6 | Standardize logging across both classes | Pending | — | — | Replace custom Logger with stdlib logging |
-| 7 | Run unit tests for ephemeral filtering, system prompt sync, user message append | Pending | — | — | uv run pytest |
-| 8 | Run regression tests for both public APIs | Pending | — | — | uv run pytest |
+| 1 | Verify no callers invoke TurnCoordinator's duplicate methods | Completed | 20260914-003252 | 20260914-003252 | Check orchestrator.py, workflow_engine_adapter.py |
+| 2 | Document behavioral differences between implementations | Completed | 20260914-003252 | 20260914-003252 | Comment during refactor |
+| 3 | Move clear_previous_turn_ephemeral_messages to CSM + delegate | Completed | 20260914-003252 | 20260914-003252 | Extract + delegation |
+| 4 | Move sync_system_prompt to CSM + delegate | Completed | 20260914-003252 | 20260914-003252 | Extract + delegation |
+| 5 | Move append_user_message to CSM + delegate | Completed | 20260914-003252 | 20260914-003252 | Extract + delegation |
+| 6 | Standardize logging across both classes | Completed | 20260914-003252 | 20260914-003252 | Replace custom Logger with stdlib logging |
+| 7 | Run unit tests for ephemeral filtering, system prompt sync, user message append | Completed | 20260914-003253 | 20260914-003253 | uv run pytest |
+| 8 | Run regression tests for both public APIs | Completed | 20260914-003253 | 20260914-003253 | uv run pytest |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
