@@ -82,7 +82,7 @@ with no further action needed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm no code change is required (re-read `run_with_db_lock()` against the implemented `app.py` change) | Pending | — | — | |
+| 1 | Confirm no code change is required (re-read `run_with_db_lock()` against the implemented `app.py` change) | Completed | 20260913-110646 | 20260913-110646 | Confirmed: run_with_db_lock() and app.py's shutdown path both acquire the same eventbus.db.get_db_lock() object; no code change needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
