@@ -88,9 +88,9 @@ Simple revert: restore the original Note text at line 85.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Confirm the callback chain and staleness condition | Pending | — | — | |
-| 2 | Phase 2: Rewrite the Note | Pending | — | — | |
-| 3 | Verification: manual review | Pending | — | — | |
+| 1 | Phase 1: Confirm the callback chain and staleness condition | Completed | 20260914-001407 | 20260914-001407 |  |
+| 2 | Phase 2: Rewrite the Note | Completed | 20260914-001407 | 20260914-001407 |  |
+| 3 | Verification: manual review | Completed | 20260914-001408 | 20260914-001408 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
