@@ -91,7 +91,7 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "tests" / "agent" / "services" / "test_config_reload.py",
     ROOT_DIR / "tests" / "agent" / "shared" / "test_mcp_health_interpretation.py",
     ROOT_DIR / "tests" / "agent" / "test_agent_session.py",
-    ROOT_DIR / "tests" / "agent" / "test_cli_view.py",
+    ROOT_DIR / "tests" / "test_cli_view.py",
     ROOT_DIR / "tests" / "agent" / "test_config_dataclasses.py",
     ROOT_DIR / "tests" / "agent" / "test_diagnostic_store.py",
     ROOT_DIR / "tests" / "agent" / "test_http_lifecycle_command_validator.py",
