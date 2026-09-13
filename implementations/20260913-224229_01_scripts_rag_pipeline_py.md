@@ -94,10 +94,10 @@ Revert the deletion commit to restore the methods and imports. The methods' logi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Confirm zero callers and import usage | Pending | — | — | |
-| 2 | Phase 2: Delete dead methods | Pending | — | — | |
-| 3 | Phase 2: Remove unused imports | Pending | — | — | |
-| 4 | Verification: run tests and lint | Pending | — | — | |
+| 1 | Phase 1: Confirm zero callers and import usage | Completed | 20260914-000829 | 20260914-000829 |  |
+| 2 | Phase 2: Delete dead methods | Completed | 20260914-000829 | 20260914-000829 |  |
+| 3 | Phase 2: Remove unused imports | Completed | 20260914-000829 | 20260914-000829 |  |
+| 4 | Verification: run tests and lint | Completed | 20260914-000830 | 20260914-000830 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
