@@ -125,6 +125,7 @@ def test_load_config_succeeds_without_stray_keys(tmp_path: Path) -> None:
         "max_retry = 3\n"
         'host = "127.0.0.1"\n'
         'auth_token = "test-token"\n'
+        'admin_token = "test-token"\n'
     )
     cfg = load_config(toml_path)
     assert cfg.port == 8015
@@ -224,6 +225,7 @@ deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
 auth_token = "test-token"
+admin_token = "test-token"
 slow_consumer_threshold = 200
 subscriber_queue_maxsize = 2000
 backlog_health_threshold = 1000
@@ -265,6 +267,23 @@ host = "127.0.0.1"
 auth_token = ""
 """)
     with pytest.raises(ValueError, match="auth_token"):
+        load_config(config_file)
+
+
+def test_load_config_rejects_missing_per_role_token(tmp_path: Path) -> None:
+    """REQ-001: load_config() raises ValueError when no per-role token is set."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-token"
+""")
+    with pytest.raises(ValueError, match="per-role token"):
         load_config(config_file)
 
 

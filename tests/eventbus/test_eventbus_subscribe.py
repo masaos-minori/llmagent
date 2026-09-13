@@ -20,7 +20,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=3,
-        auth_token=None,  # No shared token — using per-role tokens only
+        auth_token="shared-token",
         consumer_token="consumer-token",
         operator_token="operator-token",
         admin_token="admin-token",

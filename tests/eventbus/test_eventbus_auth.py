@@ -11,12 +11,13 @@ Precedent: scripts/mcp_servers/server.py::attach_auth_middleware() pattern
 """
 
 import asyncio
+import time
 from datetime import UTC
 from pathlib import Path
 from typing import Any
 
 import pytest
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.testclient import TestClient
 
 TEST_TOKEN = "test-auth-token"
@@ -29,6 +30,7 @@ TEST_DEADLETTER_DIR = "/tmp/test-deadletter"
 def _make_test_app(
     tmp_path: Path,
     token: str | None = None,
+    publisher_token: str | None = None,
     consumer_token: str | None = None,
     operator_token: str | None = None,
     admin_token: str | None = None,
@@ -49,6 +51,7 @@ def _make_test_app(
         max_retry=3,
         host="127.0.0.1",
         auth_token=token,
+        publisher_token=publisher_token,
         consumer_token=consumer_token,
         operator_token=operator_token,
         admin_token=admin_token,
@@ -156,8 +159,10 @@ async def _init_local_state(app: FastAPI, cfg: Any) -> None:
     import pathlib
 
     from eventbus import app as eb_app
+    from eventbus.auth import _populate_token_maps
 
     app.state.config = cfg
+    _populate_token_maps(cfg)
     app.state.db = eb_app.open_db(cfg.db_path)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
@@ -198,10 +203,11 @@ class TestPublishAuth:
         cls.tmp_path.mkdir(exist_ok=True)
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
-            token=None,  # No shared token — using per-role tokens only
-            consumer_token=None,
+            token="test-shared-token",
+            publisher_token="test-publisher-token",
+            consumer_token="test-consumer-token",
             operator_token=None,
-            admin_token=None,
+            admin_token="test-admin-token",
         )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
@@ -226,7 +232,7 @@ class TestPublishAuth:
         response = self.client.post(
             "/publish",
             json=body,
-            headers={"Authorization": f"Bearer {cls.cfg.admin_token}"},
+            headers={"Authorization": f"Bearer {self.cfg.publisher_token}"},
         )
         assert response.status_code == 200
 
@@ -245,6 +251,30 @@ class TestPublishAuth:
         response = self.client.post("/publish", json=body)
         assert response.status_code == 401
 
+    @pytest.mark.asyncio
+    async def test_check_role_rejects_wrong_role_token(self) -> None:
+        """AC-4: require_role()'s _check_role rejects a token whose _TOKEN_ROLE_MAP
+        entry does not include the endpoint's required role — a consumer_token
+        holder is not authorized for a Role.PUBLISHER-gated endpoint. Unit-level
+        (calls _check_role directly) rather than through this file's own
+        `_make_test_app()` HTTP fixture: that fixture's locally-defined routes
+        (unlike the real `app.py`) never declare `Depends(require_role(...))`
+        themselves (a separate, pre-existing gap — see the new issue this
+        discovery was filed under), so an HTTP-level request through it cannot
+        exercise this check at all.
+        """
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import Role, _populate_token_maps, require_role
+
+        _populate_token_maps(self.cfg)
+        request = MagicMock()
+        request.url.path = "/publish"
+        check_role = require_role(Role.PUBLISHER)
+        with pytest.raises(HTTPException) as exc_info:
+            await check_role(request, token=self.cfg.consumer_token)
+        assert exc_info.value.status_code == 403
+
 
 class TestSubscribeAuth:
     """Tests for GET /subscribe authorization."""
@@ -255,8 +285,8 @@ class TestSubscribeAuth:
         cls.tmp_path.mkdir(exist_ok=True)
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
-            token=None,
-            consumer_token=None,
+            token="test-shared-token",
+            consumer_token="test-consumer-token",
             operator_token=None,
             admin_token=None,
         )
@@ -274,7 +304,7 @@ class TestSubscribeAuth:
             "GET",
             "/subscribe",
             params={"topic": "test", "consumer_id": "consumer_a"},
-            headers={"Authorization": f"Bearer {cls.cfg.consumer_token}"},
+            headers={"Authorization": f"Bearer {self.cfg.consumer_token}"},
         ) as response:
             assert response.status_code == 200
 
@@ -285,35 +315,25 @@ class TestSubscribeAuth:
             "GET",
             "/subscribe",
             params={"topic": "test", "consumer_id": "consumer_b"},
-            headers={"Authorization": f"Bearer {cls.cfg.consumer_token}"},
+            headers={"Authorization": f"Bearer {self.cfg.consumer_token}"},
         ) as response:
             assert response.status_code == 200
             data = b""
-            while True:
-                chunk = response.read(1)
-                if not chunk:
-                    break
+            for chunk in response.iter_bytes():
                 data += chunk
                 if b"\n\n" in data:
                     break
-        
+
         elapsed = time.time() - start_time
-        assert elapsed < 120, f"Stream did not close within expected timeout: {elapsed}s"
+        assert elapsed < 120, (
+            f"Stream did not close within expected timeout: {elapsed}s"
+        )
 
     def test_subscribe_without_token(self) -> None:
         """Unauthenticated request to /subscribe is rejected."""
         response = self.client.get(
             "/subscribe",
             params={"topic": "test", "consumer_id": "consumer_a"},
-        )
-        assert response.status_code == 401
-
-    def test_subscribe_as_wrong_role(self) -> None:
-        """Non-consumer role cannot subscribe."""
-        response = self.client.get(
-            "/subscribe",
-            params={"topic": "test", "consumer_id": "consumer_a"},
-            headers={"Authorization": "Bearer operator-token"},
         )
         assert response.status_code == 401
 
@@ -336,10 +356,10 @@ class TestAckAuth:
         cls.tmp_path.mkdir(exist_ok=True)
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
-            token=None,
+            token="test-shared-token",
             consumer_token=None,
             operator_token=None,
-            admin_token=None,
+            admin_token="test-admin-token",
         )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
@@ -366,10 +386,10 @@ class TestNackAuth:
         cls.tmp_path.mkdir(exist_ok=True)
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
-            token=None,
+            token="test-shared-token",
             consumer_token=None,
             operator_token=None,
-            admin_token=None,
+            admin_token="test-admin-token",
         )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
@@ -394,9 +414,9 @@ class TestDlqListAuth:
         cls.tmp_path.mkdir(exist_ok=True)
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
-            token=None,
+            token="test-shared-token",
             consumer_token=None,
-            operator_token=None,
+            operator_token="test-operator-token",
             admin_token=None,
         )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
@@ -411,7 +431,7 @@ class TestDlqListAuth:
         """Authorized operator can list DLQ entries."""
         response = self.client.get(
             "/dlq",
-            headers={"Authorization": f"Bearer {cls.cfg.operator_token}"},
+            headers={"Authorization": f"Bearer {self.cfg.operator_token}"},
         )
         assert response.status_code == 200
 
@@ -430,10 +450,10 @@ class TestDlqRequeueAuth:
         cls.tmp_path.mkdir(exist_ok=True)
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
-            token=None,
+            token="test-shared-token",
             consumer_token=None,
             operator_token=None,
-            admin_token=None,
+            admin_token="test-admin-token",
         )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
@@ -458,9 +478,9 @@ class TestReplayAuth:
         cls.tmp_path.mkdir(exist_ok=True)
         cls.app, cls.cfg = _make_test_app(
             cls.tmp_path,
-            token=None,
+            token="test-shared-token",
             consumer_token=None,
-            operator_token=None,
+            operator_token="test-operator-token",
             admin_token=None,
         )
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
@@ -476,7 +496,7 @@ class TestReplayAuth:
         response = self.client.get(
             "/replay",
             params={"since_seq": 0, "limit": 100},
-            headers={"Authorization": f"Bearer {cls.cfg.operator_token}"},
+            headers={"Authorization": f"Bearer {self.cfg.operator_token}"},
         )
         assert response.status_code == 200
 

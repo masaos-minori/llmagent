@@ -53,7 +53,7 @@ No route in `scripts/eventbus/` authenticates or authorizes callers. Every route
 
 ### Decision Details
 
-1. **Authentication mechanism**: Static Bearer token, mirroring `scripts/mcp_servers/server.py::attach_auth_middleware()` pattern — a FastAPI `@app.middleware("http")` function checking `request.headers.get("Authorization", "")` against a configured token.
+1. **Authentication mechanism**: Bearer token, mirroring `scripts/mcp_servers/server.py::attach_auth_middleware()` pattern — a FastAPI `@app.middleware("http")` function checking `request.headers.get("Authorization", "")` against a configured token. Two kinds of token are accepted: the single shared `auth_token` (grants every role, for backward compatibility with the original single-token deployment model) and an optional per-role token (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role; `admin_token` grants every role, same as `auth_token`). A caller's actual role(s) are resolved from *which* configured token they presented (`scripts/eventbus/auth.py`'s `_TOKEN_ROLE_MAP`), not merely from having presented *a* valid token — `require_role(...)`'s `_check_role` rejects (403) a token whose resolved role(s) do not include the endpoint's required role, even when that token is otherwise valid.
 2. **Authorization model**: Four roles — publisher, consumer, operator, monitoring — each granted a fixed subset of routes:
    - Publisher: POST `/publish`
    - Consumer: GET `/subscribe`, POST `/events/{event_id}/ack`, POST `/nack`
@@ -150,6 +150,10 @@ ADR-002 explicitly documents this exception — EventBus cannot import ConfigLoa
 - Clear separation of concerns between roles (publisher/consumer/operator/monitoring).
 - Audit trail for security events without recording secrets.
 - Configuration typos and unknown keys are rejected rather than silently accepted.
+- Per-role tokens make the four-role model actually enforceable: a caller holding
+  only a `consumer_token` cannot reach a `Role.PUBLISHER`/`Role.OPERATOR`-gated
+  route, closing a gap where any caller holding the single shared token could
+  previously reach every endpoint regardless of role.
 
 ### Negative Consequences
 
@@ -167,6 +171,13 @@ ADR-002 explicitly documents this exception — EventBus cannot import ConfigLoa
 
 - Operators configuring EventBus must populate `auth_token` in `config/eventbus.toml` before starting.
 - An empty/missing token causes startup failure (fail-closed), not silent unauthenticated operation.
+- Operators may additionally configure `publisher_token`/`consumer_token`/
+  `operator_token`/`monitoring_token`/`admin_token` to grant per-role access
+  instead of distributing the single shared `auth_token` to every caller.
+  `auth_token` and `admin_token` both remain broad, superuser-equivalent
+  credentials (every role) — operators who want strict role separation should
+  distribute only the specific per-role token each caller needs, not `auth_token`
+  or `admin_token`.
 
 ### Security Consequences
 

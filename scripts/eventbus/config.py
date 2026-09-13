@@ -191,13 +191,19 @@ def load_config(path: Path | None = None) -> EventBusConfig:
                     f"expected {expected_type.__name__}."
                 )
 
-        # Validate auth_token is non-empty
-        if not data["auth_token"]:
-            raise ValueError("eventbus config 'auth_token' must not be empty.")
+    # Validate auth_token is non-empty
+    if not data["auth_token"]:
+        raise ValueError("eventbus config 'auth_token' must not be empty.")
 
-        # Validate per-role tokens: at least one must be configured
-        if not any([data.get("consumer_token"), data.get("operator_token"), data.get("admin_token")]):
-            raise ValueError("At least one per-role token must be configured")
+    # Validate per-role tokens: at least one must be configured
+    if not any(
+        [
+            data.get("consumer_token"),
+            data.get("operator_token"),
+            data.get("admin_token"),
+        ]
+    ):
+        raise ValueError("At least one per-role token must be configured")
 
     return EventBusConfig(
         port=data["port"],

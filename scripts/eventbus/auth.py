@@ -30,6 +30,7 @@ _ROUTE_ROLE_MAP: dict[str, set[Role]] = {
     "/health": {Role.MONITORING},
     "/publish": {Role.PUBLISHER},
     "/subscribe": {Role.CONSUMER},
+    "/events": {Role.CONSUMER},
     "/ack": {Role.CONSUMER},
     "/nack": {Role.CONSUMER},
     "/dlq": {Role.OPERATOR},
@@ -47,28 +48,44 @@ _TOKEN_CONSUMER_MAP: dict[str, set[str]] = {}
 # Token-to-topic mapping: token -> set of permitted topics
 _TOKEN_TOPIC_MAP: dict[str, set[str]] = {}
 
+# Token-to-role mapping: token -> set of roles that token is authorized for
+_TOKEN_ROLE_MAP: dict[str, set[Role]] = {}
+
+# Per-role token config field -> the single Role it grants
+_PER_ROLE_TOKEN_FIELDS: tuple[tuple[str, Role], ...] = (
+    ("publisher_token", Role.PUBLISHER),
+    ("consumer_token", Role.CONSUMER),
+    ("operator_token", Role.OPERATOR),
+    ("monitoring_token", Role.MONITORING),
+)
+
 
 def _populate_token_maps(config: Any) -> None:
-    """Populate _TOKEN_CONSUMER_MAP and _TOKEN_TOPIC_MAP from config at startup."""
-    global _TOKEN_CONSUMER_MAP, _TOKEN_TOPIC_MAP
+    """Populate _TOKEN_CONSUMER_MAP, _TOKEN_TOPIC_MAP, and _TOKEN_ROLE_MAP from config at startup."""
+    global _TOKEN_CONSUMER_MAP, _TOKEN_TOPIC_MAP, _TOKEN_ROLE_MAP
 
     # Clear existing mappings
     _TOKEN_CONSUMER_MAP.clear()
     _TOKEN_TOPIC_MAP.clear()
+    _TOKEN_ROLE_MAP.clear()
 
-    # Get per-role token configuration from config
-    # This assumes EventBusConfig has fields like:
-    # - publisher_token: str
-    # - consumer_token: str
-    # - operator_token: str
-    # - monitoring_token: str
-    # And potentially per-consumer/topic restrictions
-
-    # For now, assume the single shared token grants all permissions
-    # This preserves backward compatibility with the existing single-token model
+    # The shared auth_token grants every role, preserving backward compatibility
+    # with the existing single-token deployment model.
     if hasattr(config, "auth_token") and config.auth_token:
         _TOKEN_CONSUMER_MAP[config.auth_token] = set()  # Empty means any consumer_id
         _TOKEN_TOPIC_MAP[config.auth_token] = set()  # Empty means any topic
+        _TOKEN_ROLE_MAP[config.auth_token] = set(Role)
+
+    # Each per-role token grants only its own role.
+    for field, role in _PER_ROLE_TOKEN_FIELDS:
+        token = getattr(config, field, None)
+        if token:
+            _TOKEN_ROLE_MAP.setdefault(token, set()).add(role)
+
+    # admin_token is a superuser credential: grants every role, same as auth_token.
+    admin_token = getattr(config, "admin_token", None)
+    if admin_token:
+        _TOKEN_ROLE_MAP.setdefault(admin_token, set()).update(Role)
 
 
 def get_auth_token(config: Any) -> str:
@@ -95,13 +112,13 @@ async def verify_bearer_token(
     config = request.app.state.config
 
     try:
-        expected_token = get_auth_token(config)
+        get_auth_token(config)  # fail-closed: 500 if unconfigured
     except ValueError:
         raise HTTPException(
             status_code=500, detail="Server misconfiguration: auth_token not configured"
         )
 
-    if token != expected_token:
+    if token not in _TOKEN_ROLE_MAP:
         logger.warning("Authentication failed: invalid Bearer token")
         return ""
 
@@ -122,6 +139,17 @@ def require_role(role: Role):
         if not token:
             # Authentication already failed in verify_bearer_token
             raise HTTPException(status_code=401, detail="Unauthorized")
+
+        # Determine the caller's actual role(s) from which token they presented
+        caller_roles = _TOKEN_ROLE_MAP.get(token, set())
+        if role not in caller_roles:
+            logger.warning(
+                "Authorization failed: caller's token does not grant role=%s",
+                role,
+            )
+            raise HTTPException(
+                status_code=403, detail=f"Forbidden: requires {role} role"
+            )
 
         # Determine which route category is being accessed
         path = request.url.path
@@ -146,7 +174,7 @@ def require_role(role: Role):
 
 async def require_consumer_identity(
     request: Request,
-    consumer_id: str,
+    consumer_id: str = "",
     topics: list[str] | None = None,
     token: str = Depends(verify_bearer_token),
 ) -> dict[str, Any]:
@@ -158,8 +186,12 @@ async def require_consumer_identity(
     if not token:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Validate consumer_id is in the allowlist for this caller
-    if consumer_id and consumer_id not in _TOKEN_CONSUMER_MAP.get(token, set()):
+    # Validate consumer_id is in the allowlist for this caller. An empty allowlist
+    # (no entry, or an explicit empty set) means "no consumer_id restriction" for
+    # this token, per _populate_token_maps()'s own "Empty means any consumer_id"
+    # convention (e.g. the shared auth_token is deliberately given an empty set).
+    allowed_consumers = _TOKEN_CONSUMER_MAP.get(token, set())
+    if consumer_id and allowed_consumers and consumer_id not in allowed_consumers:
         logger.warning(
             "Authorization failed: consumer_id=%s not allowed for this caller",
             consumer_id,
@@ -221,7 +253,14 @@ def attach_auth_middleware(app: Any) -> None:
         tok = getattr(request.app.state.config, "auth_token", "") or ""
         if not tok:
             return True
-        return request.headers.get("Authorization", "") == f"Bearer {tok}"
+        header = request.headers.get("Authorization", "")
+        if header == f"Bearer {tok}":
+            return True
+        # A per-role token (or admin_token) also authenticates at this layer;
+        # which role(s) it grants is enforced later by require_role().
+        if header.startswith("Bearer "):
+            return header.removeprefix("Bearer ") in _TOKEN_ROLE_MAP
+        return False
 
     async def _auth_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol
         """Authenticate requests by validating Bearer token header."""
