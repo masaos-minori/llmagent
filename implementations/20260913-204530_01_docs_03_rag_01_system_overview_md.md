@@ -116,13 +116,13 @@ Simple revert of the added text — no data migration or state rollback needed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify existing cross-reference wording | Pending | — | — | Line 136 |
-| 2 | Write responsibility summary for rag_pipeline_server.py | Pending | — | — | HTTP route handling |
-| 3 | Write responsibility summary for rag_pipeline_service.py | Pending | — | — | Pipeline orchestration |
-| 4 | Write responsibility summary for scripts/rag/pipeline.py | Pending | — | — | Core search logic |
-| 5 | Add caller → callee flow description | Pending | — | — | MCP client → server → service → pipeline |
-| 6 | Preserve existing cross-reference as supplementary detail | Pending | — | — | After inline summary |
-| 7 | Manual review of accuracy against source code | Pending | — | — | Verify all claims |
+| 1 | Verify existing cross-reference wording | Completed | — | — | Line 136 |
+| 2 | Write responsibility summary for rag_pipeline_server.py | Completed | — | — | HTTP route handling |
+| 3 | Write responsibility summary for rag_pipeline_service.py | Completed | — | — | Pipeline orchestration |
+| 4 | Write responsibility summary for scripts/rag/pipeline.py | Completed | — | — | Core search logic |
+| 5 | Add caller → callee flow description | Completed | — | — | MCP client → server → service → pipeline |
+| 6 | Preserve existing cross-reference as supplementary detail | Completed | — | — | After inline summary |
+| 7 | Manual review of accuracy against source code | Completed | — | — | Verify all claims |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
