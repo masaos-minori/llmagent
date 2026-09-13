@@ -114,12 +114,12 @@ Simple revert of the three modifications (attribute addition, ownership assignme
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `self._owns_state_store` attribute to WorkflowEngineAdapter | Pending | — | — | Default False |
-| 2 | Set `self._owns_state_store = close_store` in _init_workflow_task | Pending | — | — | When store=None |
-| 3 | Update execute_turn's finally block to conditionally close | Pending | — | — | Based on ownership |
-| 4 | Reset `self._owns_state_store = False` after execution | Pending | — | — | Prevent stale ownership |
-| 5 | Update _init_workflow_task docstring for ownership contract | Pending | — | — | Clarify ownership semantics |
-| 6 | Run validation sequence (rules/toolchain.md) | Pending | — | — | pytest scripts/agent/ |
+| 1 | Add `self._owns_state_store` attribute to WorkflowEngineAdapter | Completed | — | — | Default False |
+| 2 | Set `self._owns_state_store = close_store` in _init_workflow_task | Completed | — | — | When store=None |
+| 3 | Update execute_turn's finally block to conditionally close | Completed | — | — | Based on ownership |
+| 4 | Reset `self._owns_state_store = False` after execution | Completed | — | — | Prevent stale ownership |
+| 5 | Update _init_workflow_task docstring for ownership contract | Completed | — | — | Clarify ownership semantics |
+| 6 | Run validation sequence (rules/toolchain.md) | Completed | — | — | pytest scripts/agent/ |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
