@@ -128,10 +128,10 @@ behavior, safe either way.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260913-163146 | 20260913-163146 | subscribe() now treats _identity.get('topics') is None as unrestricted instead of iterating an empty set |
+| 2 | Add or update tests per Validation plan | Completed | 20260913-163146 | 20260913-163146 | test_subscribe_duplicate_consumer_id_returns_409 now reaches its 409 assertion (AC-4); added test_subscribe_with_restricted_topic_rejects_disallowed_topic (AC-3, no regression) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260913-163146 | 20260913-163146 | ruff/mypy/bandit/lint-imports/diff-cover(100%)/pre-commit all passed; full tests/eventbus/ suite: only pre-existing dlq-requeue/startup failures remain, 0 new regressions |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260913-163146 | 20260913-163146 | N/A: no docs/00_index.md task-scope mapping for scripts/eventbus/subscribe_route.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
