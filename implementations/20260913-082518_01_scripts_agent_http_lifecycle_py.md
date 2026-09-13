@@ -174,10 +174,6 @@ Each phase above is independently verifiable. Phase 1 extracts a pure helper wit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs require updating |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -198,3 +194,8 @@ Each phase above is independently verifiable. Phase 1 extracts a pure helper wit
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260913-082518
 - **Related target files**: scripts/agent/http_lifecycle.py
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260913-121604 | 20260913-121604 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260913-121604 | 20260913-121604 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260913-121604 | 20260913-121604 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260913-121604 | 20260913-121604 | N/A: no docs require updating |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs require updating |
