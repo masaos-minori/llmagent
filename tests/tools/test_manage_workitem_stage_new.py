@@ -134,6 +134,7 @@ class TestSetStatus:
         assert exit_code == 0
         content = fpath.read_text(encoding="utf-8")
         _, header, data_rows = parse_execution_status_table(content)
+        assert header is not None and data_rows is not None
         assert data_rows[0][header.index("Status")] == "Completed"
         assert data_rows[1][header.index("Status")] == "Completed"
         assert data_rows[2][header.index("Status")] == "Completed"
@@ -149,6 +150,7 @@ class TestSetStatus:
         assert exit_code == 0
         content = fpath.read_text(encoding="utf-8")
         _, header, data_rows = parse_execution_status_table(content)
+        assert header is not None and data_rows is not None
         for row in data_rows:
             assert row[header.index("Status")] == "In Progress"
 
@@ -199,6 +201,7 @@ class TestSetStatus:
         assert exit_code == 0
         content = fpath.read_text(encoding="utf-8")
         _, header, data_rows = parse_execution_status_table(content)
+        assert header is not None and data_rows is not None
         for row in data_rows:
             assert row[header.index("Status")] == "Blocked"
 
@@ -229,6 +232,7 @@ class TestSetStepStatusByNumber:
         assert exit_code == 0
         content = fpath.read_text(encoding="utf-8")
         _, header, data_rows = parse_execution_status_table(content)
+        assert header is not None and data_rows is not None
         assert data_rows[0][header.index("Status")] == "Pending"  # unchanged
         assert data_rows[1][header.index("Status")] == "Completed"  # updated
         assert (
@@ -320,6 +324,7 @@ class TestSetStepStatusByDescription:
         assert exit_code == 0
         content = fpath.read_text(encoding="utf-8")
         _, header, data_rows = parse_execution_status_table(content)
+        assert header is not None and data_rows is not None
         assert data_rows[0][header.index("Status")] == "Pending"  # unchanged
         assert data_rows[1][header.index("Status")] == "Completed"  # updated
         assert (
@@ -344,6 +349,7 @@ class TestSetStepStatusByDescription:
         assert exit_code == 0
         content = fpath.read_text(encoding="utf-8")
         _, header, data_rows = parse_execution_status_table(content)
+        assert header is not None and data_rows is not None
         assert data_rows[1][header.index("Status")] == "Completed"
 
     def test_set_step_status_no_description_match_refuses(
@@ -376,7 +382,10 @@ class TestSetStepStatusByDescription:
 class TestDetectStale:
     """Tests for the `detect-stale` subcommand."""
 
-    def test_detect_stale_finds_stale_items(self, tmp_path: Path) -> None:
+    def test_detect_stale_finds_stale_items(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
         fpath = _make_temp_workitem(
             tmp_path, "implementation-procedure", "stale.md", EXECUTION_STATUS_MULTI_ROW
         )
@@ -386,8 +395,12 @@ class TestDetectStale:
         assert exit_code == 0
 
     def test_detect_stale_no_stale_items(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         _make_temp_workitem(
             tmp_path, "implementation-procedure", "fresh.md", EXECUTION_STATUS_MULTI_ROW
         )
@@ -398,8 +411,12 @@ class TestDetectStale:
         assert "No stale items found" in captured.out
 
     def test_detect_stale_completed_only_not_stale(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         fpath = _make_temp_workitem(
             tmp_path,
             "implementation-procedure",
@@ -423,8 +440,12 @@ class TestList:
     """Tests for the `list` subcommand."""
 
     def test_list_all_statuses(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         _make_temp_workitem(
             tmp_path, "implementation-procedure", "pending.md", EXECUTION_STATUS_PENDING
         )
@@ -442,8 +463,12 @@ class TestList:
         assert "Completed" in captured.out
 
     def test_list_filter_by_status(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         _make_temp_workitem(
             tmp_path, "implementation-procedure", "pending.md", EXECUTION_STATUS_PENDING
         )
@@ -461,8 +486,12 @@ class TestList:
         assert "completed.md" not in captured.out
 
     def test_list_filter_by_kind(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         _make_temp_workitem(
             tmp_path, "implementation-procedure", "test.md", EXECUTION_STATUS_PENDING
         )
@@ -474,14 +503,18 @@ class TestList:
         assert "implementation-procedure" in captured.out
 
     def test_list_no_items(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
-        # Create a temp dir with no implementations/plans directories
+        # No implementations/ or plans/ directory exists under this cwd.
+        monkeypatch.chdir(tmp_path)
         args = build_parser().parse_args(["list"])
         exit_code = cmd_list(args)
         assert exit_code == 0
-        # In the real repo there are files, so we just check it doesn't crash
-        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert "No items found" in captured.out
 
 
 # ---------------------------------------------------------------------------
