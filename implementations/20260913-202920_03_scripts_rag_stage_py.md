@@ -80,8 +80,8 @@ Simple revert of the comment addition — no data migration or state rollback ne
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add inline comment above `reranked` field declaration | Pending | — | — | Clarify never-None contract |
-| 2 | Manual review of comment clarity | Pending | — | — | Ensure wording is precise |
+| 1 | Add inline comment above `reranked` field declaration | Completed | — | — | Clarify never-None contract |
+| 2 | Manual review of comment clarity | Completed | — | — | Ensure wording is precise |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
