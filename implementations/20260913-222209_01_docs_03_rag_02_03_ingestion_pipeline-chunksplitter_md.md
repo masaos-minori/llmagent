@@ -124,10 +124,10 @@ Simple revert of the text deletion and heading rename — no data migration or s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm lines 100-174 are the complete extent of the duplicate nav-block + 3a section + its Related Documents/Keywords sub-sections | Pending | — | — | Record exact wording |
-| 2 | Delete lines 100-174 in their entirety | Pending | — | — | Include repeated nav-header block |
-| 3 | Rename ## 3b. ChunkSplitter to ## 3a. ChunkSplitter | Pending | — | — | Restore sequential numbering |
-| 4 | Run rg -n "^## 3" and confirm exactly two ChunkSplitter headings remain | Pending | — | — | Verify no duplicate content |
+| 1 | Re-confirm lines 100-174 are the complete extent of the duplicate nav-block + 3a section + its Related Documents/Keywords sub-sections | Completed | — | — | Record exact wording |
+| 2 | Delete lines 100-174 in their entirety | Completed | — | — | Include repeated nav-header block |
+| 3 | Rename ## 3b. ChunkSplitter to ## 3a. ChunkSplitter | Completed | — | — | Restore sequential numbering |
+| 4 | Run rg -n "^## 3" and confirm exactly two ChunkSplitter headings remain | Completed | — | — | Verify no duplicate content |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
