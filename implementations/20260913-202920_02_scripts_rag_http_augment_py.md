@@ -92,10 +92,10 @@ Simple revert of the docstring expansion and assertion insertion — no data mig
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify `result` variable type after `call_rag_service()` returns | Pending | — | — | Confirm `str | None` |
-| 2 | Expand docstring in `HttpAugment.run()` | Pending | — | — | Add identity-vs-truthiness explanation |
-| 3 | Add assertion after `call_rag_service()` returns | Pending | — | — | Insert around line 108 |
-| 4 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | `pytest tests/rag/` |
+| 1 | Verify `result` variable type after `call_rag_service()` returns | Completed | — | — | Confirm `str | None` |
+| 2 | Expand docstring in `HttpAugment.run()` | Completed | — | — | Add identity-vs-truthiness explanation |
+| 3 | Add assertion after `call_rag_service()` returns | Completed | — | — | Insert around line 108 |
+| 4 | Run validation sequence (`rules/toolchain.md`) | Completed | — | — | `pytest tests/rag/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
