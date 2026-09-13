@@ -5,7 +5,8 @@ ConfigReloadService — applies reloaded configuration to live service instances
 Responsibilities:
   apply_config_dict()  — update ctx.cfg fields from raw dict and sync services
   _sync_services()     — propagate already-updated cfg to live service instances (private)
-  _update_section()    — registry-driven validation helper for dataclass replacement
+  _reload_section_fields() — registry-driven field updates for non-dataclass sections
+  _classify_startup_only_fields() — identify fields requiring restart on change
 
 Both return ConfigReloadOutcome so callers can display what changed.
 """
@@ -49,7 +50,7 @@ from agent.services.config_validators import (
     validate_tool_max_tool_turns,
     validate_tool_result_max_llm_chars,
 )
-from agent.services.typed_validators import _get_bool
+
 
 
 @dataclass(frozen=True)
@@ -59,13 +60,8 @@ class ConfigFieldRegistry:
     hot_reloadable: bool
     validator_fn: Callable[[Any], None] | None = None
 
-    @property
-    def field_name(self) -> str:
-        return self.name
-
-
 CONFIG_FIELD_REGISTRY: Mapping[str, ConfigFieldRegistry] = {
-    entry.field_name: entry
+    entry.name: entry
     for entry in [
         # LLM section
         ConfigFieldRegistry("http_timeout", "llm", True, validate_llm_http_timeout),
@@ -241,10 +237,10 @@ class ConfigReloadService:
             for field_entry in CONFIG_FIELD_REGISTRY.values():
                 if field_entry.section_path != section_path:
                     continue
-                value = new_cfg.get(field_entry.field_name)
-                if value is None or value == getattr(cfg, field_entry.field_name):
+                value = new_cfg.get(field_entry.name)
+                if value is None or value == getattr(cfg, field_entry.name):
                     continue
-                changed_fields[field_entry.field_name] = value
+                changed_fields[field_entry.name] = value
             if changed_fields:
                 try:
                     replaced = dataclasses.replace(cfg, **changed_fields)
@@ -259,13 +255,16 @@ class ConfigReloadService:
                             field_entry.validator_fn(replaced)
                         except ValueError as e:
                             raise ConfigReloadValidationError(
-                                f"{section_path}.{field_entry.field_name}: {e}"
+                                f"{section_path}.{field_entry.name}: {e}"
                             ) from e
                 setattr(ctx.cfg, section_path, replaced)
         # web_search_url handled by registry-driven loop above
-        self._reload_approval_config(ctx, new_cfg)
-        self._reload_memory_runtime(ctx, new_cfg)
-        self._reload_security_profile(ctx, new_cfg)
+        self._reload_section_fields(ctx, new_cfg, "approval")
+        self._reload_section_fields(ctx, new_cfg, "memory")
+        self._reload_section_fields(
+            ctx, new_cfg, "mcp",
+            field_filter=lambda e: e.name in ("security_profile", "security_lockdown_enabled")
+        )
         if "system_prompt_tool" in new_cfg:
             ctx.conv.system_prompt_content = new_cfg["system_prompt_tool"]
         if "allowed_tools" in new_cfg:
@@ -289,7 +288,7 @@ class ConfigReloadService:
         )
         outcome.applied.extend(service_result.applied)
         outcome.skipped.extend(service_result.skipped)
-        outcome.startup_only = self._detect_startup_only(new_cfg)
+        outcome.startup_only = self._classify_startup_only_fields(new_cfg)
         outcome.always_live = self._detect_diagnostics_live_fields(new_cfg)
         return outcome
 
@@ -395,116 +394,68 @@ class ConfigReloadService:
                 result.needs_restart.append(f"mcp_servers/{key} (removed server)")
         return result
 
-    def _reload_section(
+    def _reload_section_fields(
         self,
         ctx: AgentContext,
         new_cfg: dict[str, Any],
         section_path: str,
-        field_mappings: list[tuple[str, str]],
+        field_filter: Callable[[ConfigFieldRegistry], bool] | None = None,
     ) -> None:
-        """Apply a batch of field updates to a config section.
+        """Apply field updates to a config section based on CONFIG_FIELD_REGISTRY.
 
         Args:
             ctx: AgentContext for accessing cfg
             new_cfg: New configuration dict
             section_path: Dot-separated path to the target section (e.g., "approval")
-            field_mappings: List of (new_cfg_key, target_field) tuples where
-                target_field is the attribute name within the section
+            field_filter: Optional callable that takes a ConfigFieldRegistry entry
+                and returns True if the field should be processed. If None,
+                processes all entries whose section_path matches.
         """
         parts = section_path.split(".")
         obj = ctx.cfg
         for part in parts:
             obj = getattr(obj, part)
-        for new_key, target_field in field_mappings:
-            if new_key not in new_cfg:
-                continue
-            value = new_cfg[new_key]
-            if isinstance(value, dict):
-                setattr(obj, target_field, dict(value))
-            elif isinstance(value, list):
-                setattr(obj, target_field, list(value))
-            else:
-                setattr(obj, target_field, value)
 
-    def _reload_approval_config(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-    ) -> None:
-        """Update ApprovalConfig fields in ctx.cfg when present in new_cfg."""
-        field_mappings = [
-            (entry.field_name, entry.field_name)
-            for entry in CONFIG_FIELD_REGISTRY.values()
-            if entry.section_path == "approval"
+        # Determine which entries to process
+        entries_to_process = [
+            entry for entry in CONFIG_FIELD_REGISTRY.values()
+            if entry.section_path == section_path
         ]
-        self._reload_section(ctx, new_cfg, "approval", field_mappings)
+        if field_filter is not None:
+            entries_to_process = [e for e in entries_to_process if field_filter(e)]
 
-    def _reload_tool_allowlist(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-    ) -> None:
-        """Reload allowed_tools from new_cfg if present."""
-        field_mappings = [
-            (entry.field_name, entry.field_name)
-            for entry in CONFIG_FIELD_REGISTRY.values()
-            if entry.section_path == "tool" and entry.field_name == "allowed_tools"
-        ]
-        self._reload_section(ctx, new_cfg, "tool", field_mappings)
-
-    def _reload_memory_runtime(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-    ) -> None:
-        """Reload memory runtime fields from new_cfg if present."""
-        field_mappings = [
-            (entry.field_name, entry.field_name)
-            for entry in CONFIG_FIELD_REGISTRY.values()
-            if entry.section_path == "memory"
-        ]
-        self._reload_section(ctx, new_cfg, "memory", field_mappings)
-
-    def _reload_security_profile(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-    ) -> None:
-        """Reload the security-profile and security-lockdown fields from new_cfg."""
-        for field_entry in CONFIG_FIELD_REGISTRY.values():
-            if field_entry.section_path != "mcp":
-                continue
-            value = new_cfg.get(field_entry.field_name)
+        for entry in entries_to_process:
+            value = new_cfg.get(entry.name)
             if value is None:
                 continue
-            if field_entry.field_name == "security_profile":
-                try:
-                    from shared.mcp_config import SecurityProfile
+            if isinstance(value, dict):
+                setattr(obj, entry.name, dict(value))
+            elif isinstance(value, list):
+                setattr(obj, entry.name, list(value))
+            else:
+                setattr(obj, entry.name, value)
 
-                    ctx.cfg.mcp.security_profile = SecurityProfile(value)
-                except ValueError:
-                    pass
-            elif field_entry.field_name == "security_lockdown_enabled":
-                ctx.cfg.mcp.security_lockdown_enabled = bool(value)
-
-    def _detect_startup_only(
+    def _classify_startup_only_fields(
         self,
         new_cfg: dict[str, Any],
     ) -> list[str]:
-        """Return names of startup-only fields that differ between new_cfg and running cfg."""
+        """Return names of startup-only fields that differ between new_cfg and running cfg.
+
+        Uses CONFIG_FIELD_REGISTRY.hot_reloadable as the single source of truth:
+        fields with hot_reloadable=False that differ between new and running cfg
+        are reported here.
+        """
         changed: list[str] = []
         ctx = self._ctx
-        v = _get_bool(new_cfg, "use_memory_layer")
-        if v is not None and v != ctx.cfg.memory.use_memory_layer:
-            changed.append("use_memory_layer")
-
-        v = _get_bool(new_cfg, "routing_drift_strict")
-        if v is not None and v != ctx.cfg.tool.routing_drift_strict:
-            changed.append("routing_drift_strict")
-
-        v = _get_bool(new_cfg, "memory_embed_enabled")
-        if v is not None and v != ctx.cfg.memory.memory_embed_enabled:
-            changed.append("memory_embed_enabled")
+        for entry in CONFIG_FIELD_REGISTRY.values():
+            if entry.hot_reloadable:
+                continue
+            value = new_cfg.get(entry.name)
+            if value is None:
+                continue
+            current = getattr(getattr(ctx.cfg, entry.section_path), entry.name)
+            if value != current:
+                changed.append(entry.name)
         return changed
 
     def _detect_diagnostics_live_fields(

@@ -403,7 +403,7 @@ class TestMcpServerChangeClassification:
 
 
 class TestStartupOnlyDetection:
-    """_detect_startup_only classifies use_memory_layer changes."""
+    """_classify_startup_only_fields classifies hot_reloadable=False changes."""
 
     def _make_svc(
         self, use_memory_layer: bool = False, memory_embed_enabled: bool = True
@@ -417,22 +417,22 @@ class TestStartupOnlyDetection:
 
     def test_no_change_returns_empty(self) -> None:
         svc = self._make_svc(use_memory_layer=True)
-        result = svc._detect_startup_only({"use_memory_layer": True})
+        result = svc._classify_startup_only_fields({"use_memory_layer": True})
         assert result == []
 
     def test_missing_key_returns_empty(self) -> None:
         svc = self._make_svc(use_memory_layer=False)
-        result = svc._detect_startup_only({})
+        result = svc._classify_startup_only_fields({})
         assert result == []
 
     def test_memory_embed_enabled_change_detected(self) -> None:
         svc = self._make_svc(use_memory_layer=True, memory_embed_enabled=False)
-        result = svc._detect_startup_only({"memory_embed_enabled": True})
+        result = svc._classify_startup_only_fields({"memory_embed_enabled": True})
         assert "memory_embed_enabled" in result
 
     def test_memory_embed_enabled_no_change(self) -> None:
         svc = self._make_svc(use_memory_layer=True, memory_embed_enabled=True)
-        result = svc._detect_startup_only({"memory_embed_enabled": True})
+        result = svc._classify_startup_only_fields({"memory_embed_enabled": True})
         assert "memory_embed_enabled" not in result
 
 
@@ -682,7 +682,7 @@ class TestRegistryFieldClassification:
         from agent.services.config_reload import CONFIG_FIELD_REGISTRY
 
         llm_fields = [
-            entry.field_name
+            entry.name
             for entry in CONFIG_FIELD_REGISTRY.values()
             if entry.section_path == "llm"
         ]
@@ -708,7 +708,7 @@ class TestRegistryFieldClassification:
         from agent.services.config_reload import CONFIG_FIELD_REGISTRY
 
         rag_fields = [
-            entry.field_name
+            entry.name
             for entry in CONFIG_FIELD_REGISTRY.values()
             if entry.section_path == "rag"
         ]
@@ -726,7 +726,7 @@ class TestRegistryFieldClassification:
         from agent.services.config_reload import CONFIG_FIELD_REGISTRY
 
         tool_fields = [
-            entry.field_name
+            entry.name
             for entry in CONFIG_FIELD_REGISTRY.values()
             if entry.section_path == "tool"
         ]
@@ -748,7 +748,7 @@ class TestRegistryFieldClassification:
         from agent.services.config_reload import CONFIG_FIELD_REGISTRY
 
         approval_fields = [
-            entry.field_name
+            entry.name
             for entry in CONFIG_FIELD_REGISTRY.values()
             if entry.section_path == "approval"
         ]
@@ -770,7 +770,7 @@ class TestRegistryFieldClassification:
         from agent.services.config_reload import CONFIG_FIELD_REGISTRY
 
         memory_fields = [
-            entry.field_name
+            entry.name
             for entry in CONFIG_FIELD_REGISTRY.values()
             if entry.section_path == "memory"
         ]
@@ -786,7 +786,7 @@ class TestRegistryFieldClassification:
         from agent.services.config_reload import CONFIG_FIELD_REGISTRY
 
         mcp_fields = [
-            entry.field_name
+            entry.name
             for entry in CONFIG_FIELD_REGISTRY.values()
             if entry.section_path == "mcp"
         ]
@@ -807,7 +807,7 @@ class TestRegistryFieldClassification:
     def test_no_duplicate_field_names_in_registry(self) -> None:
         from agent.services.config_reload import CONFIG_FIELD_REGISTRY
 
-        names = [entry.field_name for entry in CONFIG_FIELD_REGISTRY.values()]
+        names = [entry.name for entry in CONFIG_FIELD_REGISTRY.values()]
         assert len(names) == len(set(names)), (
             f"Duplicate field names found: {[n for n in names if names.count(n) > 1]}"
         )

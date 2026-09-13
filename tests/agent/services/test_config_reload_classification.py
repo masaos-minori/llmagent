@@ -18,7 +18,6 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.llm.llm_temperature = 0.7
     ctx.cfg.llm.llm_max_tokens = 4096
     ctx.cfg.llm.context_char_limit = 100_000
-    ctx.cfg.tool.tool_cache_ttl = 60.0
     ctx.cfg.mcp.mcp_servers = {}
     ctx.cfg.tool.system_prompts = {}
     ctx.cfg.tool.masked_fields = []
@@ -38,17 +37,24 @@ def svc(ctx: MagicMock) -> ConfigReloadService:
     return ConfigReloadService(ctx)
 
 
-# --- Direct unit tests of _detect_startup_only ---
+# --- Direct unit tests of _classify_startup_only_fields ---
 
 
-def test_detect_startup_only_empty_dict(svc: ConfigReloadService) -> None:
-    result = svc._detect_startup_only({})
+def test_classify_startup_only_empty_dict(svc: ConfigReloadService) -> None:
+    result = svc._classify_startup_only_fields({})
     assert result == []
 
 
-def test_detect_startup_only_non_startup_keys_ignored(svc: ConfigReloadService) -> None:
-    result = svc._detect_startup_only({"llm_temperature": 0.3, "llm_max_tokens": 8192})
+def test_classify_startup_only_non_startup_keys_ignored(svc: ConfigReloadService) -> None:
+    result = svc._classify_startup_only_fields({"llm_temperature": 0.3, "llm_max_tokens": 8192})
     assert result == []
+
+
+def test_classify_startup_only_hot_reload_false_detected(svc: ConfigReloadService) -> None:
+    ctx = svc._ctx
+    ctx.cfg.memory.use_memory_layer = False
+    result = svc._classify_startup_only_fields({"use_memory_layer": True})
+    assert "use_memory_layer" in result
 
 
 # --- Direct unit tests of _detect_diagnostics_live_fields ---
@@ -84,20 +90,4 @@ def test_detect_diagnostics_live_fields_change_detected(
     assert "diagnostics.encryption_key" in result
 
 
-# --- Regression tests for tool_cache_ttl removal (REQ-003) ---
 
-
-def test_apply_tool_params_ignores_tool_cache_ttl(
-    svc: ConfigReloadService, ctx: MagicMock
-) -> None:
-    changes: dict[str, object] = {}
-    svc._apply_tool_params(ctx.cfg, {"tool_cache_ttl": 999.0}, changes)
-    assert "tool_cache_ttl" not in changes
-
-
-def test_apply_tool_params_still_collects_serial_tool_calls(
-    svc: ConfigReloadService, ctx: MagicMock
-) -> None:
-    changes: dict[str, object] = {}
-    svc._apply_tool_params(ctx.cfg, {"serial_tool_calls": True}, changes)
-    assert changes["serial_tool_calls"] is True
