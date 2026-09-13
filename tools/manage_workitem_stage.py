@@ -6,15 +6,18 @@ Performs the `issues/` -> `issues/done/`, `plans/` -> `plans/done/`, and
 a time, using GitPython so the move is recorded as a Git rename.
 
 Every subcommand shares these pre-move safety checks (`move_to_done()`): the source
-file must exist, the destination must not already exist, the destination's `done/`
-directory must already exist, and the source file itself must have no uncommitted
-local changes (untracked, staged, or modified-since-commit — other files' uncommitted
-changes elsewhere in the repository are ignored). If `origin` is configured as a
+file must exist, the destination must not already exist, and the destination's `done/`
+directory must already exist. If the source file itself has uncommitted local changes
+(untracked, staged, or modified-since-commit — other files' uncommitted changes
+elsewhere in the repository are ignored), it is staged and committed automatically
+(via the real `git add`/`git commit` commands, so any configured pre-commit hooks
+still run) before the move proceeds — there is no flag to bypass this with an
+uncommitted move; auto-commit is the only path. If `origin` is configured as a
 remote, the move also fetches it and refuses when the destination path already exists
 on the remote-tracking branch (a concurrent session likely already archived this file
 there); a fetch failure (no network, no `origin`, detached HEAD) degrades to a no-op
-rather than blocking the move. `git status`/`git mv` invocations retry a bounded
-number of times on `.git/index.lock` contention from a concurrent git process.
+rather than blocking the move. `git status`/`git mv`/auto-commit invocations retry a
+bounded number of times on `.git/index.lock` contention from a concurrent git process.
 
 `close-implementation` additionally parses the target file's `### Execution Status`
 table (see `templates/execution-status.md`) and refuses the move while any row's
@@ -35,7 +38,6 @@ Subcommands:
 Usage:
     python tools/manage_workitem_stage.py close-issue issues/20260101_foo.md
     python tools/manage_workitem_stage.py close-plan plans/20260101_plan.md
-    python tools/manage_workitem_stage.py close-plan plans/20260101_plan.md --allow-uncommitted
     python tools/manage_workitem_stage.py close-implementation \\
         implementations/20260101_x.md
     python tools/manage_workitem_stage.py close-implementation \\
@@ -157,16 +159,38 @@ def _find_remote_conflict(repo: git.Repo, destination_abs: Path) -> str | None:
     )
 
 
-def move_to_done(source: Path, allow_uncommitted: bool = False) -> MoveResult:
+def _auto_commit(repo: git.Repo, source_abs: Path, kind: str) -> str | None:
+    """Stage and commit `source_abs` so the subsequent move never runs against an
+    uncommitted file. Returns an error string on failure, or `None` on success.
+
+    Runs the real `git add`/`git commit` commands (not GitPython's index API)
+    so any configured pre-commit hooks still apply — this must not become a
+    silent way to bypass them.
+    """
+    message = f"chore: auto-commit {kind} before archival move ({source_abs.name})"
+    try:
+        _run_with_lock_retry(lambda: repo.git.add(str(source_abs)))
+        _run_with_lock_retry(lambda: repo.git.commit("-m", message))
+    except git.exc.GitCommandError as e:
+        return f"auto-commit failed: {e}"
+    return None
+
+
+def move_to_done(source: Path, *, kind: str = "workitem") -> MoveResult:
     """Move `source` into its sibling `done/` directory as a Git rename.
 
     Refuses (returns a failure `MoveResult`, performs no move) when the source is
     missing, the destination already exists, the destination's `done/` directory
-    does not exist, the source is outside a Git repository, the source has
-    uncommitted local changes, or the destination already exists on `origin`'s
-    remote-tracking branch (see `_find_remote_conflict`).
+    does not exist, the source is outside a Git repository, or the destination
+    already exists on `origin`'s remote-tracking branch (see
+    `_find_remote_conflict`).
 
-    Set `allow_uncommitted=True` to bypass the uncommitted-changes check.
+    If `source` has uncommitted local changes (untracked, staged, or modified
+    since its last commit), it is staged and committed automatically before the
+    move proceeds — there is no bypass flag; auto-commit replaces the previous
+    refuse-and-hint behavior entirely. `kind` (e.g. `"issue"`, `"plan"`,
+    `"implementation procedure"`) only labels the auto-commit message; pass it
+    from the calling subcommand for a clearer commit history.
     """
     if not source.is_file():
         return MoveResult(success=False, error=f"source file not found: {source}")
@@ -203,28 +227,10 @@ def move_to_done(source: Path, allow_uncommitted: bool = False) -> MoveResult:
     except git.exc.GitCommandError as e:
         return MoveResult(success=False, error=f"git status failed: {e}")
 
-    if status.strip() and not allow_uncommitted:
-        if status.strip().startswith("??"):
-            # An untracked file has no HEAD entry to diff against — `git
-            # diff` (staged or not) always reports empty for it.
-            diff_output = (
-                "(untracked file -- no committed version exists yet, so "
-                "there is nothing to diff; the whole file is new)"
-            )
-        else:
-            # `git diff --cached` only covers staged changes -- the routine
-            # case this hint exists for (an unstaged working-tree edit, e.g.
-            # a Plan self-correction) would otherwise print an empty diff.
-            # `diff HEAD` covers staged and unstaged changes together.
-            diff_output = _run_with_lock_retry(
-                lambda: repo.git.diff("HEAD", "--", str(source_abs))
-            )
-        error_msg = (
-            f"source file has uncommitted changes, refusing to move: {source}\n"
-            f"HINT: Commit the changes first, or use --allow-uncommitted to proceed anyway.\n"
-            f"Changes:\n{diff_output}"
-        )
-        return MoveResult(success=False, error=error_msg)
+    if status.strip():
+        commit_error = _auto_commit(repo, source_abs, kind)
+        if commit_error:
+            return MoveResult(success=False, error=commit_error)
 
     conflict = _find_remote_conflict(repo, destination_abs)
     if conflict:
@@ -518,30 +524,31 @@ def build_data_row_line(header: list[str], cells: list[str]) -> str:
     return "| " + " | ".join(cells) + " |"
 
 
+def _report_move_result(
+    source: Path, result: MoveResult, extra_note: str | None = None
+) -> int:
+    """Print the ERROR/OK message for a `move_to_done()` result and return the
+    process exit code. Shared by all three `close-*` subcommands."""
+    if not result.success:
+        print(f"ERROR: {result.error}", file=sys.stderr)
+        return 1
+    message = f"OK: moved {source} -> {result.destination}"
+    if extra_note:
+        message += f" ({extra_note})"
+    print(message)
+    return 0
+
+
 def cmd_close_issue(args: argparse.Namespace) -> int:
     """Move an `issues/*.md` file to `issues/done/`."""
-    return _run_simple_move(Path(args.issue_path))
+    source = Path(args.issue_path)
+    return _report_move_result(source, move_to_done(source, kind="issue"))
 
 
 def cmd_close_plan(args: argparse.Namespace) -> int:
     """Move a `plans/*.md` file to `plans/done/`."""
-    result = move_to_done(
-        Path(args.plan_path), allow_uncommitted=args.allow_uncommitted
-    )
-    if not result.success:
-        print(f"ERROR: {result.error}", file=sys.stderr)
-        return 1
-    print(f"OK: moved {args.plan_path} -> {result.destination}")
-    return 0
-
-
-def _run_simple_move(source: Path) -> int:
-    result = move_to_done(source)
-    if not result.success:
-        print(f"ERROR: {result.error}", file=sys.stderr)
-        return 1
-    print(f"OK: moved {source} -> {result.destination}")
-    return 0
+    source = Path(args.plan_path)
+    return _report_move_result(source, move_to_done(source, kind="plan"))
 
 
 def cmd_close_implementation(args: argparse.Namespace) -> int:
@@ -577,19 +584,11 @@ def cmd_close_implementation(args: argparse.Namespace) -> int:
         )
         return 1
 
-    result = move_to_done(source)
-    if not result.success:
-        print(f"ERROR: {result.error}", file=sys.stderr)
-        return 1
-
-    if pending:
-        print(
-            f"OK: moved {source} -> {result.destination} "
-            f"(forced past Pending row(s); reason: {args.reason})"
-        )
-    else:
-        print(f"OK: moved {source} -> {result.destination}")
-    return 0
+    result = move_to_done(source, kind="implementation procedure")
+    extra_note = (
+        f"forced past Pending row(s); reason: {args.reason}" if pending else None
+    )
+    return _report_move_result(source, result, extra_note)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -607,11 +606,6 @@ def build_parser() -> argparse.ArgumentParser:
         "close-plan", help="Move a plans/*.md file to plans/done/"
     )
     plan_parser.add_argument("plan_path", help="Path to the plan file")
-    plan_parser.add_argument(
-        "--allow-uncommitted",
-        action="store_true",
-        help="Allow moving files with uncommitted changes (not recommended without review)",
-    )
 
     impl_parser = subparsers.add_parser(
         "close-implementation",

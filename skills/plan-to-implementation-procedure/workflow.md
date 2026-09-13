@@ -437,28 +437,14 @@ progress report once, then (per Multi-file processing) begin Step 1 for the next
 target Plan, or end the batch if none remain.
 
 Prefer `uv run python tools/manage_workitem_stage.py close-plan
-plans/{filename}_plan.md` over a direct `git mv` — it performs the same move and
-refuses (non-zero exit, no move) if the source is missing, the destination already
-exists, or the source has uncommitted changes. Fall back to the direct `git mv`
-command only if the tool is unavailable.
-
-### Tool refusal due to this cycle's own Plan edit
-
-`close-plan`'s uncommitted-changes refusal commonly fires here for a reason distinct
-from "the tool is unavailable": this same Step's own Plan edit two paragraphs above
-(the Execution Status update), or a Step 3a correction earlier in this cycle, is
-itself the uncommitted change the tool is refusing to move. This is not the "tool
-unavailable" case the paragraph above scopes the `git mv` fallback to — do not fall
-back to `git mv` for this reason.
-
-Instead: confirm via `git status --porcelain plans/{filename}_plan.md` (and the newly
-generated `implementations/*.md` files from this cycle) that the only uncommitted
-changes are this cycle's own output, then ask the user whether to commit them (with a
-commit message describing what this cycle generated) before re-running the same
-`close-plan` command. This is a known, recurring interaction between this Step's
-required Plan edit and the tool's safety check, not a reason to bypass the check —
-if unrelated uncommitted changes are also present, report `Blocked` instead of asking
-to commit them.
+plans/{filename}_plan.md` over a direct `git mv` — it auto-commits the Plan file
+first if it has uncommitted changes (commonly this same Step's own Execution Status
+update two paragraphs above, or an earlier Step 3a correction), then performs the
+move; it refuses (non-zero exit, no move) only if the source is missing or the
+destination already exists. The auto-commit stages only the Plan file itself —
+unrelated uncommitted changes elsewhere in the repository are left untouched and do
+not block the move. Fall back to the direct `git mv` command only if the tool is
+unavailable.
 
 After a `0` exit, independently verify the same checklist `rules/workflow-lifecycle.md`
 Archival Move already requires for the manual `git mv` fallback: destination file

@@ -483,11 +483,12 @@ failure rule.
 - Move the Issue once Step 9 confirms information completeness is `Pass` and all
   required validations are `Pass`.
 - Prefer `uv run python tools/manage_workitem_stage.py close-issue
-  issues/{filename}.md` — it performs the same `git mv issues/{filename}.md
-  issues/done/{filename}.md` move and refuses (non-zero exit, no move) if the
-  source is missing, the destination already exists, or the source has
-  uncommitted changes. Fall back to the direct command below only if the tool is
-  unavailable.
+  issues/{filename}.md` — it auto-commits the issue file first if it has
+  uncommitted changes (e.g. a Step 2 correction earlier in this cycle), then
+  performs the same `git mv issues/{filename}.md issues/done/{filename}.md` move;
+  it refuses (non-zero exit, no move) only if the source is missing or the
+  destination already exists. Fall back to the direct command below only if the
+  tool is unavailable.
 - Direct command (fallback): `git mv issues/{filename}.md
   issues/done/{filename}.md`. No `mv`, `cp` + `rm`, file-copy APIs, or other
   fallback beyond these two.

@@ -349,11 +349,13 @@ only and does not apply to this workflow at all.
     performed (completed items show Completed status, blocked items have blocker
     descriptions filled in, Work Items Created includes all artifacts produced).
 - Prefer `uv run python tools/manage_workitem_stage.py close-implementation
-  implementations/{filename}.md` — it performs the same `git mv` move and refuses
-  (non-zero exit, no move) if the source is missing, the destination already
-  exists, the source has uncommitted changes, or (redundantly, since this Step's
-  own pre-check above already confirmed it) a `Pending` row remains. Fall back to
-  the direct command below only if the tool is unavailable.
+  implementations/{filename}.md` — it auto-commits the implementation procedure
+  file first if it has uncommitted changes (e.g. a Step 3b correction earlier in
+  this cycle), then performs the same `git mv` move; it refuses (non-zero exit, no
+  move) only if the source is missing, the destination already exists, or
+  (redundantly, since this Step's own pre-check above already confirmed it) a
+  `Pending` row remains. Fall back to the direct command below only if the tool is
+  unavailable.
 - Direct command (fallback): `git mv implementations/{filename}.md
   implementations/done/{filename}.md`. Do not use `mv`, `cp` + `rm`, or any other
   fallback beyond these two.

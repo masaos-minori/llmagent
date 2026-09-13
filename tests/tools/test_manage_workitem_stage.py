@@ -107,6 +107,9 @@ SIMPLE_MOVE_CASES: list[tuple[str, str, Callable[[argparse.Namespace], int]]] = 
 ]
 SIMPLE_MOVE_IDS = [case[0] for case in SIMPLE_MOVE_CASES]
 
+# `move_to_done()`'s `kind` label for each subcommand's auto-commit message.
+SUBCOMMAND_TO_KIND = {"close-issue": "issue", "close-plan": "plan"}
+
 
 # ---------------------------------------------------------------------------
 # close-issue / close-plan: success path (REQ-001, REQ-002, REQ-005,
@@ -205,7 +208,7 @@ def test_simple_move_existing_destination_refuses(
 
 
 # ---------------------------------------------------------------------------
-# close-issue / close-plan: uncommitted-changes refusal
+# close-issue / close-plan: uncommitted-changes auto-commit
 # ---------------------------------------------------------------------------
 
 
@@ -239,7 +242,7 @@ UNCOMMITTED_IDS = [case[0] for case in UNCOMMITTED_CASES]
 @pytest.mark.parametrize(
     ("change_kind", "make_dirty"), UNCOMMITTED_CASES, ids=UNCOMMITTED_IDS
 )
-def test_simple_move_uncommitted_source_refuses(
+def test_simple_move_autocommits_uncommitted_source(
     temp_git_repo: Path,
     capsys: pytest.CaptureFixture[str],
     change_kind: str,
@@ -256,13 +259,23 @@ def test_simple_move_uncommitted_source_refuses(
     exit_code = cmd_func(args)
 
     destination = temp_git_repo / stage_dir / "done" / "20260107_dirty.md"
-    assert exit_code == 1
-    assert source.exists()
-    assert not destination.exists()
+    assert exit_code == 0
+    assert not source.exists()
+    assert destination.exists()
+
+    # The uncommitted change was auto-committed (with the kind-labeled message)
+    # before the move — the rename itself lands staged-but-uncommitted, same as
+    # test_simple_move_success's already-clean case.
+    kind = SUBCOMMAND_TO_KIND[subcommand]
+    auto_commit_subject = repo.git.log("-1", "--format=%s")
+    assert auto_commit_subject == (
+        f"chore: auto-commit {kind} before archival move (20260107_dirty.md)"
+    )
+    status = repo.git.status("--porcelain")
+    assert "R  " in status
 
     captured = capsys.readouterr()
-    assert "uncommitted changes" in captured.err
-    assert str(source) in captured.err
+    assert str(destination) in captured.out
 
 
 @pytest.mark.parametrize(
@@ -291,82 +304,6 @@ def test_simple_move_ignores_unrelated_uncommitted_file(
     assert exit_code == 0
     assert not source.exists()
     assert destination.exists()
-
-
-# ---------------------------------------------------------------------------
-# close-plan: --allow-uncommitted bypass and its diagnostic hint (item 6
-# friction-reduction -- a routine Plan self-correction landing in the same
-# cycle as close-plan should not require a separate ask-the-user-to-commit
-# round trip)
-# ---------------------------------------------------------------------------
-
-
-def test_close_plan_allow_uncommitted_bypasses_refusal(
-    temp_git_repo: Path,
-) -> None:
-    repo = git.Repo(temp_git_repo)
-    source = temp_git_repo / "plans" / "20260109_dirty.md"
-    _dirty_modified_after_commit(repo, source)
-
-    args = build_parser().parse_args(["close-plan", str(source), "--allow-uncommitted"])
-    exit_code = cmd_close_plan(args)
-
-    destination = temp_git_repo / "plans" / "done" / "20260109_dirty.md"
-    assert exit_code == 0
-    assert not source.exists()
-    assert destination.exists()
-    assert destination.read_text(encoding="utf-8") == "modified content\n"
-
-
-def test_close_plan_refusal_shows_diff_for_unstaged_modification(
-    temp_git_repo: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """`git diff --cached` alone reports empty for an unstaged working-tree
-    edit -- the far more common case a routine self-correction produces --
-    so the hint must fall back to `git diff HEAD` to actually show it.
-    """
-    repo = git.Repo(temp_git_repo)
-    source = temp_git_repo / "plans" / "20260110_dirty.md"
-    _dirty_modified_after_commit(repo, source)
-
-    args = build_parser().parse_args(["close-plan", str(source)])
-    exit_code = cmd_close_plan(args)
-
-    assert exit_code == 1
-    captured = capsys.readouterr()
-    assert "--allow-uncommitted" in captured.err
-    assert "-original content" in captured.err
-    assert "+modified content" in captured.err
-
-
-def test_close_plan_refusal_shows_diff_for_staged_modification(
-    temp_git_repo: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    repo = git.Repo(temp_git_repo)
-    source = temp_git_repo / "plans" / "20260111_dirty.md"
-    _dirty_staged(repo, source)
-
-    args = build_parser().parse_args(["close-plan", str(source)])
-    exit_code = cmd_close_plan(args)
-
-    assert exit_code == 1
-    captured = capsys.readouterr()
-    assert "+staged content" in captured.err
-
-
-def test_close_plan_refusal_notes_untracked_file_has_no_diff(
-    temp_git_repo: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    repo = git.Repo(temp_git_repo)
-    source = temp_git_repo / "plans" / "20260112_dirty.md"
-    _dirty_untracked(repo, source)
-
-    args = build_parser().parse_args(["close-plan", str(source)])
-    exit_code = cmd_close_plan(args)
-
-    assert exit_code == 1
-    captured = capsys.readouterr()
-    assert "untracked file" in captured.err
 
 
 # ---------------------------------------------------------------------------
