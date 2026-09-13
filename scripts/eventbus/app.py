@@ -224,6 +224,7 @@ async def ack_event(
 async def nack(
     request: Request,
     event_id: str = Query(default=""),
+    consumer_id: str = Query(default=""),
     _role: Role = Depends(require_role(Role.CONSUMER)),
     _identity: dict[str, Any] = Depends(require_consumer_identity),
 ) -> dict[str, Any]:
