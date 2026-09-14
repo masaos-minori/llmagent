@@ -108,9 +108,9 @@ Simple revert: restore the original Implementation Notes bullet text. The underl
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Confirm three originating commits | Pending | — | — | |
-| 2 | Phase 2: Expand Implementation Notes bullet | Pending | — | — | |
-| 3 | Verification: manual review | Pending | — | — | |
+| 1 | Phase 1: Confirm three originating commits | Completed | — | — | All confirmed via git log -S |
+| 2 | Phase 2: Expand Implementation Notes bullet | Completed | — | — | Added cause + unification note |
+| 3 | Verification: manual review | Completed | — | — | Quality check passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
