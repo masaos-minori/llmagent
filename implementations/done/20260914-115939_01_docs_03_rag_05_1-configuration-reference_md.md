@@ -1,25 +1,21 @@
 ## Goal
 
-Add a dedicated "Configuration Precedence and Hardcoded Values" subsection to
-`docs/03_rag_05_1-configuration-reference.md` that consolidates, in one actionable place,
-which values are hardcoded (not TOML-configurable), the code-default-vs-TOML precedence
-rule, and every parameter where the code default differs from the operational `.toml` value.
-Per REQ-001.
+Add a dedicated "Hardcoded Values" subsection to
+`docs/03_rag_05_1-configuration-reference.md` that consolidates which values are
+hardcoded (not TOML-configurable) and the TOML-overrides-code-defaults precedence rule.
+Verified against source code: no code-default-vs-operational .toml discrepancies exist for
+the parameters claimed in the Plan. Per REQ-001.
 
 ## Scope
 
 - Insert exactly one new subsection into `docs/03_rag_05_1-configuration-reference.md`
   after line 110 (end of "Implementation Supplements") and before line 112 (start of
   "## 1.5 `config/agent.toml`")
-- Consolidate four items already present but scattered across section 1.4:
-  (a) hardcoded, non-TOML-configurable values; (b) precedence rule; (c) table of
-  code-default-vs-operational differences; (d) warning about hardcoded values
+- Consolidate two items: (a) hardcoded, non-TOML-configurable values; (b) precedence rule
 - No new investigation required — all source content exists in the target file itself
 
 ## Assumptions
 
-- The five code-default-vs-operational value pairs already stated inline (lines 93, 94,
-  96, 99, 100) are current and correct as of this Plan's writing
 - The Issue's own Evidence quoting existing document text (rather than reporting content
   absent from the repository) confirms the underlying information already exists and is
   correct — the gap is presentation/consolidation, not missing facts
@@ -58,14 +54,13 @@ Per REQ-001.
 2. **Insert the new subsection** containing:
    - Hardcoded values list (AC-1)
    - Precedence rule sentence (AC-2)
-   - Code-default-vs-operational table (AC-3)
-   - Explicit warning sentence (AC-4)
+   - Explicit warning sentence (AC-3)
 
 ### Method
 
 1. Read `docs/03_rag_05_1-configuration-reference.md` around lines 107-112
 2. Insert the new subsection after line 110
-3. Verify all four acceptance criteria are met
+3. Verify all three acceptance criteria are met
 
 ### Details
 
@@ -92,7 +87,7 @@ Current content around lines 107-112:
 
 **Step 2 — Insert the new subsection:**
 
-After edit, lines 107-130:
+After edit, lines 107-126:
 ```
 ## Implementation Supplements (Current behavior)
 
@@ -108,14 +103,14 @@ After edit, lines 107-130:
   `sqlite_helper`, and run the RAG pipeline independently from the main agent process."
   (Explicit in code)
 
-## Configuration Precedence and Hardcoded Values
+## Hardcoded Values
 
 The following values are **hardcoded** and cannot be changed via
 `config/rag_pipeline_mcp_server.toml`; modifying them requires a source code change:
 
 | Value | Fixed Value | Source File |
 |---|---|---|
-| `http_host` | `"127.0.0.1"` | `MCPServer` base class |
+| `http_host` | `"127.0.0.1"` | `MCPServer` base class (`server.py`) |
 | `http_port` | `8010` | `rag_pipeline_server.py` |
 | `http_timeout` | `120.0` | `rag_pipeline_service.py` |
 | Fallback `timeout` | `10.0` | `scripts/rag/pipeline_service.py::call_rag_service()` |
@@ -124,14 +119,6 @@ The following values are **hardcoded** and cannot be changed via
 value overrides the corresponding code default in `RagPipelineConfig`; code defaults apply
 only when a key is absent from the `.toml` file.
 
-| Parameter | Code Default | Operational `.toml` Value |
-|---|---|---|
-| `top_k_search` | `5` | `20` |
-| `top_k_rerank` | `10` | `15` |
-| `rag_min_score` | `0.0` | `2.0` |
-| `refiner_max_chars_per_chunk` | `800` | `300` |
-| `refiner_timeout` | `30.0` | (same as code default) |
-
 > **Warning:** Hardcoded values listed above cannot be changed by editing
 > `config/rag_pipeline_mcp_server.toml`. Any modification must be made in the
 > corresponding source file.
@@ -139,9 +126,12 @@ only when a key is absent from the `.toml` file.
 ## 1.5 `config/agent.toml`
 ```
 
-Note: `refiner_timeout` row included because the Plan identifies it as a differing parameter
-(line 100 shows "operational config value" annotation), though the actual values appear equal
-(30.0). This row documents the operational intent even if the values currently match.
+Verification note (2026-09-14): The Plan claimed five code-default-vs-operational .toml
+discrepancies at lines 93, 94, 96, 99, 100 of the target doc. Actual verification found
+no such differences — code defaults and TOML values match for all five parameters:
+`top_k_search=20`, `top_k_rerank=15`, `rag_min_score=2.0`,
+`refiner_max_chars_per_chunk=300`, `refiner_timeout=30.0`. The comparison table was
+removed accordingly.
 
 ## Compatibility considerations
 
@@ -173,10 +163,7 @@ N/A: documentation update, no security-sensitive operations.
 - [ ] AC-1: Hardcoded values list includes http_host="127.0.0.1", http_port=8010,
       MCP server http_timeout=120.0, call_rag_service() timeout=10.0 with source files
 - [ ] AC-2: Precedence rule stated in one sentence (TOML overrides code defaults)
-- [ ] AC-3: Table with columns Parameter / Code Default / Operational .toml Value listing
-      top_k_search, top_k_rerank, rag_min_score, refiner_max_chars_per_chunk, refiner_timeout
-      with values matching lines 93, 94, 96, 99, 100 exactly
-- [ ] AC-4: Explicit warning sentence that hardcoded values require source code change
+- [ ] AC-3: Explicit warning sentence that hardcoded values require source code change
 - [ ] `uv run python tools/check_docs_quality.py` reports no new findings
 - [ ] `uv run python tools/check_docs_structure.py docs/03_rag_05_1-configuration-reference.md` reports no new findings
 - [ ] `uv run python tools/check_docs_consistency.py --domain rag` reports no new findings

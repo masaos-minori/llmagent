@@ -109,6 +109,26 @@ Used by: `rag-pipeline-mcp` only (the rag-pipeline MCP server process). Loaded v
 - The following parameters—`top_k_search`, `top_k_rerank`, `rag_min_score`, and `refiner_max_chars_per_chunk`—have different default values in the `RagPipelineConfig` (`mcp_servers/rag_pipeline/rag_pipeline_models.py`) compared to what is written in the operational `config/rag_pipeline_mcp_server.toml`. As long as values exist in the `.toml` file, the code defaults are ignored, so there is no harm; however, be aware of this difference if deleting or simplifying the `.toml` file. (Explicit in code)
 - `rag_pipeline_mcp_server.toml` is completely independent of `agent.toml`, and both files can have different values for same-named keys like `use_mqe`. The header comment explicitly states: "To override module-level caches for `agent_rag`, `rag_llm`, and `sqlite_helper`, and run the RAG pipeline independently from the main agent process." (Explicit in code)
 
+## Hardcoded Values
+
+The following values are **hardcoded** and cannot be changed via
+`config/rag_pipeline_mcp_server.toml`; modifying them requires a source code change:
+
+| Value | Fixed Value | Source File |
+|---|---|---|
+| `http_host` | `"127.0.0.1"` | `MCPServer` base class (`server.py`) |
+| `http_port` | `8010` | `rag_pipeline_server.py` |
+| `http_timeout` | `120.0` | `rag_pipeline_service.py` |
+| Fallback `timeout` | `10.0` | `scripts/rag/pipeline_service.py::call_rag_service()` |
+
+**Precedence rule:** When a key exists in `config/rag_pipeline_mcp_server.toml`, its
+value overrides the corresponding code default in `RagPipelineConfig`; code defaults apply
+only when a key is absent from the `.toml` file.
+
+> **Warning:** Hardcoded values listed above cannot be changed by editing
+> `config/rag_pipeline_mcp_server.toml`. Any modification must be made in the
+> corresponding source file.
+
 ## 1.5 `config/agent.toml`
 
 Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `AgentConfig`.

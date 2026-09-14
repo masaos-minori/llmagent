@@ -56,6 +56,41 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 - **Reason for Process Separation**: MCP server operates independently of the agent lifecycle; each stage can be updated or restarted without affecting the entire system.
 - **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
 
+### Ownership Rationale
+
+#### Why each component owns its stated state
+
+Each pipeline stage runs as a separate script because failure isolation prevents one
+stage's crash from affecting others; independent scaling allows write-heavy domains
+(e.g., file-write-mcp) to require different resource allocation than read-only domains
+(e.g., web-search-mcp); deployment independence allows individual scripts to be updated
+or restarted without affecting the entire system (Reason for Process Separation). These
+same principles apply to the Query Pipeline: the MCP server operates independently of
+the agent lifecycle, and each stage can be updated or restarted without affecting the
+entire system.
+
+#### Why SQLite (rag.db) owns the vector store layer
+
+Per ADR-005's Rationale, SQLite's `documents`/`chunks` tables are authoritative and
+`chunks_fts`/`chunks_vec` are derived indexes for three reasons: (1) Data Integrity —
+prioritizing data integrity over search performance ensures no orphaned records;
+(2) Operability — prioritizing operability over real-time synchronization prevents
+human operation errors; (3) Portability — the SQLite-based architecture enables
+portable, self-contained deployments. These same considerations justify SQLite owning
+the vector store layer specifically.
+
+#### How ownership affects modification rights
+
+Architecture decisions affecting multiple subsystems require joint review; cross-component
+state transitions require coordinated testing when any component's contract changes
+(Design Boundaries Requiring Joint Review). This means modifications to one component's
+owned state must consider downstream impact on dependent components.
+
+#### Known exception
+
+The `rag-src/registered/` directory's retention policy is unresolved — "(retention TBD)"
+as stated inline. See Known Issue `RAG-006` in `docs/00_governance_03_issue-and-uncertainty-management.md`.
+
 ---
 
 ## Ingestion Pipeline

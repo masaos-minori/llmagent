@@ -125,6 +125,25 @@ RAG-004 ("Unresolved usage status of `models_config.py` configuration dataclasse
 - **Impact**: Vector index grows over time with orphaned entries, increasing memory usage and potentially degrading search performance.
 - **Recommended Action**: Accept this limitation and implement periodic cleanup of orphaned vectors, or migrate to a vector store that supports FK constraints. (Note: this is a known, accepted architectural limitation mitigated by deletion ordering, not an active defect being worked.)
 
+#### RAG-006
+
+- **ID**: RAG-006
+- **Title**: Missing operational guidance for rag-src/registered/ file lifecycle
+- **Status**: open
+- **Severity**: Low
+- **Area**: RAG
+- **Type**: operational-gap
+- **Source**: `scripts/rag/ingestion/file_routing.py`, `scripts/rag/ingestion/ingester.py`
+- **Owner**: Team
+- **First Found**: 2026-09-13
+- **Target**: `docs/03_rag_02_01_ingestion_pipeline-overview.md`, `docs/03_rag_02_04_ingestion_pipeline-ingester.md`
+- **Related**: NC-026 (superseded — see Part 2 removal)
+- **Summary**: What is the retention/deletion policy for chunk files moved to `rag-src/registered/` after successful ingestion? Who deletes them, when, and under what trigger?
+- **Current Description**: After successful ingestion, chunk files are routed to `rag-src/registered/` via `FileRouter`. The File Lifecycle table in the ingestion pipeline overview documents creation but not deletion of these files. No deletion logic exists in `scripts/rag/ingestion/ingester.py` or `file_routing.py`.
+- **Observed Implementation**: `FileRouter.__init__` creates `self._registered_dir = registered_dir / path.name`; `FileRouter.route()` writes successful chunks to `dest = self._registered_dir / path.name`. No corresponding cleanup or deletion call anywhere in either file.
+- **Impact**: `rag-src/registered/` may grow unbounded over time; files may be deleted ad hoc without traceability if this gap is not tracked with appropriate visibility.
+- **Recommended Action**: Owner review required to define the retention period, deletion trigger, and deletion ownership for `rag-src/registered/` files. Until defined, this directory's growth should be monitored.
+
 #### DESIGN-1
 
 - **ID**: DESIGN-1
@@ -620,23 +639,6 @@ NC-022 ("Are `RAG → EventBus`, `MCP → EventBus`, and `Agent → EventBus` un
 - **Resolution Target**: Next governance tooling review
 - **Blocking**: No
 
-#### NC-026
-
-- **Source File**: `03_rag_02_04_ingestion_pipeline-ingester.md`
-- **Section**: 4a. RagIngester (`scripts/rag/ingestion/ingester.py`) — Class Overview
-- **Line Number**: ~37
-- **Question**: What is the retention/deletion policy for chunk files moved to `rag-src/registered/` after successful ingestion? Who deletes them, when, and under what trigger?
-- **Evidence**: The document states only that "Processed chunks are moved to `rag-src/registered/`" (also stated in `03_rag_01_system_overview.md`); no retention period, deletion trigger, or deletion owner is documented anywhere in the RAG Specification set (confirmed by repository-wide search)
-- **Impact**: Without a documented policy, `rag-src/registered/` may grow unbounded, or files may be deleted ad hoc without a way to trace ingestion history
-- **Required Action**: Owner review to define retention period, deletion trigger, and deletion ownership; document the decision in the ingester Specification
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-03
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next RAG operations documentation pass
-- **Blocking**: No
-
 #### NC-027
 
 - **Source File**: `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
@@ -745,7 +747,24 @@ NC-030 ("Should `adr` and `security` be permanent `area` enum values, or folded 
   begins
 - **Blocking**: No
 
-No other active items beyond NC-021 through NC-032 above.
+#### NC-033
+
+- **Source File**: `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
+- **Section**: lang Field Validation
+- **Line Number**: ~194
+- **Question**: Is `lang` field enforcement against `LanguageCode` values intended?
+- **Evidence**: The document states: "any non-empty string accepted; the en/ja value set (LanguageCode) is convention only — not enforced at parse time (Needs confirmation: whether enforcement is intended)"
+- **Impact**: If lang-field enforcement is actually intended but not implemented, downstream language-handling code could behave incorrectly without anyone flagging it as an open question
+- **Required Action**: Owner confirmation or investigation of scripts/rag/ validation logic for the lang field
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-14
+- **Priority**: Low
+- **Related NC**: None
+- **Resolution Target**: Next ChunkSplitter specification review
+- **Blocking**: No
+
+No other active items beyond NC-021 through NC-033 above.
 
 ## Part 3: Canonical Source Conflict
 
