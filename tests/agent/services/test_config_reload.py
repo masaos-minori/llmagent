@@ -4,6 +4,7 @@ Error-path tests for ConfigReloadService.apply_config().
 
 from __future__ import annotations
 
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -475,6 +476,55 @@ class TestRuntimeToolPolicyReapplication:
         svc._ctx.services_required.http = MagicMock()  # type: ignore[attr-defined]
         svc._sync_services({}, None, None, None)  # type: ignore[attr-defined]
         svc._ctx.services_required.http.get.assert_not_called()  # type: ignore[attr-defined]
+
+    def test_apply_config_dict_exercises_real_registry_and_no_discovery_call(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """E2E: _sync_services → apply_policy on a real RuntimeToolRegistry."""
+
+        from shared.runtime_tool import AgentSafetyTier, build_runtime_tool
+        from shared.runtime_tool_registry import RuntimeToolRegistry
+
+        svc, ctx = self._make_svc(with_registry=True)
+        tools = {
+            "read_file": build_runtime_tool(
+                name="read_file",
+                server_key="fs",
+                description="Read a file",
+                input_schema={"type": "object"},
+                status="active",
+                is_write=False,
+                agent_safety_tier=cast(AgentSafetyTier, "READ_ONLY"),
+                enabled_for_llm=True,
+            ),
+            "delete_file": build_runtime_tool(
+                name="delete_file",
+                server_key="fs",
+                description="Delete a file",
+                input_schema={"type": "object"},
+                status="active",
+                is_write=True,
+                agent_safety_tier=cast(AgentSafetyTier, "WRITE_DANGEROUS"),
+                enabled_for_llm=True,
+            ),
+        }
+        real_registry = RuntimeToolRegistry(tools=tools)
+        ctx.services_required.runtime_tools = real_registry  # type: ignore[attr-defined]
+        ctx.services_required.http = MagicMock()  # type: ignore[attr-defined]
+        ctx.cfg.tool.allowed_tools = ["read_file"]  # type: ignore[attr-defined]
+
+        svc._sync_services({}, None, None, ctx.services_required.runtime_tools)  # type: ignore[attr-defined]
+
+        assert real_registry.resolve("read_file") == "fs"
+        read_tool = real_registry.get("read_file")
+        assert read_tool.agent_safety_tier == "READ_ONLY"
+        assert read_tool.enabled_for_llm is True
+
+        delete_tool = real_registry.get("delete_file")
+        assert delete_tool.agent_safety_tier == "ADMIN"
+        assert delete_tool.enabled_for_llm is False
+
+        ctx.services_required.http.get.assert_not_called()  # type: ignore[attr-defined]
 
 
 class TestApprovalGitopsPushBlocked:

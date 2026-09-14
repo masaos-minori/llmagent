@@ -804,6 +804,40 @@ class TestCmdSessionRagRebuildFts:
             mock_svc.rebuild_fts.assert_called_once()
             assert "rebuilt" in out.lower()
 
+    @pytest.mark.asyncio
+    async def test_rag_rebuild_vec_calls_service_and_prints_success(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.rebuild_vec.return_value = 42
+            MockSvc.return_value = mock_svc
+            await cmd._cmd_session("rag-rebuild-vec")
+            out = capsys.readouterr().out
+            mock_svc.rebuild_vec.assert_called_once()
+            assert "rebuilt" in out.lower()
+            assert "42" in out
+
+    @pytest.mark.asyncio
+    async def test_rag_rebuild_vec_ignores_extra_args(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.rebuild_vec.return_value = 10
+            MockSvc.return_value = mock_svc
+            await cmd._cmd_session("rag-rebuild-vec extra_arg")
+            out = capsys.readouterr().out
+            mock_svc.rebuild_vec.assert_called_once()
+            assert "rebuilt" in out.lower()
+            assert "10" in out
+
 
 # ── /session export ─────────────────────────────────────────────────────────────
 

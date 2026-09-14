@@ -5,7 +5,9 @@ Shutdown coordinator for graceful HTTP server lifecycle management."""
 from __future__ import annotations
 
 import logging
+import os
 import signal
+import subprocess
 from typing import TYPE_CHECKING
 
 from .http_lifecycle_process_terminator import ProcessTerminator
@@ -26,7 +28,9 @@ def _get_pgid(proc: subprocess.Popen[bytes]) -> int | None:
     if pgid is not None:
         return pgid
     try:
-        return os.getpgid(proc.pid)
+        pgid = os.getpgid(proc.pid)
+        assert isinstance(pgid, int)
+        return pgid
     except OSError:
         return None
 
@@ -74,7 +78,9 @@ class ShutdownCoordinator:
                 if proc is None:
                     continue
                 if proc.poll() is not None:
-                    logger.debug("Lifecycle: %r already exited; removing entry", server_key)
+                    logger.debug(
+                        "Lifecycle: %r already exited; removing entry", server_key
+                    )
                     continue
                 terminator = manager._process_terminator
                 logger.info("Shutting down %s...", server_key)

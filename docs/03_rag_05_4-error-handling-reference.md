@@ -56,6 +56,47 @@ For the full per-field Required/Nullable/Conditional classification referenced a
 see the canonical table in
 [03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md).
 
+### ChunkFormatError Classification Guidance
+
+#### Hierarchy position
+
+`ChunkFormatError` is defined in `scripts/rag/exceptions.py` as a subclass of both
+`RagLayerError` (the rag-layer base class) and `ValueError`. Its five sibling classes
+under `RagLayerError` are:
+
+| Class | Docstring-derived purpose |
+|---|---|
+| `EmbeddingSchemaError` | Raised when an embedding service response does not match expected schema |
+| `PipelineValidationError` | Raised when a pipeline stage receives invalid configuration or input |
+| `SearchQueryError` | Raised when a search query cannot be executed |
+| `TokenizationError` | Raised when a tokenization step fails |
+| `UnknownMetadataError` | Raised when metadata field has an unexpected value |
+
+Each class should be raised when its docstring condition applies — e.g., use
+`SearchQueryError` for an unexecutable search query, not a malformed chunk document.
+
+#### Catch-site pattern
+
+Every current caller in the repository catches `ChunkFormatError` specifically rather
+than `RagLayerError` or `ValueError`:
+
+- `scripts/rag/ingestion/chunk_splitter.py:197` — `except (FileNotFoundError, ChunkFormatError)`
+- `scripts/rag/ingestion/file_routing.py:52,101` — `except ChunkFormatError`
+- `scripts/rag/ingestion/ingester.py:217,235,348` — `except ChunkFormatError`
+- `scripts/rag/ingestion/chunk_grouping.py:30` — `except ChunkFormatError`
+
+New code should follow the same pattern: catch `ChunkFormatError` specifically, not its
+base classes.
+
+#### Known hierarchy deviation
+
+The existing Implementation Notes (line 79) document one known edge case: `RagRerankError`
+and `RagPipelineError` are defined outside `scripts/rag/exceptions.py` (in
+`llm_prompts.py` and `pipeline.py` respectively), inheriting from `RuntimeError` rather
+than `RagLayerError`. This fragmentation arose from three independent refactoring efforts
+at different times, each introducing its own exception class without referencing the others.
+No ADR or design document records a rationale for keeping them separate.
+
 ## RagIngester
 
 | Error | Action |

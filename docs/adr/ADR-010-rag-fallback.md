@@ -264,7 +264,7 @@ Availabilityを優先し、コーパスの同期コストを回避するため�
 
 ## Data Ownership and Persistence
 
-- **System of Record**: `rag.sqlite`（ローカルRAG用）、外部RAGサービス（リモートRAG用）
+- **System of Record**: `rag.sqlite`（ローカル・リモート両RAGモードで共有）
 - **Derived Data**: 再生成可能な派生データ（FTS5、Vector Index）
 - **Ownership**: RAGチーム（正本の所有）
 - **Persistence**: ファイルシステム（`/opt/llm/db/`ディレクトリ）

@@ -144,24 +144,7 @@ RAG-004 ("Unresolved usage status of `models_config.py` configuration dataclasse
 - **Impact**: `rag-src/registered/` may grow unbounded over time; files may be deleted ad hoc without traceability if this gap is not tracked with appropriate visibility.
 - **Recommended Action**: Owner review required to define the retention period, deletion trigger, and deletion ownership for `rag-src/registered/` files. Until defined, this directory's growth should be monitored.
 
-#### DESIGN-1
-
-- **ID**: DESIGN-1
-- **Title**: External RAG and local RAG corpus difference not documented
-- **Status**: open
-- **Severity**: Medium
-- **Area**: RAG
-- **Type**: missing-documentation
-- **Source**: `scripts/rag/`
-- **Owner**: Team
-- **First Found**: 2026-08-22
-- **Target**: `docs/03_rag_01_system_overview.md`
-- **Related**: ADR-010
-- **Summary (corrected 2026-09-14)**: External RAG (HTTP, via `rag_pipeline_mcp_server`) and local/in-process RAG use the same corpus — both read `rag_db_path` from their respective config files (`config/rag_pipeline_mcp_server.toml`, `config/agent.toml`), and both are currently configured to `/opt/llm/db/rag.sqlite`. The original claim below ("different corpora") does not match this configuration and is retained only as historical context. What remains genuinely undocumented is the *execution-mode* distinction (HTTP delegation vs. in-process pipeline) and the operational fact that both modes are expected to point at the same database.
-- **Current Description (superseded, retained as historical context)**: Two separate RAG implementations exist — one for external search and one for local search — each operating on different data stores.
-- **Observed Implementation (superseded, retained as historical context)**: External RAG uses a vector store connected to an external API endpoint; local RAG uses SQLite with the sqlite-vec extension storing embeddings derived from ingested documents.
-- **Impact**: Operators may not understand that "external"/"local" RAG is an execution-mode distinction over one shared corpus, not a corpus difference — this is a narrower documentation gap than the entry originally described.
-- **Recommended Action**: Document, in the RAG system overview, that "external" and "local" RAG execution modes share one corpus (`rag_db_path`) by configuration convention, and that `rag_service_url`'s presence/absence (per `ADR-010`) selects the execution mode, not the data source. Tracked as `issues/20260914-112416_ragsvc04_execution-mode-shared-corpus-doc.md`.
+DESIGN-1 ("External RAG and local RAG corpus difference not documented") was resolved and removed from this active inventory 2026-09-14. Both documentation updates required by the source Issue (`issues/20260914-112416_ragsvc04_execution-mode-shared-corpus-doc.md`) are complete: (1) a shared-corpus note was added to `docs/03_rag_01_system_overview.md` stating that external/local RAG modes share one corpus by configuration convention (not an enforced invariant), citing both `config/agent.toml` and `config/rag_pipeline_mcp_server.toml`; (2) `docs/adr/ADR-010-rag-fallback.md`'s "Data Ownership and Persistence" `System of Record` line was reworded to describe one shared `rag.sqlite` file accessed via two execution paths, not two independent systems of record. Its absence from the active list is the correct, policy-compliant state — do not create a `#### DESIGN-1` heading.
 
 #### DESIGN-2
 
@@ -308,7 +291,7 @@ EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was r
 
 - **ID**: CI-003
 - **Title**: ADR-003 Decision Details #14 — reload-updates-only-policy-fields claim not verified
-- **Status**: open
+- **Status**: Mitigated
 - **Severity**: Medium
 - **Area**: MCP
 - **Type**: ambiguous-behavior
@@ -318,10 +301,10 @@ EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was r
 - **Target**: `docs/adr/ADR-003-runtime-tool-registry-routing-authority.md`
 - **Related**: ADR-003
 - **Summary**: ADR-003 (formerly ADR-013 Decision Details #6, merged 2026-08-31) states that reload operations update only policy-derived fields and do NOT rediscover tools.
-- **Current Description**: The implementation appears correct based on code inspection of `apply_policy()`, but this has NOT been validated against the actual reload flow. `requires_approval` (unread by any approval code) was removed from `RuntimeTool`/`apply_policy()`; the former ADR-013's mentions of it are now stale and were not carried into ADR-003.
-- **Observed Implementation**: Code inspection of `apply_policy()` in `runtime_tool_registry.py` appears correct; not traced end-to-end.
+- **Current Description**: End-to-end verification added via `test_apply_config_dict_exercises_real_registry_and_no_discovery_call` in `tests/agent/services/test_config_reload.py`: constructs a real `RuntimeToolRegistry`, calls `ConfigReloadService._sync_services()` with tier/allowed-tools changes, asserts the tier/allowed-tools state changed on the real registry afterward, and asserts no discovery-style HTTP call occurred during the call. `requires_approval` (unread by any approval code) was removed from `RuntimeTool`/`apply_policy()`; the former ADR-013's mentions of it are now stale and were not carried into ADR-003.
+- **Observed Implementation**: Code inspection of `apply_policy()` in `runtime_tool_registry.py` confirmed correct; additionally traced end-to-end via E2E test exercising the real `/reload` trigger path (`_sync_services()` → `apply_policy()`).
 - **Impact**: If reload also rediscovered tools, it would violate the stated invariant that policy changes don't alter tool availability.
-- **Recommended Action**: Trace the full reload execution path to confirm only policy fields are updated.
+- **Recommended Action**: Resolved — E2E test in `tests/agent/services/test_config_reload.py` confirms only policy fields are updated and no discovery call occurs. Re-evaluate if `mcpagent04` (issues/20260914-103138_mcpagent04_runtime-policy-reload-reversibility.md) introduces behavioral changes.
 
 #### CI-004
 
@@ -762,9 +745,43 @@ NC-030 ("Should `adr` and `security` be permanent `area` enum values, or folded 
 - **Priority**: Low
 - **Related NC**: None
 - **Resolution Target**: Next ChunkSplitter specification review
+ - **Blocking**: No
+
+#### NC-034
+
+- **Source File**: `chunk_splitter.py` / `config/chunk_splitter.toml`
+- **Section**: min_chunk / max_chunk / chunk_overlap constants
+- **Line Number**: ~70-71, 168-169, 185-186
+- **Question**: Why is the minimum chunk size 40 characters, maximum chunk size 500 characters, and overlap 50 characters? What is the historical reason for these specific values?
+- **Evidence**: No rationale comment in `chunk_splitter.py` or `config/chunk_splitter.toml`; no ADR or governance entry found. `_min_chunk` (line 70), `_max_chunk` (line 71), and `_chunk_overlap` (line 74) enforce the constraint boundaries documented in `docs/03_rag_05_1-configuration-reference.md` line 39, but no explanation exists for why 40/500/50 were chosen over any other values.
+- **Impact**: Operators cannot understand why sub-40-char chunks are discarded as noise, why sections exceeding 500 chars are split further, or why overlap is set to 50 characters
+- **Required Action**: Owner confirmation of the historical reason for these specific values; if resolved, update the chunksplitter documentation accordingly
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-14
+- **Priority**: Low
+- **Related NC**: None
+- **Resolution Target**: Next ChunkSplitter specification review
 - **Blocking**: No
 
-No other active items beyond NC-021 through NC-033 above.
+#### NC-035
+
+- **Source File**: `crawler.py` / `config/crawler.toml`
+- **Section**: max_depth / max_pages operational limits
+- **Line Number**: ~61, 66
+- **Question**: Why is the crawl depth limited to 3 hops from the start URL, and why is the maximum pages per site limited to 200? What is the historical reason for these specific operational values?
+- **Evidence**: No rationale comment in `crawler.py` or `config/crawler.toml`; no ADR or governance entry found. `_max_depth` (line 61) and `_max_pages` (line 66) read from `config/crawler.toml` and stop BFS traversal at the limit, but no explanation exists for why 3 and 200 were chosen over any other values.
+- **Impact**: Operators cannot understand why crawlers stop after 3 hops or 200 pages per site; new developers may not realize these are operational limits rather than technical constraints
+- **Required Action**: Owner confirmation of the historical reason for these specific operational values; if resolved, update the crawler documentation accordingly
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-14
+- **Priority**: Low
+- **Related NC**: None
+- **Resolution Target**: Next crawler operations review
+- **Blocking**: No
+
+No other active items beyond NC-021 through NC-035 above.
 
 ## Part 3: Canonical Source Conflict
 

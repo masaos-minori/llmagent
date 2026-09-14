@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS chunks (
     embedding          BLOB
 );
 CREATE TABLE IF NOT EXISTS chunks_vec (
-    chunk_id INTEGER PRIMARY KEY
+    chunk_id INTEGER PRIMARY KEY,
+    embedding  BLOB
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     content,
@@ -337,3 +338,75 @@ def test_reconcile_url_fts_deletion(db: _FakeSQLiteHelper) -> None:
     results = fts_search("reconcile", top_k=5, db=db)
     assert len(results) == 1
     assert results[0].content == "reconcile text"
+
+
+# ── REBUILD_VEC: orphaned chunks_vec removal ──────────────────────────────────
+
+from unittest.mock import patch as mock_patch
+
+
+def test_rebuild_vec_removes_orphaned_chunks_vec_rows(db: _FakeSQLiteHelper) -> None:
+    """rebuild_vec() must remove orphaned chunks_vec rows while preserving valid ones."""
+    conn = db._conn
+    # Insert a valid chunk with embedding
+    doc_id = _insert_doc(conn, url="http://valid.example.com")
+    valid_chunk_id = _insert_chunk(conn, doc_id, "valid content")
+    conn.execute(
+        "UPDATE chunks SET embedding = ? WHERE doc_id = ? AND chunk_index = ?",
+        (b"\x00\x01\x02\x03", doc_id, 0),
+    )
+    conn.commit()
+
+    # First rebuild to populate chunks_vec with the valid chunk
+    with mock_patch(
+        "agent.services.rag_maintenance_service.SQLiteHelper"
+    ) as mock_helper_cls:
+        mock_helper_cls.return_value.open.return_value.__enter__.return_value = db
+        mock_helper_cls.return_value.open.return_value.__exit__ = lambda *_: None
+        RagMaintenanceService().rebuild_vec()
+
+    # Verify valid row exists after first rebuild
+    valid_before = db.fetchall(
+        "SELECT * FROM chunks_vec WHERE chunk_id = ?", (valid_chunk_id,)
+    )
+    assert len(valid_before) == 1
+
+    # Insert an orphaned chunks_vec row (chunk_id that does NOT exist in chunks)
+    orphan_chunk_id = 9999
+    db.execute(
+        "INSERT OR IGNORE INTO chunks_vec(chunk_id) VALUES(?)",
+        (orphan_chunk_id,),
+    )
+    db.commit()
+
+    # Verify orphan exists before second rebuild
+    orphan_before = db.fetchall(
+        "SELECT * FROM chunks_vec WHERE chunk_id = ?", (orphan_chunk_id,)
+    )
+    assert len(orphan_before) == 1
+
+    # Second rebuild — orphan should be removed, valid row preserved
+    with mock_patch(
+        "agent.services.rag_maintenance_service.SQLiteHelper"
+    ) as mock_helper_cls:
+        mock_helper_cls.return_value.open.return_value.__enter__.return_value = db
+        mock_helper_cls.return_value.open.return_value.__exit__ = lambda *_: None
+        count = RagMaintenanceService().rebuild_vec()
+
+    # Orphan must be removed
+    orphan_after = db.fetchall(
+        "SELECT * FROM chunks_vec WHERE chunk_id = ?", (orphan_chunk_id,)
+    )
+    assert len(orphan_after) == 0
+
+    # Valid row must be preserved
+    valid_after = db.fetchall(
+        "SELECT * FROM chunks_vec WHERE chunk_id = ?", (valid_chunk_id,)
+    )
+    assert len(valid_after) == 1
+
+    # Row count must match the number of chunks with embeddings
+    expected_count = len(
+        db.fetchall("SELECT chunk_id FROM chunks WHERE embedding IS NOT NULL")
+    )
+    assert count == expected_count

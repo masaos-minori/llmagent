@@ -47,6 +47,8 @@ class HealthChecker:
         to ``_DEFAULT_HEALTH_URL``.
         """
         target_url = url or getattr(cfg, "health_url", _DEFAULT_HEALTH_URL)
+        if target_url is None:
+            target_url = _DEFAULT_HEALTH_URL
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.get(target_url)

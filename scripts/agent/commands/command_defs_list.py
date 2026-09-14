@@ -103,7 +103,7 @@ _COMMANDS: list[CommandDef] = [
         is_async=True,
         handler="_cmd_session",
         help="list [n] | load <id> | rename <title> | delete <id>"
-        " | export markdown|json [file] | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts",
+        " | export markdown|json [file] | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec",
     ),
     CommandDef(
         name="/clear",

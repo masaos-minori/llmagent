@@ -150,6 +150,11 @@ class _SessionMixin(MixinBase):
         RagMaintenanceService().rebuild_fts()
         self._out.write_success("RAG FTS index rebuilt. [RAG]")
 
+    def _rag_rebuild_vec(self) -> None:
+        """Rebuild chunks_vec from chunks. Returns number of rows inserted."""
+        count = RagMaintenanceService().rebuild_vec()
+        self._out.write_success(f"chunks_vec rebuilt ({count} rows). [RAG]")
+
     def _session_export(self, args: str) -> None:
         """Export the current conversation history to Markdown or JSON.
 
@@ -172,7 +177,7 @@ class _SessionMixin(MixinBase):
     async def _cmd_session(self, args: str) -> None:
         """Handle /session list [n] | load <id> | rename <title> | delete <id>
         | export markdown|json [file]
-        | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts.
+        | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec.
         """
         parsed = parse_command_args(args.strip().split())
         sub = parsed.subcommand or "list"
@@ -213,6 +218,7 @@ class _SessionMixin(MixinBase):
             "recover": lambda: self._db_session_ops.recover(rest.strip() or None),
             "rag-consistency": self._rag_consistency,
             "rag-rebuild-fts": self._rag_rebuild_fts,
+            "rag-rebuild-vec": self._rag_rebuild_vec,
         }
         handler = db_dispatch.get(sub)
         if handler is not None:
@@ -223,7 +229,7 @@ class _SessionMixin(MixinBase):
             "/session list [n] | /session load <id>"
             " | /session rename <title> | /session delete <id>"
             " | /session export markdown|json [file]"
-            " | /session stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts"
+            " | /session stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec"
         )
 
     async def _load_session(self, session_id: int) -> None:

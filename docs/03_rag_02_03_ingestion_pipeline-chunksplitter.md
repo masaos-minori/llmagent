@@ -126,6 +126,46 @@ Text is split by Markdown headings (# through ######). Sections exceeding `md_sn
 
 > Evidence: Explicit in code — Markdown heading chunking falls back to English sentence boundary splitting for overflowing sections. Even if `lang` is `"ja"`, Japanese morphological analysis (Sudachi) is NOT applied, and `normalized_content` is NOT generated (the entire heading chunk's `normalized_content` is always treated as empty, as described below).
 
+### 3.1.6 Markdown Heading Chunking Fallback Mechanism
+
+#### Trigger condition
+
+The fallback to sentence-based chunking triggers **per individual heading-delimited section**, not for the document as a whole. `_chunk_markdown_by_heading()` (lines 158-175 of `scripts/rag/ingestion/chunk_splitter.py`) splits the entire text at heading boundaries first (one pass), then for each resulting section checks `len(section) <= self._md_snippet_max_chars` individually (line 169). Only sections exceeding `md_snippet_max_chars` are re-split via `_chunk_english()` (line 174).
+
+#### Sequential combination
+
+The two strategies combine **sequentially**, not in parallel. Heading-boundary splitting always runs first across the entire text (line 161-163: `re.split(rf"(?={MARKDOWN_HEADING_RE} )", text.strip(), flags=re.MULTILINE)`). Sentence-based splitting (`_chunk_english()`) is a second pass applied only to whichever individual sections exceed the size limit (line 174: `chunks.extend(self._chunk_english(section))`). It is not a parallel or whole-alternative strategy.
+
+#### Chunk metadata during fallback
+
+- `chunking_strategy`: Remains `"heading"` for the overall Markdown source regardless of which sections fell back to sentence splitting (per the document's existing note at line 134: "Heading chunking (`chunking_strategy="heading"`)... regardless of `lang`").
+- `normalized_content`: Stays `null` for both non-fallback sections (size-fitting path) and fallback sections (sentence-split path), consistent with the Evidence note above.
+- Sections below `min_chunk` after either path are silently discarded as noise (per `chunk_splitter.py` line 168-169: `if len(section) >= self._min_chunk` guard).
+
+#### Known edge case
+
+Japanese content loses Sudachi normalization when routed through heading chunking, including its sentence-split fallback portion — explicitly stated in the Evidence note above. This is the only documented edge case for this behavior.
+
+### 3.1.5 Override Behavior and Known Edge Cases
+
+#### No override for `.md`/`.markdown`/`.mdx` sources
+
+There is no configuration or per-source override for `.md`/`.markdown`/`.mdx` URLs'
+unconditional heading chunking. `_is_markdown_source()` (lines 138-154 of
+`scripts/rag/ingestion/chunk_splitter.py`) checks the URL extension first (line 146:
+`if url.endswith((".md", ".markdown", ".mdx")):` returns `True` immediately), and only
+reaches the `self._md_index_enable` check (line 148) for non-`.md`-extension URLs. This
+means any source ending in `.md`, `.markdown`, or `.mdx` — whether a remote URL or a local
+`file://` source — always uses heading chunking regardless of `md_index_enable`.
+
+#### Known edge case: Japanese content skips Sudachi normalization
+
+The existing note in section 3.1.4 (above) states that even when `lang` is `"ja"`, Japanese
+morphological analysis (Sudachi) is NOT applied for Markdown heading chunking, and
+`normalized_content` is NOT generated. This is the only known edge case where the Markdown
+heading chunking behavior causes problems — Japanese text processing relies on Sudachi
+normalization for accurate segmentation, but the heading chunking path bypasses it entirely.
+
 ### 3.2 Splitting Strategies
 
 | Content Type | Strategy |

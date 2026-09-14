@@ -129,7 +129,8 @@ class TestWritePolicy:
     async def test_gate_write_allows_when_no_pending_approval(self) -> None:
         """Write tool allowed when pending_approval_id is None."""
         expected = MagicMock(is_error=False, output="written")
-        executor = AsyncMock(return_value=expected)
+        executor = AsyncMock()
+        executor.execute = AsyncMock(return_value=expected)
         gw = _make_gateway(executor=executor)
         ctx = _make_ctx()
         # pending_approval_id is None by default via _make_ctx()
@@ -146,7 +147,9 @@ class TestWritePolicy:
             )
 
         assert result is expected
-        executor.execute.assert_awaited_once_with("write_file", {"path": "/tmp/x.txt", "content": "ok"})
+        executor.execute.assert_awaited_once_with(
+            "write_file", {"path": "/tmp/x.txt", "content": "ok"}
+        )
 
 
 class TestAudit:
