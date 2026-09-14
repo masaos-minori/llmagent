@@ -116,9 +116,9 @@ Simple revert: restore the property getter/setter. The underlying code remains u
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Confirm no callers exist | Pending | — | — | |
-| 2 | Phase 2: Remove property getter/setter | Pending | — | — | |
-| 3 | Phase 3: Run tests and verify | Pending | — | — | |
+| 1 | Phase 1: Confirm no callers exist | Completed | 20260914-111424 | 20260914-111424 |  |
+| 2 | Phase 2: Remove property getter/setter | Completed | 20260914-111424 | 20260914-111424 |  |
+| 3 | Phase 3: Run tests and verify | Completed | 20260914-111424 | 20260914-111424 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
