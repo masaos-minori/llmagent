@@ -237,10 +237,10 @@ No change needed. The `replay_ceil` variable is updated incrementally during rep
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace offset-based pagination with keyset pagination in subscribe_route.py | Pending | — | — | |
-| 2 | Verify replay loop termination conditions | Pending | — | — | |
-| 3 | Verify live-delivery deduplication alignment | Pending | — | — | |
-| 4 | Run validation suite | Pending | — | — | |
+| 1 | Replace offset-based pagination with keyset pagination in subscribe_route.py | Completed | 20260915-001102 | 20260915-001102 |  |
+| 2 | Verify replay loop termination conditions | Completed | 20260915-001112 | 20260915-001112 |  |
+| 3 | Verify live-delivery deduplication alignment | Completed | 20260915-001113 | 20260915-001113 |  |
+| 4 | Run validation suite | Completed | 20260915-001113 | 20260915-001113 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
