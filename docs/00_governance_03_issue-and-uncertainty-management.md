@@ -231,44 +231,6 @@ them, are preserved here rather than lost:
 - **Impact**: Clients may not know to expect paginated response structure. Workaround: clients can infer the shape from the response body.
 - **Recommended Action**: Add the pagination format to `06_eventbus_02_operations.md` and `06_eventbus_06_reference-api.md`.
 
-#### EVENTBUS-003
-
-- **ID**: EVENTBUS-003
-- **Title**: Dual Path for DLQ Promotion Undocumented
-- **Status**: open
-- **Severity**: Medium
-- **Area**: EventBus
-- **Type**: missing-documentation
-- **Source**: `nack_event()` in `ack_route.py`; `promote_single()` in `dlq.py`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `06_eventbus_02_operations.md`
-- **Related**: EVENTBUS-004
-- **Summary**: DLQ promotion occurs via two paths — inline nack escalation and a background sweep — but only one path was documented.
-- **Current Description**: Two independent code paths promote to DLQ (inline in the nack handler, plus a background sweep); both must be documented.
-- **Observed Implementation**: Explicit in code — `nack_event()` calls `promote_single()` inline; `dlq.py` also has a background sweep calling `promote_single()`.
-- **Impact**: Operators may not understand all DLQ entry origins. No workaround — documentation only.
-- **Recommended Action**: Document both paths in `06_eventbus_02_operations.md`.
-
-#### EVENTBUS-004
-
-- **ID**: EVENTBUS-004
-- **Title**: `promote_to_dlq()` Dead Code
-- **Status**: open
-- **Severity**: Low
-- **Area**: EventBus
-- **Type**: obsolete-description
-- **Source**: `scripts/eventbus/dlq.py::promote_to_dlq()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `scripts/eventbus/dlq.py`
-- **Related**: EVENTBUS-003
-- **Summary**: `promote_to_dlq()` is never called; only `sweep_orphans()`/`promote_single()` are valid paths.
-- **Current Description**: Function was added but never wired into any call path; superseded by `promote_single()`.
-- **Observed Implementation**: Explicit in code — grep shows zero callers of `promote_to_dlq()` in `scripts/`.
-- **Impact**: Dead code increases maintenance surface and potential confusion during audits. Code is inert; no runtime impact.
-- **Recommended Action**: Remove `promote_to_dlq()` or add a deprecation marker with a migration note.
-
 #### EVENTBUS-005
 
 - **ID**: EVENTBUS-005
@@ -326,28 +288,13 @@ them, are preserved here rather than lost:
 - **Impact**: Limits administrative workflows. Workaround: direct MCP tool calls for topic management.
 - **Recommended Action**: Implement Agent topic management when this integration is prioritized.
 
-#### EVENTBUS-008
-
-- **ID**: EVENTBUS-008
-- **Title**: No Production Authentication Model for Event Bus HTTP API
-- **Status**: open
-- **Severity**: High
-- **Area**: EventBus
-- **Type**: operational-gap
-- **Source**: `scripts/eventbus/config.py`; Event Bus route handlers (`ack_route.py`, `subscribe_route.py`, `publish_route.py`)
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: N/A: no current target document
-- **Related**: EVENTBUS-001
-- **Summary**: The Event Bus HTTP API (`/publish`, `/subscribe`, `/events/{event_id}/ack`, `/nack`, `/health`, `/dlq`, `/replay`) lacks production-grade authentication/authorization; the only control is unconditional loopback-only binding.
-- **Current Description (updated 2026-09-04)**: No authentication middleware is implemented. `allow_public_bind` (the former escape hatch allowing a non-loopback bind) was removed entirely by `plans/done/20260903-091921_plan.md` ("loopbackonly") — `EventBusConfig.__post_init__()` (`scripts/eventbus/config.py`) now raises `ValueError` unconditionally for any host other than `127.0.0.1`/`::1`, with no configuration override possible.
-- **Observed Implementation**: Explicit in code — no auth middleware exists; `scripts/eventbus/config.py`'s `_is_public_host()` check is now a fail-fast `ValueError` in `__post_init__()`, not a togglable gate.
-- **Impact**: The Event Bus HTTP API remains reachable without authentication to any process on the same host (or via SSH tunnel), since loopback-only binding is the sole control and cannot be relaxed. This is a narrower residual risk than before `allow_public_bind`'s removal (public exposure is no longer possible via configuration), but same-host/tunneled access still has no authentication layer.
-- **Recommended Action**: Implement static bearer-token validation in the Event Bus process; add auth middleware to route handlers.
-
 #### SHARED-001
 
 SHARED-001 was fully resolved this cycle; its content was transferred to SHARED-002 and SHARED-003, both since independently resolved and removed from this active inventory in turn. Its absence from the active list is the correct, policy-compliant state — do not create a `#### SHARED-001` heading.
+
+#### EVENTBUS-008
+
+EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was resolved 2026-09-14 and removed from this active inventory. Confirmed by direct code inspection: `scripts/eventbus/app.py` calls `attach_auth_middleware(app)`, and every route requires `Depends(require_role(...))`; the ACK/NACK/subscribe endpoints additionally require `Depends(require_consumer_identity)`, which validates the caller's bearer token and, when configured, a `consumer_id` allowlist. The entry's original claim ("no authentication middleware is implemented") no longer matches the code. Its absence from the active list is the correct, policy-compliant state — do not create a `#### EVENTBUS-008` heading. A narrower residual gap found during this same review — a token with no configured `consumer_id` allowlist entry has consumer-identity validation skipped (fail-open) — is tracked separately in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`, not under this entry.
 
 #### CI-001
 

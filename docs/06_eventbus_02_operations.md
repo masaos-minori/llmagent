@@ -101,9 +101,11 @@ if consumer_id and start_seq == 0:
 
 Rule: An explicit `since_seq=0` and an omitted `since_seq` (defaults to 0 via `Query(default=0)` declaration) are indistinguishable when a `consumer_id` is provided. Both resolve to "read from the saved offset". Clients wanting to perform a full replay while providing a `consumer_id` cannot currently express this intent.
 
-### Handling Unknown/Mismatched Consumers
+### Consumer Identity Authorization
 
-There is no consumer/event ownership column in `schema.sql`. `consumer_id` is accepted as any string and only used for `write_offset`/`read_offset`. Both `/subscribe` and `/events/{event_id}/ack` accept arbitrary strings without validation against an event ownership registry. Following implementation instructions #1/#3, this is documented as "untracked/unimplemented (by design)" rather than being silently omitted.
+`consumer_id` is validated against the caller's token before `/subscribe`, `/events/{event_id}/ack`, and `/nack` accept it: a token that has an explicit `consumer_id` allowlist configured is rejected (HTTP 403) if it presents a `consumer_id` outside that allowlist.
+
+**Known Issue**: a token with no configured `consumer_id` allowlist entry (the common case for a shared per-role token) has this check skipped entirely — an empty allowlist means "no restriction," not "deny all." This means `consumer_id` collisions between callers sharing such a token remain possible unless a per-caller allowlist is explicitly configured. Tracked in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`.
 
 ---
 
@@ -177,13 +179,20 @@ Moves a DLQ event back to normal delivery. Increases `dlq_requeue_count` (`deliv
 
 ---
 
-## DLQ Background Loop
+## DLQ Promotion Paths
 
-At startup, the DLQ sweep background loop runs as an `asyncio` task, polling every 60 seconds. It searches for events where `delivery_failure_count >= max_retry AND dlq_at IS NULL`, acting as a safety net to catch any events missed by inline processing.
+DLQ promotion occurs via two independent paths that share one underlying promotion procedure:
 
-Using optimistic locking, it only targets events where `dlq_at IS NULL` to prevent duplicate promotion. If orphaned events are found, they are recorded in the logs. Any non-zero count may indicate an issue with the inline promotion process.
+1. **Inline promotion**: triggered synchronously when a `POST /nack` call raises `delivery_failure_count` to `max_retry` or beyond.
+2. **Background sweep**: a startup `asyncio` task polling every 60 seconds, acting as a safety net for events whose inline promotion was missed (e.g. a crash between the retry-count update and the promotion write).
 
-Promotion follows the same procedure as inline processing (atomic write to JSON file + setting `dlq_at` in SQLite).
+Both paths call the same shared promotion routine (atomic write to JSON file + setting `dlq_at` in SQLite), so a promoted event's on-disk/DB representation does not differ by path. This is a documentation-only clarification of existing, already-unified code — no behavior changed.
+
+## DLQ Background Sweep
+
+The background sweep searches for events where `delivery_failure_count >= max_retry AND dlq_at IS NULL`.
+
+Using optimistic locking, it only targets events where `dlq_at IS NULL` to prevent duplicate promotion. If orphaned events are found, they are recorded in the logs. Any non-zero count may indicate an issue with the inline promotion process (e.g. a crash before its promotion write completed) rather than a normal condition.
 
 ---
 
