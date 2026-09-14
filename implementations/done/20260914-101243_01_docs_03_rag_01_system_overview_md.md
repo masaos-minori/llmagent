@@ -102,9 +102,9 @@ Simple revert: remove the added cross-references and gap note. The underlying co
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Re-confirm each ADR's status and relevant content | Pending | — | — | |
-| 2 | Phase 2: Add cross-references and the gap note | Pending | — | — | |
-| 3 | Phase 3: Manual verification | Pending | — | — | |
+| 1 | Phase 1: Re-confirm each ADR's status and relevant content | Completed | — | 20260914-120100 | |
+| 2 | Phase 2: Add cross-references and the gap note | Completed | — | 20260914-120100 | |
+| 3 | Phase 3: Manual verification | Completed | — | 20260914-120100 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

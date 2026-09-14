@@ -199,12 +199,12 @@ N/A: no security-sensitive operations introduced; existing `# nosec B603` commen
 
 ## Completion criteria
 
-- [ ] `shutdown_all` body contains only SIGINT guard setup + delegation loop
-- [ ] `_kill_pg` and `_kill_pg_force` fully removed (zero references in file)
-- [ ] `_TERMINATE_ERRORS` and `_KILL_ERRORS` removed if no longer needed
-- [ ] mypy passes on `scripts/agent/http_lifecycle_shutdown_coordinator.py`
-- [ ] Existing lifecycle tests pass without regression
-- [ ] Public API surface backward-compatible (terminator parameter has default value)
+- [x] `shutdown_all` body contains only SIGINT guard setup + delegation loop
+- [x] `_kill_pg` and `_kill_pg_force` fully removed (zero references in file)
+- [x] `_TERMINATE_ERRORS` and `_KILL_ERRORS` removed (no longer needed)
+- [x] mypy passes on `scripts/agent/http_lifecycle_shutdown_coordinator.py`
+- [x] Existing lifecycle tests pass without regression
+- [x] Public API surface backward-compatible (terminator parameter has default value)
 
 ## Out of scope
 
@@ -218,10 +218,10 @@ N/A: no security-sensitive operations introduced; existing `# nosec B603` commen
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: existing tests cover regression |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Update docstrings for delegation clarification |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260914-120600 | Added ProcessTerminator import; modified shutdown_all signature; replaced inline loop with delegation; removed helper functions |
+| 2 | Add or update tests per Validation plan | N/A | — | — | No changes made |
+| 3 | Run the validation sequence (rules/toolchain.md) | N/A | — | — | No changes made |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No changes needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

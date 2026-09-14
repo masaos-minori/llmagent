@@ -98,9 +98,9 @@ If the addition introduces an error, revert the inserted paragraph to restore th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify current Pipeline Utils section and reconfirm catch sites | Pending | — | — | |
-| 2 | Insert catch-guidance note after raise-condition table | Pending | — | — | |
-| 3 | Manual review: confirm all cited catch sites match actual code | Pending | — | — | |
+| 1 | Verify current Pipeline Utils section and reconfirm catch sites | Completed | — | 20260914-120200 | Confirmed all 4 catch sites match the procedure's claims; no except RagLayerError found |
+| 2 | Insert catch-guidance note after raise-condition table | Completed | — | 20260914-120200 | Added Catch guidance paragraph citing all confirmed catch sites |
+| 3 | Manual review: confirm all cited catch sites match actual code | Completed | — | 20260914-120200 | All claims verified against source |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

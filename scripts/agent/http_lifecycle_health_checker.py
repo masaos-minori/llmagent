@@ -7,6 +7,8 @@ from __future__ import annotations
 import asyncio
 import logging
 
+import httpx
+
 logger = logging.getLogger(__name__)
 
 _HEALTH_RECHECK_INTERVAL_SEC = 10.0
@@ -46,7 +48,7 @@ class HealthChecker:
         """
         target_url = url or getattr(cfg, "health_url", _DEFAULT_HEALTH_URL)
         try:
-            async with __import__("httpx").AsyncClient(timeout=timeout) as client:
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.get(target_url)
                 if response.status_code == 200:
                     logger.debug("Health check passed at %s", target_url)
@@ -57,7 +59,7 @@ class HealthChecker:
                     target_url,
                 )
                 return False
-        except __import__("httpx").RequestError as exc:
+        except httpx.RequestError as exc:
             logger.debug("Health check failed at %s: %s", target_url, exc)
             return False
         except Exception as exc:  # noqa: BLE001 — health check must never propagate an unexpected error to the caller

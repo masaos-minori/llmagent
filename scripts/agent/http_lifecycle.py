@@ -141,57 +141,7 @@ class HttpServerLifecycleManager:
         """Terminate proc; escalate to kill if terminate times out."""
         if proc.poll() is not None:
             return
-        used_pgid = await self._do_pgid_terminated(
-            self._http_pgids.get(server_key), proc, force=False
-        )
-        if await self._wait_exited(proc, timeout):
-            if not used_pgid:
-                logger.warning(
-                    "Lifecycle: %r terminated, but children may remain (no pgid available)",
-                    server_key,
-                )
-            return
-        logger.warning(
-            "Lifecycle: force-killing %r (terminate timed out)",
-            server_key,
-        )
-        await self._do_pgid_terminated(
-            self._http_pgids.get(server_key), proc, force=True
-        )
-        if not await self._wait_exited(proc, timeout):
-            logger.warning(
-                "Lifecycle: %r still not terminated after kill",
-                server_key,
-            )
-
-    async def _do_pgid_terminated(
-        self,
-        pgid: int | None,
-        proc: subprocess.Popen[bytes],
-        force: bool = False,
-    ) -> bool:
-        """Send SIGTERM or SIGKILL to process group leader via pgid, falling back to proc-level signals.
-
-        Returns True iff pgid-based termination was used (os.killpg succeeded).
-        When pgid is not None, attempts os.killpg() first; on failure falls back
-        to proc.terminate()/proc.kill(). When pgid is None, uses proc-level signals
-        directly.  When force=True sends SIGKILL instead of SIGTERM.
-        """
-        sig = signal.SIGKILL if force else signal.SIGTERM
-        if pgid is not None:
-            try:
-                os.killpg(pgid, sig)  # nosec B603
-                return True
-            except (ProcessLookupError, OSError):
-                if force:
-                    proc.kill()
-                else:
-                    proc.terminate()
-        elif force:
-            proc.kill()
-        else:
-            proc.terminate()
-        return False
+        await self._process_terminator.terminate_with_timeout(proc, server_key, timeout)
 
     def verify_running(self, server_key: str) -> bool:
         """Return True if the HTTP subprocess server is running, False if missing or exited."""

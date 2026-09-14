@@ -102,9 +102,9 @@ If the correction introduces an error, revert the single-line edit to restore th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify current Evidence note content and reference files | Pending | — | — | |
-| 2 | Edit the Evidence note with corrected claims | Pending | — | — | |
-| 3 | Manual review: confirm all claims trace to specific code locations | Pending | — | — | |
+| 1 | Verify current Evidence note content and reference files | Completed | — | 20260914-120100 | Found that ChunkJsonPayload does not exist in the codebase; only CrawlJsonPayload exists in pipeline_utils.py |
+| 2 | Edit the Evidence note with corrected claims | Completed | — | 20260914-120100 | Corrected to reflect reality: ChunkJsonPayload doesn't exist; actual TypedDict is ChunkJsonRaw |
+| 3 | Manual review: confirm all claims trace to specific code locations | Completed | — | 20260914-120100 | All claims verified against source |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

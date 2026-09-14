@@ -50,6 +50,8 @@ in [03_rag_02_08_ingestion_pipeline-shared.md](03_rag_02_08_ingestion_pipeline-s
 | `chunk_index` is `bool`, non-`int`, or negative (`_validate_int_non_negative`; `bool` explicitly rejected before the `int` check) | `ChunkFormatError` |
 | Crawl artifact only: `content` is empty and `code_blocks` is also empty (cross-field rule) | `ChunkFormatError` |
 
+**Catch guidance**: Callers should catch `ChunkFormatError` specifically, not the broader `RagLayerError` base class. This matches every actual catch site in the codebase — `chunk_grouping.py:30`, `chunk_splitter.py:197` (as part of `(FileNotFoundError, ChunkFormatError)`), `file_routing.py:52,101`, and `ingester.py:217,235,348`. No catch site was found using the wrong exception type as of this cycle's search.
+
 For the full per-field Required/Nullable/Conditional classification referenced above,
 see the canonical table in
 [03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md).

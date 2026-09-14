@@ -74,21 +74,17 @@ uv run python scripts/rag/ingestion/ingester.py --force
 | `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy |
 | `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | Chunk → Registered |
 
-> JSON files are parsed using `orjson.loads()`. For verification: `python -c "import orjson; print(orjson.loads(open('FILE', 'rb').read()))"`
-
-**Example:** To verify a crawl artifact:
-
-```bash
-python -c "import orjson; print(orjson.loads(open('/path/to/crawl_<timestamp>.json', 'rb').read()))"
-```
-
-Replace `/path/to/crawl_<timestamp>.json` with the actual file path.
-
-**Note:** The `'rb'` (binary read) mode is required because `orjson.loads()` accepts `bytes` input directly, unlike Python's standard `json.load()` which reads text. This matches how the ingestion pipeline writes these files — all use `orjson.dumps()` with binary write (`wb`).
-
-**Expected output:** A valid JSON object. For crawl artifacts, look for keys: `url`, `content`, `title`, `lang`, `code_blocks`, `etag`, `last_modified`, `fetched_at`. For chunk artifacts, look for additional keys: `normalized_content`, `chunk_index`, `source_file`, `chunk_type`, `chunking_strategy`.
-
-**Why `orjson`?** The ingestion pipeline uses `orjson` (not the standard `json` module) for faster serialization/deserialization, deterministic output ordering, and strict JSON compliance. These properties ensure consistency when reading back artifacts written by the pipeline.
+> **JSON verification:** Parse crawl/chunk artifacts with `orjson.loads()` (the ingestion pipeline uses `orjson.dumps()` for writing and `orjson.loads()` for reading). Example — verify a crawl artifact:
+>
+> ```bash
+> python -c "import orjson; print(orjson.loads(open('{rag_src_dir}/{timestamp}-{slug}.json', 'rb').read()))"
+> ```
+>
+> Use the artifact path format from the table above (e.g., `{rag_src_dir}/20260913-183000_example.json`). The `'rb'` (binary read) mode is required because `orjson.loads()` accepts `bytes` input directly, matching how `read_crawl_json()`/`read_chunk_json()` read files via `path.read_bytes()` before passing to `orjson.loads()`. `orjson` is used instead of the standard `json` module for its performance characteristics (Rust-backed, significantly faster). Expected output: a Python `dict` printed to stdout, or a `json.JSONDecodeError` if the file is not valid JSON.
+>
+> **Crawl artifact keys:** `url`, `content`, `title`, `lang`, `code_blocks`, `etag`, `last_modified`, `fetched_at`
+>
+> **Chunk artifact keys:** additionally includes `normalized_content`, `chunk_index`, `source_file`, `chunk_type`, `chunking_strategy`
 
 Production setting: `rag_src_dir = "/opt/llm/rag-src"`. The default value `rag-src` is used only if no configuration is provided.
 

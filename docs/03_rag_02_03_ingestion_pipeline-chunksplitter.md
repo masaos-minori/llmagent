@@ -47,7 +47,7 @@ This module defines the following constants. See source code for details. Note t
 | `ChunkJsonPayload` | Typed dictionary for chunk output JSON files (schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, content are required; normalized_content is optional via NotRequired) |
 | `ChunkMetadata` | Optional metadata dictionary to be expanded with ** in the output payload (total=False). Fields: url, title, lang, fetched_at (str, mandatory), etag, last_modified, source_file, chunking_strategy. |
 
-> Evidence: Explicit in code — `CrawlJsonPayload` and `ChunkJsonPayload` are declared as types in `chunk_splitter.py`, but they are not used as type annotations in the actual implementation within `chunk_splitter.py` (actual input/output is handled via `ChunkJsonRaw` from `pipeline_utils.py` or `dict[str, object]`).
+> Evidence: Explicit in code — `CrawlJsonPayload` is declared as a TypedDict in `pipeline_utils.py` (line 23) and used as a type annotation in `crawl_persister.py` (lines 71, 119). `ChunkJsonPayload` does not exist in the codebase; the actual TypedDict for chunk payloads is `ChunkJsonRaw` in `pipeline_utils.py` (line 219), and `_build_chunk_payload()` in `chunk_splitter.py` returns `dict[str, object]` because its return value combines `**metadata` unpacking with additional literal keys, which is incompatible with a strict `TypedDict` return annotation under current type-checker support.
 
 **Inheritance**
 
@@ -115,6 +115,14 @@ Note: No historical rationale for this extension-based rule is recorded in code 
 ### 3.1.4 Markdown Heading Chunking Behavior
 
 Text is split by Markdown headings (# through ######). Sections exceeding `md_snippet_max_chars` characters are further split using sentence-based chunking.
+
+**Fallback trigger condition:** When a heading-delimited section exceeds `md_snippet_max_chars` characters (default 600), the section is split using sentence-boundary splitting via `_chunk_english()`. The exact trigger is `len(section) > md_snippet_max_chars`.
+
+**Sequential per-section combination model:** The two strategies combine sequentially, per-section: the text is first split into heading-delimited sections, then *each section independently* either passes through as one chunk or is further split by `_chunk_english()`. The two strategies are not applied in parallel or merged; each section takes exactly one path.
+
+**Metadata during fallback:** No distinction is made between whole-section chunks and fallback-split chunks at the metadata level. The caller tags every chunk returned by `_chunk_markdown_by_heading()` with the literal `"text"` chunk-type marker, regardless of whether that specific chunk came from a whole heading section or from a `_chunk_english()`-split fragment of an oversized one. There is no metadata field distinguishing "heading chunk" from "fallback-split chunk."
+
+**Undersized-section edge case:** A section that fits within `md_snippet_max_chars` but is smaller than `self._min_chunk` is silently dropped. The `append` only happens inside the inner check (`if len(section) >= self._min_chunk:`); a too-small section produces no chunk at all, not an error or warning.
 
 > Evidence: Explicit in code — Markdown heading chunking falls back to English sentence boundary splitting for overflowing sections. Even if `lang` is `"ja"`, Japanese morphological analysis (Sudachi) is NOT applied, and `normalized_content` is NOT generated (the entire heading chunk's `normalized_content` is always treated as empty, as described below).
 

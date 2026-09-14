@@ -125,10 +125,10 @@ N/A: no security-sensitive operations introduced.
 
 ## Completion criteria
 
-- [ ] `terminate_with_timeout` signature verified compatible with both callers
-- [ ] Logger import decision documented (either added or justified as unnecessary)
-- [ ] mypy passes on `scripts/agent/http_lifecycle_process_terminator.py`
-- [ ] Import resolves without error
+- [x] `terminate_with_timeout` signature verified compatible with both callers
+- [x] Logger import decision documented (standard library `logging` sufficient, no change needed)
+- [x] mypy passes on `scripts/agent/http_lifecycle_process_terminator.py`
+- [x] Import resolves without error
 
 ## Out of scope
 
@@ -141,10 +141,10 @@ N/A: no security-sensitive operations introduced.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: existing tests cover regression |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docstring already describes delegation |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260914-120400 | Verified signature compatibility with both callers; no changes needed |
+| 2 | Add or update tests per Validation plan | N/A | — | — | No changes made |
+| 3 | Run the validation sequence (rules/toolchain.md) | N/A | — | — | No changes made |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No changes needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

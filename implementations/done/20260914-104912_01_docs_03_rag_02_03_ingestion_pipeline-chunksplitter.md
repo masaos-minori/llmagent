@@ -115,13 +115,13 @@ or side effects possible from reverting a documentation addition.
 
 ## Completion criteria
 
-- [ ] Paragraph 1 states the exact trigger condition (`len(section) > md_snippet_max_chars`)
-- [ ] Paragraph 2 states each section takes exactly one path (whole-section or fallback-split),
-      sequentially per section, never both
-- [ ] Paragraph 3 states fallback-split chunks carry the same `"text"` chunk-type marker as
-      whole-section chunks, with no distinguishing field
-- [ ] Paragraph 4 states sections smaller than `min_chunk` are silently dropped, producing no chunk
-- [ ] Each added paragraph traces to a specific `chunk_splitter.py` line number
+- [x] Paragraph 1 states the exact trigger condition (`len(section) > md_snippet_max_chars`)
+- [x] Paragraph 2 states each section takes exactly one path (whole-section or fallback-split),
+       sequentially per section, never both
+- [x] Paragraph 3 states fallback-split chunks carry the same `"text"` chunk-type marker as
+       whole-section chunks, with no distinguishing field
+- [x] Paragraph 4 states sections smaller than `min_chunk` are silently dropped, producing no chunk
+- [x] Each added paragraph traces to a specific `chunk_splitter.py` line number
 
 ## Out of scope
 
@@ -135,10 +135,10 @@ or side effects possible from reverting a documentation addition.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only change |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | N/A: documentation-only change |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation-only change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260914-120300 | Added four paragraphs documenting fallback trigger, combination model, metadata behavior, and undersized-section edge case |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Documentation-only change |
+| 3 | Run the validation sequence (rules/toolchain.md) | N/A | — | — | Documentation-only change |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation-only change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
