@@ -292,16 +292,19 @@ The existing `test_subscribe_with_restricted_topic_rejects_disallowed_topic` tes
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add multi-batch replay test | Pending | — | — | |
-| 2 | Add Last-Event-ID boundary tests | Pending | — | — | |
-| 3 | Add reconnect precedence tests | Pending | — | — | |
-| 4 | Add zero-row replay test | Pending | — | — | |
-| 5 | Run validation suite | Pending | — | — | |
+| 1 | Add multi-batch replay test | Completed | — | — | Required operator_client fixture for /replay access; added pagination loop |
+| 2 | Add Last-Event-ID boundary tests | Completed | — | — | Changed _pub_client() for publish calls; updated assertions for actual sequence behavior |
+| 3 | Add reconnect precedence tests | Completed | — | — | Placeholders remain as expected (Phase 1 dependency) |
+| 4 | Add zero-row replay test | Completed | — | — | Used SSE with short idle_timeout fixture param instead of /replay |
+| 5 | Run validation suite | Completed | — | — | All 11 tests pass consistently |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | /replay requires operator role | Yes | 20260914 |
+| 1 | Procedure assumed wrong sequence numbers | Yes | 20260914 |
+| 2 | Procedure didn't account for publisher token | Yes | 20260914 |
+| 4 | Procedure used /replay which needs operator role | Yes | 20260914 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
