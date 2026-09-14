@@ -33,6 +33,7 @@ definitions, ID format rules, and section header conventions are defined once in
 | ADR-009 | RAGのFTS5検索用テキストとLLM提示用テキスト分離 | Accepted | `adr/ADR-009-rag-ft5-text-separation.md` |
 | ADR-010 | RAGの外部実行失敗時のインプロセスフォールバック | Accepted | `adr/ADR-010-rag-fallback.md` |
 | ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | `adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
+| ADR-014 | Agent制御プレーンの責任境界 | Accepted | `adr/ADR-014-agent-control-plane-responsibility-boundaries.md` |
 
 ADR-011（Database Corruption Recovery Safety Boundary）はADR-008へ統合され、削除された。
 ADR-013（MCP Tool Availability Model）はADR-003へ統合され、削除された。
@@ -48,6 +49,7 @@ ADR-006 → ADR-008
 ADR-007 → ADR-004
 ADR-009 → ADR-005
 ADR-010 → ADR-004
+ADR-014 → ADR-001
 ```
 
 ### Circular Dependencies Detected
@@ -85,6 +87,9 @@ invariants (INV-016–020) may rely on Manual Review or Operational Procedure.
 | INV-020 | ADR-004 | A non-required component's availability failure permits startup continuation with partial availability; the component is disabled and its capabilities excluded from executable exposure | Startup Validation | Startup | Deployment Blocking | Resolved — same reasoning as INV-019; `required=False` replaces `required_in_production=False`/`required_in_local=False`; verified by the same test class |
 | INV-021 | ADR-004 | Unknown component criticality must not be assumed non-required; it must be treated as an unresolved design or configuration error (ADR-004 Decision #12) | Startup Validation | Startup | Deployment Blocking | Resolved — Decision #12 explicitly prohibits assuming non-required when criticality is unknown; unified `required` field enforces this |
 | INV-022 | ADR-004 | Fallback occurs only where another Accepted ADR explicitly defines it; ADR-010 remains the sole authority for RAG fallback | Integration Test | CI | Blocking | Confirmed — structural/code-inspection based verification sufficient; no dedicated test needed per ADR-004 Verification section |
+| INV-023 | ADR-014 | Non-WorkflowEngine components (Orchestrator, LLMTurnRunner, ToolExecutor) do not decide persistent Task/Attempt state, stage transitions, retries, or approval | Manual Review | Code Review | Non-Blocking | Confirmed by code inspection (`Orchestrator.handle_turn()` delegates to `WorkflowEngineAdapter.execute_turn()`); no automated test |
+| INV-024 | ADR-014 | `LLMTurnRunner` instance construction is centralized in the component that drives the LLM/tool-call loop; no other component holds an unused or duplicate instance | Unit Test | CI | Non-Blocking | **Violated** — `Orchestrator.__init__` (`scripts/agent/orchestrator.py`) constructs an unused `self._llm_runner`, duplicating the instance `LlmTurnExecutor` constructs and actually uses; tracked in `issues/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md` |
+| INV-025 | ADR-014 | MCP Server-side technical safety checks (allowlist, path validation, sandboxing, resource limits, argument validation) are not duplicated or re-implemented in Orchestrator/ToolExecutor layers | Manual Review | Code Review | Non-Blocking | Confirmed by code inspection (`scripts/mcp_servers/tool_validators.py`, `scripts/mcp_servers/shell/shell_service.py`); no automated test |
 
 **Note**: Most invariants have been verified via code inspection, but lack automated
 test coverage. "Type" reflects the intended verification method, not whether a test
@@ -98,6 +103,7 @@ currently exists.
 | Startup validation | INV-010, INV-011, INV-019, INV-020, INV-021 |
 | Pre-deployment validation | INV-016 |
 | Operations (runtime monitoring) | INV-018 |
+| Manual Review (code review) | INV-023, INV-024, INV-025 |
 
 ## Related Documents
 

@@ -7,7 +7,8 @@ tags:
   - architecture
 decision_scope:
   - system
-related: []
+related:
+  - ADR-014-agent-control-plane-responsibility-boundaries.md
 ---
 
 # ADR-001: Workflow Engine必須化

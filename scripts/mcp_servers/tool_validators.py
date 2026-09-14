@@ -10,6 +10,9 @@ Usage:
 
 CallToolRequest.validate_args() calls validate_tool_args(name, args),
 which runs the registered validator (if any) and propagates ValueError.
+
+ADR-014: MCP Server owns the technical safety of external operations, including
+this argument validation layer — not duplicated in Orchestrator/ToolExecutor.
 """
 
 from __future__ import annotations

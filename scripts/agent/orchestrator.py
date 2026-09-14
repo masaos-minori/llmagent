@@ -23,6 +23,11 @@ All other concerns are delegated to extracted concern classes:
   turnd_coordinator.py    — TurnCoordinator
   llm_turn_executor.py    — LlmTurnExecutor
   workflow_engine_adapter.py — WorkflowEngineAdapter
+
+ADR-014: Orchestrator arbitrates processing within a single turn; it delegates
+persistent task state, stage transitions, retries, and approval to
+WorkflowEngine, and delegates the LLM/tool-call loop to LlmTurnExecutor rather
+than owning an LLMTurnRunner instance itself.
 """
 
 from __future__ import annotations

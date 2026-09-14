@@ -8,6 +8,10 @@ Dependency direction: shell_mcp_models -> shell_mcp_service -> shell_mcp_server
 Split layout:
   service_static_helpers.py — Pure static helpers (sandbox, resource limits, preexec)
   shell_service.py          — ShellService class + dispatch table factory + build_service
+
+ADR-014: MCP Server owns the technical safety of external operations (allowlist
+enforcement, cwd/path validation, sandboxed execution, resource limits) — this
+is not duplicated or re-implemented in Orchestrator/ToolExecutor layers.
 """
 
 from __future__ import annotations
