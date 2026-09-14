@@ -31,6 +31,8 @@ source:
 
 Every query executes the full retrieval pipeline (`SearchStage`, via `RagPipeline.augment()`) — including repeated identical queries. No query-result cache exists. Committed document additions, updates, and deletions are reflected in the very next query with no cache-invalidation action or service/process restart required. This guarantee is verified by `tests/rag/test_rag_pipeline_no_cache_freshness.py`.
 
+Note: A semantic cache mechanism (cosine-similarity-gated response caching) was previously part of this pipeline but was removed in commit `282b08f38` (req-005: remove SemanticCache from RAG pipeline and MCP server); the "no query-result cache exists" guarantee documented here has applied since that removal. For details on the removal, see [03_rag_01_system_overview.md](03_rag_01_system_overview.md)'s Semantic Cache section.
+
 ---
 
 ## Related Documents

@@ -87,6 +87,8 @@ For local files, the `etag` column contains the hex digest of the SHA-256. Since
 
 Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto re-ingesting"`.
 
+This separation exists for two reasons: (1) **separation of concerns** — `crawl_file()` / `CrawlPersister.save()` handles I/O and metadata calculation (mtime, SHA-256), while `DocumentManager._is_file_unchanged()` handles business-logic decisions based on those values; (2) **testability** — each concern can be tested independently (calculation logic without a database, decision logic without file I/O), and the freshness-decision policy can evolve (e.g. changing the skip/re-ingest rule) without touching crawl-time file reading.
+
 #### Comparison: Web vs. Local Injection
 
 | Aspect | Web (HTTP) | Local Files (`file://`) |

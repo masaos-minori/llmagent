@@ -97,12 +97,18 @@ config/crawler.toml [target_urls]
 
 Stages: MQE → Search → Fusion → Rerank → Augmentation. For details on each stage, see `docs/03_rag_03_02_query_pipeline-rag-pipeline-class.md` through `docs/03_rag_03_05_query_pipeline-augment-stages.md`.
 
+- **MQE**: Query expansion via LLM — generates related queries to broaden retrieval scope.
+- **Search**: Hybrid retrieval — combines vector similarity search with FTS5 full-text search.
+- **Fusion**: Reciprocal Rank Fusion — merges results from multiple search backends into a single ranked list.
+- **Rerank**: Cross-Encoder reranking — re-scores fused results using a Cross-Encoder model for higher precision.
+- **Augmentation**: Context formatting — formats retrieved chunks into a prompt-ready block with URL/title metadata and sanitizes injection patterns.
+
 **Entrypoint:** `RagPipeline.augment(query) -> str`
 **Caller:** `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` (via MCP HTTP)
 
 ### Semantic Cache
 
-When `use_semantic_cache=True`, if the cosine similarity of the query embedding is above `semantic_cache_threshold` (default 0.92), the pipeline skips processing and returns the cached context block. It uses `threading.RLock` for thread safety. It is a FIFO cache (oldest entries deleted first) with a maximum size defined by `semantic_cache_max_size` (code default 128, operational setting 100).
+**Removed.** The semantic cache feature was deliberately removed from the RAG pipeline. The configuration keys `use_semantic_cache`, `semantic_cache_threshold`, and `semantic_cache_max_size` are no longer supported and will cause a validation error when present in any configuration source (see `RagConfigValidator._check_removed_semantic_cache_keys()` at `scripts/shared/config_validator.py`). Removal commits: `282b08f38` (req-005: remove SemanticCache from RAG pipeline and MCP server), `09093016d` (remove semantic cache configuration fields and references).
 
 ---
 
