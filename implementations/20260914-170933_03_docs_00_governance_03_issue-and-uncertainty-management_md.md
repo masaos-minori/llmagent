@@ -126,10 +126,10 @@ N/A — documentation-only change, no security-sensitive operations introduced.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Requires REQ-001 and REQ-002 to be completed first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only change |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | N/A: documentation-only change |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docstring already describes delegation |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260914-220651 | 20260914-220651 | Requires REQ-001 and REQ-002 to be completed first |
+| 2 | Add or update tests per Validation plan | Completed | 20260914-220651 | 20260914-220651 | N/A: documentation-only change |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260914-220651 | 20260914-220651 | N/A: documentation-only change |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260914-220652 | 20260914-220652 | N/A: docstring already describes delegation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
