@@ -168,11 +168,11 @@ them, are preserved here rather than lost:
 - **First Found**: 2026-08-22
 - **Target**: `docs/03_rag_01_system_overview.md`
 - **Related**: ADR-010
-- **Summary**: External RAG and local RAG use different corpora (different data sources), but this architectural difference is not documented anywhere. Users cannot determine which corpus is being queried without inspecting the code.
-- **Current Description**: Two separate RAG implementations exist — one for external search and one for local search — each operating on different data stores.
-- **Observed Implementation**: External RAG uses a vector store connected to an external API endpoint; local RAG uses SQLite with the sqlite-vec extension storing embeddings derived from ingested documents.
-- **Impact**: Operators may assume both RAG systems query the same knowledge base, leading to incorrect expectations about result consistency.
-- **Recommended Action**: Document the corpus difference in the RAG system overview and add a note to the ADR explaining why two corpora were chosen.
+- **Summary (corrected 2026-09-14)**: External RAG (HTTP, via `rag_pipeline_mcp_server`) and local/in-process RAG use the same corpus — both read `rag_db_path` from their respective config files (`config/rag_pipeline_mcp_server.toml`, `config/agent.toml`), and both are currently configured to `/opt/llm/db/rag.sqlite`. The original claim below ("different corpora") does not match this configuration and is retained only as historical context. What remains genuinely undocumented is the *execution-mode* distinction (HTTP delegation vs. in-process pipeline) and the operational fact that both modes are expected to point at the same database.
+- **Current Description (superseded, retained as historical context)**: Two separate RAG implementations exist — one for external search and one for local search — each operating on different data stores.
+- **Observed Implementation (superseded, retained as historical context)**: External RAG uses a vector store connected to an external API endpoint; local RAG uses SQLite with the sqlite-vec extension storing embeddings derived from ingested documents.
+- **Impact**: Operators may not understand that "external"/"local" RAG is an execution-mode distinction over one shared corpus, not a corpus difference — this is a narrower documentation gap than the entry originally described.
+- **Recommended Action**: Document, in the RAG system overview, that "external" and "local" RAG execution modes share one corpus (`rag_db_path`) by configuration convention, and that `rag_service_url`'s presence/absence (per `ADR-010`) selects the execution mode, not the data source. Tracked as `issues/20260914-112416_ragsvc04_execution-mode-shared-corpus-doc.md`.
 
 #### DESIGN-2
 
