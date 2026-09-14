@@ -1,6 +1,6 @@
 ---
 title: "ADR-008: SQLiteを4DBへ分離する"
-area: adr
+area: governance
 tags:
   - system
   - sqlite

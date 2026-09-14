@@ -1,6 +1,6 @@
 ---
 title: "ADR-009: RAGのFTS5検索用テキストとLLM提示用テキスト分離"
-area: adr
+area: governance
 tags:
   - rag
   - fts5

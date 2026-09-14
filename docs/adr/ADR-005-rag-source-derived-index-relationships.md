@@ -1,6 +1,6 @@
 ---
 title: "ADR-005: RAGの正本と派生インデックスの関係"
-area: adr
+area: governance
 tags:
   - rag
   - index

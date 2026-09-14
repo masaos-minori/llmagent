@@ -1,6 +1,6 @@
 ---
 title: "ADR-012: Git MCP Server-Side Write Enforcement"
-area: adr
+area: governance
 tags:
   - mcp
   - git

@@ -1,6 +1,6 @@
 ---
 title: "ADR-003: RuntimeToolRegistryを唯一のルーティング権威とする"
-area: adr
+area: governance
 tags:
   - system
   - tool-routing

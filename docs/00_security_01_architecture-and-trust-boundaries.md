@@ -1,6 +1,6 @@
 ---
 title: "System Security Architecture and Trust Boundaries"
-area: security
+area: governance
 tags:
   - security
   - architecture

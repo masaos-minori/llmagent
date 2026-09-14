@@ -1,6 +1,6 @@
 ---
 title: "ADR-013: EventBus Authentication and Authorization"
-area: adr
+area: governance
 tags:
   - eventbus
   - authentication

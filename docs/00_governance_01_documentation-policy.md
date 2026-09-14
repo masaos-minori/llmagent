@@ -453,9 +453,11 @@ Confirmed edges (direct source evidence —
 - Agent → Shared/DB
 - EventBus → Shared/DB
 
-Needs Confirmation (tracked as `NC-022` in
-`docs/00_governance_03_issue-and-uncertainty-management.md`; no corresponding
-import or HTTP-publish call found in current source):
+Planned (design intent, not yet implemented; confirmed 2026-09-14 — no longer
+tracked as Needs Confirmation, since owner review closed `NC-022` by confirming
+these are intended future integrations rather than a documentation error; no
+corresponding import or HTTP-publish call exists in current source, and none
+is expected until each integration is implemented):
 - RAG → EventBus
 - MCP → EventBus
 - Agent → EventBus

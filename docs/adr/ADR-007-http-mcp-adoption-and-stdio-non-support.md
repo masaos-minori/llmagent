@@ -1,6 +1,6 @@
 ---
 title: "ADR-007: HTTP MCP採用とstdio非サポート"
-area: adr
+area: governance
 tags:
   - mcp
   - http

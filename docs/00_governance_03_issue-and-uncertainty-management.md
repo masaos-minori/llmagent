@@ -588,30 +588,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-022
 
-- **Source File**: `00_governance_01_documentation-policy.md`
-- **Section**: Software Runtime Dependency Graph
-- **Line Number**: ~306
-- **Question**: Are `RAG → EventBus`, `MCP → EventBus`, and `Agent → EventBus`
-  unimplemented design intent, or a documentation error that should be removed from
-  the graph entirely?
-- **Evidence**: `grep -rl "eventbus" scripts/agent/ scripts/mcp_servers/ scripts/rag/`
-  returns 0 matches — none of Agent, MCP, or RAG source imports or HTTP-publishes to
-  EventBus, despite these three edges being asserted in the previous (pre-correction)
-  Area Dependency Graph
-- **Impact**: If unimplemented, the corrected graph's marking of these edges as
-  Needs Confirmation (rather than confirmed fact) is the right interim state; if a
-  documentation error, the edges should eventually be removed once confirmed absent
-- **Required Action**: Owner review of whether Agent/MCP/RAG are intended to
-  eventually publish to EventBus, or whether these edges should be removed once
-  confirmed absent
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-03
-- **Priority**: Medium
-- **Related NC**: None
-- **Resolution Target**: Next EventBus integration review, or next Software Runtime
-  Dependency Graph review, whichever comes first
-- **Blocking**: No
+NC-022 ("Are `RAG → EventBus`, `MCP → EventBus`, and `Agent → EventBus` unimplemented design intent, or a documentation error?") was resolved by owner review 2026-09-14: confirmed as intended future integrations (design intent), not a documentation error — the edges are retained in `docs/00_governance_01_documentation-policy.md`'s Software Runtime Dependency Graph under a new "Planned (design intent, not yet implemented)" category rather than "Needs Confirmation." Removed from this active inventory. Its absence from the active list is the correct, policy-compliant state — do not create a `#### NC-022` heading.
 
 #### NC-023
 
@@ -756,26 +733,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-030
 
-- **Source File**: `00_governance_02_documentation-metadata.md`
-- **Section**: Existing Metadata Fields (`area` enum)
-- **Line Number**: ~22
-- **Question**: Should `adr` and `security` be permanent `area` enum values, or
-  folded into an existing area (e.g. `overview`)?
-- **Evidence**: 11 real documents use `area: adr`, 2 use `area: security`, yet
-  neither was part of the original 8-value enum; no stated design rationale
-  was found for the omission
-- **Impact**: If folded into another area instead, 13 documents' `area:`
-  values would need migration; if kept permanent, no migration is needed but
-  the enum grows to 10 values
-- **Required Action**: Owner review of whether `adr` and `security` warrant
-  their own top-level area, given their real, non-trivial adoption
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-03
-- **Priority**: Medium
-- **Related NC**: None
-- **Resolution Target**: Next governance area-taxonomy review
-- **Blocking**: No
+NC-030 ("Should `adr` and `security` be permanent `area` enum values, or folded into an existing area?") was resolved by owner review 2026-09-14: folded into `governance` rather than kept as independent values. All 12 `docs/adr/*.md` files and both `docs/00_security_*.md` files had their `area:` front matter migrated from `adr`/`security` to `governance`; `00_governance_02_documentation-metadata.md`'s `area` enum was updated to the original 8 values accordingly. Removed from this active inventory. Its absence from the active list is the correct, policy-compliant state — do not create a `#### NC-030` heading.
 
 #### NC-031
 

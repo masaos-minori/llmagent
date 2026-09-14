@@ -1,6 +1,6 @@
 ---
 title: "ADR-004: 環境における障害処理方針"
-area: adr
+area: governance
 tags:
   - system
   - failure-handling

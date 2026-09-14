@@ -1,6 +1,6 @@
 ---
 title: "High-Risk MCP Tool Common Policy"
-area: security
+area: governance
 tags:
   - security
   - policy
