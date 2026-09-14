@@ -222,6 +222,7 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 - INV-05: ワークフロー定義ファイルの検証失敗時は起動を中止する。
 - INV-06: 必須DB Schema不整合時は起動を中止する。
 - INV-07: プロセス起動時、中断されたAttemptは`recover_stale_attempts()`により`failed`として復旧される。
+- INV-08: 各stage実行は`{task_id}:{stage_id}:{attempt}`の決定論的キーで冪等性が保証され、同一キーでの重複開始は`begin_stage_if_new()`により拒否される。attemptはretryごとに増分されるため、retryは別レコードとして扱われる（同一attempt番号内の重複開始のみが拒否対象）。
 
 ## Verification
 
@@ -262,6 +263,11 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
   - **Type**: Unit
   - **Blocking**: Yes
 
+- **Test**: `test_begin_stage_if_new_idempotent`（同一event_idでの`begin_stage_if_new()`二重開始が拒否されることを確認、`tests/agent/workflow/test_workflow_stage_persistence.py`, passing）
+  - **Verifies**: INV-08
+  - **Type**: Unit
+  - **Blocking**: Yes
+
 ### Startup Validation
 
 - ワークフロー定義ファイルが存在するか
@@ -293,10 +299,10 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- 実装ファイル: `scripts/agent/orchestrator.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow/workflow_loader.py`, `scripts/agent/workflow/state_store.py`
-- 主要ClassまたはFunction: `Orchestrator.handle_turn()`, `WorkflowEngine.run()`, `WorkflowLoader.load()`, `StateStore.request_approval()`, `StateStore.recover_stale_attempts()`
+- 実装ファイル: `scripts/agent/orchestrator.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow/workflow_loader.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/idempotency_ops.py`
+- 主要ClassまたはFunction: `Orchestrator.handle_turn()`, `WorkflowEngine.run()`, `WorkflowLoader.load()`, `StateStore.request_approval()`, `StateStore.recover_stale_attempts()`, `idempotency_ops.begin_stage_if_new()`
 - 設定ファイル、設定Key: `config/workflows/default.json`
-- 対応するテスト: `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`
+- 対応するテスト: `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 

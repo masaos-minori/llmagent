@@ -90,6 +90,7 @@ invariants (INV-016–020) may rely on Manual Review or Operational Procedure.
 | INV-023 | ADR-014 | Non-WorkflowEngine components (Orchestrator, LLMTurnRunner, ToolExecutor) do not decide persistent Task/Attempt state, stage transitions, retries, or approval | Manual Review | Code Review | Non-Blocking | Confirmed by code inspection (`Orchestrator.handle_turn()` delegates to `WorkflowEngineAdapter.execute_turn()`); no automated test |
 | INV-024 | ADR-014 | `LLMTurnRunner` instance construction is centralized in the component that drives the LLM/tool-call loop; no other component holds an unused or duplicate instance | Unit Test | CI | Non-Blocking | **Violated** — `Orchestrator.__init__` (`scripts/agent/orchestrator.py`) constructs an unused `self._llm_runner`, duplicating the instance `LlmTurnExecutor` constructs and actually uses; tracked in `issues/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md` |
 | INV-025 | ADR-014 | MCP Server-side technical safety checks (allowlist, path validation, sandboxing, resource limits, argument validation) are not duplicated or re-implemented in Orchestrator/ToolExecutor layers | Manual Review | Code Review | Non-Blocking | Confirmed by code inspection (`scripts/mcp_servers/tool_validators.py`, `scripts/mcp_servers/shell/shell_service.py`); no automated test |
+| INV-026 | ADR-001 | Stage execution is idempotent via a `{task_id}:{stage_id}:{attempt}` deterministic key; duplicate start within the same attempt is rejected by `begin_stage_if_new()` | Unit Test | CI | Blocking | Confirmed (`tests/agent/workflow/test_workflow_stage_persistence.py::test_begin_stage_if_new_idempotent`, passing) |
 
 **Note**: Most invariants have been verified via code inspection, but lack automated
 test coverage. "Type" reflects the intended verification method, not whether a test
@@ -99,7 +100,7 @@ currently exists.
 
 | Pipeline Stage | Invariants Covered |
 |----------------|-------------------|
-| CI (pull request) | INV-001 through INV-015, INV-018, INV-022 |
+| CI (pull request) | INV-001 through INV-015, INV-018, INV-022, INV-026 |
 | Startup validation | INV-010, INV-011, INV-019, INV-020, INV-021 |
 | Pre-deployment validation | INV-016 |
 | Operations (runtime monitoring) | INV-018 |
