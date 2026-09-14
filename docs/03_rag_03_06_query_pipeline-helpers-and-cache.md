@@ -82,14 +82,13 @@ See `scripts/rag/repository.py` for details.
 
 - `vector_search`: KNN implementation via `sqlite-vec`.
 - `fts_search`: BM25 implementation via FTS5. Raises `sqlite3.OperationalError` on FTS syntax errors (handled by caller).
-- `fetch_full_document(chunk_id, db, window=None)` $\rightarrow$ Fetches chunks for the same document in ascending order of `chunk_index`; `window=N` $\rightarrow$ $\pm N$.
 - `deduplicate_chunks(hits, max_per_doc)` $\rightarrow$ Limits hits per unique URL; input must be sorted in descending order.
 - `cosine_sim(a, b) -> float` $\rightarrow$ Cosine similarity; returns `0.0` for zero vectors.
 
 **Module-level Standalone Wrappers:**
 - `vector_search(embedding, top_k, db)` $\rightarrow$ Delegates to `RagRepository(db).vector_search()`
 - `fts_search(query, top_k, db)` $\rightarrow$ Delegates to `RagRepository(db).fts_search()`
-- `fetch_full_document(chunk_id, db, window=None)` $\rightarrow$ Fetches chunks for the same document in ascending order of `chunk_index`; `window=N` $\rightarrow$ $\pm N$
+- `fetch_full_document(chunk_id, db, window=None)` $\rightarrow$ Retrieve surrounding chunks for a given chunk_id from the same document. Parameters: `chunk_id` (int, required), `db` (SQLiteHelper, required), `window` (int or None, optional). When `window=None`, returns all chunks from the same document (full expansion); when `window=N`, returns chunks within N positions of chunk_id (±N window range). Results are ordered by `chunk_index` ascending (document reading order). Returns an empty list `[]` when `chunk_id` is not found (valid not-found result, not an error).
 - `deduplicate_chunks(hits, max_per_doc)` $\rightarrow$ Limits hits per unique URL; input must be sorted in descending order.
 - `cosine_sim(a, b) -> float` $\rightarrow$ Cosine similarity; returns `0.0` for zero vectors.
 

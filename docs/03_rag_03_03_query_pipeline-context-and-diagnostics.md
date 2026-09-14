@@ -53,10 +53,10 @@ For detailed field lists, types, and default values, see <a href="../03_rag_04_0
 
 Note that the name `http_result_kind` is used in two different value systems; do not confuse them (Explicit in code).
 
-- `SearchDiagnostics.http_result_kind` (this section, `HttpResultKind` enum in `rag/models_result.py`) has 4 values: `SUCCESS` / `EMPTY` / `ERROR` / `NOT_USED`. It is set within the HTTP augment execution in `pipeline.py` as either `HttpResultKind.SUCCESS` (non-empty), `HttpResultKind.EMPTY` (`""`), or `HttpResultKind.ERROR` (`None`) via the `RagPipeline._run_http_augment()` method.
-- `get_diagnostics()["http_result_kind"]` (via `RagPipeline._http_result_kind` attribute, `HttpAugment.run()`) uses 3 string literals: `"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"`. These are calculated in `HttpAugment.run()` and copied in `RagPipeline._run_http_augment()`.
+- `SearchDiagnostics.http_result_kind` (this section, `HttpResultKind` enum in `rag/models_result.py`) has 4 values: `SUCCESS` / `EMPTY` / `ERROR` / `NOT_USED`. It is set within the HTTP augment execution in `pipeline.py` as either `HttpResultKind.SUCCESS` (non-empty), `HttpResultKind.EMPTY` (`""`), or `HttpResultKind.ERROR` (`None`) via the `RagPipeline.get_diagnostics()` method.
+- `get_diagnostics()["http_result_kind"]` (via `HttpAugment.run()`) also carries an `HttpResultKind` enum value; the three string literals (`"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"`) exist only as an internal implementation detail inside `HttpAugment`: `HttpAugment._http_result_kind` stores these literals, but `_map_http_result_kind()` converts them to the `HttpResultKind` enum before either public field is set — the string literals never reach a caller reading either field.
 
-Both represent the same HTTP call results but use different vocabularies and granularities; one cannot be directly derived from the other.
+Both `SearchDiagnostics.http_result_kind` and `get_diagnostics()["http_result_kind"]` carry the same `HttpResultKind` enum value by the time either is read from `get_diagnostics()` or `last_search_diagnostics`. The three string literals (`"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"`) exist only as an internal implementation detail inside `HttpAugment` (`http_augment.py`): `HttpAugment._http_result_kind` stores these literals, but `_map_http_result_kind()` converts them to the `HttpResultKind` enum before either public field is set — the string literals never reach a caller reading either field.
 
 ### 4.3 get_diagnostics() Return Value (`RagPipeline.get_diagnostics()`)
 
@@ -72,7 +72,7 @@ Returns structured diagnostic information with the following keys:
 | `timings` | `dict[str, float]` | Actual duration in seconds for each stage (same as `last_timings`) |
 | `fetch_result` | `dict \| None` | Fetch result: `{hits: int, min_score_applied: float}` or `None` |
 | `fusion_mode` | `str` | `"rrf"` or `"dedup_only"` |
-| `http_result_kind` | `str \| None` | Classification for HTTP mode (same as `_http_result_kind`) |
+| `http_result_kind` | `HttpResultKind` | Classification for HTTP mode (enum value from `HttpResultKind`, never raw string literal) |
 | `fallback_count` | `int` | Number of stages where fallback occurred |
 | `fallback_reasons` | `list[str]` | List of fallback reasons for all stages |
 | `refiner_fallback_count` | `int` | Number of times the refiner fell back |
