@@ -87,7 +87,6 @@ class RagPipeline:
         # Cumulative search failure counters across all run() calls on this instance
         self.stat_search_embed_failed: int = 0
         self.stat_search_fts_errors: int = 0
-        # In-memory nearest-neighbour cache; threshold/max_size read from cfg
 
         # Resolve configuration via delegate
         self._cfg = resolve_rag_config(cfg, module_cfg=module_cfg)
@@ -218,10 +217,9 @@ class RagPipeline:
 
         Fallback chain (each step produces the final result unless it returns None):
             1. HTTP mode: ``call_rag_service()`` → str/"" (final) or None (fallback)
-            2. Semantic cache: cached string (final) or None (fallback)
-            3. Search pipeline: semantic + FTS5 + RRF merge + rerank → reranked hits
-            4. Refiner: ``refine_context()`` → refined text (final) or None (fallback)
-            5. Raw chunks: ``_format_chunks(reranked)`` → formatted text (final)
+            2. Search pipeline: semantic + FTS5 + RRF merge + rerank → reranked hits
+            3. Refiner: ``refine_context()`` → refined text (final) or None (fallback)
+            4. Raw chunks: ``_format_chunks(reranked)`` → formatted text (final)
 
         Raw-chunk fallback conditions (step 5 is reached when):
             - ``use_refiner=False`` (config disabled) → skip refiner, go to raw chunks
@@ -235,7 +233,6 @@ class RagPipeline:
         Side effects:
             - Updates ``self.last_stage_results`` with per-stage status
             - Updates ``self.last_fetch_result`` when HTTP stage is used
-            - May update semantic cache on successful augment
 
         Raises:
             RagPipelineError: If the underlying database connection fails.

@@ -31,6 +31,10 @@ class BgTaskMonitor:
       - Track consecutive failures per task name
       - Notify user at threshold breach (first hit + every 5 thereafter)
       - Pause agent when pause_on_critical_failure is enabled
+
+    Note: The `consecutive_bg_failures` property was removed in favor of the explicit
+    `get_consecutive_failures(task_name)` and `reset_consecutive_failures(task_name)`
+    methods, which properly accept a task name parameter.
     """
 
     def __init__(
@@ -60,16 +64,6 @@ class BgTaskMonitor:
     def bg_pause_state(self, value: dict[str, bool]) -> None:
         """Set pause state for orchestrator-level turn blocking."""
         self._bg_pause_state = value
-
-    @property
-    def consecutive_bg_failures(self) -> int:
-        """Return the current consecutive failure count for the default task."""
-        return self.get_consecutive_failures("unknown_bg_task")
-
-    @consecutive_bg_failures.setter
-    def consecutive_bg_failures(self, value: int) -> None:
-        """Reset consecutive failure counter for the default task."""
-        self.reset_consecutive_failures("unknown_bg_task")
 
     def check_pause_state(self) -> tuple[bool, list[str]]:
         """Check if any background tasks are paused. Returns (is_paused, paused_names)."""

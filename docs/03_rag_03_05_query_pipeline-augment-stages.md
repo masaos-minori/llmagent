@@ -89,6 +89,11 @@ from rag.augment import AugmentRefiner
 | `search_diagnostics` | `SearchDiagnostics \| None` | No | Diagnostics object; defaults to empty `SearchDiagnostics()` |
 | `llm` | `RagLLM \| None` | No | LLM client for refiner; required when `use_refiner=true` |
 
+Note: The optional parameters fall into two categories by consequence of omission:
+- **Observational callbacks** (`on_status`, `set_fetch_result`, `set_fallback_reason`): purely informational — each forwards data to an external caller and has no effect on `AugmentRefiner`'s own HTTP-augment or refiner behavior if omitted. Leaving them as their no-op defaults means the caller loses visibility into those events but nothing else changes.
+- **Functionally required** (`llm`): omitting `llm` while `run_refiner()` is invoked with `use_refiner=true` raises `ValueError` at call time; there is no silent degradation.
+- **Functionally inert default** (`search_diagnostics`): its default value (a fresh `SearchDiagnostics()`) only determines the diagnostics object's starting state before the first update; omitting it has no other functional consequence.
+
 #### Methods
 
 ##### `run_http_augment(query, history_context, rag_url)` — HTTP augment execution
@@ -154,6 +159,8 @@ If summarization fails with `use_refiner=true`, `augment()` falls back to raw ch
 | `refiner_exception: {e}` | An `httpx.HTTPStatusError`, `httpx.RequestError`, or `ValueError` occurred during the LLM call. The exception message is included in the reason string. No retries are performed. |
 
 **No-retry Policy**: Refiner failures are treated as non-critical quality degradations — allowing raw chunks as output. Retrying failed LLM calls offers low expected benefit while increasing latency (transient errors are rare, and content policy rejections will not succeed upon retry). If degraded output cannot be tolerated, completely disable the refiner by setting `use_refiner=false`.
+
+Note: This rationale was recorded as design reasoning at the time the policy was introduced (`27fa06ae`: "feat: add refiner fallback diagnostics and debug visibility"), not derived from measured retry-latency data or content-policy-rejection-pattern analysis. No ADR documents this policy. If this policy is revisited, the "transient errors are rare" and "retries increase latency" claims should be verified against actual production data first, since neither is currently substantiated.
 
 Both reasons can be verified as follows:
 - Displayed at INFO level in application logs (augment: refiner fallback (reason=...))

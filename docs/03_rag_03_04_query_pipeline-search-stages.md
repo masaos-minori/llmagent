@@ -96,6 +96,8 @@ Using `use_rrf=False` triggers a fallback to deduplication only (all scores set 
 - Log: `INFO FusionStage: dedup-only mode (use_rrf=False) — rank signal disabled, MQE provides no ranking benefit`.
 - Startup: `WARNING rag config warning: use_rrf=false degrades retrieval quality; use only for diagnostics` (Determined by `RagConfigValidator.validate()` and logged via `logger.warning()` in `RagPipeline.__init__` in `scripts/rag/pipeline.py`).
 
+Note: No quantitative benchmark data (recall@k/precision@k or other metrics) comparing `use_rrf=True`/`False` exists in this repository, nor does any ADR document specific thresholds for when disabling RRF is acceptable. If RRF is disabled for latency reasons, measure the actual quality impact for your specific use case rather than relying on this qualitative warning alone.
+
 ---
 
 ## Related Documents

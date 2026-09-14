@@ -119,9 +119,9 @@ Simple revert: restore the original `invalidate_cache()` mentions in the docs fi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Re-confirm invalidate_cache()'s absence and the docstring's actual step count | Pending | — | — | |
-| 2 | Phase 2: Correct both files | Pending | — | — | |
-| 3 | Phase 3: Run regression tests | Pending | — | — | |
+| 1 | Phase 1: Re-confirm invalidate_cache()'s absence and the docstring's actual step count | Completed | — | 20260914-120100 | |
+| 2 | Phase 2: Correct both files | Completed | — | 20260914-120100 | |
+| 3 | Phase 3: Run regression tests | Completed | — | 20260914-120100 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

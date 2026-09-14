@@ -225,6 +225,16 @@ crawl-stage values do not exist yet).
 `schema_version`, `artifact_type`, and `created_by`, which are accepted but not
 validated or mapped onto `ChunkDocument`'s own fields.
 
+#### Cross-Field Validation Rules
+
+There is exactly one cross-field validation rule among the crawl/chunk artifact fields documented above. It applies only to crawl artifacts:
+
+- **Rule**: For crawl artifacts, `content` may be an empty string only when `code_blocks` is non-empty. If both are empty, the payload is rejected with `ChunkFormatError`.
+- **Rationale**: Traced to `CrawlPersister.save()`'s `.py`-file handling (`crawl_persister.py:70,76-77`). When processing a `.py` file, the crawler stores the source code in `code_blocks=[content]` with `content=""`, allowing the code chunker to apply. The cross-field rule permits this legitimate empty-content case while rejecting a genuinely broken/incomplete crawl result (both fields empty).
+- **Chunk artifacts**: No equivalent exception — `content` is required and must be non-empty for chunk artifacts.
+- **Valid example** (`.py` file): `{"content": "", "code_blocks": ["def foo(): ..."]}`
+- **Invalid example**: `{"content": "", "code_blocks": []}` → rejected with `ChunkFormatError("crawl: empty 'content' requires non-empty 'code_blocks'")`
+
 ### 3.5 Error Handling
 
 | Case | Action |

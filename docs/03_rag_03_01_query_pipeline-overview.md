@@ -52,10 +52,12 @@ RagPipeline.augment(query)
 
 `augment()` determines the final result through the following sequence. Each step only falls back to the next if it returns `None` (Explicit in code).
 
-1. HTTP Mode: HTTP augment $\rightarrow$ `str` (including empty string) or `None` (fallback)
-2. Search Pipeline: MQE + KNN/BM25 + RRF merge + Rerank $\rightarrow$ `ctx.reranked`
-3. Refiner: `refine_context()` $\rightarrow$ compressed text (final) or `None` (fallback)
-4. Raw Chunks: Formatted by chunk formatting function (final)
+| Step | Produces | Fallback Trigger | Final Result | Diagnostics |
+|---|---|---|---|---|
+| 1. HTTP Mode | `str` (including empty string) or `None` | Returns `None` | HTTP response body or empty string | `last_stage_results` (via `_augment_refiner.last_stage_results`, `pipeline.py:297`), `last_search_diagnostics` (`SearchDiagnostics`, `pipeline.py:296`) |
+| 2. Search Pipeline | `ctx.reranked` (list of ranked chunks) | Not a fallback/final step — produces input for subsequent steps | N/A (intermediate) | `last_search_diagnostics` (`SearchDiagnostics`, populated via `RagPipelineStageLifecycle`, `pipeline.py:237-240`) |
+| 3. Refiner | Compressed text (`str`) or `None` | Returns `None` | Compressed/refined context text | `last_stage_results` (`StageResult(stage_name="Refiner")`, appended at `augment.py:159-166`; `status="success"` or `"fallback"`) |
+| 4. Raw Chunks | Formatted text (`str`) | Reached only if Step 1 or Step 3 returned `None` | Chunk-formatted context text | Not directly tracked — inferable from absence of a "success"/"fallback" `StageResult` for Refiner combined with `use_refiner=False`, or from `Refiner`'s `StageResult` showing `status="fallback"` |
 
 **Identity vs Truthiness (Explicit in code):** Results for HTTP mode and the refiner are determined using identity checks (`is not None`), not truthiness checks. Therefore, an empty string `""` returned by HTTP mode is treated as a valid result, and fallback only occurs when `None` is explicitly returned. This allows distinguishing between "searched but found 0 results" and "not yet searched."
 

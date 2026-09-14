@@ -178,6 +178,8 @@ Troubleshooting:
 | Max Pages Per Site | Operational value is 200 (max 200 pages per site, `config/crawler.toml`'s `max_pages`). Code fallback is 500; use operational config | `config/crawler.toml` |
 | Database | SQLite single node only | Architecture |
 
+Note: No empirical basis or trade-off analysis for these six constraint values is recorded in this repository's code, configuration files, or ADRs (as of this cycle's search). If these values are tuned, verify the change against actual retrieval quality/performance for your intended use case rather than assuming a known-good adjustment — this documentation set does not currently provide quality-impact guidance for any of them.
+
 ---
 
 ## MCP Server Responsibility Division

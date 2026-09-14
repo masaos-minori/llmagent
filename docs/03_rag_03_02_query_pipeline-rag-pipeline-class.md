@@ -43,7 +43,7 @@ Refer to the source code for a list of public attributes and methods.
 
 ### Implementation Note
 
-- `invalidate_cache()` is intended to be called only after corpus changes that this pipeline instance is aware of; the caller (e.g., MCP service layer) is responsible for detecting corpus changes and explicitly calling it. The pipeline itself does not have a mechanism to detect DB changes and automatically invalidate the cache ("Call after any corpus-changing operation this pipeline instance is aware of").
+- **Removed.** The `invalidate_cache()` method was deliberately removed as part of the semantic cache feature removal (`282b08f38`, `09093016d`). Its absence is verified by `tests/rag/test_rag_pipeline_no_cache_freshness.py` (three assertions: `assert hasattr(pipeline, "invalidate_cache") is False`). No cache invalidation mechanism exists in the current implementation.
 
 ## Related Documents
 
