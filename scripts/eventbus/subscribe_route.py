@@ -102,13 +102,13 @@ async def subscribe(
 
     async def _sse_gen() -> AsyncGenerator[str]:
         """Generate Server-Sent Events by replaying from SQLite and streaming live broker events."""
+        nonlocal start_seq
         replay_ceil = start_seq
         try:
             # Step 2: replay from SQLite in bounded batches
             cfg = request.app.state.config
             assert cfg is not None
             batch_size = cfg.replay_batch_size
-            start_offset = 0
 
             while True:
                 if topic:
@@ -117,8 +117,13 @@ async def subscribe(
                         lambda: list(
                             db.execute(
                                 f"SELECT seq, event_id, topic, payload, producer, published_at"
-                                f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq LIMIT ? OFFSET ?",  # nosec B608 — all values bound via ? placeholders
-                                (start_seq, *topic, batch_size, start_offset),
+                                f" FROM events WHERE seq > ? AND seq <= ? AND topic IN ({placeholders}) ORDER BY seq LIMIT ?",
+                                (
+                                    start_seq,
+                                    replay_ceil + batch_size,
+                                    *topic,
+                                    batch_size,
+                                ),
                             ).fetchall()
                         )
                     )
@@ -127,8 +132,9 @@ async def subscribe(
                         lambda: list(
                             db.execute(
                                 "SELECT seq, event_id, topic, payload, producer, published_at"
-                                " FROM events WHERE seq > ?",
-                                (start_seq,),
+                                " FROM events WHERE seq > ? AND seq <= ?"
+                                " ORDER BY seq LIMIT ?",
+                                (start_seq, replay_ceil + batch_size, batch_size),
                             ).fetchall()
                         )
                     )
@@ -142,7 +148,7 @@ async def subscribe(
                     yield f"id:{row['seq']}\ndata:{data}\n\n"
                     replay_ceil = row["seq"]
 
-                start_offset += len(rows)
+                start_seq = replay_ceil + 1
 
                 # If we got a full batch, more data may exist; release lock between batches
                 if len(rows) == batch_size:
