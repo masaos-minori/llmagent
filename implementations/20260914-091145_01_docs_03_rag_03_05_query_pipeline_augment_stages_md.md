@@ -93,9 +93,9 @@ Simple revert: remove the added inline explanation and restore the original sing
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Re-confirm ADR-009's current wording | Pending | — | — | |
-| 2 | Phase 2: Expand the note | Pending | — | — | |
-| 3 | Verification: manual review | Pending | — | — | |
+| 1 | Phase 1: Re-confirm ADR-009's current wording | Completed | — | — | Confirmed via direct reading |
+| 2 | Phase 2: Expand the note | Completed | — | — | Added meaning/rationale/scope/limitation |
+| 3 | Verification: manual review | Completed | — | — | Quality check passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
