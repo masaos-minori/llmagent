@@ -100,41 +100,11 @@ them, are preserved here rather than lost:
 
 #### RAG-003
 
-- **ID**: RAG-003
-- **Title**: Unresolved usage status of `RegisteredDocument` DTO
-- **Status**: open
-- **Severity**: Low
-- **Area**: RAG
-- **Type**: design-gap
-- **Source**: `scripts/rag/models_data.py`
-- **Owner**: Team
-- **First Found**: 2026-08-02
-- **Target**: `docs/03_rag_04_01_dto-models_data.md`
-- **Related**: RAG-004
-- **Summary**: `RegisteredDocument` in `scripts/rag/models_data.py` appears to be unused throughout the codebase.
-- **Current Description**: It is defined in `scripts/rag/models_data.py`, but grep shows zero external references. Its role as either a forward-looking placeholder or dead code is unconfirmed.
-- **Observed Implementation**: Definition exists as the `RegisteredDocument` class, but no imports or instantiations found in any other `.py` files.
-- **Impact**: Potential accumulation of dead code or confusion regarding intended data structures.
-- **Recommended Action**: Confirm with design/implementation owner whether this is a required future component or removable dead code.
+RAG-003 ("Unresolved usage status of `RegisteredDocument` DTO") was resolved and removed from this active inventory 2026-09-14. Confirmed by direct code inspection while drafting `issues/done/20260914-105211_ragsvc02_unused-dto-and-config-dataclasses.md`: `grep -n "^class " scripts/rag/models_data.py` lists `EmbeddingResponse`, `ChunkDocument`, `CrawlDocument`, `ChunkRecord`, `PreparedChunk`, `TwoStageFetchResult` — no `RegisteredDocument` class exists anywhere in this file, and a repository-wide `grep -rn "class RegisteredDocument" scripts/` finds no definition anywhere. The class this entry's "unresolved usage status" question was about no longer exists — the entry's underlying question (required future component vs. removable dead code) is moot, since removal has already happened by some other change. Its absence from the active list is the correct, policy-compliant state — do not create a `#### RAG-003` heading.
 
 #### RAG-004
 
-- **ID**: RAG-004
-- **Title**: Unresolved usage status of `models_config.py` configuration dataclasses
-- **Status**: open
-- **Severity**: Low
-- **Area**: RAG
-- **Type**: design-gap
-- **Source**: `scripts/rag/models_config.py`
-- **Owner**: Team
-- **First Found**: 2026-08-02
-- **Target**: `docs/03_rag_04_04_dto-models_config.md`
-- **Related**: RAG-003
-- **Summary**: Several dataclasses in `scripts/rag/models_config.py` appear to be unused.
-- **Current Description**: `MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, and `PipelineConfig` are defined in `scripts/rag/models_config.py` but do not appear to be imported or instantiated elsewhere. Configuration is currently handled via raw `dict` access from TOML files.
-- **Observed Implementation**: Grep confirms no imports or instantiations of these classes outside `scripts/rag/models_config.py`.
-- **Impact**: Potential accumulation of dead code or confusion regarding the intended configuration mechanism.
-- **Recommended Action**: Confirm with design/implementation owner whether these are intentional placeholders for a future validation layer or removable dead code.
+RAG-004 ("Unresolved usage status of `models_config.py` configuration dataclasses") was resolved and removed from this active inventory 2026-09-14. Confirmed by direct code inspection while drafting `issues/done/20260914-105211_ragsvc02_unused-dto-and-config-dataclasses.md`: `grep -n "^class " scripts/rag/models_config.py` lists only `RagConfigImpl` — none of `MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, or `PipelineConfig` exist anywhere in this file, and a repository-wide `grep -rn "class {Name}" scripts/` for each of the seven finds no definition anywhere. The classes this entry's "unresolved usage status" question was about no longer exist — the entry's underlying question is moot, since removal has already happened by some other change. Its absence from the active list is the correct, policy-compliant state — do not create a `#### RAG-004` heading.
 
 #### RAG-005
 
@@ -336,22 +306,9 @@ EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was r
 
 #### CI-004
 
-- **ID**: CI-004
-- **Title**: ADR-010 INV-02 — in-process fallback potentially triggered on non-transport errors
-- **Status**: open
-- **Severity**: Medium
-- **Area**: RAG
-- **Type**: document-code-mismatch
-- **Source**: `scripts/rag/http_augment.py`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `docs/adr/ADR-010-rag-fallback.md`
-- **Related**: ADR-010
-- **Summary**: ADR-010 states that in-process fallback should occur ONLY on transport errors (connection refused, timeout, etc.).
-- **Current Description**: The implementation in `http_augment.py` triggers immediate fallback on 4xx errors and parse errors (`ValueError`), which are NOT transport errors — normal HTTP responses (e.g. 404, 400) trigger in-process fallback rather than being handled as valid HTTP responses.
-- **Observed Implementation**: Confirmed by code inspection of `http_augment.py`'s fallback trigger conditions.
-- **Impact**: Normal HTTP error responses cause unnecessary in-process fallback, potentially masking real transport failures and increasing latency.
-- **Recommended Action**: Review `http_augment.py` to distinguish transport errors from application-level HTTP errors.
+CI-004 ("ADR-010 INV-02 — in-process fallback potentially triggered on non-transport errors") was resolved and removed from this active inventory 2026-09-14. This entry's own premise did not match `ADR-010`'s actual text: confirmed by direct reading of `docs/adr/ADR-010-rag-fallback.md`, no invariant states fallback should occur "ONLY on transport errors" — `ADR-010`'s actual INV-02 is "HTTP呼び出しは`timeout=10.0`で各試行を制御する" (unrelated to fallback-trigger classification). The governing Decision Details are #4 ("HTTPエラー（401, 403, 4xx, 5xx）と空結果（""）を区別する") and #6 ("技術的失敗（タイムアウト、接続エラー、HTTPエラー）のみをフォールバック条件とする"), restated as INV-04 — both explicitly classify HTTP errors (4xx included) as a technical failure that *should* trigger fallback, not an exception to it. `scripts/rag/pipeline_service.py::call_rag_service()`'s 4xx-triggers-fallback behavior is exactly this intended design, and is locked in by existing tests (`tests/rag/test_rag_pipeline_service.py::test_4xx_returns_none_no_retry`, `::test_4xx_calls_set_fallback_reason`) that assert 4xx-triggers-fallback as the correct outcome, not a bug. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-004` heading.
+
+A narrower, genuine discrepancy was found during this same re-verification and is *not* covered by the above: `ADR-010` Decision #9 ("解析エラーはログに記録し、空結果として扱う" — a parse error should be logged and treated as an empty result, i.e. `""`, not a fallback trigger) does not match `call_rag_service()`'s actual `ValueError` handling, which returns `None` (triggering fallback) rather than `""` — also locked in by an existing test (`tests/rag/test_rag_pipeline_service.py::test_json_parse_error_calls_set_fallback_reason`). Whether this reflects an intentional, undocumented refinement of Decision #9, or an actual deviation from it, was not resolved during this correction pass and is out of scope for closing CI-004 — file a new, narrowly-scoped Known Issue or Needs Confirmation entry for this specific Decision #9 vs. `ValueError`-handling question if it is to be tracked.
 
 #### CI-005
 
@@ -534,7 +491,7 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for duplicate-tool detection.
 
-No other active Known Issues beyond RAG-003, RAG-004, RAG-005, DESIGN-1, DESIGN-2,
+No other active Known Issues beyond RAG-005, DESIGN-1, DESIGN-2,
 EVENTBUS-001 through EVENTBUS-008, and CI-001, CI-003 through CI-015 above.
 
 ## Part 2: Needs Confirmation Inventory
