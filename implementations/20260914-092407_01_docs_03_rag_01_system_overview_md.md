@@ -96,9 +96,9 @@ Simple revert: remove the added note. The underlying code remains unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Re-confirm no rationale exists | Pending | — | — | |
-| 2 | Phase 2: Add note after Constraints table | Pending | — | — | |
-| 3 | Verification: manual review | Pending | — | — | |
+| 1 | Phase 1: Re-confirm no rationale exists | Completed | 20260914-115832 | 20260914-115832 |  |
+| 2 | Phase 2: Add note after Constraints table | Completed | 20260914-115600 | 20260914-115600 |  |
+| 3 | Verification: manual review | Completed | 20260914-115821 | 20260914-115821 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
