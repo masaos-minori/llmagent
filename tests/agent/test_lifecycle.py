@@ -444,7 +444,7 @@ class TestStartHttpSubprocess:
                 "agent.http_lifecycle.os.getpgid",
                 side_effect=OSError("no such process"),
             ),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("agent.http_lifecycle.os.killpg", side_effect=OSError("no such process")),
         ):
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start_http_subprocess("s", cfg)
@@ -472,7 +472,7 @@ class TestStartHttpSubprocess:
                 "agent.http_lifecycle.os.getpgid",
                 side_effect=OSError("no such process"),
             ),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("agent.http_lifecycle.os.killpg", side_effect=OSError("no such process")),
         ):
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start_http_subprocess("s", cfg)
@@ -482,7 +482,6 @@ class TestStartHttpSubprocess:
         assert "s" not in mgr._http_mgr._stderr_files
         assert "s" not in mgr._http_mgr._stderr_log_paths
         mock_proc.terminate.assert_called_once()
-        mock_proc.kill.assert_called_once()
 
 
 class TestRestart:

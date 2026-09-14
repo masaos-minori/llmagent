@@ -1,4 +1,4 @@
-"""scripts/agent/http_lifecycle_stderr_log.py
+"""scripts/agent/http_lifecycle_stderr_log_manager.py
 
 Stderr log management for HTTP subprocess MCP servers.
 

@@ -95,17 +95,20 @@ class RepositoryGateway:
     ) -> ToolCallResult:
         """Enforce policy, execute, audit.
 
-        Approval is expected to have already been granted by the caller's
-        batch-level gate (tool_runner.execute_all_tool_calls()'s
-        _run_approval_gate()); this method does not prompt.
+        Approval must be granted before execution. When ctx.turn.pending_approval_id
+        is not None, write operations are denied until the user explicitly approves
+        via /approve or /reject. This method does not prompt.
         """
-        # Skip gateway preflight when workflow approval is active
+        # Reject write operations when approval is pending
         if ctx.turn.pending_approval_id is not None:
-            logger.debug(
-                "Skipping gateway preflight: workflow approval pending (id=%s)",
+            logger.warning(
+                "gateway.write_denied tool=%r reason=pending_approval id=%s",
+                tool_name,
                 ctx.turn.pending_approval_id,
             )
-            return await self._executor.execute(tool_name, args)
+            return _denied_result(
+                "Approval pending — use /approve or /reject to grant access."
+            )
 
         try:
             check_preflight(self._cfg, tool_name, args)

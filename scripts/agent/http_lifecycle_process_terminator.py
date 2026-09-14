@@ -136,16 +136,19 @@ class ProcessTerminator:
             HttpStartupError: If process termination fails.
         """
         pgid = getattr(proc, "pid", None)
-        if pgid is None:
-            from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
-
-            raise HttpStartupError(
-                StartupFailure(
-                    server_key=server_key,
-                    reason=f"Cannot determine PID for process {proc}",
-                    stderr_full="",
-                )
+        if pgid is None or not isinstance(pgid, int):
+            # Fallback to proc-level termination when pgid is unavailable
+            logger.warning(
+                "Lifecycle: %r terminated, but children may remain (no pgid available)",
+                server_key,
             )
+            terminate_method = getattr(proc, "terminate", None)
+            if terminate_method is not None:
+                try:
+                    terminate_method()
+                except (OSError, AttributeError, TypeError):
+                    pass
+            return
 
         # Early-exit if process already exited
         poll_result = getattr(proc, "poll", None)
@@ -166,6 +169,13 @@ class ProcessTerminator:
             used_pgid = True
         except ProcessLookupError:
             logger.warning("Process group %d already terminated", pgid)
+            # Fallback: try proc-level termination when process group is gone
+            terminate_method = getattr(proc, "terminate", None)
+            if terminate_method is not None:
+                try:
+                    terminate_method()
+                except (OSError, AttributeError, TypeError):
+                    pass
             return
         except OSError:
             logger.warning(

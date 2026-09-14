@@ -893,7 +893,7 @@ class TestRunTurnLLMTransportError:
         ctx.services_required.llm.stream = _mock_stream
 
         with patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()):
-            result = await orch._llm_runner.run(
+            result = await orch._llm_executor.handle_llm_turn(
                 "http://llm-test",
                 workflow_id="wf-test",
                 task_id="task-test",
@@ -920,7 +920,7 @@ class TestRunTurnLLMTransportError:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run(
+        result = await orch._llm_executor.handle_llm_turn(
             "http://llm-test",
             workflow_id="wf-test",
             task_id="task-test",
@@ -964,7 +964,7 @@ class TestRunTurnLLMTransportError:
         ctx.services_required.llm.stream = _mock_stream
 
         with patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()):
-            result = await orch._llm_runner.run(
+            result = await orch._llm_executor.handle_llm_turn(
                 "http://llm-test",
                 workflow_id="wf-test",
                 task_id="task-test",
@@ -987,7 +987,7 @@ class TestRunTurnLLMTransportError:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run(
+        result = await orch._llm_executor.handle_llm_turn(
             "http://llm-test",
             workflow_id="wf-test",
             task_id="task-test",
@@ -1022,7 +1022,7 @@ class TestRunTurnNormalCompletion:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run(
+        result = await orch._llm_executor.handle_llm_turn(
             "http://llm-test",
             workflow_id="wf-test",
             task_id="task-test",
@@ -1054,7 +1054,7 @@ class TestRunTurnNormalCompletion:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run(
+        result = await orch._llm_executor.handle_llm_turn(
             "http://llm-test",
             workflow_id="wf-test",
             task_id="task-test",
@@ -1086,33 +1086,29 @@ class TestToolLoopGuardHelpers:
     def test_check_consecutive_error_limit_below_max_returns_none(self) -> None:
         ctx = _make_ctx()
         ctx.cfg.tool.tool_error_max_consecutive = 3
-        orch = _make_orchestrator(ctx)
-        assert orch._guard.check_error_limit(2) is None
+        assert ToolLoopGuard(ctx).check_error_limit(2) is None
 
     def test_check_consecutive_error_limit_at_max_returns_message(self) -> None:
         ctx = _make_ctx()
         ctx.cfg.tool.tool_error_max_consecutive = 3
-        orch = _make_orchestrator(ctx)
-        result = orch._guard.check_error_limit(3)
+        result = ToolLoopGuard(ctx).check_error_limit(3)
         assert result is not None
         assert "consecutive" in result
 
     def test_check_consecutive_error_limit_disabled_returns_none(self) -> None:
         ctx = _make_ctx()
         ctx.cfg.tool.tool_error_max_consecutive = 0
-        orch = _make_orchestrator(ctx)
-        assert orch._guard.check_error_limit(999) is None
+        assert ToolLoopGuard(ctx).check_error_limit(999) is None
 
     def test_check_all_tool_guards_returns_none_when_no_guards_hit(self) -> None:
         ctx = _make_ctx()
         ctx.cfg.tool.tool_dedup_max_repeats = 3
         ctx.cfg.tool.tool_cycle_detect_window = 0
         ctx.cfg.tool.tool_error_retry_max = 0
-        orch = _make_orchestrator(ctx)
         msg = MagicMock()
         msg.__getitem__ = lambda self, k: [] if k == "tool_calls" else None
         msg.get = lambda k, d=None: [] if k == "tool_calls" else d
-        result = orch._guard.check_all({}, [], set(), msg)
+        result = ToolLoopGuard(ctx).check_all({}, [], set(), msg)
         assert result is None
 
     def test_check_all_tool_guards_returns_on_cycle_guard_hit(self) -> None:
@@ -1120,17 +1116,16 @@ class TestToolLoopGuardHelpers:
         ctx.cfg.tool.tool_dedup_max_repeats = 10
         ctx.cfg.tool.tool_cycle_detect_window = 1  # detect after 1 repeat
         ctx.cfg.tool.tool_error_retry_max = 0
-        orch = _make_orchestrator(ctx)
         tool_calls = [{"function": {"name": "my_tool", "arguments": "{}"}}]
         msg: dict = {"role": "assistant", "content": None, "tool_calls": tool_calls}
 
         fingerprints: list[str] = []
-        result1 = orch._guard.check_all({}, fingerprints, set(), msg)
+        result1 = ToolLoopGuard(ctx).check_all({}, fingerprints, set(), msg)
         assert result1 is None
         assert len(fingerprints) == 1
 
         # Second call with the same message → cycle guard fires
-        result2 = orch._guard.check_all({}, fingerprints, set(), msg)
+        result2 = ToolLoopGuard(ctx).check_all({}, fingerprints, set(), msg)
         assert result2 is not None
         assert "cycle" in result2.lower() or "cyclic" in result2.lower()
 
@@ -1139,7 +1134,6 @@ class TestToolLoopGuardHelpers:
         ctx.cfg.tool.tool_dedup_max_repeats = 1  # fire on first repeat
         ctx.cfg.tool.tool_cycle_detect_window = 0
         ctx.cfg.tool.tool_error_retry_max = 0
-        orch = _make_orchestrator(ctx)
         import hashlib
 
         tool_calls = [{"function": {"name": "my_tool", "arguments": "{}"}}]
@@ -1148,7 +1142,7 @@ class TestToolLoopGuardHelpers:
         key = hashlib.md5(b"my_tool:{}", usedforsecurity=False).hexdigest()
         seen: dict[str, int] = {key: 1}
 
-        result = orch._guard.check_all(seen, [], set(), msg)
+        result = ToolLoopGuard(ctx).check_all(seen, [], set(), msg)
         assert result is not None
         assert "repeated" in result.lower() or "duplicate" in result.lower()
 
@@ -2208,7 +2202,7 @@ class TestErrorKindPropagation:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run(
+        result = await orch._llm_executor.handle_llm_turn(
             "http://llm-test",
             workflow_id="wf-test",
             task_id="task-test",

@@ -179,9 +179,9 @@ N/A: test code change, no security-sensitive operations.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260914-140704 | 20260914-140704 |  |
 | 2 | Add or update tests per Validation plan | Pending | — | — | N/A: existing tests cover regression |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260914-140814 | 20260914-140814 |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docstring update in Phase 1 |
 
 ### Blocker Log

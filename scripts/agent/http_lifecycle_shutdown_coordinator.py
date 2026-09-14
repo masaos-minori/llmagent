@@ -5,10 +5,10 @@ Shutdown coordinator for graceful HTTP server lifecycle management."""
 from __future__ import annotations
 
 import logging
-import os
 import signal
-import subprocess
 from typing import TYPE_CHECKING
+
+from .http_lifecycle_process_terminator import ProcessTerminator
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,10 @@ class ShutdownCoordinator:
             for server_key, proc in list(procs.items()):
                 if proc is None:
                     continue
+                if proc.poll() is not None:
+                    logger.debug("Lifecycle: %r already exited; removing entry", server_key)
+                    continue
+                terminator = manager._process_terminator
                 logger.info("Shutting down %s...", server_key)
                 await terminator.terminate_with_timeout(
                     proc, server_key, _SHUTDOWN_TIMEOUT_SEC

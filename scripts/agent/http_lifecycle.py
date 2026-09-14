@@ -43,7 +43,7 @@ from .http_lifecycle_shutdown_coordinator import (
     ShutdownCoordinator,
     _absorb_sigint_during_shutdown,
 )
-from .http_lifecycle_stderr_log import StderrLogManager
+from .http_lifecycle_stderr_log_manager import StderrLogManager
 
 logger = logging.getLogger(__name__)
 

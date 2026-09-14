@@ -1,4 +1,4 @@
-"""Tests for scripts/agent/http_lifecycle_stderr_log.py."""
+"""Tests for scripts/agent/http_lifecycle_stderr_log_manager.py."""
 
 import os
 import tempfile
@@ -6,7 +6,7 @@ from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 import pytest
-from agent.http_lifecycle_stderr_log import _DEFAULT_STDERR_TAIL_BYTES, StderrLogManager
+from agent.http_lifecycle_stderr_log_manager import _DEFAULT_STDERR_TAIL_BYTES, StderrLogManager
 
 
 class TestReadTail:

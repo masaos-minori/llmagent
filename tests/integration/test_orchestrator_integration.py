@@ -494,7 +494,7 @@ class TestToolCallFlow:
             captured_tool_calls.append(tcs)
 
         with patch("agent.llm_turn_runner.execute_all_tool_calls", _capture_execute):
-            await orch._llm_runner.run(
+            await orch._llm_executor.handle_llm_turn(
                 "http://llm-test",
                 workflow_id="wf-test",
                 task_id="task-test",
@@ -524,7 +524,7 @@ class TestToolCallFlow:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run(
+        result = await orch._llm_executor.handle_llm_turn(
             "http://llm-test",
             workflow_id="wf-test",
             task_id="task-test",
@@ -543,17 +543,15 @@ class TestToolCallFlow:
         ctx.cfg.tool.tool_dedup_max_repeats = 10
         ctx.cfg.tool.tool_cycle_detect_window = 1
         ctx.cfg.tool.tool_error_retry_max = 0
-        orch = _make_orchestrator(ctx)
-
         tool_calls = [{"function": {"name": "my_tool", "arguments": "{}"}}]
         msg: dict = {"role": "assistant", "content": None, "tool_calls": tool_calls}
 
         fingerprints: list[str] = []
-        result1 = orch._guard.check_all({}, fingerprints, set(), msg)
+        result1 = ToolLoopGuard(ctx).check_all({}, fingerprints, set(), msg)
         assert result1 is None
         assert len(fingerprints) == 1
 
-        result2 = orch._guard.check_all({}, fingerprints, set(), msg)
+        result2 = ToolLoopGuard(ctx).check_all({}, fingerprints, set(), msg)
         assert result2 is not None
         assert "cycle" in result2.lower() or "cyclic" in result2.lower()
 
@@ -564,8 +562,6 @@ class TestToolCallFlow:
         ctx.cfg.tool.tool_dedup_max_repeats = 1
         ctx.cfg.tool.tool_cycle_detect_window = 0
         ctx.cfg.tool.tool_error_retry_max = 0
-        orch = _make_orchestrator(ctx)
-
         import hashlib
 
         tool_calls = [{"function": {"name": "my_tool", "arguments": "{}"}}]
@@ -574,7 +570,7 @@ class TestToolCallFlow:
         key = hashlib.md5(b"my_tool:{}", usedforsecurity=False).hexdigest()
         seen: dict[str, int] = {key: 1}
 
-        result = orch._guard.check_all(seen, [], set(), msg)
+        result = ToolLoopGuard(ctx).check_all(seen, [], set(), msg)
         assert result is not None
         assert "repeated" in result.lower() or "duplicate" in result.lower()
 
@@ -583,9 +579,7 @@ class TestToolCallFlow:
         """Consecutive error limit fires when all tool calls fail."""
         ctx = _make_ctx()
         ctx.cfg.tool.tool_error_max_consecutive = 3
-        orch = _make_orchestrator(ctx)
-
-        result = orch._guard.check_error_limit(3)
+        result = ToolLoopGuard(ctx).check_error_limit(3)
         assert result is not None
         assert "consecutive" in result
 
@@ -617,7 +611,7 @@ class TestToolCallFlow:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run(
+        result = await orch._llm_executor.handle_llm_turn(
             "http://llm-test",
             workflow_id="wf-test",
             task_id="task-test",
@@ -643,7 +637,7 @@ class TestToolCallFlow:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run(
+        result = await orch._llm_executor.handle_llm_turn(
             "http://llm-test",
             workflow_id="wf-test",
             task_id="task-test",

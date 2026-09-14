@@ -101,6 +101,53 @@ class TestWritePolicy:
         assert result is expected
         executor.execute.assert_awaited_once()
 
+    @pytest.mark.asyncio
+    async def test_gate_write_rejects_when_approval_pending(self) -> None:
+        """Write tool rejected when pending_approval_id is not None."""
+        executor = AsyncMock(return_value=MagicMock(is_error=False))
+        gw = _make_gateway(executor=executor)
+        ctx = _make_ctx()
+        ctx.turn.pending_approval_id = "approval-123"
+
+        with (
+            patch(
+                "agent.repository_gateway.classify_operation_type",
+                return_value=OperationType.WRITE,
+            ),
+            patch("agent.repository_gateway.check_preflight"),
+        ):
+            result = await gw.execute(
+                ctx, "write_file", {"path": "/tmp/x.txt", "content": "ok"}
+            )
+
+        assert result.is_error is True
+        assert "Approval pending" in result.output
+        assert "/approve" in result.output
+        executor.execute.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_gate_write_allows_when_no_pending_approval(self) -> None:
+        """Write tool allowed when pending_approval_id is None."""
+        expected = MagicMock(is_error=False, output="written")
+        executor = AsyncMock(return_value=expected)
+        gw = _make_gateway(executor=executor)
+        ctx = _make_ctx()
+        # pending_approval_id is None by default via _make_ctx()
+
+        with (
+            patch(
+                "agent.repository_gateway.classify_operation_type",
+                return_value=OperationType.WRITE,
+            ),
+            patch("agent.repository_gateway.check_preflight"),
+        ):
+            result = await gw.execute(
+                ctx, "write_file", {"path": "/tmp/x.txt", "content": "ok"}
+            )
+
+        assert result is expected
+        executor.execute.assert_awaited_once_with("write_file", {"path": "/tmp/x.txt", "content": "ok"})
+
 
 class TestAudit:
     @pytest.mark.asyncio

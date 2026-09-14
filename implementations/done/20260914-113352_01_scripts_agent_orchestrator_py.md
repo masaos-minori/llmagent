@@ -205,9 +205,9 @@ N/A: deprecation warnings don't introduce security-sensitive operations.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260914-133842 | 20260914-133842 |  |
 | 2 | Add or update tests per Validation plan | Pending | — | — | N/A: existing tests cover regression |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260914-134038 | 20260914-134038 |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Update docstrings for delegation clarification |
 
 ### Blocker Log

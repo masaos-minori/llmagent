@@ -185,6 +185,60 @@ class Orchestrator:
             allowed_tools=self._allowed_tools,
         )
 
+    # ── Deprecated private field accessors ──────────────────────────────────────
+    # These properties emit DeprecationWarning when accessed, guiding callers
+    # toward the replacement APIs while maintaining backward compatibility during
+    # the deprecation phase. See issues/20260913-172211_unused_orchestrator_llm_runner.md
+    # for migration context.
+
+    @property
+    def _llm_runner(self):
+        """Deprecated: use _llm_executor.handle_llm_turn() instead."""
+        import warnings
+
+        warnings.warn(
+            "Orchestrator._llm_runner is deprecated. Use Orchestrator._llm_executor.handle_llm_turn() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.__dict__.get("_llm_runner")
+
+    @_llm_runner.setter
+    def _llm_runner(self, value):
+        """Deprecated: use _llm_executor.handle_llm_turn() instead."""
+        import warnings
+
+        warnings.warn(
+            "Orchestrator._llm_runner is deprecated. Use Orchestrator._llm_executor.handle_llm_turn() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.__dict__["_llm_runner"] = value
+
+    @property
+    def _guard(self):
+        """Deprecated: create ToolLoopGuard directly if needed."""
+        import warnings
+
+        warnings.warn(
+            "Orchestrator._guard is deprecated. Create ToolLoopGuard directly if needed.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.__dict__.get("_guard")
+
+    @_guard.setter
+    def _guard(self, value):
+        """Deprecated: create ToolLoopGuard directly if needed."""
+        import warnings
+
+        warnings.warn(
+            "Orchestrator._guard is deprecated. Create ToolLoopGuard directly if needed.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.__dict__["_guard"] = value
+
     # ── Public entry point ────────────────────────────────────────────────────
 
     async def handle_turn(self, line):
