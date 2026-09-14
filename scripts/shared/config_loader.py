@@ -69,9 +69,10 @@ class ConfigLoader:
         """Load all base config files from config/ in dependency order.
 
         Args:
-            strict: If True, raise ConfigMissingError for any missing required
-                config file. Required files are defined in _REQUIRED_CONFIG_FILES.
-                If False (default), missing files are skipped with a debug log.
+            strict: If True (default), raise ConfigMissingError for any missing
+                required config file. Required files are defined in
+                _REQUIRED_CONFIG_FILES. If False, missing files are skipped
+                with a debug log.
 
         Dict-valued keys are merged one level deep so that multiple MCP server
         config files can each contribute a [mcp_servers.<key>] section without

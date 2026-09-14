@@ -355,41 +355,13 @@ EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was r
 
 #### CI-005
 
-- **ID**: CI-005
-- **Title**: ADR-004 INV-03 — fail-closed for missing config not implemented
-- **Status**: open
-- **Severity**: High
-- **Area**: Shared/DB
-- **Type**: implementation-bug
-- **Source**: `scripts/shared/config_loader.py::load_config()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `docs/adr/ADR-004-environment-failure-handling-policy.md`
-- **Related**: ADR-004
-- **Summary**: ADR-004 states that missing configuration should fail closed (stop the process) in ALL modes.
-- **Current Description**: `load_config()` calls `ConfigLoader().load_all()` WITHOUT `strict=True`, so missing config files silently skip in all modes. The `ConfigMissingError` class exists but is never raised because strict loading is never enabled.
-- **Observed Implementation**: Confirmed by code inspection — `strict=True` is never passed to `load_all()`.
+CI-005 ("ADR-004 INV-03 — fail-closed for missing config not implemented") was resolved and removed from this active inventory 2026-09-14. Confirmed by direct code inspection: this entry's `Source` field cited a non-existent `scripts/shared/config_loader.py::load_config()` — the actual `load_config()` (`scripts/agent/config_builders.py`) calls `ConfigLoader().load_all()`, whose `strict` parameter already defaults to `True` (`scripts/shared/config_loader.py`), and `_REQUIRED_CONFIG_FILES` includes `agent.toml`. `ConfigMissingError` is a `ValueError` subclass, so it is caught by `load_config()`'s own exception handler and re-raised as `ConfigLoadError` — a missing required config file already fails closed. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-005` heading. `ConfigLoader.load_all()`'s docstring previously contradicted its actual `strict: bool = True` default ("If False (default), missing files are skipped") — corrected 2026-09-14.
 - **Impact**: Missing critical configuration silently fails open across all environments, including production.
 - **Recommended Action**: Pass `strict=True` to `load_all()` or add explicit validation after config loading.
 
 #### CI-006
 
-- **ID**: CI-006
-- **Title**: ADR-004 Decision Details #4 — local safety-related fail-closed behavior not verified
-- **Status**: open
-- **Severity**: Medium
-- **Area**: Shared/DB
-- **Type**: ambiguous-behavior
-- **Source**: `check_readiness()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `docs/adr/ADR-004-environment-failure-handling-policy.md`
-- **Related**: ADR-004
-- **Summary**: ADR-004 states that local safety-related checks (like permission checks) should fail closed even though general health checks fail open.
-- **Current Description**: The implementation in `check_readiness()` distinguishes between production/local modes, but it is unclear whether safety-related checks specifically fail closed in local mode.
-- **Observed Implementation**: Not fully traced; distinguishing logic exists but has not been verified against this specific invariant.
-- **Impact**: Safety checks might incorrectly pass in local mode, allowing unsafe operations.
-- **Recommended Action**: Verify that safety-related checks in `check_readiness()` enforce fail-closed behavior in local mode.
+CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavior not verified") was resolved and removed from this active inventory 2026-09-14 — not by verifying the local-mode behavior it asked about, but because the premise no longer applies: `docs/adr/ADR-004-environment-failure-handling-policy.md`'s own 2026-09-04 revision record states `SecurityProfile.LOCAL` was fully abolished and production-grade validation made unconditional for every normal startup. Confirmed by direct code inspection: `scripts/shared/mcp_config.py`'s `SecurityProfile` enum now defines only `PRODUCTION`, and `security_profile: SecurityProfile = SecurityProfile.PRODUCTION` is the sole default in `scripts/agent/config_dataclasses.py` — there is no local/production branch left in which safety checks could fail open. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-006` heading.
 
 #### CI-007
 
