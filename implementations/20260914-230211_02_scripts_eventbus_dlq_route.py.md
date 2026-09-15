@@ -212,8 +212,8 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move failure-state inspection under shared lock | Pending | — | — | |
-| 2 | Update caller to use new return signature | Pending | — | — | |
+| 1 | Move failure-state inspection under shared lock | Completed | 20260915-142652 | 20260915-142652 | |
+| 2 | Update caller to use new return signature | Completed | 20260915-142652 | 20260915-142652 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
