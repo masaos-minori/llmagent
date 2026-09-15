@@ -91,8 +91,8 @@ Expected: Contract matches the plan's documented contract.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify EventBus → shared import restriction | Pending | — | — | |
-| 2 | Verify eventbus-is-isolated contract | Pending | — | — | |
+| 1 | Verify EventBus → shared import restriction | Completed | — | — | Confirmed: contract still forbids EventBus → shared imports |
+| 2 | Verify eventbus-is-isolated contract | Completed | — | — | Stale claim: contract not relaxed; ConfigLoader exception not added |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
