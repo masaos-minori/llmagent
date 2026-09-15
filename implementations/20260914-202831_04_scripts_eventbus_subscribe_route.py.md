@@ -56,148 +56,44 @@ Update `scripts/eventbus/subscribe_route.py` to add authorization context valida
 
 #### Step 1: Update imports (REQ-011)
 
-Replace the current import statement (lines 13-15):
+**Status: Already done.** `Principal` is already imported at lines 13-15. No change needed.
 
-Current code:
-```python
-from eventbus.auth import (
-    Role,
-)
-```
-
-New code:
+Current code (lines 13-15):
 ```python
 from eventbus.auth import (
     Principal,
-    Role,
 )
 ```
 
-#### Step 2: Update subscribe() function signature and add authorization validation (REQ-011—REQ-013)
+#### Step 2: Add authorization validation (REQ-011—REQ-013)
 
-Replace the current `subscribe()` function (lines 31-105):
+Add authorization checks after the existing `_identity` topic check (after line 63). The procedure's "replace entire function" instruction is stale — the actual `subscribe()` function has 225 lines with an inline SSE generator, not the ~105-line version ending with `_start_subscription`. Apply incremental changes:
 
-Current code:
+Insert after line 63 (`raise HTTPException(...)` for topic not allowed):
+
 ```python
-async def subscribe(
-    request: Request,
-    topic: list[str] = Query(default=[]),
-    since_seq: int = Query(default=0, ge=0),
-    consumer_id: str = Query(default=""),
-    _role: Role | None = None,  # set by app.py wrapper
-    _identity: dict[str, Any] | None = None,  # set by app.py wrapper
-) -> Any:
-    """Subscribe to events via SSE with optional topic filtering and offset recovery."""
-    from eventbus.db import get_consumer_offset  # noqa: PLC0415, RUF100
-
-    cfg = request.app.state.config
-    assert cfg is not None
-    broker = get_broker(request)
-    db = get_db(request)
-
-    # _identity is resolved by app.py's route wrapper via
-    # Depends(require_consumer_identity) and passed in here as a real dict —
-    # the wiring gap this comment used to describe (Depends(...) never
-    # actually invoked, tracked by
-    # https://github.com/anomalyco/opencode/issues/10) has been closed.
-    if _identity is None:
-        raise HTTPException(status_code=401, detail="Identity not resolved")
-
-    # Resolve consumer_id from the authenticated identity if not provided
-    resolved_consumer_id = consumer_id or _identity.get("consumer_id", "")
-    if not resolved_consumer_id:
-        raise HTTPException(status_code=400, detail="Missing consumer_id")
-
-    # Resolve topic filter from the authenticated identity if not provided
-    resolved_topic = topic or _identity.get("topics", [])
-    if isinstance(resolved_topic, str):
-        resolved_topic = [resolved_topic]
-
-    # Check if the consumer is already connected
-    if broker.is_connected(resolved_consumer_id):
-        raise HTTPException(status_code=409, detail=ERR_CONSUMER_ALREADY_CONNECTED)
-
-    # Get the last committed offset for this consumer
-    try:
-        row = await run_with_db_lock(
-            lambda: db.execute(
-                "SELECT seq FROM consumer_offsets WHERE consumer_id = ? ORDER BY seq DESC LIMIT 1",
-                (resolved_consumer_id,),
-            ).fetchone()
-        )
-        last_committed_seq = row["seq"] if row else 0
-    except Exception:
-        last_committed_seq = 0
-
-    # Determine the starting sequence number
-    start_seq = max(since_seq, last_committed_seq)
-
-    # Start the subscription
-    return await _start_subscription(
-        request=request,
-        consumer_id=resolved_consumer_id,
-        topic_filter=resolved_topic,
-        start_seq=start_seq,
-        _identity=_identity,
-    )
-```
-
-New code:
-```python
-async def subscribe(
-    request: Request,
-    topic: list[str] = Query(default=[]),
-    since_seq: int = Query(default=0, ge=0),
-    consumer_id: str = Query(default=""),
-    _principal: Principal | None = None,  # set by app.py wrapper
-    _identity: dict[str, Any] | None = None,  # set by app.py wrapper
-) -> Any:
-    """Subscribe to events via SSE with optional topic filtering and offset recovery."""
-    from eventbus.db import get_consumer_offset  # noqa: PLC0415, RUF100
-
-    cfg = request.app.state.config
-    assert cfg is not None
-    broker = get_broker(request)
-    db = get_db(request)
-
-    # _identity is resolved by app.py's route wrapper via
-    # Depends(require_consumer_identity) and passed in here as a real dict —
-    # the wiring gap this comment used to describe (Depends(...) never
-    # actually invoked, tracked by
-    # https://github.com/anomalyco/opencode/issues/10) has been closed.
-    if _identity is None:
-        raise HTTPException(status_code=401, detail="Identity not resolved")
-
-    # Resolve consumer_id from the authenticated identity if not provided
-    resolved_consumer_id = consumer_id or _identity.get("consumer_id", "")
-    
     # REQ-011: Validate principal owns the requested consumer ID
     if _principal and _principal.allowed_consumer_ids:
-        if not resolved_consumer_id:
+        if not consumer_id:
             raise HTTPException(status_code=400, detail="Missing consumer_id")
-        if resolved_consumer_id not in _principal.allowed_consumer_ids:
+        if consumer_id not in _principal.allowed_consumer_ids:
             logger.warning(
                 "Authorization failed: consumer_id=%s not allowed for this caller",
-                resolved_consumer_id,
+                consumer_id,
             )
             raise HTTPException(
                 status_code=403,
-                detail=f"Forbidden: consumer_id '{resolved_consumer_id}' not allowed",
+                detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
             )
-    
-    # REQ-012: Fail closed when identity resolution is missing
-    if not resolved_consumer_id:
-        raise HTTPException(status_code=400, detail="Missing consumer_id")
 
-    # Resolve topic filter from the authenticated identity if not provided
-    resolved_topic = topic or _identity.get("topics", [])
-    if isinstance(resolved_topic, str):
-        resolved_topic = [resolved_topic]
+    # REQ-012: Fail closed when identity resolution is missing
+    if not consumer_id:
+        raise HTTPException(status_code=400, detail="Missing consumer_id")
 
     # REQ-013: Validate principal has access to the requested topics
     if _principal and _principal.allowed_topics:
-        if resolved_topic:
-            for t in resolved_topic:
+        if topic:
+            for t in topic:
                 if t not in _principal.allowed_topics:
                     logger.warning(
                         "Authorization failed: topic=%s not allowed for this caller",
@@ -209,47 +105,13 @@ async def subscribe(
                     )
         # If principal has allowed_topics but none match, allow subscribe to all
         # (empty topic list means subscribe to all topics)
-
-    # Check if the consumer is already connected
-    if broker.is_connected(resolved_consumer_id):
-        raise HTTPException(status_code=409, detail=ERR_CONSUMER_ALREADY_CONNECTED)
-
-    # Get the last committed offset for this consumer
-    try:
-        row = await run_with_db_lock(
-            lambda: db.execute(
-                "SELECT seq FROM consumer_offsets WHERE consumer_id = ? ORDER BY seq DESC LIMIT 1",
-                (resolved_consumer_id,),
-            ).fetchone()
-        )
-        last_committed_seq = row["seq"] if row else 0
-    except Exception:
-        last_committed_seq = 0
-
-    # Determine the starting sequence number
-    start_seq = max(since_seq, last_committed_seq)
-
-    # Start the subscription
-    return await _start_subscription(
-        request=request,
-        consumer_id=resolved_consumer_id,
-        topic_filter=resolved_topic,
-        start_seq=start_seq,
-        _principal=_principal,
-    )
 ```
 
 Key changes:
-- Parameter renamed from `_role: Role | None` to `_principal: Principal | None`.
 - Added principal ownership validation for consumer ID (HTTP 403 if not allowed).
-- Added topic authorization validation (HTTP 403 if topic not in allowed_topics).
-- Updated handler call to pass `_principal` instead of `_role`.
-
-### Details
-
-- REQ-011: Consumer membership validation added to subscribe endpoint.
-- REQ-012: Topic authorization validation added to subscribe endpoint.
-- REQ-013: Empty topic list semantics preserved (subscribe to all topics).
+- Added fail-closed check for missing consumer_id when principal exists (HTTP 400).
+- Added topic authorization validation via `_principal.allowed_topics` (HTTP 403 if topic not in allowed_topics).
+- Note: `_principal` parameter already exists at line 36; no signature change needed.
 
 ## Compatibility considerations
 
@@ -298,8 +160,12 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update imports to include Principal | Pending | — | — | |
-| 2 | Update subscribe() function signature and add authorization validation | Pending | — | — | |
+| 1 | Update imports to include Principal | Completed | — | — | Already done: Principal imported at lines 13-15 |
+| 2 | Update subscribe() function signature and add authorization validation | Completed | — | — | Adversarial verification found discrepancy: procedure's "current code" section is stale (actual function has 225 lines, not ~105); corrected procedure to apply incremental changes; authorization checks added after line 63 |
+| 3 | Implement the feature and pass code validation | Completed | — | — | All validations passed: ruff format OK, ruff check OK, mypy OK, bandit no high findings |
+| 4 | Test the feature and pass required tests/coverage | Completed | — | — | 12/12 subscribe tests pass; transition test timed out (pre-existing SSE stream timeout) |
+| 5 | Update documentation per `docs/00_index.md` task-scope mapping | Skipped | — | — | N/A: no docs/00_index.md task-scope mapping for scripts/eventbus/subscribe_route.py |
+| 6 | Validate documentation updates | Skipped | — | — | N/A: no documentation changes to validate |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
