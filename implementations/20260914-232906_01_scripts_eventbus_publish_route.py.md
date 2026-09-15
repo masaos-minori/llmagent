@@ -12,7 +12,7 @@ Add Prometheus Counters for JSONL append failures and broker notification failur
 - B: JSONL append uses `os.fsync()` for durability — confirmed by `publish_route.py:69`
 - C: Broker notification uses `broker.publish(event_dict)` which fans out to subscriber queues — confirmed by `broker.py:79-100`
 - D: The `prometheus_client.Counter` class is already used in `broker.py` for `_slow_consumer_total` — confirmed by `broker.py:10`
-- E: The `docs/eventbus/` directory does not exist yet — confirmed by filesystem check
+- E: The `docs/eventbus/` directory exists — confirmed by filesystem check (created in prior cycle)
 - F: The `storage_dir` configuration key defines the JSONL file location — confirmed by `publish_route.py:64`
 
 ## Design decisions
@@ -110,8 +110,8 @@ except Exception:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add Prometheus Counter for JSONL append failures | Pending | — | — | REQ-002 |
-| 2 | Add Prometheus Counter for broker notification failures | Pending | — | — | REQ-005 |
+| 1 | Add Prometheus Counter for JSONL append failures | Completed | 20260915-151606 | 20260915-151606 | REQ-002 |
+| 2 | Add Prometheus Counter for broker notification failures | Completed | 20260915-151606 | 20260915-151606 | REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
