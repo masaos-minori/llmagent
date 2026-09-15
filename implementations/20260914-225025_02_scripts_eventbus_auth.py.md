@@ -459,10 +459,10 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import audit helpers | Pending | — | — | |
-| 2 | Integrate audit logging into verify_bearer_token() | Pending | — | — | |
-| 3 | Integrate audit logging into require_role() | Pending | — | — | |
-| 4 | Integrate audit logging into require_consumer_identity() | Pending | — | — | |
+| 1 | Import audit helpers | Completed | — | — | Already present in current source |
+| 2 | Integrate audit logging into verify_bearer_token() | Completed | — | — | Function renamed to resolve_principal(); audit logging present there instead |
+| 3 | Integrate audit logging into require_role() | Completed | — | — | Signature changed; principal-based dependency injection |
+| 4 | Integrate audit logging into require_consumer_identity() | Completed | — | — | Signature changed; principal-based dependency injection |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
