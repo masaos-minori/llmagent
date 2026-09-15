@@ -92,8 +92,8 @@ Expected: Per-key type validation (lines 184-192), auth token non-empty check (l
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify tomllib.load() usage status | Pending | — | — | |
-| 2 | Verify validation logic preservation | Pending | — | — | |
+| 1 | Verify tomllib.load() usage status | Completed | — | — | Stale claim: config.py now uses ConfigLoader via _load_config_from_path(), not tomllib.load() directly |
+| 2 | Verify validation logic preservation | Completed | — | — | Validation logic preserved after migration |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
