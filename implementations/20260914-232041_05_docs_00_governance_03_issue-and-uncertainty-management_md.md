@@ -115,8 +115,8 @@ Key change: Added a note clarifying that EVENTBUS-002's scope is the replay endp
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Review EVENTBUS-002 against new documentation | Pending | — | — | |
-| 2 | Update EVENTBUS-002 entry | Pending | — | — | |
+| 1 | Review EVENTBUS-002 against new documentation | Completed | 20260915-145330 | 20260915-145330 | Created docs/eventbus/03_replay_operations.md to resolve EVENTBUS-002 |
+| 2 | Update EVENTBUS-002 entry | Completed | 20260915-145330 | 20260915-145330 | Marked as resolved; added resolution date and reference |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
