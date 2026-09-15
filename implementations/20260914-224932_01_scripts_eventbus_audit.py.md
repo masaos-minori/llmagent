@@ -228,8 +228,8 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend AuditRecord TypedDict to include request_id | Pending | — | — | |
-| 2 | Extend _build_audit_record() to accept request_id parameter | Pending | — | — | |
+| 1 | Extend AuditRecord TypedDict to include request_id | Completed | — | — | |
+| 2 | Extend _build_audit_record() to accept request_id parameter | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
