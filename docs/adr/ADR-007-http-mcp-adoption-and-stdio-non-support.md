@@ -232,6 +232,7 @@ Securityを優先し、認証なしのアクセスを防ぐため不採用とし
 - INV-08: MCPサーバーをAgentと独立して起動、停止、Health Check、監視できる。
 - INV-09: localhost以外へ公開する場合は認証とTLSを必須とする。
 - INV-10: HTTPのSerialization、Socket通信コストより、障害分離、運用監視、独立配備、別ホスト配置を優先する。
+- INV-11: McpServerHealthRegistryが管理するMCPサーバーの死活状態（HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN）の名称は、Transport層外の複数の呼び出し元が直接比較するため、暗黙に変更しない。
 
 ## Exceptions
 
@@ -304,6 +305,11 @@ Securityを優先し、認証なしのアクセスを防ぐため不採用とし
   - **Type**: Regression
   - **Blocking**: Yes
 
+- **Test**: Circuit Breakerの状態遷移（DEGRADED/UNAVAILABLE閾値到達、HALF_OPENクールダウン、HALF_OPEN失敗時のUNAVAILABLE復帰）が仕様通りであること（`tests/shared/test_mcp_health.py`）
+  - **Verifies**: INV-11
+  - **Type**: Unit
+  - **Blocking**: Yes
+
 ### Startup Validation
 
 - 起動時にDB接続が確認される
@@ -335,7 +341,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- Circuit Breaker: 5-state（HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY）
+- Circuit Breaker: INV-11参照（`McpServerHealthRegistry`が実装）
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 

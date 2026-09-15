@@ -250,9 +250,11 @@ def attach_auth_middleware(app: Any) -> None:
     This middleware only injects X-Request-Id into responses.
     """
 
-    from fastapi import Request  # noqa: F401
+    from fastapi import (
+        Request,  # noqa: F401 — used only as a type annotation on the nested middleware function's parameter below
+    )
 
-    async def _request_id_middleware(request: Request, call_next):  # noqa: ANN001,ANN202
+    async def _request_id_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — call_next's type is internal to Starlette and not worth importing solely for this annotation
         """Inject X-Request-Id into response headers."""
         req_id = str(__import__("uuid").uuid4())
         request.state.request_id = req_id
