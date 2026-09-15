@@ -275,21 +275,16 @@ class TestCrashRecoveryPrincipalValidation:
         """A publisher cannot reconnect to /replay (requires OPERATOR role)."""
         from unittest.mock import MagicMock
 
-        from eventbus.auth import _TOKEN_ROLE_MAP, Principal, Role, require_role
+        from eventbus.auth import Principal, Role, require_role
         from fastapi import HTTPException
         from fastapi.requests import Request
         from pytest import raises as pytest_raises
 
-        token = "publisher-token"
-        _TOKEN_ROLE_MAP[token] = {Role.PUBLISHER}
-        try:
-            dep = require_role(Role.OPERATOR)
-            mock_request = MagicMock(spec=Request)
-            mock_request.url.path = "/replay"
-            mock_principals = MagicMock(spec=Principal)
-            mock_principals.roles = {Role.PUBLISHER}
-            with pytest_raises(HTTPException) as exc_info:
-                await dep(mock_request, principal=mock_principals)
-            assert exc_info.value.status_code == 403
-        finally:
-            _TOKEN_ROLE_MAP.pop(token, None)
+        dep = require_role(Role.OPERATOR)
+        mock_request = MagicMock(spec=Request)
+        mock_request.url.path = "/replay"
+        mock_principals = MagicMock(spec=Principal)
+        mock_principals.roles = {Role.PUBLISHER}
+        with pytest_raises(HTTPException) as exc_info:
+            await dep(mock_request, principal=mock_principals)
+        assert exc_info.value.status_code == 403

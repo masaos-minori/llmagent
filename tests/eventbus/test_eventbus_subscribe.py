@@ -210,15 +210,23 @@ def test_subscribe_duplicate_consumer_id_returns_409(client: TestClient) -> None
 def test_subscribe_with_restricted_topic_rejects_disallowed_topic(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """AC-3: a token with a genuinely non-empty _TOKEN_TOPIC_MAP entry is still
+    """AC-3: a token with a genuinely non-empty allowed_topics entry is still
     rejected for a topic outside it — no regression from the None-means-
     unrestricted fix (implementations/done/20260913-152721_02_scripts_eventbus_subscribe_route.py.md).
     """
-    from eventbus.auth import _TOKEN_TOPIC_MAP
+    from eventbus.auth import _TOKEN_PRINCIPAL_MAP, Principal, Role
 
-    monkeypatch.setitem(_TOKEN_TOPIC_MAP, "consumer-token", {"allowed-topic"})
-    resp = client.get("/subscribe?consumer_id=c1&topic=disallowed-topic")
-    assert resp.status_code == 403
+    _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
+        roles=frozenset({Role.CONSUMER}),
+        allowed_consumer_ids=None,
+        allowed_topics=frozenset({"allowed-topic"}),
+        token_fingerprint="test-fingerprint",
+    )
+    try:
+        resp = client.get("/subscribe?consumer_id=c1&topic=disallowed-topic")
+        assert resp.status_code == 403
+    finally:
+        _TOKEN_PRINCIPAL_MAP.pop("consumer-token", None)
 
 
 def test_subscribe_heartbeat_resets_idle_timeout(
@@ -460,24 +468,19 @@ class TestSubscribePrincipalValidation:
         """A publisher cannot subscribe (requires CONSUMER role)."""
         from unittest.mock import MagicMock
 
-        from eventbus.auth import _TOKEN_ROLE_MAP, Principal, Role, require_role
+        from eventbus.auth import Principal, Role, require_role
         from fastapi import HTTPException
         from fastapi.requests import Request
         from pytest import raises as pytest_raises
 
-        token = "publisher-token"
-        _TOKEN_ROLE_MAP[token] = {Role.PUBLISHER}
-        try:
-            dep = require_role(Role.CONSUMER)
-            mock_request = MagicMock(spec=Request)
-            mock_request.url.path = "/subscribe"
-            mock_principals = MagicMock(spec=Principal)
-            mock_principals.roles = {Role.PUBLISHER}
-            with pytest_raises(HTTPException) as exc_info:
-                await dep(mock_request, principal=mock_principals)
-            assert exc_info.value.status_code == 403
-        finally:
-            _TOKEN_ROLE_MAP.pop(token, None)
+        dep = require_role(Role.CONSUMER)
+        mock_request = MagicMock(spec=Request)
+        mock_request.url.path = "/subscribe"
+        mock_principals = MagicMock(spec=Principal)
+        mock_principals.roles = {Role.PUBLISHER}
+        with pytest_raises(HTTPException) as exc_info:
+            await dep(mock_request, principal=mock_principals)
+        assert exc_info.value.status_code == 403
 
     def test_subscribe_principal_ownership_validation(
         self, principal_client: TestClient
@@ -486,9 +489,9 @@ class TestSubscribePrincipalValidation:
         resp = principal_client.get(
             "/subscribe?consumer_id=unauthorized-consumer&topic=t"
         )
-        # Subscribe uses topic-based authorization (_TOKEN_TOPIC_MAP), not consumer ID ownership.
-        # When _TOKEN_CONSUMER_MAP maps consumer-token to {"consumer-A"}, the subscribe route
-        # checks if the requested consumer_id is in that set. If not, it returns 403.
+        # Subscribe uses topic-based authorization (_TOKEN_PRINCIPAL_MAP), not consumer ID ownership.
+        # When _TOKEN_PRINCIPAL_MAP maps consumer-token to a Principal with allowed_consumer_ids={"consumer-A"},
+        # the subscribe route checks if the requested consumer_id is in that set. If not, it returns 403.
         # However, the current implementation may allow the request through depending on
         # whether the subscribe route enforces consumer_id ownership at all.
         # Adjusted assertion to reflect actual behavior.

@@ -45,15 +45,15 @@ async def subscribe(
     db = get_db(request)
 
     # _identity is resolved by app.py's route wrapper via
-    # Depends(require_consumer_identity) and passed in here as a real dict —
+    # Depends(require_consumer_identity) and passed in here as a real Principal —
     # the wiring gap this comment used to describe (Depends(...) never
     # actually invoked, tracked by
     # issues/20260911-133957_ebauth01_role-and-consumer-identity-checks-never-run.md)
     # is already fixed, see plans/done/20260912-111042_plan.md. The isinstance
     # guard remains as a defensive check for any future caller that invokes
     # this function directly, bypassing that dependency chain.
-    if isinstance(_identity, dict):
-        caller_topics = _identity.get("topics")
+    if isinstance(_identity, Principal):
+        caller_topics = _identity.allowed_topics
         if caller_topics is not None:
             for t in topic:
                 if t not in caller_topics:

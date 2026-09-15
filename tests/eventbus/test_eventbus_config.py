@@ -500,12 +500,19 @@ def test_admin_role_exists_in_enum() -> None:
     from eventbus.auth import Role
 
     assert hasattr(Role, "ADMIN"), "Role.ADMIN must exist"
-    assert Role.ADMIN == "admin", f"Role.ADMIN value must be 'admin', got {Role.ADMIN!r}"
+    assert Role.ADMIN == "admin", (
+        f"Role.ADMIN value must be 'admin', got {Role.ADMIN!r}"
+    )
 
 
 def test_admin_token_grants_all_roles() -> None:
     """REQ-004, REQ-005: admin_token grants every role via _populate_token_maps()."""
-    from eventbus.auth import Role, _populate_token_maps, _TOKEN_ROLE_MAP
+    from eventbus.auth import (
+        _TOKEN_PRINCIPAL_MAP,
+        Principal,
+        Role,
+        _populate_token_maps,
+    )
 
     cfg = EventBusConfig(
         port=8015,
@@ -520,8 +527,10 @@ def test_admin_token_grants_all_roles() -> None:
 
     _populate_token_maps(cfg)
 
-    assert "admin-token" in _TOKEN_ROLE_MAP
-    assert set(_TOKEN_ROLE_MAP["admin-token"]) == set(Role)
+    assert "admin-token" in _TOKEN_PRINCIPAL_MAP
+    principal = _TOKEN_PRINCIPAL_MAP["admin-token"]
+    assert isinstance(principal, Principal)
+    assert set(principal.roles) == set(Role)
 
 
 def test_publisher_only_deployment_succeeds(tmp_path: Path) -> None:

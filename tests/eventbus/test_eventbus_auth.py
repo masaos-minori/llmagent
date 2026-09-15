@@ -682,10 +682,20 @@ class TestPrincipalFieldValidation:
     async def test_publisher_token_grants_only_publisher_role(self) -> None:
         from unittest.mock import MagicMock
 
-        from eventbus.auth import _TOKEN_ROLE_MAP, Principal, Role, resolve_principal
+        from eventbus.auth import (
+            _TOKEN_PRINCIPAL_MAP,
+            Principal,
+            Role,
+            resolve_principal,
+        )
 
         token = "publisher-token"
-        _TOKEN_ROLE_MAP[token] = {Role.PUBLISHER}
+        _TOKEN_PRINCIPAL_MAP[token] = Principal(
+            roles=frozenset({Role.PUBLISHER}),
+            allowed_consumer_ids=None,
+            allowed_topics=None,
+            token_fingerprint="test-fingerprint",
+        )
         try:
             principal = await resolve_principal(
                 MagicMock(),
@@ -693,19 +703,29 @@ class TestPrincipalFieldValidation:
             )
             assert isinstance(principal, Principal)
             assert principal.roles == frozenset([Role.PUBLISHER])
-            assert principal.allowed_consumer_ids == frozenset()
+            assert principal.allowed_consumer_ids is None
             assert principal.allowed_topics is None
         finally:
-            _TOKEN_ROLE_MAP.pop(token, None)
+            _TOKEN_PRINCIPAL_MAP.pop(token, None)
 
     @pytest.mark.asyncio
     async def test_admin_token_grants_all_roles(self) -> None:
         from unittest.mock import MagicMock
 
-        from eventbus.auth import _TOKEN_ROLE_MAP, Principal, Role, resolve_principal
+        from eventbus.auth import (
+            _TOKEN_PRINCIPAL_MAP,
+            Principal,
+            Role,
+            resolve_principal,
+        )
 
         token = "admin-token"
-        _TOKEN_ROLE_MAP[token] = set(Role)
+        _TOKEN_PRINCIPAL_MAP[token] = Principal(
+            roles=frozenset(Role),
+            allowed_consumer_ids=None,
+            allowed_topics=None,
+            token_fingerprint="test-fingerprint",
+        )
         try:
             principal = await resolve_principal(
                 MagicMock(),
@@ -713,19 +733,29 @@ class TestPrincipalFieldValidation:
             )
             assert isinstance(principal, Principal)
             assert principal.roles == frozenset(Role)
-            assert principal.allowed_consumer_ids == frozenset()
+            assert principal.allowed_consumer_ids is None
             assert principal.allowed_topics is None
         finally:
-            _TOKEN_ROLE_MAP.pop(token, None)
+            _TOKEN_PRINCIPAL_MAP.pop(token, None)
 
     @pytest.mark.asyncio
     async def test_shared_token_grants_all_roles_for_backward_compat(self) -> None:
         from unittest.mock import MagicMock
 
-        from eventbus.auth import _TOKEN_ROLE_MAP, Principal, Role, resolve_principal
+        from eventbus.auth import (
+            _TOKEN_PRINCIPAL_MAP,
+            Principal,
+            Role,
+            resolve_principal,
+        )
 
         token = "shared-token"
-        _TOKEN_ROLE_MAP[token] = set(Role)
+        _TOKEN_PRINCIPAL_MAP[token] = Principal(
+            roles=frozenset(Role),
+            allowed_consumer_ids=None,
+            allowed_topics=None,
+            token_fingerprint="test-fingerprint",
+        )
         try:
             principal = await resolve_principal(
                 MagicMock(),
@@ -733,28 +763,31 @@ class TestPrincipalFieldValidation:
             )
             assert isinstance(principal, Principal)
             assert principal.roles == frozenset(Role)
-            # Shared token has empty allowed_consumer_ids (any consumer_id)
-            assert principal.allowed_consumer_ids == frozenset()
+            # Shared token has None allowed_consumer_ids (any consumer_id)
+            assert principal.allowed_consumer_ids is None
             # Shared token has no topic restriction
             assert principal.allowed_topics is None
         finally:
-            _TOKEN_ROLE_MAP.pop(token, None)
+            _TOKEN_PRINCIPAL_MAP.pop(token, None)
 
     @pytest.mark.asyncio
     async def test_per_role_token_has_no_consumer_restriction(self) -> None:
         from unittest.mock import MagicMock
 
         from eventbus.auth import (
-            _TOKEN_CONSUMER_MAP,
-            _TOKEN_ROLE_MAP,
+            _TOKEN_PRINCIPAL_MAP,
             Principal,
             Role,
             resolve_principal,
         )
 
         token = "consumer-token"
-        _TOKEN_ROLE_MAP[token] = {Role.CONSUMER}
-        _TOKEN_CONSUMER_MAP[token] = set()  # Empty means any consumer_id
+        _TOKEN_PRINCIPAL_MAP[token] = Principal(
+            roles=frozenset({Role.CONSUMER}),
+            allowed_consumer_ids=None,
+            allowed_topics=None,
+            token_fingerprint="test-fingerprint",
+        )
         try:
             principal = await resolve_principal(
                 MagicMock(),
@@ -762,10 +795,9 @@ class TestPrincipalFieldValidation:
             )
             assert isinstance(principal, Principal)
             assert principal.roles == frozenset([Role.CONSUMER])
-            assert principal.allowed_consumer_ids == frozenset()
+            assert principal.allowed_consumer_ids is None
         finally:
-            _TOKEN_ROLE_MAP.pop(token, None)
-            _TOKEN_CONSUMER_MAP.pop(token, None)
+            _TOKEN_PRINCIPAL_MAP.pop(token, None)
 
 
 class TestAuditRecordValidation:

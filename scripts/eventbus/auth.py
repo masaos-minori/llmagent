@@ -34,7 +34,7 @@ class Principal:
     """Authenticated identity carrying roles, consumer IDs, topics, and token fingerprint."""
 
     roles: frozenset[Role]
-    allowed_consumer_ids: frozenset[str]  # empty = unrestricted
+    allowed_consumer_ids: frozenset[str] | None  # None means "any consumer ID"
     allowed_topics: frozenset[str] | None  # None = unrestricted
     token_fingerprint: str  # non-secret identifier for audit logging
 
@@ -57,14 +57,8 @@ _ROUTE_ROLE_MAP: dict[str, set[Role]] = {
 # Populated from config at startup; empty means any consumer_id is valid for that caller
 _CONSUMER_ID_ALLOWLIST: dict[str, set[str]] = {}
 
-# Token-to-consumer mapping: token -> allowed consumer_ids
-_TOKEN_CONSUMER_MAP: dict[str, set[str]] = {}
-
-# Token-to-topic mapping: token -> set of permitted topics
-_TOKEN_TOPIC_MAP: dict[str, set[str]] = {}
-
-# Token-to-role mapping: token -> set of roles that token is authorized for
-_TOKEN_ROLE_MAP: dict[str, set[Role]] = {}
+# Token-to-principal mapping: token -> Principal object
+_TOKEN_PRINCIPAL_MAP: dict[str, Principal] = {}
 
 # Per-role token config field -> the single Role it grants
 _PER_ROLE_TOKEN_FIELDS: tuple[tuple[str, Role], ...] = (
@@ -94,31 +88,62 @@ def _derive_token_fingerprint(token: str) -> str:
 
 
 def _populate_token_maps(config: Any) -> None:
-    """Populate _TOKEN_CONSUMER_MAP, _TOKEN_TOPIC_MAP, and _TOKEN_ROLE_MAP from config at startup."""
-    global _TOKEN_CONSUMER_MAP, _TOKEN_TOPIC_MAP, _TOKEN_ROLE_MAP
+    """Populate _TOKEN_PRINCIPAL_MAP from config at startup.
 
-    # Clear existing mappings
-    _TOKEN_CONSUMER_MAP.clear()
-    _TOKEN_TOPIC_MAP.clear()
-    _TOKEN_ROLE_MAP.clear()
+    Replaces the old _TOKEN_CONSUMER_MAP / _TOKEN_TOPIC_MAP / _TOKEN_ROLE_MAP
+    design with a single Principal-based lookup table.
+    """
+    global _TOKEN_PRINCIPAL_MAP
+
+    # Clear existing mapping
+    _TOKEN_PRINCIPAL_MAP.clear()
+
+    # Helper to compute token fingerprint for logging
+    def _fingerprint(token: str) -> str:
+        import hashlib
+
+        return hashlib.sha256(token.encode()).hexdigest()[:16]
 
     # The shared auth_token grants every role, preserving backward compatibility
     # with the existing single-token deployment model.
     if hasattr(config, "auth_token") and config.auth_token:
-        _TOKEN_CONSUMER_MAP[config.auth_token] = set()  # Empty means any consumer_id
-        _TOKEN_TOPIC_MAP[config.auth_token] = set()  # Empty means any topic
-        _TOKEN_ROLE_MAP[config.auth_token] = set(Role)
+        _TOKEN_PRINCIPAL_MAP[config.auth_token] = Principal(
+            roles=frozenset(Role),
+            allowed_consumer_ids=None,  # Empty means any consumer_id
+            allowed_topics=None,  # Empty means any topic
+            token_fingerprint=_fingerprint(config.auth_token),
+        )
 
     # Each per-role token grants only its own role.
     for field, role in _PER_ROLE_TOKEN_FIELDS:
         token = getattr(config, field, None)
         if token:
-            _TOKEN_ROLE_MAP.setdefault(token, set()).add(role)
+            principal = _TOKEN_PRINCIPAL_MAP.get(token)
+            if principal is None:
+                _TOKEN_PRINCIPAL_MAP[token] = Principal(
+                    roles=frozenset({role}),
+                    allowed_consumer_ids=None,  # No consumer restriction
+                    allowed_topics=None,  # No topic restriction
+                    token_fingerprint=_fingerprint(token),
+                )
+            else:
+                # Merge: add role to existing principal
+                _TOKEN_PRINCIPAL_MAP[token] = Principal(
+                    roles=frozenset(principal.roles | {role}),
+                    allowed_consumer_ids=principal.allowed_consumer_ids,
+                    allowed_topics=principal.allowed_topics,
+                    token_fingerprint=principal.token_fingerprint,
+                )
 
     # admin_token is a superuser credential: grants every role, same as auth_token.
     admin_token = getattr(config, "admin_token", None)
     if admin_token:
-        _TOKEN_ROLE_MAP.setdefault(admin_token, set()).update(Role)
+        _TOKEN_PRINCIPAL_MAP[admin_token] = Principal(
+            roles=frozenset(Role),
+            allowed_consumer_ids=None,  # Empty means any consumer_id
+            allowed_topics=None,  # Empty means any topic
+            token_fingerprint=_fingerprint(admin_token),
+        )
 
 
 def get_auth_token(config: Any) -> str:
@@ -155,7 +180,7 @@ async def resolve_principal(
             status_code=500, detail="Server misconfiguration: auth_token not configured"
         )
 
-    if token not in _TOKEN_ROLE_MAP:
+    if token not in _TOKEN_PRINCIPAL_MAP:
         logger.warning("Authentication failed: invalid Bearer token")
         raise HTTPException(
             status_code=401,
@@ -163,18 +188,13 @@ async def resolve_principal(
             headers={"WWW-Authenticate": 'Bearer realm="eventbus"'},
         )
 
-    roles = frozenset(_TOKEN_ROLE_MAP[token])
-    allowed_consumer_ids = frozenset(_TOKEN_CONSUMER_MAP.get(token, set()))
-    allowed_topics_raw = _TOKEN_TOPIC_MAP.get(token, set())
-    allowed_topics: frozenset[str] | None = (
-        frozenset(allowed_topics_raw) if allowed_topics_raw else None
-    )
+    principal = _TOKEN_PRINCIPAL_MAP[token]
     token_fp = _derive_token_fingerprint(token)
 
     return Principal(
-        roles=roles,
-        allowed_consumer_ids=allowed_consumer_ids,
-        allowed_topics=allowed_topics,
+        roles=principal.roles,
+        allowed_consumer_ids=principal.allowed_consumer_ids,
+        allowed_topics=principal.allowed_topics,
         token_fingerprint=token_fp,
     )
 
@@ -210,9 +230,13 @@ async def require_consumer_identity(
 
     Returns a Principal object with authorization context for the caller.
     """
+    # Validate consumer_id is in the allowlist for this caller. An empty allowlist
+    # (no entry, or an explicit empty set) means "no consumer_id restriction" for
+    # this token, per _populate_token_maps()'s own "Empty means any consumer_id"
+    # convention (e.g. the shared auth_token is deliberately given an empty set).
     if (
         consumer_id
-        and principal.allowed_consumer_ids
+        and principal.allowed_consumer_ids is not None
         and consumer_id not in principal.allowed_consumer_ids
     ):
         logger.warning(
@@ -224,18 +248,21 @@ async def require_consumer_identity(
             detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
         )
 
-    if principal.allowed_topics is not None:
-        if topics:
-            for topic in topics:
-                if topic not in principal.allowed_topics:
-                    logger.warning(
-                        "Authorization failed: topic=%s not allowed for this caller",
-                        topic,
-                    )
-                    raise HTTPException(
-                        status_code=403,
-                        detail=f"Forbidden: topic '{topic}' not allowed",
-                    )
+    # Validate topic access. An empty _TOKEN_PRINCIPAL_MAP entry (no entry, or an
+    # explicit empty set) means "no topic restriction" for this token, per
+    # _populate_token_maps()'s own "Empty means any topic" convention — mirrors
+    # the consumer_id-allowlist convention above.
+    if principal.allowed_topics is not None and topics:
+        for topic in topics:
+            if topic not in principal.allowed_topics:
+                logger.warning(
+                    "Authorization failed: topic=%s not allowed for this caller",
+                    topic,
+                )
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Forbidden: topic '{topic}' not allowed",
+                )
 
     return principal
 
