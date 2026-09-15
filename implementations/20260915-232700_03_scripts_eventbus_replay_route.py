@@ -91,8 +91,8 @@ Expected: Parameter not used in function body.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify `_role` parameter in `replay()` | Pending | — | — | |
-| 2 | Verify parameter usage status | Pending | — | — | |
+| 1 | Verify `_role` parameter in `replay()` | Completed | — | — | Stale claim: no _role parameter; params are request, since_seq, fmt, limit, offset |
+| 2 | Verify parameter usage status | Completed | — | — | Parameter removed before this verification cycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
