@@ -63,3 +63,9 @@ repos:
         language: system
         pass_filenames: false
         types_or: [python, markdown]
+      - id: adr-structure
+        name: Check ADR Known Deviations heading and Implementation Notes/References drift
+        entry: python -m tools.check_adr_structure
+        language: system
+        pass_filenames: false
+        types_or: [python, markdown]

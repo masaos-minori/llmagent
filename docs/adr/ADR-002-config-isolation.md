@@ -353,6 +353,8 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 行番号は記載せず、File PathとSymbol名で参照する。
 
+## Known Deviations
+
 ADRと現行実装、設定、テスト、文書に差異がある場合に記載する。
 
 ### CI-001: EventBus does NOT use ConfigLoader at all
