@@ -116,6 +116,9 @@ The new server's Python files under `scripts/mcp_servers/<name>/` need no `deplo
 cp config/<name>_mcp_server.toml /opt/llm/config/<name>_mcp_server.toml
 ```
 
+**Completed when**: `deploy/deploy.sh` contains a `cp` line for
+`config/<name>_mcp_server.toml` and the path matches the file actually created.
+
 ---
 
 ## Step 3: Update config/agent.toml
@@ -132,12 +135,20 @@ url = "http://127.0.0.1:<PORT>"
 
 Also add tool definitions to the `tool_definitions` array so the agent knows about the new tools.
 
+**Completed when**: `config/agent.toml` has both the new `[mcp_servers.<name>]` entry
+and a corresponding `tool_definitions` array entry for each of the new server's
+tools.
+
 ---
 
 ## Step 4: Update tool routing (if needed)
 
 `ToolRouteResolver` (`shared/route_resolver.py`) resolves: `tool_names` config-map → static prefix fallback.
 If the new server's tools do not use a unique prefix, add them to `tool_names` in `config/agent.toml`.
+
+**Completed when**: either the new server's tools already resolve via the existing
+static prefix fallback (no change needed), or `tool_names` in `config/agent.toml`
+explicitly lists them.
 
 ---
 
@@ -148,6 +159,9 @@ Delegate to the `deploy` skill (Phase 2 only — code change deploy):
 ```bash
 bash deploy/deploy.sh
 ```
+
+**Completed when**: the `deploy` skill's Phase 2 Gate is met (`bash deploy/deploy.sh`
+exits 0) — this Step's completion is that Gate's completion, not a separate check.
 
 ---
 

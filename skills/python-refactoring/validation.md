@@ -41,9 +41,10 @@ Run repository-defined validation for:
 - import boundaries when imports change
 
 At minimum:
+- Run `ruff format`/`ruff check --fix` (per `workflow.md` Step 6, immediately after
+  each transformation).
 - Run `mypy`.
 - Cross-check with `pyright`.
-- Run `ruff`.
 - Run characterization tests.
 
 Per `rules/ai-execution.md` Repository Tool Usage #8, empty output/exit 0 alone is not

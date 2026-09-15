@@ -119,6 +119,11 @@ pytest tests/ --randomly-seed=last -v     # replay last failing order
 pytest tests/ -p no:randomly              # disable to see if it disappears
 ```
 
+**Completed when**: the failure is confirmed either as seed-order-dependent (fails
+only on certain seeds) or as true non-determinism independent of seed (fails under
+`--reruns` regardless of seed), with the dependency (if any) identified via the
+replay commands above.
+
 ---
 
 ## Step 4: Mutation Testing
@@ -130,6 +135,10 @@ mutmut run --paths-to-mutate scripts/<module>.py
 mutmut results
 mutmut show <id>                           # inspect surviving mutant
 ```
+
+If `mutmut run` itself exits non-zero (distinct from completing and reporting
+results): treat as a tool failure per `rules/ai-execution.md` Step-Level Failure
+Triage — do not report mutation testing as passed.
 
 A surviving mutant means the test suite does not catch a one-line code change. Before
 treating "0 surviving mutants" as evidence the suite is reliable, confirm `mutmut
@@ -240,6 +249,10 @@ def test_floats_to_blob_roundtrip(f):
     recovered = struct.unpack("<f", blob)[0]
     assert abs(recovered - f) < 1e-5
 ```
+
+**Completed when**: a property-based test has been written for each function
+meeting both listed conditions, or the Step is confirmed not applicable (no function
+in scope meets both conditions).
 
 ---
 

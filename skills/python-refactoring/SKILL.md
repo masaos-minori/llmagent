@@ -101,7 +101,9 @@ Completion Requirements (Step 10 addendum) it defines.
 
 ### Core rules
 - Change only one feature or one responsibility at a time.
-- Keep every change small.
+- Keep every change small — as a concrete bound, keep every touched function at or
+  below `rules/toolchain.md`'s `radon cc -n C` grade-C-or-worse threshold (a change
+  that pushes a function past that grade is not small).
 - If a change may alter behavior, do not implement it — record it as a proposal
   instead (see `report-template.md` "Proposals not implemented").
 - Minimize changes to exception handling, state, side effects, I/O, and concurrency.
@@ -111,8 +113,10 @@ Completion Requirements (Step 10 addendum) it defines.
 ### Refactoring rules
 - Give each function one responsibility.
 - Do not mix fetching, transformation, decision logic, and persistence in one
-  function.
-- Reduce nesting, branching, and long functions.
+  function — instead, extract each concern into its own function so each has one
+  responsibility (see "Give each function one responsibility" above).
+- Reduce nesting, branching, and long functions — "long" means at or above
+  `rules/toolchain.md`'s `radon cc -n C` grade-C-or-worse threshold; reduce below it.
 - Prefer early returns and small helper functions when they improve clarity.
 - Use clear and explicit names.
 - Extract shared logic only when it should evolve together later.
@@ -121,7 +125,9 @@ Completion Requirements (Step 10 addendum) it defines.
 ### Type safety rules
 - Add explicit type annotations where needed.
 - Add boundary checks where types are unclear.
-- Do not use `Any`, unnecessary casts, or unsafe assertions.
+- Do not use `Any`, unnecessary casts, or unsafe assertions — instead, add an explicit
+  type annotation or a runtime boundary check that narrows the type safely (see the
+  boundary-check rule above).
 - Prevent invalid `None` flow.
 - Keep input validation separate from internal logic.
 

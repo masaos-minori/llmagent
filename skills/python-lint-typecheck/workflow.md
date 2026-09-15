@@ -93,6 +93,10 @@ rg "from agent.repl import" scripts/
 ast-grep --pattern 'import $MOD' --lang python scripts/agent/commands/registry.py
 ```
 
+**Completed when**: `lint-imports` reports no violation, either because no accidental
+import remained or because every intentional import is now covered by an explicit
+`.importlinter` contract update.
+
 ---
 
 ## Step 4: Suppression Governance
@@ -204,6 +208,10 @@ See `rules/toolchain.md` section 5 for bandit commands.
 
 Priority findings — must resolve before merge: see `rules/coding.md` Bandit priority findings.
 
+**Completed when**: `bandit` has been run and every priority finding (per
+`rules/coding.md` Bandit priority findings) is resolved or suppressed with the
+required justification (per `rules/coding.md` Suppression governance).
+
 ---
 
 ## Step 8: Diff Scope Enforcement
@@ -217,6 +225,9 @@ If coverage on changed lines is below the threshold defined there:
 3. Re-run `diff-cover` to confirm
 
 Do not add tests for unrelated lines to inflate coverage — scope tests to the change.
+
+**Completed when**: `diff-cover` reports the changed-lines coverage at or above the
+threshold in `rules/toolchain.md` §7, using only tests scoped to the actual change.
 
 ---
 

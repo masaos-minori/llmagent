@@ -104,6 +104,10 @@ with sentry_sdk.push_scope() as scope:
 
 Remove before committing. DSN must come from environment only.
 
+**Completed when**: at least one observability source above has surfaced enough
+signal to inform Phase 3's classification, or all applicable sources were checked
+and none did.
+
 ---
 
 ## Phase 3: Failure Classification
@@ -182,6 +186,9 @@ and displays connectivity status, tool count, and any error responses.
 
 ## Phase 5: Runtime / Trace Inspection
 
+Select the tool(s) using Phase 3's classification table (Execution model / Failure
+domain columns) — do not try tools in the order listed below without that basis.
+
 #### viztracer
 
 ```bash
@@ -257,6 +264,10 @@ PYTHONBREAKPOINT=ipdb.set_trace pytest tests/test_<module>.py -s
 from rich.pretty import pprint; pprint(config_dict)
 import stackprinter; stackprinter.set_excepthook(style="plaintext")
 ```
+
+**Completed when**: the tool(s) selected via Phase 3's table have been run and
+produced either a concrete lead for Phase 6's hypothesis table or a confirmed
+absence of signal from that tool.
 
 ---
 

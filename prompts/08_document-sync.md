@@ -209,7 +209,11 @@ Separate document content from synchronization history:
 
 Style:
 - Output language: see `skills/DESIGN.md` §Output language.
-- Use concise, professional Markdown. Do not bloat the documents.
+- Use concise, professional Markdown. Do not bloat the documents — content already
+  covered by a source-code/config reference, or by the synchronization history in
+  `docs/99_documentation_sync_report.md`, does not belong in the target document; keep
+  the target document to design intent, boundaries, constraints, and operational notes
+  only (see "Separate document content from synchronization history" above).
 
 #### Step 5: Validate the updated document
 

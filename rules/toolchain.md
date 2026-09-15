@@ -100,6 +100,10 @@ git add scripts/<file>.py # stage specific files
 git diff --staged         # confirm what will be committed
 ```
 
+Apply `AGENTS.md` Loop Prevention > Attempt Limit (3 attempts) to any step that fails
+and is fixed in place before re-running; stop and report `Blocked` rather than
+continuing to patch beyond that bound.
+
 ## Completion checklist (common to all tasks)
 
 - `uv run ruff check scripts/` passes with no errors

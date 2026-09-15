@@ -71,6 +71,11 @@ multi-processed, or hybrid. State the boundary between sync and async code expli
 **Completed when**: Components, Boundaries, Control flow, and Data flow are all defined and
 the component count is justified against Step 2's use cases.
 
+If the component count cannot be justified against Step 2's use cases even after
+attempting to merge components per the rule above: stop and report the specific
+components that could not be justified or merged, rather than proceeding with an
+unjustified count.
+
 ---
 
 ## Step 4: Design Modules and Interfaces
@@ -121,6 +126,9 @@ compatibility constraints, and invariants. Apply `skills/DESIGN.md` Avoid
 implementation-reference duplication — avoid exhaustive field listings unless required to
 explain a design decision.
 
+**Completed when**: every entity identified has Fields and types, Validation rules,
+Storage, and Serialization all specified.
+
 ---
 
 ## Step 6: Define Error Handling
@@ -141,6 +149,10 @@ Design so the implementation can satisfy `skills/DESIGN.md` Pythonic safety cons
 (context managers for resource management): specify the `with`/`async with` boundary for each
 resource the design introduces, before implementation begins.
 
+**Completed when**: every failure mode identified has Detection, Response, Logging,
+and User visibility all specified, and every resource requiring a `with`/`async
+with` boundary has it stated.
+
 ---
 
 ## Step 7: Define Test Strategy
@@ -150,6 +162,10 @@ For each module:
 - **Integration tests**: module boundary with real I/O (DB, filesystem, network)
 - **Edge cases**: empty inputs, missing data, concurrent access, timeouts
 - **Failure-path tests**: what happens when a dependency fails
+
+**Completed when**: every module has at least one specified test category (unit,
+integration, edge case, or failure-path) matching its actual I/O/boundary
+characteristics from Step 4.
 
 ---
 

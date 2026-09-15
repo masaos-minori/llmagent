@@ -65,7 +65,8 @@ See `workflow.md` for detailed phase content and tooling.
 - Report a style-only issue (naming, formatting, import order) as Low or Informational only —
   never as Medium or above, and never in a count that exceeds the number of Medium+ findings
   in the same review.
-- Respect project conventions and explain trade-offs.
+- Respect project conventions (see `rules/coding.md` for the canonical list) and
+  explain trade-offs.
 - Follow `skills/DESIGN.md` No secrets in output.
 - Keep recommendations actionable; for tests, specify the behavior or failure mode to verify.
 

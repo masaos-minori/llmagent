@@ -77,6 +77,9 @@ only when the boundary itself is the design decision (see `skills/DESIGN.md` Avo
 implementation-reference duplication) — otherwise describe the responsibility, not the
 location.
 
+**Completed when**: Background, Problem, Reason for Change, and Implementation Intent
+are each filled or explicitly marked `N/A` with a stated reason.
+
 ---
 
 ## Phase 4: Scope and Boundaries
@@ -95,6 +98,10 @@ solution space (compatibility, performance, security, operational). Use
 **Dependencies** — other issues, plans, or external work this issue depends on, or
 that depend on it. Use `N/A: none` if there are none.
 
+**Completed when**: Target Files or Areas, Required Changes, Constraints, Out of
+Scope, and Dependencies are each filled or explicitly marked `N/A`/`Unknown` per the
+template's convention.
+
 ---
 
 ## Phase 5: Acceptance Criteria and Testing
@@ -105,6 +112,10 @@ by review, test execution, or documentation inspection.
 **Testing Expectations** — include when relevant: unit tests, integration tests, regression
 tests, type checks, lint checks, documentation consistency checks, manual verification. Use
 `Not required` only when the task is documentation-only or clearly does not affect behavior.
+
+**Completed when**: every Acceptance Criteria item is independently testable by
+review, test execution, or documentation inspection, and Testing Expectations is
+filled or marked `Not required` only for a documentation-only/no-behavior-change task.
 
 ---
 
@@ -125,6 +136,9 @@ remove to what implementers are asked to add.
 
 If implementation-derived details are currently present, prefer in this order: remove,
 compress, replace with source reference, move to Known Issues, move to Needs Confirmation.
+
+**Completed when**: Documentation Impact states explicitly whether documentation must
+be updated, and if so, names the kind of information affected.
 
 ---
 
@@ -147,6 +161,9 @@ that affects AI or developer usability.
 Tasks such as: wording cleanup, small metadata cleanup, minor formatting improvements,
 opportunistic link descriptions, non-blocking consistency improvements.
 
+**Completed when**: exactly one of High/Medium/Low is assigned, matching the criteria
+stated above for that tier.
+
 ---
 
 ## Phase 8: AI Implementation Instruction
@@ -155,6 +172,9 @@ Give concise instructions for an AI coding agent. Include constraints such as: d
 rewrite unrelated files, keep changes minimal, preserve public behavior unless explicitly
 required, stop and report open questions if requirements are unclear, do not implement
 out-of-scope items.
+
+**Completed when**: the AI Implementation Instruction states concrete constraints
+(not a generic restatement of Phase 4's Out of Scope) an implementer must follow.
 
 ---
 
@@ -216,6 +236,17 @@ report `Blocked: {item} still unresolved after 3 attempts` rather than continuin
 
 After the issue body is finalized, generate the filename using the convention defined in
 `SKILL.md` Issue Filename Generation.
+
+Prefer `uv run python tools/generate_workitem.py --kind issue --id {id} --title
+{title}` to scaffold the file — it generates the `{timestamp}_{id}_{slug}.md`
+filename and refuses (non-zero exit, no write) on a path collision rather than
+auto-incrementing; treat that refusal as the trigger for the retry-with-
+disambiguator step already described, not as a workflow failure.
+After a `0` exit, independently verify the reported output path exists and contains
+the expected `## ` section headings before proceeding to fill in its content — per
+`rules/ai-execution.md` Repository Tool Usage item 8, a `0` exit alone MUST NOT be
+treated as proof the file was written correctly.
+If the tool is unavailable, use the manual procedure below:
 
 1. Extract or assign an `{id}` from the issue content (e.g., `NC-019` → `nc019`).
    If no meaningful ID exists, use a generic prefix + sequence number (e.g., `todo_001`).

@@ -50,6 +50,9 @@ Do:
 - check public contracts against `skills/DESIGN.md` Pythonic safety constraints (typing correctness, `Any` usage, optional-value handling, protocol conformance)
 - run `ruff check` / `mypy` or `pyright` on touched files to confirm type and lint findings
 
+**Completed when**: every check above has been applied to each changed function in
+the diff, and `ruff check`/`mypy`/`pyright` have been run on touched files.
+
 ---
 
 ## Phase 3: Architecture and Boundaries
@@ -59,6 +62,9 @@ Do:
 - flag new cross-layer imports or widened public surface without justification
 - check whether the change introduces an abstraction (`Protocol`, `abc.ABC`, factory) without a concrete requirement
 
+**Completed when**: dependency direction and abstraction-introduction checks have
+been applied to every changed import/interface in the diff.
+
 ---
 
 ## Phase 4: Async/Sync Boundaries and Resource Lifecycle
@@ -67,6 +73,10 @@ Check compliance with `skills/DESIGN.md` Pythonic safety constraints:
 - check for blocking calls inside `async def` without an executor boundary
 - check file, socket, DB connection, HTTP client, subprocess, and async task cleanup (`with` / `async with`)
 - check for resource leaks on early-return and exception paths
+
+**Completed when**: every changed `async def`/resource-acquiring code path in the
+diff has been checked for blocking calls and cleanup on both normal and exception
+paths.
 
 ---
 
@@ -80,6 +90,9 @@ unsafe dynamic execution) in addition to:
 - check logging and diagnostics for secret exposure risk
 - run `bandit` where available to confirm security findings (e.g. `eval`/`exec`, `pickle`, `subprocess(shell=True)`, SQL string interpolation)
 
+**Completed when**: every changed error-handling/config/logging code path has been
+checked, and `bandit` has been run where available.
+
 ---
 
 ## Phase 6: Tests and CI
@@ -88,6 +101,10 @@ Do:
 - verify tests exist for critical behavior, edge cases, and failure paths introduced or touched by the change
 - run `pytest` on the affected test targets to confirm claimed pass/fail state
 - check CI quality gates and type-checking coverage for the touched paths
+
+**Completed when**: test coverage has been checked for every critical/edge/failure
+path touched by the diff, and `pytest` has been run to confirm the claimed pass/fail
+state.
 
 ---
 
@@ -98,6 +115,9 @@ Do:
 - ground every mismatch claim in the current implementation, not in memory of prior versions
 - avoid implementation-reference duplication: see `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy — remove
 
+**Completed when**: every doc claim about the changed behavior has been checked
+against the current implementation, not against a prior-version recollection.
+
 ---
 
 ## Phase 8: Evidence, Confidence, and Severity Assignment
@@ -107,6 +127,9 @@ For every finding, attach:
 - an evidence label and confidence level per `skills/DESIGN.md` Shared Vocabulary
 - a severity per `skills/DESIGN.md` Severity levels
 
+**Completed when**: every finding carried forward from Phases 2-7 has concrete
+evidence, an evidence label/confidence level, and a severity assigned.
+
 ---
 
 ## Phase 9: Report Writing
@@ -114,6 +137,9 @@ For every finding, attach:
 Use the Output Format defined in `SKILL.md`. Group findings by severity. Do not over-report
 style-only issues. Keep recommendations actionable; for suggested tests, specify the exact
 behavior or failure mode to verify.
+
+**Completed when**: the report follows `SKILL.md`'s Output Format, findings are
+grouped by severity, and no style-only issue is over-reported.
 
 ---
 

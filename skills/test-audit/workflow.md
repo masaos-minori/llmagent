@@ -160,7 +160,9 @@ the user explicitly requests it.
 ## Important Rules
 
 These rules MUST be followed, in addition to `evidence.md`'s classification procedures:
-- Do not silently ignore skipped or blocked tests.
+- Do not silently ignore skipped or blocked tests — instead, record each one
+  explicitly in the audit findings using `evidence.md`'s classification procedures,
+  with the reason it was skipped or blocked.
 - If CI and local commands differ, report that explicitly.
 - Prefer repository-defined commands over invented ones, per `rules/ai-execution.md`
   Repository Tool Usage rule 5.

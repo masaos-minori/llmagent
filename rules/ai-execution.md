@@ -108,6 +108,10 @@ Applies to any workflow step that runs a tool or check as part of a larger seque
 - If the check fails for a pre-existing, unrelated reason, record it and continue —
   do not fix an out-of-scope failure (see `AGENTS.md` Global Rule 5).
 
+**Completed when**: the failing check's cause has been classified into exactly one of
+the three branches above and the corresponding action (continue, fix, or
+record-and-continue) has been taken.
+
 ## Tool Usage
 
 - Before invoking a tool, check whether already-available information is sufficient.
@@ -124,14 +128,22 @@ Applies to any workflow step that runs a tool or check as part of a larger seque
   independently re-verified as evidence per Repository Tool Usage item 8, not silently
   trusted from a stale cache.
 
+**Completed when**: no available information already answers the question, calls
+have been batched where independent, and no unchanged command was re-run against the
+same input.
+
 ## Reasoning and Planning
 
 - Act directly on simple tasks instead of producing a long plan.
-- Do not repeat interim summaries or over-explain intermediate results.
-- Do not list alternatives the user did not ask for.
-- Investigate further only when genuinely uncertain.
-- Judge at the granularity needed to finish the task; avoid excessive optimization or
-  verification.
+- Do not repeat interim summaries or over-explain intermediate results — state the
+  conclusion once and stop, per Output below.
+- Do not list alternatives the user did not ask for — give one recommendation with
+  its main trade-off instead, per Output below.
+- Investigate further only when new evidence would change the current conclusion —
+  not merely to double-confirm an already-supported one.
+- Judge at the granularity needed to finish the task — stop once the task's stated
+  acceptance criteria (or, absent stated criteria, the user's literal request) are
+  met; avoid excessive optimization or verification beyond that point.
 
 ## Output
 
@@ -193,6 +205,13 @@ with an ad hoc script or a generic command.
     confirmed).
 12. Unavailable, unexecuted, partial, blocked, or failed tool execution MUST NOT be
     reported as successful.
+
+**Ordering**: item 1 (inspect `tools/` first) logically precedes items 2-7 (tool
+selection and pre-execution judgment, which assume a candidate tool has already been
+found); items 8-12 (evidence verification, recording, classification, and
+non-success reporting) logically follow tool execution and so come after items 2-7 in
+effect. Within each of these three groups (1; 2-7; 8-12), items have no further
+ordering dependency on each other and may be checked in any order.
 
 If `tools/` does not exist, the workflow MUST continue only when a safe,
 repository-approved fallback exists, and the absence MUST be recorded accurately. If

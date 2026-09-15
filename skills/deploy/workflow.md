@@ -146,6 +146,12 @@ If the agent was restarted, verify basic operation: start the agent REPL per `ru
 (see `rules/toolchain.md`, section 'Environment setup'), then in the REPL run `/mcp` and
 confirm all MCP servers show healthy.
 
+**Completed when**: every restarted service's `/health` endpoint returns OK, the log
+tail shows no new error timestamped after the restart, and (if the agent was
+restarted) `/mcp` shows every MCP server healthy.
+**If any check fails**: return to Phase 3d's failure-recovery procedure for the
+affected service rather than repeating ad hoc troubleshooting here.
+
 ---
 
 ## First-run only (new environment)

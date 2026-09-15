@@ -34,7 +34,7 @@ Use this skill by default for production Python work.
 | 2 | Repository Intelligence | modules, entry points, tests, downstream dependencies |
 | 3 | Architecture Boundary Analysis | layer boundaries, dependency direction violations |
 | 4 | Convention Extraction | naming, typing (PEP 484/526), error handling, test style |
-| 5 | Semantic Safe Modification | smallest change; preserve unrelated behavior; apply modern Python features |
+| 5 | Semantic Safe Modification | smallest change (see `workflow.md` Step 5c "keep diffs small and intentional"); preserve unrelated behavior; apply modern Python features |
 | 6 | Runtime Contract Validation | request/response contracts, MCP endpoint compatibility (MCP changes only) |
 | 7 | Observability Injection | structured logging (using `logging` framework) / tracing (skip unless project pattern exists) |
 | 8 | Security Validation | Apply `skills/DESIGN.md` Pythonic safety constraints (dynamic execution); also check SQL injection, unvalidated serialization |

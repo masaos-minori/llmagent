@@ -34,10 +34,17 @@ Use this skill for:
 
 Do not use this skill for:
 
-- direct code implementation
-- speculative issues without evidence or context
-- bulk issue generation that mixes unrelated concerns
-- writing long implementation manuals inside issues
+- direct code implementation — instead, route it through `python-implementation`
+  directly, or through `issue-to-plan` → `plan-to-implementation-procedure` →
+  `code-implementation` for larger scope.
+- speculative issues without evidence or context — instead, gather at least one
+  concrete piece of evidence (a repository file, log, or existing document) first, or
+  record the gap as an assumption/open question per Phase 1.
+- bulk issue generation that mixes unrelated concerns — instead, apply Phase 2's Task
+  Grouping to split them into separate issues.
+- writing long implementation manuals inside issues — instead, keep Implementation
+  Intent high-level and let `plan-to-implementation-procedure` produce the file-level
+  manual.
 
 When requirements are unclear, use this skill, but follow `workflow.md` Phase 1: mark
 assumptions and open questions instead of inventing missing requirements.
@@ -67,7 +74,10 @@ rules, markdown safety rules, and the final checklist.
 
 - One issue should represent one actionable task.
 - Group tasks only when they must be completed together or are safer to review together.
-- Prefer small, reviewable issues over broad, vague issues.
+- Prefer small, reviewable issues over broad, vague issues — use `workflow.md` Phase
+  2's Task Grouping criteria (group vs. split) to decide the right size, not a file
+  count: an Issue naming several tightly coupled files can still be one small,
+  reviewable issue.
 - Each issue must explain both the reason for change and the implementation intent.
 - Acceptance criteria must be concrete and verifiable.
 - Out-of-scope items must be explicit.

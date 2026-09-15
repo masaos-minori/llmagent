@@ -111,6 +111,10 @@ it changes if a top-level package is added or removed.
 
 Run `lint-imports` after every change that touches import statements.
 
+**Completed when**: `lint-imports` passes, or any new violation is resolved by an
+explicit, documented contract change in `.importlinter` rather than a suppressed
+failure.
+
 ---
 
 ## Phase 4: Convention Extraction
@@ -160,7 +164,8 @@ Applies `skills/DESIGN.md` Pythonic safety constraints (specific exceptions, no 
   raise ValueError(f"floats_to_blob: expected list[float], got {type(v).__name__}")
   ```
 - trust internal invariants; validate only at public boundaries
-- log errors with sufficient context before re-raising
+- log errors with sufficient context before re-raising — "sufficient" means the
+  function name and invalid value/call site, per the raised-exception example above
 
 #### Step 5c: File editing rules
 
@@ -210,6 +215,11 @@ schemathesis run http://localhost:8005/openapi.json --endpoint /v1/call_tool --m
 
 Run before each MCP server change is considered complete.
 
+**Completed when**: new module-boundary data is validated at a Pydantic boundary
+where the codebase convention calls for one, and Schemathesis has been run for any
+changed MCP endpoint (or this Phase does not apply, since no boundary/endpoint
+changed).
+
 ---
 
 ## Phase 7: Observability Injection
@@ -232,6 +242,10 @@ logger.error("mcp_call_failed tool=%s error=%s", name, exc)
 Log at `INFO` for normal operations, `WARNING` for degraded-but-continuing, `ERROR` for failures.
 Do not log at `DEBUG` without a corresponding `if logger.isEnabledFor(logging.DEBUG)` guard.
 
+**Completed when**: new I/O-bound or cross-service code paths use the `key=value` log
+format, or this Phase was correctly skipped (no OTel request, no new I/O-bound/
+cross-service path).
+
 ---
 
 ## Phase 8: Security Validation
@@ -239,6 +253,11 @@ Do not log at `DEBUG` without a corresponding `if logger.isEnabledFor(logging.DE
 See `rules/toolchain.md` section 5 for bandit commands.
 
 Priority findings: see `rules/coding.md` Bandit priority findings.
+
+**Completed when**: `bandit` has been run and every high/medium-severity finding (per
+`rules/coding.md` Bandit priority findings) is either resolved or suppressed with an
+inline justification (per `rules/coding.md` Suppression governance) — do not proceed
+to Phase 9 with an unresolved, unjustified high/medium finding.
 
 ---
 
@@ -278,6 +297,10 @@ pytest tests/ --benchmark-save=baseline
 pytest tests/ --benchmark-compare=baseline --benchmark-compare-fail=mean:10%
 ```
 
+**Completed when**: `diff-cover`'s reported coverage meets the threshold in
+`rules/toolchain.md` Completion checklist, and a `pytest-benchmark` regression check
+has been run for any performance-sensitive change (or this Phase does not apply).
+
 ---
 
 ## Phase 11: Production Readiness
@@ -289,6 +312,10 @@ rg "<old_module_name>" scripts/
 Checklist (in addition to `rules/toolchain.md`):
 - If a new MCP server was added, its `config/<key>_mcp_server.toml` setup follows `skills/mcp-server-add/workflow.md` — do not re-derive that checklist here.
 
+**Completed when**: the `rg` search for the old module/symbol name (when renaming/
+removing) returns no remaining reference, and the MCP-server checklist in
+`skills/mcp-server-add/workflow.md` is satisfied when a new server was added.
+
 ---
 
 ## Phase 12: Knowledge Compression
@@ -298,6 +325,9 @@ Checklist (in addition to `rules/toolchain.md`):
 - **`deploy/deploy.sh`**: add a `cp` line only if a new `config/*.toml` file was introduced (see Phase 5 File editing rules — module add/remove alone does not require a `deploy.sh` change)
 
 When removing a module: remove its entry from the above, delete the file, run `rg` for dangling imports.
+
+**Completed when**: `routing.md` and the affected doc (per `docs/00_index.md`'s task
+mapping) are updated, or the task is confirmed to need no documentation update.
 
 ---
 

@@ -103,8 +103,10 @@ validation quality analysis. Do not skip any analysis.
 - **Isolate Unknowns**: If you lack context or code access to answer a question, mark it
   as `BLOCKING: True` in Step 6 and ask the user for clarification before generating the
   final implementation steps.
-- **Incrementalism**: Design the implementation steps in small, reviewable increments.
-  Each step MUST leave the codebase in a testable state.
+- **Incrementalism**: Design the implementation steps in small, reviewable
+  increments — reuse this skill's own Path A ≤3-file threshold (see Routing above) as
+  the concrete size bound per step, where applicable. Each step MUST leave the
+  codebase in a testable state.
 - **One Issue at a time**: see `workflow.md` Multi-file processing.
 - **Frozen scope**: the Plan's `Implementation Target Files` section is the canonical,
   frozen source of implementation scope once Step 8 validates it — see

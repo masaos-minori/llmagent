@@ -102,7 +102,9 @@ Task List MUST show both fields separately; neither MAY stand in for the other.
 ## Core Execution Rules
 
 - Full-Suite Execution Scope: see `safety.md` Full-Suite Execution Scope and Abort Conditions.
-- MUST NOT assume test coverage from file names alone.
+- MUST NOT assume test coverage from file names alone — instead, open the matching
+  test file and confirm it actually exercises the behavior in question before
+  crediting it as coverage.
 - Production code: see Phase Boundaries above.
 - MUST NOT stop at high-level commentary — run the tests and produce a concrete,
   execution-ready plan.

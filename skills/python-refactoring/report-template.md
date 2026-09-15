@@ -105,4 +105,7 @@ The refactoring is complete only when all of the following are true:
 Path C requires additional items — see `path-c.md` Path C Completion Requirements; they
 are additive to, not a replacement for, the gate above.
 
-If any item is not satisfied, do not report the task as complete.
+If any required item above cannot be satisfied: report `Blocked` (per this file's
+existing `Blocked` status vocabulary) rather than a partial pass — a Completion Gate
+item is not conditional/optional like the validation items covered by `Not run`/
+`Blocked` status elsewhere in this template.
