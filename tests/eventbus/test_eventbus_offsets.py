@@ -714,8 +714,35 @@ class TestLegacyOffsetMigrationDirect:
         finally:
             db.close()
 
+    def test_migration_collision_detected_for_sanitized_name_overlap(
+        self, tmp_path: Path
+    ) -> None:
+        """Two legacy files without .map companions sanitize to the same consumer_id — raises ValueError."""
+        from eventbus.config import EventBusConfig
+        from eventbus.db import migrate_legacy_offsets, open_db
 
-class TestCollisionAtNonAdvancingSeq:
+        cfg = EventBusConfig(
+            port=8015,
+            db_path=str(tmp_path / "eventbus.sqlite"),
+            storage_dir=str(tmp_path / "storage"),
+            offsets_dir=str(tmp_path / "offsets"),
+            deadletter_dir=str(tmp_path / "deadletter"),
+            max_retry=3,
+            auth_token="test-token",
+        )
+        (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
+        # Two files that sanitize to the same name (both have ".." which collapses to "_")
+        file_a = tmp_path / "offsets" / "bad..consumer"
+        file_b = tmp_path / "offsets" / "bad_consumer"
+        file_a.write_text("10\n")
+        file_b.write_text("20\n")
+
+        db = open_db(cfg.db_path)
+        try:
+            with pytest.raises(ValueError, match="Collision detected"):
+                migrate_legacy_offsets(db, cfg.offsets_dir)
+        finally:
+            db.close()
     """Tests for REQ-001: identity validation before offset comparison."""
 
     def test_collision_rejected_for_equal_seq(self, tmp_path: Path) -> None:

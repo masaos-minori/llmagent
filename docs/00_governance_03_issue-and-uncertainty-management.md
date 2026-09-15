@@ -169,20 +169,16 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 
 - **ID**: EVENTBUS-001
 - **Title**: Consumer ID Collision Detection
-- **Status**: open
-- **Severity**: High
+- **Status**: Mitigated
+- **Severity**: Medium
 - **Area**: EventBus
 - **Type**: design-gap
-- **Source**: `scripts/eventbus/offsets.py::write_offset()` (`_sanitize_consumer_id`)
+- **Source**: `scripts/eventbus/db.py::migrate_legacy_offsets()`
 - **Owner**: Unassigned
 - **First Found**: Unconfirmed
 - **Target**: `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
-- **Related**: EVENTBUS-003, EVENTBUS-008
-- **Summary**: Multiple distinct `consumer_id`s may sanitize to the same filename, leading to silent overwriting of offsets.
-- **Current Description**: Sanitization process (`_sanitize_consumer_id`) is lossy (e.g., `user.1` -> `user_1`), so one consumer can inadvertently overwrite another consumer's progress if IDs collide after sanitization.
-- **Observed Implementation**: Current implementation uses simple replacement which causes collisions for `user.1` vs. `user_1`.
-- **Impact**: One consumer can inadvertently overwrite another consumer's progress if IDs collide after sanitization, affecting data integrity and consumer isolation.
-- **Recommended Action**: Implement collision detection using mapping files (e.g., `{sanitized_id}.map`). Workaround until implemented: ensure unique `consumer_id`s that do not result in identical sanitized strings.
+- **Summary**: The collision risk is limited to a one-time migration step, only triggered for legacy offset files lacking a `.map` companion. In `migrate_legacy_offsets()`, when a `.map` companion file is missing, the function falls back to `_sanitize_consumer_id()` on the raw filename — at which point the original EVENTBUS-001 collision risk (`user.1` vs `user_1` both sanitizing to the same filename) can still silently merge two legacy consumers' offsets during a one-time migration. This risk is bounded by the finite set of legacy offset files and does not affect the live ACK path. The live ACK path (`ack_event_for_consumer()`) writes to `consumer_delivery`/`consumer_offsets` using the caller's `consumer_id` verbatim with no call to `_sanitize_consumer_id()`, so two distinct IDs like `user.1` and `user_1` are stored as distinct rows and cannot collide here.
+- **Recommended Action**: Implemented via collision detection in `migrate_legacy_offsets()` — raises `ValueError` when multiple legacy files without `.map` companions sanitize to the same consumer_id. No workaround needed; operators must resolve collisions manually before running migration.
 
 #### EVENTBUS-002
 
@@ -272,22 +268,7 @@ EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was r
 
 #### CI-001
 
-- **ID**: CI-001
-- **Title**: EventBus process reads configuration directly instead of using ConfigLoader
-- **Status**: resolved
-- **Severity**: High
-- **Area**: EventBus
-- **Type**: document-code-mismatch
-- **Source**: `scripts/eventbus/config.py`; `scripts/shared/config_loader.py`
-- **Owner**: Team
-- **First Found**: 2026-08-22
-- **Target**: `02_config_isolation_02_01_config-loader-design.md`
-- **Related**: ADR-002
-- **Summary**: ADR-002 requires that all processes load configuration via ConfigLoader to ensure process-level config isolation. EventBus reads its own TOML configuration directly without going through ConfigLoader, violating this invariant.
-- **Current Description**: EventBus's `config.py` loads TOML files directly using `tomllib.load()` or similar, bypassing ConfigLoader entirely.
-- **Observed Implementation**: `scripts/eventbus/config.py` opens TOML files and parses them independently; `scripts/shared/config_loader.py` is never imported or used by the EventBus module.
-- **Impact**: EventBus operates with a configuration loading path that differs from other processes, potentially leading to inconsistent config handling across the system.
-- **Recommended Action**: Resolved via local invariant: load_config()'s docstring states callers must pass get_config_path()'s return value, and a regression test in tests/eventbus/test_eventbus_config.py locks both call sites in app.py to that invariant. See ADR-002 CI-001 Known Deviation for details.
+CI-001 ("EventBus process reads configuration directly instead of using ConfigLoader") was resolved and removed from this active inventory 2026-09-15. Confirmed by code inspection: `scripts/eventbus/config.py` now uses `ConfigLoader.load()` instead of direct `tomllib.load()`, preserving all EventBus-specific validation logic in `__post_init__` and `load_config()`. The migration was verified by tests confirming all existing validation error cases produce equivalent errors through the ConfigLoader path. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-001` heading.
 
 #### CI-003
 

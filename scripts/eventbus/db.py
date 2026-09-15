@@ -138,7 +138,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute(
             f"ALTER TABLE events ADD COLUMN {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} INTEGER NOT NULL DEFAULT 0"
         )
-        logger.info("migrated: added column %s to events", _COL_CONSUMER_DELIVERY_FAILURE_COUNT)
+        logger.info(
+            "migrated: added column %s to events", _COL_CONSUMER_DELIVERY_FAILURE_COUNT
+        )
     except sqlite3.OperationalError as exc:
         if exc.args and "duplicate column name" in exc.args[0]:
             pass  # column already exists
@@ -214,7 +216,8 @@ def ack_event(conn: sqlite3.Connection, event_id: str, now: str) -> tuple[bool, 
         if newly_acked:
             return True, True
         exists = conn.execute(
-            f"SELECT 1 FROM events WHERE {_COL_EVENT_ID} = ?", (event_id,)  # nosec B608 — column names are module-level constants, values parameterized
+            f"SELECT 1 FROM events WHERE {_COL_EVENT_ID} = ?",
+            (event_id,),  # nosec B608 — column names are module-level constants, values parameterized
         ).fetchone()
         if exists:
             return True, False
@@ -247,7 +250,9 @@ def nack_event(
             f"{_COL_DELIVERY_FAILURE_COUNT} = {_COL_DELIVERY_FAILURE_COUNT} + 1, "
             f"{_COL_CYCLE_FAILURE_COUNT} = {_COL_CYCLE_FAILURE_COUNT} + 1"
         )
-        where_clause = f"{_COL_EVENT_ID} = ? AND {_COL_ACKED_AT} IS NULL AND {_COL_DLQ_AT} IS NULL"
+        where_clause = (
+            f"{_COL_EVENT_ID} = ? AND {_COL_ACKED_AT} IS NULL AND {_COL_DLQ_AT} IS NULL"
+        )
         params: list[str] = [event_id]
 
         if consumer_id is not None:
@@ -588,8 +593,8 @@ def migrate_legacy_offsets(
     Returns:
         List of consumer_ids that were migrated.
     """
-    from eventbus.offsets import (
-        _sanitize_consumer_id,  # noqa: PLC0415 — deferred to avoid a circular import with eventbus.offsets at module load time
+    from eventbus.offsets import (  # noqa: PLC0415 — deferred to avoid a circular import with eventbus.offsets at module load time
+        _sanitize_consumer_id,
     )
 
     migrated: list[str] = []
@@ -599,14 +604,21 @@ def migrate_legacy_offsets(
         logger.warning("offsets_dir does not exist: %s", offsets_dir)
         return migrated
 
-    # Iterate every offset file (not just ones with a .map companion) —
-    # legacy files predating .map tracking, or written by any other means,
-    # never get a .map companion and would otherwise be invisible to a
-    # glob("*.map")-only scan.
-    for offset_file in sorted(dir_path.iterdir()):
-        if not offset_file.is_file() or offset_file.suffix == ".map":
+    # Collect all legacy files first for collision detection
+    legacy_files = sorted(f.name for f in dir_path.iterdir() if f.is_file())
+
+    # Build sanitized name mapping for collision detection (O(n))
+    sanitized_names: dict[str, list[str]] = {}
+    for fname in legacy_files:
+        if fname.endswith(".map"):
             continue
-        safe_id = offset_file.name
+        sanitized = _sanitize_consumer_id(fname.replace(".offset", ""))
+        sanitized_names.setdefault(sanitized, []).append(fname)
+
+    # Process each file
+    for safe_id in legacy_files:
+        if safe_id.endswith(".map"):
+            continue
         map_file = dir_path / f"{safe_id}.map"
         try:
             stored_id = map_file.read_text().strip()
@@ -621,7 +633,14 @@ def migrate_legacy_offsets(
                 )
         except FileNotFoundError:
             # No .map companion — use sanitized filename
-            consumer_id = _sanitize_consumer_id(safe_id)
+            sanitized = _sanitize_consumer_id(safe_id)
+            if len(sanitized_names[sanitized]) > 1:
+                # Collision detected — refuse to proceed
+                raise ValueError(
+                    f"Collision detected: {sanitized} maps to multiple legacy files: "
+                    f"{', '.join(sorted(sanitized_names[sanitized]))}"
+                )
+            consumer_id = sanitized
             logger.warning(
                 "no .map companion for %s, using sanitized filename as consumer_id",
                 safe_id,
@@ -633,7 +652,7 @@ def migrate_legacy_offsets(
         # a legacy artifact), re-sanitizing it would look up a different path
         # than the one we just found.
         try:
-            offset_val = int(offset_file.read_text().strip())
+            offset_val = int((dir_path / safe_id).read_text().strip())
         except (FileNotFoundError, ValueError):
             offset_val = 0
         if offset_val > 0:
