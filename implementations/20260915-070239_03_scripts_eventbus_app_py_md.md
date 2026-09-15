@@ -126,9 +126,9 @@ Manual code review — read the relevant sections of `app.py` and verify the rou
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Locate route registration for ACK/NACK endpoints | Pending | — | — | |
-| 2 | Verify route registration accuracy | Pending | — | — | |
-| 3 | Document findings for API reference | Pending | — | — | |
+| 1 | Locate route registration for ACK/NACK endpoints | Completed | 20260915-230000 | 20260915-230000 |  |
+| 2 | Verify route registration accuracy | Completed | 20260915-230000 | 20260915-230000 |  |
+| 3 | Document findings for API reference | Completed | 20260915-230000 | 20260915-230000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
