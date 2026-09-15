@@ -493,8 +493,27 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for duplicate-tool detection.
 
+#### CI-016
+
+- **ID**: CI-016
+- **Title**: ADR-004 Decision #12/INV-14 — undefined component criticality treatment relies on a safe default, verified but needs test coverage
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: operational-gap
+- **Source**: `scripts/shared/mcp_config.py` (`required: bool = True` default), `scripts/agent/services/mcp_tool_discovery.py`
+- **Owner**: Unassigned
+- **First Found**: Unconfirmed
+- **Target**: `docs/adr/ADR-004-environment-failure-handling-policy.md`
+- **Related**: ADR-004
+- **Summary**: ADR-004 Decision #12/INV-14 requires that undefined or undeterminable component criticality never be assumed non-required and be treated as an unresolved design/config error.
+- **Current Description**: `McpServerConfig.required` defaults to `True` (`scripts/shared/mcp_config.py:95`), so an unspecified criticality is never silently treated as non-required. However, no automated test verifies this default-required safety net, and no distinct code path flags "criticality was never explicitly configured" as its own design/config error per Decision #12's literal wording — ADR-004's own Completion Checklist and Manual Review notes still list INV-14 as unverified/Manual-Review-only.
+- **Observed Implementation**: Verified by code inspection only (default value inspection); no automated test.
+- **Impact**: Without test coverage, a future change to the default value (e.g. `required: bool = False`) would silently violate INV-14 with no automated check to catch the regression.
+- **Recommended Action**: Add a unit test asserting `McpServerConfig.required` defaults to `True` when unspecified, and/or a test asserting undefined-criticality components are never routed as non-required.
+
 No other active Known Issues beyond RAG-005, DESIGN-1, DESIGN-2,
-EVENTBUS-001 through EVENTBUS-008, and CI-001, CI-003 through CI-015 above.
+EVENTBUS-001 through EVENTBUS-008, and CI-001, CI-003 through CI-016 above.
 
 ## Part 2: Needs Confirmation Inventory
 

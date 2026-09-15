@@ -458,18 +458,63 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 行番号は記載せず、File PathとSymbol名で参照する。
 
-## Alignment with INV-01/INV-02
+## Known Deviations
 
-With REQ-001's fix (strict-default behavior), the Fail-Fast requirements of INV-01/INV-02 are now enforced at startup time. Specifically:
+### ADR-004-D1-profile-config-model-still-present: Environment-conditional required/local branching in McpServerConfig
 
-1. **INV-01**: Missing required config files cause immediate process termination (no silent-continue).
-2. **INV-02**: All processes enforce fail-closed behavior regardless of environment.
-3. **No environment-based relaxation**: The strict-default applies uniformly across all environments.
+- **Known Issue**: ADR-004-D1-profile-config-model-still-present
+- **Type**: Design Deviation (Resolved)
+- **Summary**: `scripts/shared/mcp_config.py`の`McpServerConfig`と`scripts/agent/services/mcp_tool_discovery.py`は、`security_profile`（環境）の値に基づいて`required_in_production`／`required_in_local`のいずれを参照するか分岐していた。
+- **Conflicting Source**: Decision Group 3（必須性の決定は環境非依存であるべき）
+- **Expected Design**: コンポーネントの必須性の決定は環境非依存でなければならない（Decision Group 3）。
+- **Observed Implementation**: 修正前は`security_profile`の値により`required_in_production`／`required_in_local`のいずれかを参照する分岐が存在した。
+- **Impact**: INV-01, INV-02, INV-09, INV-10, INV-14 → 解消済み。
+- **Recommended Action**: **解決（2026-09-04確認）**: `plans/done/20260903-091417_plan.md`（`localremoval`）により`SecurityProfile.LOCAL`自体が削除され、`SecurityProfile`は`PRODUCTION`のみを保持するenumとなった（`scripts/shared/mcp_config.py`確認済み）。`required_in_production`/`required_in_local`の環境分岐は解消され、必須性の決定が環境非依存となった。クロスプロファイル等価テストという概念自体が`SecurityProfile.LOCAL`の削除により不要化したため、当該残課題はNot Applicableとして解消。
+- **Owner**: TBD
+- **Status**: Resolved (2026-09-04)
+- **Resolution Target**: N/A: already resolved
 
-- **Known Issue（解消済み、2026-09-04確認）**: ADR-004-D1-profile-config-model-still-present — `scripts/shared/mcp_config.py`の`McpServerConfig`と`scripts/agent/services/mcp_tool_discovery.py`は、`security_profile`（環境）の値に基づいて`required_in_production`／`required_in_local`のいずれを参照するか分岐していた。**解決**: `plans/done/20260903-091417_plan.md`（`localremoval`）により`SecurityProfile.LOCAL`自体が削除され、`SecurityProfile`は`PRODUCTION`のみを保持するenumとなった（`scripts/shared/mcp_config.py`確認済み）。`required_in_production`/`required_in_local`の環境分岐は解消され、必須性の決定が環境非依存となった。クロスプロファイル等価テストという概念自体が`SecurityProfile.LOCAL`の削除により不要化したため、当該残課題はNot Applicableとして解消。**影響**: INV-01, INV-02, INV-09, INV-10, INV-14 → 解消済み。
-- **Known Issue（解消済み、2026-09-04確認）**: `scripts/shared/production_config_validator.py`の`is_production`条件によるstrictモード違反の警告への格下げ（`docs/adr-index.md` INV-010で指摘された、上記D1とは別個の逸脱）。**解決**: `plans/done/20260903-091417_plan.md` REQ-004により`is_production`条件分岐が削除され（`scripts/shared/production_config_validator.py`確認済み、該当分岐は現存しない）、Production-grade検証がすべての環境で無条件に適用されるようになった。
-- **報告のみ（Known Issue未登録）**: 非必須コンポーネントの可用性障害による起動継続（Decision #18、INV-09）を検証する自動テストは、`tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers` にて既に検証済み（上記Verificationセクション参照）。この部分のステータスは更新済み。
-- **報告のみ（Known Issue未登録）**: 未定義の必須性による起動継続禁止（Decision #12、INV-14）を検証する自動テストが現行では存在しない。コンポーネント単位の必須／非必須分類を記録するSpecificationは`05_agent_08_04_configuration-mcp-approval-obs.md`のComponent Criticality Classification節に整備済み（Decision #13が要求する分類記録の主体を充足）。これらは新規Known Issueとして別途登録することを推奨する。
+### ADR-004-D2-production-config-validator-severity-downgrade: is_production-gated strict-mode violation downgraded to warning
+
+- **Known Issue**: ADR-004-D2-production-config-validator-severity-downgrade
+- **Type**: Design Deviation (Resolved)
+- **Summary**: `scripts/shared/production_config_validator.py`の`is_production`条件によるstrictモード違反の警告への格下げ（`docs/adr-index.md` INV-010で指摘された、D1とは別個の逸脱）。
+- **Conflicting Source**: `docs/adr-index.md` INV-010
+- **Expected Design**: Production-grade検証はすべての環境で無条件に適用されるべきである。
+- **Observed Implementation**: 修正前は`is_production`条件によりstrictモード違反が警告へ格下げされていた。
+- **Impact**: Production-grade検証の一貫性に影響していた。
+- **Recommended Action**: **解決（2026-09-04確認）**: `plans/done/20260903-091417_plan.md` REQ-004により`is_production`条件分岐が削除され（`scripts/shared/production_config_validator.py`確認済み、該当分岐は現存しない）、Production-grade検証がすべての環境で無条件に適用されるようになった。
+- **Owner**: TBD
+- **Status**: Resolved (2026-09-04)
+- **Resolution Target**: N/A: already resolved
+
+### ADR-004-D3-non-required-continuation-test-coverage: Decision #18/INV-09 continuation test coverage
+
+- **Known Issue**: N/A: not registered as a governance Known Issue — see Recommended Action
+- **Type**: Resolved Gap
+- **Summary**: 非必須コンポーネントの可用性障害による起動継続（Decision #18、INV-09）を検証する自動テストの整備状況。
+- **Conflicting Source**: N/A: not a conflict — this entry records confirmation, not a discrepancy.
+- **Expected Design**: 非必須コンポーネントの可用性障害は、明示的な基準を満たす場合に限り起動継続を許可する（Decision #18、INV-09）。
+- **Observed Implementation**: `tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers` にて既に検証済み（本ADRの`## Verification`セクション参照、Status: Confirmed）。
+- **Impact**: N/A: not an active discrepancy.
+- **Recommended Action**: 既にこのADR自身の`## Verification`セクションでConfirmedと記録されているため、新規のガバナンスKnown Issueは登録しない。
+- **Owner**: N/A: not applicable — no active issue to own
+- **Status**: Resolved
+- **Resolution Target**: N/A: already resolved
+
+### CI-016: Undefined component criticality treatment relies on a safe default, untested
+
+- **Known Issue**: CI-016
+- **Type**: operational-gap
+- **Summary**: 未定義の必須性による起動継続禁止（Decision #12、INV-14）を検証する自動テストが現行では存在しない。
+- **Conflicting Source**: 本ADRの`## Completion Checklist`（自動化可能な検証がManual Reviewだけになっていない、の未チェック項目）および`## Verification` > `### Manual Review`（INV-14は現行実装で強制されていないと明記）
+- **Expected Design**: コンポーネントの必須性が未定義または判定不能な場合、非必須であると仮定せず、未解決の設計上または設定上の誤りとして扱う（Decision #12、INV-14）。
+- **Observed Implementation**: `McpServerConfig.required`は`True`をデフォルト値とする（`scripts/shared/mcp_config.py:95`）ため、未指定の必須性が暗黙に非必須として扱われることはない。ただし、このデフォルト値の安全性を検証する自動テストは存在せず、「必須性が明示的に設定されなかった」こと自体を独立した設計/設定上の誤りとして検出する経路も存在しない。
+- **Impact**: テストが存在しないため、将来`required`のデフォルト値が変更された場合（例: `False`へ）、INV-14への違反を検知する自動チェックがない。
+- **Recommended Action**: `docs/00_governance_03_issue-and-uncertainty-management.md`の`CI-016`として登録済み。`McpServerConfig.required`のデフォルト値が`True`であることを検証する単体テスト、および/または未定義の必須性を持つコンポーネントが非必須としてRoutingされないことを検証するテストの追加を推奨する。
+- **Owner**: Unassigned
+- **Status**: open
+- **Resolution Target**: `McpServerConfig.required`のデフォルト値および未定義必須性の扱いに対する単体テストの追加
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
@@ -528,7 +573,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- なし
+- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — ADR-004関連のKnown Issue（CI-016）
 
 ### Implementation References
 
@@ -555,7 +600,7 @@ ADRをAcceptedへ変更する前に確認する。
 - [ ] 自動化可能な検証がManual Reviewだけになっていない（INV-01, INV-14はManual Review/未検証のまま；INV-08, INV-09はConfirmed）
 - [x] 既存ADRとの関係が記載されている
 - [x] 関係するSpecificationと矛盾していない（コンポーネント必須性分類を記録するSpecificationが整備済み）
-- [x] 現行実装との差異がKnown Issueへ登録されている（一部は新規登録が必要、Known Deviations参照）
+- [x] 現行実装との差異がKnown Issueへ登録されている（`CI-016`として登録済み、`## Known Deviations`参照）
 - [x] Ownerと必要なReviewerが定義されている（`docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
 - [x] Review Triggersが記載されている
 - [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）
