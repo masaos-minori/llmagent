@@ -322,9 +322,9 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add new authorization fields to EventBusConfig | Pending | — | — | |
-| 2 | Update __post_object__() validation for new fields | Pending | — | — | |
-| 3 | Update _KNOWN_CONFIG_KEYS to include new fields | Pending | — | — | |
+| 1 | Add new authorization fields to EventBusConfig | Completed | 20260915-222600 | 20260915-222600 | Added consumer_authorization and topic_authorization fields |
+| 2 | Update __post_object__() validation for new fields | Completed | 20260915-222600 | 20260915-222600 | Added validation for both new fields |
+| 3 | Update _KNOWN_CONFIG_KEYS to include new fields | Completed | 20260915-222600 | 20260915-222600 | Added both fields to known keys |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
