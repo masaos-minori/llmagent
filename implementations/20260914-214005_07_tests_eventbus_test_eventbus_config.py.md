@@ -169,8 +169,8 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add sse_idle_timeout config loading test | Pending | — | — | |
-| 2 | Add cross-field validation test | Pending | — | — | |
+| 1 | Add sse_idle_timeout config loading test | Completed | 20260915-132845 | 20260915-132845 |  |
+| 2 | Add cross-field validation test | Completed | 20260915-132852 | 20260915-132852 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
