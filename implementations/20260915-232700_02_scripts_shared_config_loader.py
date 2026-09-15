@@ -98,9 +98,9 @@ Expected: Returns all config files' data.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify restrict_to() method | Pending | — | — | |
-| 2 | Verify load() method | Pending | — | — | |
-| 3 | Verify load_all() method | Pending | — | — | |
+| 1 | Verify restrict_to() method | Completed | — | — | Confirmed: classmethod present with correct contract |
+| 2 | Verify load() method | Completed | — | — | Confirmed: accepts filenames, returns merged config |
+| 3 | Verify load_all() method | Completed | — | — | Confirmed: returns all config files' data |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
