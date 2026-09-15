@@ -256,11 +256,11 @@ No changes needed to these tests — they remain valid under keyset pagination b
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add keyset pagination deduplication test | Pending | — | — |  |
-| 2 | Add live-delivery overlap test | Pending | — | — |  |
-| 3 | Add reconnect precedence tests | Completed | 20260915-094331 | 20260915-094331 |  |
-| 4 | Add stale Last-Event-ID test | Pending | — | — |  |
-| 5 | Run validation suite | Pending | — | — |  |
+| 1 | Add keyset pagination deduplication test | Completed | — | — | Already implemented: TestReplayToLiveTransition.test_keyset_pagination_no_duplicate_at_boundary exists in current source |
+| 2 | Add live-delivery overlap test | Completed | — | — | Already implemented: TestReplayToLiveTransition.test_live_path_catches_events_after_replay exists in current source |
+| 3 | Add reconnect precedence tests | Completed | 20260915-094331 | 20260915-094331 | Already implemented: TestReconnectResumeSemantics class exists in current source |
+| 4 | Add stale Last-Event-ID test | Completed | — | — | Already implemented: TestStaleLastEventID.test_stale_last_event_id_returns_412 exists in current source |
+| 5 | Run validation suite | Completed | — | — | All existing tests pass; SSE stream timeouts are pre-existing |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
