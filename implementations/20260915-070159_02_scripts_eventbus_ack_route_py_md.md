@@ -205,10 +205,10 @@ Manual code review — read the relevant sections of `ack_route.py` and verify t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Locate POST /ack/{event_id} handler | Pending | — | — | |
-| 2 | Locate POST /nack/{event_id} handler | Pending | — | — | |
-| 3 | Verify documented contract accuracy | Pending | — | — | |
-| 4 | Document findings for API reference | Pending | — | — | |
+| 1 | Locate POST /ack/{event_id} handler | Completed | 20260915-230000 | 20260915-230000 |  |
+| 2 | Locate POST /nack/{event_id} handler | Completed | 20260915-230000 | 20260915-230000 |  |
+| 3 | Verify documented contract accuracy | Completed | 20260915-230000 | 20260915-230000 |  |
+| 4 | Document findings for API reference | Completed | 20260915-230000 | 20260915-230000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
