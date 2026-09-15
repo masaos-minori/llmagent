@@ -211,8 +211,8 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend redeliver_event() signature to return (success, new_event_id, new_seq) | Pending | — | — | |
-| 2 | Compute new_seq atomically within same transaction using lastrowid | Pending | — | — | |
+| 1 | Extend redeliver_event() signature to return (success, new_event_id, new_seq) | Completed | 20260915-135023 | 20260915-135023 |  |
+| 2 | Compute new_seq atomically within same transaction using lastrowid | Completed | 20260915-135032 | 20260915-135032 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
