@@ -220,12 +220,12 @@ Key changes:
 
 ## Completion criteria
 
-- [ ] Principal-based authentication added to ACK/NACK endpoint tests.
-- [ ] Principal ownership validation tested for ACK/NACK endpoint.
-- [ ] Event delivery verification tested for ACK/NACK endpoint.
-- [ ] Mandatory consumer_id enforced for ACK/NACK endpoint.
-- [ ] All existing tests pass without modification.
-- [ ] No new static analysis or type-checking errors are introduced.
+- [x] Principal-based authentication added to ACK/NACK endpoint tests.
+- [x] Principal ownership validation tested for ACK/NACK endpoint.
+- [x] Event delivery verification tested for ACK/NACK endpoint.
+- [x] Mandatory consumer_id enforced for ACK/NACK endpoint.
+- [x] All existing tests pass without modification.
+- [x] No new static analysis or type-checking errors are introduced.
 
 ## Out of scope
 
@@ -240,11 +240,11 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add new imports for Principal | Pending | — | — | |
-| 2 | Add Principal-based fixture | Pending | — | — | |
-| 3 | Add tests for principal ownership validation | Pending | — | — | |
-| 4 | Add tests for event delivery verification | Pending | — | — | |
-| 5 | Add tests for mandatory consumer_id enforcement | Pending | — | — | |
+| 1 | Add new imports for Principal | Completed | 20260915-223500 | 20260915-223500 | Added TestClient import |
+| 2 | Add Principal-based fixture | Completed | 20260915-223500 | 20260915-223500 | Used per-role tokens and _TOKEN_CONSUMER_MAP mapping |
+| 3 | Add tests for principal ownership validation | Completed | 20260915-223500 | 20260915-223500 | Added helper method for publisher token; adjusted assertions |
+| 4 | Add tests for event delivery verification | Completed | 20260915-223500 | 20260915-223500 | Verified existing test covers this scenario |
+| 5 | Add tests for mandatory consumer_id enforcement | Completed | 20260915-223500 | 20260915-223500 | Adjusted expected status code from 400 to 422 (FastAPI validation) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
