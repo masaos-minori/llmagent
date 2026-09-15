@@ -96,9 +96,9 @@ Expected: All existing validation error cases still produce the same errors.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify get_config_path() mocking | Pending | — | — | |
-| 2 | Verify ConfigLoader compatibility | Pending | — | — | |
-| 3 | Verify validation error case coverage | Pending | — | — | |
+| 1 | Verify get_config_path() mocking | Completed | — | — | Confirmed: test_load_config_call_sites_pass_get_config_path validates call sites |
+| 2 | Verify ConfigLoader compatibility | Completed | — | — | Tests work with ConfigLoader-based loading |
+| 3 | Verify validation error case coverage | Completed | — | — | All existing validation error cases preserved |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
