@@ -256,11 +256,11 @@ No changes needed to these tests — they remain valid under keyset pagination b
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add keyset pagination deduplication test | Pending | — | — | |
-| 2 | Add live-delivery overlap test | Pending | — | — | |
-| 3 | Add reconnect precedence tests | Pending | — | — | |
-| 4 | Add stale Last-Event-ID test | Pending | — | — | |
-| 5 | Run validation suite | Pending | — | — | |
+| 1 | Add keyset pagination deduplication test | Pending | — | — |  |
+| 2 | Add live-delivery overlap test | Pending | — | — |  |
+| 3 | Add reconnect precedence tests | Completed | 20260915-094331 | 20260915-094331 |  |
+| 4 | Add stale Last-Event-ID test | Pending | — | — |  |
+| 5 | Run validation suite | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

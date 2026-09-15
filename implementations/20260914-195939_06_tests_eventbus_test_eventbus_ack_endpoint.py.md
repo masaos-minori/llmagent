@@ -224,3 +224,9 @@ class TestAckPrincipalValidation:
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260914-195939
 - **Related target files**: tests/eventbus/test_eventbus_ack_endpoint.py
+
+## Execution Status
+
+| REQ ID | Description | Status |
+|--------|-------------|--------|
+| REQ-001 | Update client fixture to populate token maps | ✅ Implemented |

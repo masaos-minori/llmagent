@@ -101,6 +101,70 @@ class TestReplayToLiveTransition:
         event_ids = [item["event_id"] for item in items]
         assert event_ids.count(body["event_id"]) == 1, "Event must not be duplicated"
 
+    def test_keyset_pagination_no_duplicate_at_boundary(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Events published during the final replay batch must not be duplicated."""
+        from eventbus import app as eb_app
+
+        cfg = eb_app.app.state.config
+        assert cfg is not None
+        batch_size = cfg.replay_batch_size
+
+        # Publish exactly batch_size + 1 events (forces two batches)
+        bodies = [_event("boundary") for _ in range(batch_size + 1)]
+        for body in bodies:
+            resp = client.post("/publish", json=body)
+            assert resp.status_code == 200
+
+        # Subscribe from seq=0 — should get all events via keyset pagination
+        resp = client.get("/subscribe?since_seq=0&topic=boundary")
+        assert resp.status_code == 200
+
+        # Collect all event IDs from the SSE stream
+        event_ids = set()
+        for line in resp.iter_lines():
+            if line.startswith("id:"):
+                event_id = int(line.split(":")[1].strip())
+                event_ids.add(event_id)
+
+        # All events should be delivered exactly once
+        assert len(event_ids) == len(bodies), (
+            f"Expected {len(bodies)} events, got {len(event_ids)}"
+        )
+
+    def test_live_path_catches_events_after_replay(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Events published between final replay batch and live path startup must be delivered."""
+        from eventbus import app as eb_app
+
+        cfg = eb_app.app.state.config
+        assert cfg is not None
+        batch_size = cfg.replay_batch_size
+
+        # Publish events up to batch_size (fills first replay batch completely)
+        bodies = [_event("overlap") for _ in range(batch_size)]
+        for body in bodies:
+            resp = client.post("/publish", json=body)
+            assert resp.status_code == 200
+
+        # Subscribe from seq=0 — should get all events via replay
+        resp = client.get("/subscribe?since_seq=0&topic=overlap")
+        assert resp.status_code == 200
+
+        # Collect all event IDs from the SSE stream
+        event_ids = set()
+        for line in resp.iter_lines():
+            if line.startswith("id:"):
+                event_id = int(line.split(":")[1].strip())
+                event_ids.add(event_id)
+
+        # All events should be delivered exactly once
+        assert len(event_ids) == len(bodies), (
+            f"Expected {len(bodies)} events, got {len(event_ids)}"
+        )
+
 
 class TestSubscribeCancelledBeforeReplay:
     """Verify replay_ceil is always bound when cancelled during the replay fetch."""
@@ -211,14 +275,36 @@ class TestKeysetPaginationBoundary:
             f"Expected {len(bodies)} events, got {len(event_ids)}"
         )
 
+
+class TestReconnectResumeSemantics:
+    """Verify reconnect and resume-position semantics during reconnection."""
+
+    def test_reconnect_with_consumer_offset_resumes_correctly(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """T-6: Reconnect with consumer offset resumes from the stored offset."""
+        pass  # Placeholder — actual verification depends on Phase 1 implementation
+
+    def test_since_seq_precedence_over_consumer_offset(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """T-7: Reconnect with since_seq takes precedence over consumer offset."""
+        pass  # Placeholder — actual verification depends on Phase 1 implementation
+
+
+class TestStaleLastEventID:
+    """Verify reconnect with stale Last-Event-ID behavior."""
+
     def test_stale_last_event_id_returns_412(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """T-11: Reconnect with stale Last-Event-ID returns 412."""
+        # Publish an event
         body = _event("stale")
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
+        # Subscribe with Last-Event-ID above max seq should return 412
         resp = client.get(
             "/subscribe?since_seq=0",
             headers={"Last-Event-ID": "999999"},

@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     from eventbus import app as eb_app
+    from eventbus.auth import _populate_token_maps
     from eventbus.config import EventBusConfig
 
     cfg = EventBusConfig(
@@ -29,6 +30,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         auth_token="test-token",
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    _populate_token_maps(cfg)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
     )

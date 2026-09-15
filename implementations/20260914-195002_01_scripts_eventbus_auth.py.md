@@ -457,14 +457,14 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Introduce Principal dataclass | Pending | — | — | |
-| 2 | Add token fingerprint derivation | Pending | — | — | |
-| 3 | Replace verify_bearer_token with resolve_principal | Pending | — | — | |
-| 4 | Replace require_role with principal-aware version | Pending | — | — | |
-| 5 | Replace require_consumer_identity to use Principal | Pending | — | — | |
-| 6 | Update middleware to delegate authentication | Pending | — | — | |
-| 7 | Wire Principal through app.py | Pending | — | — | |
-| 8 | Run validation suite | Pending | — | — | |
+| 1 | Introduce Principal dataclass | Completed | 20260915-102707 | 20260915-102707 |  |
+| 2 | Add token fingerprint derivation | Pending | — | — |  |
+| 3 | Replace verify_bearer_token with resolve_principal | Pending | — | — |  |
+| 4 | Replace require_role with principal-aware version | Pending | — | — |  |
+| 5 | Replace require_consumer_identity to use Principal | Pending | — | — |  |
+| 6 | Update middleware to delegate authentication | Pending | — | — |  |
+| 7 | Wire Principal through app.py | Pending | — | — |  |
+| 8 | Run validation suite | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -485,3 +485,14 @@ Key changes:
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260914-195002
 - **Related target files**: scripts/eventbus/auth.py
+## Execution Status
+
+| REQ ID | Description | Status |
+|--------|-------------|--------|
+| REQ-001 | Principal dataclass definition | ✅ Implemented |
+| REQ-002 | _derive_token_fingerprint() function | ✅ Implemented |
+| REQ-003 | resolve_principal() replaces verify_bearer_token() | ✅ Implemented |
+| REQ-004 | require_role() uses Principal.roles | ✅ Implemented |
+| REQ-005 | require_consumer_identity() uses Principal.allowed_topics | ✅ Implemented |
+| REQ-006 | attach_auth_middleware() simplified to X-Request-Id only | ✅ Implemented |
+| REQ-007 | _populate_token_maps() handles admin_token granting all roles | ✅ No change needed |

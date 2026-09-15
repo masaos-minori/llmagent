@@ -623,71 +623,56 @@ class TestRequireConsumerIdentityTopicSemantics:
         from unittest.mock import MagicMock
 
         from eventbus.auth import (
-            _TOKEN_CONSUMER_MAP,
-            _TOKEN_ROLE_MAP,
+            Principal,
             Role,
             require_consumer_identity,
         )
 
-        token = "test-unrestricted-token"
-        _TOKEN_ROLE_MAP[token] = set(Role)
-        _TOKEN_CONSUMER_MAP[token] = set()
+        principal = Principal(
+            roles=frozenset([Role.CONSUMER]),
+            allowed_consumer_ids=frozenset(),
+            allowed_topics=None,
+            token_fingerprint="test-fingerprint",
+        )
         try:
-            principal = MagicMock()
-            principal.roles = frozenset(_TOKEN_ROLE_MAP[token])
-            principal.allowed_consumer_ids = frozenset(
-                _TOKEN_CONSUMER_MAP.get(token, set())
-            )
-            principal.allowed_topics = None
             result = await require_consumer_identity(
                 MagicMock(), consumer_id="", topics=["any-topic"], principal=principal
             )
             assert result["topics"] is None
         finally:
-            _TOKEN_ROLE_MAP.pop(token, None)
-            _TOKEN_CONSUMER_MAP.pop(token, None)
+            pass
 
     @pytest.mark.asyncio
     async def test_non_empty_topic_restriction_is_enforced_and_returned(self) -> None:
         from unittest.mock import MagicMock
 
-        from eventbus.auth import (
-            _TOKEN_CONSUMER_MAP,
-            _TOKEN_ROLE_MAP,
-            Role,
-            require_consumer_identity,
-        )
+        from eventbus.auth import Principal, Role, require_consumer_identity
 
-        token = "test-restricted-token"
-        _TOKEN_ROLE_MAP[token] = {Role.CONSUMER}
-        _TOKEN_CONSUMER_MAP[token] = set()
+        principal_with_topics = Principal(
+            roles=frozenset([Role.CONSUMER]),
+            allowed_consumer_ids=frozenset(),
+            allowed_topics=frozenset({"allowed-topic"}),
+            token_fingerprint="test-fingerprint",
+        )
         try:
-            allowed_topics = frozenset({"allowed-topic"})
-            principal = MagicMock()
-            principal.roles = frozenset(_TOKEN_ROLE_MAP[token])
-            principal.allowed_consumer_ids = frozenset(
-                _TOKEN_CONSUMER_MAP.get(token, set())
-            )
-            principal.allowed_topics = allowed_topics
             result = await require_consumer_identity(
                 MagicMock(),
                 consumer_id="",
                 topics=["allowed-topic"],
-                principal=principal,
+                principal=principal_with_topics,
             )
-            assert result["topics"] == allowed_topics
+            assert result["topics"] == frozenset({"allowed-topic"})
 
             with pytest.raises(HTTPException) as exc_info:
                 await require_consumer_identity(
                     MagicMock(),
                     consumer_id="",
                     topics=["disallowed-topic"],
-                    principal=principal,
+                    principal=principal_with_topics,
                 )
             assert exc_info.value.status_code == 403
         finally:
-            _TOKEN_ROLE_MAP.pop(token, None)
-            _TOKEN_CONSUMER_MAP.pop(token, None)
+            pass
 
 
 class TestPrincipalFieldValidation:
@@ -748,7 +733,9 @@ class TestPrincipalFieldValidation:
             )
             assert isinstance(principal, Principal)
             assert principal.roles == frozenset(Role)
+            # Shared token has empty allowed_consumer_ids (any consumer_id)
             assert principal.allowed_consumer_ids == frozenset()
+            # Shared token has no topic restriction
             assert principal.allowed_topics is None
         finally:
             _TOKEN_ROLE_MAP.pop(token, None)
@@ -767,7 +754,7 @@ class TestPrincipalFieldValidation:
 
         token = "consumer-token"
         _TOKEN_ROLE_MAP[token] = {Role.CONSUMER}
-        _TOKEN_CONSUMER_MAP[token] = set()
+        _TOKEN_CONSUMER_MAP[token] = set()  # Empty means any consumer_id
         try:
             principal = await resolve_principal(
                 MagicMock(),

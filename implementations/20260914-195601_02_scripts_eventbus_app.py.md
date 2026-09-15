@@ -408,3 +408,17 @@ async def nack(
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260914-195601
 - **Related target files**: scripts/eventbus/app.py
+
+## Execution Status
+
+| REQ ID | Description | Status |
+|--------|-------------|--------|
+| REQ-001 | Import Principal and resolve_principal in app.py | ✅ Implemented |
+| REQ-002 | Update publish_route dependency | ✅ Implemented |
+| REQ-003 | Update subscribe_route dependency | ✅ Implemented |
+| REQ-004 | Update dlq_list_route dependency | ✅ Implemented |
+| REQ-005 | Update dlq_requeue_route dependency | ✅ Implemented |
+| REQ-006 | Update replay_route dependency | ✅ Implemented |
+| REQ-007 | Update ack_event_route dependency | ✅ Implemented |
+| REQ-008 | Update nack_route dependency | ✅ Implemented |
+| REQ-009 | Update route handler parameters (_role → _principal) | ✅ Implemented |

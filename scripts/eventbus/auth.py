@@ -72,6 +72,14 @@ _PER_ROLE_TOKEN_FIELDS: tuple[tuple[str, Role], ...] = (
 )
 
 
+def _derive_token_fingerprint(token: str) -> str:
+    """Derive a non-secret fingerprint from a raw token value.
+
+    Uses SHA-256 hash prefix to avoid exposing raw token values in logs.
+    """
+    return hashlib.sha256(token.encode()).hexdigest()[:16]
+
+
 def _populate_token_maps(config: Any) -> None:
     """Populate _TOKEN_CONSUMER_MAP, _TOKEN_TOPIC_MAP, and _TOKEN_ROLE_MAP from config at startup."""
     global _TOKEN_CONSUMER_MAP, _TOKEN_TOPIC_MAP, _TOKEN_ROLE_MAP
@@ -110,14 +118,6 @@ def get_auth_token(config: Any) -> str:
         )
     assert isinstance(token, str), f"Expected str, got {type(token).__name__}"
     return token
-
-
-def _derive_token_fingerprint(token: str) -> str:
-    """Derive a non-secret fingerprint from a raw token value.
-
-    Uses SHA-256 hash prefix to avoid exposing raw token values in logs.
-    """
-    return hashlib.sha256(token.encode()).hexdigest()[:16]
 
 
 async def resolve_principal(
@@ -229,7 +229,9 @@ def attach_auth_middleware(app: Any) -> None:
     This middleware only injects X-Request-Id into responses.
     """
 
-    async def _request_id_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol
+    from fastapi import Request  # noqa: F401
+
+    async def _request_id_middleware(request: Request, call_next):  # noqa: ANN001,ANN202
         """Inject X-Request-Id into response headers."""
         req_id = str(__import__("uuid").uuid4())
         request.state.request_id = req_id
