@@ -133,11 +133,11 @@ Surgical edit of the EVENTBUS-001 section in the governance document.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Locate EVENTBUS-001 entry | Pending | — | — | |
-| 2 | Update severity from High to Medium | Pending | — | — | |
-| 3 | Narrow risk description | Pending | — | — | |
-| 4 | Remove stale Related references | Pending | — | — | |
-| 5 | Verify the update | Pending | — | — | |
+| 1 | Locate EVENTBUS-001 entry | Completed | 20260915-230000 | 20260915-230000 |  |
+| 2 | Update severity from High to Medium | Completed | 20260915-230000 | 20260915-230000 |  |
+| 3 | Narrow risk description | Completed | 20260915-230000 | 20260915-230000 |  |
+| 4 | Remove stale Related references | Completed | 20260915-230000 | 20260915-230000 |  |
+| 5 | Verify the update | Completed | 20260915-230000 | 20260915-230000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
