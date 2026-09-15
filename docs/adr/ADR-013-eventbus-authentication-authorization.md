@@ -263,9 +263,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 ## Implementation Notes
 
-- Implementation files: `scripts/eventbus/auth.py` (Bearer-token verification, permission model), `scripts/eventbus/app.py` (middleware registration), `scripts/eventbus/config.py` (fail-closed validation), `scripts/eventbus/audit.py` (structured audit logging)
-- Key symbols: `verify_bearer_token()`, `require_role()`, `require_consumer_identity()`, `log_auth_failure()`, `log_privileged_action()`
-- Corresponding tests: `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`
+See Related Documents > Implementation References for the current file/symbol list.
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -316,6 +314,9 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/eventbus/audit.py` — `AuditRecord`, `log_auth_failure()`, `log_privileged_action()`
 - `scripts/mcp_servers/server.py` — `attach_auth_middleware()` (precedent pattern)
 - `scripts/mcp_servers/audit.py` — `AuditRecord` (precedent pattern)
+- `scripts/eventbus/app.py` — middleware registration
+- `scripts/eventbus/config.py` — fail-closed validation
+- テスト — `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`
 
 ## Keywords
 

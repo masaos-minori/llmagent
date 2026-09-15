@@ -450,12 +450,8 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- 実装ファイル: `scripts/db/config.py`, `scripts/db/helpers.py`, `scripts/db/maintenance.py`, `scripts/db/recovery.py`
-- 主要ClassまたはFunction: `DbConfig.rag_db_path`, `DbConfig.session_db_path`, `DbConfig.workflow_db_path`, `DbConfig.eventbus_db_path`, `create_schema()`, `SQLiteHelper.__init__()`, `recover_corruption()`, `_classify_error()`, `_run_integrity_check()`, `_restore_from_backup()`
-- データベーススキーマ: `rag.sqlite`（`documents`, `chunks`, `chunks_fts`, `chunks_vec`）、`session.sqlite`（`sessions`, `messages`, `memories`, `memories_vec`）、`workflow.sqlite`（`tasks`, `attempts`, `artifacts`, `approvals`）、`eventbus.sqlite`（`events`）
 - WALモード：すべての接続で`PRAGMA journal_mode=WAL`
 - チェックポイントモード：`sqlite_wal_checkpoint_mode` config（デフォルト`TRUNCATE`）
-- 対応するテスト: `tests/test_db_*.py`, `tests/db/test_db_maintenance.py`, `tests/integration/test_session_recovery.py`
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -549,8 +545,9 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 ### Implementation References
 
 - `scripts/db/config.py` — `DbConfig` frozen dataclass
-- `scripts/db/helpers.py` — `SQLiteHelper.__init__()`, `load_vec()`
-- `scripts/db/maintenance.py` — `create_schema()`, `check_rag_consistency()`
+- `scripts/db/helper.py` — `SQLiteHelper.__init__()`, `load_vec()`
+- `scripts/db/create_schema.py` — `create_schema()`
+- `scripts/db/maintenance.py` — `check_rag_consistency()`
 - `scripts/db/recovery.py` — `recover_corruption()`, `_classify_error()`, `_run_integrity_check()`, `_restore_from_backup()`
 - `rag.sqlite` — `documents`, `chunks`, `chunks_fts`, `chunks_vec`
 - `session.sqlite` — `sessions`, `messages`, `memories`, `memories_vec`

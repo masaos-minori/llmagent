@@ -189,10 +189,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- 実装ファイル: `scripts/agent/orchestrator.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow_engine_adapter.py`, `scripts/agent/llm_turn_runner.py`, `scripts/agent/llm_turn_executor.py`, `scripts/shared/tool_executor.py`, `scripts/mcp_servers/tool_validators.py`, `scripts/mcp_servers/shell/shell_service.py`
-- 主要ClassまたはFunction: `Orchestrator.handle_turn()`, `WorkflowEngine.run()`, `WorkflowEngineAdapter.execute_turn()`, `LlmTurnExecutor.handle_llm_turn()`, `LLMTurnRunner.run()`, `ToolExecutor._raw_execute()`, `validate_tool_args()`
-- 設定ファイル、設定Key: なし（本ADRはコード構造上の責任配分であり、設定による切り替えは存在しない）
-- 対応するテスト: `tests/agent/workflow/test_workflow_engine.py`、`tests/agent/test_orchestrator*.py`、`tests/agent/test_llm_turn_executor*.py`（正確なファイル名は実装時に確認）
+See Related Documents > Implementation References for the current file/symbol list.
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -253,6 +250,8 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/agent/llm_turn_runner.py` — `LLMTurnRunner.run()`
 - `scripts/shared/tool_executor.py` — `ToolExecutor._raw_execute()`
 - `scripts/mcp_servers/tool_validators.py` — `validate_tool_args()`
+- `scripts/mcp_servers/shell/shell_service.py`
+- テスト — `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/test_orchestrator.py`, `tests/agent/test_orchestrator_bg_failure_threshold.py`, `tests/agent/test_llm_turn_runner.py`
 
 ## Completion Checklist
 

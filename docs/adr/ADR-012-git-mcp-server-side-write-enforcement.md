@@ -198,9 +198,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 ## Implementation Notes
 
-- Implementation files: `scripts/mcp_servers/git/repository_state.py` (`RepositoryState`, `WriteProtectionPipeline`, `_is_safe_ref`, `_validate_ref`, `_check_protected_branch`), `scripts/mcp_servers/git/git_security.py` (`GitSecurityGuards`), `scripts/mcp_servers/git/git_service.py` (`GitService`, dispatch table), `scripts/mcp_servers/git/format_output.py` (`format_checkout()`, `format_pull()`, `format_push()`), `scripts/mcp_servers/git/git_server.py` (`call_tool()` endpoint, audit logging), `scripts/mcp_servers/git/git_models.py` (`GitConfig`, request models)
-- Key symbols: `GitSecurityGuards`, `RepositoryState.snapshot()`, `WriteProtectionPipeline.run()`, `GitService.get_dispatch_table()`, `format_checkout()`, `format_pull()`, `format_push()`
-- Corresponding tests: `tests/mcp_servers/git/test_git_security_compliance.py`, `tests/mcp_servers/git/test_format_output.py`, `tests/mcp_servers/git/test_repository_state.py`, `tests/mcp_servers/git/test_git_service_dispatch.py`, `tests/mcp_servers/git/test_mcp_git.py`, `tests/mcp_servers/git/test_git_models.py`
+See Related Documents > Implementation References for the current file/symbol list.
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -242,9 +240,13 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — no active entries related to this ADR; the protected-branch/Force-Push guard, approval risk-tier mapping, and audit repository-identity gaps this ADR addressed are all resolved.
 
 ### Implementation References
-- `scripts/mcp_servers/git/repository_state.py` — `RepositoryState`, `WriteProtectionPipeline`
+- `scripts/mcp_servers/git/repository_state.py` — `RepositoryState`, `RepositoryState.snapshot()`, `WriteProtectionPipeline`, `WriteProtectionPipeline.run()`
 - `scripts/mcp_servers/git/git_security.py` — `GitSecurityGuards`, dispatch table
+- `scripts/mcp_servers/git/git_service.py` — `GitService`, `GitService.get_dispatch_table()`
 - `scripts/mcp_servers/git/format_output.py` — `format_checkout()`, `format_pull()`, `format_push()`
+- `scripts/mcp_servers/git/git_server.py` — `call_tool()` endpoint, audit logging
+- `scripts/mcp_servers/git/git_models.py` — `GitConfig`, request models
+- テスト — `tests/mcp_servers/git/test_git_security_compliance.py`, `tests/mcp_servers/git/test_format_output.py`, `tests/mcp_servers/git/test_repository_state.py`, `tests/mcp_servers/git/test_git_service_dispatch.py`, `tests/mcp_servers/git/test_mcp_git.py`, `tests/mcp_servers/git/test_git_models.py`
 
 ## Completion Checklist
 

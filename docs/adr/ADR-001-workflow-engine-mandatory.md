@@ -299,10 +299,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- 実装ファイル: `scripts/agent/orchestrator.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow/workflow_loader.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/idempotency_ops.py`
-- 主要ClassまたはFunction: `Orchestrator.handle_turn()`, `WorkflowEngine.run()`, `WorkflowLoader.load()`, `StateStore.request_approval()`, `StateStore.recover_stale_attempts()`, `idempotency_ops.begin_stage_if_new()`
-- 設定ファイル、設定Key: `config/workflows/default.json`
-- 対応するテスト: `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`
+See Related Documents > Implementation References for the current file/symbol list.
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -367,8 +364,10 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/agent/orchestrator.py` — `Orchestrator.handle_turn()`
 - `scripts/agent/workflow/workflow_engine.py` — `WorkflowEngine.run()`
 - `scripts/agent/workflow/workflow_loader.py` — `WorkflowLoader.load()`
-- `scripts/agent/workflow/state_store.py` — `StateStore.request_approval()`, `StateStore.recover_stale_attempts()`
+- `scripts/agent/workflow/state_store.py` — `StateStore.recover_stale_attempts()`
+- `scripts/agent/workflow/idempotency_ops.py` — `begin_stage_if_new()`
 - `config/workflows/default.json` — ワークフロー定義ファイル
+- テスト — `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`
 
 ## Completion Checklist
 

@@ -326,11 +326,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- 実装ファイル: `scripts/rag/pipeline.py`, `scripts/rag/pipeline_service.py`, `scripts/shared/config_loader.py`
-- 主要ClassまたはFunction: `RagPipeline.augment()`, `call_rag_service()`, `AugmentStage.run()`
-- データベーススキーマ: `rag.sqlite`（`documents`, `chunks`, `chunks_fts`, `chunks_vec`）
-- トリガー: `chunks_ai`, `chunks_au`, `chunks_ad`
-- 対応するテスト: `tests/test_rag_pipeline.py`, `tests/test_rag_pipeline_stage.py`
+See Related Documents > Implementation References for the current file/symbol list.
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -414,6 +410,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/rag/pipeline.py` — `RagPipeline.augment()`, `RagPipeline._format_chunks()`
 - `scripts/rag/pipeline_service.py` — `call_rag_service()`
 - `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`
+- `scripts/rag/stages/augment.py` — `AugmentStage.run()`
 - `rag.sqlite` — `documents`, `chunks`, `chunks_fts`, `chunks_vec`
 - トリガー — `chunks_ai`, `chunks_au`, `chunks_ad`
 - テスト — `tests/test_rag_pipeline.py`, `tests/test_rag_pipeline_stage.py`

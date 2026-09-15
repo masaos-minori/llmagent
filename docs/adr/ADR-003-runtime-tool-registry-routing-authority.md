@@ -401,26 +401,7 @@ Dynamic HealthはCircuit Breakerによる CLOSED/OPEN/HALF_OPEN のTrial-Recover
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- **実装ファイル**:
-  - `scripts/shared/runtime_tool_registry.py`: `RuntimeToolRegistry`
-  - `scripts/shared/route_resolver.py`: `ToolRouteResolver`
-  - `scripts/shared/tool_registry.py`: `ToolRegistry`
-  - `scripts/shared/runtime_tool.py`: `RuntimeTool`
-  - `scripts/agent/services/mcp_tool_discovery.py`: `McpToolDiscoveryService`
-  - `scripts/shared/mcp_health.py`: `McpServerHealthRegistry`（Dynamic Health、参照のみ）
-  - `scripts/shared/tool_executor.py`: `ToolExecutor`（Dynamic Health/実行、参照のみ）
-- **主要ClassまたはFunction**:
-  - `RuntimeToolRegistry.resolve()`: Routing権威
-  - `RuntimeToolRegistry.llm_tool_definitions()`: LLM可視Tool一覧
-  - `RuntimeToolRegistry.apply_policy()`: Reload時のPolicy由来フィールド更新（Discovery由来フィールドは更新しない）
-  - `ToolRouteResolver.resolve()`: RuntimeToolRegistryのみを参照
-  - `ToolRegistry.get_all_tool_names()`: テスト・文書生成用
-- **設定ファイル、設定Key**:
-  - `config/agent.toml`の`[mcp_servers.*]`
-  - `tool_constants.py`のfrozenset（テスト・文書生成用）
-- **対応するテスト**:
-  - `tests/unit/test_runtime_tool_registry.py`
-  - `tests/unit/test_route_resolver.py`
+See Related Documents > Implementation References for the current file/symbol list.
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -494,6 +475,11 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/shared/tool_registry.py::ToolRegistry`
 - `scripts/shared/runtime_tool.py::RuntimeTool`
 - `scripts/agent/services/mcp_tool_discovery.py::McpToolDiscoveryService`
+- `scripts/shared/mcp_health.py::McpServerHealthRegistry`
+- `scripts/shared/tool_executor.py::ToolExecutor`
+- `config/agent.toml`の`[mcp_servers.*]`
+- `tool_constants.py`のfrozenset（テスト・文書生成用）
+- テスト — `tests/unit/test_runtime_tool_registry.py`, `tests/unit/test_route_resolver.py`
 
 ## Completion Checklist
 

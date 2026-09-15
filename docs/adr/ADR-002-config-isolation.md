@@ -349,11 +349,6 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- 実装ファイル: `scripts/shared/config_loader.py`, `scripts/mcp_servers/server.py`, `scripts/rag/ingestion/crawler.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`
-- 主要ClassまたはFunction: `ConfigLoader.restrict_to()`, `ConfigLoader.load()`, `MCPServer.run_http()`, `Orchestrator.handle_turn()`
-- 設定ファイル、設定Key: `config/agent.toml`, `config/*_mcp_server.toml`, `config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml`, `config/eventbus.toml`
-- 対応するテスト: `tests/shared/test_config_loader.py`, `tests/agent/test_config_permission_cross_server.py`
-
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
 行番号は記載せず、File PathとSymbol名で参照する。
@@ -442,6 +437,7 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - `config/chunk_splitter.toml` — chunk_splitter設定ファイル
 - `config/ingester.toml` — ingester設定ファイル
 - `config/eventbus.toml` — EventBus設定ファイル
+- テスト — `tests/shared/test_config_loader.py`, `tests/agent/test_config_permission_cross_server.py`
 
 ## Impact of REQ-001
 

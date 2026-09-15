@@ -335,12 +335,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- 実装ファイル: `scripts/mcp_servers/server.py`, `scripts/shared/http_transport.py`, `scripts/shared/tool_transport_invoker.py`, `scripts/shared/mcp_server_health_registry.py`
-- 主要ClassまたはFunction: `MCPServer.run_http()`, `HttpTransport.call_tool()`, `ToolTransportInvoker.invoke()`, `McpServerHealthRegistry.record_failure()`
-- データベーススキーマ: MCP設定ファイル（`config/*_mcp_server.toml`）、認証トークン（環境変数またはシークレットファイル）
-- HTTPエンドポイント: `POST /v1/call_tool`, `GET /v1/tools`, `GET /health`
 - Circuit Breaker: 5-state（HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY）
-- 対応するテスト: `tests/test_mcp_*.py`
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -423,8 +418,9 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/mcp_servers/server.py` — `MCPServer.run_http()`
 - `scripts/shared/http_transport.py` — `HttpTransport.call_tool()`
 - `scripts/shared/tool_transport_invoker.py` — `ToolTransportInvoker.invoke()`
-- `scripts/shared/mcp_server_health_registry.py` — `McpServerHealthRegistry.record_failure()`
-- `config/*_mcp_server.toml` — MCPサーバー設定ファイル
+- `scripts/shared/mcp_health.py` — `McpServerHealthRegistry.record_failure()`
+- `config/*_mcp_server.toml` — MCPサーバー設定ファイル、認証トークン（環境変数またはシークレットファイル）
+- HTTPエンドポイント — `POST /v1/call_tool`, `GET /v1/tools`, `GET /health`
 - テスト — `tests/test_mcp_*.py`
 
 ## Completion Checklist

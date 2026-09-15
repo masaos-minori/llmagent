@@ -340,11 +340,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- 実装ファイル: `scripts/rag/repository.py`, `scripts/agent/services/rag_maintenance_service.py`, `scripts/shared/config_loader.py`
-- 主要ClassまたはFunction: `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`, `check_rag_consistency()`, `delete_document_chain()`
-- データベーススキーマ: `documents`テーブル、`chunks`テーブル、`chunks_fts`仮想テーブル、`chunks_vec`仮想テーブル
-- トリガー: `chunks_ai`、`chunks_au`、`chunks_ad`
-- 対応するテスト: `tests/test_rag_index_integrity.py`（TEST-DESIGN3-01〜05）、`tests/test_fts_fallback.py`
+See Related Documents > Implementation References for the current file/symbol list.
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -428,7 +424,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Implementation References
 
-- `scripts/rag/repository.py` — `RagRepository.delete_existing_document()`, `RagRepository.delete_document(url)`
+- `scripts/rag/ingestion/document_manager.py` — `DocumentManager.delete_existing_document()`, `delete_document_chain()`
 - `scripts/agent/services/rag_maintenance_service.py` — `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`
 - `scripts/db/maintenance.py` — `check_rag_consistency()`
 - `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`

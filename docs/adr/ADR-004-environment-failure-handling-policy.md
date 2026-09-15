@@ -447,10 +447,6 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- 実装ファイル: `scripts/agent/startup.py`, `scripts/shared/mcp_config.py`, `scripts/shared/production_config_validator.py`, `scripts/agent/services/mcp_tool_discovery.py`, `scripts/shared/mcp_health.py`
-- 主要ClassまたはFunction: `StartupOrchestrator.run()`, `McpToolDiscoveryService.discover_all()`, `ProductionConfigValidator.validate()`, `McpServerHealthRegistry`
-- 設定ファイル、設定Key: `config/agent.toml`
-- 対応するテスト: `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_startup.py`
 - `StartupOrchestrator`が構築する`StartupValidationResult`（`scripts/agent/shared/health_models.py`）は、プロセス起動ごとに再構築されるメモリ上の集約オブジェクトであり、`workflow.sqlite`等へ永続化されない。
 - MCPサーバー到達不能時の現行の再試行は、固定遅延（`HEALTH_CHECK_RETRY_DELAY_SEC`）による単発の再試行であり、設定可能な試行回数を持つ汎用Retry Policyではない。
 
@@ -583,6 +579,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/agent/services/mcp_tool_discovery.py` — `McpToolDiscoveryService.discover_all()`
 - `scripts/shared/mcp_health.py` — `McpServerHealthRegistry`
 - `config/agent.toml` — 設定ファイル
+- テスト — `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_startup.py`
 
 ## Completion Checklist
 

@@ -245,6 +245,7 @@ Securityを優先し、意図せぬEventの受信を防ぐため不採用とし�
 - INV-13: DLQ昇格はインライン昇格を優先し、バックグラウンドループは補完のみ。
 - INV-14: ReplayからLiveへ切り替える際はConsumer側でevent_idによる冪等処理を要求する。
 - INV-15: 認証を実装しない場合、LoopbackまたはUnix SocketへのBind、Firewall制限、外部公開禁止を技術的に強制する。
+- INV-16: `ack_event_for_consumer()`のDelivery-State UPSERTとOffset進捗は単一トランザクション内でコミットし、いずれかが失敗した場合は両方をロールバックする。
 
 ## Exceptions
 
@@ -338,6 +339,11 @@ Securityを優先し、意図せぬEventの受信を防ぐため不採用とし�
   - **Type**: Regression
   - **Blocking**: Yes
 
+- **Test**: Delivery-State UPSERTとOffset進捗が単一トランザクション内で原子的にコミットされること（`tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_offset_write_failure_after_delivery_state`）
+  - **Verifies**: INV-16
+  - **Type**: Regression
+  - **Blocking**: Yes
+
 ### Startup Validation
 
 - 起動時にDB接続が確認される
@@ -367,15 +373,9 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- 実装ファイル: `scripts/eventbus/broker.py`, `scripts/eventbus/publish.py`, `scripts/eventbus/subscribe.py`, `scripts/eventbus/ack.py`, `scripts/eventbus/nack.py`, `scripts/eventbus/dlq.py`, `scripts/eventbus/offsets.py`, `scripts/eventbus/db.py`
-- 主要ClassまたはFunction: `EventBroker.publish()`, `EventSubscriber.subscribe()`, `ack_event_for_consumer()`, `nack_event()`, `promote_single()`, `write_offset()`, `read_offset()`, `insert_event()`, `get_consumer_offset()`
-- データベーススキーマ: `events`テーブル（`seq`, `event_id`, `topic`, `payload`, `acked_at`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`）、`consumer_delivery`テーブル（`consumer_id`, `event_id`, `acked_at`、PRIMARY KEY `(consumer_id, event_id)`）、`consumer_offsets`テーブル（`consumer_id` PRIMARY KEY、`offset INTEGER NOT NULL DEFAULT 0`）
-- オフセットファイル: `{offsets_dir}/{sanitized_consumer_id}`（レガシー、移行中）
-- DLQ昇格経路: インライン昇格（`POST /nack`時）とバックグラウンドループ（60秒ごと）
-- トランザクション保証: `ack_event_for_consumer()`はper-consumer delivery-state UPSERTとoffset進捗を単一SQLiteトランザクション内で実行。いずれかが失敗すると両方がロールバックされる
-- Monotonicity Enforcement: `consumer_offsets`テーブルの`INSERT ... ON CONFLICT(consumer_id) DO UPDATE SET offset = excluded.offset WHERE excluded.offset > consumer_offsets.offset`で強制。古いseq値ではオフセット後退しない
-- レガシー移行: 起動時に`migrate_legacy_offsets()`が`.map`コンパニオンから元の`consumer_id`を取得し、`consumer_offsets`テーブルにシード。`.map`なしの場合はサニタイズ済みファイル名を使用
-- 対応するテスト: `tests/test_eventbus_*.py`、`tests/db/test_create_schema.py`
+- トランザクション保証: INV-16参照（`ack_event_for_consumer()`内の単一トランザクション）
+- Monotonicity Enforcement: INV-05, INV-09参照（`consumer_offsets`テーブルへの`INSERT ... ON CONFLICT(consumer_id) DO UPDATE SET offset = excluded.offset WHERE excluded.offset > consumer_offsets.offset`で実装）
+- レガシー移行: `migrate_legacy_offsets()`の詳細はKnown Deviations EVENTBUS-007参照
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -403,7 +403,7 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Impact**: コードの複雑さ
 - **Resolution Target**: リファクタリング時に削除
 
-- **Known Issue（2026-09-10更新）**: EVENTBUS-007 — Per-consumer delivery-state and SQLite-backed offset store were added to eliminate the two-commit gap between ACK state and offset advancement. The `consumer_delivery` table tracks per-consumer delivery progress; the `consumer_offsets` table stores monotonic offsets. `ack_event_for_consumer()` performs both operations atomically. Legacy file-based offsets remain during migration but are no longer the primary path.
+- **Known Issue（2026-09-10更新）**: EVENTBUS-007 — Per-consumer delivery-state and SQLite-backed offset store were added to eliminate the two-commit gap between ACK state and offset advancement. The `consumer_delivery` table tracks per-consumer delivery progress; the `consumer_offsets` table stores monotonic offsets. `ack_event_for_consumer()` performs both operations atomically. Legacy file-based offsets remain during migration but are no longer the primary path. At startup, `migrate_legacy_offsets()` reads each legacy offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; when no `.map` companion exists, it falls back to the sanitized filename as the `consumer_id`.
 - **Type**: Resolved Gap
 - **Summary**: ACK状態とOffset追跡の二重コミットギャップ解消
 - **Impact**: 既存のファイルベースオフセットとの互換性
@@ -510,15 +510,18 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Implementation References
 
-- `scripts/eventbus/broker.py` — `EventBroker.publish()`, `EventBroker.notify_subscribers()`
-- `scripts/eventbus/publish.py` — `publish_event()`
-- `scripts/eventbus/subscribe.py` — `subscribe_events()`
-- `scripts/eventbus/ack.py` — `ack_event()`
-- `scripts/eventbus/nack.py` — `nack_event()`
+- `scripts/eventbus/broker.py` — `EventBroker.publish()`
+- `scripts/eventbus/publish_route.py` — `publish()`
+- `scripts/eventbus/subscribe_route.py` — `subscribe()`
+- `scripts/eventbus/db.py` — `ack_event()`, `ack_event_for_consumer()`, `nack_event()`, `insert_event()`, `get_consumer_offset()`, `migrate_legacy_offsets()`
 - `scripts/eventbus/dlq.py` — `promote_single()`
 - `scripts/eventbus/offsets.py` — `write_offset()`, `read_offset()`
 - `events`テーブル — `seq`, `event_id`, `topic`, `payload`, `acked_at`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`
-- テスト — `tests/test_eventbus_*.py`
+- `consumer_delivery`テーブル — `consumer_id`, `event_id`, `acked_at`、PRIMARY KEY `(consumer_id, event_id)`
+- `consumer_offsets`テーブル — `consumer_id` PRIMARY KEY、`offset INTEGER NOT NULL DEFAULT 0`
+- オフセットファイル — `{offsets_dir}/{sanitized_consumer_id}`（レガシー、移行中）
+- DLQ昇格経路 — インライン昇格（`POST /nack`時）とバックグラウンドループ（60秒ごと）
+- テスト — `tests/test_eventbus_*.py`, `tests/db/test_create_schema.py`
 
 ## Completion Checklist
 
