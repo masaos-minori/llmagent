@@ -35,6 +35,10 @@ EventBus API establishes a fail-closed security boundary by adding Bearer-token 
 
 No route in `scripts/eventbus/` authenticates or authorizes callers. Every route accepts unauthenticated requests, allowing any caller to act as any `consumer_id`, access any topic, administer the DLQ, and trigger replay without any permission check. Additionally, `load_config()` bypasses fail-closed validation for anything beyond the fixed removed-key list: an unknown key is silently ignored, and no key's type is checked before being handed to `EventBusConfig`.
 
+### Current State (Updated 2026-09-15)
+
+Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in `scripts/eventbus/app.py`. Each route requires role-based authentication via `Depends(require_role(...))`. Consumer-facing routes (/subscribe, /ack, /nack) additionally require `Depends(require_consumer_identity)` for consumer identity validation. The Problem section above describes the pre-auth state; see the Known Deviations section below for residual gaps.
+
 ### Constraints
 
 - The `.importlinter` `eventbus-is-isolated` contract forbids importing `shared`/`mcp_servers` from `eventbus` — confirmed via `PYTHONPATH=scripts uv run lint-imports`, contract `KEPT`.
@@ -271,7 +275,7 @@ See Related Documents > Implementation References for the current file/symbol li
 
 ## Known Deviations
 
-`docs/00_governance_03_issue-and-uncertainty-management.md`'s EVENTBUS-008 (No Production Authentication Model for Event Bus HTTP API, High severity, open) and CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, open) are both registered and marked `open`. Whether any further deviation remains open after Phase 2's implementation lands is tracked in row 4 of that document.
+`docs/00_governance_03_issue-and-uncertainty-management.md`'s EVENTBUS-008 (No Production Authentication Model for Event Bus HTTP API, High severity, resolved 2026-09-14) and CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, resolved 2026-08-25) are both resolved. Residual gaps from EVENTBUS-008 (token with no configured consumer_id allowlist entry has consumer-identity validation skipped — fail-open) are tracked separately in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`.
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 

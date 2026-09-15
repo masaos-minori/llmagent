@@ -68,6 +68,7 @@ Agent、各MCPサーバー、RAGインジェクションプロセス、EventBus�
 7. AgentはMCPサーバー内部設定を解釈しない。
 8. MCPサーバーは`agent.toml`を参照しない。
 9. 共通Config Loaderの利用は許可するが、プロセスごとに許可ファイルを限定し、許可外ファイルの読込をRuntime Errorとする。
+    *Note: EventBus is an exception — it loads config via tomllib directly (see CI-001).*
 10. 共通設定ファイルを新設しない。
 11. DBパス、URL、Timeoutなどの値が複数設定に重複することを、独立プロセスの明示的な依存先指定として許容する。
 12. 同名キーが複数ファイルにあっても、別の設定契約として扱う。
@@ -367,8 +368,8 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Observed Implementation**: EventBus config.py loads its own config via tomllib without calling restrict_to(), allowing it to access configs outside its declared scope
 - **Impact**: Config isolation invariant violated for EventBus; could read/write configs belonging to other processes
 - **Recommended Action**: EventBus cannot import ConfigLoader (.importlinter eventbus-is-isolated contract). Resolved via a local invariant instead: load_config()'s docstring states callers must pass get_config_path()'s return value, and a regression test in tests/eventbus/test_eventbus_config.py locks both call sites in app.py to that invariant. Agent-side, ConfigLoader.restrict_to("agent.toml") was added to AgentContext.__init__ (scripts/agent/context.py).
-- **Owner**: TBD
-- **Status**: Resolved (2026-08-25)
+- **Owner**: Team
+- **Status**: resolved
 - **Resolution Target**: Before ADR-002 moves from Proposed to Accepted status
 
 ## Review Triggers

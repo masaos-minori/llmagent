@@ -274,12 +274,12 @@ EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was r
 
 - **ID**: CI-001
 - **Title**: EventBus process reads configuration directly instead of using ConfigLoader
-- **Status**: open
+- **Status**: resolved
 - **Severity**: High
 - **Area**: EventBus
 - **Type**: document-code-mismatch
 - **Source**: `scripts/eventbus/config.py`; `scripts/shared/config_loader.py`
-- **Owner**: Unassigned
+- **Owner**: Team
 - **First Found**: 2026-08-22
 - **Target**: `02_config_isolation_02_01_config-loader-design.md`
 - **Related**: ADR-002
@@ -287,7 +287,7 @@ EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was r
 - **Current Description**: EventBus's `config.py` loads TOML files directly using `tomllib.load()` or similar, bypassing ConfigLoader entirely.
 - **Observed Implementation**: `scripts/eventbus/config.py` opens TOML files and parses them independently; `scripts/shared/config_loader.py` is never imported or used by the EventBus module.
 - **Impact**: EventBus operates with a configuration loading path that differs from other processes, potentially leading to inconsistent config handling across the system.
-- **Recommended Action**: Refactor EventBus configuration loading to use ConfigLoader, ensuring consistent config access across all processes.
+- **Recommended Action**: Resolved via local invariant: load_config()'s docstring states callers must pass get_config_path()'s return value, and a regression test in tests/eventbus/test_eventbus_config.py locks both call sites in app.py to that invariant. See ADR-002 CI-001 Known Deviation for details.
 
 #### CI-003
 
