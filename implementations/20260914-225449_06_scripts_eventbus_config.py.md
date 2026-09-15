@@ -260,7 +260,7 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify EventBus's fail-closed behavior for missing config | Pending | — | — | |
+| 1 | Verify EventBus's fail-closed behavior for missing config | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
