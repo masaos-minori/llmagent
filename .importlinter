@@ -55,7 +55,7 @@ forbidden_modules =
     agent
 
 [importlinter:contract:eventbus-is-isolated]
-name = eventbus must not import from agent, mcp_servers, rag, db, or shared
+name = eventbus must not import from agent, mcp_servers, rag, db
 type = forbidden
 source_modules =
     eventbus
@@ -64,4 +64,3 @@ forbidden_modules =
     mcp_servers
     rag
     db
-    shared

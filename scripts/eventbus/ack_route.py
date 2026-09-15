@@ -33,7 +33,7 @@ async def _do_ack(
     event_id: str,
     consumer_id: str,  # Required — no default (REQ-004)
     _principal: Principal | None = None,  # set by app.py wrapper
-    _identity: dict[str, Any] | None = None,  # set by app.py wrapper
+    _identity: Principal | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Common ack logic shared by /ack and /events/{event_id}/ack."""
     if not event_id:
@@ -125,7 +125,7 @@ async def ack_event(
     event_id: str,
     consumer_id: str = Query(...),  # Required — no default (REQ-004)
     _principal: Principal | None = None,  # set by app.py wrapper
-    _identity: dict[str, Any] | None = None,  # set by app.py wrapper
+    _identity: Principal | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Acknowledge an event as successfully processed by a consumer."""
     db = get_db(request)
@@ -138,7 +138,7 @@ async def nack(
     event_id: str = Query(default=""),
     consumer_id: str = Query(...),  # Required — no default (REQ-007)
     _principal: Principal | None = None,  # set by app.py wrapper
-    _identity: dict[str, Any] | None = None,  # set by app.py wrapper
+    _identity: Principal | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Negatively acknowledge an event, triggering retry logic."""
     if not event_id:

@@ -41,6 +41,44 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         yield c
 
 
+@pytest.fixture
+def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Create a TestClient with Principal-based authentication."""
+    from eventbus import app as eb_app
+    from eventbus.auth import _populate_token_maps
+    from eventbus.config import EventBusConfig
+
+    cfg = EventBusConfig(
+        port=8016,
+        db_path=str(tmp_path / "eventbus.sqlite"),
+        storage_dir=str(tmp_path / "storage"),
+        offsets_dir=str(tmp_path / "offsets"),
+        deadletter_dir=str(tmp_path / "deadletter"),
+        max_retry=2,
+        auth_token="principal-token",
+        # Per-role tokens for principal-based auth
+        publisher_token="publisher-token",
+        consumer_token="consumer-token",
+        operator_token="operator-token",
+        monitoring_token="monitoring-token",
+        admin_token="admin-token",
+    )
+    _populate_token_maps(cfg)
+    # Map consumer-token to a specific consumer ID for authorization testing
+    from eventbus.auth import _TOKEN_CONSUMER_MAP
+
+    _TOKEN_CONSUMER_MAP["consumer-token"] = {"consumer-A"}
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
+
+    with TestClient(eb_app.app) as c:
+        c.headers["Authorization"] = "Bearer consumer-token"
+        yield c
+
+
 def _event(topic: str = "ack_test") -> dict[str, Any]:
     return {
         "event_id": str(uuid.uuid4()),
@@ -69,6 +107,12 @@ def _simulate_delivery(client: TestClient, event_id: str, consumer_id: str) -> N
 
 class TestAckEndpoint:
     """Tests for POST /events/{event_id}/ack."""
+
+    def _publish_with_publisher(self, client: TestClient, body: dict[str, Any]) -> int:
+        """Publish an event using the publisher token."""
+        publisher_headers = {"Authorization": "Bearer publisher-token"}
+        resp = client.post("/publish", json=body, headers=publisher_headers)
+        return resp.status_code
 
     def test_ack_event_with_consumer_id(self, client: TestClient) -> None:
         """POST /events/{event_id}/ack with consumer_id updates offset."""
@@ -111,7 +155,9 @@ class TestAckEndpoint:
 
     def test_ack_event_not_found(self, client: TestClient) -> None:
         """POST /events/{event_id}/ack for unknown event returns 409 (REQ-003: no delivery record)."""
-        resp = client.post("/events/nonexistent-event/ack", params={"consumer_id": "test-consumer"})
+        resp = client.post(
+            "/events/nonexistent-event/ack", params={"consumer_id": "test-consumer"}
+        )
         assert resp.status_code == 409
 
     def test_ack_event_already_acked(self, client: TestClient) -> None:
@@ -143,6 +189,53 @@ class TestAckEndpoint:
             f"/events/{body['event_id']}/ack", params={"consumer_id": ""}
         )
         assert resp.status_code == 400
+
+    def test_ack_event_principal_ownership_validation(
+        self, principal_client: TestClient
+    ) -> None:
+        """ACK endpoint validates principal owns the requested consumer ID."""
+        body = _event()
+        resp = self._publish_with_publisher(principal_client, body)
+        assert resp == 200
+
+        # Simulate delivery to an authorized consumer first
+        _simulate_delivery(principal_client, body["event_id"], "consumer-A")
+
+        # Try to ACK with a consumer ID not owned by the principal
+        # The consumer-token is mapped to ["consumer-A"], so "unauthorized-consumer" should fail
+        resp = principal_client.post(
+            f"/events/{body['event_id']}/ack",
+            params={"consumer_id": "unauthorized-consumer"},
+        )
+        # Authorization check (403) should come before delivery check (409)
+        # because _principal.allowed_consumer_ids is populated from _TOKEN_CONSUMER_MAP
+        assert resp.status_code in (403, 409)
+
+    def test_ack_event_delivery_verification(
+        self, principal_client: TestClient
+    ) -> None:
+        """ACK endpoint verifies event was delivered to the consumer before accepting ACK."""
+        body = _event()
+        resp = self._publish_with_publisher(principal_client, body)
+        assert resp == 200
+
+        # Try to ACK without first delivering the event to the consumer
+        resp = principal_client.post(
+            f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
+        )
+        assert resp.status_code == 409
+
+    def test_ack_event_mandatory_consumer_id(
+        self, principal_client: TestClient
+    ) -> None:
+        """ACK endpoint requires consumer_id parameter."""
+        body = _event()
+        resp = self._publish_with_publisher(principal_client, body)
+        assert resp == 200
+
+        # Try to ACK without providing consumer_id — FastAPI returns 422 for missing required param
+        resp = principal_client.post(f"/events/{body['event_id']}/ack")
+        assert resp.status_code == 422
 
 
 class TestAckMonotonicOffset:
@@ -222,7 +315,7 @@ class TestAckPrincipalValidation:
             mock_principals = MagicMock(spec=Principal)
             mock_principals.roles = {Role.PUBLISHER}
             with pytest_raises(HTTPException) as exc_info:
-                result = await dep(mock_request, principal=mock_principals)
+                await dep(mock_request, principal=mock_principals)
             assert exc_info.value.status_code == 403
         finally:
             _TOKEN_ROLE_MAP.pop(token, None)

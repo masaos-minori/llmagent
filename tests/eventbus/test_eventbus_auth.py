@@ -98,7 +98,7 @@ def _make_test_app(
         since_seq: int = Query(default=0, ge=0),
         consumer_id: str = Query(default=""),
         _principal: Principal = Depends(require_role(Role.CONSUMER)),
-        _identity: dict[str, Any] = Depends(require_consumer_identity),
+        _identity: Principal = Depends(require_consumer_identity),
     ) -> Any:
         return await eb_app.subscribe_route(
             request,
@@ -156,7 +156,7 @@ def _make_test_app(
         event_id: str,
         consumer_id: str = Query(default=""),
         _principal: Principal = Depends(require_role(Role.CONSUMER)),
-        _identity: dict[str, Any] = Depends(require_consumer_identity),
+        _identity: Principal = Depends(require_consumer_identity),
     ) -> dict[str, Any]:
         result: dict[str, Any] = await eb_app.ack_event_route(
             request,
@@ -172,7 +172,7 @@ def _make_test_app(
         request: Request,
         event_id: str = Query(default=""),
         _principal: Principal = Depends(require_role(Role.CONSUMER)),
-        _identity: dict[str, Any] = Depends(require_consumer_identity),
+        _identity: Principal = Depends(require_consumer_identity),
     ) -> dict[str, Any]:
         result: dict[str, Any] = await eb_app.nack_route(
             request, event_id=event_id, _principal=_principal, _identity=_identity
@@ -638,7 +638,7 @@ class TestRequireConsumerIdentityTopicSemantics:
             result = await require_consumer_identity(
                 MagicMock(), consumer_id="", topics=["any-topic"], principal=principal
             )
-            assert result["topics"] is None
+            assert result.allowed_topics is None
         finally:
             pass
 
@@ -661,7 +661,7 @@ class TestRequireConsumerIdentityTopicSemantics:
                 topics=["allowed-topic"],
                 principal=principal_with_topics,
             )
-            assert result["topics"] == frozenset({"allowed-topic"})
+            assert result.allowed_topics == frozenset({"allowed-topic"})
 
             with pytest.raises(HTTPException) as exc_info:
                 await require_consumer_identity(

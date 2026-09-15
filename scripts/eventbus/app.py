@@ -188,7 +188,7 @@ async def subscribe(
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
     _principal: Principal = Depends(require_role(Role.CONSUMER)),
-    _identity: dict[str, Any] = Depends(require_consumer_identity),
+    _identity: Principal = Depends(require_consumer_identity),
 ) -> Any:
     """Subscribe to events matching the specified topics via SSE."""
     return await subscribe_route(
@@ -230,13 +230,14 @@ async def ack_event(
     event_id: str,
     consumer_id: str = Query(...),  # Required — no default (REQ-004)
     _principal: Principal = Depends(require_role(Role.CONSUMER)),
-    _identity: dict[str, Any] = Depends(require_consumer_identity),
+    _identity: Principal = Depends(require_consumer_identity),
 ) -> dict[str, Any]:
     """Acknowledge an event as successfully processed by a consumer."""
     result: dict[str, Any] = await ack_event_route(
         request,
         event_id=event_id,
         consumer_id=consumer_id,
+        _principal=_principal,
     )
     return result
 
@@ -247,7 +248,7 @@ async def nack(
     event_id: str = Query(default=""),
     consumer_id: str = Query(...),  # Required — no default (REQ-007)
     _principal: Principal = Depends(require_role(Role.CONSUMER)),
-    _identity: dict[str, Any] = Depends(require_consumer_identity),
+    _identity: Principal = Depends(require_consumer_identity),
 ) -> dict[str, Any]:
     """Negatively acknowledge an event, triggering retry logic."""
     result: dict[str, Any] = await nack_route(request, event_id=event_id)

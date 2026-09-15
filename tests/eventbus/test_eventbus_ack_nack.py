@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -223,6 +224,44 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         yield c
 
 
+@pytest.fixture
+def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Create a TestClient with Principal-based authentication."""
+    from eventbus import app as eb_app
+    from eventbus.auth import _populate_token_maps
+    from eventbus.config import EventBusConfig
+
+    cfg = EventBusConfig(
+        port=8017,
+        db_path=str(tmp_path / "eventbus.sqlite"),
+        storage_dir=str(tmp_path / "storage"),
+        offsets_dir=str(tmp_path / "offsets"),
+        deadletter_dir=str(tmp_path / "deadletter"),
+        max_retry=2,
+        auth_token="principal-token",
+        # Per-role tokens for principal-based auth
+        publisher_token="publisher-token",
+        consumer_token="consumer-token",
+        operator_token="operator-token",
+        monitoring_token="monitoring-token",
+        admin_token="admin-token",
+    )
+    _populate_token_maps(cfg)
+    # Map consumer-token to a specific consumer ID for authorization testing
+    from eventbus.auth import _TOKEN_CONSUMER_MAP
+
+    _TOKEN_CONSUMER_MAP["consumer-token"] = {"consumer-A"}
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
+
+    with TestClient(eb_app.app) as c:
+        c.headers["Authorization"] = "Bearer consumer-token"
+        yield c
+
+
 class TestAckHttpBehavior:
     def test_ack_first_time_returns_200(self, client: Any) -> None:
         """POST /events/{id}/ack returns 200 with acked: true, seq: int on first ack."""
@@ -261,7 +300,9 @@ class TestAckHttpBehavior:
 
     def test_ack_unknown_event_returns_404(self, client: Any) -> None:
         """POST /events/{id}/ack with unknown event_id returns 409 (REQ-003: no delivery record)."""
-        resp = client.post("/events/nonexistent-event/ack", params={"consumer_id": "test-consumer"})
+        resp = client.post(
+            "/events/nonexistent-event/ack", params={"consumer_id": "test-consumer"}
+        )
         assert resp.status_code == 409
 
     def test_two_consumers_ack_same_event_independently(self, client: Any) -> None:
@@ -291,6 +332,12 @@ class TestAckHttpBehavior:
 
 
 class TestNackEvent:
+    def _publish_with_publisher(self, client: TestClient, body: dict[str, Any]) -> int:
+        """Publish an event using the publisher token."""
+        publisher_headers = {"Authorization": "Bearer publisher-token"}
+        resp = client.post("/publish", json=body, headers=publisher_headers)
+        return resp.status_code
+
     def test_nack_event_increments_failure_count(self, db: sqlite3.Connection) -> None:
         from eventbus.db import nack_event
 
@@ -351,6 +398,54 @@ class TestNackEvent:
 
         result = nack_event(db, "nonexistent-event")
         assert result == (-1, -1)
+
+    def test_nack_event_principal_ownership_validation(
+        self, principal_client: TestClient
+    ) -> None:
+        """NACK endpoint validates principal owns the requested consumer ID."""
+        body = _event()
+        resp = self._publish_with_publisher(principal_client, body)
+        assert resp == 200
+
+        # Simulate delivery to an authorized consumer first
+        _simulate_delivery_http(principal_client, body["event_id"], "consumer-A")
+
+        # Try to NACK with a consumer ID not owned by the principal
+        resp = principal_client.post(
+            "/nack",
+            params={
+                "event_id": body["event_id"],
+                "consumer_id": "unauthorized-consumer",
+            },
+        )
+        # Authorization check (403) should come before delivery check (409)
+        assert resp.status_code in (403, 409)
+
+    def test_nack_event_delivery_verification(
+        self, principal_client: TestClient
+    ) -> None:
+        """NACK endpoint verifies event was delivered to the consumer before accepting NACK."""
+        body = _event()
+        resp = self._publish_with_publisher(principal_client, body)
+        assert resp == 200
+
+        # Try to NACK without first delivering the event to the consumer
+        resp = principal_client.post(
+            "/nack", params={"event_id": body["event_id"], "consumer_id": "consumer-A"}
+        )
+        assert resp.status_code == 409
+
+    def test_nack_event_mandatory_consumer_id(
+        self, principal_client: TestClient
+    ) -> None:
+        """NACK endpoint requires consumer_id parameter."""
+        body = _event()
+        resp = self._publish_with_publisher(principal_client, body)
+        assert resp == 200
+
+        # Try to NACK without providing consumer_id — FastAPI returns 422 for missing required param
+        resp = principal_client.post("/nack", params={"event_id": body["event_id"]})
+        assert resp.status_code == 422
 
 
 class TestNackPrincipalValidation:

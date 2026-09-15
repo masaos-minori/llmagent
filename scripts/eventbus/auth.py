@@ -205,13 +205,10 @@ async def require_consumer_identity(
     consumer_id: str = "",
     topics: list[str] | None = None,
     principal: Principal = Depends(resolve_principal),
-) -> dict[str, Any]:
+) -> Principal:
     """FastAPI dependency: verify caller is authorized to use the given consumer_id and topics.
 
-    Returns a dict with a 'topics' key: either `None`, meaning the caller's principal
-    has no configured topic restriction (any topic is allowed), or a non-empty
-    `frozenset[str]` of the specific topics the caller's principal is restricted to —
-    matching the contract expected by subscribe_route.py's subscribe() function.
+    Returns a Principal object with authorization context for the caller.
     """
     if (
         consumer_id
@@ -240,7 +237,7 @@ async def require_consumer_identity(
                         detail=f"Forbidden: topic '{topic}' not allowed",
                     )
 
-    return {"topics": principal.allowed_topics}
+    return principal
 
 
 def attach_auth_middleware(app: Any) -> None:

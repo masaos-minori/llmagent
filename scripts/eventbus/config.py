@@ -3,9 +3,21 @@
 from __future__ import annotations
 
 import os
-import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
+
+from shared.config_loader import ConfigLoader
+
+_DEFAULT_CONFIG_PATH = Path("/opt/llm/config/eventbus.toml")
+_DEFAULT_SCHEMA_PATH = Path("/opt/llm/schemas/event_envelope.json")
+
+
+def _load_config_from_path(path: Path) -> dict[str, Any]:
+    """Load config from an arbitrary path using ConfigLoader's internal logic."""
+    loader = ConfigLoader(config_dir=path.parent)
+    return loader.load(path.name)
+
 
 _DEFAULT_CONFIG_PATH = Path("/opt/llm/config/eventbus.toml")
 _DEFAULT_SCHEMA_PATH = Path("/opt/llm/schemas/event_envelope.json")
@@ -88,6 +100,11 @@ class EventBusConfig:
     operator_token: str = ""
     monitoring_token: str = ""
     admin_token: str = ""
+    # Per-consumer/topic authorization (optional, for fine-grained access control)
+    consumer_authorization: dict[str, list[str]] | None = (
+        None  # consumer_id -> [topics]
+    )
+    topic_authorization: dict[str, set[str]] | None = None  # topic -> [consumer_ids]
     sse_heartbeat_interval: float = 30.0
     sse_idle_timeout: float = (
         60.0  # Default matches current implicit DEFAULT_SSE_IDLE_TIMEOUT
@@ -145,6 +162,40 @@ class EventBusConfig:
                 f"sse_heartbeat_interval ({self.sse_heartbeat_interval})"
             )
 
+        # Validate consumer_authorization if provided
+        if self.consumer_authorization is not None:
+            for consumer_id, topics in self.consumer_authorization.items():
+                if not isinstance(consumer_id, str):
+                    raise ValueError(
+                        f"consumer_authorization key must be string, got {type(consumer_id).__name__}"
+                    )
+                if not isinstance(topics, list):
+                    raise ValueError(
+                        f"consumer_authorization value must be list, got {type(topics).__name__}"
+                    )
+                for topic in topics:
+                    if not isinstance(topic, str):
+                        raise ValueError(
+                            f"consumer_authorization topic must be string, got {type(topic).__name__}"
+                        )
+
+        # Validate topic_authorization if provided
+        if self.topic_authorization is not None:
+            for topic, consumers in self.topic_authorization.items():
+                if not isinstance(topic, str):
+                    raise ValueError(
+                        f"topic_authorization key must be string, got {type(topic).__name__}"
+                    )
+                if not isinstance(consumers, (list, set)):
+                    raise ValueError(
+                        f"topic_authorization value must be list/set, got {type(consumers).__name__}"
+                    )
+                for consumer_id in consumers:
+                    if not isinstance(consumer_id, str):
+                        raise ValueError(
+                            f"topic_authorization consumer_id must be string, got {type(consumer_id).__name__}"
+                        )
+
 
 _KNOWN_CONFIG_KEYS = frozenset(
     (
@@ -170,6 +221,8 @@ _KNOWN_CONFIG_KEYS = frozenset(
         "subscriber_count",
         "retained_event_count",
         "publish_rate",
+        "consumer_authorization",
+        "topic_authorization",
     )
 )
 
@@ -217,8 +270,7 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
 def load_config(path: Path | None = None) -> EventBusConfig:
     """Load and validate the EventBus TOML configuration file. Callers must always pass get_config_path()'s return value — this function does not itself restrict which path is read; see tests/eventbus/test_eventbus_config.py for the call-site regression test that locks this invariant."""
     p = path or _DEFAULT_CONFIG_PATH
-    with p.open("rb") as f:
-        data = tomllib.load(f)
+    data = _load_config_from_path(p)
 
     # Reject unknown keys
     unknown_keys = set(data.keys()) - _KNOWN_CONFIG_KEYS

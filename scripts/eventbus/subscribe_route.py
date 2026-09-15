@@ -34,7 +34,7 @@ async def subscribe(
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
     _principal: Principal | None = None,  # set by app.py wrapper
-    _identity: dict[str, Any] | None = None,  # set by app.py wrapper
+    _identity: Principal | None = None,  # set by app.py wrapper
 ) -> Any:
     """Subscribe to events via SSE with optional topic filtering and offset recovery."""
     from eventbus.db import get_consumer_offset  # noqa: PLC0415, RUF100
@@ -75,7 +75,7 @@ async def subscribe(
                 status_code=403,
                 detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
             )
-    
+
     # REQ-012: Fail closed when identity resolution is missing
     if _principal and _principal.allowed_consumer_ids and not consumer_id:
         raise HTTPException(status_code=400, detail="Missing consumer_id")
