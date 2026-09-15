@@ -151,9 +151,9 @@ admin_token = ""
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add documentation for auth_token compatibility | Pending | — | — | |
-| 2 | Document per-role token fields | Pending | — | — | |
-| 3 | Provide migration guidance | Pending | — | — | |
+| 1 | Add documentation for auth_token compatibility | Completed | 20260915-102707 | 20260915-102707 |  |
+| 2 | Document per-role token fields | Completed | 20260915-102707 | 20260915-102707 |  |
+| 3 | Provide migration guidance | Completed | 20260915-102707 | 20260915-102707 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
