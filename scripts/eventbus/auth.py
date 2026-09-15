@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
@@ -23,6 +25,16 @@ class Role(StrEnum):
     CONSUMER = "consumer"
     OPERATOR = "operator"
     MONITORING = "monitoring"
+
+
+@dataclass(frozen=True)
+class Principal:
+    """Authenticated identity carrying roles, consumer IDs, topics, and token fingerprint."""
+
+    roles: frozenset[Role]
+    allowed_consumer_ids: frozenset[str]  # empty = unrestricted
+    allowed_topics: frozenset[str] | None  # None = unrestricted
+    token_fingerprint: str  # non-secret identifier for audit logging
 
 
 # Route-to-role mapping: which roles may access which route category
@@ -100,11 +112,19 @@ def get_auth_token(config: Any) -> str:
     return token
 
 
-async def verify_bearer_token(
+def _derive_token_fingerprint(token: str) -> str:
+    """Derive a non-secret fingerprint from a raw token value.
+
+    Uses SHA-256 hash prefix to avoid exposing raw token values in logs.
+    """
+    return hashlib.sha256(token.encode()).hexdigest()[:16]
+
+
+async def resolve_principal(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(HTTPBearerDep),
-) -> str:
-    """Verify Bearer token and return the token value, or raise 401."""
+) -> Principal:
+    """Resolve a bearer token to a Principal, or raise 401."""
     if credentials is None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -120,54 +140,41 @@ async def verify_bearer_token(
 
     if token not in _TOKEN_ROLE_MAP:
         logger.warning("Authentication failed: invalid Bearer token")
-        return ""
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
-    return token
+    roles = frozenset(_TOKEN_ROLE_MAP[token])
+    allowed_consumer_ids = frozenset(_TOKEN_CONSUMER_MAP.get(token, set()))
+    allowed_topics_raw = _TOKEN_TOPIC_MAP.get(token, set())
+    allowed_topics: frozenset[str] | None = (
+        frozenset(allowed_topics_raw) if allowed_topics_raw else None
+    )
+    token_fp = _derive_token_fingerprint(token)
+
+    return Principal(
+        roles=roles,
+        allowed_consumer_ids=allowed_consumer_ids,
+        allowed_topics=allowed_topics,
+        token_fingerprint=token_fp,
+    )
 
 
 def require_role(role: Role):
-    """FastAPI dependency factory: verify caller has the required role.
-
-    Determines the caller's role from their Bearer token using configuration,
-    then checks if that role is allowed for the requested endpoint.
-    """
+    """FastAPI dependency factory: verify caller's principal has the required role."""
 
     async def _check_role(
         request: Request,
-        token: str = Depends(verify_bearer_token),
-    ) -> Role:
-        if not token:
-            # Authentication already failed in verify_bearer_token
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-        # Determine the caller's actual role(s) from which token they presented
-        caller_roles = _TOKEN_ROLE_MAP.get(token, set())
-        if role not in caller_roles:
+        principal: Principal = Depends(resolve_principal),
+    ) -> Principal:
+        if role not in principal.roles:
             logger.warning(
-                "Authorization failed: caller's token does not grant role=%s",
+                "Authorization failed: requires %s, caller has %s",
                 role,
+                principal.roles,
             )
             raise HTTPException(
                 status_code=403, detail=f"Forbidden: requires {role} role"
             )
-
-        # Determine which route category is being accessed
-        path = request.url.path
-        for route_path, allowed_roles in _ROUTE_ROLE_MAP.items():
-            if path.startswith(route_path):
-                if role not in allowed_roles:
-                    logger.warning(
-                        "Authorization failed: %s requires role=%s, caller has none",
-                        path,
-                        role,
-                    )
-                    raise HTTPException(
-                        status_code=403, detail=f"Forbidden: requires {role} role"
-                    )
-                return role
-
-        # If no route matched, deny access
-        raise HTTPException(status_code=403, detail="Forbidden: unknown route")
+        return principal
 
     return _check_role
 
@@ -176,24 +183,20 @@ async def require_consumer_identity(
     request: Request,
     consumer_id: str = "",
     topics: list[str] | None = None,
-    token: str = Depends(verify_bearer_token),
+    principal: Principal = Depends(resolve_principal),
 ) -> dict[str, Any]:
     """FastAPI dependency: verify caller is authorized to use the given consumer_id and topics.
 
-    Returns a dict with a 'topics' key: either `None`, meaning the caller's token
+    Returns a dict with a 'topics' key: either `None`, meaning the caller's principal
     has no configured topic restriction (any topic is allowed), or a non-empty
-    `set[str]` of the specific topics the caller's token is restricted to —
+    `frozenset[str]` of the specific topics the caller's principal is restricted to —
     matching the contract expected by subscribe_route.py's subscribe() function.
     """
-    if not token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-    # Validate consumer_id is in the allowlist for this caller. An empty allowlist
-    # (no entry, or an explicit empty set) means "no consumer_id restriction" for
-    # this token, per _populate_token_maps()'s own "Empty means any consumer_id"
-    # convention (e.g. the shared auth_token is deliberately given an empty set).
-    allowed_consumers = _TOKEN_CONSUMER_MAP.get(token, set())
-    if consumer_id and allowed_consumers and consumer_id not in allowed_consumers:
+    if (
+        consumer_id
+        and principal.allowed_consumer_ids
+        and consumer_id not in principal.allowed_consumer_ids
+    ):
         logger.warning(
             "Authorization failed: consumer_id=%s not allowed for this caller",
             consumer_id,
@@ -203,18 +206,10 @@ async def require_consumer_identity(
             detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
         )
 
-    # Validate topic access. An empty _TOKEN_TOPIC_MAP entry (no entry, or an
-    # explicit empty set) means "no topic restriction" for this token, per
-    # _populate_token_maps()'s own "Empty means any topic" convention — mirrors
-    # the consumer_id-allowlist convention above.
-    allowed_topics_from_map = _TOKEN_TOPIC_MAP.get(token, set())
-    allowed_topics: set[str] | None
-    if not allowed_topics_from_map:
-        allowed_topics = None
-    else:
+    if principal.allowed_topics is not None:
         if topics:
             for topic in topics:
-                if topic not in allowed_topics_from_map:
+                if topic not in principal.allowed_topics:
                     logger.warning(
                         "Authorization failed: topic=%s not allowed for this caller",
                         topic,
@@ -223,62 +218,23 @@ async def require_consumer_identity(
                         status_code=403,
                         detail=f"Forbidden: topic '{topic}' not allowed",
                     )
-        allowed_topics = allowed_topics_from_map
 
-    # Return a dict-like object with 'topics' key
-    return {"topics": allowed_topics}
+    return {"topics": principal.allowed_topics}
 
 
 def attach_auth_middleware(app: Any) -> None:
-    """Register Bearer-token auth middleware on a FastAPI app.
+    """Register X-Request-Id middleware on a FastAPI app.
 
-    Must be called exactly once, immediately after the FastAPI app object is
-    constructed — Starlette freezes the middleware stack the moment the app
-    receives its first ASGI call (including the "lifespan" scope), so calling
-    this from inside a `lifespan` handler raises "Cannot add middleware after
-    an application has started".
-
-    The expected auth_token is read from `request.app.state.config.auth_token`
-    on each request rather than captured at attach time, since app.state.config
-    is only populated once `lifespan` runs `load_config()` — which happens
-    after this function has already registered the middleware, and which
-    tests re-run per-test (via a monkeypatched `load_config`) against the same
-    module-level `app` object.
-
-    When the configured token is non-empty, requests without a matching
-    Authorization header receive a 401 response. When it is empty, auth is
-    skipped and the middleware only injects the X-Request-Id response
-    header. An empty token is not a supported production configuration:
-    EventBusConfig rejects an empty auth_token before this middleware would
-    ever see one for a real deployment. The accept-all fallback exists for
-    this function's own standalone testability, not as a supported
-    deployment mode.
+    Authentication is delegated to endpoint dependencies via resolve_principal().
+    This middleware only injects X-Request-Id into responses.
     """
-    from fastapi import Request  # noqa: F401 — used in closure type annotations below
-    from fastapi.responses import JSONResponse
 
-    def _is_authorized(request: Request) -> bool:
-        """Return True when no token is required or the Bearer header matches."""
-        tok = getattr(request.app.state.config, "auth_token", "") or ""
-        if not tok:
-            return True
-        header = request.headers.get("Authorization", "")
-        if header == f"Bearer {tok}":
-            return True
-        # A per-role token (or admin_token) also authenticates at this layer;
-        # which role(s) it grants is enforced later by require_role().
-        if header.startswith("Bearer "):
-            return header.removeprefix("Bearer ") in _TOKEN_ROLE_MAP
-        return False
-
-    async def _auth_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol
-        """Authenticate requests by validating Bearer token header."""
+    async def _request_id_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol
+        """Inject X-Request-Id into response headers."""
         req_id = str(__import__("uuid").uuid4())
         request.state.request_id = req_id
-        if not _is_authorized(request):
-            return JSONResponse({"error": "Unauthorized"}, status_code=401)
         response = await call_next(request)
         response.headers["X-Request-Id"] = req_id
         return response
 
-    app.add_middleware(BaseHTTPMiddleware, dispatch=_auth_middleware)
+    app.add_middleware(BaseHTTPMiddleware, dispatch=_request_id_middleware)

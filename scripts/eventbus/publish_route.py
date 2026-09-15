@@ -9,6 +9,7 @@ from typing import Any
 import jsonschema
 from fastapi import HTTPException, Request
 
+from eventbus.auth import Principal
 from eventbus.db import insert_event
 from eventbus.json_utils import dumps as json_dumps
 from eventbus.route_helpers import (
@@ -22,7 +23,9 @@ from eventbus.route_helpers import (
 logger = logging.getLogger(__name__)
 
 
-async def publish(request: Request, _role: Any = None) -> dict[str, Any]:
+async def publish(
+    request: Request, _principal: Principal | None = None
+) -> dict[str, Any]:
     """Publish an event after validating its envelope against the configured schema."""
     body: dict[str, Any] = await request.json()
     try:

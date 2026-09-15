@@ -7,8 +7,23 @@ offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 
-# REQ-004: Per-role tokens for authorization
-# If not set, the system falls back to the shared token mechanism
+# Shared token (optional, for backward compatibility).
+# When set, this token grants ALL roles (publisher, consumer, operator, monitoring).
+# It is equivalent to setting all per-role tokens to the same value.
+# If not set, the system requires per-role tokens below.
+auth_token = ""
+
+# Per-role tokens (optional, for role-based access control).
+# Each token grants only its own role:
+#   - publisher_token → PUBLISHER role (can publish events)
+#   - consumer_token → CONSUMER role (can subscribe, ack, nack)
+#   - operator_token → OPERATOR role (can manage DLQ, replay)
+#   - monitoring_token → MONITORING role (can access /health)
+#   - admin_token → ALL roles (superuser credential)
+# At least one per-role token must be configured when using role-based access control.
+# If auth_token is set, per-role tokens can be left empty for backward compatibility.
+publisher_token = ""
 consumer_token = ""
 operator_token = ""
+monitoring_token = ""
 admin_token = ""

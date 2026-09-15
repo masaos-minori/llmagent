@@ -8,7 +8,7 @@ from typing import Any, Literal
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
 
-from eventbus.auth import Role  # noqa: PLC0415 — new module, REQ-004
+from eventbus.auth import Principal  # noqa: PLC0415 — new module, REQ-004
 from eventbus.db import fetch_events_since
 from eventbus.json_utils import dumps as json_dumps
 from eventbus.route_helpers import _row_to_dict, get_db, run_with_db_lock
@@ -30,7 +30,7 @@ async def replay(
     fmt: Literal["sse", "json"] = Query(default="sse", alias="format"),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
-    _role: Role | None = None,  # set by app.py wrapper
+    _principal: Principal | None = None,  # set by app.py wrapper
 ) -> Any:
     """Replay events from a given sequence number via SSE or JSON response."""
     db = get_db(request)

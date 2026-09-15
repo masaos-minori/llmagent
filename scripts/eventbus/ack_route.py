@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import HTTPException, Query, Request
 
 from eventbus.auth import (
-    Role,
+    Principal,
 )
 from eventbus.db import nack_event as _nack_event
 from eventbus.json_utils import now_iso
@@ -31,7 +31,7 @@ async def _do_ack(
     cfg: Any,
     event_id: str,
     consumer_id: str = "",
-    _role: Role | None = None,  # set by app.py wrapper
+    _principal: Principal | None = None,  # set by app.py wrapper
     _identity: dict[str, Any] | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Common ack logic shared by /ack and /events/{event_id}/ack."""
@@ -79,7 +79,7 @@ async def ack_event(
     request: Request,
     event_id: str,
     consumer_id: str = Query(default=""),
-    _role: Role | None = None,  # set by app.py wrapper
+    _principal: Principal | None = None,  # set by app.py wrapper
     _identity: dict[str, Any] | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Acknowledge an event as successfully processed by a consumer."""
@@ -91,7 +91,7 @@ async def ack_event(
 async def nack(
     request: Request,
     event_id: str = Query(default=""),
-    _role: Role | None = None,  # set by app.py wrapper
+    _principal: Principal | None = None,  # set by app.py wrapper
     _identity: dict[str, Any] | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Negatively acknowledge an event, triggering retry logic."""

@@ -150,3 +150,77 @@ class TestSubscribeCancelledBeforeReplay:
                 await gen.__anext__()
 
         assert "seq=0" in caplog.text
+
+
+class TestKeysetPaginationBoundary:
+    """Verify keyset pagination edge cases in the replay-to-live transition path."""
+
+    def test_keyset_pagination_no_duplicate_at_boundary(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Events published during the final replay batch must not be duplicated."""
+        from eventbus import app as eb_app
+
+        cfg = eb_app.app.state.config
+        assert cfg is not None
+        batch_size = cfg.replay_batch_size
+
+        bodies = [_event("boundary") for _ in range(batch_size + 1)]
+        for body in bodies:
+            resp = client.post("/publish", json=body)
+            assert resp.status_code == 200
+
+        resp = client.get("/subscribe?since_seq=0&topic=boundary")
+        assert resp.status_code == 200
+
+        event_ids = set()
+        for line in resp.iter_lines():
+            if line.startswith("id:"):
+                event_id = int(line.split(":")[1].strip())
+                event_ids.add(event_id)
+
+        assert len(event_ids) == len(bodies), (
+            f"Expected {len(bodies)} events, got {len(event_ids)}"
+        )
+
+    def test_live_path_catches_events_after_replay(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Events published between final replay batch and live path startup must be delivered."""
+        from eventbus import app as eb_app
+
+        cfg = eb_app.app.state.config
+        assert cfg is not None
+        batch_size = cfg.replay_batch_size
+
+        bodies = [_event("overlap") for _ in range(batch_size)]
+        for body in bodies:
+            resp = client.post("/publish", json=body)
+            assert resp.status_code == 200
+
+        resp = client.get("/subscribe?since_seq=0&topic=overlap")
+        assert resp.status_code == 200
+
+        event_ids = set()
+        for line in resp.iter_lines():
+            if line.startswith("id:"):
+                event_id = int(line.split(":")[1].strip())
+                event_ids.add(event_id)
+
+        assert len(event_ids) == len(bodies), (
+            f"Expected {len(bodies)} events, got {len(event_ids)}"
+        )
+
+    def test_stale_last_event_id_returns_412(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """T-11: Reconnect with stale Last-Event-ID returns 412."""
+        body = _event("stale")
+        resp = client.post("/publish", json=body)
+        assert resp.status_code == 200
+
+        resp = client.get(
+            "/subscribe?since_seq=0",
+            headers={"Last-Event-ID": "999999"},
+        )
+        assert resp.status_code == 412

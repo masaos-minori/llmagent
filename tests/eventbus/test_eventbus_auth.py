@@ -38,6 +38,7 @@ def _make_test_app(
     """Create a fresh FastAPI app with auth middleware registered."""
     from eventbus import app as eb_app
     from eventbus.auth import (
+        Principal,
         Role,
         attach_auth_middleware,
         require_consumer_identity,
@@ -83,9 +84,11 @@ def _make_test_app(
     @local_app.post("/publish")
     async def publish(
         request: Request,
-        _role: Role = Depends(require_role(Role.PUBLISHER)),
+        _principal: Principal = Depends(require_role(Role.PUBLISHER)),
     ) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.publish_route(request, _role=_role)
+        result: dict[str, Any] = await eb_app.publish_route(
+            request, _principal=_principal
+        )
         return result
 
     @local_app.get("/subscribe")
@@ -94,7 +97,7 @@ def _make_test_app(
         topic: list[str] = Query(default=[]),
         since_seq: int = Query(default=0, ge=0),
         consumer_id: str = Query(default=""),
-        _role: Role = Depends(require_role(Role.CONSUMER)),
+        _principal: Principal = Depends(require_role(Role.CONSUMER)),
         _identity: dict[str, Any] = Depends(require_consumer_identity),
     ) -> Any:
         return await eb_app.subscribe_route(
@@ -102,7 +105,7 @@ def _make_test_app(
             topic=topic,
             since_seq=since_seq,
             consumer_id=consumer_id,
-            _role=_role,
+            _principal=_principal,
             _identity=_identity,
         )
 
@@ -111,10 +114,10 @@ def _make_test_app(
         request: Request,
         limit: int = Query(default=100, ge=1, le=1000),
         offset: int = Query(default=0, ge=0),
-        _role: Role = Depends(require_role(Role.OPERATOR)),
+        _principal: Principal = Depends(require_role(Role.OPERATOR)),
     ) -> dict[str, Any]:
         result: dict[str, Any] = await eb_app.dlq_list_route(
-            request, limit=limit, offset=offset, _role=_role
+            request, limit=limit, offset=offset, _principal=_principal
         )
         return result
 
@@ -122,10 +125,10 @@ def _make_test_app(
     async def dlq_requeue(
         request: Request,
         event_id: str,
-        _role: Role = Depends(require_role(Role.OPERATOR)),
+        _principal: Principal = Depends(require_role(Role.OPERATOR)),
     ) -> dict[str, Any]:
         result: dict[str, Any] = await eb_app.dlq_requeue_route(
-            request, event_id, _role=_role
+            request, event_id, _principal=_principal
         )
         return result
 
@@ -136,7 +139,7 @@ def _make_test_app(
         fmt: str = Query(default="sse", alias="format"),
         limit: int = Query(default=100, ge=1, le=1000),
         offset: int = Query(default=0, ge=0),
-        _role: Role = Depends(require_role(Role.OPERATOR)),
+        _principal: Principal = Depends(require_role(Role.OPERATOR)),
     ) -> Any:
         return await eb_app.replay_route(
             request,
@@ -144,7 +147,7 @@ def _make_test_app(
             fmt=fmt,
             limit=limit,
             offset=offset,
-            _role=_role,
+            _principal=_principal,
         )
 
     @local_app.post("/events/{event_id}/ack")
@@ -152,14 +155,14 @@ def _make_test_app(
         request: Request,
         event_id: str,
         consumer_id: str = Query(default=""),
-        _role: Role = Depends(require_role(Role.CONSUMER)),
+        _principal: Principal = Depends(require_role(Role.CONSUMER)),
         _identity: dict[str, Any] = Depends(require_consumer_identity),
     ) -> dict[str, Any]:
         result: dict[str, Any] = await eb_app.ack_event_route(
             request,
             event_id=event_id,
             consumer_id=consumer_id,
-            _role=_role,
+            _principal=_principal,
             _identity=_identity,
         )
         return result
@@ -168,11 +171,11 @@ def _make_test_app(
     async def nack(
         request: Request,
         event_id: str = Query(default=""),
-        _role: Role = Depends(require_role(Role.CONSUMER)),
+        _principal: Principal = Depends(require_role(Role.CONSUMER)),
         _identity: dict[str, Any] = Depends(require_consumer_identity),
     ) -> dict[str, Any]:
         result: dict[str, Any] = await eb_app.nack_route(
-            request, event_id=event_id, _role=_role, _identity=_identity
+            request, event_id=event_id, _principal=_principal, _identity=_identity
         )
         return result
 
@@ -619,39 +622,375 @@ class TestRequireConsumerIdentityTopicSemantics:
     async def test_no_topic_restriction_returns_none(self) -> None:
         from unittest.mock import MagicMock
 
-        from eventbus.auth import _TOKEN_TOPIC_MAP, require_consumer_identity
+        from eventbus.auth import (
+            _TOKEN_CONSUMER_MAP,
+            _TOKEN_ROLE_MAP,
+            Role,
+            require_consumer_identity,
+        )
 
         token = "test-unrestricted-token"
-        _TOKEN_TOPIC_MAP.pop(token, None)
+        _TOKEN_ROLE_MAP[token] = set(Role)
+        _TOKEN_CONSUMER_MAP[token] = set()
         try:
+            principal = MagicMock()
+            principal.roles = frozenset(_TOKEN_ROLE_MAP[token])
+            principal.allowed_consumer_ids = frozenset(
+                _TOKEN_CONSUMER_MAP.get(token, set())
+            )
+            principal.allowed_topics = None
             result = await require_consumer_identity(
-                MagicMock(), consumer_id="", topics=["any-topic"], token=token
+                MagicMock(), consumer_id="", topics=["any-topic"], principal=principal
             )
             assert result["topics"] is None
         finally:
-            _TOKEN_TOPIC_MAP.pop(token, None)
+            _TOKEN_ROLE_MAP.pop(token, None)
+            _TOKEN_CONSUMER_MAP.pop(token, None)
 
     @pytest.mark.asyncio
     async def test_non_empty_topic_restriction_is_enforced_and_returned(self) -> None:
         from unittest.mock import MagicMock
 
-        from eventbus.auth import _TOKEN_TOPIC_MAP, require_consumer_identity
+        from eventbus.auth import (
+            _TOKEN_CONSUMER_MAP,
+            _TOKEN_ROLE_MAP,
+            Role,
+            require_consumer_identity,
+        )
 
         token = "test-restricted-token"
-        _TOKEN_TOPIC_MAP[token] = {"allowed-topic"}
+        _TOKEN_ROLE_MAP[token] = {Role.CONSUMER}
+        _TOKEN_CONSUMER_MAP[token] = set()
         try:
-            result = await require_consumer_identity(
-                MagicMock(), consumer_id="", topics=["allowed-topic"], token=token
+            allowed_topics = frozenset({"allowed-topic"})
+            principal = MagicMock()
+            principal.roles = frozenset(_TOKEN_ROLE_MAP[token])
+            principal.allowed_consumer_ids = frozenset(
+                _TOKEN_CONSUMER_MAP.get(token, set())
             )
-            assert result["topics"] == {"allowed-topic"}
+            principal.allowed_topics = allowed_topics
+            result = await require_consumer_identity(
+                MagicMock(),
+                consumer_id="",
+                topics=["allowed-topic"],
+                principal=principal,
+            )
+            assert result["topics"] == allowed_topics
 
             with pytest.raises(HTTPException) as exc_info:
                 await require_consumer_identity(
                     MagicMock(),
                     consumer_id="",
                     topics=["disallowed-topic"],
-                    token=token,
+                    principal=principal,
                 )
             assert exc_info.value.status_code == 403
         finally:
-            _TOKEN_TOPIC_MAP.pop(token, None)
+            _TOKEN_ROLE_MAP.pop(token, None)
+            _TOKEN_CONSUMER_MAP.pop(token, None)
+
+
+class TestPrincipalFieldValidation:
+    """Unit-level tests for Principal field resolution from tokens."""
+
+    @pytest.mark.asyncio
+    async def test_publisher_token_grants_only_publisher_role(self) -> None:
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import _TOKEN_ROLE_MAP, Principal, Role, resolve_principal
+
+        token = "publisher-token"
+        _TOKEN_ROLE_MAP[token] = {Role.PUBLISHER}
+        try:
+            principal = await resolve_principal(
+                MagicMock(),
+                credentials=MagicMock(credentials=token),
+            )
+            assert isinstance(principal, Principal)
+            assert principal.roles == frozenset([Role.PUBLISHER])
+            assert principal.allowed_consumer_ids == frozenset()
+            assert principal.allowed_topics is None
+        finally:
+            _TOKEN_ROLE_MAP.pop(token, None)
+
+    @pytest.mark.asyncio
+    async def test_admin_token_grants_all_roles(self) -> None:
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import _TOKEN_ROLE_MAP, Principal, Role, resolve_principal
+
+        token = "admin-token"
+        _TOKEN_ROLE_MAP[token] = set(Role)
+        try:
+            principal = await resolve_principal(
+                MagicMock(),
+                credentials=MagicMock(credentials=token),
+            )
+            assert isinstance(principal, Principal)
+            assert principal.roles == frozenset(Role)
+            assert principal.allowed_consumer_ids == frozenset()
+            assert principal.allowed_topics is None
+        finally:
+            _TOKEN_ROLE_MAP.pop(token, None)
+
+    @pytest.mark.asyncio
+    async def test_shared_token_grants_all_roles_for_backward_compat(self) -> None:
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import _TOKEN_ROLE_MAP, Principal, Role, resolve_principal
+
+        token = "shared-token"
+        _TOKEN_ROLE_MAP[token] = set(Role)
+        try:
+            principal = await resolve_principal(
+                MagicMock(),
+                credentials=MagicMock(credentials=token),
+            )
+            assert isinstance(principal, Principal)
+            assert principal.roles == frozenset(Role)
+            assert principal.allowed_consumer_ids == frozenset()
+            assert principal.allowed_topics is None
+        finally:
+            _TOKEN_ROLE_MAP.pop(token, None)
+
+    @pytest.mark.asyncio
+    async def test_per_role_token_has_no_consumer_restriction(self) -> None:
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import (
+            _TOKEN_CONSUMER_MAP,
+            _TOKEN_ROLE_MAP,
+            Principal,
+            Role,
+            resolve_principal,
+        )
+
+        token = "consumer-token"
+        _TOKEN_ROLE_MAP[token] = {Role.CONSUMER}
+        _TOKEN_CONSUMER_MAP[token] = set()
+        try:
+            principal = await resolve_principal(
+                MagicMock(),
+                credentials=MagicMock(credentials=token),
+            )
+            assert isinstance(principal, Principal)
+            assert principal.roles == frozenset([Role.CONSUMER])
+            assert principal.allowed_consumer_ids == frozenset()
+        finally:
+            _TOKEN_ROLE_MAP.pop(token, None)
+            _TOKEN_CONSUMER_MAP.pop(token, None)
+
+
+class TestAuditRecordValidation:
+    """Tests for structured audit record emission on auth failures."""
+
+    @classmethod
+    def setup_class(cls):
+        cls.tmp_path = Path("/tmp/test-eventbus-auth-audit")
+        cls.tmp_path.mkdir(exist_ok=True)
+        cls.app, cls.cfg = _make_test_app(
+            cls.tmp_path,
+            token="test-shared-token",
+            publisher_token="test-publisher-token",
+            consumer_token="test-consumer-token",
+            operator_token=None,
+            admin_token="test-admin-token",
+        )
+        cls.client = TestClient(cls.app, raise_server_exceptions=False)
+        cls._cleanup = None
+
+    @classmethod
+    def teardown_class(cls):
+        if hasattr(cls.client, "_cleanup"):
+            cls.client._cleanup()
+
+    def test_auth_failure_401_produces_structured_audit_record(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """T-1: Auth failure (401) produces structured audit record with request_id, route, target."""
+        from unittest.mock import patch
+
+        captured_records: list[str] = []
+
+        def capture_log(record: str) -> None:
+            captured_records.append(record)
+
+        with patch("scripts.eventbus.audit.logger.warning", side_effect=capture_log):
+            response = self.client.get(
+                "/subscribe",
+                params={"topic": "test", "consumer_id": "consumer_a"},
+                headers={"Authorization": "Bearer invalid-token"},
+            )
+            assert response.status_code == 401
+
+        assert len(captured_records) > 0
+
+        import json
+
+        audit_record = json.loads(captured_records[0])
+
+        assert "request_id" in audit_record
+        assert "route" in audit_record
+        assert "target" in audit_record
+        assert "outcome" in audit_record
+        assert "error_type" in audit_record
+
+        assert audit_record["error_type"] == "authentication_failed"
+        assert audit_record["outcome"] == "rejected"
+
+        assert "invalid-token" not in str(audit_record)
+
+    def test_auth_failure_403_produces_structured_audit_record(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """T-2: Auth failure (403) produces structured audit record with role mismatch details."""
+        from unittest.mock import patch
+
+        captured_records: list[str] = []
+
+        def capture_log(record: str) -> None:
+            captured_records.append(record)
+
+        with patch("scripts.eventbus.audit.logger.warning", side_effect=capture_log):
+            response = self.client.post(
+                "/events/test-event-id/ack",
+                params={"consumer_id": "consumer_a"},
+                headers={"Authorization": f"Bearer {self.cfg.publisher_token}"},
+            )
+            assert response.status_code == 403
+
+        assert len(captured_records) > 0
+
+        import json
+
+        audit_record = json.loads(captured_records[0])
+
+        assert "request_id" in audit_record
+        assert "route" in audit_record
+        assert "target" in audit_record
+        assert "outcome" in audit_record
+        assert "error_type" in audit_record
+
+        assert audit_record["error_type"] == "authorization_failed"
+        assert audit_record["outcome"] == "rejected"
+
+        assert "publisher-token" not in str(audit_record)
+
+    def test_consumer_identity_rejection_produces_structured_audit_record(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """T-3: Consumer identity rejection (403) produces structured audit record with consumer_id."""
+        from unittest.mock import patch
+
+        captured_records: list[str] = []
+
+        def capture_log(record: str) -> None:
+            captured_records.append(record)
+
+        with patch("scripts.eventbus.audit.logger.warning", side_effect=capture_log):
+            response = self.client.get(
+                "/subscribe",
+                params={"topic": "test", "consumer_id": "unauthorized-consumer"},
+                headers={"Authorization": f"Bearer {self.cfg.consumer_token}"},
+            )
+            assert response.status_code == 403
+
+        assert len(captured_records) > 0
+
+        import json
+
+        audit_record = json.loads(captured_records[0])
+
+        assert "request_id" in audit_record
+        assert "route" in audit_record
+        assert "target" in audit_record
+        assert "outcome" in audit_record
+        assert "error_type" in audit_record
+
+        assert audit_record["error_type"] == "consumer_identity_rejected"
+        assert audit_record["outcome"] == "rejected"
+
+        assert "consumer-token" not in str(audit_record)
+
+    def test_topic_authorization_rejection_produces_structured_audit_record(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """T-4: Topic authorization rejection (403) produces structured audit record with topic."""
+        from unittest.mock import patch
+
+        captured_records: list[str] = []
+
+        def capture_log(record: str) -> None:
+            captured_records.append(record)
+
+        with patch("scripts.eventbus.audit.logger.warning", side_effect=capture_log):
+            response = self.client.get(
+                "/subscribe",
+                params={"topic": "disallowed-topic", "consumer_id": "consumer_a"},
+                headers={"Authorization": f"Bearer {self.cfg.consumer_token}"},
+            )
+            assert response.status_code == 403
+
+        assert len(captured_records) > 0
+
+        import json
+
+        audit_record = json.loads(captured_records[0])
+
+        assert "request_id" in audit_record
+        assert "route" in audit_record
+        assert "target" in audit_record
+        assert "outcome" in audit_record
+        assert "error_type" in audit_record
+
+        assert audit_record["error_type"] == "topic_authorization_rejected"
+        assert audit_record["outcome"] == "rejected"
+
+        assert "consumer-token" not in str(audit_record)
+
+    def test_no_credential_leakage_in_audit_records(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """T-7: No raw tokens/credentials in any audit record."""
+        from unittest.mock import patch
+
+        captured_records: list[str] = []
+
+        def capture_log(record: str) -> None:
+            captured_records.append(record)
+
+        scenarios = [
+            ("Bearer invalid-token", 401),
+            (f"Bearer {self.cfg.publisher_token}", 403),
+        ]
+
+        for header_value, expected_status in scenarios:
+            captured_records.clear()
+
+            with patch(
+                "scripts.eventbus.audit.logger.warning", side_effect=capture_log
+            ):
+                if expected_status == 401:
+                    response = self.client.get(
+                        "/subscribe",
+                        params={"topic": "test", "consumer_id": "consumer_a"},
+                        headers={"Authorization": header_value},
+                    )
+                else:
+                    response = self.client.post(
+                        "/events/test-event-id/ack",
+                        params={"consumer_id": "consumer_a"},
+                        headers={"Authorization": header_value},
+                    )
+                assert response.status_code == expected_status
+
+            import json
+
+            for record in captured_records:
+                audit_record = json.loads(record)
+
+                assert "invalid-token" not in str(audit_record)
+                assert "publisher-token" not in str(audit_record)
+                assert "consumer-token" not in str(audit_record)
+                assert "operator-token" not in str(audit_record)
+                assert "admin-token" not in str(audit_record)

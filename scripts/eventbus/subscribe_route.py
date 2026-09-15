@@ -11,7 +11,7 @@ from fastapi import HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from eventbus.auth import (
-    Role,
+    Principal,
 )
 from eventbus.broker import ConsumerAlreadyConnectedError
 from eventbus.json_utils import dumps as json_dumps
@@ -33,7 +33,7 @@ async def subscribe(
     topic: list[str] = Query(default=[]),
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
-    _role: Role | None = None,  # set by app.py wrapper
+    _principal: Principal | None = None,  # set by app.py wrapper
     _identity: dict[str, Any] | None = None,  # set by app.py wrapper
 ) -> Any:
     """Subscribe to events via SSE with optional topic filtering and offset recovery."""
