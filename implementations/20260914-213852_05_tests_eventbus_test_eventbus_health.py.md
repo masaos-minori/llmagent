@@ -136,7 +136,7 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add broker-unavailable degradation test | Pending | — | — | |
+| 1 | Add broker-unavailable degradation test | Completed | 20260915-125240 | 20260915-125240 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
