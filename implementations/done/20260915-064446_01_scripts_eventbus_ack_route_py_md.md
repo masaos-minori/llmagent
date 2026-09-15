@@ -180,12 +180,12 @@ Parameter removal via surgical edit — only the `_role` and `_identity` paramet
 
 ## Completion criteria
 
-- [ ] `_role` and `_identity` parameters removed from `_do_ack()` signature
-- [ ] `_role` and `_identity` parameters removed from `ack_event()` signature
-- [ ] `_role` and `_identity` parameters removed from `nack()` signature
-- [ ] Argument passing removed from `app.py` (if present)
-- [ ] Static analysis passes without new errors
-- [ ] All existing tests pass
+- [x] `_role` and `_identity` parameters removed from `_do_ack()` signature
+- [x] `_role` and `_identity` parameters removed from `ack_event()` signature
+- [x] `_role` and `_identity` parameters removed from `nack()` signature
+- [x] Argument passing removed from `app.py`
+- [x] Static analysis passes without new errors
+- [ ] All existing tests pass (pre-existing failures unrelated to this change)
 
 ## Out of scope
 
@@ -198,15 +198,15 @@ Parameter removal via surgical edit — only the `_role` and `_identity` paramet
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify _role/_identity not used in _do_ack() | Pending | — | — | |
-| 2 | Remove _role/_identity from _do_ack() signature | Pending | — | — | |
-| 3 | Verify _role/_identity not used in ack_event() | Pending | — | — | |
-| 4 | Remove _role/_identity from ack_event() signature | Pending | — | — | |
-| 5 | Verify _role/_identity not used in nack() | Pending | — | — | |
-| 6 | Remove _role/_identity from nack() signature | Pending | — | — | |
-| 7 | Update app.py route registration | Pending | — | — | |
-| 8 | Run static analysis | Pending | — | — | |
-| 9 | Run existing tests | Pending | — | — | |
+| 1 | Verify _role/_identity not used in _do_ack() | Done | — | — | Confirmed unused |
+| 2 | Remove _role/_identity from _do_ack() signature | Done | — | — | Parameters removed |
+| 3 | Verify _role/_identity not used in ack_event() | Done | — | — | Confirmed unused |
+| 4 | Remove _role/_identity from ack_event() signature | Done | — | — | Parameters removed |
+| 5 | Verify _role/_identity not used in nack() | Done | — | — | Confirmed unused |
+| 6 | Remove _role/_identity from nack() signature | Done | — | — | Parameters removed |
+| 7 | Update app.py route registration | Done | — | — | Removed argument passing |
+| 8 | Run static analysis | Done | — | — | ruff + mypy pass |
+| 9 | Run existing tests | Done | — | — | Pre-existing failures; ACK/NACK tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

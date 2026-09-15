@@ -10,7 +10,6 @@ import jsonschema
 from fastapi import HTTPException, Request
 from prometheus_client import Counter
 
-from eventbus.auth import Principal
 from eventbus.db import insert_event
 from eventbus.json_utils import dumps as json_dumps
 from eventbus.route_helpers import (
@@ -35,7 +34,7 @@ _broker_notify_failure_counter = Counter(
 
 
 async def publish(
-    request: Request, _principal: Principal | None = None
+    request: Request,
 ) -> dict[str, Any]:
     """Publish an event after validating its envelope against the configured schema."""
     body: dict[str, Any] = await request.json()

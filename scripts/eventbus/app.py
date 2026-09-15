@@ -158,7 +158,7 @@ async def publish(
     _principal: Principal = Depends(require_role(Role.PUBLISHER)),
 ) -> dict[str, Any]:
     """Publish a new event to the event bus."""
-    result: dict[str, Any] = await publish_route(request, _principal=_principal)
+    result: dict[str, Any] = await publish_route(request)
     return result
 
 
@@ -178,7 +178,6 @@ async def replay(
         fmt=fmt,
         limit=limit,
         offset=offset,
-        _principal=_principal,
     )
 
 
@@ -210,9 +209,7 @@ async def dlq_list(
     _principal: Principal = Depends(require_role(Role.OPERATOR)),
 ) -> dict[str, Any]:
     """List dead-letter queue entries with pagination support."""
-    result: dict[str, Any] = await dlq_list_route(
-        request, limit=limit, offset=offset, _principal=_principal
-    )
+    result: dict[str, Any] = await dlq_list_route(request, limit=limit, offset=offset)
     return result
 
 
@@ -223,9 +220,7 @@ async def dlq_requeue(
     _principal: Principal = Depends(require_role(Role.OPERATOR)),
 ) -> dict[str, Any]:
     """Requeue a dead-letter queue entry back into the active queue."""
-    result: dict[str, Any] = await dlq_requeue_route(
-        request, event_id, _principal=_principal
-    )
+    result: dict[str, Any] = await dlq_requeue_route(request, event_id)
     return result
 
 
@@ -242,8 +237,6 @@ async def ack_event(
         request,
         event_id=event_id,
         consumer_id=consumer_id,
-        _principal=_principal,
-        _identity=_identity,
     )
     return result
 
@@ -257,9 +250,7 @@ async def nack(
     _identity: dict[str, Any] = Depends(require_consumer_identity),
 ) -> dict[str, Any]:
     """Negatively acknowledge an event, triggering retry logic."""
-    result: dict[str, Any] = await nack_route(
-        request, event_id=event_id, _principal=_principal, _identity=_identity
-    )
+    result: dict[str, Any] = await nack_route(request, event_id=event_id)
     return result
 
 

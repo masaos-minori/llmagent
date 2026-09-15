@@ -1,18 +1,18 @@
-# Implementation Procedure: Remove Unused `_role` Parameter from `publish_route.py`
+# Implementation Procedure: Remove Unused `_role` Parameter from `dlq_route.py`
 
 ## Goal
 
-Remove the unused `_role` parameter from `publish()` function in `scripts/eventbus/publish_route.py`, aligning handler signatures with the actual authorization enforcement location (endpoint-level via FastAPI dependencies).
+Remove the unused `_role` parameter from `dlq_list()` and `dlq_requeue()` functions in `scripts/eventbus/dlq_route.py`, aligning handler signatures with the actual authorization enforcement location (endpoint-level via FastAPI dependencies).
 
 ## Scope
 
-- Modify `scripts/eventbus/publish_route.py`: remove `_role` parameter from `publish()`
+- Modify `scripts/eventbus/dlq_route.py`: remove `_role` parameter from `dlq_list()` and `dlq_requeue()`
 - No test modifications required (existing tests should still pass)
 
 ## Assumptions
 
 - Authorization is enforced at the endpoint level via FastAPI dependencies (`Depends(require_role(...))`), not within handler functions — confirmed by `auth.py:128-172` and `app.py` middleware wiring
-- `_role` parameter exists in function signature but is never used in the function body — confirmed by `publish_route.py:25`
+- `_role` parameter exists in both function signatures but is never used in the function bodies — confirmed by `dlq_route.py:25` and `dlq_route.py:53`
 - eventbus02/03 have landed before this issue is implemented (required by issue constraints)
 
 ## Design decisions
@@ -29,72 +29,98 @@ Remove the unused `_role` parameter from `publish()` function in `scripts/eventb
 
 ### Target file
 
-`scripts/eventbus/publish_route.py`
+`scripts/eventbus/dlq_route.py`
 
 ### Procedure
 
-#### Step 1: Verify current state of `publish()` signature
+#### Step 1: Verify current state of `dlq_list()` signature
 
 ```python
 # Current (before change):
-async def publish(
+async def dlq_list(
     request: Request,
-    payload: dict[str, Any],
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
     _role: Role | None = None,  # set by app.py wrapper
-) -> JSONResponse:
+) -> dict[str, Any]:
 ```
 
 Verify `_role` is not referenced anywhere in the function body.
 
-#### Step 2: Remove `_role` parameter from `publish()`
+#### Step 2: Remove `_role` parameter from `dlq_list()`
 
 ```python
 # After change:
-async def publish(
+async def dlq_list(
     request: Request,
-    payload: dict[str, Any],
-) -> JSONResponse:
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, Any]:
 ```
 
-#### Step 3: Update `app.py` to remove `_role` argument passing
+#### Step 3: Verify current state of `dlq_requeue()` signature
 
-Check `app.py` for any code that passes `_role` to this route handler. If found, remove the argument passing.
+```python
+# Current (before change):
+async def dlq_requeue(
+    request: Request,
+    event_id: str,
+    _role: Role | None = None,  # set by app.py wrapper
+) -> dict[str, Any]:
+```
+
+Verify `_role` is not referenced anywhere in the function body.
+
+#### Step 4: Remove `_role` parameter from `dlq_requeue()`
+
+```python
+# After change:
+async def dlq_requeue(
+    request: Request,
+    event_id: str,
+) -> dict[str, Any]:
+```
+
+#### Step 5: Update `app.py` to remove `_role` argument passing
+
+Check `app.py` for any code that passes `_role` to these route handlers. If found, remove the argument passing.
 
 Example of what to look for in `app.py`:
 ```python
 # Before:
-app.post("/publish")(lambda req, payload, _role=None: publish(req, payload, _role=_role))
+app.post("/dlq/{event_id}/requeue")(lambda req, eid, _role=None: dlq_requeue(req, eid, _role=_role))
 
 # After:
-app.post("/publish")(lambda req, payload: publish(req, payload))
+app.post("/dlq/{event_id}/requeue")(lambda req, eid: dlq_requeue(req, eid))
 ```
 
-#### Step 4: Run static analysis
+#### Step 6: Run static analysis
 
 ```bash
-uv run ruff check scripts/eventbus/publish_route.py
-uv run mypy scripts/eventbus/publish_route.py
+uv run ruff check scripts/eventbus/dlq_route.py
+uv run mypy scripts/eventbus/dlq_route.py
 ```
 
 Expected: No new errors introduced.
 
-#### Step 5: Run existing tests
+#### Step 7: Run existing tests
 
 ```bash
-uv run pytest tests/eventbus/test_eventbus_publish.py -v
+uv run pytest tests/eventbus/test_eventbus_dlq.py -v
 ```
 
 Expected: All existing tests pass.
 
 ### Method
 
-Parameter removal via surgical edit — only the `_role` parameter line and its associated comment are removed from the function signature.
+Parameter removal via surgical edit — only the `_role` parameter line and its associated comment are removed from each function signature.
 
 ### Details
 
 #### Verification checklist
 
-- [ ] `_role` is not referenced in `publish()` function body
+- [ ] `_role` is not referenced in `dlq_list()` function body
+- [ ] `_role` is not referenced in `dlq_requeue()` function body
 - [ ] `_role` is not passed from `app.py` route registration
 - [ ] Static analysis passes without new errors
 - [ ] Existing tests pass
@@ -112,23 +138,24 @@ Parameter removal via surgical edit — only the `_role` parameter line and its 
 
 ## Rollback considerations
 
-- Revert to original signature: add `_role: Role | None = None` back to the function signature
+- Revert to original signatures: add `_role: Role | None = None` back to both function signatures
 - Restore `_role` argument passing in `app.py` if modified
 
 ## Validation plan
 
 1. **Static analysis**: Confirm no new lint/type errors introduced
-2. **Test execution**: Confirm all existing tests in `tests/eventbus/test_eventbus_publish.py` pass
+2. **Test execution**: Confirm all existing tests in `tests/eventbus/test_eventbus_dlq.py` pass
 3. **Acceptance criteria verification**:
-   - [ ] AC-1: No internal handler accepts unused security context parameters (confirmed by inspecting `publish()` signature)
+   - [ ] AC-1: No internal handler accepts unused security context parameters (confirmed by inspecting `dlq_list()` and `dlq_requeue()` signatures)
    - [ ] AC-3: Static analysis reports no unused authorization parameters (confirmed by running `ruff` and `mypy`)
 
 ## Completion criteria
 
-- [ ] `_role` parameter removed from `publish()` signature
-- [ ] `_role` argument passing removed from `app.py` (if present)
-- [ ] Static analysis passes without new errors
-- [ ] All existing tests pass
+- [x] `_principal` parameter removed from `dlq_list()` signature
+- [x] `_principal` parameter removed from `dlq_requeue()` signature
+- [x] `_principal` argument passing removed from `app.py`
+- [x] Static analysis passes without new errors
+- [ ] All existing tests pass (1 pre-existing failure unrelated to this change)
 
 ## Out of scope
 
@@ -141,11 +168,13 @@ Parameter removal via surgical edit — only the `_role` parameter line and its 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify _role not used in publish() | Pending | — | — | |
-| 2 | Remove _role from publish() signature | Pending | — | — | |
-| 3 | Update app.py route registration | Pending | — | — | |
-| 4 | Run static analysis | Pending | — | — | |
-| 5 | Run existing tests | Pending | — | — | |
+| 1 | Verify _principal not used in dlq_list() | Done | — | — | Confirmed unused |
+| 2 | Remove _principal from dlq_list() signature | Done | — | — | Parameter removed |
+| 3 | Verify _principal not used in dlq_requeue() | Done | — | — | Confirmed unused |
+| 4 | Remove _principal from dlq_requeue() signature | Done | — | — | Parameter removed |
+| 5 | Update app.py route registration | Done | — | — | Removed argument passing |
+| 6 | Run static analysis | Done | — | — | ruff + mypy pass |
+| 7 | Run existing tests | Done | — | — | 20/21 pass; 1 pre-existing failure |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -165,5 +194,5 @@ Parameter removal via surgical edit — only the `_role` parameter line and its 
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20260914-183834_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
-- **Generated at**: 20260915-064351
-- **Related target files**: scripts/eventbus/publish_route.py
+- **Generated at**: 20260915-064310
+- **Related target files**: scripts/eventbus/dlq_route.py
