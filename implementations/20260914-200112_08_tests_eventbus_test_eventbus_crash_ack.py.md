@@ -164,9 +164,9 @@ class TestCrashRecoveryPrincipalValidation:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update imports to include resolve_principal | Pending | — | — | |
-| 2 | Verify crash recovery behavior remains correct | Pending | — | — | No changes needed |
-| 3 | Add principal field validation test | Pending | — | — | |
+| 1 | Update imports to include resolve_principal | Completed | 20260915-103000 | 20260915-103000 | Fixed: removed unused import; test uses Principal mock directly |
+| 2 | Verify crash recovery behavior remains correct | Completed | 20260915-103000 | 20260915-103000 | No changes needed |
+| 3 | Add principal field validation test | Completed | 20260915-103000 | 20260915-103000 | All 5 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
