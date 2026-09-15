@@ -103,10 +103,10 @@ Expected: Neither parameter used in any function body.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify `_role` and `_identity` parameters in `_do_ack()` | Pending | — | — | |
-| 2 | Verify `_role` and `_identity` parameters in `ack_event()` | Pending | — | — | |
-| 3 | Verify `_role` and `_identity` parameters in `nack()` | Pending | — | — | |
-| 4 | Verify parameter usage status | Pending | — | — | |
+| 1 | Verify `_role` and `_identity` parameters in `_do_ack()` | Completed | — | — | Stale claim: _role removed; _identity remains |
+| 2 | Verify `_role` and `_identity` parameters in `ack_event()` | Completed | — | — | Stale claim: _role removed; _identity remains |
+| 3 | Verify `_role` and `_identity` parameters in `nack()` | Completed | — | — | Stale claim: _role removed; _identity remains |
+| 4 | Verify parameter usage status | Completed | — | — | _role removal occurred before this verification cycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
