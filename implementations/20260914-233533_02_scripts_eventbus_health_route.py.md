@@ -118,8 +118,8 @@ lock_contention_total = get_counter_value(_db_lock_contention)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace private Prometheus API access with public getters | Pending | — | — | REQ-001 |
-| 2 | Move broker backlog threshold check inside broker guard | Pending | — | — | REQ-002 |
+| 1 | Replace private Prometheus API access with public getters | Completed | — | 20260915-170044 | REQ-001 |
+| 2 | Move broker backlog threshold check inside broker guard | Completed | — | 20260915-170101 | REQ-002 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
