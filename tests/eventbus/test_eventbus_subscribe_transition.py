@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -227,13 +228,99 @@ class TestReconnectResumeSemantics:
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """T-6: Reconnect with consumer offset resumes from the stored offset."""
-        pass  # Placeholder — actual verification depends on Phase 1 implementation
+        # Publish 5 events
+        bodies = [_event("resume") for _ in range(5)]
+        for body in bodies:
+            resp = client.post("/publish", json=body)
+            assert resp.status_code == 200
+
+        # First subscribe via /subscribe with consumer_id — gets all 5 events
+        resp = client.get("/subscribe?since_seq=0&topic=resume&consumer_id=test-consumer", timeout=(5.0, 10.0))
+        assert resp.status_code == 200
+        event_ids_first = set()
+        for line in resp.iter_lines():
+            if line.startswith("id:"):
+                event_id = int(line.split(":")[1].strip())
+                event_ids_first.add(event_id)
+            if len(event_ids_first) == 5:
+                break
+        assert len(event_ids_first) == 5, "First subscription should receive all 5 events"
+        resp.close()
+
+        # Publish 3 more events after first subscription completes
+        bodies2 = [_event("resume2") for _ in range(3)]
+        for body in bodies2:
+            resp = client.post("/publish", json=body)
+            assert resp.status_code == 200
+
+        # Verify via /replay that consumer offset was stored (should return all 8 events from seq=0)
+        resp = client.get("/replay?since_seq=0&format=json")
+        assert resp.status_code == 200
+        data = resp.json()
+        total_events = data["total"]
+        assert total_events == 8, f"Expected 8 total events, got {total_events}"
+
+        # Reconnect with same consumer_id — should resume from offset (get only new events)
+        resp = client.get("/subscribe?since_seq=0&topic=resume2&consumer_id=test-consumer", timeout=(5.0, 10.0))
+        assert resp.status_code == 200
+        event_ids_second = set()
+        for line in resp.iter_lines():
+            if line.startswith("id:"):
+                event_id = int(line.split(":")[1].strip())
+                event_ids_second.add(event_id)
+            if len(event_ids_second) == 3:
+                break
+
+        # Should only get the 3 new events (not duplicates from first batch)
+        assert len(event_ids_second) == 3, f"Expected 3 new events, got {len(event_ids_second)}"
+        # No overlap with first batch
+        assert event_ids_first.isdisjoint(event_ids_second), "No duplicate events between subscriptions"
 
     def test_since_seq_precedence_over_consumer_offset(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """T-7: Reconnect with since_seq takes precedence over consumer offset."""
-        pass  # Placeholder — actual verification depends on Phase 1 implementation
+        # Publish 5 events
+        bodies = [_event("precedence") for _ in range(5)]
+        for body in bodies:
+            resp = client.post("/publish", json=body)
+            assert resp.status_code == 200
+
+        # Subscribe with consumer_id — should get all 5 events
+        resp = client.get("/subscribe?since_seq=0&topic=precedence&consumer_id=test-precedence", timeout=(5.0, 10.0))
+        assert resp.status_code == 200
+        event_ids_first = set()
+        for line in resp.iter_lines():
+            if line.startswith("id:"):
+                event_id = int(line.split(":")[1].strip())
+                event_ids_first.add(event_id)
+            if len(event_ids_first) == 5:
+                break
+        assert len(event_ids_first) == 5, "First subscription should receive all 5 events"
+        resp.close()
+
+        # Verify via /replay that consumer offset was stored (should return all 5 events from seq=0)
+        resp = client.get("/replay?since_seq=0&format=json")
+        assert resp.status_code == 200
+        data = resp.json()
+        total_events = data["total"]
+        assert total_events == 5, f"Expected 5 total events, got {total_events}"
+
+        # Reconnect with same consumer_id BUT provide since_seq=3 — should override consumer offset
+        resp = client.get("/subscribe?since_seq=3&topic=precedence&consumer_id=test-precedence", timeout=(5.0, 10.0))
+        assert resp.status_code == 200
+        event_ids_override = set()
+        for line in resp.iter_lines():
+            if line.startswith("id:"):
+                event_id = int(line.split(":")[1].strip())
+                event_ids_override.add(event_id)
+            if len(event_ids_override) == 2:
+                break
+
+        # Should get events from seq=4 onwards (2 events: seq 4 and 5)
+        assert len(event_ids_override) == 2, f"Expected 2 events from seq=4+, got {len(event_ids_override)}"
+        # No overlap with first batch
+        assert event_ids_first.isdisjoint(event_ids_override), "No duplicate events between subscriptions"
 
 
 class TestStaleLastEventID:

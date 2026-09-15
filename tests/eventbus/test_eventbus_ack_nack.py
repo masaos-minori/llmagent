@@ -26,6 +26,22 @@ def _event(topic: str = "t") -> dict[str, Any]:
     }
 
 
+def _simulate_delivery_http(client: Any, event_id: str, consumer_id: str) -> None:
+    """Insert a consumer_delivery record to simulate event delivery (HTTP-level)."""
+    import eventbus.app as eb_app
+
+    db = eb_app.app.state.db
+    db.execute(
+        "DELETE FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+        (consumer_id, event_id),
+    )
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, NULL)",
+        (consumer_id, event_id),
+    )
+    db.commit()
+
+
 class TestAckEvent:
     def test_ack_event_sets_acked_at(self, db: sqlite3.Connection) -> None:
         from eventbus.db import ack_event
@@ -214,6 +230,8 @@ class TestAckHttpBehavior:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
+        _simulate_delivery_http(client, body["event_id"], "consumer-A")
+
         resp = client.post(
             f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
         )
@@ -228,6 +246,8 @@ class TestAckHttpBehavior:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
+        _simulate_delivery_http(client, body["event_id"], "consumer-A")
+
         client.post(
             f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
         )
@@ -240,15 +260,18 @@ class TestAckHttpBehavior:
         assert data["already_acked"] is True
 
     def test_ack_unknown_event_returns_404(self, client: Any) -> None:
-        """POST /events/{id}/ack with unknown event_id returns 404."""
-        resp = client.post("/events/nonexistent-event/ack")
-        assert resp.status_code == 404
+        """POST /events/{id}/ack with unknown event_id returns 409 (REQ-003: no delivery record)."""
+        resp = client.post("/events/nonexistent-event/ack", params={"consumer_id": "test-consumer"})
+        assert resp.status_code == 409
 
     def test_two_consumers_ack_same_event_independently(self, client: Any) -> None:
         """Two distinct consumer_ids can each ACK the same event_id independently (REQ-001)."""
         body = _event()
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
+
+        _simulate_delivery_http(client, body["event_id"], "consumer-a")
+        _simulate_delivery_http(client, body["event_id"], "consumer-b")
 
         resp_a = client.post(
             f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-a"}

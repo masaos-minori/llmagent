@@ -35,6 +35,7 @@ _COL_EVENT_ID = "event_id"
 _COL_CONSUMER_ID = "consumer_id"
 _COL_OFFSET = "offset"
 _COL_REDISTRIBUTED_FROM = "redelivered_from"
+_COL_CONSUMER_DELIVERY_FAILURE_COUNT = "consumer_delivery_failure_count"
 
 
 def _apply_eventbus_pragmas(
@@ -132,6 +133,18 @@ def _migrate(conn: sqlite3.Connection) -> None:
             else:
                 raise
 
+    # Add consumer-specific failure counter column
+    try:
+        conn.execute(
+            f"ALTER TABLE events ADD COLUMN {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} INTEGER NOT NULL DEFAULT 0"
+        )
+        logger.info("migrated: added column %s to events", _COL_CONSUMER_DELIVERY_FAILURE_COUNT)
+    except sqlite3.OperationalError as exc:
+        if exc.args and "duplicate column name" in exc.args[0]:
+            pass  # column already exists
+        else:
+            raise
+
     try:
         conn.execute("ALTER TABLE events DROP COLUMN retry_count")
         logger.info("migrated: dropped column retry_count from events")
@@ -211,22 +224,40 @@ def ack_event(conn: sqlite3.Connection, event_id: str, now: str) -> tuple[bool, 
         raise
 
 
-def nack_event(conn: sqlite3.Connection, event_id: str) -> tuple[int, int]:
+def nack_event(
+    conn: sqlite3.Connection,
+    event_id: str,
+    consumer_id: str | None = None,  # Optional — for consumer-specific failure tracking
+) -> tuple[int, int]:
     """Increment delivery_failure_count and cycle_failure_count for an event.
 
     Only increments if the event is in Normal/Delivered state (acked_at IS NULL
     AND dlq_at IS NULL). Events that are already ACKed or DLQ'd cannot have their
     failure counts incremented — attempting to do so would corrupt state.
 
+    If consumer_id is provided, also increment the consumer-specific failure count.
+
     Returns (delivery_failure_count, cycle_failure_count) on success, or:
       - (-1, -1) if the event was not found
       - (-2, -2) if the event is in an invalid state for NACK (already ACKed or DLQ'd)
     """
     try:
-        cur = conn.execute(
-            f"UPDATE events SET {_COL_DELIVERY_FAILURE_COUNT} = {_COL_DELIVERY_FAILURE_COUNT} + 1, {_COL_CYCLE_FAILURE_COUNT} = {_COL_CYCLE_FAILURE_COUNT} + 1 WHERE {_COL_EVENT_ID} = ? AND {_COL_ACKED_AT} IS NULL AND {_COL_DLQ_AT} IS NULL",  # nosec B608 — column names are module-level constants, values parameterized
-            (event_id,),
+        # Build the UPDATE statement with optional consumer-specific failure tracking
+        update_clause = (
+            f"{_COL_DELIVERY_FAILURE_COUNT} = {_COL_DELIVERY_FAILURE_COUNT} + 1, "
+            f"{_COL_CYCLE_FAILURE_COUNT} = {_COL_CYCLE_FAILURE_COUNT} + 1"
         )
+        where_clause = f"{_COL_EVENT_ID} = ? AND {_COL_ACKED_AT} IS NULL AND {_COL_DLQ_AT} IS NULL"
+        params: list[str] = [event_id]
+
+        if consumer_id is not None:
+            # Also increment consumer-specific failure count
+            update_clause += f", {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} = {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} + 1"
+            where_clause += f" AND {_COL_CONSUMER_ID} = ?"
+            params.append(consumer_id)
+
+        sql = f"UPDATE events SET {update_clause} WHERE {where_clause}"
+        cur = conn.execute(sql, params)
         conn.commit()
         if cur.rowcount == 0:
             existing = conn.execute(
@@ -282,13 +313,21 @@ def ack_event_for_consumer(
     seq: int | None = None
 
     try:
+        # Check if the delivery record exists and its acked_at status
+        existing = conn.execute(
+            "SELECT acked_at FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            (consumer_id, event_id),
+        ).fetchone()
+        # Pending delivery (acked_at IS NULL) counts as newly_acked
+        newly_acked = existing is None or existing["acked_at"] is None
+
         # Per-consumer delivery-state UPSERT (idempotent)
-        cur = conn.execute(
-            "INSERT OR IGNORE INTO consumer_delivery "
-            "(consumer_id, event_id, acked_at) VALUES (?, ?, ?)",
+        conn.execute(
+            "INSERT INTO consumer_delivery "
+            "(consumer_id, event_id, acked_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(consumer_id, event_id) DO UPDATE SET acked_at = excluded.acked_at",
             (consumer_id, event_id, now),
         )
-        newly_acked = cur.rowcount == 1  # INSERT happened; IGNORE means 0 rows affected
 
         if newly_acked:
             # Get the event seq for offset tracking
@@ -319,19 +358,12 @@ def ack_event_for_consumer(
         # contract means "not found" rather than a successful new ack.
         return (seq is not None), True, seq
 
-    # Check if event exists but was already acked by this consumer
-    already_acked = conn.execute(
-        "SELECT 1 FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
-        (consumer_id, event_id),
+    # Event exists but was already acked by this consumer
+    row = conn.execute(
+        "SELECT seq FROM events WHERE event_id = ?",
+        (event_id,),
     ).fetchone()
-    if already_acked:
-        row = conn.execute(
-            "SELECT seq FROM events WHERE event_id = ?",
-            (event_id,),
-        ).fetchone()
-        return True, False, (int(row["seq"]) if row else None)
-
-    return False, False, None
+    return True, False, (int(row["seq"]) if row else None)
 
 
 def get_consumer_offset(conn: sqlite3.Connection, consumer_id: str) -> int:

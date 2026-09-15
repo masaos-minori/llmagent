@@ -51,6 +51,22 @@ def _event(topic: str = "ack_test") -> dict[str, Any]:
     }
 
 
+def _simulate_delivery(client: TestClient, event_id: str, consumer_id: str) -> None:
+    """Insert a consumer_delivery record to simulate event delivery."""
+    import eventbus.app as eb_app
+
+    db = eb_app.app.state.db
+    db.execute(
+        "DELETE FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+        (consumer_id, event_id),
+    )
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, NULL)",
+        (consumer_id, event_id),
+    )
+    db.commit()
+
+
 class TestAckEndpoint:
     """Tests for POST /events/{event_id}/ack."""
 
@@ -59,6 +75,8 @@ class TestAckEndpoint:
         body = _event()
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
+
+        _simulate_delivery(client, body["event_id"], "consumer-A")
 
         resp = client.post(
             f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
@@ -83,27 +101,26 @@ class TestAckEndpoint:
         assert row is not None and row["acked_at"] is not None
 
     def test_ack_event_without_consumer_id(self, client: TestClient) -> None:
-        """POST /events/{event_id}/ack without consumer_id returns seq=None."""
+        """POST /events/{event_id}/ack without consumer_id returns 422."""
         body = _event()
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
         resp = client.post(f"/events/{body['event_id']}/ack")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["acked"] is True
-        assert data["seq"] is None
+        assert resp.status_code == 422
 
     def test_ack_event_not_found(self, client: TestClient) -> None:
-        """POST /events/{event_id}/ack for unknown event returns 404."""
-        resp = client.post("/events/nonexistent-event/ack")
-        assert resp.status_code == 404
+        """POST /events/{event_id}/ack for unknown event returns 409 (REQ-003: no delivery record)."""
+        resp = client.post("/events/nonexistent-event/ack", params={"consumer_id": "test-consumer"})
+        assert resp.status_code == 409
 
     def test_ack_event_already_acked(self, client: TestClient) -> None:
         """POST /events/{event_id}/ack for already-acked event returns 200 with already_acked=True."""
         body = _event()
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
+
+        _simulate_delivery(client, body["event_id"], "consumer-A")
 
         client.post(
             f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
@@ -117,7 +134,7 @@ class TestAckEndpoint:
         assert data["already_acked"] is True
 
     def test_ack_event_with_empty_consumer_id(self, client: TestClient) -> None:
-        """POST /events/{event_id}/ack with empty consumer_id returns seq=None."""
+        """POST /events/{event_id}/ack with empty consumer_id returns 400 (REQ-004)."""
         body = _event()
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
@@ -125,10 +142,7 @@ class TestAckEndpoint:
         resp = client.post(
             f"/events/{body['event_id']}/ack", params={"consumer_id": ""}
         )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["acked"] is True
-        assert data["seq"] is None
+        assert resp.status_code == 400
 
 
 class TestAckMonotonicOffset:
@@ -159,6 +173,10 @@ class TestAckMonotonicOffset:
         assert resp.status_code == 200
         resp = client.post("/publish", json=event2)
         assert resp.status_code == 200
+
+        # Simulate delivery for both events
+        _simulate_delivery(client, event1["event_id"], consumer_id)
+        _simulate_delivery(client, event2["event_id"], consumer_id)
 
         # ack event2 first (seq=2) → offset advances to 2
         resp = client.post(

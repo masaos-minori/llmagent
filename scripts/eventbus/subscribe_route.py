@@ -62,6 +62,40 @@ async def subscribe(
                         detail=f"Forbidden: topic '{t}' not allowed",
                     )
 
+    # REQ-011: Validate principal owns the requested consumer ID
+    if _principal and _principal.allowed_consumer_ids:
+        if not consumer_id:
+            raise HTTPException(status_code=400, detail="Missing consumer_id")
+        if consumer_id not in _principal.allowed_consumer_ids:
+            logger.warning(
+                "Authorization failed: consumer_id=%s not allowed for this caller",
+                consumer_id,
+            )
+            raise HTTPException(
+                status_code=403,
+                detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
+            )
+    
+    # REQ-012: Fail closed when identity resolution is missing
+    if _principal and _principal.allowed_consumer_ids and not consumer_id:
+        raise HTTPException(status_code=400, detail="Missing consumer_id")
+
+    # REQ-013: Validate principal has access to the requested topics
+    if _principal and _principal.allowed_topics:
+        if topic:
+            for t in topic:
+                if t not in _principal.allowed_topics:
+                    logger.warning(
+                        "Authorization failed: topic=%s not allowed for this caller",
+                        t,
+                    )
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Forbidden: topic '{t}' not allowed",
+                    )
+        # If principal has allowed_topics but none match, allow subscribe to all
+        # (empty topic list means subscribe to all topics)
+
     # REQ-003: Read Last-Event-ID header as additional resume-position input
     last_event_id_str = request.headers.get("last-event-id", "")
     last_event_id: int | None = None
@@ -146,7 +180,8 @@ async def subscribe(
                     data = json_dumps(_row_to_dict(row))
                     # REQ-002: Emit id: field alongside data: field
                     yield f"id:{row['seq']}\ndata:{data}\n\n"
-                    replay_ceil = row["seq"]
+                    if replay_ceil == 0 or row["seq"] < replay_ceil:
+                        replay_ceil = row["seq"]
 
                 start_seq = replay_ceil + 1
 

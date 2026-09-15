@@ -479,10 +479,10 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update imports to include Principal | Pending | — | — | |
-| 2 | Update _do_ack() to require consumer_id and validate principal ownership | Pending | — | — | |
-| 3 | Update ack_event() function signature | Pending | — | — | |
-| 4 | Update nack() function to require consumer_id and validate principal ownership | Pending | — | — | |
+| 1 | Update imports to include Principal | Completed | 20260915-133533 | 20260915-133533 | |
+| 2 | Update _do_ack() to require consumer_id and validate principal ownership | Completed | 20260915-133533 | 20260915-133533 | |
+| 3 | Update ack_event() function signature | Completed | 20260915-133533 | 20260915-133533 | |
+| 4 | Update nack() function to require consumer_id and validate principal ownership | Completed | 20260915-133533 | 20260915-133533 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
