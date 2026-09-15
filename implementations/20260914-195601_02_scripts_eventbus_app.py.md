@@ -380,14 +380,14 @@ async def nack(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update imports to include Principal | Pending | — | — | |
-| 2 | Update /publish endpoint dependency | Pending | — | — | |
-| 3 | Update /replay endpoint dependency | Pending | — | — | |
-| 4 | Update /subscribe endpoint dependencies | Pending | — | — | |
-| 5 | Update /dlq endpoint dependency | Pending | — | — | |
-| 6 | Update /dlq/{event_id}/requeue endpoint dependency | Pending | — | — | |
-| 7 | Update /events/{event_id}/ack endpoint dependencies | Pending | — | — | |
-| 8 | Update /nack endpoint dependencies | Pending | — | — | |
+| 1 | Update imports to include Principal | Completed | 20260915-102707 | 20260915-102707 |  |
+| 2 | Update /publish endpoint dependency | Completed | 20260915-102707 | 20260915-102707 |  |
+| 3 | Update /replay endpoint dependency | Completed | 20260915-102707 | 20260915-102707 |  |
+| 4 | Update /subscribe endpoint dependencies | Completed | 20260915-102707 | 20260915-102707 |  |
+| 5 | Update /dlq endpoint dependency | Completed | 20260915-102707 | 20260915-102707 |  |
+| 6 | Update /dlq/{event_id}/requeue endpoint dependency | Completed | 20260915-102707 | 20260915-102707 |  |
+| 7 | Update /events/{event_id}/ack endpoint dependencies | Completed | 20260915-102707 | 20260915-102707 |  |
+| 8 | Update /nack endpoint dependencies | Completed | 20260915-102707 | 20260915-102707 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
