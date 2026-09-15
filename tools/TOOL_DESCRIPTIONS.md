@@ -6,7 +6,7 @@
 
 本ファイル自体の内容ドリフトは `check_tool_descriptions_sync.py` で検出できる(`tools/*.py` とここでの言及の突合)。
 
-## 一覧 (36モジュール)
+## 一覧 (37モジュール)
 
 | ファイル | カテゴリ | 主な目的 |
 |---|---|---|
@@ -14,6 +14,7 @@
 | `_front_matter_schema.py` | 共通基盤 | Front Matterスキーマの単一情報源 |
 | `check_adr_invariant_matrix.py` | ADR関連 | ADR Invariant Verification MatrixのテストノードID実在確認 |
 | `check_adr_reference.py` | ADR関連 | ADR Invariant Verification Matrixのソースファイル参照検証 |
+| `check_adr_structure.py` | ADR関連 | ADR構造(Known Deviations見出し・Implementation Notes/References整合性)検証 |
 | `check_canonical_source_conflicts.py` | Canonical Source関連 | Canonical Source Registryのセマンティック競合検出 |
 | `check_canonical_source_registry.py` | Canonical Source関連 | Canonical Source Registryのスキーマ検証 |
 | `check_compat_shims.py` | 整合性チェッカー | 後方互換スタブ・shimの残存検出 |
@@ -61,6 +62,7 @@
 | `check_known_deviation_sync.py` | `docs/adr/*.md`, `docs/00_governance_03_issue-and-uncertainty-management.md`(旧`docs/*_90_inconsistencies_and_known_issues.md`) | 各ADRの`## Known Deviations`(および`## Related Documents`→`### Known Issues`)が参照するKnown Issue ID(例: `MCP-004`)について、ADR側のresolved-like/open-likeシグナルと正本側のStatusフィールドの不一致、および正本側に該当IDの見出しが存在しないdangling参照を検出する。2026-09-03: 正本が5つの`*_90_...md`ファイルから`docs/00_governance_03_issue-and-uncertainty-management.md`(Part 1、`#### <ID>`見出し形式)へ統合されたことに対応(旧`### <ID>:`見出しとの両対応、Part 2のNC項目は除外)。読み取り専用(検出のみで自動修正は行わない)。`--format json`で機械可読形式の出力にも対応 |
 | `check_adr_invariant_matrix.py` | `docs/adr-index.md` | ADR Invariant Verification Matrixの`Verification Status`列に記載されたバッククォート付きpytestノードID(例: `` `tests/agent/test_startup.py::test_name` ``)について、対象ファイルが実在するかを検証する(テスト実行までは行わない)。「no test yet」等のテスト未実装行やコード参照(`.py`のみで`::`を含まないセル)は対象外。読み取り専用。`--format json`で機械可読形式の出力にも対応(GV-014) |
 | `check_adr_reference.py` | `docs/adr-index.md`, `scripts/**/*.py` | ADR Invariant Verification Matrixが`scripts/<path>.py`形式でフルパス引用しているソースファイルについて、該当行のADR ID(例: `ADR-004`)への参照コメントがファイル内に存在するかを検証する。パスを伴わない単独のファイル名表記や`tests/*.py::test_name`形式のテストノード引用は対象外。読み取り専用。`--format json`で機械可読形式の出力にも対応(GV-014) |
+| `check_adr_structure.py` | `docs/adr/*.md` | 各ADRについて(a)`## Known Deviations`見出しの存在(欠落時はError)、(b)`## Implementation Notes`と`### Implementation References`間のscripts/tests配下パス引用のドリフト(Notes側にのみ存在する場合はWarning、Notes側に該当パス引用が0件のADRは本チェック対象外)を検証する。読み取り専用。`--format json`で機械可読形式の出力にも対応 |
 | `check_workitem_traceability.py` | `issues/`, `plans/`, `implementations/`(各`done/`含む) | 各ドキュメントの`## Traceability`節をパースし、missing-source-file(`Source *`参照先ファイルの不在)・no-plan-yet(未紐付けissue)・no-procedure-yet(未紐付けplan)・stale-target-heuristic(issue記載後に更新された参照先ドキュメントの可能性、判定は候補提示のみ)・target-file-mismatch(`implementation`種別限定、Traceabilityの`Related target files`値と本文`### Target file`値の不一致——コピペミスまたは別ドキュメントの内容が混入した破損の兆候)の5種類を検出する。読み取り専用(`issues/`/`plans/`/`implementations/`配下への書き込み・改名・移動・削除は一切行わない)。`--format json\|csv`で機械可読形式の出力にも対応 |
 | `check_workitem_structure.py` | `issues/`, `plans/`, `implementations/`(`--include-done`指定時のみ各`done/`含む) | 各ドキュメントが対応する正本テンプレート(`templates/issue.md`/`templates/plan.md`/`templates/implementation-procedure.md`)の`` ```markdown `` フェンス内で定義された`## `見出しをすべて含んでいるかを検証する(`Implementation Target Files`や`Traceability`節の丸ごとの欠落など、構造そのものの不備を検出——既存の`check_workitem_traceability.py`は`## Traceability`節の中身の整合性のみを検証し、節自体の有無は見ない)。`--file <path>`で単一ファイルのみを対象にでき(kindはパスから自動推定)、`--kind`で対象種別を絞り込み可能。読み取り専用。`--format json\|csv`で機械可読形式の出力にも対応 |
 | `check_compat_shims.py` | `scripts/`, `docs/`, `tests/`, `tools/` | 後方互換スタブ・shimの残存検出。`--check-removed-names`(デフォルトOFF)で`docs/*.md`限定の削除済み識別子再出現チェック(`_update_null_fill`の不在確認、`ToolRouteResolver`+`server_configs`のセクション内共起検出、いずれも履歴/resolved文脈は除外)を追加実行できる。既知の指摘1件(`docs/05_agent_13_reference-api.md:114`、対応Plan: `plans/20260903-090104_plan.md`)が解消されるまでは`.pre-commit-config.yaml`のデフォルト呼び出し(フラグなし)には含めないreport-only運用 |

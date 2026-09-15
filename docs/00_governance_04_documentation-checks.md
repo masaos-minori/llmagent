@@ -175,6 +175,20 @@ policy — remove). Report-only (Warning) — findings never block CI; see
 uv run python tools/check_docs_content_policy.py
 ```
 
+### 16. ADR Structure Check (`check_adr_structure.py`)
+
+Validates `docs/adr/*.md` structure:
+- `## Known Deviations` heading presence (missing → Error)
+- Notes vs References path drift (a `scripts/`/`tests/` path in
+  Implementation Notes absent from Implementation References → Warning;
+  skipped if Notes cites zero such paths)
+
+**Usage:**
+```bash
+python tools/check_adr_structure.py
+python tools/check_adr_structure.py --format json
+```
+
 ## Manual Checks
 
 ### 9. Canonical Source Verification
