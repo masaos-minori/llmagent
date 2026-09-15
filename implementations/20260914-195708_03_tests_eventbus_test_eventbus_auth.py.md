@@ -392,12 +392,12 @@ class TestPrincipalFieldValidation:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update imports to include resolve_principal | Pending | — | — | |
-| 2 | Update test fixture routes to use resolve_principal | Pending | — | — | |
-| 3 | Update _init_local_state() if needed | Pending | — | — | |
-| 4 | Update TestPublishAuth tests | Pending | — | — | |
-| 5 | Update TestSubscribeAuth tests | Pending | — | — | |
-| 6 | Add principal field validation tests | Pending | — | — | |
+| 1 | Update imports to include resolve_principal | Completed | 20260915-102707 | 20260915-102707 |  |
+| 2 | Update test fixture routes to use resolve_principal | Completed | 20260915-102707 | 20260915-102707 |  |
+| 3 | Update _init_local_state() if needed | Completed | 20260915-102707 | 20260915-102707 |  |
+| 4 | Update TestPublishAuth tests | Completed | 20260915-102707 | 20260915-102707 |  |
+| 5 | Update TestSubscribeAuth tests | Completed | 20260915-102707 | 20260915-102707 |  |
+| 6 | Add principal field validation tests | Completed | 20260915-102707 | 20260915-102707 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
