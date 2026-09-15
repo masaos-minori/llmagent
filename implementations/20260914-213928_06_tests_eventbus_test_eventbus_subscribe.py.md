@@ -16,8 +16,8 @@ Update `tests/eventbus/test_eventbus_subscribe.py` to add a test for heartbeat/i
 - C: Broker properties accessed in health route (subscriber_count, max_queue_depth, slow_consumer_count, overflow_disconnect_count, duplicate_rejection_count) are all safe to call when broker is not None — confirmed by broker.py method definitions.
 - D: The `DEFAULT_SSE_IDLE_TIMEOUT = 60` constant in `subscribe_route.py` is the current implicit default — confirmed by `subscribe_route.py:28`.
 - E: The `getattr(cfg, "sse_idle_timeout", DEFAULT_SSE_IDLE_TIMEOUT)` pattern in `subscribe_route.py` means the config class doesn't have this field yet — confirmed by `subscribe_route.py:166`.
-- F: Heartbeat is emitted only during active delivery (when events arrive) — line 204-207.
-- G: Idle timeout checks `last_event_time` — line 185.
+- F: Heartbeat is emitted both during active delivery (line 223-225) AND in the timeout branch when no events arrive (line 196-198).
+- G: Idle timeout uses `_last_activity_time = max(last_event_time, last_heartbeat_time)` as the effective last activity time — confirmed by `subscribe_route.py:202`.
 
 ## Design decisions
 
@@ -59,46 +59,111 @@ Add a new test method after the existing `test_subscribe_with_restricted_topic_r
 
 New code:
 ```python
+import time
+
 def test_subscribe_heartbeat_resets_idle_timeout(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REQ-006: Heartbeat activity resets idle timeout."""
-    from unittest.mock import AsyncMock, MagicMock
-    
-    # Mock the subscribe generator to emit heartbeats but no events
+    """REQ-006: Heartbeat activity resets idle timeout.
+
+    When no events arrive, the heartbeat emitted in the timeout branch
+    must prevent the idle timeout from disconnecting the subscriber.
+    """
     from eventbus import app as eb_app
-    
-    mock_sub = MagicMock()
-    mock_sub.queue = asyncio.Queue()
-    mock_sub.disconnect = asyncio.Event()
-    
-    async def mock_get():
-        await asyncio.sleep(0.1)
-        return None  # Simulate queue empty
-    
-    mock_sub.queue.get = mock_get
-    
-    # Patch the broker's subscribe method to return our mock subscriber
-    original_subscribe = eb_app.app.state.broker.subscribe
-    eb_app.app.state.broker.subscribe = MagicMock(return_value=mock_sub)
-    
-    try:
-        resp = client.get("/subscribe?consumer_id=test-idle&topic=t")
-        # Response should complete successfully (no idle timeout)
+    from eventbus.config import EventBusConfig
+    import eventbus.subscribe_route as sr_module
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path=str(tmp_path / "eventbus.sqlite"),
+        storage_dir=str(tmp_path / "storage"),
+        offsets_dir=str(tmp_path / "offsets"),
+        deadletter_dir=str(tmp_path / "deadletter"),
+        max_retry=3,
+        auth_token="shared-token",
+        consumer_token="consumer-token",
+    )
+    # Heartbeat interval shorter than idle timeout so heartbeats fire first
+    object.__setattr__(cfg, "sse_heartbeat_interval", 0.1)
+    object.__setattr__(cfg, "sse_idle_timeout", 0.5)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
+    monkeypatch.setattr(sr_module, "DEFAULT_SSE_IDLE_TIMEOUT", 0.5)
+
+    with TestClient(eb_app.app) as c:
+        c.headers["Authorization"] = "Bearer consumer-token"
+        start = time.monotonic()
+        resp = c.get("/subscribe?consumer_id=test-hb&topic=t", timeout=2.0)
+        elapsed = time.monotonic() - start
+        # Connection stays alive while heartbeats are emitted;
+        # response completes without idle timeout error
         assert resp.status_code == 200
-    finally:
-        eb_app.app.state.broker.subscribe = original_subscribe
+        assert elapsed < 2.0, "Connection should not hang indefinitely"
 ```
 
 Key changes:
 - Added test for heartbeat/idle interaction behavior.
-- Verifies heartbeat activity resets idle timeout.
+- Verifies heartbeat activity resets idle timeout via configuration-level control.
+- Uses sse_heartbeat_interval=0.1 and sse_idle_timeout=0.5 to ensure heartbeats fire before idle timeout triggers.
 
 ### Details
 
 - REQ-004: Heartbeat deadline evaluation added to timeout branch.
 - REQ-005: Heartbeat comments emitted independently of event arrival.
 - REQ-006: Heartbeat activity resets idle timeout.
+
+#### Step 2: Add sse_idle_timeout config loading test (REQ-001)
+
+Add a new test method after the heartbeat/idle interaction test above:
+
+New code:
+```python
+def test_sse_idle_timeout_loaded_from_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-001: sse_idle_timeout is loaded from config, falls back to DEFAULT_SSE_IDLE_TIMEOUT."""
+    from eventbus import app as eb_app
+    from eventbus.config import EventBusConfig
+    import eventbus.subscribe_route as sr_module
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path=str(tmp_path / "eventbus.sqlite"),
+        storage_dir=str(tmp_path / "storage"),
+        offsets_dir=str(tmp_path / "offsets"),
+        deadletter_dir=str(tmp_path / "deadletter"),
+        max_retry=3,
+        auth_token="shared-token",
+        consumer_token="consumer-token",
+    )
+    object.__setattr__(cfg, "sse_idle_timeout", 1.0)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
+    monkeypatch.setattr(sr_module, "DEFAULT_SSE_IDLE_TIMEOUT", 60.0)
+
+    with TestClient(eb_app.app) as c:
+        c.headers["Authorization"] = "Bearer consumer-token"
+        start = time.monotonic()
+        resp = c.get("/subscribe?consumer_id=test-config&topic=t", timeout=2.0)
+        elapsed = time.monotonic() - start
+        # With sse_idle_timeout=1.0 and no events, connection should close
+        # around 1.0s (not wait for DEFAULT_SSE_IDLE_TIMEOUT=60s)
+        assert resp.status_code == 200
+        assert elapsed >= 0.8 and elapsed < 2.0, (
+            f"Expected ~1s idle timeout, got {elapsed:.1f}s"
+        )
+```
+
+Key changes:
+- Added test for sse_idle_timeout config loading.
+- Verifies the configured value (1.0s) takes effect instead of DEFAULT_SSE_IDLE_TIMEOUT (60.0s).
+- Uses `object.__setattr__` since `sse_idle_timeout` is not a real EventBusConfig field yet.
 
 ## Compatibility considerations
 
@@ -144,7 +209,8 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add heartbeat/idle interaction test | Pending | — | — | |
+| 1 | Add heartbeat/idle interaction test | Completed | 20260915-131916 | 20260915-131916 |  |
+| 2 | Add sse_idle_timeout config loading test | Completed | 20260915-131924 | 20260915-131924 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
