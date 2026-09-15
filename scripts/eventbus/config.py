@@ -46,7 +46,10 @@ class EventBusConfig:
     publish_rate: float = 100.0
     host: str = "127.0.0.1"
     auth_token: str = ""
-    # Per-role tokens (optional, for role-based access control)
+    # Per-role tokens (optional, for role-based access control).
+    # When set, each token grants only its own role (e.g., publisher_token → PUBLISHER).
+    # The shared auth_token (if set) grants ALL roles for backward compatibility.
+    # At least one per-role token must be configured when using role-based access control.
     publisher_token: str = ""
     consumer_token: str = ""
     operator_token: str = ""

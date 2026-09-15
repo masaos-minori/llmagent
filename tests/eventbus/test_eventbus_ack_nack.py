@@ -328,3 +328,31 @@ class TestNackEvent:
 
         result = nack_event(db, "nonexistent-event")
         assert result == (-1, -1)
+
+
+class TestNackPrincipalValidation:
+    """Tests for Principal field validation in nack endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_nack_with_insufficient_roles_returns_403(self) -> None:
+        """A publisher cannot NACK events (requires CONSUMER role)."""
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import _TOKEN_ROLE_MAP, Principal, Role, require_role
+        from fastapi import HTTPException
+        from fastapi.requests import Request
+        from pytest import raises as pytest_raises
+
+        token = "publisher-token"
+        _TOKEN_ROLE_MAP[token] = {Role.PUBLISHER}
+        try:
+            dep = require_role(Role.CONSUMER)
+            mock_request = MagicMock(spec=Request)
+            mock_request.url.path = "/nack"
+            mock_principals = MagicMock(spec=Principal)
+            mock_principals.roles = {Role.PUBLISHER}
+            with pytest_raises(HTTPException) as exc_info:
+                await dep(mock_request, principal=mock_principals)
+            assert exc_info.value.status_code == 403
+        finally:
+            _TOKEN_ROLE_MAP.pop(token, None)

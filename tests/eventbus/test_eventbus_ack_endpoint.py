@@ -180,3 +180,31 @@ class TestAckMonotonicOffset:
         assert get_consumer_offset(db, consumer_id) == 2, (
             "Monotonic: offset must not regress after acking an older-seq event"
         )
+
+
+class TestAckPrincipalValidation:
+    """Tests for Principal field validation in ack endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_ack_with_insufficient_roles_returns_403(self) -> None:
+        """A publisher cannot ACK events (requires CONSUMER role)."""
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import _TOKEN_ROLE_MAP, Principal, Role, require_role
+        from fastapi import HTTPException
+        from fastapi.requests import Request
+        from pytest import raises as pytest_raises
+
+        token = "publisher-token"
+        _TOKEN_ROLE_MAP[token] = {Role.PUBLISHER}
+        try:
+            dep = require_role(Role.CONSUMER)
+            mock_request = MagicMock(spec=Request)
+            mock_request.url.path = "/events/test-event-id/ack"
+            mock_principals = MagicMock(spec=Principal)
+            mock_principals.roles = {Role.PUBLISHER}
+            with pytest_raises(HTTPException) as exc_info:
+                result = await dep(mock_request, principal=mock_principals)
+            assert exc_info.value.status_code == 403
+        finally:
+            _TOKEN_ROLE_MAP.pop(token, None)
