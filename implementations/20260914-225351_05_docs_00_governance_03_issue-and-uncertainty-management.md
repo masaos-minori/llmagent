@@ -125,7 +125,7 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Review CI-005 scope against EventBus's actual configuration-loading behavior | Pending | — | — | |
+| 1 | Review CI-005 scope against EventBus's actual configuration-loading behavior | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
