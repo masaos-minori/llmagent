@@ -225,9 +225,9 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update imports to include Principal | Pending | — | — | |
-| 2 | Update /events/{event_id}/ack endpoint dependency | Pending | — | — | |
-| 3 | Update /nack endpoint dependency | Pending | — | — | |
+| 1 | Update imports to include Principal | Done | — | — | Already done in prior work |
+| 2 | Update /events/{event_id}/ack endpoint dependency | Done | — | — | consumer_id now required (Query(default="")) |
+| 3 | Update /nack endpoint dependency | Done | — | — | consumer_id now required (Query(default="")) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
