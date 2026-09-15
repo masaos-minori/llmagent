@@ -12,7 +12,7 @@ Add integration tests for notification failure after successful insert; verify s
 - B: JSONL append uses `os.fsync()` for durability — confirmed by `publish_route.py:69`
 - C: Broker notification uses `broker.publish(event_dict)` which fans out to subscriber queues — confirmed by `broker.py:79-100`
 - D: The `prometheus_client.Counter` class is already used in `broker.py` for `_slow_consumer_total` — confirmed by `broker.py:10`
-- E: The `docs/eventbus/` directory does not exist yet — confirmed by filesystem check
+- E: The `docs/eventbus/` directory exists — confirmed by filesystem check (created in prior cycle)
 - F: The `storage_dir` configuration key defines the JSONL file location — confirmed by `publish_route.py:64`
 
 ## Design decisions
@@ -218,12 +218,12 @@ Note: The existing `test_publish_succeeds_if_jsonl_append_fails` test (lines 127
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add integration tests for notification failure after successful insert | Pending | — | — | REQ-006 |
-| 2 | Add JSONL append failure metric test | Pending | — | — | REQ-002 |
-| 3 | Add broker notification failure metric test | Pending | — | — | REQ-005 |
-| 4 | Add disk-full scenario test | Pending | — | — | REQ-004 |
-| 5 | Add permission failure scenario test | Pending | — | — | REQ-004 |
-| 6 | Add JSONL reconciliation test | Pending | — | — | REQ-003 |
+| 1 | Add integration tests for notification failure after successful insert | Completed | 20260915-153236 | 20260915-153236 | REQ-006 |
+| 2 | Add JSONL append failure metric test | Completed | 20260915-153236 | 20260915-153236 | REQ-002 |
+| 3 | Add broker notification failure metric test | Completed | 20260915-153236 | 20260915-153236 | REQ-005 |
+| 4 | Add disk-full scenario test | Completed | 20260915-153236 | 20260915-153236 | REQ-004 |
+| 5 | Add permission failure scenario test | Completed | 20260915-153236 | 20260915-153236 | REQ-004 |
+| 6 | Add JSONL reconciliation test | Completed | 20260915-153236 | 20260915-153236 | REQ-003 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
