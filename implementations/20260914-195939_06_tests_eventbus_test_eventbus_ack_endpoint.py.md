@@ -201,9 +201,9 @@ class TestAckPrincipalValidation:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update imports to include resolve_principal | Pending | — | — | |
-| 2 | Verify ack endpoint behavior remains correct | Pending | — | — | No changes needed |
-| 3 | Add principal field validation test | Pending | — | — | |
+| 1 | Update imports to include resolve_principal | Completed | 20260915-102800 | 20260915-102800 | Fixed: removed unused import; test uses Principal mock directly |
+| 2 | Verify ack endpoint behavior remains correct | Completed | 20260915-102800 | 20260915-102800 | No changes needed |
+| 3 | Add principal field validation test | Completed | 20260915-102800 | 20260915-102800 | All 7 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
