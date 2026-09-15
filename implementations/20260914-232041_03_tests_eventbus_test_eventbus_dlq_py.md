@@ -251,10 +251,10 @@ These tests already cover REQ-001 acceptance criteria for error cases.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update existing single-threaded requeue test to assert new_seq | Pending | — | — | |
-| 2 | Add concurrent requeue same-event test | Pending | — | — | |
-| 3 | Add concurrent requeue different-events test | Pending | — | — | |
-| 4 | Verify existing HTTP 409/404 tests still pass | Pending | — | — | |
+| 1 | Update existing single-threaded requeue test to assert new_seq | Completed | 20260915-145330 | 20260915-145330 | Added `new_seq` assertions to test_dlq_requeue |
+| 2 | Add concurrent requeue same-event test | Completed | 20260915-145330 | 20260915-145330 | Uses httpx.AsyncClient + ASGITransport |
+| 3 | Add concurrent requeue different-events test | Completed | 20260915-145330 | 20260915-145330 | Same approach; removed leftover ev reference |
+| 4 | Verify existing HTTP 409/404 tests still pass | Completed | 20260915-145330 | 20260915-145330 | All 13 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
