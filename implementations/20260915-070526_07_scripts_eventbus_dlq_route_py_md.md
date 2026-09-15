@@ -230,11 +230,11 @@ Manual code review — read the relevant sections of `dlq_route.py` and verify t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Locate dlq_list function | Pending | — | — | |
-| 2 | Verify DLQ list endpoint contract accuracy | Pending | — | — | |
-| 3 | Locate dlq_requeue function | Pending | — | — | |
-| 4 | Verify DLQ requeue endpoint contract accuracy | Pending | — | — | |
-| 5 | Document findings for API reference | Pending | — | — | |
+| 1 | Locate dlq_list function | Completed | 20260915-230000 | 20260915-230000 |  |
+| 2 | Verify DLQ list endpoint contract accuracy | Completed | 20260915-230000 | 20260915-230000 |  |
+| 3 | Locate dlq_requeue function | Completed | 20260915-230000 | 20260915-230000 |  |
+| 4 | Verify DLQ requeue endpoint contract accuracy | Completed | 20260915-230000 | 20260915-230000 |  |
+| 5 | Document findings for API reference | Completed | 20260915-230000 | 20260915-230000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
