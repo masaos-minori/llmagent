@@ -90,8 +90,8 @@ Expected: CI-001 note and EventBus row match the plan's documented contract.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify local-invariant exception status | Pending | — | — | |
-| 2 | Verify CI-001 note and EventBus row | Pending | — | — | |
+| 1 | Verify local-invariant exception status | Completed | — | 20260916-001142 |  |
+| 2 | Verify CI-001 note and EventBus row | Completed | — | 20260916-001150 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
