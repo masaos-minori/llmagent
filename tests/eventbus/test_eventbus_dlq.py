@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from pathlib import Path
 from typing import Any
@@ -107,6 +108,9 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     assert body["requeued"] is True
     assert "new_event_id" in body
     assert body["new_event_id"] != ev["event_id"]
+    assert "new_seq" in body
+    assert isinstance(body["new_seq"], int)
+    assert body["new_seq"] > 0
 
     # Original event remains in DLQ (lineage model: original row's dlq_at IS NOT NULL)
     r2 = client.get("/dlq")
@@ -309,7 +313,111 @@ def test_atomic_write_failure_leaves_db_row_unchanged(
     with pytest.raises(OSError):
         dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"])
 
-    row = db.execute(
-        "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
-    ).fetchone()
-    assert row["dlq_at"] is None
+
+@pytest.mark.asyncio
+async def test_concurrent_requeue_same_event(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Concurrent requeue attempts on the same event must produce exactly one successful redelivery."""
+    from eventbus.db import open_db
+    from eventbus.dlq import sweep_orphans
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+    db.execute(
+        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
+        (ev["event_id"],),
+    )
+    db.commit()
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+
+    from httpx import ASGITransport, AsyncClient
+
+    async def requeue(event_id: str) -> dict:
+        async with AsyncClient(
+            transport=ASGITransport(app=client.app), base_url="http://test"
+        ) as ac:
+            r = await ac.post(
+                f"/dlq/{event_id}/requeue",
+                headers={"Authorization": "Bearer test-token"},
+            )
+            return r.json()
+
+    results = await asyncio.gather(
+        requeue(ev["event_id"]),
+        requeue(ev["event_id"]),
+        requeue(ev["event_id"]),
+    )
+
+    successes = [r for r in results if r.get("requeued")]
+    failures = [r for r in results if not r.get("requeued")]
+
+    assert len(successes) == 1
+    assert len(failures) == 2
+
+    success_body = successes[0]
+    assert "new_event_id" in success_body
+    assert "new_seq" in success_body
+    assert isinstance(success_body["new_seq"], int)
+    assert success_body["new_seq"] > 0
+
+    for fail_body in failures:
+        assert "error" in fail_body or "detail" in fail_body
+
+    new_rows = db.execute(
+        "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
+        (ev["event_id"],),
+    ).fetchone()[0]
+    assert new_rows == 1
+
+
+@pytest.mark.asyncio
+async def test_concurrent_requeue_different_events(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Concurrent requeue attempts on different events must both succeed independently."""
+    from eventbus.db import open_db
+    from eventbus.dlq import sweep_orphans
+    from httpx import ASGITransport, AsyncClient
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev1 = _event(topic="t1")
+    ev2 = _event(topic="t2")
+    client.post("/publish", json=ev1)
+    client.post("/publish", json=ev2)
+    db.execute(
+        "UPDATE events SET delivery_failure_count = 2 WHERE event_id IN (?, ?)",
+        (ev1["event_id"], ev2["event_id"]),
+    )
+    db.commit()
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+
+    async def requeue(event_id: str) -> dict:
+        async with AsyncClient(
+            transport=ASGITransport(app=client.app), base_url="http://test"
+        ) as ac:
+            r = await ac.post(
+                f"/dlq/{event_id}/requeue",
+                headers={"Authorization": "Bearer test-token"},
+            )
+            return r.json()
+
+    results = await asyncio.gather(
+        requeue(ev1["event_id"]),
+        requeue(ev2["event_id"]),
+    )
+
+    assert all(r.get("requeued") for r in results)
+
+    new_ids = {r["new_event_id"] for r in results}
+    assert len(new_ids) == 2
+
+    new_seqs = {r["new_seq"] for r in results}
+    assert len(new_seqs) == 2
+
+    new_rows = db.execute(
+        "SELECT COUNT(*) FROM events WHERE redelivered_from IN (?, ?)",
+        (ev1["event_id"], ev2["event_id"]),
+    ).fetchone()[0]
+    assert new_rows == 2

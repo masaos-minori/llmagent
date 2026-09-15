@@ -8,6 +8,7 @@ from typing import Any
 
 import jsonschema
 from fastapi import HTTPException, Request
+from prometheus_client import Counter
 
 from eventbus.auth import Principal
 from eventbus.db import insert_event
@@ -21,6 +22,16 @@ from eventbus.route_helpers import (
 )
 
 logger = logging.getLogger(__name__)
+
+_jsonl_append_failure_counter = Counter(
+    "eventbus_jsonl_append_failure_total",
+    "Number of JSONL append failures after successful database commit",
+)
+
+_broker_notify_failure_counter = Counter(
+    "eventbus_broker_notify_failure_total",
+    "Number of broker notification failures after successful database commit",
+)
 
 
 async def publish(
@@ -71,6 +82,7 @@ async def publish(
                 f.flush()
                 os.fsync(f.fileno())
         except OSError as exc:
+            _jsonl_append_failure_counter.inc()
             logger.warning(
                 "eventbus: JSONL append failed (event still committed): %s", exc
             )
@@ -88,6 +100,7 @@ async def publish(
             n = broker.publish(event_dict)
             logger.debug("publish notify broker delivered=%d seq=%d", n, seq)
         except Exception:
+            _broker_notify_failure_counter.inc()
             logger.exception("publish broker notify error seq=%d", seq)
 
     logger.info("publish event_id=%s topic=%s seq=%d", event_id, topic, seq)

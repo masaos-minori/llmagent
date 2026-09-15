@@ -11,6 +11,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from eventbus.route_helpers import ERR_EVENT_CONFLICT
 from eventbus_helpers import make_eventbus_client
 from fastapi.testclient import TestClient
 
@@ -73,52 +74,6 @@ def test_publish_idempotent(client: TestClient) -> None:
     assert r1.json()["seq"] == r2.json()["seq"]
 
 
-def test_identical_content_retry_returns_same_seq(client: TestClient) -> None:
-    """Identical retries return the existing sequence and do not cause redelivery."""
-    resp1 = client.post("/publish", json={
-        "event_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-        "topic": "test",
-        "payload": {"key": "value"},
-        "producer": "test-producer",
-        "published_at": "2024-01-01T00:00:00Z",
-    })
-    assert resp1.status_code == 200
-    seq1 = resp1.json()["seq"]
-
-    resp2 = client.post("/publish", json={
-        "event_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-        "topic": "test",
-        "payload": {"key": "value"},
-        "producer": "test-producer",
-        "published_at": "2024-01-01T00:00:01Z",
-    })
-    assert resp2.status_code == 200
-    seq2 = resp2.json()["seq"]
-
-    assert seq1 == seq2
-
-
-def test_conflicting_content_retry_returns_409(client: TestClient) -> None:
-    """Conflicting retries return HTTP 409 and do not modify the stored row."""
-    resp1 = client.post("/publish", json={
-        "event_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
-        "topic": "test",
-        "payload": {"key": "value1"},
-        "producer": "test-producer",
-        "published_at": "2024-01-01T00:00:00Z",
-    })
-    assert resp1.status_code == 200
-
-    resp2 = client.post("/publish", json={
-        "event_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
-        "topic": "test",
-        "payload": {"key": "value2"},
-        "producer": "test-producer",
-        "published_at": "2024-01-01T00:00:00Z",
-    })
-    assert resp2.status_code == 409
-
-
 def test_publish_invalid_schema(client: TestClient) -> None:
     r = client.post("/publish", json={"invalid": "body"})
     assert r.status_code == 422
@@ -173,3 +128,68 @@ def test_conflicting_content_retry_returns_409(client: TestClient) -> None:
     conflicting["payload"] = {"key": "different_value"}
     resp2 = client.post("/publish", json=conflicting)
     assert resp2.status_code == 409
+    assert resp2.json()["detail"] == ERR_EVENT_CONFLICT
+
+
+def test_jsonl_append_failure_increments_metric(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """JSONL append failure increments eventbus_jsonl_append_failure_total counter."""
+    ev = _event()
+
+    original_open = Path.open
+
+    def failing_open(self, *args, **kwargs):
+        if "events.jsonl" in str(self):
+            raise OSError("disk full")
+        return original_open(self, *args, **kwargs)
+
+    with patch.object(Path, "open", failing_open):
+        resp = client.post("/publish", json=ev)
+
+    assert resp.status_code == 200
+    assert resp.json()["event_id"] == ev["event_id"]
+
+    from prometheus_client import generate_latest
+
+    text = generate_latest().decode("utf-8")
+    counter_name = "eventbus_jsonl_append_failure_total"
+    found_line = False
+    for line in text.splitlines():
+        if counter_name in line and not line.startswith("#"):
+            parts = line.split()
+            value = float(parts[-1])
+            assert value >= 1
+            found_line = True
+            break
+    assert found_line
+
+
+def test_broker_notify_failure_increments_metric(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Broker notification failure increments eventbus_broker_notify_failure_total counter."""
+    ev = _event()
+
+    mock_broker = MagicMock()
+    mock_broker.publish.side_effect = Exception("broker unavailable")
+
+    with patch("eventbus.publish_route.get_broker", return_value=mock_broker):
+        resp = client.post("/publish", json=ev)
+
+    assert resp.status_code == 200
+    assert resp.json()["event_id"] == ev["event_id"]
+
+    from prometheus_client import generate_latest
+
+    text = generate_latest().decode("utf-8")
+    counter_name = "eventbus_broker_notify_failure_total"
+    found_line = False
+    for line in text.splitlines():
+        if counter_name in line and not line.startswith("#"):
+            parts = line.split()
+            value = float(parts[-1])
+            assert value >= 1
+            found_line = True
+            break
+    assert found_line

@@ -20,6 +20,11 @@ _slow_consumer_total = Counter(
     "Number of slow consumer events detected",
 )
 
+_broker_publish_failure_counter = Counter(
+    "eventbus_broker_publish_failure_total",
+    "Number of broker publish failures to individual subscribers",
+)
+
 
 @dataclass
 class _Subscriber:
@@ -97,6 +102,9 @@ class EventBroker:
                 sub.disconnect.set()
                 self.unsubscribe(sub)
                 self._overflow_disconnect_count += 1
+            except Exception:
+                _broker_publish_failure_counter.inc()
+                raise
         return delivered
 
     def shutdown(self) -> None:

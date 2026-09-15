@@ -188,20 +188,22 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 
 - **ID**: EVENTBUS-002
 - **Title**: `/replay?format=json` Pagination Format Undocumented
-- **Status**: open
+- **Status**: resolved
 - **Severity**: Low
 - **Area**: EventBus
 - **Type**: missing-documentation
-- **Source**: `scripts/eventbus/` replay endpoint
+- **Source**: `scripts/eventbus/replay_route.py` replay endpoint
 - **Owner**: Unassigned
 - **First Found**: Unconfirmed
-- **Target**: `06_eventbus_02_operations.md`, `06_eventbus_06_reference-api.md`
+- **Resolved Date**: 20260915
+- **Resolution**: Documented in `docs/eventbus/03_replay_operations.md`
+- **Target**: `docs/eventbus/03_replay_operations.md`
 - **Related**: EVENTBUS-001
-- **Summary**: `/replay?format=json` returns `{total, limit, offset, items}`, but this pagination response format is not documented in the API reference.
-- **Current Description**: Behavior is correct — the endpoint returns paginated JSON — but the format is undocumented, so clients may not know to expect a paginated response structure.
-- **Observed Implementation**: Explicit in code — the replay endpoint returns paginated JSON; documentation lacks a format specification.
-- **Impact**: Clients may not know to expect paginated response structure. Workaround: clients can infer the shape from the response body.
-- **Recommended Action**: Add the pagination format to `06_eventbus_02_operations.md` and `06_eventbus_06_reference-api.md`.
+- **Summary**: `/replay?format=json` returns `{total, limit, offset, items}`, now documented in `docs/eventbus/03_replay_operations.md`.
+- **Current Description**: The replay endpoint supports both SSE and JSON formats with full pagination support. Both response formats are now documented.
+- **Observed Implementation**: The replay endpoint returns paginated JSON when `format=json`; the format is now specified in the operations reference.
+- **Impact Resolved**: Clients can now discover the response structure through the documentation.
+- **Recommended Action**: Resolved — see `docs/eventbus/03_replay_operations.md`.
 
 #### EVENTBUS-005
 
