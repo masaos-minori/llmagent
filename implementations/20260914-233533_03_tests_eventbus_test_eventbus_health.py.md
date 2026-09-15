@@ -157,10 +157,10 @@ Note: The existing `test_health_503_when_dlq_task_stopped` test (lines 114-129) 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add metrics-accessible health endpoint test | Pending | — | — | REQ-001 |
-| 2 | Add metrics-unavailable graceful degradation test | Pending | — | — | REQ-002 |
-| 3 | Add broker None backlog threshold test | Pending | — | — | REQ-002 |
-| 4 | Add Prometheus compatibility test for public API | Pending | — | — | REQ-003 |
+| 1 | Add metrics-accessible health endpoint test | Completed | — | 20260915-170924 | REQ-001 |
+| 2 | Add metrics-unavailable graceful degradation test | Completed | — | 20260915-170924 | REQ-002 |
+| 3 | Add broker None backlog threshold test | Completed | — | 20260915-170924 | REQ-002 |
+| 4 | Add Prometheus compatibility test for public API | Completed | — | 20260915-170924 | REQ-003 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
