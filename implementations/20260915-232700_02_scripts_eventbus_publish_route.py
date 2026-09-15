@@ -91,8 +91,8 @@ Expected: Parameter not used in function body.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify `_role` parameter in `publish()` | Pending | — | — | |
-| 2 | Verify parameter usage status | Pending | — | — | |
+| 1 | Verify `_role` parameter in `publish()` | Completed | — | — | Stale claim: no _role parameter; param is only request |
+| 2 | Verify parameter usage status | Completed | — | — | Parameter removed before this verification cycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
