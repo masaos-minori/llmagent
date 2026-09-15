@@ -1,0 +1,115 @@
+## Goal
+
+Evidence for .importlinter contract relaxation during eventbus13's ConfigLoader migration. REQ-003.
+
+## Scope
+
+Verify .importlinter's relaxation of the `eventbus-is-isolated` contract to permit importing ConfigLoader from shared. This row is read-only evidence gathering.
+
+## Assumptions
+
+- .importlinter exists at `.importlinter`
+- .importlinter's `eventbus-is-isolated` contract forbids importing shared/mcp_servers from eventbus
+
+## Design decisions
+
+- Read-only verification: confirm current state without independently modifying
+- If the contract has already been relaxed, mark this step as complete
+- If stale contract exists, report Plan Gap
+
+## Alternatives considered
+
+- Independently relaxing .importlinter: rejected because eventbus13's scope is documentation only
+- Deferring until eventbus13 executes: not viable since eventbus13 depends on eventbus09 landing first
+
+## Implementation
+
+### Target file
+
+`.importlinter`
+
+### Procedure
+
+1. Check whether .importlinter still forbids EventBus → shared imports
+2. Verify .importlinter's eventbus-is-isolated contract matches the plan's documented contract
+3. If all checks pass, mark this step as complete
+4. If any check fails, determine whether eventbus09 has landed:
+   - If eventbus09 has not landed: missing contract relaxation is expected, no action needed
+   - If eventbus09 has landed but contract doesn't match: report Plan Gap
+
+### Method
+
+Adversarial verification: treat the plan's description of current .importlinter state as unverified. Check each claim against the actual file content.
+
+### Details
+
+**Step 1: Verify EventBus → shared import restriction**
+
+Expected: .importlinter forbids EventBus → shared imports.
+
+Pre-migration state: Restriction enforced per ADR-013 (now stale).
+
+**Step 2: Verify eventbus-is-isolated contract**
+
+Expected: Contract matches the plan's documented contract.
+
+## Compatibility considerations
+
+- This verification must occur after eventbus09 lands; executing before eventbus09 would produce false positives
+- The .importlinter contract may have been updated since eventbus09's approval — verify alignment rather than duplicating the edit
+- If .importlinter still lacks expected updates after eventbus09 lands, the gap belongs to eventbus09's execution, not eventbus13
+
+## Security considerations
+
+- None applicable: documentation reconciliation only, no code changes or security boundary modifications
+
+## Rollback considerations
+
+- No rollback needed: this is a verification step, not a modification
+- If .importlinter needs correction, defer to eventbus09's implementation rather than applying an independent fix
+
+## Validation plan
+
+| Target File | Testing Strategy | Tool / Command | Expected Outcome |
+|---|---|---|---|
+| .importlinter | Manual review: verify contract relaxation status | PYTHONPATH=scripts uv run lint-imports | Contract passes with narrowed ConfigLoader-only exception |
+
+## Completion criteria
+
+- .importlinter's eventbus-is-isolated contract permits importing ConfigLoader from shared
+- Any other EventBus → shared import still fails
+- Contract relaxation is scoped to ConfigLoader specifically
+
+## Out of scope
+
+- Modifying .importlinter directly (unless stale content requires correction, which should be deferred to eventbus09)
+- Re-deciding the .importlinter contract design (answered by eventbus09)
+- Creating API reference documents (separate row in this plan)
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Verify EventBus → shared import restriction | Pending | — | — | |
+| 2 | Verify eventbus-is-isolated contract | Pending | — | — | |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: REQ-003
+- **Source issue**: issues/20260914-104425_eventbus13_config-loader-migration.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20260914-184302_plan.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20260915-232700
+- **Related target files**: .importlinter
