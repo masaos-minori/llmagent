@@ -26,6 +26,39 @@ def _is_public_host(host: str) -> bool:
     return host not in ("127.0.0.1", "::1")
 
 
+def _validate_cross_field(cfg: EventBusConfig) -> None:
+    """Validate cross-field relationships after per-key validation passes."""
+    _validate_token_combinations(cfg)
+    _validate_deployment_mode(cfg)
+
+
+def _validate_token_combinations(cfg: EventBusConfig) -> None:
+    """Validate that required tokens are present based on enabled capabilities."""
+    has_any_token = bool(cfg.auth_token) or any(
+        [
+            cfg.publisher_token,
+            cfg.consumer_token,
+            cfg.operator_token,
+            cfg.monitoring_token,
+            cfg.admin_token,
+        ]
+    )
+
+    if not has_any_token:
+        raise ValueError("At least one authentication token must be configured")
+
+
+def _validate_deployment_mode(cfg: EventBusConfig) -> None:
+    """Validate deployment mode consistency."""
+    if _is_public_host(cfg.host):
+        raise ValueError(
+            f"Event Bus bound to non-loopback address {cfg.host}. "
+            "The API has no authentication — this is a security risk."
+        )
+    if not cfg.auth_token:
+        raise ValueError("auth_token is required but not configured")
+
+
 @dataclass(frozen=True)
 class EventBusConfig:
     """Immutable configuration for the Event Bus service.
@@ -216,17 +249,7 @@ def load_config(path: Path | None = None) -> EventBusConfig:
     if not data["auth_token"]:
         raise ValueError("eventbus config 'auth_token' must not be empty.")
 
-    # Validate per-role tokens: at least one must be configured
-    if not any(
-        [
-            data.get("consumer_token"),
-            data.get("operator_token"),
-            data.get("admin_token"),
-        ]
-    ):
-        raise ValueError("At least one per-role token must be configured")
-
-    return EventBusConfig(
+    cfg = EventBusConfig(
         port=data["port"],
         db_path=data["db_path"],
         storage_dir=data["storage_dir"],
@@ -250,3 +273,7 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         subscriber_queue_maxsize=int(data.get("subscriber_queue_maxsize", 1000)),
         backlog_health_threshold=int(data.get("backlog_health_threshold", 500)),
     )
+
+    _validate_cross_field(cfg)
+
+    return cfg

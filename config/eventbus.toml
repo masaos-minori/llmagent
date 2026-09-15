@@ -14,14 +14,19 @@ max_retry = 3
 auth_token = ""
 
 # Per-role tokens (optional, for role-based access control).
+# At least one of: auth_token OR any per-role token must be configured.
+# Valid combinations:
+#   - auth_token alone (shared token mode, grants all roles)
+#   - auth_token + one or more per-role tokens (role-based mode)
+#   - publisher_token + auth_token (publisher-only deployment)
+#   - monitoring_token + auth_token (monitoring-only deployment)
+#   - Any combination of per-role tokens + auth_token
 # Each token grants only its own role:
 #   - publisher_token → PUBLISHER role (can publish events)
 #   - consumer_token → CONSUMER role (can subscribe, ack, nack)
 #   - operator_token → OPERATOR role (can manage DLQ, replay)
 #   - monitoring_token → MONITORING role (can access /health)
 #   - admin_token → ALL roles (superuser credential)
-# At least one per-role token must be configured when using role-based access control.
-# If auth_token is set, per-role tokens can be left empty for backward compatibility.
 publisher_token = ""
 consumer_token = ""
 operator_token = ""

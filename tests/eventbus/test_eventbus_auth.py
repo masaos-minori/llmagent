@@ -981,3 +981,84 @@ class TestAuditRecordValidation:
                 assert "consumer-token" not in str(audit_record)
                 assert "operator-token" not in str(audit_record)
                 assert "admin-token" not in str(audit_record)
+
+
+class TestUnified401ResponseFormat:
+    """Tests for the unified HTTP 401 response format."""
+
+    def test_missing_authorization_header_returns_unified_format(self) -> None:
+        """REQ-009, REQ-010: Missing Authorization header returns standardized 401 response."""
+        app, cfg = _make_test_app(
+            Path("/tmp/test-unified-401"),
+            token="test-shared-token",
+            publisher_token=None,
+            consumer_token=None,
+            operator_token=None,
+            admin_token=None,
+        )
+        client = TestClient(app, raise_server_exceptions=False)
+
+        response = client.get("/health")
+        assert response.status_code == 401
+
+        body = response.json()
+        assert body["error"] == "Unauthorized"
+        assert "detail" in body
+        assert isinstance(body["detail"], str)
+        assert len(body["detail"]) > 0
+
+        # WWW-Authenticate header must be present
+        assert "www-authenticate" in response.headers
+        assert 'Bearer realm="eventbus"' in response.headers["www-authenticate"]
+
+    def test_invalid_bearer_token_returns_unified_format(self) -> None:
+        """REQ-009, REQ-010: Invalid Bearer token returns standardized 401 response."""
+        app, cfg = _make_test_app(
+            Path("/tmp/test-unified-401-invalid"),
+            token="test-shared-token",
+            publisher_token=None,
+            consumer_token=None,
+            operator_token=None,
+            admin_token=None,
+        )
+        client = TestClient(app, raise_server_exceptions=False)
+
+        response = client.get(
+            "/health",
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+        assert response.status_code == 401
+
+        body = response.json()
+        assert body["error"] == "Unauthorized"
+        assert "detail" in body
+        assert isinstance(body["detail"], str)
+        assert len(body["detail"]) > 0
+
+        # WWW-Authenticate header must be present
+        assert "www-authenticate" in response.headers
+        assert 'Bearer realm="eventbus"' in response.headers["www-authenticate"]
+
+    def test_no_double_authentication_processing(self) -> None:
+        """REQ-008: Authentication failures are not processed twice."""
+        app, cfg = _make_test_app(
+            Path("/tmp/test-no-double-auth"),
+            token="test-shared-token",
+            publisher_token=None,
+            consumer_token=None,
+            operator_token=None,
+            admin_token=None,
+        )
+        client = TestClient(app, raise_server_exceptions=False)
+
+        # Make a request without authentication
+        response = client.get("/health")
+        assert response.status_code == 401
+
+        # The response should come from ONE source only (middleware or handler),
+        # not both. If it were processed twice, we might see duplicate error fields
+        # or inconsistent behavior.
+        body = response.json()
+        assert body["error"] == "Unauthorized"
+        # Only one "error" field — no duplication
+        assert set(body.keys()) == {"error", "detail"}

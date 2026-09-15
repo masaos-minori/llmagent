@@ -288,8 +288,8 @@ auth_token = ""
         load_config(config_file)
 
 
-def test_load_config_rejects_missing_per_role_token(tmp_path: Path) -> None:
-    """REQ-001: load_config() raises ValueError when no per-role token is set."""
+def test_load_config_succeeds_with_auth_token_only(tmp_path: Path) -> None:
+    """REQ-006: load_config() accepts configuration with only auth_token (no per-role token required)."""
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
 port = 8015
@@ -301,8 +301,8 @@ max_retry = 3
 host = "127.0.0.1"
 auth_token = "test-token"
 """)
-    with pytest.raises(ValueError, match="per-role token"):
-        load_config(config_file)
+    cfg = load_config(config_file)
+    assert cfg.auth_token == "test-token"
 
 
 def test_valid_threshold_configuration() -> None:
@@ -442,3 +442,121 @@ def test_publish_rate_default_is_100_0() -> None:
         auth_token="test-token",
     )
     assert cfg.publish_rate == 100.0
+
+
+def test_cross_field_slow_consumer_threshold_exceeds_maxsize() -> None:
+    """REQ-001, REQ-002: slow_consumer_threshold must be strictly less than subscriber_queue_maxsize."""
+    with pytest.raises(ValueError, match="slow_consumer_threshold"):
+        EventBusConfig(
+            port=8015,
+            db_path="/tmp/eventbus.sqlite",
+            storage_dir="/tmp/storage",
+            offsets_dir="/tmp/offsets",
+            deadletter_dir="/tmp/deadletter",
+            max_retry=3,
+            auth_token="test-token",
+            slow_consumer_threshold=1000,
+            subscriber_queue_maxsize=1000,
+            backlog_health_threshold=500,
+        )
+
+
+def test_cross_field_backlog_health_threshold_exceeds_maxsize() -> None:
+    """REQ-001, REQ-002: backlog_health_threshold must be <= subscriber_queue_maxsize."""
+    with pytest.raises(ValueError, match="backlog_health_threshold"):
+        EventBusConfig(
+            port=8015,
+            db_path="/tmp/eventbus.sqlite",
+            storage_dir="/tmp/storage",
+            offsets_dir="/tmp/offsets",
+            deadletter_dir="/tmp/deadletter",
+            max_retry=3,
+            auth_token="test-token",
+            slow_consumer_threshold=100,
+            subscriber_queue_maxsize=1000,
+            backlog_health_threshold=1001,
+        )
+
+
+def test_load_config_requires_at_least_one_token(tmp_path: Path) -> None:
+    """REQ-006: When auth_token is empty and no per-role tokens are set, raises ValueError."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = ""
+""")
+    with pytest.raises(ValueError, match="auth_token"):
+        load_config(config_file)
+
+
+def test_admin_role_exists_in_enum() -> None:
+    """REQ-004: Role.ADMIN must exist in the Role enum."""
+    from eventbus.auth import Role
+
+    assert hasattr(Role, "ADMIN"), "Role.ADMIN must exist"
+    assert Role.ADMIN == "admin", f"Role.ADMIN value must be 'admin', got {Role.ADMIN!r}"
+
+
+def test_admin_token_grants_all_roles() -> None:
+    """REQ-004, REQ-005: admin_token grants every role via _populate_token_maps()."""
+    from eventbus.auth import Role, _populate_token_maps, _TOKEN_ROLE_MAP
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path="/tmp/eventbus.sqlite",
+        storage_dir="/tmp/storage",
+        offsets_dir="/tmp/offsets",
+        deadletter_dir="/tmp/deadletter",
+        max_retry=3,
+        auth_token="shared-token",
+        admin_token="admin-token",
+    )
+
+    _populate_token_maps(cfg)
+
+    assert "admin-token" in _TOKEN_ROLE_MAP
+    assert set(_TOKEN_ROLE_MAP["admin-token"]) == set(Role)
+
+
+def test_publisher_only_deployment_succeeds(tmp_path: Path) -> None:
+    """REQ-006: Publisher-only deployment (only publisher_token + auth_token) is allowed."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-auth-token"
+publisher_token = "test-publisher-token"
+""")
+    cfg = load_config(config_file)
+    assert cfg.publisher_token == "test-publisher-token"
+    assert cfg.auth_token == "test-auth-token"
+
+
+def test_monitoring_only_deployment_succeeds(tmp_path: Path) -> None:
+    """REQ-006: Monitoring-only deployment (only monitoring_token + auth_token) is allowed."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-auth-token"
+monitoring_token = "test-monitoring-token"
+""")
+    cfg = load_config(config_file)
+    assert cfg.monitoring_token == "test-monitoring-token"
+    assert cfg.auth_token == "test-auth-token"

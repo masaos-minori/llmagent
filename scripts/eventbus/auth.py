@@ -9,6 +9,7 @@ from enum import StrEnum
 from typing import Any
 
 from fastapi import Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -25,6 +26,7 @@ class Role(StrEnum):
     CONSUMER = "consumer"
     OPERATOR = "operator"
     MONITORING = "monitoring"
+    ADMIN = "admin"
 
 
 @dataclass(frozen=True)
@@ -48,6 +50,7 @@ _ROUTE_ROLE_MAP: dict[str, set[Role]] = {
     "/dlq": {Role.OPERATOR},
     "/dlq/requeue": {Role.OPERATOR},
     "/replay": {Role.OPERATOR},
+    "/admin/*": {Role.ADMIN},
 }
 
 # Consumer identity allowlist: consumer_id -> set of permitted topics
@@ -69,7 +72,17 @@ _PER_ROLE_TOKEN_FIELDS: tuple[tuple[str, Role], ...] = (
     ("consumer_token", Role.CONSUMER),
     ("operator_token", Role.OPERATOR),
     ("monitoring_token", Role.MONITORING),
+    ("admin_token", Role.ADMIN),
 )
+
+
+def unauthorized_response(detail: str = "Unauthorized") -> JSONResponse:
+    """Return a standardized HTTP 401 Unauthorized response."""
+    return JSONResponse(
+        content={"error": "Unauthorized", "detail": detail},
+        status_code=401,
+        headers={"WWW-Authenticate": 'Bearer realm="eventbus"'},
+    )
 
 
 def _derive_token_fingerprint(token: str) -> str:
@@ -126,7 +139,11 @@ async def resolve_principal(
 ) -> Principal:
     """Resolve a bearer token to a Principal, or raise 401."""
     if credentials is None:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Authorization header",
+            headers={"WWW-Authenticate": 'Bearer realm="eventbus"'},
+        )
 
     token = credentials.credentials
     config = request.app.state.config
@@ -140,7 +157,11 @@ async def resolve_principal(
 
     if token not in _TOKEN_ROLE_MAP:
         logger.warning("Authentication failed: invalid Bearer token")
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing Bearer token",
+            headers={"WWW-Authenticate": 'Bearer realm="eventbus"'},
+        )
 
     roles = frozenset(_TOKEN_ROLE_MAP[token])
     allowed_consumer_ids = frozenset(_TOKEN_CONSUMER_MAP.get(token, set()))
