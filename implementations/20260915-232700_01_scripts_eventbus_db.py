@@ -92,8 +92,8 @@ Expected: ack_event_for_consumer() not modified by this change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify collision detection status | Pending | — | — | |
-| 2 | Verify ack_event_for_consumer() unchanged | Pending | — | — | |
+| 1 | Verify collision detection status | Completed | — | — | Stale claim: migrate_legacy_offsets() now has collision detection (lines 637-642) |
+| 2 | Verify ack_event_for_consumer() unchanged | Completed | — | — | Confirmed unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
