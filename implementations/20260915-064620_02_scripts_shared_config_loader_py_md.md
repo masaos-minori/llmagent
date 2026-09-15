@@ -112,10 +112,10 @@ Manual code review — read the relevant sections of `config_loader.py` and docu
 
 ## Completion criteria
 
-- [ ] `restrict_to()` behavior understood
-- [ ] `load()` behavior understood (return type, error handling)
-- [ ] `load_all()` behavior understood (merge order, error handling)
-- [ ] Differences between `ConfigLoader` defaults and EventBus requirements documented
+- [x] `restrict_to()` behavior understood — takes filenames, not process names
+- [x] `load()` behavior understood (return type, error handling)
+- [x] `load_all()` behavior understood (merge order, error handling)
+- [x] Differences between `ConfigLoader` defaults and EventBus requirements documented
 
 ## Out of scope
 
@@ -128,10 +128,10 @@ Manual code review — read the relevant sections of `config_loader.py` and docu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read restrict_to() method | Pending | — | — | |
-| 2 | Read load() method | Pending | — | — | |
-| 3 | Read load_all() method | Pending | — | — | |
-| 4 | Document findings for EventBus migration | Pending | — | — | |
+| 1 | Read restrict_to() method | Completed | 20260915-221000 | 20260915-221000 | Takes filenames (not process_name); sets _allowed_files class variable |
+| 2 | Read load() method | Completed | 20260915-221000 | 20260915-221000 | Takes filenames (not paths); resolves against _config_dir; returns dict[str, Any] |
+| 3 | Read load_all() method | Completed | 20260915-221000 | 20260915-221000 | Loads base config files in dependency order; strict mode raises on missing required files |
+| 4 | Document findings for EventBus migration | Completed | 20260915-221000 | 20260915-221000 | _REQUIRED_CONFIG_FILES hardcoded to ("agent.toml"); ConfigLoader.load() cannot replace tomllib directly due to filename vs path distinction
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
