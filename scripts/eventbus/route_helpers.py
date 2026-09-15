@@ -29,6 +29,47 @@ _db_lock_contention = Counter(
     "Number of database lock contention events",
 )
 
+
+def get_histogram_avg(hist: Histogram) -> float:
+    """Return the average observation for a Histogram via the public API.
+
+    Returns 0.0 if the histogram has no observations or if the API is unavailable.
+    """
+    try:
+        metrics = list(hist.collect())
+        if not metrics:
+            return 0.0
+        total_sum = 0.0
+        total_count = 0
+        for metric in metrics:
+            for sample in metric.samples:
+                if sample.name.endswith("_sum"):
+                    total_sum += sample.value
+                elif sample.name.endswith("_count"):
+                    total_count += int(sample.value)
+        return total_sum / total_count if total_count > 0 else 0.0
+    except (AttributeError, TypeError, ZeroDivisionError, ValueError):
+        return 0.0
+
+
+def get_counter_value(counter: Counter) -> int:
+    """Return the current value of a Counter via the public API.
+
+    Returns 0 if the counter has no value or if the API is unavailable.
+    """
+    try:
+        metrics = list(counter.collect())
+        if not metrics:
+            return 0
+        for metric in metrics:
+            for sample in metric.samples:
+                if sample.name == counter._name + "_total":
+                    return int(sample.value)
+        return 0
+    except (AttributeError, TypeError, ValueError):
+        return 0
+
+
 # -- Reusable error messages -------------------------------------------------
 
 ERR_EVENT_NOT_FOUND = "event not found"

@@ -2,7 +2,6 @@
 """scripts/eventbus/health_route.py — Health check endpoint handler."""
 
 import logging
-from typing import Any
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -14,7 +13,9 @@ from eventbus.route_helpers import (
     _db_query_duration,
     get_broker,
     get_config,
+    get_counter_value,
     get_db,
+    get_histogram_avg,
     run_with_db_lock,
 )
 
@@ -71,24 +72,9 @@ async def health_check(request: Request) -> JSONResponse:
         degraded_reasons.append("broker_unavailable")
 
     # Database-lock contention metrics
-    def _hist_avg(hist: Any) -> float:
-        """Return average observation for a Histogram, or 0.0 if no observations."""
-        try:
-            samples = hist._samples()
-            s_sum = 0.0
-            s_count = 0
-            for s in samples:
-                if s.name == "_sum":
-                    s_sum = s.value
-                elif s.name == "_count":
-                    s_count = int(s.value)
-            return s_sum / s_count if s_count > 0 else 0.0
-        except (AttributeError, TypeError, ZeroDivisionError):
-            return 0.0
-
-    lock_wait_avg = _hist_avg(_db_lock_wait_time)
-    query_dur_avg = _hist_avg(_db_query_duration)
-    lock_contention_total = _db_lock_contention._value.get()
+    lock_wait_avg = get_histogram_avg(_db_lock_wait_time)
+    query_dur_avg = get_histogram_avg(_db_query_duration)
+    lock_contention_total = get_counter_value(_db_lock_contention)
 
     # Capacity limit checks
     capacity_degraded_reasons: list[str] = []

@@ -159,3 +159,55 @@ class TestHealth:
             assert body["duplicate_connection_rejections"] >= 1
         finally:
             eb_app.app.state.broker.unsubscribe(sub1)
+
+    def test_health_endpoint_metrics_accessible(self, client: TestClient) -> None:
+        """Health endpoint reads metrics via public API without accessing private internals."""
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "metrics" in body
+        assert "lock_wait_avg_seconds" in body["metrics"]
+        assert "query_duration_avg_seconds" in body["metrics"]
+        assert "lock_contention_total" in body["metrics"]
+        assert body["metrics"]["lock_wait_avg_seconds"] >= 0
+        assert body["metrics"]["query_duration_avg_seconds"] >= 0
+        assert body["metrics"]["lock_contention_total"] >= 0
+
+    def test_health_endpoint_metrics_unavailable_degrades_gracefully(
+        self, client: TestClient
+    ) -> None:
+        """Health endpoint returns stable response when metrics are inaccessible."""
+        from unittest.mock import MagicMock, patch
+
+        from eventbus.route_helpers import (
+            _db_lock_contention,
+            _db_lock_wait_time,
+            _db_query_duration,
+        )
+
+        mock_fail = MagicMock(side_effect=ValueError("metric read failure"))
+        with patch.object(_db_lock_wait_time, "collect", mock_fail):
+            with patch.object(_db_query_duration, "collect", mock_fail):
+                with patch.object(_db_lock_contention, "collect", mock_fail):
+                    resp = client.get("/health")
+                    assert resp.status_code == 200
+                    body = resp.json()
+                    assert body["metrics"]["lock_wait_avg_seconds"] == 0.0
+                    assert body["metrics"]["query_duration_avg_seconds"] == 0.0
+                    assert body["metrics"]["lock_contention_total"] == 0
+
+    def test_health_broker_backlog_threshold_with_none_broker(
+        self, client: TestClient
+    ) -> None:
+        """Broker backlog threshold check does not raise AttributeError when broker is None."""
+        from unittest.mock import patch
+
+        with patch(
+            "eventbus.health_route.get_broker", return_value=None
+        ) as mock_get_broker:
+            resp = client.get("/health")
+            assert resp.status_code == 503
+            body = resp.json()
+            assert body["status"] == "degraded"
+            assert "broker_unavailable" in body["degraded_reasons"]
+            mock_get_broker.assert_called_once()
