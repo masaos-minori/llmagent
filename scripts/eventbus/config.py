@@ -56,6 +56,9 @@ class EventBusConfig:
     monitoring_token: str = ""
     admin_token: str = ""
     sse_heartbeat_interval: float = 30.0
+    sse_idle_timeout: float = (
+        60.0  # Default matches current implicit DEFAULT_SSE_IDLE_TIMEOUT
+    )
     slow_consumer_threshold: int = 100
     subscriber_queue_maxsize: int = 1000
     backlog_health_threshold: int = 500
@@ -96,6 +99,19 @@ class EventBusConfig:
         if self.publish_rate <= 0:
             raise ValueError(f"publish_rate must be > 0, got {self.publish_rate}")
 
+        # Validate sse_idle_timeout range
+        if self.sse_idle_timeout < 1.0:
+            raise ValueError(
+                f"sse_idle_timeout must be >= 1.0, got {self.sse_idle_timeout}"
+            )
+
+        # Cross-field validation: sse_idle_timeout must be greater than sse_heartbeat_interval
+        if self.sse_idle_timeout <= self.sse_heartbeat_interval:
+            raise ValueError(
+                f"sse_idle_timeout ({self.sse_idle_timeout}) must be greater than "
+                f"sse_heartbeat_interval ({self.sse_heartbeat_interval})"
+            )
+
 
 _KNOWN_CONFIG_KEYS = frozenset(
     (
@@ -113,6 +129,7 @@ _KNOWN_CONFIG_KEYS = frozenset(
         "monitoring_token",
         "admin_token",
         "sse_heartbeat_interval",
+        "sse_idle_timeout",
         "slow_consumer_threshold",
         "subscriber_queue_maxsize",
         "backlog_health_threshold",
@@ -153,6 +170,7 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
     "monitoring_token": str,
     "admin_token": str,
     "sse_heartbeat_interval": float,
+    "sse_idle_timeout": float,
     "slow_consumer_threshold": int,
     "subscriber_queue_maxsize": int,
     "backlog_health_threshold": int,
@@ -227,6 +245,7 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         monitoring_token=data.get("monitoring_token", ""),
         admin_token=data.get("admin_token", ""),
         sse_heartbeat_interval=float(data.get("sse_heartbeat_interval", 30.0)),
+        sse_idle_timeout=float(data.get("sse_idle_timeout", 60.0)),
         slow_consumer_threshold=int(data.get("slow_consumer_threshold", 100)),
         subscriber_queue_maxsize=int(data.get("subscriber_queue_maxsize", 1000)),
         backlog_health_threshold=int(data.get("backlog_health_threshold", 500)),

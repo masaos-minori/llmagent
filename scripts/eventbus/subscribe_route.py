@@ -187,8 +187,20 @@ async def subscribe(
                 if not done:
                     if await request.is_disconnected():
                         break
-                    # REQ-001: Check idle timeout before continuing
-                    if time.time() - last_event_time > idle_timeout:
+                    # REQ-004: Evaluate heartbeat deadline in timeout branch
+                    now = time.time()
+                    elapsed_since_heartbeat = now - last_heartbeat_time
+                    elapsed_since_event = now - last_event_time
+
+                    # REQ-005: Emit heartbeat if deadline reached (independent of event arrival)
+                    if elapsed_since_heartbeat >= heartbeat_interval:
+                        yield ": heartbeat\n\n"
+                        last_heartbeat_time = now
+
+                    # REQ-006: Heartbeat activity resets idle timeout
+                    # Use the later of last_event_time and last_heartbeat_time as the effective last activity time
+                    _last_activity_time = max(last_event_time, last_heartbeat_time)
+                    if elapsed_since_event > idle_timeout:
                         logger.info(
                             "subscribe idle timeout exceeded consumer=%s timeout=%.1f",
                             consumer_id,

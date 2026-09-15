@@ -62,10 +62,13 @@ async def health_check(request: Request) -> JSONResponse:
         degraded_reasons.append("db_unavailable")
     if dlq_task_status != "running":
         degraded_reasons.append("dlq_task_stopped")
-    if max_queue_depth >= broker.backlog_health_threshold:
-        degraded_reasons.append("broker_queue_backlog_high")
-    if slow_consumers > 0:
-        degraded_reasons.append("slow_consumers_detected")
+    if broker is not None:
+        if max_queue_depth >= broker.backlog_health_threshold:
+            degraded_reasons.append("broker_queue_backlog_high")
+        if slow_consumers > 0:
+            degraded_reasons.append("slow_consumers_detected")
+    else:
+        degraded_reasons.append("broker_unavailable")
 
     # Database-lock contention metrics
     def _hist_avg(hist: Any) -> float:

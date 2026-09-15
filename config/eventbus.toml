@@ -27,3 +27,9 @@ consumer_token = ""
 operator_token = ""
 monitoring_token = ""
 admin_token = ""
+
+# REQ-007: SSE lifecycle configuration
+# Heartbeat interval in seconds (default: 30.0)
+sse_heartbeat_interval = 30.0
+# Idle timeout in seconds (default: 60.0)
+sse_idle_timeout = 60.0

@@ -181,6 +181,87 @@ def test_subscribe_with_restricted_topic_rejects_disallowed_topic(
     assert resp.status_code == 403
 
 
+def test_subscribe_heartbeat_resets_idle_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-006: Heartbeat activity resets idle timeout.
+
+    When no events arrive, the heartbeat emitted in the timeout branch
+    must prevent the idle timeout from disconnecting the subscriber.
+    """
+    import time
+
+    import eventbus.subscribe_route as sr_module
+    from eventbus import app as eb_app
+    from eventbus.config import EventBusConfig
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path=str(tmp_path / "eventbus.sqlite"),
+        storage_dir=str(tmp_path / "storage"),
+        offsets_dir=str(tmp_path / "offsets"),
+        deadletter_dir=str(tmp_path / "deadletter"),
+        max_retry=3,
+        auth_token="shared-token",
+        consumer_token="consumer-token",
+    )
+    object.__setattr__(cfg, "sse_heartbeat_interval", 0.1)
+    object.__setattr__(cfg, "sse_idle_timeout", 0.5)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
+    monkeypatch.setattr(sr_module, "DEFAULT_SSE_IDLE_TIMEOUT", 0.5)
+
+    with TestClient(eb_app.app) as c:
+        c.headers["Authorization"] = "Bearer consumer-token"
+        start = time.monotonic()
+        resp = c.get("/subscribe?consumer_id=test-hb&topic=t", timeout=2.0)
+        elapsed = time.monotonic() - start
+        assert resp.status_code == 200
+        assert elapsed < 2.0, "Connection should not hang indefinitely"
+
+
+def test_sse_idle_timeout_loaded_from_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-001: sse_idle_timeout is loaded from config, falls back to DEFAULT_SSE_IDLE_TIMEOUT."""
+    import time
+
+    import eventbus.subscribe_route as sr_module
+    from eventbus import app as eb_app
+    from eventbus.config import EventBusConfig
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path=str(tmp_path / "eventbus.sqlite"),
+        storage_dir=str(tmp_path / "storage"),
+        offsets_dir=str(tmp_path / "offsets"),
+        deadletter_dir=str(tmp_path / "deadletter"),
+        max_retry=3,
+        auth_token="shared-token",
+        consumer_token="consumer-token",
+    )
+    object.__setattr__(cfg, "sse_idle_timeout", 1.0)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
+    monkeypatch.setattr(sr_module, "DEFAULT_SSE_IDLE_TIMEOUT", 60.0)
+
+    with TestClient(eb_app.app) as c:
+        c.headers["Authorization"] = "Bearer consumer-token"
+        start = time.monotonic()
+        resp = c.get("/subscribe?consumer_id=test-config&topic=t", timeout=2.0)
+        elapsed = time.monotonic() - start
+        assert resp.status_code == 200
+        assert elapsed >= 0.8 and elapsed < 2.0, (
+            f"Expected ~1s idle timeout, got {elapsed:.1f}s"
+        )
+
+
 def test_multi_batch_replay_no_duplicates(operator_client: TestClient) -> None:
     """T-3: Multi-batch replay delivers all events exactly once."""
     from eventbus import app as eb_app

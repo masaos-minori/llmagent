@@ -95,6 +95,24 @@ def test_load_config_rejects_stray_offset_checkpoint_interval(tmp_path: Path) ->
         load_config(toml_path)
 
 
+def test_load_config_accepts_sse_idle_timeout(tmp_path: Path) -> None:
+    """REQ-007: sse_idle_timeout should be accepted as a known key."""
+    toml_path = tmp_path / "eventbus.toml"
+    toml_path.write_text(
+        "port = 8015\n"
+        'db_path = "/tmp/e.sqlite"\n'
+        'storage_dir = "/tmp/storage"\n'
+        'offsets_dir = "/tmp/offsets"\n'
+        'deadletter_dir = "/tmp/deadletter"\n'
+        "max_retry = 3\n"
+        'auth_token = "test-token"\n'
+        'consumer_token = "consumer-test-token"\n'
+        "sse_idle_timeout = 60.0\n"
+    )
+    cfg = load_config(toml_path)
+    assert cfg.sse_idle_timeout == 60.0
+
+
 def test_load_config_rejects_both_stray_keys(tmp_path: Path) -> None:
     toml_path = tmp_path / "eventbus.toml"
     toml_path.write_text(
@@ -320,6 +338,36 @@ def test_slow_consumer_threshold_equal_to_maxsize_raises() -> None:
             slow_consumer_threshold=1000,
             subscriber_queue_maxsize=1000,
             backlog_health_threshold=500,
+        )
+
+
+def test_cross_field_validation_sse_idle_timeout_less_than_heartbeat_interval() -> None:
+    """REQ-009: Cross-field validation between sse_idle_timeout and sse_heartbeat_interval."""
+    # sse_idle_timeout must be greater than sse_heartbeat_interval
+    with pytest.raises(ValueError, match="sse_idle_timeout.*must be greater than"):
+        EventBusConfig(
+            port=8015,
+            db_path="",
+            storage_dir="",
+            offsets_dir="",
+            deadletter_dir="",
+            max_retry=3,
+            auth_token="test-token",
+            sse_idle_timeout=30.0,  # Equal to heartbeat interval
+            sse_heartbeat_interval=30.0,
+        )
+
+    with pytest.raises(ValueError, match="sse_idle_timeout.*must be greater than"):
+        EventBusConfig(
+            port=8015,
+            db_path="",
+            storage_dir="",
+            offsets_dir="",
+            deadletter_dir="",
+            max_retry=3,
+            auth_token="test-token",
+            sse_idle_timeout=10.0,  # Less than heartbeat interval
+            sse_heartbeat_interval=30.0,
         )
 
 

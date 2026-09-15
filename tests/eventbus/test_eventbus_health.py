@@ -111,6 +111,20 @@ class TestHealth:
         assert body["status"] == "degraded"
         assert body["db"] == "unavailable"
 
+    def test_health_broker_unavailable(self, client: TestClient) -> None:
+        """Test that health endpoint returns degraded status when broker is unavailable."""
+        from unittest.mock import patch
+
+        with patch(
+            "eventbus.health_route.get_broker", return_value=None
+        ) as mock_get_broker:
+            resp = client.get("/health")
+            assert resp.status_code == 503
+            body = resp.json()
+            assert body["status"] == "degraded"
+            assert "broker_unavailable" in body["degraded_reasons"]
+            mock_get_broker.assert_called_once()
+
     def test_health_503_when_dlq_task_stopped(self, client: TestClient) -> None:
         """Health endpoint returns HTTP 503 when DLQ task is not running."""
         from eventbus import app as eb_app
