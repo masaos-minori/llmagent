@@ -220,8 +220,8 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import audit helpers | Pending | — | — | |
-| 2 | Add privileged-action audit logging to DLQ requeue endpoint | Pending | — | — | |
+| 1 | Import audit helpers | Completed | — | — | |
+| 2 | Add privileged-action audit logging to DLQ requeue endpoint | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
