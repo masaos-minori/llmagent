@@ -458,13 +458,13 @@ Key changes:
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Introduce Principal dataclass | Completed | 20260915-102707 | 20260915-102707 |  |
-| 2 | Add token fingerprint derivation | Pending | — | — |  |
-| 3 | Replace verify_bearer_token with resolve_principal | Pending | — | — |  |
-| 4 | Replace require_role with principal-aware version | Pending | — | — |  |
-| 5 | Replace require_consumer_identity to use Principal | Pending | — | — |  |
-| 6 | Update middleware to delegate authentication | Pending | — | — |  |
-| 7 | Wire Principal through app.py | Pending | — | — |  |
-| 8 | Run validation suite | Pending | — | — |  |
+| 2 | Add token fingerprint derivation | Completed | 20260915-102707 | 20260915-102707 |  |
+| 3 | Replace verify_bearer_token with resolve_principal | Completed | 20260915-102707 | 20260915-102707 |  |
+| 4 | Replace require_role with principal-aware version | Completed | 20260915-102707 | 20260915-102707 |  |
+| 5 | Replace require_consumer_identity to use Principal | Completed | 20260915-102707 | 20260915-102707 |  |
+| 6 | Update middleware to delegate authentication | Completed | 20260915-102707 | 20260915-102707 |  |
+| 7 | Wire Principal through app.py | Completed | 20260915-102707 | 20260915-102707 |  |
+| 8 | Run validation suite | Completed | 20260915-102707 | 20260915-102707 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
