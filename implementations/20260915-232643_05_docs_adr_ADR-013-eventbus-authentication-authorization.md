@@ -116,9 +116,9 @@ If ADR-013 already reflects these edits via eventbus13's REQ-006, skip further a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update ADR-013 Problem section to reflect current auth state | Pending | — | — | |
-| 2 | Verify ADR-013 Known Deviations no longer lists CI-001 as open | Pending | — | — | |
-| 3 | Confirm alignment with eventbus13's REQ-006 edit | Pending | — | — | |
+| 1 | Update ADR-013 Problem section to reflect current auth state | Completed | — | 20260916-071636 | Problem section updated to reflect current auth state |
+| 2 | Verify ADR-013 Known Deviations no longer lists CI-001 as open | Completed | — | 20260916-071640 | CI-001 date corrected to 2026-09-15 |
+| 3 | Confirm alignment with eventbus13's REQ-006 edit | Completed | — | 20260916-071643 | Aligns with eventbus13's REQ-006 edit format |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
