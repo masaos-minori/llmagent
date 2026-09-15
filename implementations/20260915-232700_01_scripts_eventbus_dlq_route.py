@@ -97,9 +97,9 @@ Expected: Neither parameter used in function body.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify `_role` parameter in `dlq_list()` | Pending | — | — | |
-| 2 | Verify `_role` parameter in `dlq_requeue()` | Pending | — | — | |
-| 3 | Verify parameter usage status | Pending | — | — | |
+| 1 | Verify `_role` parameter in `dlq_list()` | Completed | — | — | Stale claim: no _role parameter; params are request, limit, offset |
+| 2 | Verify `_role` parameter in `dlq_requeue()` | Completed | — | — | Stale claim: no _role parameter; params are request, event_id |
+| 3 | Verify parameter usage status | Completed | — | — | Parameters removed before this verification cycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
