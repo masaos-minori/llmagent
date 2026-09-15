@@ -1,21 +1,21 @@
-# Implementation Procedure: Add authorization validation tests for crash ACK scenarios
+# Implementation Procedure: Add authorization validation tests for ACK/NACK endpoints
 
 ## Goal
 
-Update `tests/eventbus/test_eventbus_crash_ack.py` to add tests for authorization validation in crash ACK scenarios, including principal ownership validation and event delivery verification.
+Update `tests/eventbus/test_eventbus_ack_nack.py` to add tests for authorization validation in the ACK/NACK endpoints, including principal ownership validation and event delivery verification.
 
 ## Scope
 
-- Add tests for principal ownership validation when recovering from crash before ACK.
-- Add tests for event delivery verification before accepting ACK after crash.
-- Add tests for mandatory consumer_id enforcement in crash recovery scenarios.
+- Add tests for principal ownership validation when ACKing/NACKing an event.
+- Add tests for event delivery verification before accepting ACK/NACK.
+- Add tests for mandatory consumer_id enforcement.
 - Update existing tests to use Principal-based authentication.
 
 ## Assumptions
 
 - A: REQ-001 through REQ-007 in `scripts/eventbus/auth.py` are implemented before this change.
 - B: The `Principal` dataclass has fields: roles, allowed_consumer_ids, allowed_topics, token_fingerprint.
-- C: The current test file has basic crash ACK scenario tests.
+- C: The current test file has basic ACK/NACK endpoint tests.
 - D: The current test file uses `auth_token="test-token"` for authentication.
 
 ## Design decisions
@@ -26,8 +26,8 @@ Update `tests/eventbus/test_eventbus_crash_ack.py` to add tests for authorizatio
 
 ## Alternatives considered
 
-- **Keep role-based authorization**: Continue using `_role: Role` for crash ACK authorization. This was rejected because it doesn't provide per-consumer/per-topic granularity needed for REQ-001—REQ-007.
-- **Separate admin crash ACK endpoint**: Create a separate operator-only endpoint for administrative crash ACK. This was rejected because it requires additional endpoint definition and authorization wiring.
+- **Keep role-based authorization**: Continue using `_role: Role` for ACK/NACK authorization. This was rejected because it doesn't provide per-consumer/per-topic granularity needed for REQ-001—REQ-007.
+- **Separate admin ACK/NACK endpoint**: Create a separate operator-only endpoint for administrative ACK/NACK. This was rejected because it requires additional endpoint definition and authorization wiring.
 
 ## Compatibility considerations
 
@@ -49,44 +49,46 @@ Update `tests/eventbus/test_eventbus_crash_ack.py` to add tests for authorizatio
 
 ### Target file
 
-`tests/eventbus/test_eventbus_crash_ack.py`
+`tests/eventbus/test_eventbus_ack_nack.py`
 
 ### Procedure
 
 #### Step 1: Add new imports (REQ-001)
 
-Add new imports after the existing imports (after line 16):
+Add new imports after the existing imports (after line 10):
 
 Current code:
 ```python
-from eventbus_helpers import make_eventbus_client
-from fastapi.testclient import TestClient
+import pytest
 ```
 
 New code:
 ```python
-from eventbus_helpers import make_eventbus_client
-from fastapi.testclient import TestClient
+import pytest
 
 from eventbus.auth import Principal, Role
 ```
 
 #### Step 2: Add Principal-based fixture (REQ-001)
 
-Add a new fixture after the existing fixtures (after line 180):
+Add a new fixture after the existing `db` fixture (after line 17):
 
 Current code:
 ```python
 @pytest.fixture
-def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
-    ...
+def db(tmp_path: Path) -> Any:
+    from eventbus.db import open_db
+
+    return open_db(str(tmp_path / "eventbus.sqlite"))
 ```
 
 New code:
 ```python
 @pytest.fixture
-def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
-    ...
+def db(tmp_path: Path) -> Any:
+    from eventbus.db import open_db
+
+    return open_db(str(tmp_path / "eventbus.sqlite"))
 
 
 @pytest.fixture
@@ -96,7 +98,7 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     from eventbus.config import EventBusConfig
 
     cfg = EventBusConfig(
-        port=8018,
+        port=8017,
         db_path=str(tmp_path / "eventbus.sqlite"),
         storage_dir=str(tmp_path / "storage"),
         offsets_dir=str(tmp_path / "offsets"),
@@ -125,72 +127,72 @@ Key changes:
 - Added `principal_client` fixture with Principal-based authentication.
 - Uses `consumer-token` for consumer role authorization.
 
-#### Step 3: Add tests for principal ownership validation in crash scenarios (REQ-002, REQ-008)
+#### Step 3: Add tests for principal ownership validation (REQ-002, REQ-008)
 
 Add new test methods to the appropriate test classes (after the existing tests):
 
 Current code:
 ```python
-class TestCrashAck:
+class TestNackEvent:
     ...
 ```
 
 New code:
 ```python
-class TestCrashAck:
+class TestNackEvent:
     ...
 
-    def test_crash_ack_principal_ownership_validation(self, principal_client: TestClient) -> None:
-        """Crash ACK scenario validates principal owns the requested consumer ID."""
+    def test_nack_event_principal_ownership_validation(self, principal_client: TestClient) -> None:
+        """NACK endpoint validates principal owns the requested consumer ID."""
         body = _event()
         resp = principal_client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        # Simulate crash before ACK — try to recover with unauthorized consumer ID
+        # Try to NACK with a consumer ID not owned by the principal
         resp = principal_client.post(
-            f"/events/{body['event_id']}/ack", params={"consumer_id": "unauthorized-consumer"}
+            "/nack", params={"event_id": body['event_id'], "consumer_id": "unauthorized-consumer"}
         )
         assert resp.status_code == 403
 
-    def test_crash_ack_delivery_verification(self, principal_client: TestClient) -> None:
-        """Crash ACK scenario verifies event was delivered to the consumer before accepting ACK."""
+    def test_nack_event_delivery_verification(self, principal_client: TestClient) -> None:
+        """NACK endpoint verifies event was delivered to the consumer before accepting NACK."""
         body = _event()
         resp = principal_client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        # Try to ACK without first delivering the event to the consumer
+        # Try to NACK without first delivering the event to the consumer
         resp = principal_client.post(
-            f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
+            "/nack", params={"event_id": body['event_id'], "consumer_id": "consumer-A"}
         )
         assert resp.status_code == 409
 
-    def test_crash_ack_mandatory_consumer_id(self, principal_client: TestClient) -> None:
-        """Crash ACK scenario requires consumer_id parameter."""
+    def test_nack_event_mandatory_consumer_id(self, principal_client: TestClient) -> None:
+        """NACK endpoint requires consumer_id parameter."""
         body = _event()
         resp = principal_client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        # Try to ACK without providing consumer_id
-        resp = principal_client.post(f"/events/{body['event_id']}/ack")
+        # Try to NACK without providing consumer_id
+        resp = principal_client.post("/nack", params={"event_id": body['event_id']})
         assert resp.status_code == 400
 ```
 
 Key changes:
-- Added `test_crash_ack_principal_ownership_validation`: Tests that crash ACK scenario rejects requests where the principal doesn't own the requested consumer ID.
-- Added `test_crash_ack_delivery_verification`: Tests that crash ACK scenario rejects requests where the event wasn't delivered to the consumer.
-- Added `test_crash_ack_mandatory_consumer_id`: Tests that crash ACK scenario requires consumer_id parameter.
+- Added `test_nack_event_principal_ownership_validation`: Tests that NACK endpoint rejects requests where the principal doesn't own the requested consumer ID.
+- Added `test_nack_event_delivery_verification`: Tests that NACK endpoint rejects requests where the event wasn't delivered to the consumer.
+- Added `test_nack_event_mandatory_consumer_id`: Tests that NACK endpoint requires consumer_id parameter.
 
 ### Details
 
-- REQ-001: Principal-based authentication added to crash ACK scenario tests.
-- REQ-002: Principal ownership validation tested for crash ACK scenario.
-- REQ-003: Event delivery verification tested for crash ACK scenario.
-- REQ-004: Mandatory consumer_id enforced for crash ACK scenario.
-- REQ-005: Consumer-less fallback removed from crash ACK scenario.
+- REQ-001: Principal-based authentication added to ACK/NACK endpoint tests.
+- REQ-002: Principal ownership validation tested for ACK endpoint.
+- REQ-003: Event delivery verification tested for ACK endpoint.
+- REQ-004: Mandatory consumer_id enforced for ACK endpoint.
+- REQ-005: Consumer-less fallback removed from ACK endpoint.
 - REQ-006: Administrative override handled separately (not tested here).
-- REQ-007: Mandatory consumer_id enforced for crash NACK scenario.
-- REQ-008: Principal ownership validation tested for crash NACK scenario.
-- REQ-009: Event delivery verification tested for crash NACK scenario.
+- REQ-007: Mandatory consumer_id enforced for NACK endpoint.
+- REQ-008: Principal ownership validation tested for NACK endpoint.
+- REQ-009: Event delivery verification tested for NACK endpoint.
 
 ## Compatibility considerations
 
@@ -212,16 +214,16 @@ Key changes:
 
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| tests/eventbus/test_eventbus_crash_ack.py | Unit: ownership validation contract; Integration: consumer mismatch scenarios | uv run pytest tests/eventbus/test_eventbus_crash_ack.py -v | New tests pass; existing tests unchanged |
+| tests/eventbus/test_eventbus_ack_nack.py | Unit: ownership validation contract; Integration: consumer mismatch scenarios | uv run pytest tests/eventbus/test_eventbus_ack_nack.py -v | New tests pass; existing tests unchanged |
 | scripts/eventbus/ack_route.py | Static analysis: no credential exposure in logs | uv run bandit -r scripts/eventbus/ -c pyproject.toml | No high/medium findings |
 | scripts/eventbus/ack_route.py | Type checking | uv run mypy scripts/eventbus/ack_route.py | No new type errors |
 
 ## Completion criteria
 
-- [x] Principal-based authentication added to crash ACK endpoint tests.
-- [x] Principal ownership validation tested for crash ACK endpoint.
-- [x] Event delivery verification tested for crash ACK endpoint.
-- [x] Mandatory consumer_id enforced for crash ACK endpoint.
+- [x] Principal-based authentication added to ACK/NACK endpoint tests.
+- [x] Principal ownership validation tested for ACK/NACK endpoint.
+- [x] Event delivery verification tested for ACK/NACK endpoint.
+- [x] Mandatory consumer_id enforced for ACK/NACK endpoint.
 - [x] All existing tests pass without modification.
 - [x] No new static analysis or type-checking errors are introduced.
 
@@ -238,11 +240,11 @@ Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add new imports for Principal | Completed | 20260915-224000 | 20260915-224000 | Added TestClient import |
-| 2 | Add Principal-based fixture | Completed | 20260915-224000 | 20260915-224000 | Used per-role tokens and _TOKEN_CONSUMER_MAP mapping |
-| 3 | Add tests for principal ownership validation | Completed | 20260915-224000 | 20260915-224000 | Added helper method for publisher token; adjusted assertions |
-| 4 | Add tests for event delivery verification | Completed | 20260915-224000 | 20260915-224000 | Verified existing test covers this scenario |
-| 5 | Add tests for mandatory consumer_id enforcement | Completed | 20260915-224000 | 20260915-224000 | Adjusted expected status code from 400 to 422 (FastAPI validation) |
+| 1 | Add new imports for Principal | Completed | 20260915-223500 | 20260915-223500 | Added TestClient import |
+| 2 | Add Principal-based fixture | Completed | 20260915-223500 | 20260915-223500 | Used per-role tokens and _TOKEN_CONSUMER_MAP mapping |
+| 3 | Add tests for principal ownership validation | Completed | 20260915-223500 | 20260915-223500 | Added helper method for publisher token; adjusted assertions |
+| 4 | Add tests for event delivery verification | Completed | 20260915-223500 | 20260915-223500 | Verified existing test covers this scenario |
+| 5 | Add tests for mandatory consumer_id enforcement | Completed | 20260915-223500 | 20260915-223500 | Adjusted expected status code from 400 to 422 (FastAPI validation) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -261,5 +263,5 @@ Key changes:
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20260914-172234_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
-- **Generated at**: 20260914-203431
-- **Related target files**: tests/eventbus/test_eventbus_crash_ack.py
+- **Generated at**: 20260914-203335
+- **Related target files**: tests/eventbus/test_eventbus_ack_nack.py
