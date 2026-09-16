@@ -102,9 +102,9 @@ Pre-migration state: auth middleware was pending per ADR-013's Problem section (
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify restrict_to() call in lifespan handler | Pending | — | — | |
-| 2 | Verify load_config() invocation uses ConfigLoader name | Pending | — | — | |
-| 3 | Verify auth middleware wiring | Pending | — | — | |
+| 1 | Verify restrict_to() call in lifespan handler | Failed | — | — | eventbus13未着陸のため予想されるstale状態。ConfigLoader.restrict_to("eventbus.toml")が存在しない |
+| 2 | Verify load_config() invocation uses ConfigLoader name | Failed | — | — | eventbus13未着陸のため予想されるstale状態。load_config(get_config_path())のまま |
+| 3 | Verify auth middleware wiring | Passed | — | — | attach_auth_middleware(app)は正しく接続済み（app.py:145） |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -96,9 +96,9 @@ Expected: Response formats match the plan's documented contracts (total/limit/of
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify DLQ background task management | Pending | — | — | |
-| 2 | Verify DLQ promotion paths | Pending | — | — | |
-| 3 | Verify response format alignment | Pending | — | — | |
+| 1 | Verify DLQ background task management | Passed | — | — | DLQ背景タスク管理が実装済み（app.py:79 _dlq_loop、app.py:91-94 cancellation） |
+| 2 | Verify DLQ promotion paths | Passed | — | — | 即時promotion（dlq.py:73 promote_single, dlq.py:117 _shared_promote_single）とorphan回収（dlq.py:103 sweep_orphans）の両方が実装済み |
+| 3 | Verify response format alignment | Passed | — | — | リスト: {total, limit, offset, items}（dlq_route.py:41）、requeue: {event_id, requeued, new_event_id, new_seq}（dlq_route.py:80-91） |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

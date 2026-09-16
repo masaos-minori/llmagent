@@ -103,10 +103,10 @@ Expected: Success (HTTP 200), Conflict (HTTP 409), Not Found (HTTP 404) response
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify DLQ list endpoint exists and matches documented contract | Pending | — | — | |
-| 2 | Verify DLQ requeue endpoint exists and matches documented contract | Pending | — | — | |
-| 3 | Verify pagination format alignment | Pending | — | — | |
-| 4 | Verify requeue response format alignment | Pending | — | — | |
+| 1 | Verify DLQ list endpoint exists and matches documented contract | Passed | — | — | dlq_list関数定義済み（dlq_route.py:21） |
+| 2 | Verify DLQ requeue endpoint exists and matches documented contract | Passed | — | — | dlq_requeue関数定義済み（dlq_route.py:49） |
+| 3 | Verify pagination format alignment | Passed | — | — | {total, limit, offset, items}が計画と一致（dlq_route.py:42-45） |
+| 4 | Verify requeue response format alignment | Passed | — | — | 成功: {event_id, requeued, new_event_id, new_seq}（dlq_route.py:80-91）、409: ERR_EVENT_NOT_IN_DLQ（dlq_route.py:98）、404: ERR_EVENT_NOT_FOUND（dlq_route.py:99） |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

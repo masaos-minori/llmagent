@@ -103,10 +103,10 @@ Expected: Parameters since_seq (>=0), limit (1-1000), offset (>=0).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify replay endpoint exists and matches documented contract | Pending | — | — | |
-| 2 | Verify SSE format support | Pending | — | — | |
-| 3 | Verify JSON format support | Pending | — | — | |
-| 4 | Verify pagination parameters | Pending | — | — | |
+| 1 | Verify replay endpoint exists and matches documented contract | Passed | — | — | replay関数定義済み（replay_route.py:27） |
+| 2 | Verify SSE format support | Passed | — | — | StreamingResponse + text/event-stream（replay_route.py:71） |
+| 3 | Verify JSON format support | Passed | — | — | Literal["sse", "json"] alias="format"（replay_route.py:30） |
+| 4 | Verify pagination parameters | Passed | — | — | since_seq(default=0,ge=0)、format(default="sse")、limit(default=100,ge=1,le=1000)、offset(default=0,ge=0) — 全パラメータが計画と一致 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

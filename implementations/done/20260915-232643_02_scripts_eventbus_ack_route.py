@@ -96,9 +96,9 @@ Expected: Consumer role required for both endpoints via Depends(require_role(...
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify ACK endpoint exists and matches documented contract | Pending | — | — | |
-| 2 | Verify NACK endpoint exists and matches documented contract | Pending | — | — | |
-| 3 | Verify Consumer role authentication requirement | Pending | — | — | |
+| 1 | Verify ACK endpoint exists and matches documented contract | Completed | — | 20260916-153xxx | PASS — ack_event returns {event_id, acked: True}; raises 404 when found=False |
+| 2 | Verify NACK endpoint exists and matches documented contract | Blocked | — | 20260916-153xxx | Stale claim: documented {event_id, nacked: true} vs actual {event_id, delivery_failure_count, dlq_promoted} |
+| 3 | Verify Consumer role authentication requirement | Blocked | — | 20260916-153xxx | Partial: _principal set by app.py wrapper, not Depends(require_role(...)) inline |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

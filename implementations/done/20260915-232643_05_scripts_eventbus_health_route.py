@@ -97,9 +97,9 @@ Expected: HTTP 200 for ok, HTTP 503 for degraded.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify health endpoint exists and matches documented contract | Pending | — | — | |
-| 2 | Verify response format alignment | Pending | — | — | |
-| 3 | Verify status codes | Pending | — | — | |
+| 1 | Verify health endpoint exists and matches documented contract | Passed | — | — | health_check関数（health_route.py:25）、JSONResponse返却 |
+| 2 | Verify response format alignment | Passed | — | — | レスポンスボディの全フィールドが計画と一致（status, db, dlq_task, active_subscribers, max_queue_depth, slow_consumers, overflow_disconnects, duplicate_connection_rejections, degraded_reasons, metrics） |
+| 3 | Verify status codes | Passed | — | — | HTTP 200 (ok) / 503 (degraded)、health_route.py:91 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -110,11 +110,11 @@ Expected: `auth.py:128-172` defines require_role() dependency factory.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify auth.py exists | Pending | — | — | |
-| 2 | Verify Role enum definition | Pending | — | — | |
-| 3 | Verify _ROUTE_ROLE_MAP definition | Pending | — | — | |
-| 4 | Verify _populate_token_maps() definition | Pending | — | — | |
-| 5 | Verify require_role() dependency factory | Pending | — | — | |
+| 1 | Verify auth.py exists | Passed | — | — | scripts/eventbus/auth.pyが存在 |
+| 2 | Verify Role enum definition | Passed | — | — | Role enum定義済み（auth.py:26） |
+| 3 | Verify _ROUTE_ROLE_MAP definition | Passed | — | — | _ROUTE_ROLE_MAP定義済み（auth.py:45） |
+| 4 | Verify _populate_token_maps() definition | Passed | — | — | _populate_token_maps()定義済み（auth.py:92） |
+| 5 | Verify require_role() dependency factory | Passed | — | — | require_role()依存関係ファクトリ定義済み（auth.py:212） |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

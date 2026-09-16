@@ -93,11 +93,11 @@ Pre-migration state: routes were pending per ADR-013 (now stale).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify health endpoint route registration | Pending | — | — | |
-| 2 | Verify replay endpoint route registration | Pending | — | — | |
-| 3 | Verify DLQ endpoint route registration | Pending | — | — | |
-| 4 | Verify ACK/NACK endpoint route registration | Pending | — | — | |
-| 5 | Verify auth middleware attachment | Pending | — | — | |
+| 1 | Verify health endpoint route registration | Completed | — | 20260916-153xxx | PASS — @app.get("/health") at line 148 |
+| 2 | Verify replay endpoint route registration | Completed | — | 20260916-153xxx | PASS — @app.get("/replay") at line 165 |
+| 3 | Verify DLQ endpoint route registration | Completed | — | 20260916-153xxx | PASS — @app.get("/dlq") at line 204, @app.post("/dlq/{event_id}/requeue") at line 216 |
+| 4 | Verify ACK/NACK endpoint route registration | Completed | — | 20260916-153xxx | PASS — @app.post("/events/{event_id}/ack") at line 227, @app.post("/nack") at line 245 |
+| 5 | Verify auth middleware attachment | Completed | — | 20260916-153xxx | PASS — attach_auth_middleware(app) at line 145 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

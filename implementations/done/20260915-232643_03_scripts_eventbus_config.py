@@ -99,9 +99,9 @@ Expected: All existing validation logic (per-key type validation, auth token non
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify ConfigLoader import exists in config.py | Pending | — | — | |
-| 2 | Verify load_config() uses ConfigLoader.load() | Pending | — | — | |
-| 3 | Verify validation logic preservation | Pending | — | — | |
+| 1 | Verify ConfigLoader import exists in config.py | Completed | — | 20260916-153xxx | PASS — from shared.config_loader import ConfigLoader at line 10 |
+| 2 | Verify load_config() uses ConfigLoader.load() | Completed | — | 20260916-153xxx | PASS — _load_config_from_path uses ConfigLoader at lines 18-19 |
+| 3 | Verify validation logic preservation | Completed | — | 20260916-153xxx | PASS — all validation logic (per-key type, auth token, per-role tokens, cross-field) preserved |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
