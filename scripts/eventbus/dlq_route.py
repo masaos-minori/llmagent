@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi import HTTPException, Query, Request
 
+from eventbus.audit import log_privileged_action
 from eventbus.db import count_dlq, fetch_dlq, redeliver_event
 from eventbus.route_helpers import (
     ERR_EVENT_NOT_FOUND,
@@ -66,6 +67,16 @@ async def dlq_requeue(
     success, new_event_id = await run_with_db_lock(_redeliver)
     if success:
         logger.info("dlq redelivered event_id=%s -> %s", event_id, new_event_id)
+
+        # Emit privileged-action audit record
+        log_privileged_action(
+            consumer_id="",
+            request_id=request.state.request_id,
+            route="/dlq/requeue",
+            target=event_id,
+            detail="",
+        )
+
         resp: dict[str, Any] = {
             "event_id": event_id,
             "requeued": True,

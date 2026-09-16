@@ -8,6 +8,7 @@ from typing import Any, Literal
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
 
+from eventbus.audit import log_privileged_action
 from eventbus.db import fetch_events_since
 from eventbus.json_utils import dumps as json_dumps
 from eventbus.route_helpers import _row_to_dict, get_db, run_with_db_lock
@@ -32,6 +33,15 @@ async def replay(
 ) -> Any:
     """Replay events from a given sequence number via SSE or JSON response."""
     db = get_db(request)
+
+    # Emit privileged-action audit record
+    log_privileged_action(
+        consumer_id="",
+        request_id=request.state.request_id,
+        route="/replay",
+        target=f"seq:{since_seq}",
+        detail="",
+    )
 
     def _fetch_and_count(since_seq: int, limit: int, offset: int):
         """Fetch events and count total under one lock acquisition."""

@@ -298,6 +298,9 @@ A narrower, genuine discrepancy was found during this same re-verification and i
 #### CI-005
 
 CI-005 ("ADR-004 INV-03 — fail-closed for missing config not implemented") was resolved and removed from this active inventory 2026-09-14. Confirmed by direct code inspection: this entry's `Source` field cited a non-existent `scripts/shared/config_loader.py::load_config()` — the actual `load_config()` (`scripts/agent/config_builders.py`) calls `ConfigLoader().load_all()`, whose `strict` parameter already defaults to `True` (`scripts/shared/config_loader.py`), and `_REQUIRED_CONFIG_FILES` includes `agent.toml`. `ConfigMissingError` is a `ValueError` subclass, so it is caught by `load_config()`'s own exception handler and re-raised as `ConfigLoadError` — a missing required config file already fails closed. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-005` heading. `ConfigLoader.load_all()`'s docstring previously contradicted its actual `strict: bool = True` default ("If False (default), missing files are skipped") — corrected 2026-09-14.
+
+**EventBus-specific verification (REQ-006)**: Verified by configuration test confirming `ConfigMissingError` is raised when a required config file is missing. The EventBus `load_config()` function (`scripts/eventbus/config.py`) validates required keys via `_REQUIRED_CONFIG_KEYS` and raises `ValueError` for missing keys — consistent with the fail-closed behavior described in CI-005.
+
 - **Impact**: Missing critical configuration silently fails open across all environments, including production.
 - **Recommended Action**: Pass `strict=True` to `load_all()` or add explicit validation after config loading.
 

@@ -13,6 +13,8 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from scripts.eventbus.audit import log_auth_failure
+
 logger = logging.getLogger(__name__)
 
 # Precedent: scripts/mcp_servers/server.py::attach_auth_middleware()
@@ -182,6 +184,14 @@ async def resolve_principal(
 
     if token not in _TOKEN_PRINCIPAL_MAP:
         logger.warning("Authentication failed: invalid Bearer token")
+        log_auth_failure(
+            consumer_id="",
+            request_id=request.state.request_id,
+            route=request.url.path,
+            target="token",
+            error_type="authentication_failed",
+            detail="",
+        )
         raise HTTPException(
             status_code=401,
             detail="Invalid or missing Bearer token",
@@ -211,6 +221,14 @@ def require_role(role: Role):
                 "Authorization failed: requires %s, caller has %s",
                 role,
                 principal.roles,
+            )
+            log_auth_failure(
+                consumer_id="",
+                request_id=request.state.request_id,
+                route=request.url.path,
+                target=role.value,
+                error_type="authorization_failed",
+                detail="",
             )
             raise HTTPException(
                 status_code=403, detail=f"Forbidden: requires {role} role"
@@ -243,6 +261,14 @@ async def require_consumer_identity(
             "Authorization failed: consumer_id=%s not allowed for this caller",
             consumer_id,
         )
+        log_auth_failure(
+            consumer_id=consumer_id,
+            request_id=request.state.request_id,
+            route=request.url.path,
+            target=consumer_id,
+            error_type="consumer_identity_rejected",
+            detail="",
+        )
         raise HTTPException(
             status_code=403,
             detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
@@ -258,6 +284,14 @@ async def require_consumer_identity(
                 logger.warning(
                     "Authorization failed: topic=%s not allowed for this caller",
                     topic,
+                )
+                log_auth_failure(
+                    consumer_id=consumer_id,
+                    request_id=request.state.request_id,
+                    route=request.url.path,
+                    target=topic,
+                    error_type="topic_authorization_rejected",
+                    detail="",
                 )
                 raise HTTPException(
                     status_code=403,

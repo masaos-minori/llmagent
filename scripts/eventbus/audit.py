@@ -49,6 +49,7 @@ class AuditRecord(TypedDict):
     source: str
     ts: float
     consumer_id: str
+    request_id: str
     route: str
     target: str
     outcome: str
@@ -59,6 +60,7 @@ class AuditRecord(TypedDict):
 def _build_audit_record(
     event: str,
     consumer_id: str,
+    request_id: str,
     route: str,
     target: str,
     outcome: str,
@@ -70,6 +72,7 @@ def _build_audit_record(
     Args:
         event: Event type ("auth_failure" or "privileged_action").
         consumer_id: Caller's consumer identity (if available).
+        request_id: Request identity for correlation.
         route: Route being accessed.
         target: Resource identifier (event_id, topic, etc.).
         outcome: One of "rejected", "allowed".
@@ -81,6 +84,7 @@ def _build_audit_record(
         "source": "eventbus",
         "ts": time.time(),
         "consumer_id": consumer_id or "-",
+        "request_id": request_id,
         "route": route,
         "target": target,
         "outcome": outcome,
@@ -93,6 +97,7 @@ def _build_audit_record(
 
 def log_auth_failure(
     consumer_id: str,
+    request_id: str,
     route: str,
     target: str,
     error_type: str = "authorization_failed",
@@ -102,6 +107,7 @@ def log_auth_failure(
 
     Args:
         consumer_id: Caller's consumer identity (if available).
+        request_id: Request identity for correlation.
         route: Route being accessed.
         target: Resource identifier (event_id, topic, etc.).
         error_type: Failure-mode identifier.
@@ -110,6 +116,7 @@ def log_auth_failure(
     record = _build_audit_record(
         event="auth_failure",
         consumer_id=consumer_id,
+        request_id=request_id,
         route=route,
         target=target,
         outcome="rejected",
@@ -121,6 +128,7 @@ def log_auth_failure(
 
 def log_privileged_action(
     consumer_id: str,
+    request_id: str,
     route: str,
     target: str,
     detail: str = "",
@@ -129,6 +137,7 @@ def log_privileged_action(
 
     Args:
         consumer_id: Caller's consumer identity (if available).
+        request_id: Request identity for correlation.
         route: Route being accessed.
         target: Resource identifier (event_id, topic, etc.).
         detail: Optional key=value pairs (omit when empty).
@@ -136,6 +145,7 @@ def log_privileged_action(
     record = _build_audit_record(
         event="privileged_action",
         consumer_id=consumer_id,
+        request_id=request_id,
         route=route,
         target=target,
         outcome="allowed",
