@@ -89,10 +89,10 @@ if cfg.transport != TransportType.HTTP or not cfg.url or cfg.is_disabled:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260917-072724 | 20260917-072724 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260917-072733 | 20260917-072733 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260917-072742 | 20260917-072742 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

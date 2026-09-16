@@ -510,7 +510,7 @@ class TestToolExecutorStartupModeGate:
             res = await ex._raw_execute("trigger_workflow", {})
 
         assert res.is_error
-        assert "disabled" in res.output.lower()
+        assert "no transport configured" in res.output.lower()
         assert "cicd" in res.output
 
     @pytest.mark.asyncio
@@ -537,10 +537,13 @@ class TestToolExecutorStartupModeGate:
         mock_transport.call.assert_called_once()
         assert not res.is_error
 
-    def test_unknown_server_key_does_not_raise(self) -> None:
-        """_check_startup_mode returns None (no gate) when server_key is unconfigured."""
+    @pytest.mark.asyncio
+    async def test_unknown_server_key_does_not_raise(self) -> None:
+        """invoke() returns no-transport error for unknown server key without raising."""
         ex = _make_executor(configs={"file_read": _http_cfg()})
-        assert ex._check_startup_mode("nonexistent") is None
+        res = await ex.invoke("nonexistent", "some_tool", {})
+        assert res.is_error
+        assert "no transport configured" in res.output.lower()
 
 
 # ── ToolExecutor health gate ──────────────────────────────────────────────────

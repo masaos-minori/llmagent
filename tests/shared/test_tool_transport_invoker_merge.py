@@ -11,14 +11,17 @@ from unittest.mock import AsyncMock, MagicMock, call
 import httpx
 import pytest
 from shared.http_transport import TransportError
-from shared.mcp_config import McpServerConfig, TransportType
+from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.tool_transport_invoker import ToolTransportInvoker
 from shared.transport_dto import ToolCallResult
 
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
     return McpServerConfig(
-        transport=TransportType.HTTP, url=url, auth_token="test-token"
+        transport=TransportType.HTTP,
+        url=url,
+        auth_token="test-token",
+        startup_mode=StartupMode.PERSISTENT,
     )
 
 

@@ -243,3 +243,34 @@ class TestRuntimeToolRegistry:
         rows = reg.diagnostics()
         assert len(rows) == 1
         assert rows[0]["name"] == "tool_b"
+
+
+class TestDisabledServerExclusion:
+    def test_disabled_server_tools_not_included(self) -> None:
+        """Tools from a disabled server should not appear in the registry."""
+        from unittest.mock import MagicMock
+
+        disabled_cfg = MagicMock()
+        disabled_cfg.is_disabled = True
+
+        tool = build_runtime_tool(name="write_file", server_key="disabled_srv")
+        reg = RuntimeToolRegistry(
+            {tool.name: tool},
+            server_configs={"disabled_srv": disabled_cfg},
+        )
+        assert "write_file" not in reg.all_tools()
+
+    def test_enabled_server_tools_are_included(self) -> None:
+        """Tools from an enabled server should appear in the registry."""
+        from unittest.mock import MagicMock
+
+        enabled_cfg = MagicMock()
+        enabled_cfg.is_disabled = False
+
+        tool = build_runtime_tool(name="read_file", server_key="enabled_srv")
+        reg = RuntimeToolRegistry(
+            {tool.name: tool},
+            server_configs={"enabled_srv": enabled_cfg},
+        )
+        tool_names = {t.name for t in reg.all_tools()}
+        assert "read_file" in tool_names

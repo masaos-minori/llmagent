@@ -38,8 +38,10 @@ class RuntimeToolRegistry:
         self,
         tools: dict[str, RuntimeTool] | None = None,
         unavailable_servers: frozenset[str] | None = None,
+        server_configs: dict[str, Any] | None = None,
     ) -> None:
         self._unavailable_servers = unavailable_servers or frozenset()
+        self._server_configs = server_configs or {}
         self._tools: dict[str, RuntimeTool] = {}
         if tools:
             for name, tool in tools.items():
@@ -50,9 +52,14 @@ class RuntimeToolRegistry:
     def _is_excluded_server(self, server_key: str) -> bool:
         """Return whether tools from `server_key` should be excluded.
 
-        A server is excluded if it is unavailable.
+        A server is excluded if it is unavailable or disabled (startup_mode=none).
         """
-        return server_key in self._unavailable_servers
+        if server_key in self._unavailable_servers:
+            return True
+        cfg = self._server_configs.get(server_key)
+        if cfg is not None and getattr(cfg, "is_disabled", False):
+            return True
+        return False
 
     @property
     def unavailable_servers(self) -> frozenset[str]:

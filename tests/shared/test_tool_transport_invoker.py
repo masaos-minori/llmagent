@@ -13,6 +13,7 @@ from shared.http_transport import HttpTransport, TransportError
 from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
+    StartupMode,
     TransportType,
 )
 from shared.tool_transport_invoker import ToolTransportInvoker
@@ -27,6 +28,7 @@ def _http_cfg(
         url=url,
         call_timeout_sec=call_timeout_sec,
         auth_token="test-token",
+        startup_mode=StartupMode.PERSISTENT,
     )
 
 
@@ -188,3 +190,32 @@ class TestToolTransportInvoker:
     def test_call_timeout_sec_default_unset_falls_back_to_60(self) -> None:
         invoker = _make_invoker(configs={"srv": _http_cfg()})
         assert invoker._transports["srv"]._timeout == 60.0
+
+
+class TestDisabledServerExclusion:
+    @pytest.mark.asyncio
+    async def test_disabled_server_transport_not_constructed(self) -> None:
+        """Disabled server should not get an HttpTransport entry."""
+        from shared.mcp_config import StartupMode
+
+        disabled_cfg = _http_cfg()
+        disabled_cfg.startup_mode = StartupMode.NONE
+        invoker = _make_invoker(configs={"disabled_srv": disabled_cfg})
+
+        assert "disabled_srv" not in invoker._transports
+
+    @pytest.mark.asyncio
+    async def test_invoke_rejects_disabled_server(self) -> None:
+        """invoke() should reject disabled servers with an error result."""
+        from shared.mcp_config import StartupMode
+
+        disabled_cfg = _http_cfg()
+        disabled_cfg.startup_mode = StartupMode.NONE
+        invoker = _make_invoker(configs={"disabled_srv": disabled_cfg})
+
+        result = await invoker.invoke("disabled_srv", "some_tool", {})
+
+        assert result.is_error is True
+        assert result.error_type == "tool"
+        assert "disabled" in result.output.lower()
+        assert "cannot be used" in result.output.lower()

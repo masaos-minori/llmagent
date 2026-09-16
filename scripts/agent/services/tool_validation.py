@@ -72,7 +72,7 @@ async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[
     server_names: set[str] = set()
     unreachable: list[str] = []
     for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
-        if srv_cfg.transport == TransportType.HTTP:
+        if srv_cfg.transport == TransportType.HTTP and not srv_cfg.is_disabled:
             if not srv_cfg.url:
                 continue
             try:

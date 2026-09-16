@@ -22,7 +22,6 @@ import httpx
 from shared.http_transport import HttpTransport
 from shared.mcp_config import (
     McpServerConfig,
-    StartupMode,
 )
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_lifecycle import LifecycleProtocol
@@ -57,15 +56,6 @@ class ToolExecutor(ToolTransportInvoker):
         """Wire RuntimeToolRegistry into the existing resolver after discovery completes."""
         self._resolver.set_runtime_registry(registry)
 
-    def _check_startup_mode(self, server_key: str) -> ToolCallResult | None:
-        """Return an error result if the server is disabled (startup_mode=none); None otherwise."""
-        cfg = self._server_configs.get(server_key)
-        if cfg is not None and cfg.startup_mode == StartupMode.NONE:
-            msg = f"MCP server {server_key!r} is disabled (startup_mode=none) and cannot be used"
-            logger.warning(msg)
-            return self._error_result(server_key, msg, error_type="tool")
-        return None
-
     async def _ensure_lifecycle_ready(self, server_key: str) -> ToolCallResult | None:
         """Ensure the MCP server lifecycle is ready; returns error result if not."""
         if self._lifecycle is None:
@@ -85,13 +75,11 @@ class ToolExecutor(ToolTransportInvoker):
         return self._transports.get(server_key)
 
     def _run_gate_chain(self, server_key: str) -> ToolCallResult | None:
-        """Run the startup-mode and health gates in order; return the first error, or None if both pass.
+        """Run the health gates in order; return the first error, or None if both pass.
 
         The lifecycle gate (_ensure_lifecycle_ready) is async and stays a separate
         await in _raw_execute immediately after this call, preserving call order.
         """
-        if err := self._check_startup_mode(server_key):
-            return err
         if err := self._check_health(server_key):
             return err
         return None

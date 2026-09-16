@@ -477,12 +477,11 @@ class TestUnknownToolError:
             await ex._raw_execute("totally_unknown_tool", {})
 
 
-class TestCheckStartupMode:
-    """Regression: _check_startup_mode() still returns a disabled-server error for
-    startup_mode == StartupMode.NONE after ToolRouteResolver's discovery_map/known_tools
-    parameters were removed (server_configs is unaffected by that change)."""
+class TestDisabledServerInvocation:
+    """Verify that disabled servers are rejected at the invocation boundary."""
 
-    def test_returns_error_result_for_disabled_server(self) -> None:
+    @pytest.mark.asyncio
+    async def test_invoke_rejects_disabled_server(self) -> None:
         cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9",
@@ -490,16 +489,30 @@ class TestCheckStartupMode:
             auth_token="test-token",
         )
         ex = _make_executor(configs={"disabled_server": cfg})
-        result = ex._check_startup_mode("disabled_server")
+        result = await ex.invoke("disabled_server", "some_tool", {})
         assert result is not None
         assert result.is_error is True
         assert "disabled_server" in result.output
         assert "startup_mode=none" in result.output
 
-    def test_returns_none_for_enabled_server(self) -> None:
+    @pytest.mark.asyncio
+    async def test_invoke_allows_enabled_server(self) -> None:
         ex = _make_executor()
-        assert ex._check_startup_mode("file_read") is None
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key="file_read"
+            )
+        )
+        ex._transports["file_read"] = mock_transport  # type: ignore[assignment]
+        result = await ex.invoke("file_read", "some_tool", {})
+        assert result is not None
+        assert result.is_error is False
 
-    def test_returns_none_for_unknown_server_key(self) -> None:
+    @pytest.mark.asyncio
+    async def test_invoke_unknown_server_returns_no_transport(self) -> None:
         ex = _make_executor()
-        assert ex._check_startup_mode("no_such_server") is None
+        result = await ex.invoke("no_such_server", "some_tool", {})
+        assert result is not None
+        assert result.is_error is True
+        assert "no transport configured" in result.output.lower()

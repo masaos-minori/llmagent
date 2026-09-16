@@ -85,9 +85,12 @@ async def test_collect_server_tool_names_invalid_json():
     """Invalid JSON response -> server in unreachable list."""
     from unittest.mock import AsyncMock, MagicMock
 
+    from shared.mcp_config import TransportType
+
     ctx = MagicMock()
     srv = MagicMock()
-    srv.transport = "http"
+    srv.transport = TransportType.HTTP
+    srv.is_disabled = False
     srv.url = "http://srv1.test"
     ctx.cfg.mcp.mcp_servers = {"srv1": srv}
 
@@ -108,9 +111,12 @@ async def test_collect_server_tool_names_missing_tools_field():
     """Missing 'tools' field -> server in unreachable list."""
     from unittest.mock import AsyncMock, MagicMock
 
+    from shared.mcp_config import TransportType
+
     ctx = MagicMock()
     srv = MagicMock()
-    srv.transport = "http"
+    srv.transport = TransportType.HTTP
+    srv.is_disabled = False
     srv.url = "http://srv1.test"
     ctx.cfg.mcp.mcp_servers = {"srv1": srv}
 
@@ -123,3 +129,25 @@ async def test_collect_server_tool_names_missing_tools_field():
 
     names, unreachable = await _collect_server_tool_names(ctx)
     assert "srv1" in unreachable
+
+
+@pytest.mark.asyncio
+async def test_collect_server_tool_names_disabled_server_skipped():
+    """Disabled server (startup_mode=NONE) should be skipped — no HTTP GET issued."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    ctx = MagicMock()
+    srv = MagicMock()
+    srv.transport = "http"
+    srv.url = "http://srv1.test"
+    srv.is_disabled = True
+    ctx.cfg.mcp.mcp_servers = {"srv1": srv}
+
+    mock_http = AsyncMock()
+    mock_http.get = AsyncMock()
+    ctx.services_required.http = mock_http
+
+    names, unreachable = await _collect_server_tool_names(ctx)
+    mock_http.get.assert_not_called()
+    assert "srv1" not in unreachable
+    assert len(names) == 0

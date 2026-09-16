@@ -15,6 +15,7 @@ from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
     McpServerHealthState,
+    StartupMode,
 )
 from shared.tool_lifecycle import LifecycleProtocol, ServerCooldownError
 from shared.transport_dto import ToolCallResult
@@ -49,8 +50,11 @@ class ToolTransportInvoker:
                 sorted(unknown_keys),
             )
 
+        self._server_configs = server_configs
         self._transports: dict[str, HttpTransport] = {}
         for key, cfg in server_configs.items():
+            if cfg.is_disabled:
+                continue
             timeout_sec = cfg.call_timeout_sec
             self._transports[key] = HttpTransport(
                 http, cfg.url, key, cfg, timeout_sec=timeout_sec
@@ -193,6 +197,13 @@ class ToolTransportInvoker:
         """Invoke tool via transport; applies health check, lifecycle, semaphore, and recording."""
         if err := self._check_health(server_key):
             return err
+
+        # REQ-004: reject disabled servers at the shared invocation boundary
+        cfg = self._server_configs.get(server_key)
+        if cfg is not None and cfg.startup_mode == StartupMode.NONE:
+            msg = f"MCP server {server_key!r} is disabled (startup_mode=none) and cannot be used"
+            logger.warning(msg)
+            return self._error_result(server_key, msg, error_type="tool")
 
         if self._lifecycle is not None:
             try:
