@@ -92,9 +92,9 @@ If eventbus13 has already applied the correct edit, skip further action. Do not 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify ADR-002 CI-001 note reflects ConfigLoader migration (not local invariant) | Pending | — | — | |
-| 2 | Verify ADR-002 EventBus row no longer states "*N/A* (does not use ConfigLoader)" | Pending | — | — | |
-| 3 | Confirm alignment with eventbus13's REQ-006 edit | Pending | — | — | |
+| 1 | Verify ADR-002 CI-001 note reflects ConfigLoader migration (not local invariant) | Blocked | — | 20260916-101640 | CI-001 note still references local-invariant rationale, not ConfigLoader migration |
+| 2 | Verify ADR-002 EventBus row no longer states "*N/A* (does not use ConfigLoader)" | Blocked | — | 20260916-101644 | EventBus row still states '*N/A* (does not use ConfigLoader)' |
+| 3 | Confirm alignment with eventbus13's REQ-006 edit | Blocked | — | 20260916-101648 | eventbus13's REQ-006 did not apply these edits; gap belongs to eventbus13 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
