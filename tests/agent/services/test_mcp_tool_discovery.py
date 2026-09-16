@@ -25,6 +25,7 @@ from fastapi.testclient import TestClient
 from shared.mcp_config import (
     McpServerConfig,
     SecurityProfile,
+    StartupMode,
     TransportType,
 )
 from shared.runtime_tool import RuntimeTool
@@ -63,9 +64,15 @@ def _resp(status_code: int = 200, json_value: object = None) -> MagicMock:
     return resp
 
 
-def _server(url: str = "http://127.0.0.1:9000") -> McpServerConfig:
+def _server(
+    url: str = "http://127.0.0.1:9000",
+    startup_mode: StartupMode = StartupMode.PERSISTENT,
+) -> McpServerConfig:
     return McpServerConfig(
-        transport=TransportType.HTTP, url=url, auth_token="test-token"
+        transport=TransportType.HTTP,
+        url=url,
+        startup_mode=startup_mode,
+        auth_token="test-token",
     )
 
 
@@ -272,7 +279,9 @@ class TestDiscoverAllMalformedEntries:
                 },
             )
         )
-        ctx = _make_ctx({"srv": _server()}, http)
+        srv_cfg = _server(startup_mode=StartupMode.PERSISTENT)
+        srv_cfg.required = False
+        ctx = _make_ctx({"srv": srv_cfg}, http)
 
         result = await McpToolDiscoveryService(ctx).discover_all()
 
@@ -294,7 +303,9 @@ class TestDiscoverAllMalformedEntries:
                 },
             )
         )
-        ctx = _make_ctx({"srv": _server()}, http)
+        srv_cfg = _server(startup_mode=StartupMode.PERSISTENT)
+        srv_cfg.required = False
+        ctx = _make_ctx({"srv": srv_cfg}, http)
 
         result = await McpToolDiscoveryService(ctx).discover_all()
 
@@ -315,7 +326,9 @@ class TestDiscoverAllMalformedEntries:
                 },
             )
         )
-        ctx = _make_ctx({"srv": _server()}, http)
+        srv_cfg = _server(startup_mode=StartupMode.PERSISTENT)
+        srv_cfg.required = False
+        ctx = _make_ctx({"srv": srv_cfg}, http)
 
         result = await McpToolDiscoveryService(ctx).discover_all()
 
@@ -338,7 +351,9 @@ class TestDiscoverAllMalformedEntries:
                 },
             )
         )
-        ctx = _make_ctx({"srv": _server()}, http)
+        srv_cfg = _server(startup_mode=StartupMode.PERSISTENT)
+        srv_cfg.required = False
+        ctx = _make_ctx({"srv": srv_cfg}, http)
 
         result = await McpToolDiscoveryService(ctx).discover_all()
 
@@ -353,7 +368,9 @@ class TestDiscoverAllMalformedEntries:
         http.get = _async_result(
             _resp(200, {"schema_version": "1.0", "tools": ["not-a-dict"]})
         )
-        ctx = _make_ctx({"srv": _server()}, http)
+        srv_cfg = _server(startup_mode=StartupMode.PERSISTENT)
+        srv_cfg.required = False
+        ctx = _make_ctx({"srv": srv_cfg}, http)
 
         result = await McpToolDiscoveryService(ctx).discover_all()
 
@@ -735,6 +752,7 @@ class TestDiscoverAllUnreachableServers:
         srv_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
             required=False,
             auth_token="test-token",
         )
@@ -756,6 +774,7 @@ class TestDiscoverAllUnreachableServers:
         srv_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
             required=False,
             auth_token="test-token",
         )
@@ -777,6 +796,7 @@ class TestDiscoverAllUnreachableServers:
         srv_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
             required=True,
             auth_token="test-token",
         )
@@ -878,7 +898,7 @@ class TestDiscoverAllDuplicates:
         assert dup_findings[0].status == StartupCheckStatus.FATAL
 
 
-# ── non-HTTP / empty-URL server filtering ──────────────────────────────────────
+# ── non-HTTP / empty-URL / disabled server filtering ──────────────────────────
 
 
 class TestDiscoverAllServerFilter:
@@ -913,6 +933,63 @@ class TestDiscoverAllServerFilter:
 
         http.get.assert_not_called()
         assert result.registry.all_tools() == []
+
+    @pytest.mark.asyncio
+    async def test_disabled_server_is_skipped_no_http_call(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.NONE,
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = AsyncMock()
+        ctx = _make_ctx({"disabled_srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        http.get.assert_not_called()
+        assert result.registry.all_tools() == []
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        assert len(mcp_findings) == 0
+        assert result.unreachable == []
+
+    @pytest.mark.asyncio
+    async def test_disabled_server_with_required_flag_still_skipped(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.NONE,
+            required=True,
+            tool_names=["grep"],
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = AsyncMock()
+        ctx = _make_ctx({"disabled_required_srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        http.get.assert_not_called()
+        assert result.unreachable == []
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        required_tool_findings = [
+            f for f in mcp_findings if "required tool" in f.message.lower()
+        ]
+        assert len(required_tool_findings) == 1
+        assert required_tool_findings[0].status == StartupCheckStatus.FATAL
 
 
 # ── real-app schema validation matrix ──────────────────────────────────────────
@@ -1744,3 +1821,223 @@ async def test_tool_definitions_check_surfaces_as_outcome_not_exception(
     tool_defs_findings = [f for f in mcp_findings if "boom" in f.message]
     assert len(tool_defs_findings) == 1
     assert tool_defs_findings[0].status == expected_status
+
+
+# ── REQ-008: Required-server malformed entry FATAL escalation ──────────────────
+
+
+class TestRequiredServerMalformedEntryFatalEscalation:
+    @pytest.mark.asyncio
+    async def test_malformed_entry_on_required_server_becomes_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
+            required=True,
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [
+                        {
+                            "name": "incomplete_tool",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        },
+                        {
+                            "name": "valid_tool",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        },
+                    ],
+                },
+            )
+        )
+        ctx = _make_ctx({"required_srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.registry.get("valid_tool") is not None
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        fatal_findings = [
+            f for f in mcp_findings if f.status == StartupCheckStatus.FATAL
+        ]
+        assert len(fatal_findings) >= 1
+        assert any("is_write" in f.message for f in fatal_findings)
+
+    @pytest.mark.asyncio
+    async def test_malformed_entry_on_optional_server_remains_warning(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
+            required=False,
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [
+                        {
+                            "name": "incomplete_tool",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        },
+                        {
+                            "name": "valid_tool",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        },
+                    ],
+                },
+            )
+        )
+        ctx = _make_ctx({"optional_srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.registry.get("valid_tool") is not None
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        warning_findings = [
+            f for f in mcp_findings if f.status == StartupCheckStatus.WARNING
+        ]
+        assert len(warning_findings) >= 1
+        assert any("is_write" in f.message for f in warning_findings)
+        fatal_findings = [
+            f for f in mcp_findings if f.status == StartupCheckStatus.FATAL
+        ]
+        assert not any("is_write" in f.message for f in fatal_findings)
+
+
+# ── REQ-009: Required-tool-presence check ──────────────────────────────────────
+
+
+class TestRequiredToolPresenceCheck:
+    @pytest.mark.asyncio
+    async def test_missing_required_tool_name_produces_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
+            required=True,
+            tool_names=["grep", "nonexistent_tool"],
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [
+                        {
+                            "name": "grep",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
+                    ],
+                },
+            )
+        )
+        ctx = _make_ctx({"required_srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.registry.get("grep") is not None
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        missing_tool_findings = [
+            f for f in mcp_findings if "not found in discovery results" in f.message
+        ]
+        assert len(missing_tool_findings) == 1
+        assert missing_tool_findings[0].status == StartupCheckStatus.FATAL
+        assert "nonexistent_tool" in missing_tool_findings[0].message
+
+    @pytest.mark.asyncio
+    async def test_all_required_tools_present_no_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
+            required=True,
+            tool_names=["grep"],
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [
+                        {
+                            "name": "grep",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
+                    ],
+                },
+            )
+        )
+        ctx = _make_ctx({"required_srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.registry.get("grep") is not None
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        missing_tool_findings = [
+            f for f in mcp_findings if "not found in discovery results" in f.message
+        ]
+        assert len(missing_tool_findings) == 0

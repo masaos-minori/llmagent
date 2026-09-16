@@ -124,7 +124,7 @@ class McpToolDiscoveryService:
         findings: list[StartupCheckOutcome] = []
         unreachable: list[str] = []
         for key, cfg in self._ctx.cfg.mcp.mcp_servers.items():
-            if cfg.transport != TransportType.HTTP or not cfg.url:
+            if cfg.transport != TransportType.HTTP or not cfg.url or cfg.is_disabled:
                 continue
             fetched, server_findings, is_unreachable = await self._fetch_server_tools(
                 key, cfg
@@ -154,6 +154,20 @@ class McpToolDiscoveryService:
             entries.extend(fetched)
         registry, dedup_findings = self._dedupe_and_build(entries)
         findings.extend(dedup_findings)
+        for srv_key, srv_cfg in self._ctx.cfg.mcp.mcp_servers.items():
+            if srv_cfg.required and srv_cfg.tool_names:
+                for tool_name in srv_cfg.tool_names:
+                    if tool_name not in registry._tools:
+                        findings.append(
+                            StartupCheckOutcome(
+                                source=_SOURCE,
+                                status=StartupCheckStatus.FATAL,
+                                message=(
+                                    f"{srv_key}: required tool {tool_name!r} not found in discovery results"
+                                ),
+                                remediation="Verify the server's /v1/tools response includes this tool.",
+                            )
+                        )
         drift_findings = self._build_drift_findings(entries)
         findings.extend(drift_findings)
         tool_defs_finding = await self._check_tool_definitions_finding()
@@ -248,6 +262,13 @@ class McpToolDiscoveryService:
             normalized, finding = self._validate_and_normalize_entry(
                 key, cfg.url, raw_entry
             )
+            if finding is not None and cfg.required:
+                finding = StartupCheckOutcome(
+                    source=finding.source,
+                    status=StartupCheckStatus.FATAL,
+                    message=finding.message,
+                    remediation=finding.remediation,
+                )
             if finding is not None:
                 entry_findings.append(finding)
             if normalized is not None:
