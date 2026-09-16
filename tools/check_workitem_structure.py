@@ -51,7 +51,7 @@ import orjson
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
 _FENCE_RE = re.compile(r"```markdown\n(.*?)\n```", re.DOTALL)
-_HEADING_RE = re.compile(r"(?m)^## (.+?)\s*$")
+_HEADING_RE = re.compile(r"(?mi)^## (.+?)\s*$")
 
 # (kind, template path relative to ROOT_DIR, work-item directory relative to ROOT_DIR)
 _WORK_ITEM_KINDS: tuple[tuple[str, str, str], ...] = (
