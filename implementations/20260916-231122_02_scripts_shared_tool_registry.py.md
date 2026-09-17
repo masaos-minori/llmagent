@@ -105,8 +105,8 @@ not from this registry.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct ToolDefinition docstring to add compatibility requirement/removal condition | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Correct ToolDefinition docstring to add compatibility requirement/removal condition | Completed | 20260917-201714 | 20260917-201714 |  |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-201715 | 20260917-201715 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
