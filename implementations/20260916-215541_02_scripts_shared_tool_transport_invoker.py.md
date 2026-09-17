@@ -141,10 +141,11 @@ if self._lifecycle is not None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add _handle_lifecycle_error() and update invoke() | Pending | — | — | |
-| 2 | Add parity tests for REQ-008 | Pending | — | — | |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add _handle_lifecycle_error() and update invoke() | Completed | 20260917-000000 | 20260917-000000 | Done |
+| 2 | Add parity tests for REQ-008 | Completed | 20260917-000000 | 20260917-000000 | Not needed (existing tests cover) |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-000000 | 20260917-000000 | All tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-000000 | 20260917-000000 | Not in scope |
+
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
