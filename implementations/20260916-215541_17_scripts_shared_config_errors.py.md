@@ -128,9 +128,9 @@ class ConfigPermissionError(RuntimeError):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update exception docstrings with "Raised by:" sections | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Update exception docstrings with "Raised by:" sections | Completed | 20260917-192647 | 20260917-192647 |  |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-192648 | 20260917-192648 |  |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-192648 | 20260917-192648 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
