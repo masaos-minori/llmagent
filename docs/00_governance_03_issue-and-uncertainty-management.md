@@ -223,7 +223,7 @@ EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was r
 
 CI-001 ("EventBus process reads configuration directly instead of using ConfigLoader") was resolved and removed from this active inventory 2026-09-15. Confirmed by code inspection: `scripts/eventbus/config.py` now uses `ConfigLoader.load()` instead of direct `tomllib.load()`, preserving all EventBus-specific validation logic in `__post_init__` and `load_config()`. The migration was verified by tests confirming all existing validation error cases produce equivalent errors through the ConfigLoader path. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-001` heading.
 
-**CI-003**: Resolved. Resolution confirmed by `tests/agent/services/test_config_reload.py::test_apply_config_dict_exercises_real_registry_and_no_discovery_call` (confirmed: line 480). Re-evaluate if `mcpagent04` support is added. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-003` heading.
+**CI-003**: Resolved. Resolution confirmed by `tests/agent/services/test_config_reload.py::test_apply_config_dict_exercises_real_registry_and_no_discovery_call` (confirmed: line 480). Re-evaluate if `mcpagent04` support is added. With the introduction of `llm_visibility_base` as an immutable discovery-time visibility field (REQ-001), the config reload path must also respect this field — a new Known Issue has been filed under REQ-001 to track this discrepancy. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-003` heading.
 
 #### CI-004
 
@@ -434,8 +434,62 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Impact**: Without test coverage, a future change to the default value (e.g. `required: bool = False`) would silently violate INV-14 with no automated check to catch the regression.
 - **Recommended Action**: Add a unit test asserting `McpServerConfig.required` defaults to `True` when unspecified, and/or a test asserting undefined-criticality components are never routed as non-required.
 
-No other active Known Issues beyond DESIGN-1, DESIGN-2,
-EVENTBUS-001 through EVENTBUS-008, and CI-001, CI-003 through CI-016 above.
+#### REQ-001
+
+- **ID**: REQ-001
+- **Title**: Immutable discovery-time visibility field (`llm_visibility_base`) not enforced during config reload
+- **Status**: open
+- **Severity**: High
+- **Area**: Agent
+- **Type**: document-code-mismatch
+- **Source**: `scripts/shared/runtime_tool.py`, `scripts/shared/runtime_tool_registry.py::apply_policy()`
+- **Owner**: Unassigned
+- **First Found**: Unconfirmed
+- **Target**: `docs/00_governance_03_issue-and-uncertainty-management.md`
+- **Related**: CI-003
+- **Summary**: `llm_visibility_base` is defined as an immutable discovery-time visibility field on `RuntimeTool` (confirmed: 11 matches across `scripts/`), but the config reload path via `apply_policy()` does not enforce immutability of this field — a tool hidden from the LLM at discovery time could be unhidden via config reload.
+- **Current Description**: `llm_visibility_base` exists on `RuntimeTool` (lines 53, 72, 76-77, 96, 111, 128-129, 148 in `runtime_tool.py`). The `apply_policy()` formula uses this field as the immutable base (confirmed: `scripts/shared/runtime_tool_registry.py` lines 166-167). However, no enforcement prevents config reload from overriding this field.
+- **Observed Implementation**: `apply_policy()` reads `llm_visibility_base` as the starting point for visibility computation, but the config reload path can modify tool visibility without respecting this constraint.
+- **Impact**: A tool hidden from the LLM at discovery time could become visible again through config reload, violating the security boundary established by REQ-001.
+- **Recommended Action**: Enforce immutability of `llm_visibility_base` in the config reload path; add tests to verify this invariant.
+
+#### REQ-002
+
+- **ID**: REQ-002
+- **Title**: Atomic registry swap invariant not verified during config reload
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: design-gap
+- **Source**: `scripts/shared/runtime_tool_registry.py`
+- **Owner**: Unassigned
+- **First Found**: Unconfirmed
+- **Target**: `docs/00_governance_03_issue-and-uncertainty-management.md`
+- **Related**: N/A
+- **Summary**: Config reload swaps the tool registry, but there is no guarantee that the swap is atomic — intermediate states where some tools use the old registry and others use the new one could cause inconsistent routing decisions.
+- **Current Description**: The registry swap mechanism during config reload does not provide atomicity guarantees. If the swap fails partway through, some tools may route through the old registry while others route through the new one.
+- **Observed Implementation**: Not verified.
+- **Impact**: Inconsistent routing decisions during partial registry swaps could lead to unauthorized tool access or incorrect fallback behavior.
+- **Recommended Action**: Implement atomic registry swap (e.g., using a two-phase commit pattern) and add tests to verify this invariant.
+
+#### REQ-003
+
+- **ID**: REQ-003
+- **Title**: Preflight gate additions not validated against all execution paths
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: missing-documentation
+- **Source**: `scripts/agent/tool_policy.py::check_preflight()`, `scripts/agent/repository_gateway.py`, `scripts/agent/commands/cmd_mdq.py`, `scripts/agent/commands/cmd_context.py`, `scripts/agent/tool_approval.py`
+- **Owner**: Unassigned
+- **First Found**: Unconfirmed
+- **Target**: `docs/00_governance_03_issue-and-uncertainty-management.md`
+- **Related**: N/A
+- **Summary**: `check_preflight()` calls have been added to `_cmd_diff()` (line 114), `_execute_mdq()` (line 67), and other locations (9 total matches across `scripts/`), but there is no documentation or test coverage verifying that all execution paths are gated.
+- **Current Description**: Preflight gates exist in multiple locations, but it is unclear whether all execution paths are covered. The scope of the preflight gate additions needs to be documented and tested.
+- **Observed Implementation**: Confirmed: `check_preflight()` appears in 9 locations across `scripts/` — `repository_gateway.py` (lines 7, 24, 114), `cmd_mdq.py` (line 67), `cmd_context.py` (lines 35, 206), `tool_policy.py` (line 318), `tool_approval.py` (lines 31, 148).
+- **Impact**: Untested execution paths could bypass the preflight gate, allowing unauthorized tool access.
+- **Recommended Action**: Document the full set of execution paths covered by preflight gates and add tests to verify each path.
 
 ## Part 2: Needs Confirmation Inventory
 
