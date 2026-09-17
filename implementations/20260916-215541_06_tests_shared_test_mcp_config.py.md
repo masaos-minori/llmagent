@@ -215,9 +215,10 @@ class TestPerModeRequiredFields:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add REQ-004/006/007/010 regression tests | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add REQ-004/006/007/010 regression tests | Completed | 20260917-000000 | 20260917-000000 | Done |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-000000 | 20260917-000000 | All tests pass |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-000000 | 20260917-000000 | Not in scope |
+
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
