@@ -313,6 +313,14 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 - The Plan must be detailed enough for the next pipeline phase (per Workflow position
   above) to produce file-level implementation procedures from it. Do not implement
   anything.
+- Populate the `### Execution Status` table (see `templates/execution-status.md`) with
+  one row per Implementation step just written above — same numbering, each
+  `Description` a short restatement of that step, `Status` set to `Pending`, and
+  `Started`/`Completed` left as `—`. Per `templates/execution-status.md` Notes, do not
+  leave the template's single placeholder row in a Plan that already lists its
+  concrete Implementation steps in this same Step. This is initial population only —
+  advancing a row past `Pending` is `plan-to-implementation-procedure`'s and
+  `code-implementation`'s responsibility, not this skill's.
 
 ---
 
