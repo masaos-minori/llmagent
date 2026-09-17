@@ -115,10 +115,10 @@ def extract_request_context(request: Request) -> tuple[str, str, str]:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Change return type of extract_request_context() to tuple[str, str, str] | Pending | — | — | |
-| 2 | Add idempotency-key header extraction | Pending | — | — | |
-| 3 | Return idempotency_key as third element | Pending | — | — | |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Change return type of extract_request_context() to tuple[str, str, str] | Completed | 20260917-214702 | 20260917-214702 |  |
+| 2 | Add idempotency-key header extraction | Completed | 20260917-214702 | 20260917-214702 |  |
+| 3 | Return idempotency_key as third element | Completed | 20260917-214702 | 20260917-214702 |  |
+| 4 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-214702 | 20260917-214702 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
