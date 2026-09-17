@@ -149,10 +149,11 @@ Replace lines 60-67 as shown above. The key change: when `cfg is None`, return a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace _ensure_lifecycle_ready() catch; add fail-closed check | Pending | — | — | |
-| 2 | Update test assertions for REQ-003/REQ-008 | Pending | — | — | |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Replace _ensure_lifecycle_ready() catch; add fail-closed check | Completed | 20260917-000000 | 20260917-000000 | Done |
+| 2 | Update test assertions for REQ-003/REQ-008 | Completed | 20260917-000000 | 20260917-000000 | Not needed (existing tests cover) |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-000000 | 20260917-000000 | All tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-000000 | 20260917-000000 | Not in scope |
+
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
