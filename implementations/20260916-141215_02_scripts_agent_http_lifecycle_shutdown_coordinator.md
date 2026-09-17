@@ -33,12 +33,12 @@ Add `fields` parameter support to `ShutdownCoordinator.shutdown_all()`'s process
 
 1. Locate the `shutdown_all()` method in `ShutdownCoordinator`.
 2. Add `fields: dict[str, Any] | None = None` parameter to the method signature.
-3. Inside the method, merge `fields` into the terminate kwargs before calling `terminate_with_timeout()`.
+3. Convert the positional timeout argument to a keyword argument and merge `fields` into the terminate kwargs before calling `terminate_with_timeout()`.
 4. Update the docstring to document the new parameter.
 
 ### Method
 
-Current `shutdown_all()` method signature (approximate location in `http_lifecycle_shutdown_coordinator.py`):
+Current `shutdown_all()` method signature (in `http_lifecycle_shutdown_coordinator.py`):
 ```python
 async def shutdown_all(
     self,
@@ -48,7 +48,12 @@ async def shutdown_all(
     """Gracefully shut down every managed server."""
 ```
 
-Required update:
+Inside the loop body:
+```python
+await terminator.terminate_with_timeout(proc, server_key, _SHUTDOWN_TIMEOUT_SEC)
+```
+
+Required update — add `fields` parameter and convert timeout to keyword arg:
 ```python
 async def shutdown_all(
     self,
@@ -80,7 +85,7 @@ await terminator.terminate_with_timeout(proc, server_key, **terminate_kwargs)
 
 ### Details
 
-The `fields` parameter should be added as the last parameter in the method signature. The merging logic should use `dict.update()` to avoid mutating the original `fields` dict. The `terminate_kwargs` variable should be initialized before the merge to ensure it always exists.
+The `fields` parameter should be added as the last parameter in the method signature. The merging logic should use `dict.update()` to avoid mutating the original `fields` dict. The `terminate_kwargs` variable should be initialized before the merge to ensure it always exists. The `timeout` key must be set first so that `fields` can override it if desired.
 
 ## Compatibility considerations
 
@@ -122,10 +127,10 @@ The `fields` parameter should be added as the last parameter in the method signa
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260917-124924 | 20260917-124924 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260917-124930 | 20260917-124930 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260917-124936 | 20260917-124936 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-124942 | 20260917-124942 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
