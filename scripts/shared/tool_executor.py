@@ -22,9 +22,10 @@ import httpx
 from shared.http_transport import HttpTransport
 from shared.mcp_config import (
     McpServerConfig,
+    StartupMode,
 )
 from shared.route_resolver import ToolRouteResolver
-from shared.tool_lifecycle import LifecycleProtocol
+from shared.tool_lifecycle import _PERMITTED_LIFECYCLE_EXCEPTIONS, LifecycleProtocol
 from shared.tool_transport_invoker import ToolTransportInvoker
 from shared.transport_dto import ToolCallResult
 
@@ -62,17 +63,28 @@ class ToolExecutor(ToolTransportInvoker):
             return None
         try:
             await self._lifecycle.ensure_ready(server_key)
-        except (OSError, RuntimeError) as e:
-            msg = f"Lifecycle ensure_ready failed for {server_key!r}: {e}"
-            logger.error(msg)
-            if self._health_registry is not None:
-                self._health_registry.record_failure(server_key)
-            return self._error_result(server_key, msg, error_type="transport")
+        except Exception as e:
+            if isinstance(e, _PERMITTED_LIFECYCLE_EXCEPTIONS):
+                return self._handle_lifecycle_error(server_key, e)
+            raise
         return None
 
     def _resolve_transport(self, server_key: str) -> HttpTransport | None:
         """Resolve the transport for a server key; returns None if missing."""
         return self._transports.get(server_key)
+
+    def _check_startup_mode(self, server_key: str) -> ToolCallResult | None:
+        """Return an error result if the server is disabled or has no validated config."""
+        cfg = self._server_configs.get(server_key)
+        if cfg is None:
+            msg = f"No validated configuration for MCP server {server_key!r}"
+            logger.error(msg)
+            return self._error_result(server_key, msg, error_type="tool")
+        if cfg.startup_mode == StartupMode.NONE:
+            msg = f"MCP server {server_key!r} is disabled (startup_mode=none) and cannot be used"
+            logger.warning(msg)
+            return self._error_result(server_key, msg, error_type="tool")
+        return None
 
     def _run_gate_chain(self, server_key: str) -> ToolCallResult | None:
         """Run the health gates in order; return the first error, or None if both pass.
