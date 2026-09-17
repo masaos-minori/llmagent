@@ -10,9 +10,12 @@ Reduce `scripts/agent/services/config_reload.py` to a thin orchestrator: remove 
 
 ## Assumptions
 
-- The four new modules (`config_field_registry.py`, `config_section_reload.py`, `config_service_sync.py`, `config_outcome_classification.py`) have been created in Phase 1/Phase 2 before this step.
+- The four new modules (`config_field_registry.py`, `config_section_reload.py`, `config_service_sync.py`, `config_outcome_classification.py`) have been created in Phase 1/Phase 2 before this step — confirmed during adversarial verification.
 - `ConfigReloadService.__init__(ctx: AgentContext)` already matches the Issue's "accept only `AgentContext`" acceptance criterion (already true in current source — no code change required for this item; verify it stays true after the split).
 - The public API (`ConfigReloadService.apply_config()`, `apply_config_dict()`, `ConfigReloadOutcome`) is unchanged.
+- `_classify_mcp_server_changes()` currently uses a hybrid pattern: delegates comparison logic to `classify_mcp_server_changes(ctx, new_cfg)` but keeps lifecycle cleanup locally — this must be fully migrated to the external function.
+- `reload_direct_fields()` has an undocumented `field_filter: set[str] | None = None` parameter that may need attention if callers start using it.
+- `system_prompt_tool`, `allowed_tools`, `masked_fields` special cases are handled indirectly by `reload_direct_fields()` through registry entries with `hot_reloadable=True`; however, `system_prompt_tool` writes to `ctx.conv` which is cross-context and should be verified.
 
 ## Design decisions
 
@@ -35,19 +38,20 @@ Reduce `config_reload.py` to a thin orchestrator by removing extracted code and 
 
 ### Method
 
-1. Re-verify, immediately before editing, that each target row's cited line/content is unchanged since this Plan's evidence-gathering (per `rules/workflow-lifecycle.md` Revalidation): `scripts/agent/services/config_reload.py` full file read; 481 lines, `apply_config_dict()` at L215 (radon C18), `_sync_services` at L310, `_classify_mcp_server_changes` at L357 (already takes explicit `ctx`), `_reload_section_fields` at L392, `_classify_startup_only_fields` at L434, `_detect_diagnostics_live_fields` at L457.
-2. Remove `CONFIG_FIELD_REGISTRY` definition (moved to `config_field_registry.py`).
-3. Remove `ConfigFieldRegistry` class definition (moved to `config_field_registry.py`).
-4. Replace `apply_config_dict()`'s inline section iteration with delegation to `reload_validated_section()`/`reload_direct_fields()`.
-5. Replace `_sync_services()`'s scalar-parameter passing with `ServiceSyncer` class (moved to `config_service_sync.py`).
-6. Extract `_classify_mcp_server_changes()`, `_classify_startup_only_fields()`, `_detect_diagnostics_live_fields()` as standalone functions (moved to `config_outcome_classification.py`).
-7. Import the four new modules at module level.
+1. Re-verify, immediately before editing, that each target row's cited line/content is unchanged since this Plan's evidence-gathering (per `rules/workflow-lifecycle.md` Revalidation): `scripts/agent/services/config_reload.py` full file read; **233 lines** (already partially refactored — Phase 1/Phase 2 completed), `apply_config_dict()` at L89 (radon C18), `_sync_services` at L158 (now uses `ServiceSyncer` internally), `_classify_mcp_server_changes` at L179 (hybrid: delegates to `classify_mcp_server_changes(ctx, new_cfg)` but keeps lifecycle cleanup logic locally), `_classify_startup_only_fields` at L214, `_detect_diagnostics_live_fields` at L224. Note: `_reload_section_fields` does not exist in current file.
+2. SKIP: `CONFIG_FIELD_REGISTRY` definition already removed (moved to `config_field_registry.py` in Phase 1).
+3. SKIP: `ConfigFieldRegistry` class definition already removed (moved to `config_field_registry.py` in Phase 1).
+4. Verify `apply_config_dict()`'s delegation to `reload_validated_section()`/`reload_direct_fields()` is correct (already delegated in Phase 2; verify no regression).
+5. SKIP: `_sync_services()`'s scalar-parameter passing already replaced with `ServiceSyncer` class (moved to `config_service_sync.py` in Phase 2).
+6. Partially complete: Extract remaining inline MCP server change classification logic (lifecycle cleanup) and delegate entirely to `classify_mcp_server_changes()` from `config_outcome_classification.py`.
+7. SKIP: Imports for the four new modules already present (added in Phase 1/Phase 2).
 
 ### Details
 
 ```python
 # config_reload.py: reduce to thin orchestrator:
-# Before: 481 lines, mixing schema definition, section-reload control flow, service-instance sync, and outcome classification
+# Current state: 233 lines, already partially refactored (Phase 1/Phase 2 completed).
+# Remaining work: remove inline MCP server diff/cleanup logic from _classify_mcp_server_changes().
 
 # After: ~150 lines, thin orchestrator:
 
@@ -55,10 +59,11 @@ Reduce `config_reload.py` to a thin orchestrator by removing extracted code and 
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from typing import Any
 
-from agent.config_dataclasses import ConfigReloadRequest
+from agent.services.models import ConfigReloadRequest
 from agent.services.config_field_registry import registry_for
 from agent.services.config_section_reload import reload_validated_section, reload_direct_fields
 from agent.services.config_service_sync import ServiceSyncer
@@ -110,7 +115,7 @@ class ConfigReloadService:
                     raise ConfigReloadValidationError(str(e)) from e
                 for field_entry in registry_for(section_path):
                     if field_entry.name in changed_fields:
-                        validator = field_entry.validator
+                        validator = field_entry.validator_fn   # NOTE: attribute name is validator_fn, not validator
                         if validator is not None:
                             validator(replaced, field_entry.name, changed_fields[field_entry.name])
                 setattr(ctx.cfg, section_path, replaced)
@@ -118,10 +123,8 @@ class ConfigReloadService:
 
         # Delegate direct field handling (approval/memory/mcp)
         for section_path in ("approval", "memory", "mcp"):
-            cfg = getattr(ctx.cfg, section_path)
             changed_fields = reload_direct_fields(ctx, new_cfg, section_path)
             if changed_fields:
-                setattr(ctx.cfg, section_path, cfg)
                 outcome.applied.append(section_path)
 
         # Sync live services via ServiceSyncer
@@ -144,10 +147,6 @@ class ConfigReloadService:
         """Convert ConfigReloadRequest to a flat dict keyed by section.field."""
         ...
 
-    def _validate_masked_fields(self, masked_fields: list[str] | None) -> list[str]:
-        """Validate and normalize masked_fields input."""
-        ...
-
 # --- remaining private helpers (unchanged, minimal) ---
 
 def _build_mcp_servers(...) -> Mapping[str, McpServerConfig]:
@@ -161,6 +160,8 @@ def _diff_mcp_server_config(...) -> list[dict[str, str]]:
 
 - The public API (`ConfigReloadService.apply_config()`, `apply_config_dict()`, `ConfigReloadOutcome`) is unchanged.
 - One real importer (`agent/commands/cmd_config.py`, function-local import) relies on the public API — blast radius on that caller is nil.
+- Internal method signatures have evolved since the plan was written: `_sync_services()` now uses typed config objects internally via `ServiceSyncer` instead of scalar parameters; `_classify_mcp_server_changes()` now takes explicit `ctx` parameter. These changes were made in Phase 1/Phase 2 and must be preserved.
+- Tests importing `CONFIG_FIELD_REGISTRY` directly from `config_reload` will break and need updating.
 
 ## Security considerations
 
@@ -170,9 +171,18 @@ def _diff_mcp_server_config(...) -> list[dict[str, str]]:
 
 - Reverting this change restores the original monolithic `config_reload.py` with all code in one file. If needed later, the fields should be reimplemented to match the canonical exclude-and-FATAL duplicate-ownership policy from `McpToolDiscoveryService._dedupe_and_build()`.
 
+## Risks
+
+- **Risk**: `classify_startup_only_fields` uses lazy import of `CONFIG_FIELD_REGISTRY` to avoid circular dependency (`config_outcome_classification.py:53-54`). Removing this constant during cleanup would silently break this function → **Mitigation**: ensure `CONFIG_FIELD_REGISTRY` remains available or migrate its usage.
+- **Risk**: `reload_validated_section()` mutates `ctx.cfg` directly via `setattr(ctx.cfg, section_path, replaced)` at line 53. The caller must not overwrite this change afterward (double-write bug fixed in updated code above).
+- **Risk**: `ServiceSyncer.sync_all()` returns `SyncResult` (frozen dataclass), NOT `ConfigReloadOutcome`. Naive consumers might try to access `.needs_restart` on the sync result → **Mitigation**: document this distinction clearly.
+- **Risk**: Two places doing the same lazy import of `_build_mcp_servers` (`config_reload.py:195-196` and `config_outcome_classification.py:30`) is redundant and error-prone → **Mitigation**: consolidate to single import site.
+- **Risk**: `reload_direct_fields()` has an undocumented `field_filter` parameter that may need attention if callers start using it.
+- **Risk**: `system_prompt_tool` special case writes to `ctx.conv` (cross-context write) which is not obvious from reading `reload_direct_fields()` alone → **Mitigation**: verify this path during implementation.
+
 ## Validation plan
 
-- Unit: run `uv run pytest tests/agent/services/test_config_reload*.py tests/agent/commands/test_agent_cmd_config.py -q` to confirm no failures introduced, including the 11 tests dependent on the repointed patches (REQ-006, REQ-007).
+- Unit: run `uv run pytest tests/agent/services/test_config_reload*.py tests/agent/commands/test_agent_cmd_config.py -q` to confirm no failures introduced. Note: some tests import `CONFIG_FIELD_REGISTRY` from `config_reload` and will fail until their imports are updated to point to `config_field_registry`.
 - Static analysis: `uv run ruff check scripts/agent/services/config_reload.py`, `uv run mypy scripts/agent/services/config_reload.py`.
 - Import lint: `PYTHONPATH=scripts uv run lint-imports` to confirm no broken contracts introduced.
 
@@ -180,7 +190,7 @@ def _diff_mcp_server_config(...) -> list[dict[str, str]]:
 
 - `config_reload.py` is reduced to a thin orchestrator (~150 lines) that delegates to the four new modules.
 - `ConfigReloadService`, `ConfigReloadOutcome`, `ConfigReloadValidationError` remain in place.
-- All existing tests in `tests/agent/services/test_config_reload*.py` and `tests/agent/commands/test_agent_cmd_config.py` pass without modification (REQ-006, REQ-007).
+- All existing tests in `tests/agent/services/test_config_reload*.py` and `tests/agent/commands/test_agent_cmd_config.py` pass — note: some tests require import updates (see Validation plan above).
 - No new lint/type errors introduced.
 
 ## Out of scope
@@ -196,11 +206,11 @@ def _diff_mcp_server_config(...) -> list[dict[str, str]]:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove CONFIG_FIELD_REGISTRY / ConfigFieldRegistry definitions | Pending | — | — | |
-| 2 | Add imports for the four new modules | Pending | — | — | |
-| 3 | Replace apply_config_dict() with delegation calls | Pending | — | — | |
-| 4 | Replace _sync_services() with ServiceSyncer | Pending | — | — | |
-| 5 | Replace classification helpers with standalone functions | Pending | — | — | |
+| 1 | Remove CONFIG_FIELD_REGISTRY / ConfigFieldRegistry definitions | Completed | — | — | Already done in Phase 1 |
+| 2 | Add imports for the four new modules | Completed | — | — | Already done in Phase 1/Phase 2 |
+| 3 | Replace apply_config_dict() with delegation calls | Completed | — | — | Already delegated in Phase 2; verify correctness |
+| 4 | Replace _sync_services() with ServiceSyncer | Completed | — | — | Already done in Phase 2 |
+| 5 | Fully delegate _classify_mcp_server_changes() lifecycle cleanup | Pending | — | — | Hybrid pattern still exists locally; must migrate entirely |
 | 6 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
 
 ### Blocker Log
