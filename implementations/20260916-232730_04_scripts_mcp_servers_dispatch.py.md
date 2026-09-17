@@ -188,12 +188,12 @@ async def dispatch_tool(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add idempotency_key parameter to dispatch_tool() | Pending | — | — | |
-| 2 | Add side-effecting classification helper | Pending | — | — | |
-| 3 | Add in-process cache for deduplication | Pending | — | — | |
-| 4 | Implement duplicate-check logic | Pending | — | — | |
-| 5 | Cache result/error after invocation | Pending | — | — | |
-| 6 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add idempotency_key parameter to dispatch_tool() | Completed | 20260917-214549 | 20260917-214549 |  |
+| 2 | Add side-effecting classification helper | Completed | 20260917-214549 | 20260917-214549 |  |
+| 3 | Add in-process cache for deduplication | Completed | 20260917-214549 | 20260917-214549 |  |
+| 4 | Implement duplicate-check logic | Completed | 20260917-214549 | 20260917-214549 |  |
+| 5 | Cache result/error after invocation | Completed | 20260917-214549 | 20260917-214549 |  |
+| 6 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-214550 | 20260917-214550 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
