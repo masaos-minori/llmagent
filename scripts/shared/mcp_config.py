@@ -84,6 +84,7 @@ class McpServerConfig:
         default_factory=list
     )  # launch command for startup_mode=subprocess
     env: dict[str, str] = field(default_factory=dict)  # extra env vars for subprocess
+    fields: dict[str, Any] = field(default_factory=dict)  # additional kwargs for subprocess.Popen()
     key: str = field(
         default="", compare=False, repr=False
     )  # server key from config; compare=False keeps equality unaffected

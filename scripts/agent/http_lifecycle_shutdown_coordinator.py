@@ -8,7 +8,7 @@ import logging
 import os
 import signal
 import subprocess
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .http_lifecycle_process_terminator import ProcessTerminator
 
@@ -51,11 +51,19 @@ class ShutdownCoordinator:
         self,
         manager: HttpServerLifecycleManager,
         terminator: ProcessTerminator | None = None,
+        fields: dict[str, Any] | None = None,
     ) -> None:
         """Gracefully shut down every managed server.
 
         Iterates over all entries in ``manager._http_procs``, delegates termination
         to ``ProcessTerminator.terminate_with_timeout`` for each process.
+
+        Args:
+            manager: The lifecycle manager owning the processes.
+            terminator: Optional terminator instance; falls back to manager's.
+            fields: Additional keyword arguments to pass to each
+                ``terminate_with_timeout()`` call. If None, defaults to
+                an empty dict.
         """
         old_sigint: object | None = None
         try:
@@ -84,8 +92,13 @@ class ShutdownCoordinator:
                     continue
                 terminator = manager._process_terminator
                 logger.info("Shutting down %s...", server_key)
+                terminate_kwargs: dict[str, Any] = {
+                    "timeout": _SHUTDOWN_TIMEOUT_SEC,
+                }
+                if fields:
+                    terminate_kwargs.update(fields)
                 await terminator.terminate_with_timeout(
-                    proc, server_key, _SHUTDOWN_TIMEOUT_SEC
+                    proc, server_key, **terminate_kwargs
                 )
         finally:
             if old_sigint is not None:

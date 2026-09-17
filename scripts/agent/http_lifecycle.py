@@ -26,7 +26,7 @@ import subprocess  # nosec B404 — used to launch admin-controlled MCP server p
 import time
 from dataclasses import asdict
 from http import HTTPStatus
-from typing import IO
+from typing import IO, Any, cast
 
 import httpx
 from shared.mcp_config import McpServerConfig
@@ -288,12 +288,19 @@ class HttpServerLifecycleManager:
             ) from e
 
         try:
-            proc = subprocess.Popen(  # nosec B603 — cmd comes from admin-controlled config, not user input  # noqa: S603
-                cfg.cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=stderr_fh,
-                env=env,
-                start_new_session=True,
+            popen_kwargs: dict[str, Any] = {
+                "stdout": subprocess.DEVNULL,
+                "stderr": stderr_fh,
+                "env": env,
+                "start_new_session": True,
+            }
+            if cfg.fields:
+                popen_kwargs.update(cfg.fields)
+            proc = cast(
+                subprocess.Popen[bytes],
+                subprocess.Popen(  # nosec B603 — cmd comes from admin-controlled config, not user input  # noqa: S603
+                    cfg.cmd, **popen_kwargs
+                ),
             )
         except Exception:
             stderr_fh.close()

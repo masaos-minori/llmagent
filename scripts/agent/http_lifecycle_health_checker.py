@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 import httpx
 
@@ -40,17 +41,25 @@ class HealthChecker:
         *,
         url: str | None = None,
         timeout: float = _DEFAULT_TIMEOUT,
+        **client_kwargs: Any,
     ) -> bool:
         """Verify that the server identified by *server_key* is reachable.
 
         Uses the ``health_url`` attribute on *cfg* when available; falls back
         to ``_DEFAULT_HEALTH_URL``.
+
+        Args:
+            server_key: Unique identifier for the server.
+            cfg: Configuration object with health_url attribute.
+            url: Optional override URL for the health check endpoint.
+            timeout: Timeout for individual health check requests.
+            **client_kwargs: Additional keyword arguments passed to httpx.AsyncClient().
         """
         target_url = url or getattr(cfg, "health_url", _DEFAULT_HEALTH_URL)
         if target_url is None:
             target_url = _DEFAULT_HEALTH_URL
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            async with httpx.AsyncClient(timeout=timeout, **client_kwargs) as client:
                 response = await client.get(target_url)
                 if response.status_code == 200:
                     logger.debug("Health check passed at %s", target_url)
@@ -77,15 +86,30 @@ class HealthChecker:
         interval: float = _STARTUP_INTERVAL,
         url: str | None = None,
         timeout: float = _DEFAULT_TIMEOUT,
+        fields: dict[str, Any] | None = None,
     ) -> bool:
         """Poll until the server becomes healthy or *max_retries* expires.
 
         Returns ``True`` when the server responds with HTTP 200 before the
         deadline; ``False`` otherwise.
+
+        Args:
+            server_key: Unique identifier for the server.
+            cfg: Configuration object with health_url attribute.
+            max_retries: Maximum number of retry attempts.
+            interval: Time between retries in seconds.
+            url: Optional override URL for the health check endpoint.
+            timeout: Timeout for individual health check requests.
+            fields: Additional keyword arguments to pass to
+                ``httpx.AsyncClient()``. If None, defaults to an
+                empty dict.
         """
+        client_kwargs: dict[str, Any] = {"timeout": timeout}
+        if fields:
+            client_kwargs.update(fields)
         for attempt in range(max_retries):
             healthy = await HealthChecker.verify_running_async(
-                server_key, cfg, url=url, timeout=timeout
+                server_key, cfg, url=url, **client_kwargs
             )
             if healthy:
                 logger.info(
