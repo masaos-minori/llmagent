@@ -175,9 +175,9 @@ class TestBuildMcpServers:
         assert s.role == "file_write"
 
     def test_auth_token_default_empty_raises(self) -> None:
-        """mcpauth: an empty auth_token is no longer a valid default (REQ-001)."""
+        """mcpauth: an empty auth_token is no longer a valid default for enabled servers (REQ-004)."""
         with pytest.raises(ValueError, match="auth_token must not be empty"):
-            McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
+            McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000", startup_mode=StartupMode.PERSISTENT)
 
     def test_role_default_empty(self) -> None:
         cfg = McpServerConfig(

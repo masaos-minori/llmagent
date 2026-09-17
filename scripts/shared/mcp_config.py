@@ -39,7 +39,13 @@ class TransportType(StrEnum):
 
 
 class StartupMode(StrEnum):
-    """MCP server startup lifecycle mode."""
+    """MCP server startup lifecycle mode.
+
+    Per-mode required fields:
+    - NONE: none of url/cmd/auth_token (server is unusable)
+    - PERSISTENT: url (enforced via HTTP-transport check)
+    - SUBPROCESS: cmd (enforced) and url
+    """
 
     NONE = "none"  # no subprocess spawn, no health check; server is unusable
     PERSISTENT = "persistent"
@@ -93,8 +99,8 @@ class McpServerConfig:
     )
     max_stderr_log_size_mb: float = 100.0  # max size in MB before rotation
     max_stderr_log_files: int = 3  # number of rotated files to keep
-    required: bool = True
-    failure_policy: FailurePolicy = FailurePolicy.FAIL_FAST
+    required: bool = True  # Startup criticality: FATAL vs WARNING escalation at discovery
+    failure_policy: FailurePolicy = FailurePolicy.FAIL_FAST  # Reserved: runtime call-failure behavior; currently single-valued (FAIL_FAST) with no branching
 
     @property
     def is_disabled(self) -> bool:
@@ -176,12 +182,13 @@ class McpServerConfig:
             raise ValueError(f"{key_prefix}: duplicate tool_names: {dupes}")
 
     def _validate_auth_token(self, key_prefix: str) -> None:
-        """Validate that auth_token is a non-empty str."""
+        """Validate that auth_token is a non-empty str, unless the server is disabled."""
         if not isinstance(self.auth_token, str):
             raise ValueError(
                 f"{key_prefix}: auth_token must be str, got {type(self.auth_token).__name__}"
             )
-        if not self.auth_token:
+        if not self.auth_token and not self.is_disabled:
+            # Disabled servers do not require unused connection credentials (REQ-004)
             raise ValueError(f"{key_prefix}: auth_token must not be empty")
 
     def _validate_env(self, key_prefix: str) -> None:
@@ -226,17 +233,21 @@ class McpServerConfig:
             )
 
 
-def get_effective_health_timeout(cfg: McpServerConfig) -> float:
+def get_effective_health_timeout(cfg: McpServerConfig) -> float | None:
     """Return the effective health timeout for a given server config.
 
-    Returns the configured ``health_timeout`` if set, otherwise falls back
-    to the global default of 5.0 seconds.
+    Returns None (no timeout) when health_timeout is 0, consistent with
+    call_timeout_sec's "0 = no timeout" convention. Returns the configured
+    health_timeout if set to a positive value, otherwise falls back to
+    the global default of 5.0 seconds.
 
     Raises:
         ValueError: If ``health_timeout`` is set to a negative value.
     """
     if cfg.health_timeout is None:
         return 5.0
+    if cfg.health_timeout == 0:
+        return None  # No timeout, consistent with call_timeout_sec=0 convention
     if cfg.health_timeout < 0:
         raise ValueError(f"health_timeout must be >= 0, got {cfg.health_timeout}")
     return cfg.health_timeout
@@ -274,7 +285,7 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
             health_timeout = float(health_timeout_raw)
         except (TypeError, ValueError):
             raise ValueError(
-                f"mcp_servers[{key!r}].health_timeout must be a positive number or null, "
+                f"mcp_servers[{key!r}].health_timeout must be a non-negative number or null, "
                 f"got {type(health_timeout_raw).__name__}"
             )
     else:
