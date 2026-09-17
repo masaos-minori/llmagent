@@ -230,11 +230,11 @@ class TestRedaction:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update retry delay test for REQ-008 | Pending | — | — | |
-| 2 | Update retry exhaustion test for REQ-009 | Pending | — | — | |
-| 3 | Add REQ-010 redaction tests | Pending | — | — | |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Update retry delay test for REQ-008 | Completed | 20260917-192336 | 20260917-192336 |  |
+| 2 | Update retry exhaustion test for REQ-009 | Completed | 20260917-192336 | 20260917-192336 |  |
+| 3 | Add REQ-010 redaction tests | Completed | 20260917-192336 | 20260917-192336 |  |
+| 4 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-192337 | 20260917-192337 |  |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-192346 | 20260917-192346 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
