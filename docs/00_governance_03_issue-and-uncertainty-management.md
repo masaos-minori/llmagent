@@ -18,7 +18,7 @@ This document defines how to track currently active discrepancies between docume
 
 ### Entry Template
 
-Each active Known Issue entry must contain these 16 fields: ID, Title, Status, Severity, Area, Type, Source, Owner, First Found, Target, Related, Summary, Current Description, Observed Implementation, Impact, Recommended Action.
+Each active Known Issue entry must contain these 17 fields: ID, Title, Status, Severity, Area, Type, Source, Owner, First Found, Target, Related, Summary, Current Description, Observed Implementation, Impact, Recommended Action, Resolution Target.
 
 ### Status Values
 
@@ -60,6 +60,10 @@ Overview, Deployment, RAG, MCP, Agent, EventBus, Shared/DB, Governance
 
 Open → Investigating → Deferred, or removed from this inventory once resolved or no
 longer applicable to the current system.
+
+### Review Cadence
+
+Part 1 entries are reviewed quarterly, consistent with the cadence documented for Part 2 Needs Confirmation items and "Proposed" ADRs in `docs/00_governance_01_documentation-policy.md` line 521.
 
 ### Consolidation Note
 
@@ -126,6 +130,7 @@ RAG-004 ("Unresolved usage status of `models_config.py` configuration dataclasse
 - **Observed Implementation**: `FileRouter.__init__` creates `self._registered_dir = registered_dir / path.name`; `FileRouter.route()` writes successful chunks to `dest = self._registered_dir / path.name`. No corresponding cleanup or deletion call anywhere in either file.
 - **Impact**: `rag-src/registered/` may grow unbounded over time; files may be deleted ad hoc without traceability if this gap is not tracked with appropriate visibility.
 - **Recommended Action**: Owner review required to define the retention period, deletion trigger, and deletion ownership for `rag-src/registered/` files. Until defined, this directory's growth should be monitored.
+- **Resolution Target**: Next RAG architecture review
 
 **Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
 
@@ -149,6 +154,7 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Observed Implementation**: Zero direct-write bypasses of ADR-005's rebuild-path restriction found. All non-wrapper, non-schema hits on `chunks_fts` outside `scripts/mcp_servers/mdq/` belong to the sanctioned `/session rag-rebuild-fts` path (invoked via `scripts/agent/commands/cmd_session.py`). Read-only `SELECT`/`bm25`/consistency-check queries against `chunks_fts` appear in `scripts/rag/repository.py` and `scripts/db/rag_consistency.py`. MDQ's `chunks_fts` references target a separate database (`/opt/llm/db/mdq.sqlite`, confirmed: `scripts/mcp_servers/mdq/mdq_service.py` line 67) and are out of ADR-009's RAG-boundary scope.
 - **Impact**: Without enforcement, new code could inadvertently operate on `chunks_fts` directly, breaking the abstraction boundary established by the ADR.
 - **Recommended Action**: Add a lint rule or test that scans for direct `chunks_fts` references outside the FTS wrapper, or add integration tests that verify all FTS operations go through the wrapper.
+- **Resolution Target**: Next RAG architecture review
 
 **EVENTBUS-001**: Resolved. Collision detection via `ValueError` on duplicate offsets was implemented in `scripts/eventbus/db.py::migrate_legacy_offsets()` (confirmed: lines 578-656). Legacy migration only — the live ACK path is unaffected. Its absence from the active list is the correct, policy-compliant state — do not create a `#### EVENTBUS-001` heading.
 
@@ -163,8 +169,8 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Area**: EventBus
 - **Type**: design-gap
 - **Source**: Agent/EventBus integration layer
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: @eventbus-dev
+- **First Found**: 2026-09-03
 - **Target**: N/A: no current target document
 - **Related**: EVENTBUS-006, EVENTBUS-007
 - **Summary**: Agent integration is intentionally unimplemented; the Agent cannot publish events to Event Bus.
@@ -172,6 +178,7 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Observed Implementation**: Explicit in code — no Agent publish path exists in the Event Bus client.
 - **Impact**: Limits Agent-driven workflows that would otherwise publish events. Workaround: direct MCP tool calls from the Agent.
 - **Recommended Action**: Implement Agent → Event Bus publish when this integration is prioritized.
+- **Resolution Target**: Next EventBus architecture review
 
 #### EVENTBUS-006
 
@@ -182,8 +189,8 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Area**: EventBus
 - **Type**: design-gap
 - **Source**: Agent/EventBus integration layer
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: @eventbus-dev
+- **First Found**: 2026-09-03
 - **Target**: N/A: no current target document
 - **Related**: EVENTBUS-005, EVENTBUS-007
 - **Summary**: Agent integration is intentionally unimplemented; the Agent cannot subscribe to Event Bus SSE streams.
@@ -191,6 +198,7 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Observed Implementation**: Explicit in code — no Agent SSE client exists in the Event Bus client.
 - **Impact**: Limits real-time Agent workflows. Workaround: the Agent polls via `/replay` or uses MCP tools.
 - **Recommended Action**: Implement Agent SSE subscribe when this integration is prioritized.
+- **Resolution Target**: Next EventBus architecture review
 
 #### EVENTBUS-007
 
@@ -201,8 +209,8 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Area**: EventBus
 - **Type**: design-gap
 - **Source**: Agent/EventBus integration layer
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: @eventbus-dev
+- **First Found**: 2026-09-03
 - **Target**: N/A: no current target document
 - **Related**: EVENTBUS-005, EVENTBUS-006
 - **Summary**: Agent integration is intentionally unimplemented; the Agent cannot manage Event Bus topics.
@@ -210,6 +218,7 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Observed Implementation**: Explicit in code — no Agent topic-management path exists in the Event Bus client.
 - **Impact**: Limits administrative workflows. Workaround: direct MCP tool calls for topic management.
 - **Recommended Action**: Implement Agent topic management when this integration is prioritized.
+- **Resolution Target**: Next EventBus architecture review
 
 #### SHARED-001
 
@@ -253,8 +262,8 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Area**: RAG
 - **Type**: ambiguous-behavior
 - **Source**: `scripts/rag/`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: @data-eng
+- **First Found**: 2026-09-03
 - **Target**: `docs/adr/ADR-009-rag-ft5-text-separation.md`
 - **Related**: ADR-009, DESIGN-2
 - **Summary**: ADR-009 defines specific FTS5 rebuild rules that must be followed.
@@ -262,6 +271,7 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Observed Implementation**: Not verified.
 - **Impact**: Incorrect FTS5 rebuild could lead to inconsistent search results.
 - **Recommended Action**: Validate FTS5 rebuild logic against documented rules.
+- **Resolution Target**: Next RAG architecture review
 
 #### CI-008
 
@@ -272,8 +282,8 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Area**: Agent
 - **Type**: operational-gap
 - **Source**: Agent Workflow Engine initialization path
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
+- **First Found**: 2026-09-03
 - **Target**: `docs/adr/ADR-001-workflow-engine-mandatory.md`
 - **Related**: ADR-001
 - **Summary**: ADR-001 states that workflow definitions are mandatory and missing workflows raise `RuntimeError`.
@@ -281,6 +291,7 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Observed Implementation**: Verified by code inspection only.
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for the workflow-definition requirement.
+- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 #### CI-009
 
@@ -291,8 +302,8 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Area**: Shared/DB
 - **Type**: operational-gap
 - **Source**: `scripts/shared/config_loader.py::restrict_to()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
+- **First Found**: 2026-09-03
 - **Target**: `docs/adr/ADR-002-config-isolation.md`
 - **Related**: ADR-002, CI-001
 - **Summary**: ADR-002 states that config isolation must be enforced.
@@ -300,6 +311,7 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Observed Implementation**: Verified by code inspection only.
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for config isolation enforcement.
+- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 #### CI-010
 
@@ -310,8 +322,8 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Area**: MCP
 - **Type**: operational-gap
 - **Source**: `scripts/shared/route_resolver.py::resolve()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
+- **First Found**: 2026-09-03
 - **Target**: `docs/adr/ADR-003-runtime-tool-registry-routing-authority.md`
 - **Related**: ADR-003, CI-003, CI-015
 - **Summary**: ADR-003 states that `RuntimeToolRegistry` is the sole routing authority.
@@ -319,6 +331,7 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Observed Implementation**: Verified by code inspection only.
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for routing-authority enforcement.
+- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 #### CI-011
 
@@ -329,8 +342,8 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Area**: RAG
 - **Type**: operational-gap
 - **Source**: `scripts/db/rag_consistency.py` / RAG deletion path
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
+- **First Found**: 2026-09-03
 - **Target**: `docs/adr/ADR-005-rag-source-derived-index-relationships.md`
 - **Related**: ADR-005, RAG-005
 - **Summary**: ADR-005 states that `chunks_vec` must be deleted before `documents`.
@@ -338,6 +351,7 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Observed Implementation**: Verified by code inspection only.
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for deletion-order enforcement.
+- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 #### CI-012
 
@@ -348,8 +362,8 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Area**: EventBus
 - **Type**: operational-gap
 - **Source**: `scripts/eventbus/offsets.py::write_offset()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
+- **First Found**: 2026-09-03
 - **Target**: `docs/adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
 - **Related**: ADR-006, EVENTBUS-001
 - **Summary**: ADR-006 states that EventBus offsets must be monotonically increasing.
@@ -357,6 +371,7 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Observed Implementation**: Verified by code inspection only.
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for offset-monotonicity enforcement.
+- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 #### CI-013
 
@@ -367,8 +382,8 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Area**: MCP
 - **Type**: operational-gap
 - **Source**: `scripts/mcp_servers/`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
+- **First Found**: 2026-09-03
 - **Target**: `docs/adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md`
 - **Related**: ADR-007
 - **Summary**: ADR-007 states that stdio transport is prohibited.
@@ -376,6 +391,7 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Observed Implementation**: Verified by code inspection only.
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for stdio-transport prohibition.
+- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 #### CI-014
 
@@ -386,8 +402,8 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Area**: RAG
 - **Type**: operational-gap
 - **Source**: `_format_chunks()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
+- **First Found**: 2026-09-15
 - **Target**: `docs/adr/ADR-009-rag-ft5-text-separation.md`
 - **Related**: ADR-009, CI-007
 - **Summary**: ADR-009 states that `normalized_content` must not appear in LLM output.
@@ -395,6 +411,7 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Observed Implementation**: Verified by code inspection only.
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for the `normalized_content` prohibition.
+- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 #### CI-015
 
@@ -405,8 +422,8 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Area**: MCP
 - **Type**: operational-gap
 - **Source**: `scripts/agent/services/mcp_tool_discovery.py`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
+- **First Found**: 2026-09-03
 - **Target**: `docs/adr/ADR-003-runtime-tool-registry-routing-authority.md`
 - **Related**: ADR-003, CI-003, CI-010
 - **Summary**: ADR-003 (formerly also stated in ADR-013 INV-05, merged 2026-08-31) states that duplicate tool names produce a FATAL outcome.
@@ -414,6 +431,7 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Observed Implementation**: Verified by code inspection only.
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for duplicate-tool detection.
+- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 #### CI-016
 
@@ -424,8 +442,8 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Area**: Agent
 - **Type**: operational-gap
 - **Source**: `scripts/shared/mcp_config.py` (`required: bool = True` default), `scripts/agent/services/mcp_tool_discovery.py`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
+- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
+- **First Found**: 2026-09-15
 - **Target**: `docs/adr/ADR-004-environment-failure-handling-policy.md`
 - **Related**: ADR-004
 - **Summary**: ADR-004 Decision #12/INV-14 requires that undefined or undeterminable component criticality never be assumed non-required and be treated as an unresolved design/config error.
@@ -433,6 +451,9 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Observed Implementation**: Verified by code inspection only (default value inspection); no automated test.
 - **Impact**: Without test coverage, a future change to the default value (e.g. `required: bool = False`) would silently violate INV-14 with no automated check to catch the regression.
 - **Recommended Action**: Add a unit test asserting `McpServerConfig.required` defaults to `True` when unspecified, and/or a test asserting undefined-criticality components are never routed as non-required.
+- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
+
+Note on CI-008 through CI-016 batching: These nine structurally identical "ADR invariant verified by code inspection, no automated test" entries are treated as one initiative. Their Area fields span Agent (CI-008, CI-016), Shared/DB (CI-009), MCP (CI-010, CI-013, CI-015), RAG (CI-011, CI-014), and EventBus (CI-012) — no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
 
 #### REQ-001
 

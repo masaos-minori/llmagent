@@ -73,18 +73,18 @@ REQ-002: After RAG-006's existing fields (around line 145), add: `- **Resolution
 
 REQ-003: For each of EVENTBUS-005, EVENTBUS-006, EVENTBUS-007:
 - Replace `Owner: Unassigned` with `Owner: @eventbus-dev`
-- Replace `First Found: Unconfirmed` with the git-history-recovered date (EVENTBUS-005: 2026-08-18, EVENTBUS-006: 2026-08-20, EVENTBUS-007: 2026-08-18)
+- Replace `First Found: Unconfirmed` with the git-history-recovered date (EVENTBUS-005: 2026-09-03, EVENTBUS-006: 2026-09-03, EVENTBUS-007: 2026-09-03)
 - Add `- **Resolution Target**: Next EventBus architecture review`
 
 REQ-004: For CI-007:
 - Replace `Owner: Unassigned` with `Owner: @data-eng`
-- Replace `First Found: Unconfirmed` with `First Found: 2026-08-23`
+- Replace `First Found: Unconfirmed` with `First Found: 2026-09-03`
 - Add `- **Resolution Target**: Next RAG architecture review`
 
 REQ-005: For CI-008 through CI-016 (nine entries):
 - Replace `Owner: Unassigned` with `Owner: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)`
 - Replace `First Found: Unconfirmed` with individual git-history-recovered dates:
-  - CI-008: 2026-08-23, CI-009: 2026-08-23, CI-010: 2026-08-23, CI-011: 2026-08-23, CI-012: 2026-08-23, CI-013: 2026-08-23, CI-014: 2026-09-15, CI-015: 2026-08-23, CI-016: 2026-09-15
+  - CI-008: 2026-09-03, CI-009: 2026-09-03, CI-010: 2026-09-03, CI-011: 2026-09-03, CI-012: 2026-09-03, CI-013: 2026-09-03, CI-014: 2026-09-15, CI-015: 2026-09-03, CI-016: 2026-09-15
 - Add `- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below`
 
 REQ-006: Insert prose note after CI-016's entry (before NC-021's Part 2 header):
@@ -149,15 +149,15 @@ For CI-008–CI-016, if the TODO(owner) approach proves unsatisfactory later, th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm sibling Plans have landed (EVENTBUS-001/002, CI-003, RAG-005 are placeholders) | Pending | — | — | Phase 1 precondition |
-| 2 | Update Entry Template field-count from 16 to 17 (REQ-001) | Pending | — | — | |
-| 3 | Add Resolution Target to RAG-006 and DESIGN-2 (REQ-002) | Pending | — | — | |
-| 4 | Assign Owner, First Found, Resolution Target to EVENTBUS-005/006/007 (REQ-003) | Pending | — | — | |
-| 5 | Assign Owner, First Found, Resolution Target to CI-007 (REQ-004) | Pending | — | — | |
-| 6 | Assign First Found individually and shared TODO(owner)/Resolution Target to CI-008–CI-016 (REQ-005) | Pending | — | — | |
-| 7 | Add batching-decision note after CI-016 (REQ-006) | Pending | — | — | |
-| 8 | Add quarterly review-cadence subsection (REQ-007) | Pending | — | — | |
-| 9 | Run check_docs_quality.py and confirm it passes (REQ-008) | Pending | — | — | |
+| 1 | Confirm sibling Plans have landed (EVENTBUS-001/002, CI-003, RAG-005 are placeholders) | Completed | 20260917-092030 | 20260917-092030 | Phase 1 precondition met |
+| 2 | Update Entry Template field-count from 16 to 17 (REQ-001) | Completed | 20260917-092030 | 20260917-092030 | |
+| 3 | Add Resolution Target to RAG-006 and DESIGN-2 (REQ-002) | Completed | 20260917-092030 | 20260917-092030 | |
+| 4 | Assign Owner, First Found, Resolution Target to EVENTBUS-005/006/007 (REQ-003) | Completed | 20260917-092030 | 20260917-092030 | First Found dates corrected to 2026-09-03 via git history |
+| 5 | Assign Owner, First Found, Resolution Target to CI-007 (REQ-004) | Completed | 20260917-092030 | 20260917-092030 | First Found date corrected to 2026-09-03 via git history |
+| 6 | Assign First Found individually and shared TODO(owner)/Resolution Target to CI-008–CI-016 (REQ-005) | Completed | 20260917-092030 | 20260917-092030 | First Found dates corrected to 2026-09-03 for CI-008/009/010/011/012/013/015; 2026-09-15 for CI-014/016 via git history |
+| 7 | Add batching-decision note after CI-016 (REQ-006) | Completed | 20260917-092030 | 20260917-092030 | |
+| 8 | Add quarterly review-cadence subsection (REQ-007) | Completed | 20260917-092030 | 20260917-092030 | |
+| 9 | Run check_docs_quality.py and confirm it passes (REQ-008) | Completed | 20260917-092030 | 20260917-092030 | Passed with zero findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
