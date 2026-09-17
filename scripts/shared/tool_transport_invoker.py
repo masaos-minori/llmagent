@@ -17,7 +17,7 @@ from shared.mcp_config import (
     McpServerHealthState,
     StartupMode,
 )
-from shared.tool_lifecycle import LifecycleProtocol, ServerCooldownError
+from shared.tool_lifecycle import _PERMITTED_LIFECYCLE_EXCEPTIONS, LifecycleProtocol
 from shared.transport_dto import ToolCallResult
 
 logger = logging.getLogger(__name__)
@@ -161,6 +161,14 @@ class ToolTransportInvoker:
             )
         return self._error_result(server_key, str(e), error_type="transport")
 
+    def _handle_lifecycle_error(self, server_key: str, e: Exception) -> ToolCallResult:
+        """Handle a lifecycle failure: record health failure and return normalized error result."""
+        msg = f"Lifecycle ensure_ready failed for {server_key!r}: {e}"
+        logger.error(msg)
+        if self._health_registry is not None:
+            self._health_registry.record_failure(server_key)
+        return self._error_result(server_key, msg, error_type="transport")
+
     async def _execute_with_semaphore(
         self,
         transport: HttpTransport,
@@ -208,10 +216,10 @@ class ToolTransportInvoker:
         if self._lifecycle is not None:
             try:
                 await self._lifecycle.ensure_ready(server_key)
-            except ServerCooldownError as e:
-                msg = str(e)
-                logger.warning(msg)
-                return self._error_result(server_key, msg, error_type="transport")
+            except Exception as e:
+                if isinstance(e, _PERMITTED_LIFECYCLE_EXCEPTIONS):
+                    return self._handle_lifecycle_error(server_key, e)
+                raise
 
         transport = self._transports.get(server_key)
         if transport is None:
