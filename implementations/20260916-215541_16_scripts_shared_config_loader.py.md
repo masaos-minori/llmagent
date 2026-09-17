@@ -154,12 +154,12 @@ Replace lines 40-49 as shown above. Key changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add _reset_for_testing() and update restrict_to() | Pending | — | — | |
-| 2 | Rewrite test_multiple_restrict_calls_last_wins | Pending | — | — | See next row |
-| 3 | Migrate test_reload_without_restriction to use reset classmethod | Pending | — | — | See next row |
-| 4 | Add test for reset classmethod | Pending | — | — | See next row |
-| 5 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 6 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add _reset_for_testing() and update restrict_to() | Completed | 20260917-192529 | 20260917-192529 |  |
+| 2 | Rewrite test_multiple_restrict_calls_last_wins | Completed | 20260917-192529 | 20260917-192529 | See next row |
+| 3 | Migrate test_reload_without_restriction to use reset classmethod | Completed | 20260917-192529 | 20260917-192529 | See next row |
+| 4 | Add test for reset classmethod | Completed | 20260917-192529 | 20260917-192529 | See next row |
+| 5 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-192530 | 20260917-192530 |  |
+| 6 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-192540 | 20260917-192540 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
