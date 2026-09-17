@@ -177,11 +177,11 @@ Replace the `_get_valid_production_keys()` method as shown above.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import canonical ConfigValidationResult | Pending | — | — | |
-| 2 | Replace _get_valid_production_keys() with canonical schema source | Pending | — | — | |
-| 3 | Add valid-key-set-unchanged regression test | Pending | — | — | See next row |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Import canonical ConfigValidationResult | Completed | 20260917-193219 | 20260917-193219 |  |
+| 2 | Replace _get_valid_production_keys() with canonical schema source | Completed | 20260917-193234 | 20260917-193234 | Requires REQ-006 (config_dataclasses.py _CANONICAL_SUB_CONFIG_CLASSES) |
+| 3 | Add valid-key-set-unchanged regression test | Completed | 20260917-193220 | 20260917-193220 | See next row |
+| 4 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-193220 | 20260917-193220 |  |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-193220 | 20260917-193220 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
