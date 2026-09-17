@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from mcp_servers.models import CallToolResponse
+from scripts.shared import tool_constants  # side-effecting classification
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,29 @@ class DispatchResult:
         return "error" if self.is_error else "ok"
 
 
+DuplicateCacheKey = str
+DuplicateCacheValue = DispatchResult
+
+_duplicate_cache: dict[DuplicateCacheKey, DuplicateCacheValue] = {}
+
+
+def _is_side_effecting(tool_name: str) -> bool:
+    """Check if a tool name belongs to the write/dangerous/exec sets."""
+    all_write_tools: set[str] = set()
+    for s in (
+        tool_constants.WRITE_TOOLS,
+        tool_constants.DELETE_TOOLS,
+        tool_constants.GIT_WRITE_TOOLS,
+        tool_constants.RAG_WRITE_TOOLS,
+        tool_constants.CICD_WRITE_TOOLS,
+        tool_constants.GITHUB_WRITE_TOOLS,
+        tool_constants.GITHUB_DANGEROUS_TOOLS,
+        tool_constants.SHELL_TOOLS,
+    ):
+        all_write_tools.update(s)
+    return tool_name in all_write_tools
+
+
 def _to_call_tool_response(r: DispatchResult) -> CallToolResponse:
     """Convert a DispatchResult into a CallToolResponse."""
     return CallToolResponse(result=r.output, is_error=r.is_error)
@@ -41,6 +65,7 @@ async def dispatch_tool(
     table: Mapping[str, Callable[[ToolArgs], Awaitable[str]]],
     name: str,
     args: ToolArgs,
+    idempotency_key: str | None = None,
 ) -> DispatchResult:
     """Route a tool call through a dispatch table.
 
@@ -48,6 +73,7 @@ async def dispatch_tool(
     Raises for non-ValueError handler exceptions (caller is responsible for transport-level handling).
     ValueError from handlers is converted to an error result (user-input/validation errors).
     Unknown tool and empty name return error results without raising.
+    If idempotency_key is provided and name is side-effecting, checks for duplicates.
     """
     if not isinstance(name, str) or not name.strip():
         logger.warning("dispatch_tool called with empty tool name")
@@ -60,11 +86,28 @@ async def dispatch_tool(
         logger.warning("Unknown tool requested: %s", name)
         return DispatchResult(output=f"Unknown tool: {name}", is_error=True)
 
+    # duplicate-check for side-effecting tools
+    if idempotency_key is not None and _is_side_effecting(name):
+        cached = _duplicate_cache.get(idempotency_key)
+        if cached is not None:
+            logger.info(
+                "Duplicate tool call detected: %s (key=%s)", name, idempotency_key
+            )
+            return cached
+
     try:
         result = await handler(args)
-        return DispatchResult(output=result, is_error=False)
+        dispatched_result = DispatchResult(output=result, is_error=False)
+        # cache the result for deduplication
+        if idempotency_key is not None and _is_side_effecting(name):
+            _duplicate_cache[idempotency_key] = dispatched_result
+        return dispatched_result
     except ValueError as e:
         # Validation / user-input errors: return as tool error, not server fault
         logger.warning("Tool '%s' validation error: %s", name, e)
-        return DispatchResult(output=f"Validation error: {e}", is_error=True)
+        error_result = DispatchResult(output=f"Validation error: {e}", is_error=True)
+        # cache the error result for deduplication
+        if idempotency_key is not None and _is_side_effecting(name):
+            _duplicate_cache[idempotency_key] = error_result
+        return error_result
     # All other exceptions (RuntimeError, IOError, HTTPException, etc.) propagate to caller.

@@ -2,10 +2,8 @@
 Unit tests for shared.route_resolver.ToolRouteResolver.
 """
 
-import logging
-
 import pytest
-from shared.route_resolver import ToolRouteResolver, build_discovery_map
+from shared.route_resolver import ToolRouteResolver
 from shared.runtime_tool import build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 
@@ -178,85 +176,6 @@ class TestRegistryWithoutConfig:
         resolver = ToolRouteResolver(strict_mode=True)
         with pytest.raises(ValueError, match="RuntimeToolRegistry"):
             resolver.resolve("no_such_tool_xyz")
-
-
-class TestBuildDiscoveryMap:
-    """Tests for build_discovery_map() function."""
-
-    def test_normal_path(self) -> None:
-        """Two servers, each with valid tool dicts."""
-        route_map, duplicates = build_discovery_map(
-            {
-                "file_read": [{"name": "read_file", "server_key": "file_read"}],
-                "shell": [{"name": "shell_run", "server_key": "shell"}],
-            }
-        )
-        assert route_map == {"read_file": "file_read", "shell_run": "shell"}
-        assert duplicates == {}
-
-    def test_outer_key_used_for_routing(self) -> None:
-        """Outer server key is used for routing; inner server_key field is ignored."""
-        route_map, _ = build_discovery_map(
-            {
-                "file_read": [{"name": "read_file"}],
-            }
-        )
-        assert route_map == {"read_file": "file_read"}
-
-    def test_empty_tool_name_skipped(self) -> None:
-        """Tool dict with empty or None name is skipped."""
-        route_map, duplicates = build_discovery_map(
-            {
-                "file_read": [
-                    {"name": "", "server_key": "file_read"},
-                    {"name": None, "server_key": "file_read"},  # type: ignore[typeddict-item]  # deliberately malformed input — exercises the defensive skip path
-                ],
-            }
-        )
-        assert route_map == {}
-        assert duplicates == {}
-
-    def test_duplicate_tool_first_wins(self) -> None:
-        """Same tool name in two servers; first occurrence wins."""
-        route_map, duplicates = build_discovery_map(
-            {
-                "server_a": [{"name": "read_file", "server_key": "server_a"}],
-                "server_b": [{"name": "read_file", "server_key": "server_b"}],
-            }
-        )
-        assert route_map == {"read_file": "server_a"}
-        assert duplicates == {"read_file": ["server_a", "server_b"]}
-
-    def test_single_server_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
-        """Single server with one tool; no duplicate warning logged."""
-        with caplog.at_level(logging.WARNING):
-            route_map, duplicates = build_discovery_map(
-                {
-                    "server_a": [{"name": "read_file"}],
-                }
-            )
-        assert route_map == {"read_file": "server_a"}
-        assert duplicates == {}
-        assert not caplog.records
-
-    def test_duplicate_tool_different_key_logs_warning(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Same tool name, different server keys; warning is logged."""
-        with caplog.at_level(logging.WARNING):
-            route_map, duplicates = build_discovery_map(
-                {
-                    "server_a": [{"name": "read_file", "server_key": "server_a"}],
-                    "server_b": [{"name": "read_file", "server_key": "server_b"}],
-                }
-            )
-        assert route_map == {"read_file": "server_a"}
-        assert duplicates == {"read_file": ["server_a", "server_b"]}
-        assert any(
-            "read_file" in r.message
-            for r in caplog.records
-            if r.levelno >= logging.WARNING
-        )
 
 
 class TestRoutingSourceIsolation:

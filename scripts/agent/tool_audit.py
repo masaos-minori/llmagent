@@ -167,6 +167,8 @@ def audit_tool_exec(
     error_type: str = "",
     artifact_uri: str | None = None,
     source: str = "",
+    idempotency_key: str = "",
+    task_linkage: str = "",
 ) -> None:
     """Write a tool_exec event with mcp_request_id to the audit log."""
     if ctx.services_required.audit_logger is None:
@@ -195,6 +197,8 @@ def audit_tool_exec(
         workflow_id=ctx.workflow.workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
         artifact_uri=artifact_uri,
+        idempotency_key=idempotency_key,
+        task_linkage=task_linkage,
     )
     ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 

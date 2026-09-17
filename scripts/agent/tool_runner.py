@@ -106,13 +106,27 @@ async def execute_one_tool_call(
     name = pc.name
     args = pc.args
 
+    # Derive a stable, retry-invariant idempotency key for this Tool Call.
+    # Composition: {workflow_id}:{task_id}:{turn_id}:{call_id}
+    workflow_id = ctx.workflow.workflow_id or ""
+    task_id = ctx.workflow.current_task_id or ""
+    turn_id = ctx.turn.current_turn_id or ""
+    idempotency_key = f"{workflow_id}:{task_id}:{turn_id}:{pc.call_id}"
+
     if ctx.services_required.gateway is not None:
         result = await ctx.services_required.gateway.execute(ctx, name, args)
     else:
         result = await ctx.services_required.tools.execute(name, args)
     text, is_error, x_request_id = result.output, result.is_error, result.request_id
     audit_tool_exec(
-        ctx, name, args, is_error, x_request_id, result.error_type, source=result.source
+        ctx,
+        name,
+        args,
+        is_error,
+        x_request_id,
+        result.error_type,
+        source=result.source,
+        idempotency_key=idempotency_key,
     )
 
     if (

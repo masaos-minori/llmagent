@@ -126,18 +126,22 @@ def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
         return response
 
 
-def extract_request_context(request: Request) -> tuple[str, str]:
-    """Extract session_id and request_id from request headers/state.
+def extract_request_context(request: Request) -> tuple[str, str, str]:
+    """Extract session_id, request_id, and idempotency_key from request headers/state.
 
     Returns:
-        Tuple of (session_id, request_id), defaulting to empty string if not present.
+        Tuple of (session_id, request_id, idempotency_key), defaulting to empty string if not present.
     """
     session_id = request.headers.get("x-session-id", "")
     # request_id may be in state (set by middleware) or fall back to header
     request_id = getattr(
         request.state, "request_id", request.headers.get("x-request-id", "")
     )
-    return session_id, request_id
+    # idempotency_key may be in state (set by middleware) or fall back to header
+    idempotency_key = getattr(
+        request.state, "idempotency_key", request.headers.get("x-idempotency-key", "")
+    )
+    return session_id, request_id, idempotency_key
 
 
 class MCPServer:

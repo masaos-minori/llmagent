@@ -59,3 +59,5 @@ class ToolExecEvent:
     workflow_id: str = ""
     session_id: str = ""
     artifact_uri: str | None = None
+    idempotency_key: str = ""  # stable, retry-invariant key for deduplication
+    task_linkage: str = ""  # WorkflowEngine task-level linkage (current_task_id)

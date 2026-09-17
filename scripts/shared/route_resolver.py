@@ -15,51 +15,12 @@ Live /v1/tools discovery is used for startup validation only, not routing.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, NoReturn, TypedDict
+from typing import TYPE_CHECKING, NoReturn
 
 if TYPE_CHECKING:
     from shared.runtime_tool_registry import RuntimeToolRegistry
 
 logger = logging.getLogger(__name__)
-
-
-class ToolDescriptor(TypedDict, total=False):
-    """One tool-descriptor entry from a server's /v1/tools discovery payload."""
-
-    name: str
-    server_key: str  # present in some fixtures; ignored by build_discovery_map (outer dict key is authoritative)
-
-
-def build_discovery_map(
-    server_tool_lists: dict[str, list[ToolDescriptor]],
-) -> tuple[dict[str, str], dict[str, list[str]]]:
-    """Build routing map from per-server tool lists and detect duplicate ownership.
-
-    Returns:
-        route_map: {tool_name: first_claiming_server_key}
-        duplicates: {tool_name: [server_key_1, server_key_2, ...]} — only tools with >1 owner
-    """
-    route_map: dict[str, str] = {}
-    all_claims: dict[str, list[str]] = {}
-
-    for server_key, tools in server_tool_lists.items():
-        for tool in tools:
-            name = tool.get("name")
-            if not isinstance(name, str) or not name:
-                continue
-            all_claims.setdefault(name, []).append(server_key)
-            if name not in route_map:
-                route_map[name] = server_key
-            else:
-                logger.warning(
-                    "Duplicate tool ownership: %r claimed by %r and %r",
-                    name,
-                    route_map[name],
-                    server_key,
-                )
-
-    duplicates = {n: keys for n, keys in all_claims.items() if len(keys) > 1}
-    return route_map, duplicates
 
 
 class ToolRouteResolver:
