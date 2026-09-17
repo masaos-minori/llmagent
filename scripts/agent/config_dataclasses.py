@@ -325,7 +325,8 @@ class ApprovalConfig:
     approval_high_risk_branches: list[str] = field(
         default_factory=lambda: ["main", "master"],
     )
-    # shell_run command prefixes always auto-approved despite "high" base level
+    # shell_run commands whose parsed leading tokens exactly match these entries
+    # (after shlex.split()) receive RiskLevel.NONE when all path constraints pass
     approval_shell_safe_prefixes: list[str] = field(
         default_factory=lambda: [
             "ls",

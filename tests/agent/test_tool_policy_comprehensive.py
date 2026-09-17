@@ -373,3 +373,244 @@ class TestClassifyRiskEdgeCases:
             },
         )
         assert result == "high"  # Escalated due to protected path
+
+
+class TestSpecialCaseRiskReq001Req002Req003Req004:
+    """REQ-001 through REQ-004: safe-prefix parsing, metacharacter rejection,
+    positional routing, and unsafe-flag denial."""
+
+    # --- REQ-001: parsed identity match replaces startswith ---
+
+    def test_single_word_prefix_matches_basename(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        assert _special_case_risk(cfg, "shell_run", {"command": "ls -la"}) == "none"
+
+    def test_full_path_basename_matching(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        assert (
+            _special_case_risk(cfg, "shell_run", {"command": "/bin/ls -la"}) == "none"
+        )
+
+    def test_prefix_collision_cat_vs_category_dump_secrets(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["category_dump_secrets"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "cat /etc/passwd"})
+        assert result == "high"
+
+    def test_multi_word_prefix_does_not_match_shorter_command(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["git log"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "git log --oneline"})
+        assert result == "none"
+
+    def test_multi_word_prefix_mismatch_git_log_vs_git_pull(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["git log"])
+        result = _special_case_risk(
+            cfg, "shell_run", {"command": "git pull origin main"}
+        )
+        assert result == "high"
+
+    def test_multi_word_prefix_exact_token_match(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["git log"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "git log"})
+        assert result == "none"
+
+    def test_empty_prefix_list_returns_high(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=[])
+        result = _special_case_risk(cfg, "shell_run", {"command": "ls -la"})
+        assert result == "high"
+
+    def test_non_string_command_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": 123})
+        assert result == "high"
+
+    def test_none_command_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": None})
+        assert result == "high"
+
+    def test_unbalanced_quotes_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": 'ls "unbalanced'})
+        assert result == "high"
+
+    def test_empty_command_after_split_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": ""})
+        assert result == "high"
+
+    # --- REQ-002: metacharacter fail-closed ---
+
+    def test_semicolon_metacharacter_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "ls; rm -rf /"})
+        assert result == "high"
+
+    def test_ampersand_metacharacter_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(
+            cfg, "shell_run", {"command": "ls & cat /etc/passwd"}
+        )
+        assert result == "high"
+
+    def test_pipe_metacharacter_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "ls | grep foo"})
+        assert result == "high"
+
+    def test_double_ampersand_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(
+            cfg, "shell_run", {"command": "ls && cat /etc/passwd"}
+        )
+        assert result == "high"
+
+    def test_double_pipe_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(
+            cfg, "shell_run", {"command": "ls || cat /etc/passwd"}
+        )
+        assert result == "high"
+
+    def test_backtick_metacharacter_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "ls `whoami`"})
+        assert result == "high"
+
+    def test_subshell_metacharacter_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(
+            cfg, "shell_run", {"command": "ls $(cat /etc/passwd)"}
+        )
+        assert result == "high"
+
+    def test_process_substitution_less_than_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(
+            cfg, "shell_run", {"command": "ls <(cat /etc/passwd)"}
+        )
+        assert result == "high"
+
+    def test_process_substitution_greater_than_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(
+            cfg, "shell_run", {"command": "ls >(cat /etc/passwd)"}
+        )
+        assert result == "high"
+
+    def test_redirection_greater_than_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "ls > /tmp/out"})
+        assert result == "high"
+
+    def test_redirection_less_than_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "ls < /etc/passwd"})
+        assert result == "high"
+
+    def test_double_redirection_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "ls >> /tmp/out"})
+        assert result == "high"
+
+    def test_heredoc_operator_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "ls << EOF"})
+        assert result == "high"
+
+    def test_newline_metacharacter_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "ls\nrm -rf /"})
+        assert result == "high"
+
+    # --- REQ-003: positional arg routing ---
+
+    def test_positional_arg_protected_path_escalates(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            approval_protected_paths=["/etc/shadow"],
+        )
+        result = _special_case_risk(cfg, "shell_run", {"command": "cat /etc/shadow"})
+        assert result == "high"
+
+    def test_positional_arg_outside_allowed_root_escalates(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            allowed_root="/tmp",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        result = _special_case_risk(cfg, "shell_run", {"command": "cat /etc/passwd"})
+        assert result == "high"
+
+    def test_positional_arg_inside_allowed_root_passes(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            allowed_root="/tmp",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        result = _special_case_risk(cfg, "shell_run", {"command": "cat /tmp/file.txt"})
+        assert result == "none"
+
+    def test_flag_only_no_positional_routing_needed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "ls -la"})
+        assert result == "none"
+
+    def test_positional_arg_value_error_in_resolve_escalates(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            allowed_root="/tmp",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        # Null byte in path should trigger ValueError during Path.resolve()
+        result = _special_case_risk(cfg, "shell_run", {"command": "cat \x00invalid"})
+        assert result == "high"
+
+    # --- REQ-004: unsafe flag denylist ---
+
+    def test_find_exec_flag_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = _special_case_risk(
+            cfg, "shell_run", {"command": "find . -exec rm {} \\;"}
+        )
+        assert result == "high"
+
+    def test_find_delete_flag_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "find . -delete"})
+        assert result == "high"
+
+    def test_find_ok_flag_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = _special_case_risk(
+            cfg, "shell_run", {"command": "find . -ok rm {} \\;"}
+        )
+        assert result == "high"
+
+    def test_grep_recursive_flag_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["grep"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "grep -r pattern ."})
+        assert result == "high"
+
+    def test_grep_recursive_uppercase_flag_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["grep"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "grep -R pattern ."})
+        assert result == "high"
+
+    def test_find_without_unsafe_flags_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = _special_case_risk(
+            cfg, "shell_run", {"command": "find . -name '*.txt'"}
+        )
+        assert result == "none"
+
+    def test_grep_without_unsafe_flags_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["grep"])
+        result = _special_case_risk(
+            cfg, "shell_run", {"command": "grep pattern file.txt"}
+        )
+        assert result == "none"
+
+    def test_cat_without_unsafe_flags_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = _special_case_risk(cfg, "shell_run", {"command": "cat file.txt"})
+        assert result == "none"

@@ -8,6 +8,9 @@ of the approval/execution stack.
 
 from __future__ import annotations
 
+import os
+import re
+import shlex
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -51,6 +54,15 @@ _TIER_TO_RISK: dict[str, RiskLevel] = {
     "ADMIN": RiskLevel.HIGH,
 }
 
+# Shell metacharacter / control operator pattern — any match fails closed
+_METACHAR_RE = re.compile(r"[;|&]|&&|\|\||`|\$\(|<\(|>\(|>>|<<|[<>]|\n|\r")
+
+# Per-executable unsafe-flag denylists (argument-level constraints beyond path checks)
+_UNSAFE_FLAGS: dict[str, set[str]] = {
+    "find": {"-exec", "-delete", "-ok"},
+    "grep": {"-r", "-R"},
+}
+
 
 def classify_operation_type(
     tool_name: str, registry: RuntimeToolRegistry | None = None
@@ -84,6 +96,72 @@ def _iter_string_arg_values(args: dict[str, Any], keys: list[str]) -> Iterator[s
         val = args.get(key)
         if isinstance(val, str) and val:
             yield val
+
+
+def _has_metacharacters(cmd: str) -> bool:
+    """Return True if the raw command contains shell metacharacters/control operators."""
+    return bool(_METACHAR_RE.search(cmd))
+
+
+def _match_executable_identity(
+    argv: list[str],
+    prefixes: list[str],
+) -> RiskLevel | None:
+    """Return NONE if the parsed command exactly matches a safe-prefix entry, else None."""
+    if not argv:
+        return None
+    for prefix_entry in prefixes:
+        prefix_tokens = shlex.split(prefix_entry) if prefix_entry.strip() else []
+        if not prefix_tokens:
+            continue
+        # Single-word prefix: match basename of the first argv token
+        if len(prefix_tokens) == 1:
+            if os.path.basename(argv[0]) == prefix_tokens[0]:
+                return RiskLevel.NONE
+        # Multi-word prefix: match corresponding leading tokens
+        elif len(argv) >= len(prefix_tokens):
+            if all(
+                os.path.basename(a) == p
+                for a, p in zip(argv[: len(prefix_tokens)], prefix_tokens)
+            ):
+                return RiskLevel.NONE
+    return None
+
+
+def _check_positional_args(
+    cfg: AgentConfig,
+    argv: list[str],
+    base: RiskLevel,
+) -> RiskLevel | None:
+    """Route positional args through protected-path and allowed-root checks."""
+    if base == RiskLevel.HIGH:
+        return None
+    # Extract positional (non-flag) tokens from argv[1:]
+    positional = [a for a in argv[1:] if not a.startswith("-")]
+    if not positional:
+        return None
+    for pos in positional:
+        # Check protected paths
+        if any(pos.startswith(p) for p in cfg.approval.approval_protected_paths):
+            return RiskLevel.HIGH
+        # Check allowed_root
+        if cfg.approval.allowed_root:
+            root = Path(cfg.approval.allowed_root).resolve()
+            try:
+                resolved = Path(pos).resolve()
+            except (ValueError, OSError):
+                return RiskLevel.HIGH
+            if not resolved.is_relative_to(root):
+                return RiskLevel.HIGH
+    return None
+
+
+def _unsafe_flag_denylist(executable: str, args: list[str]) -> bool:
+    """Return True if any argument matches a documented unsafe-flag denylist for this executable."""
+    flags = _UNSAFE_FLAGS.get(executable, set())
+    if not flags:
+        return False
+    return any(arg in flags for arg in args)
 
 
 def _escalate_for_path(
@@ -135,8 +213,26 @@ def _special_case_risk(
         cmd = args.get("command")
         if not isinstance(cmd, str):
             return RiskLevel.HIGH
-        if any(cmd.startswith(p) for p in cfg.approval.approval_shell_safe_prefixes):
-            return RiskLevel.NONE
+        # REQ-002: fail closed on any shell metacharacter in raw command
+        if _has_metacharacters(cmd):
+            return RiskLevel.HIGH
+        # REQ-001: parsed identity match replaces startswith below
+        try:
+            argv = shlex.split(cmd)
+        except ValueError:
+            return RiskLevel.HIGH
+        if not argv:
+            return RiskLevel.HIGH
+        if match := _match_executable_identity(
+            argv, cfg.approval.approval_shell_safe_prefixes
+        ):
+            # REQ-003: route positional args through path/argument checks
+            if escalated := _check_positional_args(cfg, argv, match):
+                return escalated
+            # REQ-004: check unsafe flags for this executable
+            if _unsafe_flag_denylist(argv[0], argv[1:]):
+                return RiskLevel.HIGH
+            return match
         return RiskLevel.HIGH
     return None
 

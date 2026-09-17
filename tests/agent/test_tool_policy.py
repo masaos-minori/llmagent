@@ -419,3 +419,755 @@ class TestClassifyRiskUnknown:
         result = classify_risk(cfg, "totally_unregistered_tool_xyz", {})
         assert result != "medium"
         assert result == "high"
+
+
+class TestPrefixCollision:
+    """REQ-005: prefix collisions must be rejected — a command whose name merely
+    starts with a safe-prefix entry must not receive RiskLevel.NONE."""
+
+    def test_category_dump_does_not_match_cat_prefix(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "category_dump_secrets"})
+        assert result == "high"
+
+    def test_bin_cat_matches_cat_prefix_via_basename(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "/bin/cat /etc/hostname"})
+        assert result == "none"
+
+    def test_git_log_does_not_match_gitlog_prefix(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["git log"])
+        result = classify_risk(cfg, "shell_run", {"command": "git-log status"})
+        assert result == "high"
+
+    def test_cat_with_flag_does_not_match_category_prefix(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["category"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat --help"})
+        assert result == "high"
+
+    def test_partial_token_match_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": "lsof /tmp"})
+        assert result == "high"
+
+    def test_full_path_multi_word_prefix_match(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["git log"])
+        result = classify_risk(
+            cfg, "shell_run", {"command": "/usr/bin/git log --oneline"}
+        )
+        assert result == "none"
+
+    def test_full_path_multi_word_prefix_mismatch(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["git log"])
+        result = classify_risk(cfg, "shell_run", {"command": "/usr/bin/git status"})
+        assert result == "high"
+
+    def test_empty_prefix_entry_skipped(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["", "ls"])
+        result = classify_risk(cfg, "shell_run", {"command": "ls -la"})
+        assert result == "none"
+
+    def test_whitespace_only_prefix_entry_skipped(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["   ", "ls"])
+        result = classify_risk(cfg, "shell_run", {"command": "ls -la"})
+        assert result == "none"
+
+    def test_quoted_prefix_entry_matches(self) -> None:
+        """Quoted prefix entry like '\"git log\"' is a single token after shlex.split,
+        so it does NOT match the multi-word command 'git log --oneline'."""
+        cfg = _cfg(approval_shell_safe_prefixes=['"git log"'])
+        result = classify_risk(cfg, "shell_run", {"command": "git log --oneline"})
+        assert result == "high"
+
+    def test_quoted_command_matches_quoted_prefix(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=['"git log"'])
+        result = classify_risk(cfg, "shell_run", {"command": '"git log"'})
+        assert result == "none"
+
+    def test_single_letter_prefix_matches_exact_name(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["c"])
+        result = classify_risk(cfg, "shell_run", {"command": "c"})
+        assert result == "none"
+
+    def test_single_letter_prefix_rejects_longer_name(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["c"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat"})
+        assert result == "high"
+
+    def test_case_sensitive_prefix_reject(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["Cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat"})
+        assert result == "high"
+
+    def test_case_sensitive_prefix_accept(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["Cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "Cat"})
+        assert result == "none"
+
+    def test_symlink_basename_match(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "/usr/local/bin/cat"})
+        assert result == "none"
+
+    def test_dot_slash_prefix_match(self) -> None:
+        """'./cat' prefix is a single token; os.path.basename('./cat') != './cat',
+        so it does NOT match the command './cat'."""
+        cfg = _cfg(approval_shell_safe_prefixes=["./cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "./cat"})
+        assert result == "high"
+
+    def test_dot_slash_prefix_reject_different_name(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["./cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "./category"})
+        assert result == "high"
+
+    def test_trailing_slash_in_prefix_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat/"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat"})
+        assert result == "high"
+
+    def test_double_space_between_tokens_rejected(self) -> None:
+        """shlex.split('git  log') normalizes multiple spaces to single space,
+        producing ['git', 'log'], so the prefix 'git  log' also becomes ['git', 'log'].
+        Both match, resulting in NONE."""
+        cfg = _cfg(approval_shell_safe_prefixes=["git log"])
+        result = classify_risk(cfg, "shell_run", {"command": "git  log"})
+        assert result == "none"
+
+    def test_tab_between_tokens_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["git\tlog"])
+        result = classify_risk(cfg, "shell_run", {"command": "git\tlog"})
+        assert result == "none"
+
+    def test_backslash_escape_in_prefix(self) -> None:
+        """shlex.split(r'\\$HOME') treats \\$ as literal $, producing ['$HOME'].
+        The command '$HOME' also becomes ['$HOME'], so they match."""
+        cfg = _cfg(approval_shell_safe_prefixes=[r"\$HOME"])
+        result = classify_risk(cfg, "shell_run", {"command": "$HOME"})
+        assert result == "none"
+
+    def test_unicode_prefix_rejected_for_ascii_command(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["\u0063at"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat"})
+        assert result == "none"
+
+    def test_null_byte_in_command_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat\x00/etc/passwd"})
+        assert result == "high"
+
+    def test_very_long_command_after_prefix_match(self) -> None:
+        long_args = " ".join(["--arg=" + str(i) for i in range(100)])
+        cfg = _cfg(approval_shell_safe_prefixes=["echo"])
+        result = classify_risk(cfg, "shell_run", {"command": f"echo {long_args}"})
+        assert result == "none"
+
+    def test_special_chars_in_arg_value(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["echo"])
+        result = classify_risk(cfg, "shell_run", {"command": 'echo "hello world"'})
+        assert result == "none"
+
+    def test_newline_in_middle_of_command_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat\n/etc/passwd"})
+        assert result == "high"
+
+    def test_carriage_return_in_command_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat\r/etc/passwd"})
+        assert result == "high"
+
+    def test_multiple_spaces_before_argument(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat   /etc/passwd"})
+        assert result == "none"
+
+    def test_leading_whitespace_in_command_stripped_by_shlex(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "  cat /etc/passwd"})
+        assert result == "none"
+
+    def test_trailing_whitespace_in_command_stripped_by_shlex(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat /etc/passwd  "})
+        assert result == "none"
+
+    def test_mixed_quotes_in_command(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["echo"])
+        result = classify_risk(cfg, "shell_run", {"command": "echo 'hello' \"world\""})
+        assert result == "none"
+
+    def test_nested_parentheses_in_arg_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["echo"])
+        result = classify_risk(cfg, "shell_run", {"command": "echo $(echo $(whoami))"})
+        assert result == "high"
+
+    def test_process_substitution_in_arg_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["diff"])
+        result = classify_risk(cfg, "shell_run", {"command": "diff <(cat a) <(cat b)"})
+        assert result == "high"
+
+    def test_redirection_in_arg_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["echo"])
+        result = classify_risk(cfg, "shell_run", {"command": "echo hello > /tmp/out"})
+        assert result == "high"
+
+    def test_heredoc_in_arg_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat << EOF"})
+        assert result == "high"
+
+    def test_glob_pattern_in_arg_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat *.txt"})
+        assert result == "none"
+
+    def test_tilde_expansion_in_arg_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat ~/file.txt"})
+        assert result == "none"
+
+    def test_environment_variable_in_arg_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat $HOME/file.txt"})
+        assert result == "none"
+
+    def test_dollar_brace_in_arg_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat ${HOME}/file.txt"})
+        assert result == "none"
+
+    def test_semicolon_with_space_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo ; rm bar"})
+        assert result == "high"
+
+    def test_ampersand_with_space_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo & rm bar"})
+        assert result == "high"
+
+    def test_pipe_with_space_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo | grep bar"})
+        assert result == "high"
+
+    def test_and_operator_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo && rm bar"})
+        assert result == "high"
+
+    def test_or_operator_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo || rm bar"})
+        assert result == "high"
+
+    def test_backtick_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat `whoami`"})
+        assert result == "high"
+
+    def test_dollar_paren_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat $(rm -rf /)"})
+        assert result == "high"
+
+    def test_less_than_process_sub_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat <(rm -rf /)"})
+        assert result == "high"
+
+    def test_greater_than_process_sub_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat >(rm -rf /)"})
+        assert result == "high"
+
+    def test_single_gt_redirection_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat > /tmp/out"})
+        assert result == "high"
+
+    def test_single_lt_redirection_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat < /etc/passwd"})
+        assert result == "high"
+
+    def test_double_gt_redirection_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat >> /tmp/out"})
+        assert result == "high"
+
+    def test_heredoc_operator_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat << EOF"})
+        assert result == "high"
+
+    def test_double_heredoc_operator_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat <<< EOF"})
+        assert result == "high"
+
+    def test_unsafe_find_exec_flag_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = classify_risk(cfg, "shell_run", {"command": "find . -exec rm {} \\;"})
+        assert result == "high"
+
+    def test_unsafe_find_delete_flag_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = classify_risk(cfg, "shell_run", {"command": "find . -delete"})
+        assert result == "high"
+
+    def test_unsafe_find_ok_flag_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = classify_risk(cfg, "shell_run", {"command": "find . -ok rm {} \\;"})
+        assert result == "high"
+
+    def test_unsafe_grep_recursive_flag_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["grep"])
+        result = classify_risk(cfg, "shell_run", {"command": "grep -r pattern ."})
+        assert result == "high"
+
+    def test_unsafe_grep_recursive_uppercase_flag_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["grep"])
+        result = classify_risk(cfg, "shell_run", {"command": "grep -R pattern ."})
+        assert result == "high"
+
+    def test_safe_find_without_unsafe_flags_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = classify_risk(cfg, "shell_run", {"command": "find . -name '*.txt'"})
+        assert result == "none"
+
+    def test_safe_grep_without_unsafe_flags_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["grep"])
+        result = classify_risk(cfg, "shell_run", {"command": "grep pattern file.txt"})
+        assert result == "none"
+
+    def test_cat_protected_path_escalates(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+            approval_protected_paths=["/etc/"],
+        )
+        result = classify_risk(cfg, "shell_run", {"command": "cat /etc/shadow"})
+        assert result == "high"
+
+    def test_cat_within_allowed_root_passes(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            allowed_root="/home/user",
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+        )
+        result = classify_risk(cfg, "shell_run", {"command": "cat /home/user/file.txt"})
+        assert result == "none"
+
+    def test_cat_outside_allowed_root_escalates(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            allowed_root="/tmp",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        result = classify_risk(cfg, "shell_run", {"command": "cat /etc/passwd"})
+        assert result == "high"
+
+    def test_positional_arg_value_error_in_resolve_escalates(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            allowed_root="/tmp",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        result = classify_risk(cfg, "shell_run", {"command": "cat \x00invalid"})
+        assert result == "high"
+
+    def test_flag_only_no_positional_routing_needed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": "ls -la"})
+        assert result == "none"
+
+    def test_empty_command_after_split_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": ""})
+        assert result == "high"
+
+    def test_non_string_command_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": 123})
+        assert result == "high"
+
+    def test_none_command_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": None})
+        assert result == "high"
+
+    def test_unbalanced_quotes_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": 'ls "unbalanced'})
+        assert result == "high"
+
+    def test_prefix_collision_category_vs_cat(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["category_dump_secrets"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat /etc/passwd"})
+        assert result == "high"
+
+    def test_prefix_collision_gitlog_vs_git_log(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["git log"])
+        result = classify_risk(cfg, "shell_run", {"command": "git-log status"})
+        assert result == "high"
+
+    def test_prefix_collision_lsof_vs_ls(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": "lsof /tmp"})
+        assert result == "high"
+
+    def test_prefix_collision_pwd_vs_password(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["pwd"])
+        result = classify_risk(cfg, "shell_run", {"command": "password"})
+        assert result == "high"
+
+    def test_prefix_collision_rm_vs_remove(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["rm"])
+        result = classify_risk(cfg, "shell_run", {"command": "remove file"})
+        assert result == "high"
+
+    def test_prefix_collision_mv_vs_move(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["mv"])
+        result = classify_risk(cfg, "shell_run", {"command": "move file dest"})
+        assert result == "high"
+
+    def test_prefix_collision_cp_vs_copy(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cp"])
+        result = classify_risk(cfg, "shell_run", {"command": "copy source dest"})
+        assert result == "high"
+
+    def test_prefix_collision_ln_vs_link(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ln"])
+        result = classify_risk(cfg, "shell_run", {"command": "link source dest"})
+        assert result == "high"
+
+    def test_prefix_collision_chmod_vs_chown(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["chmod"])
+        result = classify_risk(cfg, "shell_run", {"command": "chown user file"})
+        assert result == "high"
+
+    def test_prefix_collision_echo_vs_echoing(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["echo"])
+        result = classify_risk(cfg, "shell_run", {"command": "echoing message"})
+        assert result == "high"
+
+    def test_prefix_collision_head_vs_header(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["head"])
+        result = classify_risk(cfg, "shell_run", {"command": "header line"})
+        assert result == "high"
+
+    def test_prefix_collision_tail_vs_tailing(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["tail"])
+        result = classify_risk(cfg, "shell_run", {"command": "tailing log"})
+        assert result == "high"
+
+    def test_prefix_collision_wildcard_match_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["*"])
+        result = classify_risk(cfg, "shell_run", {"command": "anything goes"})
+        assert result == "high"
+
+    def test_prefix_collision_dot_slash_prefix(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["./cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "./category"})
+        assert result == "high"
+
+    def test_prefix_collision_absolute_path_basename_match(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(
+            cfg, "shell_run", {"command": "/usr/bin/cat /etc/hostname"}
+        )
+        assert result == "none"
+
+    def test_prefix_collision_symlink_basename_match(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "/usr/local/bin/cat"})
+        assert result == "none"
+
+    def test_prefix_collision_quoted_prefix_matches_quoted_command(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=['"git log"'])
+        result = classify_risk(cfg, "shell_run", {"command": '"git log"'})
+        assert result == "none"
+
+    def test_prefix_collision_quoted_prefix_rejects_unquoted_command(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=['"git log"'])
+        result = classify_risk(cfg, "shell_run", {"command": "git log"})
+        assert result == "high"
+
+    def test_prefix_collision_double_space_token_boundary(self) -> None:
+        """shlex.split('git  log') normalizes multiple spaces to single space,
+        producing ['git', 'log'], so the prefix 'git log' also becomes ['git', 'log'].
+        Both match, resulting in NONE."""
+        cfg = _cfg(approval_shell_safe_prefixes=["git log"])
+        result = classify_risk(cfg, "shell_run", {"command": "git  log"})
+        assert result == "none"
+
+    def test_prefix_collision_tab_token_boundary(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["git\tlog"])
+        result = classify_risk(cfg, "shell_run", {"command": "git\tlog"})
+        assert result == "none"
+
+    def test_prefix_collision_backslash_escape_mismatch(self) -> None:
+        """shlex.split(r'\\$HOME') treats \\$ as literal $, producing ['$HOME'].
+        The command '$HOME' also becomes ['$HOME'], so they match."""
+        cfg = _cfg(approval_shell_safe_prefixes=[r"\$HOME"])
+        result = classify_risk(cfg, "shell_run", {"command": "$HOME"})
+        assert result == "none"
+
+    def test_prefix_collision_unicode_equality_accepts(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["\u0063at"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat"})
+        assert result == "none"
+
+    def test_prefix_collision_null_byte_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat\x00/etc/passwd"})
+        assert result == "high"
+
+    def test_prefix_collision_long_command_after_prefix_match(self) -> None:
+        long_args = " ".join(["--arg=" + str(i) for i in range(100)])
+        cfg = _cfg(approval_shell_safe_prefixes=["echo"])
+        result = classify_risk(cfg, "shell_run", {"command": f"echo {long_args}"})
+        assert result == "none"
+
+    def test_prefix_collision_special_chars_in_arg_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["echo"])
+        result = classify_risk(cfg, "shell_run", {"command": 'echo "hello world"'})
+        assert result == "none"
+
+    def test_prefix_collision_newline_in_middle_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat\n/etc/passwd"})
+        assert result == "high"
+
+    def test_prefix_collision_carriage_return_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat\r/etc/passwd"})
+        assert result == "high"
+
+    def test_prefix_collision_multiple_spaces_before_argument_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat   /etc/passwd"})
+        assert result == "none"
+
+    def test_prefix_collision_leading_whitespace_stripped_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "  cat /etc/passwd"})
+        assert result == "none"
+
+    def test_prefix_collision_trailing_whitespace_stripped_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat /etc/passwd  "})
+        assert result == "none"
+
+    def test_prefix_collision_mixed_quotes_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["echo"])
+        result = classify_risk(cfg, "shell_run", {"command": "echo 'hello' \"world\""})
+        assert result == "none"
+
+    def test_prefix_collision_nested_parentheses_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["echo"])
+        result = classify_risk(cfg, "shell_run", {"command": "echo $(echo $(whoami))"})
+        assert result == "high"
+
+    def test_prefix_collision_process_substitution_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["diff"])
+        result = classify_risk(cfg, "shell_run", {"command": "diff <(cat a) <(cat b)"})
+        assert result == "high"
+
+    def test_prefix_collision_redirection_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["echo"])
+        result = classify_risk(cfg, "shell_run", {"command": "echo hello > /tmp/out"})
+        assert result == "high"
+
+    def test_prefix_collision_heredoc_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat << EOF"})
+        assert result == "high"
+
+    def test_prefix_collision_glob_pattern_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat *.txt"})
+        assert result == "none"
+
+    def test_prefix_collision_tilde_expansion_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat ~/file.txt"})
+        assert result == "none"
+
+    def test_prefix_collision_env_var_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat $HOME/file.txt"})
+        assert result == "none"
+
+    def test_prefix_collision_dollar_brace_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat ${HOME}/file.txt"})
+        assert result == "none"
+
+    def test_prefix_collision_semicolon_with_space_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo ; rm bar"})
+        assert result == "high"
+
+    def test_prefix_collision_ampersand_with_space_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo & rm bar"})
+        assert result == "high"
+
+    def test_prefix_collision_pipe_with_space_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo | grep bar"})
+        assert result == "high"
+
+    def test_prefix_collision_and_operator_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo && rm bar"})
+        assert result == "high"
+
+    def test_prefix_collision_or_operator_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo || rm bar"})
+        assert result == "high"
+
+    def test_prefix_collision_backtick_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat `whoami`"})
+        assert result == "high"
+
+    def test_prefix_collision_dollar_paren_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat $(rm -rf /)"})
+        assert result == "high"
+
+    def test_prefix_collision_less_than_process_sub_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat <(rm -rf /)"})
+        assert result == "high"
+
+    def test_prefix_collision_greater_than_process_sub_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat >(rm -rf /)"})
+        assert result == "high"
+
+    def test_prefix_collision_single_gt_redirection_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat > /tmp/out"})
+        assert result == "high"
+
+    def test_prefix_collision_single_lt_redirection_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat < /etc/passwd"})
+        assert result == "high"
+
+    def test_prefix_collision_double_gt_redirection_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat >> /tmp/out"})
+        assert result == "high"
+
+    def test_prefix_collision_heredoc_operator_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat << EOF"})
+        assert result == "high"
+
+    def test_prefix_collision_double_heredoc_operator_rejected(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat <<< EOF"})
+        assert result == "high"
+
+    def test_prefix_collision_unsafe_find_exec_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = classify_risk(cfg, "shell_run", {"command": "find . -exec rm {} \\;"})
+        assert result == "high"
+
+    def test_prefix_collision_unsafe_find_delete_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = classify_risk(cfg, "shell_run", {"command": "find . -delete"})
+        assert result == "high"
+
+    def test_prefix_collision_unsafe_find_ok_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = classify_risk(cfg, "shell_run", {"command": "find . -ok rm {} \\;"})
+        assert result == "high"
+
+    def test_prefix_collision_unsafe_grep_recursive_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["grep"])
+        result = classify_risk(cfg, "shell_run", {"command": "grep -r pattern ."})
+        assert result == "high"
+
+    def test_prefix_collision_unsafe_grep_recursive_uppercase_denied(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["grep"])
+        result = classify_risk(cfg, "shell_run", {"command": "grep -R pattern ."})
+        assert result == "high"
+
+    def test_prefix_collision_safe_find_without_unsafe_flags_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["find"])
+        result = classify_risk(cfg, "shell_run", {"command": "find . -name '*.txt'"})
+        assert result == "none"
+
+    def test_prefix_collision_safe_grep_without_unsafe_flags_passes(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["grep"])
+        result = classify_risk(cfg, "shell_run", {"command": "grep pattern file.txt"})
+        assert result == "none"
+
+    def test_prefix_collision_cat_protected_path_escalates(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+            approval_protected_paths=["/etc/"],
+        )
+        result = classify_risk(cfg, "shell_run", {"command": "cat /etc/shadow"})
+        assert result == "high"
+
+    def test_prefix_collision_cat_within_allowed_root_passes(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            allowed_root="/home/user",
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+        )
+        result = classify_risk(cfg, "shell_run", {"command": "cat /home/user/file.txt"})
+        assert result == "none"
+
+    def test_prefix_collision_cat_outside_allowed_root_escalates(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            allowed_root="/tmp",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        result = classify_risk(cfg, "shell_run", {"command": "cat /etc/passwd"})
+        assert result == "high"
+
+    def test_prefix_collision_positional_arg_value_error_escalates(self) -> None:
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            allowed_root="/tmp",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        result = classify_risk(cfg, "shell_run", {"command": "cat \x00invalid"})
+        assert result == "high"
+
+    def test_prefix_collision_flag_only_no_positional_routing_needed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": "ls -la"})
+        assert result == "none"
+
+    def test_prefix_collision_empty_command_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": ""})
+        assert result == "high"
+
+    def test_prefix_collision_non_string_command_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": 123})
+        assert result == "high"
+
+    def test_prefix_collision_none_command_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": None})
+        assert result == "high"
+
+    def test_prefix_collision_unbalanced_quotes_fails_closed(self) -> None:
+        cfg = _cfg(approval_shell_safe_prefixes=["ls"])
+        result = classify_risk(cfg, "shell_run", {"command": 'ls "unbalanced'})
+        assert result == "high"
