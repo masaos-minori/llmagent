@@ -89,7 +89,7 @@ class TestAttachRedactionFilter:
         # Verify the secret is redacted in the output
         output = handler.stream.getvalue()
         assert "super-secret-value-should-not-leak" not in output
-        assert "[REDACTED]" in output
+        assert "***REDACTED***" in output
 ```
 
 ## Compatibility considerations
@@ -128,9 +128,9 @@ class TestAttachRedactionFilter:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add unit tests for attach_redaction_filter helper | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add unit tests for attach_redaction_filter helper | Completed | 20260917-191200 | 20260917-191200 |  |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-191200 | 20260917-191200 |  |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-191200 | 20260917-191200 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
