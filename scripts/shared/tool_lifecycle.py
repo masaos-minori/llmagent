@@ -10,10 +10,20 @@ class ServerCooldownError(RuntimeError):
     """Raised when a tool call is attempted while an MCP server is in cooldown."""
 
 
+_PERMITTED_LIFECYCLE_EXCEPTIONS: tuple[type[Exception], ...] = (
+    ServerCooldownError,
+    OSError,
+    RuntimeError,
+)
+
+
 @runtime_checkable
 class LifecycleProtocol(Protocol):
     """Protocol for MCP server lifecycle managers injected into ToolExecutor."""
 
     async def ensure_ready(self, server_key: str) -> None:
-        """Ensure the MCP server identified by server_key is ready to accept calls."""
+        """Ensure the MCP server identified by server_key is ready to accept calls.
+
+        May raise only exceptions listed in _PERMITTED_LIFECYCLE_EXCEPTIONS.
+        """
         ...
