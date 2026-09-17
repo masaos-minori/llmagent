@@ -9,6 +9,7 @@ on:
       - "tools/check_docs_structure.py"
       - "tools/check_canonical_source_conflicts.py"
       - "tools/check_canonical_source_registry.py"
+      - "tools/check_issue_inventory_conformance.py"
       - "config/documentation_canonical_sources.toml"
       - "schemas/doc_front_matter.json"
   pull_request:
@@ -19,6 +20,7 @@ on:
       - "tools/check_docs_structure.py"
       - "tools/check_canonical_source_conflicts.py"
       - "tools/check_canonical_source_registry.py"
+      - "tools/check_issue_inventory_conformance.py"
       - "config/documentation_canonical_sources.toml"
       - "schemas/doc_front_matter.json"
 
@@ -43,6 +45,11 @@ jobs:
         run: |
           set -euo pipefail
           python tools/check_needs_confirmation_inventory.py
+
+      - name: Check issue inventory conformance
+        run: |
+          set -euo pipefail
+          python tools/check_issue_inventory_conformance.py
 
       - name: Run dependency graph cycle check
         run: |
