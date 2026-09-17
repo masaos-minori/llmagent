@@ -11,6 +11,13 @@ if TYPE_CHECKING:
     from shared.mcp_config import SecurityProfile
 
 
+def _get_security_profile() -> type[SecurityProfile]:
+    """Lazily import SecurityProfile to avoid circular imports."""
+    from shared.mcp_config import SecurityProfile
+
+    return SecurityProfile
+
+
 @dataclass
 class ConfigValidationResult:
     """Result of configuration validation containing errors and warnings."""
@@ -33,11 +40,11 @@ _REQUIRED_NOT_FALSE_KEYS: tuple[str, ...] = ()
 _VALID_PRODUCTION_KEYS: frozenset[str] | None = None
 
 
-def _resolve_known_tools(known_tools: set[str] | None) -> set[str] | None:
+def _resolve_known_tools(known_tools: set[str] | None) -> set[str]:
     """Resolve the known tool name set, falling back to the tool registry.
 
-    Returns `None` if `known_tools` was not provided and the registry lookup
-    fails, signaling the caller to skip its check.
+    Raises `ValueError` if `known_tools` was not provided and the registry lookup
+    fails, producing an actionable error message rather than silently skipping.
     """
     if known_tools is not None:
         return known_tools
@@ -45,17 +52,31 @@ def _resolve_known_tools(known_tools: set[str] | None) -> set[str] | None:
         from shared.tool_registry import get_registry
 
         return set(get_registry().get_all_tool_names())
-    except Exception:  # noqa: BLE001 — tool registry lookup is best-effort; skip this check rather than fail production config validation
-        return None
+    except ValueError as exc:
+        msg = (
+            "Tool registry resolution failed: duplicate registration "
+            "(cannot determine authoritative tool set for production validation)"
+        )
+        raise ValueError(msg) from exc
+    except ImportError as exc:
+        msg = (
+            "Tool registry resolution failed: module import error "
+            "(cannot determine authoritative tool set for production validation)"
+        )
+        raise ValueError(msg) from exc
 
 
 def _check_missing_tool_safety_tiers(
     tool_safety_tiers: Mapping[str, object],
     known_tools: set[str] | None = None,
+    errors: list[str] | None = None,
 ) -> list[str]:
     """Return tool names that are registered but missing from tool_safety_tiers."""
-    resolved_tools = _resolve_known_tools(known_tools)
-    if resolved_tools is None:
+    try:
+        resolved_tools = _resolve_known_tools(known_tools)
+    except ValueError as exc:
+        if errors is not None:
+            errors.append(str(exc))
         return []
     missing = [t for t in sorted(resolved_tools) if t not in tool_safety_tiers]
     return [f"'{t}' not in tool_safety_tiers" for t in missing]
@@ -64,10 +85,14 @@ def _check_missing_tool_safety_tiers(
 def _check_unknown_tool_safety_tiers(
     tool_safety_tiers: Mapping[str, object],
     known_tools: set[str] | None = None,
+    errors: list[str] | None = None,
 ) -> list[str]:
     """Return tool_safety_tiers keys that are not registered tool names."""
-    resolved_tools = _resolve_known_tools(known_tools)
-    if resolved_tools is None:
+    try:
+        resolved_tools = _resolve_known_tools(known_tools)
+    except ValueError as exc:
+        if errors is not None:
+            errors.append(str(exc))
         return []
     unknown = sorted(set(tool_safety_tiers) - resolved_tools)
     return [f"'{k}' not a registered tool name" for k in unknown]
@@ -77,13 +102,17 @@ def _check_approval_risk_floor(
     approval_risk_rules: Mapping[str, object],
     tool_safety_tiers: Mapping[str, object],
     known_tools: set[str] | None = None,
+    errors: list[str] | None = None,
 ) -> list[str]:
     """Return tool names whose resolved effective risk is below HIGH."""
     from agent.tool_policy import _TIER_TO_RISK, RiskLevel
 
     GIT_WRITE_TOOLS = frozenset(("git_checkout", "git_pull", "git_push"))
-    resolved_tools = _resolve_known_tools(known_tools)
-    if resolved_tools is None:
+    try:
+        resolved_tools = _resolve_known_tools(known_tools)
+    except ValueError as exc:
+        if errors is not None:
+            errors.append(str(exc))
         return []
     targets = GIT_WRITE_TOOLS & resolved_tools
     below_high: list[str] = []
@@ -200,6 +229,19 @@ class ProductionConfigValidator:
         errors: list[str] = []
         warnings: list[str] = []
 
+        # REQ-003: enforce canonical SecurityProfile model
+        profile_cls = _get_security_profile()
+        try:
+            profile_cls(security_profile)
+        except ValueError:
+            self._record(
+                errors,
+                warnings,
+                f"Unsupported security_profile value {security_profile!r}: "
+                f"only {profile_cls.PRODUCTION.value!r} is permitted",
+            )
+            return ConfigValidationResult(errors=errors, warnings=warnings)
+
         # Strict keys: default false is an error
         for key in _REQUIRED_STRICT_KEYS:
             if not config.get(key, False):
@@ -219,14 +261,14 @@ class ProductionConfigValidator:
         )
         if tool_safety_tiers:
             missing_tiers = _check_missing_tool_safety_tiers(
-                tool_safety_tiers, known_tools=known_tools
+                tool_safety_tiers, known_tools=known_tools, errors=errors
             )
             if missing_tiers:
                 tier_msg = "; ".join(missing_tiers)
                 self._record(errors, warnings, f"Missing safety tiers: {tier_msg}")
 
             unknown_tiers = _check_unknown_tool_safety_tiers(
-                tool_safety_tiers, known_tools=known_tools
+                tool_safety_tiers, known_tools=known_tools, errors=errors
             )
             if unknown_tiers:
                 tier_msg = "; ".join(unknown_tiers)
@@ -240,7 +282,10 @@ class ProductionConfigValidator:
             raw_risk_rules if isinstance(raw_risk_rules, Mapping) else {}
         )
         low_risk_tools = _check_approval_risk_floor(
-            approval_risk_rules, tool_safety_tiers, known_tools=known_tools
+            approval_risk_rules,
+            tool_safety_tiers,
+            known_tools=known_tools,
+            errors=errors,
         )
         if low_risk_tools:
             tool_list = "; ".join(low_risk_tools)

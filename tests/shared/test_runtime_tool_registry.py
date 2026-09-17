@@ -245,9 +245,7 @@ class TestRuntimeToolRegistry:
         assert rows[0]["name"] == "tool_b"
 
     def test_disable_then_re_enable_returns_true(self) -> None:
-        tool = build_runtime_tool(
-            name="t", server_key="s", enabled_for_llm=True
-        )
+        tool = build_runtime_tool(name="t", server_key="s", enabled_for_llm=True)
         reg = _registry_with(tool)
         # First call: disable the tool
         reg.apply_policy(tier_map={}, allowed_tools=["other"])
