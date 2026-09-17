@@ -7,10 +7,17 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import orjson
 import pytest
-from shared.logger import Logger, _ContextFilter, _fallback_logger, _JsonFormatter
+from shared.logger import (
+    Logger,
+    _ContextFilter,
+    _fallback_logger,
+    _JsonFormatter,
+    _RedactionFilter,
+)
 
 
 class TestContextFilter:
@@ -234,3 +241,43 @@ class TestLoggerFileFallback:
             mock_warn.assert_called_once()
             msg = mock_warn.call_args[0][0]
             assert "Cannot open log file" in msg
+
+
+class TestAttachRedactionFilter:
+    """REQ-006/REQ-010: unit test for the attach_redaction_filter helper."""
+
+    @patch.object(logging.Logger, "addFilter")
+    def test_attach_redaction_filter_adds_filter(
+        self, mock_add_filter: MagicMock
+    ) -> None:
+        """The helper attaches _RedactionFilter to the given logger."""
+        from shared.logger import attach_redaction_filter
+
+        logger = logging.getLogger("test.attach_redaction")
+        attach_redaction_filter(logger)
+        mock_add_filter.assert_called_once()
+        assert isinstance(mock_add_filter.call_args[0][0], _RedactionFilter)
+
+    def test_attached_filter_redacts_registered_secret(self) -> None:
+        """A log record through the filtered logger redacts a registered secret."""
+        import io
+
+        from shared.logger import attach_redaction_filter, register_secret
+
+        logger = logging.getLogger("test.redact")
+        handler = logging.StreamHandler(io.StringIO())
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+
+        # Register a secret and attach the filter
+        register_secret("super-secret-value-should-not-leak")
+        attach_redaction_filter(logger)
+
+        # Emit a log message containing the secret
+        logger.info("Token: super-secret-value-should-not-leak")
+
+        # Verify the secret is redacted in the output
+        output = handler.stream.getvalue()
+        assert "super-secret-value-should-not-leak" not in output
+        assert "***REDACTED***" in output

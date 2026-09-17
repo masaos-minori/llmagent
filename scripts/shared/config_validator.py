@@ -11,8 +11,8 @@ from typing import Any
 class ConfigValidationResult:
     """Result of RAG configuration validation containing errors and warnings."""
 
-    errors: list[str]
-    warnings: list[str]
+    errors: list[str] = dataclasses.field(default_factory=list)
+    warnings: list[str] = dataclasses.field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -41,8 +41,14 @@ class RagConfigValidator:
 
     @staticmethod
     def _extract_rag_section(cfg: Mapping[str, Any]) -> Mapping[str, Any]:
-        """Normalize nested {"rag": {...}} (agent.toml) and flat {...} (MCP module_cfg) shapes."""
-        return cfg["rag"] if "rag" in cfg else cfg
+        """Extract the RAG configuration section from the given configuration dictionary.
+
+        The input is expected to be a flat dictionary with top-level RAG keys
+        (e.g., embed_url, chunk_size, etc.). No nested {"rag": {...}} shape
+        is supported or tested in production.
+        """
+        # Input is always flat — all three production call sites pass flat dicts
+        return cfg
 
     @staticmethod
     def _check_use_rrf(rag: Mapping[str, Any]) -> str | None:
@@ -66,8 +72,8 @@ class RagConfigValidator:
             keys_str = ", ".join(sorted(found))
             return (
                 f"Configuration key(s) {keys_str} are no longer supported -- "
-                "the semantic cache feature was removed (see issues/done/20260902-150339_semcacherm_..."
-                " and issues/20260902-150341_semcachedocs_...); "
+                "the semantic cache feature was removed (see issues/done/20260902-150339_semcacherm_remove_semanticcache_implementation_and_invalidation_paths.md"
+                " and issues/done/20260902-150341_semcachedocs_replace_semanticcache_tests_and_docs_with_no_cache_design.md); "
                 f"remove {keys_str} from your configuration."
             )
         return None

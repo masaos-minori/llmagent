@@ -422,6 +422,22 @@ class MessageRoleConfig:
     )
 
 
+# Canonical collection of sub-config dataclasses for production_config_validator.py.
+_CANONICAL_SUB_CONFIG_CLASSES: frozenset[type[object]] = frozenset(
+    (
+        LLMConfig,
+        RAGConfig,
+        ToolConfig,
+        MemoryConfig,
+        MCPConfig,
+        ApprovalConfig,
+        ObservabilityConfig,
+        DiagnosticsConfig,
+        MessageRoleConfig,
+    )
+)
+
+
 # ---------------------------------------------------------------------------
 # Composite config
 # ---------------------------------------------------------------------------
@@ -431,7 +447,7 @@ class MessageRoleConfig:
 class AgentConfig:
     """Mutable runtime configuration shared by all agent components.
 
-    Composes 8 domain-specific sub-configs.
+    Composes 9 domain-specific sub-configs.
     Access fields via nested paths: cfg.llm.llm_url, cfg.rag.embed_url, etc.
     """
 

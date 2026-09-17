@@ -447,3 +447,64 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
             config, security_profile="production"
         )
         assert not any("Unknown config keys" in err for err in result.errors)
+
+
+class TestProductionConfigValidatorConfigValidationResultIdentity:
+    """Tests for ConfigValidationResult identity after REQ-004 consolidation."""
+
+    def test_config_validation_result_identity(self) -> None:
+        """REQ-004: production_config_validator.ConfigValidationResult IS shared.config_validator.ConfigValidationResult."""
+        from shared.config_validator import ConfigValidationResult as CVResult
+        from shared.production_config_validator import (
+            ConfigValidationResult as PCVResult,
+        )
+
+        assert PCVResult is CVResult
+
+    def test_validate_unknown_tool_safety_tiers_single_arg_construction(self) -> None:
+        """REQ-004: validate_unknown_tool_safety_tiers()'s single-arg construction still works."""
+        validator = ProductionConfigValidator()
+        result = validator.validate_unknown_tool_safety_tiers(["unknown_tool"])
+        assert isinstance(result, object)
+        assert hasattr(result, "errors")
+        assert hasattr(result, "warnings")
+
+
+class TestProductionConfigValidatorValidKeySetUnchanged:
+    """Tests for valid-key set stability after REQ-006 schema consolidation."""
+
+    def test_valid_key_set_unchanged_after_schema_consolidation(self) -> None:
+        """REQ-006: the valid-key set is unchanged after consolidating _get_valid_production_keys()."""
+        from shared.production_config_validator import _get_valid_production_keys
+
+        keys = _get_valid_production_keys()
+        assert "agent_memory_max_startup_snippets" in keys
+        assert "system_prompt_tool" in keys
+        assert "security_profile" in keys
+        assert "embed_url" in keys
+        assert "refiner_max_tokens" in keys
+
+
+@pytest.mark.integration
+def test_integration_real_config_agent_toml() -> None:
+    """REQ-007: real config/agent.toml passes both validators with zero errors."""
+    from pathlib import Path
+
+    # Load the real config/agent.toml
+    config_dir = Path(__file__).resolve().parent.parent.parent / "config"
+    from shared.config_loader import ConfigLoader
+
+    loader = ConfigLoader(config_dir=config_dir)
+    cfg = loader.load_all(strict=True)
+
+    # Validate with RagConfigValidator
+    from shared.config_validator import RagConfigValidator
+
+    rag_result = RagConfigValidator().validate(cfg)
+    assert rag_result.ok is True
+    assert len(rag_result.errors) == 0
+
+    # Validate with ProductionConfigValidator
+    prod_result = ProductionConfigValidator().validate(cfg)
+    assert prod_result.ok is True
+    assert len(prod_result.errors) == 0

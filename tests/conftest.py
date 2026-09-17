@@ -90,3 +90,22 @@ def _reset_web_search_health_and_metrics() -> Generator[None]:
     metrics.reset()
     health.reset_browser()
     metrics.reset_browser()
+
+
+@pytest.fixture(autouse=True)
+def _reset_config_loader_state() -> Generator[None]:
+    """Reset ConfigLoader's allowed-file state after every test.
+
+    This is necessary because REQ-001 makes AgentContext.__init__ set
+    ConfigLoader._allowed_files unconditionally for the remainder of any
+    pytest process that constructs one. Without this fixture, cross-test
+    ConfigLoader state leakage would occur.
+    """
+    from shared.config_loader import ConfigLoader
+
+    ConfigLoader._reset_for_testing()
+    yield
+    try:
+        ConfigLoader._reset_for_testing()
+    except ImportError:
+        pass

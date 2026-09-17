@@ -254,6 +254,10 @@ Securityを優先し、プロセス境界を超えた設定漏洩を防ぐため
 
 なし
 
+### 補足: 制限は無条件
+
+`AGENT_RESTRICT_CONFIG`環境変数は廃止済み。すべてのプロセスエントリポイントは常に`ConfigLoader.restrict_to("agent.toml")`を呼び出す。この環境変数を設定しても無視され、許可外ファイルの読み込みは常に拒否される。
+
 ## Failure Policy
 
 ### Fail-Fast Conditions

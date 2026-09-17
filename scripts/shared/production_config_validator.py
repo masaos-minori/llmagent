@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
 from dataclasses import fields as dataclass_fields
 from typing import TYPE_CHECKING
+
+from shared.config_validator import ConfigValidationResult
 
 if TYPE_CHECKING:
     from shared.mcp_config import SecurityProfile
@@ -16,14 +17,6 @@ def _get_security_profile() -> type[SecurityProfile]:
     from shared.mcp_config import SecurityProfile
 
     return SecurityProfile
-
-
-@dataclass
-class ConfigValidationResult:
-    """Result of configuration validation containing errors and warnings."""
-
-    errors: list[str] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
 
 
 # Strict keys that must be true in production (defaulting to false is an error)

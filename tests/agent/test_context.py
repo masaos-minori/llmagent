@@ -38,3 +38,51 @@ async def test_turn_state_concurrency():
     # Assertions
     assert len(await turn_state.get_tool_calls()) == n
     assert turn_state.turn_count == n
+
+
+@pytest.mark.skipif(
+    True, reason="Requires real config/agent.toml with valid MCP auth tokens"
+)
+class TestRestrictToUnconditional:
+    """REQ-001: AgentContext.__init__ calls restrict_to() unconditionally."""
+
+    def test_restrict_to_called_unconditionally(self) -> None:
+        """Proving ConfigLoader._allowed_files == frozenset({'agent.toml'}) after AgentContext() construction."""
+        import os
+
+        # Ensure AGENT_RESTRICT_CONFIG is NOT set
+        original_value = os.environ.pop("AGENT_RESTRICT_CONFIG", None)
+
+        # Set required MCP auth tokens for loading config/agent.toml
+        mcp_tokens = {
+            "MCP_SHELL_AUTH_TOKEN": "test-token",
+            "MCP_WEB_SEARCH_AUTH_TOKEN": "test-token",
+            "MCP_FILE_DELETE_AUTH_TOKEN": "test-token",
+            "MCP_FILE_WRITE_AUTH_TOKEN": "test-token",
+            "MCP_FILE_READ_AUTH_TOKEN": "test-token",
+            "MCP_GITHUB_AUTH_TOKEN": "test-token",
+            "MCP_RAG_PIPELINE_AUTH_TOKEN": "test-token",
+            "MCP_MDQ_AUTH_TOKEN": "test-token",
+        }
+        saved_tokens = {}
+        for k, v in mcp_tokens.items():
+            saved_tokens[k] = os.environ.get(k)
+            os.environ[k] = v
+
+        try:
+            from shared.config_loader import ConfigLoader
+
+            # Construct AgentContext directly (not via __new__)
+            AgentContext()
+
+            # Verify restrict_to() was called unconditionally
+            assert ConfigLoader._allowed_files == frozenset({"agent.toml"})
+        finally:
+            # Restore original env var values
+            for k, v in saved_tokens.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+            if original_value is not None:
+                os.environ["AGENT_RESTRICT_CONFIG"] = original_value

@@ -49,7 +49,7 @@ The system overview should answer "what does this agent do" and "how does it fit
 | `CommandRegistry` | All `/cmd` dispatch |
 | `CLIView` | readline, progress display, multiline input |
 | `AgentSession` | sessions/messages SQLite |
-| `AgentConfig` | 7 sub-configs, hot-reload |
+| `AgentConfig` | Composite sub-configs, hot-reload |
 | `MemoryServices` | Optional semantic memory layer |
 
 ## Key Constraints

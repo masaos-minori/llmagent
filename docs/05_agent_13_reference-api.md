@@ -226,7 +226,7 @@ Full details: [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-laye
 
 ## AgentConfig (`agent/config_dataclasses.py`)
 
-- **Role:** Configuration container. 7 sub-configurations. Supports hot-reloading via `/reload`.
+- **Role:** Configuration container. Supports hot-reloading via `/reload`.
 - **Primary API:** `build_agent_config(cfg_override=None) -> AgentConfig`
 - **Caller:** Session initialization, config reloading
 - **Callee:** `ConfigLoader.load_all()`

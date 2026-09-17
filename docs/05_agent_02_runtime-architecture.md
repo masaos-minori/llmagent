@@ -107,7 +107,7 @@ The hub for shared mutable state and component references. All services are inje
 | `ctx.turn` | Per-turn | `current_turn_id` (UUID4, None between turns) |
 | `ctx.stats` | Cumulative | `stat_turns`, `stat_tool_calls`, `stat_latency`, token counts |
 | `ctx.workflow` | Session | `WorkflowState`: `active`, `current_task_id`, `workflow_id`, `approval_pending` (transient) |
-| `ctx.cfg` | Hot-reload | `AgentConfig` (7 sub-configs) |
+| `ctx.cfg` | Hot-reload | `AgentConfig` (composite sub-configs) |
 | `ctx.session` | Session | `AgentSession` (SQLite) |
 | `ctx.services` | Injected | All service instances (LLMClient, ToolExecutor, etc.) |
 

@@ -48,8 +48,14 @@ logger = logging.getLogger(__name__)
 class ToolDefinition:
     """Immutable tool definition owned by a single server.
 
-    `description` and `input_schema` are reserved for future use: they are never
-    populated by `_populate_default_registry()` and are not read by any caller today.
+    `description` and `input_schema` have no current consumers: none of the callers
+    that construct `ToolDefinition` (see `scripts/shared/tool_registry.py:233` and
+    all test construction sites) populate these fields. They remain present as a
+    compatibility shim for servers that may supply them in their `/v1/tools` payloads.
+    Per `rules/coding.md`'s Deprecation policy, these fields are eligible for removal
+    the next time this file is touched for an unrelated reason, subject to a fresh
+    zero-caller `rg` re-check at that time.
+
     LLM-visible tool schemas are sourced from each server's own `tools.py` `TOOL_LIST`,
     not from this registry.
     """

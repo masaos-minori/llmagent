@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 
 from shared.http_transport import HttpTransport, TransportError
+from shared.logger import attach_redaction_filter
 from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
@@ -21,6 +22,7 @@ from shared.tool_lifecycle import _PERMITTED_LIFECYCLE_EXCEPTIONS, LifecycleProt
 from shared.transport_dto import ToolCallResult
 
 logger = logging.getLogger(__name__)
+attach_redaction_filter(logger)
 
 
 class ToolTransportInvoker:

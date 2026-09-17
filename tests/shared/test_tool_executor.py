@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from shared.http_transport import HttpTransport, TransportError
+from shared.logger import register_secret
 from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
@@ -71,7 +72,7 @@ class TestHttpTransportRetry:
             server_key="test",
         )
         with patch("asyncio.sleep", return_value=None):
-            with pytest.raises(Exception) as exc_info:
+            with pytest.raises(TransportError) as exc_info:
                 await transport.call("write_file", {"path": "a"})
         assert call_count == 3
         assert "Retry exhausted" in str(exc_info.value)
@@ -222,7 +223,10 @@ class TestHttpTransportRetry:
         assert call_count == 1
 
     @pytest.mark.asyncio
-    async def test_retry_delay_values_via_sleep_mock(self) -> None:
+    async def test_retry_delay_values_increase_and_stop_before_final_attempt(
+        self,
+    ) -> None:
+        """REQ-008: exactly two sleeps in increasing order (1 then 2 seconds)."""
         sleep_calls: list[float] = []
 
         class _FakeClient:
@@ -247,11 +251,64 @@ class TestHttpTransportRetry:
             except TransportError:
                 pass  # Expected — all retries exhausted
 
-        # attempt 0→sleep(4), attempt 1→sleep(2), attempt 2→sleep(1), then exhausted
-        assert len(sleep_calls) == 3
-        assert sleep_calls[0] == 4
+        # attempt 0→sleep(1), attempt 1→sleep(2), attempt 2→no sleep (final attempt)
+        assert len(sleep_calls) == 2
+        assert sleep_calls[0] == 1
         assert sleep_calls[1] == 2
-        assert sleep_calls[2] == 1
+
+
+class TestRedaction:
+    """REQ-010: synthetic secrets and sensitive payload fragments are not leaked."""
+
+    @pytest.mark.asyncio
+    async def test_synthetic_secret_not_leaked_in_transport_error(self) -> None:
+        """REQ-010: synthetic secrets embedded in error responses are not emitted."""
+        register_secret("super-secret-value-should-not-leak")
+
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                req = httpx.Request("POST", url)
+                return httpx.Response(
+                    500,
+                    request=req,
+                    json={"error": "super-secret-value-should-not-leak"},
+                )
+
+        transport = HttpTransport(
+            _FakeClient(),  # type: ignore[arg-type]
+            base_url="http://localhost:8080",
+            server_key="test",
+        )
+
+        with pytest.raises(TransportError) as exc_info:
+            await transport.call("write_file", {"path": "a"})
+
+        assert "super-secret-value-should-not-leak" not in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_sensitive_payload_fragment_not_leaked_in_tool_result_output(
+        self,
+    ) -> None:
+        """REQ-010: sensitive payload fragments are not emitted in log output."""
+        register_secret("sensitive-payload-data")
+
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                req = httpx.Request("POST", url)
+                return httpx.Response(
+                    500,
+                    request=req,
+                    json={"error": "sensitive-payload-data"},
+                )
+
+        transport = HttpTransport(
+            _FakeClient(),  # type: ignore[arg-type]
+            base_url="http://localhost:8080",
+            server_key="test",
+        )
+
+        with pytest.raises(TransportError):
+            await transport.call("write_file", {"path": "a"})
 
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:

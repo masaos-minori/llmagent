@@ -1,5 +1,6 @@
 """tests/test_config_validator.py — Startup validator for RAG config cross-file consistency."""
 
+import pytest
 from shared.config_validator import RagConfigValidator
 
 
@@ -8,14 +9,14 @@ class TestRagConfigValidator:
         self.validator = RagConfigValidator()
 
     def test_ok_no_errors(self) -> None:
-        result = self.validator.validate({"rag": {}})
+        result = self.validator.validate({})
         assert result.ok is True
         assert len(result.errors) == 0
 
     def test_use_rrf_false_warning(self) -> None:
         result = self.validator.validate(
             {
-                "rag": {"use_rrf": False},
+                "use_rrf": False,
             }
         )
         assert len(result.warnings) == 1
@@ -24,7 +25,7 @@ class TestRagConfigValidator:
     def test_use_rrf_true_no_warning(self) -> None:
         result = self.validator.validate(
             {
-                "rag": {"use_rrf": True},
+                "use_rrf": True,
             }
         )
         assert len(result.warnings) == 0
@@ -32,10 +33,8 @@ class TestRagConfigValidator:
     def test_multiple_errors(self) -> None:
         result = self.validator.validate(
             {
-                "rag": {
-                    "use_rrf": False,
-                    "semantic_cache_threshold": 0.2,
-                },
+                "use_rrf": False,
+                "semantic_cache_threshold": 0.2,
             }
         )
         assert result.ok is False
@@ -83,7 +82,7 @@ class TestRagConfigValidator:
     def test_nested_config_semantic_cache_max_size_present_error(self) -> None:
         result = self.validator.validate(
             {
-                "rag": {"semantic_cache_max_size": 100},
+                "semantic_cache_max_size": 100,
             }
         )
         assert result.ok is False
@@ -93,7 +92,7 @@ class TestRagConfigValidator:
     def test_use_semantic_cache_present_error(self) -> None:
         result = self.validator.validate(
             {
-                "rag": {"use_semantic_cache": True},
+                "use_semantic_cache": True,
             }
         )
         assert result.ok is False
@@ -102,7 +101,7 @@ class TestRagConfigValidator:
     def test_semantic_cache_threshold_present_error(self) -> None:
         result = self.validator.validate(
             {
-                "rag": {"semantic_cache_threshold": 0.92},
+                "semantic_cache_threshold": 0.92,
             }
         )
         assert result.ok is False
@@ -111,11 +110,9 @@ class TestRagConfigValidator:
     def test_all_three_removed_keys_produce_one_combined_error(self) -> None:
         result = self.validator.validate(
             {
-                "rag": {
-                    "use_semantic_cache": True,
-                    "semantic_cache_threshold": 0.92,
-                    "semantic_cache_max_size": 100,
-                },
+                "use_semantic_cache": True,
+                "semantic_cache_threshold": 0.92,
+                "semantic_cache_max_size": 100,
             }
         )
         assert result.ok is False
@@ -123,3 +120,20 @@ class TestRagConfigValidator:
         assert "use_semantic_cache" in result.errors[0]
         assert "semantic_cache_threshold" in result.errors[0]
         assert "semantic_cache_max_size" in result.errors[0]
+
+
+@pytest.mark.integration
+def test_integration_rag_validator_real_config() -> None:
+    """REQ-007: real config/agent.toml passes RagConfigValidator with zero errors."""
+    from pathlib import Path
+
+    from shared.config_loader import ConfigLoader
+    from shared.config_validator import RagConfigValidator
+
+    config_dir = Path(__file__).resolve().parent.parent.parent / "config"
+    loader = ConfigLoader(config_dir=config_dir)
+    cfg = loader.load_all(strict=True)
+
+    result = RagConfigValidator().validate(cfg)
+    assert result.ok is True
+    assert len(result.errors) == 0

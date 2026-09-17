@@ -38,6 +38,11 @@ def register_secret(value: str) -> None:
         _SECRET_VALUES.add(value)
 
 
+def attach_redaction_filter(logger: logging.Logger) -> None:
+    """Attach the _RedactionFilter to a logger so registered secrets are redacted from its output."""
+    logger.addFilter(_RedactionFilter())
+
+
 class _RedactionFilter(logging.Filter):
     """Redacts Bearer-token headers and registered secret values from log records."""
 

@@ -43,10 +43,31 @@ class ConfigLoader:
         Call once at process startup (before any config is loaded). Any
         subsequent call to load() or load_all() that touches a file not in
         this set raises ConfigPermissionError.
+
+        Raises:
+            ConfigPermissionError: If a second, different restrict_to() call is
+                attempted without first calling _reset_for_testing().
         """
         if not filenames:
             raise ValueError("restrict_to() requires at least one filename.")
-        cls._allowed_files = frozenset(filenames)
+        new_set = frozenset(filenames)
+        if cls._allowed_files is not None and cls._allowed_files != new_set:
+            msg = (
+                f"Cannot change allowed-file set from {cls._allowed_files} to {new_set}. "
+                "Call _reset_for_testing() first if this is a test-only reset."
+            )
+            raise ConfigPermissionError(msg)
+        cls._allowed_files = new_set
+
+    @classmethod
+    def _reset_for_testing(cls) -> None:
+        """Reset the allowed-file restriction for testing purposes only.
+
+        This is a test-only mechanism. Production code MUST NOT call this method.
+        After calling this, the next call to restrict_to() will establish a new
+        allowed-file set.
+        """
+        cls._allowed_files = None
 
     def __init__(self, config_dir: Path | None = None) -> None:
         """Initialize with optional config directory path."""

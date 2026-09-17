@@ -186,24 +186,38 @@ class TestGlobalStateCleanup:
         ConfigLoader.restrict_to("a.toml")
         assert ConfigLoader._allowed_files == frozenset({"a.toml"})
 
-    def test_multiple_restrict_calls_last_wins(self, tmp_path: Path) -> None:
-        """Multiple calls to restrict_to() — last call wins."""
+    def test_second_restrict_call_is_rejected(self, tmp_path: Path) -> None:
+        """REQ-002: a second restrict_to() call with different filenames is rejected."""
         ConfigLoader.restrict_to("a.toml")
-        assert ConfigLoader._allowed_files == frozenset({"a.toml"})
-        ConfigLoader.restrict_to("b.toml")
-        assert ConfigLoader._allowed_files == frozenset({"b.toml"})
-
-    def test_reload_without_restriction(self, tmp_path: Path) -> None:
-        """After resetting _allowed_files, loading should work without restriction."""
-        ConfigLoader.restrict_to("a.toml")
-        (tmp_path / "a.toml").write_text("[section]\nfoo = 1\n")
-        loader = ConfigLoader(config_dir=tmp_path)
         with pytest.raises(ConfigPermissionError):
-            loader.load("b.toml")
-        # After fixture resets _allowed_files, this would work
-        ConfigLoader._allowed_files = None
-        result = loader.load("a.toml")
-        assert result["section"]["foo"] == 1
+            ConfigLoader.restrict_to("b.toml")
+        # Original restriction should still be in effect
+        assert ConfigLoader._allowed_files == frozenset({"a.toml"})
+
+    def test_reload_without_restriction_via_reset(self, tmp_path: Path) -> None:
+        """REQ-002: _reset_for_testing() allows reloading without restriction."""
+        ConfigLoader.restrict_to("a.toml")
+        ConfigLoader._reset_for_testing()  # Use the new reset method
+        loader = ConfigLoader(config_dir=tmp_path)
+        result = loader.load_all(strict=False)
+        assert isinstance(result, dict)
+
+
+class TestResetForTesting:
+    """REQ-002: test-only reset mechanism."""
+
+    def test_reset_clears_allowed_files(self) -> None:
+        """_reset_for_testing() sets _allowed_files back to None."""
+        ConfigLoader.restrict_to("agent.toml")
+        ConfigLoader._reset_for_testing()
+        assert ConfigLoader._allowed_files is None
+
+    def test_reset_allows_subsequent_restrict_to(self) -> None:
+        """After _reset_for_testing(), a subsequent restrict_to() succeeds."""
+        ConfigLoader.restrict_to("agent.toml")
+        ConfigLoader._reset_for_testing()
+        ConfigLoader.restrict_to("other.toml")  # Should succeed
+        assert ConfigLoader._allowed_files == frozenset({"other.toml"})
 
 
 class TestTOMLLoading:

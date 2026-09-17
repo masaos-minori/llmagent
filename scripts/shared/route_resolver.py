@@ -80,8 +80,15 @@ class ToolRouteResolver:
 
         Args:
             warn_on_missing: When True, log a warning on unresolved tools in `resolve()`.
+                Note: if `strict_mode=True`, this warning is never emitted because
+                `strict_mode=True` causes `resolve()` to raise `ValueError` directly
+                via `_raise_strict_error()` before reaching the `warn_on_missing` check.
             strict_mode: When True, raise on unresolved tools in `resolve()` with a
-                stricter error message.
+                stricter error message. Also bypasses the `warn_on_missing` warning log
+                entirely: when `strict_mode=True`, `resolve()` calls `_raise_strict_error()`
+                (a `NoReturn` path) before ever reaching the `warn_on_missing` check, so
+                both `strict_mode=True` and `strict_mode=False` always raise `ValueError`
+                on an unresolved tool — the difference is in error-message wording only.
             runtime_registry: Optional RuntimeToolRegistry from live /v1/tools discovery;
                 the sole routing source consulted by resolve().
         """

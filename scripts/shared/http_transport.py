@@ -9,10 +9,12 @@ from typing import Any
 import httpx
 
 from shared.json_utils import parse_http_json
+from shared.logger import attach_redaction_filter, register_secret
 from shared.mcp_config import McpServerConfig
 from shared.transport_dto import ToolCallResult
 
 logger = logging.getLogger(__name__)
+attach_redaction_filter(logger)
 
 
 class TransportError(Exception):
@@ -39,6 +41,8 @@ class HttpTransport:
         self._base_url = base_url
         self._server_key = server_key
         self._auth_token: str = cfg.auth_token if cfg is not None else ""
+        if self._auth_token:
+            register_secret(self._auth_token)
         self._timeout = timeout_sec
         self._session_id: str = ""
 
@@ -88,6 +92,15 @@ class HttpTransport:
             raise exc
         return exc
 
+    def _build_exhaustion_message(
+        self, tool_name: str, last_retryable_status: int | None
+    ) -> str:
+        """Build a safe retry-exhaustion diagnostic without exposing raw response bodies."""
+        parts = [f"[Retry exhausted] tool={tool_name}"]
+        if last_retryable_status is not None:
+            parts.append(f"status={last_retryable_status}")
+        return " ".join(parts) + f" after {self._RETRY_MAX} attempts"
+
     async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
         """POST to /v1/call_tool and return ToolCallResult.
 
@@ -103,6 +116,7 @@ class HttpTransport:
 
         timeout = httpx.Timeout(self._timeout) if self._timeout > 0 else None
         last_exc: Exception | None = None
+        last_retryable_status: int | None = None
         for attempt in range(self._RETRY_MAX):
             try:
                 resp = await self._http.post(
@@ -112,7 +126,8 @@ class HttpTransport:
                     timeout=timeout,
                 )
                 if resp.status_code in self._RETRYABLE_STATUS:
-                    wait_sec = 2 ** (self._RETRY_MAX - attempt - 1)  # 4, 2, 1
+                    last_retryable_status = resp.status_code
+                    wait_sec = 2**attempt  # 1, 2 (increasing)
                     logger.warning(
                         "HTTP %s from %s; retrying in %.0fs (attempt %d/%d)",
                         resp.status_code,
@@ -121,7 +136,8 @@ class HttpTransport:
                         attempt + 1,
                         self._RETRY_MAX,
                     )
-                    await asyncio.sleep(wait_sec)
+                    if attempt < self._RETRY_MAX - 1:
+                        await asyncio.sleep(wait_sec)
                     continue
                 resp.raise_for_status()
                 parsed = self._parse_http_response(resp)
@@ -131,20 +147,21 @@ class HttpTransport:
                     name, "[TimeoutException]", str(e), break_flag=True
                 )
             except httpx.HTTPStatusError as e:
+                req_id = e.response.headers.get("x-request-id", "")
+                detail = f"status={e.response.status_code} request_id={req_id!r}"
                 last_exc = self._transport_error(
                     name,
                     "[HTTPStatusError]",
-                    f"status={e.response.status_code} response={e.response.text[:300]!r}",
+                    detail,
                     break_flag=e.response.status_code not in self._RETRYABLE_STATUS,
                     health_check=False,
                 )
+                if e.response.status_code in self._RETRYABLE_STATUS:
+                    last_retryable_status = e.response.status_code
             except (httpx.RequestError, ValueError) as e:
                 last_exc = self._transport_error(name, f"[{type(e).__name__}]", str(e))
         else:
-            msg = (
-                f"[Retry exhausted] tool={name} url={self._base_url} "
-                f"after {self._RETRY_MAX} attempts: {last_exc}"
-            )
+            msg = self._build_exhaustion_message(name, last_retryable_status)
             logger.error(msg)
             raise TransportError(msg)
         raise last_exc or TransportError(f"call failed: {name}")
