@@ -309,6 +309,7 @@ class TestAckPrincipalValidation:
         dep = require_role(Role.CONSUMER)
         mock_request = MagicMock(spec=Request)
         mock_request.url.path = "/events/test-event-id/ack"
+        mock_request.state.request_id = "test-request-id"
         mock_principals = MagicMock(spec=Principal)
         mock_principals.roles = {Role.PUBLISHER}
         with pytest_raises(HTTPException) as exc_info:

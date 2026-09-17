@@ -476,6 +476,7 @@ class TestSubscribePrincipalValidation:
         dep = require_role(Role.CONSUMER)
         mock_request = MagicMock(spec=Request)
         mock_request.url.path = "/subscribe"
+        mock_request.state.request_id = "test-request-id"
         mock_principals = MagicMock(spec=Principal)
         mock_principals.roles = {Role.PUBLISHER}
         with pytest_raises(HTTPException) as exc_info:
