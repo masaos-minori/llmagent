@@ -209,10 +209,10 @@ class TestPathArgumentConstraints:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260917-102623 | 20260917-102623 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260917-102639 | 20260917-102639 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260917-102655 | 20260917-102655 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-102712 | 20260917-102712 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
