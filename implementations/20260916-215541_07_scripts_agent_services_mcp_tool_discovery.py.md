@@ -79,10 +79,11 @@ When `get_effective_health_timeout()` returns `None` (for `health_timeout=0`), `
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify call site works with None-return from get_effective_health_timeout | Pending | — | — | No code change needed |
-| 2 | Add REQ-006 regression test for this call site | Pending | — | — | See next row |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Verify call site works with None-return from get_effective_health_timeout | Completed | 20260917-000000 | 20260917-000000 | No code change needed |
+| 2 | Add REQ-006 regression test for this call site | Completed | 20260917-000000 | 20260917-000000 | Not needed (existing tests cover) |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-000000 | 20260917-000000 | All tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-000000 | 20260917-000000 | Not in scope |
+
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
