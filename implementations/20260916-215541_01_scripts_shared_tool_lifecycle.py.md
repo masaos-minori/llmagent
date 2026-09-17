@@ -101,10 +101,11 @@ async def ensure_ready(self, server_key: str) -> None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add _PERMITTED_LIFECYCLE_EXCEPTIONS constant and update LifecycleProtocol docstring | Pending | — | — | |
-| 2 | Add unit test for the constant | Pending | — | — | |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add _PERMITTED_LIFECYCLE_EXCEPTIONS constant and update LifecycleProtocol docstring | Completed | 20260917-000000 | 20260917-000000 | Done |
+| 2 | Add unit test for the constant | Completed | 20260917-000000 | 20260917-000000 | Done |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-000000 | 20260917-000000 | All tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-000000 | 20260917-000000 | Not in scope |
+
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
