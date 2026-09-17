@@ -126,9 +126,9 @@ class ToolExecEvent:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add idempotency_key field to ToolExecEvent | Pending | — | — | |
-| 2 | Add task-linkage field to ToolExecEvent | Pending | — | — | |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add idempotency_key field to ToolExecEvent | Completed | 20260917-214212 | 20260917-214212 |  |
+| 2 | Add task-linkage field to ToolExecEvent | Completed | 20260917-214212 | 20260917-214212 |  |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-214212 | 20260917-214212 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
