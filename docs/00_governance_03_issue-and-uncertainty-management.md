@@ -106,24 +106,7 @@ RAG-003 ("Unresolved usage status of `RegisteredDocument` DTO") was resolved and
 
 RAG-004 ("Unresolved usage status of `models_config.py` configuration dataclasses") was resolved and removed from this active inventory 2026-09-14. Confirmed by direct code inspection while drafting `issues/done/20260914-105211_ragsvc02_unused-dto-and-config-dataclasses.md`: `grep -n "^class " scripts/rag/models_config.py` lists only `RagConfigImpl` — none of `MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, or `PipelineConfig` exist anywhere in this file, and a repository-wide `grep -rn "class {Name}" scripts/` for each of the seven finds no definition anywhere. The classes this entry's "unresolved usage status" question was about no longer exist — the entry's underlying question is moot, since removal has already happened by some other change. Its absence from the active list is the correct, policy-compliant state — do not create a `#### RAG-004` heading.
 
-#### RAG-005
-
-- **ID**: RAG-005
-- **Title**: sqlite-vec does not enforce foreign key constraints on embedding vectors
-- **Status**: open
-- **Severity**: Low
-- **Area**: RAG
-- **Type**: operational-gap
-- **Source**: `scripts/rag/`
-- **Owner**: Team
-- **First Found**: 2026-08-22
-- **Target**: `docs/adr/ADR-005-rag-source-derived-index-relationships.md`
-- **Related**: ADR-005
-- **Summary**: sqlite-vec does not enforce foreign key constraints on embedding vectors stored in the `chunks_fts` table. This means orphaned vectors can exist even when their source documents are deleted.
-- **Current Description**: When a document is deleted, its embeddings remain in the vector index because sqlite-vec has no FK enforcement mechanism.
-- **Observed Implementation**: Deletion of a document removes rows from the primary table but leaves orphaned entries in the vector index until a manual cleanup step runs.
-- **Impact**: Vector index grows over time with orphaned entries, increasing memory usage and potentially degrading search performance.
-- **Recommended Action**: Accept this limitation and implement periodic cleanup of orphaned vectors, or migrate to a vector store that supports FK constraints. (Note: this is a known, accepted architectural limitation mitigated by deletion ordering, not an active defect being worked.)
+**RAG-005**: Resolved. sqlite-vec lacks FK constraints — `chunks_vec` has no foreign key pointing to `chunks`; mitigation enforced via deletion ordering (`chunks_vec` deleted before `documents`) confirmed in `scripts/rag/ingestion/document_manager.py::delete_document_chain()` (confirmed: lines 19-35). This limitation is documented in `docs/adr/ADR-005-rag-source-derived-index-relationships.md`'s Known Deviations section (lines 342-350). Its absence from the active list is the correct, policy-compliant state — do not create a `#### RAG-005` heading.
 
 #### RAG-006
 
@@ -155,7 +138,7 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Status**: open
 - **Severity**: Medium
 - **Area**: RAG
-- **Type**: missing-documentation
+- **Type**: operational-gap
 - **Source**: `scripts/rag/`
 - **Owner**: Team
 - **First Found**: 2026-08-22
@@ -163,7 +146,7 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Related**: ADR-009
 - **Summary**: ADR-009 establishes that application code must never directly operate on the `chunks_fts` table — all FTS operations must go through the FTS wrapper. No test enforces this invariant.
 - **Current Description**: The FTS wrapper provides a controlled interface for full-text search, but there is no test that verifies application code respects this boundary.
-- **Observed Implementation**: Grep for direct SQL references to `chunks_fts` outside the FTS wrapper module shows that some code paths may bypass the wrapper.
+- **Observed Implementation**: Zero direct-write bypasses of ADR-005's rebuild-path restriction found. All non-wrapper, non-schema hits on `chunks_fts` outside `scripts/mcp_servers/mdq/` belong to the sanctioned `/session rag-rebuild-fts` path (invoked via `scripts/agent/commands/cmd_session.py`). Read-only `SELECT`/`bm25`/consistency-check queries against `chunks_fts` appear in `scripts/rag/repository.py` and `scripts/db/rag_consistency.py`. MDQ's `chunks_fts` references target a separate database (`/opt/llm/db/mdq.sqlite`, confirmed: `scripts/mcp_servers/mdq/mdq_service.py` line 67) and are out of ADR-009's RAG-boundary scope.
 - **Impact**: Without enforcement, new code could inadvertently operate on `chunks_fts` directly, breaking the abstraction boundary established by the ADR.
 - **Recommended Action**: Add a lint rule or test that scans for direct `chunks_fts` references outside the FTS wrapper, or add integration tests that verify all FTS operations go through the wrapper.
 
@@ -451,7 +434,7 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 - **Impact**: Without test coverage, a future change to the default value (e.g. `required: bool = False`) would silently violate INV-14 with no automated check to catch the regression.
 - **Recommended Action**: Add a unit test asserting `McpServerConfig.required` defaults to `True` when unspecified, and/or a test asserting undefined-criticality components are never routed as non-required.
 
-No other active Known Issues beyond RAG-005, DESIGN-1, DESIGN-2,
+No other active Known Issues beyond DESIGN-1, DESIGN-2,
 EVENTBUS-001 through EVENTBUS-008, and CI-001, CI-003 through CI-016 above.
 
 ## Part 2: Needs Confirmation Inventory
