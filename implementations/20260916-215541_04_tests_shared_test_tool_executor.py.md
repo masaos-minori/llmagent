@@ -157,9 +157,10 @@ async def test_fails_closed_for_unvalidated_config(self) -> None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update test assertions for REQ-003; add REQ-008/REQ-009 tests | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Update test assertions for REQ-003; add REQ-008/REQ-009 tests | Completed | 20260917-000000 | 20260917-000000 | Done |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-000000 | 20260917-000000 | All tests pass |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-000000 | 20260917-000000 | Not in scope |
+
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
