@@ -83,8 +83,8 @@ Remove the stale numeric sub-config count from the AgentConfig description.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove stale numeric sub-config count from docs/05_agent_13_reference-api.md | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Remove stale numeric sub-config count from docs/05_agent_13_reference-api.md | Completed | 20260917-202046 | 20260917-202046 |  |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-202046 | 20260917-202046 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
