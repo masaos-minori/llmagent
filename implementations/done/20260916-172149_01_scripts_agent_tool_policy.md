@@ -236,10 +236,10 @@ def _unsafe_flag_denylist(executable: str, args: list[str]) -> bool:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260917-095157 | 20260917-095157 |  |
-| 2 | Add or update tests per Validation plan | Completed | 20260917-095205 | 20260917-095205 |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260917-095212 | 20260917-095212 |  |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-095220 | 20260917-095220 |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260917-102843 | 20260917-102843 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260917-102929 | 20260917-102929 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260917-102955 | 20260917-102955 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-103407 | 20260917-103407 | N/A: no docs/00_index.md task-scope mapping for scripts/agent/tool_policy.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
