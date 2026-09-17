@@ -209,10 +209,10 @@ class TestPathArgumentConstraints:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260917-102623 | 20260917-102623 |  |
-| 2 | Add or update tests per Validation plan | Completed | 20260917-102639 | 20260917-102639 |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260917-102655 | 20260917-102655 |  |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-102712 | 20260917-102712 |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260917-104012 | 20260917-104012 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260917-104053 | 20260917-104053 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260917-104204 | 20260917-104204 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-104244 | 20260917-104244 | N/A: no docs/00_index.md task-scope mapping for tests/agent/test_tool_policy.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
