@@ -315,7 +315,7 @@ Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, 
 | GV-005 | Existence of Related Documents | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-006 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Missing | Implement |
 | GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Missing | Implement |
-| GV-008 | Known Issue required fields | Iss | Auto | `check_docs_quality.py` | PR | Blocking | Missing | Implement |
+| GV-008 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | Implement |
 | GV-009 | Needs Confirmation owner and deadline | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Missing | Implement |
 | GV-011 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
 | GV-012 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
@@ -338,7 +338,7 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
 1. **GV-002**: Implement Valid Document Status value validation
 2. **GV-006**: Implement Self-reference prohibition check
 4. **GV-007**: Implement Duplicate Related Link prohibition check
-5. **GV-008**: Implement Known Issue required fields validation (owner, severity, status)
+5. **GV-008**: Broaden to cover full issue inventory conformance scope (vocabulary, template, referential integrity)
 6. **GV-009**: Implement Needs Confirmation owner and deadline validation
 7. **GV-011, GV-012**: Implement cross-document canonical source conflict detection
 8. **GV-013**: Extend `stale_patterns` custom rule config to cover canonical document references

@@ -137,12 +137,14 @@ RAG-004 ("Unresolved usage status of `models_config.py` configuration dataclasse
 - **Owner**: Team
 - **First Found**: 2026-09-13
 - **Target**: `docs/03_rag_02_01_ingestion_pipeline-overview.md`, `docs/03_rag_02_04_ingestion_pipeline-ingester.md`
-- **Related**: NC-026 (superseded — see Part 2 removal)
+- **Related**: NC-026 — unresolved; no corresponding `#### NC-026` heading exists in Part 2 and no removal-placeholder paragraph naming NC-026 was found during this Plan's systematic scan.
 - **Summary**: What is the retention/deletion policy for chunk files moved to `rag-src/registered/` after successful ingestion? Who deletes them, when, and under what trigger?
 - **Current Description**: After successful ingestion, chunk files are routed to `rag-src/registered/` via `FileRouter`. The File Lifecycle table in the ingestion pipeline overview documents creation but not deletion of these files. No deletion logic exists in `scripts/rag/ingestion/ingester.py` or `file_routing.py`.
 - **Observed Implementation**: `FileRouter.__init__` creates `self._registered_dir = registered_dir / path.name`; `FileRouter.route()` writes successful chunks to `dest = self._registered_dir / path.name`. No corresponding cleanup or deletion call anywhere in either file.
 - **Impact**: `rag-src/registered/` may grow unbounded over time; files may be deleted ad hoc without traceability if this gap is not tracked with appropriate visibility.
 - **Recommended Action**: Owner review required to define the retention period, deletion trigger, and deletion ownership for `rag-src/registered/` files. Until defined, this directory's growth should be monitored.
+
+**Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
 
 DESIGN-1 ("External RAG and local RAG corpus difference not documented") was resolved and removed from this active inventory 2026-09-14. Both documentation updates required by the source Issue (`issues/20260914-112416_ragsvc04_execution-mode-shared-corpus-doc.md`) are complete: (1) a shared-corpus note was added to `docs/03_rag_01_system_overview.md` stating that external/local RAG modes share one corpus by configuration convention (not an enforced invariant), citing both `config/agent.toml` and `config/rag_pipeline_mcp_server.toml`; (2) `docs/adr/ADR-010-rag-fallback.md`'s "Data Ownership and Persistence" `System of Record` line was reworded to describe one shared `rag.sqlite` file accessed via two execution paths, not two independent systems of record. Its absence from the active list is the correct, policy-compliant state — do not create a `#### DESIGN-1` heading.
 
@@ -786,7 +788,24 @@ NC-030 ("Should `adr` and `security` be permanent `area` enum values, or folded 
 - **Resolution Target**: Next crawler operations review
 - **Blocking**: No
 
-No other active items beyond NC-021 through NC-035 above.
+#### NC-036
+
+- **Source File**: `scripts/rag/pipeline_service.py::call_rag_service()` / `ADR-010-rag-fallback.md`
+- **Section**: Decision #9 vs. actual behavior
+- **Line Number**: Decision #9 (line 69), `call_rag_service()` ValueError handling
+- **Question**: Is the parse-error-triggers-fallback behavior an intentional refinement of Decision #9 or an unintended deviation?
+- **Evidence**: ADR-010 Decision #9 states "解析エラーはログに記録し、空結果として扱う" (parse errors should be logged and treated as an empty result); however, `call_rag_service()` returns `None` on parse error, triggering fallback. The test `test_json_parse_error_calls_set_fallback_reason` confirms this behavior is actively defended by a passing test.
+- **Impact**: An undocumented ADR deviation actively defended by a passing test — operators may assume parse errors are handled per ADR when they actually trigger fallback
+- **Required Action**: Owner/architect judgment required: (1) If intentional, amend ADR-010 via ADR Change Protocol + RACI approval from `@data-eng`; (2) If unintended, fix `call_rag_service()` to treat parse errors as empty results per Decision #9
+- **Status**: open
+- **Assigned To**: @data-eng
+- **Last Reviewed**: 2026-09-16
+- **Priority**: High
+- **Related NC**: None
+- **Resolution Target**: Next RAG architecture review
+- **Blocking**: No
+
+No other active items beyond NC-021 through NC-036 above.
 
 ## Part 3: Canonical Source Conflict
 

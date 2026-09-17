@@ -26,6 +26,7 @@
 | `check_known_deviation_sync.py` | ADR関連 | ADR Known Deviationsと正本のStatusフィールド不一致検出 |
 | `check_mock_patch_targets.py` | テスト関連 | unittest.mock.patch()の無効化ターゲット検出 |
 | `check_needs_confirmation_inventory.py` | 整合性チェッカー | Needs confirmation記載の集中インベントリ登録確認 |
+| `check_issue_inventory_conformance.py` | 整合性チェッカー | Issue inventoryの語彙、テンプレート、参照整合性を検証するスクリプト |
 | `check_plan_target_overlaps.py` | ワークアイテム関連 | Frozen Plan間の同一ファイルパス重複検出 |
 | `check_suppression_justification.py` | Lint/Suppression | `# noqa`/`# type: ignore`/`# nosec`の正当化理由欠如検出 |
 | `check_workitem_traceability.py` | ワークアイテム関連 | Traceability節の整合性チェック |
@@ -60,6 +61,7 @@
 | `check_canonical_source_conflicts.py` | 同上 | Canonical Source Registryのセマンティック競合検出(CANONICAL-C/HIGH/MEDIUM/CANONICAL-W/CONFIG/NEEDS/GOV/KNOWNプレフィックス)。REQ-001の8ルール分類(FindingRoute Enum + classify_finding())、REQ-008の重複アクティブレコード防止(detect_duplicate_active_records())、CANONICAL_CONFLICT用の12フィールドテンプレート対応 |
 | `check_canonical_source_registry.py` | `config/documentation_canonical_sources.toml` | Canonical Source Registryのスキーマ検証(バージョン付きdataclass定義)。登録された`source_paths`のリポジトリルート相対パス実在確認、単一正典ソース制約(`runtime-behavior`等の複数ファイル許容claim-type以外は1パスのみ)、`M-01-01`の13 claim-type網羅性検証、ADR由来エントリの`## Status`が`Accepted`であることの検証。`load_registry()`/`validate_registry_schema()`は`check_canonical_source_conflicts.py`から再利用される |
 | `check_known_deviation_sync.py` | `docs/adr/*.md`, `docs/00_governance_03_issue-and-uncertainty-management.md`(旧`docs/*_90_inconsistencies_and_known_issues.md`) | 各ADRの`## Known Deviations`(および`## Related Documents`→`### Known Issues`)が参照するKnown Issue ID(例: `MCP-004`)について、ADR側のresolved-like/open-likeシグナルと正本側のStatusフィールドの不一致、および正本側に該当IDの見出しが存在しないdangling参照を検出する。2026-09-03: 正本が5つの`*_90_...md`ファイルから`docs/00_governance_03_issue-and-uncertainty-management.md`(Part 1、`#### <ID>`見出し形式)へ統合されたことに対応(旧`### <ID>:`見出しとの両対応、Part 2のNC項目は除外)。読み取り専用(検出のみで自動修正は行わない)。`--format json`で機械可読形式の出力にも対応 |
+| `check_issue_inventory_conformance.py` | `docs/00_governance_03_issue-and-uncertainty-management.md` | Issue inventoryの語彙(Status/Type/Severity/Area/Ownerの値)、テンプレート(フィールド数)、および参照整合性(Related/Related NC/Targetのdangling参照)を検証する。GV-008のGovernance Verification MatrixでTrackingされている。読み取り専用。`--format json`で機械可読形式の出力にも対応 |
 | `check_adr_invariant_matrix.py` | `docs/adr-index.md` | ADR Invariant Verification Matrixの`Verification Status`列に記載されたバッククォート付きpytestノードID(例: `` `tests/agent/test_startup.py::test_name` ``)について、対象ファイルが実在するかを検証する(テスト実行までは行わない)。「no test yet」等のテスト未実装行やコード参照(`.py`のみで`::`を含まないセル)は対象外。読み取り専用。`--format json`で機械可読形式の出力にも対応(GV-014) |
 | `check_adr_reference.py` | `docs/adr-index.md`, `scripts/**/*.py` | ADR Invariant Verification Matrixが`scripts/<path>.py`形式でフルパス引用しているソースファイルについて、該当行のADR ID(例: `ADR-004`)への参照コメントがファイル内に存在するかを検証する。パスを伴わない単独のファイル名表記や`tests/*.py::test_name`形式のテストノード引用は対象外。読み取り専用。`--format json`で機械可読形式の出力にも対応(GV-014) |
 | `check_adr_structure.py` | `docs/adr/*.md` | 各ADRについて(a)`## Known Deviations`見出しの存在(欠落時はError)、(b)`## Implementation Notes`と`### Implementation References`間のscripts/tests配下パス引用のドリフト(Notes側にのみ存在する場合はWarning、Notes側に該当パス引用が0件のADRは本チェック対象外)を検証する。読み取り専用。`--format json`で機械可読形式の出力にも対応 |
