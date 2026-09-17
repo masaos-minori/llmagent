@@ -103,10 +103,10 @@ approval_shell_safe_prefixes: list[str] = field(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260917-104212 | 20260917-104212 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260917-104222 | 20260917-104222 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260917-104232 | 20260917-104232 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-104243 | 20260917-104243 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
