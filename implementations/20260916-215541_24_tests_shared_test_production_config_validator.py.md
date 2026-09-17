@@ -219,12 +219,12 @@ def test_integration_real_config_agent_toml(self) -> None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add ConfigValidationResult identity test | Pending | — | — | |
-| 2 | Add validate_unknown_tool_safety_tiers compatibility test | Pending | — | — | |
-| 3 | Add valid-key-set-unchanged regression test | Pending | — | — | |
-| 4 | Add REQ-007 integration test against real config/agent.toml | Pending | — | — | |
-| 5 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 6 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add ConfigValidationResult identity test | Completed | 20260917-200258 | 20260917-200258 |  |
+| 2 | Add validate_unknown_tool_safety_tiers compatibility test | Completed | 20260917-200258 | 20260917-200258 |  |
+| 3 | Add valid-key-set-unchanged regression test | Completed | 20260917-200258 | 20260917-200258 |  |
+| 4 | Add REQ-007 integration test against real config/agent.toml | Completed | 20260917-200259 | 20260917-200259 |  |
+| 5 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-200259 | 20260917-200259 |  |
+| 6 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-200259 | 20260917-200259 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
