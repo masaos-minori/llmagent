@@ -27,51 +27,68 @@ Add `fields` parameter support to `HttpServerLifecycleManager.start()`'s subproc
 ## Implementation
 ### Target file
 
-`scripts/agent/http_lifecycle_process_terminator.py`
+`scripts/shared/mcp_config.py` (add `fields` field to `McpServerConfig`)
+`scripts/agent/http_lifecycle.py` (merge `cfg.fields` into Popen kwargs in `_create_and_validate_proc`)
 
 ### Procedure
 
-1. Locate the `start()` method in `HttpServerLifecycleManager`.
-2. Add `fields: dict[str, Any] | None = None` parameter to the method signature.
-3. Inside the method, merge `fields` into the Popen kwargs before calling `subprocess.Popen()`.
-4. Update the docstring to document the new parameter.
+1. Add `fields: dict[str, Any] = field(default_factory=dict)` to `McpServerConfig` in `scripts/shared/mcp_config.py`.
+2. In `scripts/agent/http_lifecycle.py`, locate `_create_and_validate_proc()` method.
+3. After the existing `subprocess.Popen()` call, merge `cfg.fields` into the Popen kwargs before passing them.
+4. Update the docstring of `_create_and_validate_proc()` to document the new behavior.
 
 ### Method
 
-Current `start()` method signature (approximate location in `http_lifecycle.py`):
+Current `McpServerConfig` class fields (in `scripts/shared/mcp_config.py`):
 ```python
-async def start(self, server_key: str, command: list[str], ...) -> None:
+class McpServerConfig:
+    transport: TransportType
+    url: str
+    startup_mode: StartupMode = StartupMode.NONE
     ...
-    proc = subprocess.Popen(command, ...)
+    env: dict[str, str] = field(default_factory=dict)
+    key: str = field(default="", compare=False, repr=False)
+    ...
 ```
 
-Required update:
+Required update — add `fields` field after `env`:
 ```python
-async def start(
+    fields: dict[str, Any] = field(default_factory=dict)
+```
+
+Current `_create_and_validate_proc()` method (approximate location in `http_lifecycle.py`):
+```python
+async def _create_and_validate_proc(
     self,
     server_key: str,
-    command: list[str],
-    ...,
-    fields: dict[str, Any] | None = None,
-) -> None:
-    """Start an HTTP-based MCP server subprocess.
-    
-    Args:
-        server_key: Unique identifier for the server.
-        command: Command to execute for the MCP server.
-        fields: Additional keyword arguments to pass to subprocess.Popen().
-            If None, defaults to an empty dict.
-    """
+    cfg: McpServerConfig,
+) -> tuple[subprocess.Popen[bytes], IO[bytes]]:
     ...
-    popen_kwargs: dict[str, Any] = {}
-    if fields:
-        popen_kwargs.update(fields)
-    proc = subprocess.Popen(command, **popen_kwargs)
+    proc = subprocess.Popen(
+        cfg.cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=stderr_fh,
+        env=env,
+        start_new_session=True,
+    )
+```
+
+Required update — merge `cfg.fields` into Popen kwargs:
+```python
+    popen_kwargs: dict[str, Any] = {
+        "stdout": subprocess.DEVNULL,
+        "stderr": stderr_fh,
+        "env": env,
+        "start_new_session": True,
+    }
+    if cfg.fields:
+        popen_kwargs.update(cfg.fields)
+    proc = subprocess.Popen(cfg.cmd, **popen_kwargs)
 ```
 
 ### Details
 
-The `fields` parameter should be added as the last parameter in the method signature. The merging logic should use `dict.update()` to avoid mutating the original `fields` dict. The `popen_kwargs` variable should be initialized before the merge to ensure it always exists.
+The `fields` field should be added as a dataclass field on `McpServerConfig` after `env`. The merging logic in `_create_and_validate_proc()` should use `dict.update()` to avoid mutating the original `cfg.fields` dict. The `popen_kwargs` variable should be initialized as a regular dict before the merge to ensure it always exists.
 
 ## Compatibility considerations
 
@@ -92,16 +109,19 @@ The `fields` parameter should be added as the last parameter in the method signa
 
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| `scripts/agent/http_lifecycle_process_terminator.py` | Code quality | `uv run ruff check scripts/agent/http_lifecycle_process_terminator.py` | Clean |
-| `scripts/agent/http_lifecycle_process_terminator.py` | Type checking | `uv run mypy scripts/agent/http_lifecycle_process_terminator.py` | Clean |
-| `tests/agent/test_http_lifecycle_process_terminator.py` | Regression tests | `uv run pytest tests/agent/test_http_lifecycle_process_terminator.py -v` | All pass |
+| `scripts/shared/mcp_config.py` | Code quality | `uv run ruff check scripts/shared/mcp_config.py` | Clean |
+| `scripts/agent/http_lifecycle.py` | Code quality | `uv run ruff check scripts/agent/http_lifecycle.py` | Clean |
+| `scripts/shared/mcp_config.py` | Type checking | `uv run mypy scripts/shared/mcp_config.py` | Clean |
+| `scripts/agent/http_lifecycle.py` | Type checking | `uv run mypy scripts/agent/http_lifecycle.py` | Clean |
+| `tests/agent/test_http_lifecycle_integration.py` | Regression tests | `uv run pytest tests/agent/test_http_lifecycle_integration.py -v` | All pass |
 
 ## Completion criteria
 
-- `scripts/agent/http_lifecycle_process_terminator.py`'s `start()` method accepts a `fields` parameter.
-- `uv run ruff check scripts/agent/http_lifecycle_process_terminator.py` passes clean.
-- `uv run mypy scripts/agent/http_lifecycle_process_terminator.py` passes clean.
-- `uv run pytest tests/agent/test_http_lifecycle_process_terminator.py -v` passes all tests.
+- `McpServerConfig` has a `fields` field accepting additional keyword arguments for subprocess creation.
+- `scripts/agent/http_lifecycle.py`'s `_create_and_validate_proc()` merges `cfg.fields` into Popen kwargs.
+- `uv run ruff check scripts/shared/mcp_config.py scripts/agent/http_lifecycle.py` passes clean.
+- `uv run mypy scripts/shared/mcp_config.py scripts/agent/http_lifecycle.py` passes clean.
+- `uv run pytest tests/agent/test_http_lifecycle_integration.py -v` passes all tests.
 
 ## Out of scope
 
@@ -113,10 +133,10 @@ The `fields` parameter should be added as the last parameter in the method signa
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260917-124413 | 20260917-124413 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260917-124419 | 20260917-124419 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260917-124425 | 20260917-124425 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-124431 | 20260917-124431 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -136,4 +156,4 @@ The `fields` parameter should be added as the last parameter in the method signa
 - **Source plan**: plans/20260916-141215_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260916-141215
-- **Related target files**: scripts/agent/http_lifecycle_process_terminator.py
+- **Related target files**: scripts/shared/mcp_config.py, scripts/agent/http_lifecycle.py
