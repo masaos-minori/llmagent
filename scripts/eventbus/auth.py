@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from scripts.eventbus.audit import log_auth_failure
+from eventbus.audit import log_auth_failure
 
 logger = logging.getLogger(__name__)
 

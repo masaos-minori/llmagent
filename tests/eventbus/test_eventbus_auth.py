@@ -834,7 +834,7 @@ class TestAuditRecordValidation:
         def capture_log(record: str) -> None:
             captured_records.append(record)
 
-        with patch("scripts.eventbus.audit.logger.warning", side_effect=capture_log):
+        with patch("eventbus.audit.logger.warning", side_effect=capture_log):
             response = self.client.get(
                 "/subscribe",
                 params={"topic": "test", "consumer_id": "consumer_a"},
@@ -870,7 +870,7 @@ class TestAuditRecordValidation:
         def capture_log(record: str) -> None:
             captured_records.append(record)
 
-        with patch("scripts.eventbus.audit.logger.warning", side_effect=capture_log):
+        with patch("eventbus.audit.logger.warning", side_effect=capture_log):
             response = self.client.post(
                 "/events/test-event-id/ack",
                 params={"consumer_id": "consumer_a"},
@@ -906,7 +906,7 @@ class TestAuditRecordValidation:
         def capture_log(record: str) -> None:
             captured_records.append(record)
 
-        with patch("scripts.eventbus.audit.logger.warning", side_effect=capture_log):
+        with patch("eventbus.audit.logger.warning", side_effect=capture_log):
             response = self.client.get(
                 "/subscribe",
                 params={"topic": "test", "consumer_id": "unauthorized-consumer"},
@@ -942,7 +942,7 @@ class TestAuditRecordValidation:
         def capture_log(record: str) -> None:
             captured_records.append(record)
 
-        with patch("scripts.eventbus.audit.logger.warning", side_effect=capture_log):
+        with patch("eventbus.audit.logger.warning", side_effect=capture_log):
             response = self.client.get(
                 "/subscribe",
                 params={"topic": "disallowed-topic", "consumer_id": "consumer_a"},
@@ -986,9 +986,7 @@ class TestAuditRecordValidation:
         for header_value, expected_status in scenarios:
             captured_records.clear()
 
-            with patch(
-                "scripts.eventbus.audit.logger.warning", side_effect=capture_log
-            ):
+            with patch("eventbus.audit.logger.warning", side_effect=capture_log):
                 if expected_status == 401:
                     response = self.client.get(
                         "/subscribe",
