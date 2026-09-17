@@ -153,9 +153,9 @@ async def execute_one_tool_call(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Derive stable idempotency key in execute_one_tool_call() | Pending | — | — | |
-| 2 | Pass idempotency key into audit_tool_exec() | Pending | — | — | |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Derive stable idempotency key in execute_one_tool_call() | Completed | 20260917-214118 | 20260917-214118 |  |
+| 2 | Pass idempotency key into audit_tool_exec() | Completed | 20260917-214118 | 20260917-214118 |  |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-214119 | 20260917-214119 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
