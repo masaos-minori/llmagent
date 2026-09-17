@@ -46,6 +46,7 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.llm.context_token_limit = 0
     ctx.cfg.llm.tokenize_url = ""
     ctx.cfg.tool.system_prompts = {"default": "You are helpful.", "coding": "You code."}
+    ctx.cfg.tool.allowed_tools = ("git_diff",)
     return ctx
 
 
@@ -754,3 +755,27 @@ class TestCmdDiff:
         assert "-old" in out
         assert "+new" in out
         assert "no working-tree diff" not in out
+
+    @pytest.mark.asyncio
+    async def test_cmd_diff_denies_when_git_diff_not_in_allowed_tools(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        ctx.cfg.tool.allowed_tools = ("read_file", "write_file")
+        ctx.conv.history = [_write_tool_call_msg("/repo/a.py")]
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="diff --git a/a.py b/a.py\n@@ -1 +1 @@\n-old\n+new\n",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "agent.commands.cmd_context.git.Repo",
+            return_value=MagicMock(working_tree_dir="/repo"),
+        ):
+            await cmd._cmd_diff()
+        out = capsys.readouterr().out
+        assert "[DENIED]" in out
+        assert "git_diff" in out
+        ctx.services.tools.execute.assert_not_called()

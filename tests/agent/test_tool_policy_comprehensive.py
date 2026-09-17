@@ -614,3 +614,63 @@ class TestSpecialCaseRiskReq001Req002Req003Req004:
         cfg = _cfg(approval_shell_safe_prefixes=["cat"])
         result = _special_case_risk(cfg, "shell_run", {"command": "cat file.txt"})
         assert result == "none"
+
+
+class TestMetacharacterRejectionComprehensive:
+    def test_semicolon_metacharacter_rejected(self) -> None:
+        """REQ-005: ';' must cause HIGH regardless of prefix match."""
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat /etc/hosts; rm -rf /"})
+        assert result == "high"
+
+    def test_ampersand_metacharacter_rejected(self) -> None:
+        """REQ-005: '&' must cause HIGH regardless of prefix match."""
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo & rm bar"})
+        assert result == "high"
+
+    def test_pipe_metacharacter_rejected(self) -> None:
+        """REQ-005: '|' must cause HIGH regardless of prefix match."""
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo | sh"})
+        assert result == "high"
+
+    def test_backtick_metacharacter_rejected(self) -> None:
+        """REQ-005: backtick must cause HIGH regardless of prefix match."""
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat `whoami`"})
+        assert result == "high"
+
+    def test_dollar_paren_metacharacter_rejected(self) -> None:
+        """REQ-005: $(...) must cause HIGH regardless of prefix match."""
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat $'$(rm -rf /)'"})
+        assert result == "high"
+
+    def test_double_ampersand_metacharacter_rejected(self) -> None:
+        """REQ-005: '&&' must cause HIGH regardless of prefix match."""
+        cfg = _cfg(approval_shell_safe_prefixes=["cat"])
+        result = classify_risk(cfg, "shell_run", {"command": "cat foo && rm bar"})
+        assert result == "high"
+
+
+class TestPathArgumentConstraintsComprehensive:
+    def test_cat_protected_path_escalates(self) -> None:
+        """REQ-003: cat on a protected path must escalate to HIGH."""
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+            approval_protected_paths=["/etc/"],
+        )
+        result = classify_risk(cfg, "shell_run", {"command": "cat /etc/shadow"})
+        assert result == "high"
+
+    def test_cat_within_allowed_root_passes(self) -> None:
+        """REQ-003: cat within allowed_root must pass path checks."""
+        cfg = _cfg(
+            approval_shell_safe_prefixes=["cat"],
+            allowed_root="/home/user",
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+        )
+        result = classify_risk(cfg, "shell_run", {"command": "cat /home/user/file.txt"})
+        assert result == "none"

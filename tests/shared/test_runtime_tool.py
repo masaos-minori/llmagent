@@ -123,3 +123,31 @@ class TestRuntimeTool:
     def test_allow_extra_fields_explicit_false_is_honored(self) -> None:
         tool = build_runtime_tool(name="t", server_key="s", allow_extra_fields=False)
         assert tool.allow_extra_fields is False
+
+    def test_llm_visibility_base_defaults_to_mirroring_enabled_for_llm(self) -> None:
+        tool = build_runtime_tool(name="t", server_key="s")
+        assert tool.llm_visibility_base is False
+
+        tool_enabled = build_runtime_tool(
+            name="t", server_key="s", enabled_for_llm=True
+        )
+        assert tool_enabled.llm_visibility_base is True
+
+    def test_llm_visibility_base_explicit_override(self) -> None:
+        tool = build_runtime_tool(
+            name="t", server_key="s", llm_visibility_base=True
+        )
+        assert tool.llm_visibility_base is True
+
+        tool_disabled = build_runtime_tool(
+            name="t", server_key="s", llm_visibility_base=False
+        )
+        assert tool_disabled.llm_visibility_base is False
+
+    def test_llm_visibility_base_preserved_under_replace(self) -> None:
+        tool = build_runtime_tool(
+            name="t", server_key="s", enabled_for_llm=True, llm_visibility_base=False
+        )
+        replaced = dataclasses.replace(tool, description="new desc")
+        assert replaced.llm_visibility_base is False
+        assert replaced.enabled_for_llm is True

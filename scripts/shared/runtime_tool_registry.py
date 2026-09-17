@@ -23,7 +23,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from shared.resource_scope import resolve_resource_scopes
-from shared.runtime_tool import AgentSafetyTier, RuntimeTool
+from shared.runtime_tool import AgentSafetyTier, RuntimeTool, _or_default
 from shared.tool_spec import ToolSpec
 
 
@@ -160,14 +160,19 @@ class RuntimeToolRegistry:
         `agent.config_dataclasses.ToolConfig.allowed_tools`'s own documented
         convention).
         """
+        new_tools: dict[str, RuntimeTool] = {}
         for name, tool in list(self._tools.items()):
             tier = tier_map.get(name, tool.agent_safety_tier)
-            enabled = (not allowed_tools) or (name in allowed_tools)
-            self._tools[name] = dataclasses.replace(
+            resolved_llm_visibility_base = _or_default(tool.llm_visibility_base, True)
+            new_enabled = resolved_llm_visibility_base and (
+                not allowed_tools or name in allowed_tools
+            )
+            new_tools[name] = dataclasses.replace(
                 tool,
                 agent_safety_tier=tier,
-                enabled_for_llm=enabled and tool.enabled_for_llm,
+                enabled_for_llm=new_enabled,
             )
+        self._tools = new_tools
 
     def diagnostics(self) -> list[dict[str, Any]]:
         """Return per-tool diagnostics rows for display in /mcp status.

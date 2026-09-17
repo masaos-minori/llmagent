@@ -50,6 +50,8 @@ class RuntimeTool:
         capabilities:      Capability strings declared by the MCP server (empty tuple if absent).
         allow_extra_fields: True when unexpected/unschemad argument fields should be
                             tolerated instead of rejected by validate_tool_arguments().
+        llm_visibility_base: Immutable base visibility flag set once at discovery time.
+                             Defaults to mirroring ``enabled_for_llm`` when unset.
     """
 
     name: str
@@ -67,6 +69,12 @@ class RuntimeTool:
     enabled_for_llm: bool
     capabilities: tuple[str, ...]
     allow_extra_fields: bool = False
+    llm_visibility_base: bool | None = None
+
+    def __post_init__(self) -> None:
+        """Resolve the immutable base visibility when not explicitly provided."""
+        if object.__getattribute__(self, "llm_visibility_base") is None:
+            object.__setattr__(self, "llm_visibility_base", self.enabled_for_llm)
 
 
 def build_runtime_tool(
@@ -85,6 +93,7 @@ def build_runtime_tool(
     enabled_for_llm: bool | None = None,
     capabilities: tuple[str, ...] | None = None,
     allow_extra_fields: bool | None = None,
+    llm_visibility_base: bool | None = None,
 ) -> RuntimeTool:
     """Build a `RuntimeTool`, applying safe defaults for omitted annotation fields.
 
@@ -99,6 +108,8 @@ def build_runtime_tool(
         - `resource_scope_keys` defaults to an empty tuple when not explicitly supplied.
         - `allow_extra_fields` defaults to False — extra/unschemad fields are rejected
           unless a tool explicitly opts in.
+        - `llm_visibility_base` defaults to mirroring ``enabled_for_llm`` when not
+          explicitly supplied.
     """
     resolved_input_schema = _or_default(input_schema, {})
     resolved_raw_definition = _or_default(raw_definition, {})
@@ -114,6 +125,9 @@ def build_runtime_tool(
     resolved_capabilities = _or_default(capabilities, ())
     resolved_resource_scope_keys = _or_default(resource_scope_keys, ())
     resolved_allow_extra_fields = _or_default(allow_extra_fields, False)
+    resolved_llm_visibility_base = _or_default(
+        llm_visibility_base, resolved_enabled_for_llm
+    )
 
     return RuntimeTool(
         name=name,
@@ -131,4 +145,5 @@ def build_runtime_tool(
         enabled_for_llm=resolved_enabled_for_llm,
         capabilities=resolved_capabilities,
         allow_extra_fields=resolved_allow_extra_fields,
+        llm_visibility_base=resolved_llm_visibility_base,
     )

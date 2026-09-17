@@ -244,6 +244,26 @@ class TestRuntimeToolRegistry:
         assert len(rows) == 1
         assert rows[0]["name"] == "tool_b"
 
+    def test_disable_then_re_enable_returns_true(self) -> None:
+        tool = build_runtime_tool(
+            name="t", server_key="s", enabled_for_llm=True
+        )
+        reg = _registry_with(tool)
+        # First call: disable the tool
+        reg.apply_policy(tier_map={}, allowed_tools=["other"])
+        assert reg.get("t").enabled_for_llm is False
+        # Second call: re-enable it
+        reg.apply_policy(tier_map={}, allowed_tools=["t"])
+        assert reg.get("t").enabled_for_llm is True
+
+    def test_atomic_single_swap_identity_change(self) -> None:
+        tool = build_runtime_tool(name="t", server_key="s", enabled_for_llm=True)
+        reg = _registry_with(tool)
+        old_id = id(reg._tools)
+        reg.apply_policy(tier_map={}, allowed_tools=("t",))
+        new_id = id(reg._tools)
+        assert old_id != new_id
+
 
 class TestDisabledServerExclusion:
     def test_disabled_server_tools_not_included(self) -> None:

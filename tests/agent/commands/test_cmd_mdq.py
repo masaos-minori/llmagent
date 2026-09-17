@@ -16,8 +16,9 @@ class _Ctx:
     """Minimal stub for AgentContext with services.tools."""
 
     services: Any
+    cfg: Any
 
-    def __init__(self, *, tools_available: bool = True) -> None:
+    def __init__(self, *, tools_available: bool = True, allowed_tools: tuple[str, ...] | None = None) -> None:
         if tools_available:
             self.services = MagicMock()
             self.services.tools = MagicMock()
@@ -26,6 +27,9 @@ class _Ctx:
             )
         else:
             self.services = None
+        mock_cfg = MagicMock()
+        mock_cfg.tool.allowed_tools = allowed_tools
+        self.cfg = mock_cfg
 
     @property
     def services_required(self) -> Any:
@@ -335,3 +339,18 @@ class TestMdqErrorHandling:
         out = capsys.readouterr().out
         assert "error" in out
         assert "permission denied" in out
+
+    @pytest.mark.asyncio
+    async def test_preflight_denial_when_tool_not_in_allowed_tools(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _Ctx(allowed_tools=("read_file", "write_file"))
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=DispatchResult(is_error=False, output="ok")
+        )
+        mdq = _Mdq(ctx)
+        await mdq._cmd_mdq_search("query")
+        out = capsys.readouterr().out
+        assert "[DENIED]" in out
+        assert "search_docs" in out
+        ctx.services_required.tools.execute.assert_not_called()

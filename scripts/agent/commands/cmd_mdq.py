@@ -18,7 +18,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+import agent.tool_policy
 from agent.commands.mixin_base import MixinBase
+from agent.tool_policy import PolicyViolationError
 
 if TYPE_CHECKING:
     from shared.tool_executor import ToolExecutor
@@ -61,6 +63,11 @@ class _MdqMixin(MixinBase):
         success_label: str,
     ) -> None:
         """Execute an MDQ tool call and write '[mdq] error: ...' or the success label + output."""
+        try:
+            agent.tool_policy.check_preflight(self._ctx.cfg, tool_name, tool_args)
+        except PolicyViolationError as e:
+            self._out.write(f"[DENIED] {tool_name}: {e}")
+            return
         result = await tools.execute(tool_name, tool_args)
         if result.is_error:
             self._out.write(f"[mdq] error: {result.output}")

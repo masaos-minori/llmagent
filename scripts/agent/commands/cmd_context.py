@@ -29,10 +29,10 @@ import orjson
 from agent.commands.mixin_base import MixinBase
 from agent.commands.token_display import TokenDisplay
 from agent.commands.utils import parse_command_args
-from agent.output_tags import OutputTag
 from agent.services.context_view import collect_context_state
 from agent.services.conversation_service import clear_conversation, switch_system_prompt
 from agent.services.exceptions import ContextStateBuildError, ConversationStateError
+from agent.tool_policy import PolicyViolationError, check_preflight
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +201,11 @@ class _ContextMixin(MixinBase, TokenDisplay):
             return
         if ctx.services is None or ctx.services.tools is None:
             self._out.write("MCP tool executor not available.")
+            return
+        try:
+            check_preflight(ctx.cfg, "git_diff", {})
+        except PolicyViolationError as e:
+            self._out.write(f"[DENIED] git_diff: {e}")
             return
         by_repo, outside_repo = self._group_paths_by_repo(paths)
         for path in outside_repo:
