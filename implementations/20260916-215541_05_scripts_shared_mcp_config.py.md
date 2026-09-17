@@ -206,12 +206,13 @@ class StartupMode(StrEnum):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Relax _validate_auth_token; document required/failure_policy | Pending | — | — | |
-| 2 | Fix health_timeout=0 handling; correct error message | Pending | — | — | |
-| 3 | Add per-mode required-field documentation | Pending | — | — | |
-| 4 | Add regression tests for REQ-004/006/007/010 | Pending | — | — | |
-| 5 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 6 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Relax _validate_auth_token; document required/failure_policy | Completed | 20260917-000000 | 20260917-000000 | Done |
+| 2 | Fix health_timeout=0 handling; correct error message | Completed | 20260917-000000 | 20260917-000000 | Done |
+| 3 | Add per-mode required-field documentation | Completed | 20260917-000000 | 20260917-000000 | Done |
+| 4 | Add regression tests for REQ-004/006/007/010 | Completed | 20260917-000000 | 20260917-000000 | Existing test updated |
+| 5 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-000000 | 20260917-000000 | All tests pass |
+| 6 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-000000 | 20260917-000000 | Not in scope |
+
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
