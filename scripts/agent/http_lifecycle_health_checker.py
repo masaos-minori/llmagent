@@ -12,7 +12,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-_HEALTH_RECHECK_INTERVAL_SEC = 10.0
+HEALTH_RECHECK_INTERVAL_SEC = 10.0
 _DEFAULT_HEALTH_URL = "http://localhost:8080/health"
 _DEFAULT_TIMEOUT = 5.0
 _STARTUP_MAX_RETRIES = 30

@@ -90,7 +90,6 @@ class ShutdownCoordinator:
                         "Lifecycle: %r already exited; removing entry", server_key
                     )
                     continue
-                terminator = manager._process_terminator
                 logger.info("Shutting down %s...", server_key)
                 terminate_kwargs: dict[str, Any] = {
                     "timeout": _SHUTDOWN_TIMEOUT_SEC,
@@ -100,6 +99,19 @@ class ShutdownCoordinator:
                 await terminator.terminate_with_timeout(
                     proc, server_key, **terminate_kwargs
                 )
+                manager._http_pgids.pop(server_key, None)
+                stderr_fh = manager._stderr_files.pop(server_key, None)
+                if stderr_fh is not None:
+                    try:
+                        stderr_fh.close()
+                    except OSError as close_err:
+                        logger.warning(
+                            "Lifecycle: error closing stderr log for %r: %s",
+                            server_key,
+                            close_err,
+                        )
+            manager._stderr_log_paths.clear()
+            manager._last_health_check.clear()
         finally:
             if old_sigint is not None:
                 try:

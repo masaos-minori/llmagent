@@ -8,7 +8,7 @@ import logging
 import os
 import subprocess
 from dataclasses import asdict, dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class ProcessInfoSnapshot:
+class RawProcessSnapshot:
     """Immutable snapshot of process information."""
 
     pid: int
@@ -45,14 +45,15 @@ class ProcessInfoSnapshot:
     fd_list: list[tuple[int, str]]
 
     @classmethod
-    def from_proc_pid(cls, pid: int) -> ProcessInfoSnapshot:
+    def from_proc_pid(cls, pid: int, *, fields: frozenset[str] | None = None) -> RawProcessSnapshot:
         """Create snapshot from /proc/[pid] filesystem.
 
         Args:
             pid: Process ID to inspect.
+            fields: Optional frozenset of field names to fetch. If None, fetches all fields.
 
         Returns:
-            ProcessInfoSnapshot instance.
+            RawProcessSnapshot instance.
 
         Raises:
             FileNotFoundError: If /proc/[pid] does not exist.
@@ -62,6 +63,7 @@ class ProcessInfoSnapshot:
         if not os.path.exists(proc_dir):
             raise FileNotFoundError(f"/proc/{pid} does not exist")
 
+        # Always read all fields (for simplicity; optimization can be added later)
         name = cls._read_name(pid)
         cmdline = cls._read_cmdline(pid)
         cwd = cls._read_cwd(pid)
@@ -85,30 +87,45 @@ class ProcessInfoSnapshot:
         limits = cls._read_limits(pid)
         fd_list = cls._read_fd_list(pid)
 
+        # Filter to requested fields if specified
+        if fields is not None:
+            filtered_kwargs: dict[str, object] = {"pid": pid}
+            field_map: dict[str, object] = {
+                "name": name, "cmdline": cmdline, "cwd": cwd, "status": status,
+                "open_files": open_files, "connections": connections,
+                "memory_info": memory_info, "io_counters": io_counters,
+                "num_threads": num_threads, "create_time": create_time,
+                "cpu_times": cpu_times, "env_vars": env_vars, "maps": maps,
+                "cgroups": cgroups, "oom_score": oom_score, "oom_score_adj": oom_score_adj,
+                "sched_stat": sched_stat, "numa_maps": numa_maps,
+                "syscall_info": syscall_info, "stack_trace": stack_trace,
+                "limits": limits, "fd_list": fd_list,
+            }
+            for field_name in fields:
+                if field_name != "pid":
+                    value = field_map.get(field_name)
+                    if value is not None:
+                        filtered_kwargs[field_name] = value
+            return cls(**cast(dict[str, Any], filtered_kwargs))
+
         return cls(
-            pid=pid,
-            name=name,
-            cmdline=cmdline,
-            cwd=cwd,
-            status=status,
-            open_files=open_files,
-            connections=connections,
-            memory_info=memory_info,
-            io_counters=io_counters,
-            num_threads=num_threads,
-            create_time=create_time,
-            cpu_times=cpu_times,
-            env_vars=env_vars,
-            maps=maps,
-            cgroups=cgroups,
-            oom_score=oom_score,
-            oom_score_adj=oom_score_adj,
-            sched_stat=sched_stat,
-            numa_maps=numa_maps,
-            syscall_info=syscall_info,
-            stack_trace=stack_trace,
-            limits=limits,
-            fd_list=fd_list,
+            pid=pid, name=name, cmdline=cmdline, cwd=cwd, status=status,
+            open_files=open_files, connections=connections, memory_info=memory_info,
+            io_counters=io_counters, num_threads=num_threads, create_time=create_time,
+            cpu_times=cpu_times, env_vars=env_vars, maps=maps, cgroups=cgroups,
+            oom_score=oom_score, oom_score_adj=oom_score_adj, sched_stat=sched_stat,
+            numa_maps=numa_maps, syscall_info=syscall_info, stack_trace=stack_trace,
+            limits=limits, fd_list=fd_list,
+        )
+
+        return cls(
+            pid=pid, name=name, cmdline=cmdline, cwd=cwd, status=status,
+            open_files=open_files, connections=connections, memory_info=memory_info,
+            io_counters=io_counters, num_threads=num_threads, create_time=create_time,
+            cpu_times=cpu_times, env_vars=env_vars, maps=maps, cgroups=cgroups,
+            oom_score=oom_score, oom_score_adj=oom_score_adj, sched_stat=sched_stat,
+            numa_maps=numa_maps, syscall_info=syscall_info, stack_trace=stack_trace,
+            limits=limits, fd_list=fd_list,
         )
 
     @staticmethod
@@ -487,8 +504,10 @@ class ProcessSnapshotProvider:
         server_key: str,
         proc: subprocess.Popen[bytes],
         pgid: int | None,
-    ) -> ProcessInfoSnapshot | None:
-        """Return a ``ProcessInfoSnapshot`` for *server_key* or ``None``.
+        *,
+        fields: frozenset[str] | None = None,
+    ) -> RawProcessSnapshot | None:
+        """Return a ``RawProcessSnapshot`` for *server_key* or ``None``.
 
         Falls back to the parent PID when the child has already exited.
         """
@@ -497,12 +516,12 @@ class ProcessSnapshotProvider:
             logger.debug("%s: no PID available on proc object", server_key)
             return None
         try:
-            return ProcessInfoSnapshot.from_proc_pid(pid)
+            return RawProcessSnapshot.from_proc_pid(pid, fields=fields)
         except FileNotFoundError:
             # Child may have exited; fall back to parent group leader.
             if pgid is not None:
                 try:
-                    return ProcessInfoSnapshot.from_proc_pid(pgid)
+                    return RawProcessSnapshot.from_proc_pid(pgid, fields=fields)
                 except FileNotFoundError:
                     pass
             logger.debug("%s: /proc/%d does not exist", server_key, pid)
@@ -526,9 +545,9 @@ class ProcessSnapshotProvider:
     @staticmethod
     def list_processes(
         manager: HttpServerLifecycleManager,
-    ) -> list[ProcessInfoSnapshot]:
+    ) -> list[RawProcessSnapshot]:
         """Return snapshots for every managed server whose process is alive."""
-        results: list[ProcessInfoSnapshot] = []
+        results: list[RawProcessSnapshot] = []
         for server_key, proc in manager._http_procs.items():
             if proc is None:
                 continue
