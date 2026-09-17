@@ -134,20 +134,41 @@ class TestExtensionLessPathResolution:
 
 
 class TestKnownToolsNoneFallback:
-    """SHARED-6: Verify known_tools=None does not cause validation failure."""
+    """T-6: Reconciled with REQ-001's fail-closed semantics.
 
-    def test_known_tools_none_skips_tool_validation_only(self) -> None:
-        """When known_tools is None, tool tier validation is skipped but
-        other validations (strict mode etc.) may still produce errors."""
+    NOTE: This class was originally written under SHARED-6
+    (plans/done/20260726-193048_plan.md) to assert the old fail-open behavior
+    (known_tools=None skips tool tier validation). After REQ-001's fail-closed
+    change, these tests now assert the new fail-closed semantics.
+
+    This class intentionally supersedes SHARED-6 per ADR-004's fail-closed
+    principle: production validation cannot succeed without an authoritative
+    tool set.
+    """
+
+    def test_known_tools_none_produces_error_on_registry_failure(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """REQ-001/T-6: When known_tools=None and registry lookup fails,
+        the validator must surface a validation error instead of silently skipping."""
         config: dict[str, Any] = {
             "tool_safety_tiers": {"some_tool": "WRITE_SAFE"},
         }
         validator = ProductionConfigValidator()
+
+        def _raise() -> None:
+            raise ValueError(
+                "Tool 'duplicate_tool' already registered to server 'server_a'; cannot reassign to 'server_b'"
+            )
+
+        monkeypatch.setattr("shared.tool_registry.get_registry", _raise)
         result = validator.validate(
             config, security_profile="production", known_tools=None
         )
-        # Errors from other checks (strict mode, unknown tools) still appear
-        assert len(result.errors) > 0
+        assert any(
+            "registry" in err.lower() or "resolution" in err.lower()
+            for err in result.errors
+        )
 
     def test_known_tools_empty_set_validates_all_as_unknown(self) -> None:
         """When known_tools is empty set, all safety tiers are flagged as unknown."""
@@ -158,4 +179,5 @@ class TestKnownToolsNoneFallback:
         result = validator.validate(
             config, security_profile="production", known_tools=set()
         )
+        assert any("not a registered tool name" in err for err in result.errors)
         assert len(result.errors) > 0
