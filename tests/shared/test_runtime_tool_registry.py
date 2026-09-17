@@ -294,3 +294,31 @@ class TestDisabledServerExclusion:
         )
         tool_names = {t.name for t in reg.all_tools()}
         assert "read_file" in tool_names
+
+
+class TestApplyPolicyReversibility:
+    def test_disable_then_re_enable_sequence(self) -> None:
+        """A tool disabled by one apply_policy() call becomes re-enabled by a subsequent call with the tool back in allowed_tools."""
+        tool = build_runtime_tool(
+            name="shell_run", server_key="s", enabled_for_llm=True
+        )
+        reg = _registry_with(tool)
+        # First call: disable the tool
+        reg.apply_policy(tier_map={}, allowed_tools=["other_tool"])
+        assert reg.get("shell_run").enabled_for_llm is False
+        # Second call: re-enable the tool
+        reg.apply_policy(tier_map={}, allowed_tools=["shell_run"])
+        assert reg.get("shell_run").enabled_for_llm is True
+
+    def test_atomic_single_swap_per_call(self) -> None:
+        """The _tools mapping reference changes identity exactly once per apply_policy() call."""
+        tool = build_runtime_tool(
+            name="shell_run", server_key="s", enabled_for_llm=True
+        )
+        reg = _registry_with(tool)
+        old_id = id(reg._tools)
+        reg.apply_policy(tier_map={}, allowed_tools=[])
+        new_id = id(reg._tools)
+        assert old_id != new_id
+        assert len(reg._tools) == 1
+        assert reg.get("shell_run").enabled_for_llm is True
