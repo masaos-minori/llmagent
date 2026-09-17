@@ -131,9 +131,9 @@ The test ensures `AGENT_RESTRICT_CONFIG` is not set during execution (by popping
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add TestRestrictToUnconditional test class | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add TestRestrictToUnconditional test class | Completed | 20260917-200656 | 20260917-200656 |  |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-200656 | 20260917-200656 |  |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-200657 | 20260917-200657 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
