@@ -196,6 +196,8 @@ def audit_tool_exec(
         error_type=error_type,
         workflow_id=ctx.workflow.workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
+        idempotency_key=idempotency_key,
+        task_linkage=task_linkage,
         artifact_uri=artifact_uri,
         idempotency_key=idempotency_key,
         task_linkage=task_linkage,

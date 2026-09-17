@@ -12,12 +12,38 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from shared.tool_constants import (
+    CICD_WRITE_TOOLS,
+    DELETE_TOOLS,
+    GIT_WRITE_TOOLS,
+    GITHUB_DANGEROUS_TOOLS,
+    GITHUB_WRITE_TOOLS,
+    RAG_WRITE_TOOLS,
+    SHELL_TOOLS,
+    WRITE_TOOLS,
+)
+
 from mcp_servers.models import CallToolResponse
 from scripts.shared import tool_constants  # side-effecting classification
 
 logger = logging.getLogger(__name__)
 
 ToolArgs = dict[str, Any]
+
+_duplicate_cache: dict[str, DispatchResult] = {}
+
+_write_tools = (
+    set(WRITE_TOOLS)
+    | set(DELETE_TOOLS)
+    | set(GIT_WRITE_TOOLS)
+    | set(RAG_WRITE_TOOLS)
+    | set(CICD_WRITE_TOOLS)
+    | set(GITHUB_WRITE_TOOLS)
+    | set(GITHUB_DANGEROUS_TOOLS)
+    | set(SHELL_TOOLS)
+)
+
+
 
 
 @dataclass(frozen=True)
@@ -103,7 +129,6 @@ async def dispatch_tool(
             _duplicate_cache[idempotency_key] = dispatched_result
         return dispatched_result
     except ValueError as e:
-        # Validation / user-input errors: return as tool error, not server fault
         logger.warning("Tool '%s' validation error: %s", name, e)
         error_result = DispatchResult(output=f"Validation error: {e}", is_error=True)
         # cache the error result for deduplication

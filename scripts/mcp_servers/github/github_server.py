@@ -171,7 +171,7 @@ async def call_tool(req: CallToolRequest, request: "Request") -> CallToolRespons
     if not enabled:
         return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
 
-    session_id, request_id = extract_request_context(request)
+    request_id, session_id, request_id = extract_request_context(request)
     r = await _dispatch_github_tool(req.name, req.args)
     _audit_log(
         logger,

@@ -78,7 +78,7 @@ def _mdq_error_handler(
 ) -> JSONResponse:
     """Format an MDQ error into a JSONResponse with consistent structure."""
     logger.info("MDQ %s error: %s", error_kind, exc)
-    session_id, request_id = extract_request_context(request)
+    request_id, session_id, _ = extract_request_context(request)
     _audit_log(
         logger,
         session_id=session_id,
@@ -340,7 +340,7 @@ async def list_tools(
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Handle MCP call_tool requests with audit logging and error handling."""
     t0 = time.perf_counter()
-    session_id, request_id = extract_request_context(request)
+    request_id, session_id, _ = extract_request_context(request)
     target = extract_audit_target(req.name, req.args)
 
     try:

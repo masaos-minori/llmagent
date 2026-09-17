@@ -218,7 +218,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     if not enabled:
         return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
 
-    session_id, request_id = extract_request_context(request)
+    request_id, session_id, request_id = extract_request_context(request)
     t0 = time.perf_counter()
     outcome = "ok"
     error_type = ""

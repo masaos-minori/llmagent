@@ -1,11 +1,10 @@
 """scripts/agent/services/config_reload.py
 
-ConfigReloadService — applies reloaded configuration to live service instances.
+ConfigReloadService — thin orchestrator over extracted sub-modules.
 
 Responsibilities:
   apply_config_dict()  — update ctx.cfg fields from raw dict and sync services
   _sync_services()     — propagate already-updated cfg to live service instances (private)
-  _reload_section_fields() — registry-driven field updates for non-dataclass sections
   _classify_startup_only_fields() — identify fields requiring restart on change
 
 Both return ConfigReloadOutcome so callers can display what changed.
@@ -13,153 +12,28 @@ Both return ConfigReloadOutcome so callers can display what changed.
 
 from __future__ import annotations
 
-import dataclasses
-from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
-from shared.mcp_config import McpServerConfig
-
+from agent.services.config_outcome_classification import (
+    classify_mcp_server_changes,
+    classify_startup_only_fields,
+    detect_diagnostics_live_fields,
+)
+from agent.services.config_section_reload import (
+    reload_direct_fields,
+    reload_validated_section,
+)
+from agent.services.config_service_sync import ServiceSyncer
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.models import ConfigReloadRequest
 
 if TYPE_CHECKING:
-    from shared.runtime_tool import AgentSafetyTier
     from shared.runtime_tool_registry import RuntimeToolRegistry
 
     from agent.context import AgentContext
     from agent.history import HistoryManager
     from agent.llm_client import LLMClient
-
-from collections.abc import Callable
-
-from agent.services.config_validators import (
-    validate_llm_context_char_limit,
-    validate_llm_context_token_limit,
-    validate_llm_http_timeout,
-    validate_llm_max_retries,
-    validate_llm_max_tokens,
-    validate_llm_retry_base_delay,
-    validate_llm_sse_heartbeat_timeout,
-    validate_llm_sse_malformed_retry,
-    validate_llm_sse_reconnect_max,
-    validate_llm_temperature,
-    validate_rag_refiner_max_chars_per_chunk,
-    validate_rag_refiner_max_tokens,
-    validate_rag_refiner_timeout,
-    validate_tool_max_tool_turns,
-    validate_tool_result_max_llm_chars,
-)
-
-
-@dataclass(frozen=True)
-class ConfigFieldRegistry:
-    name: str
-    section_path: str
-    hot_reloadable: bool
-    validator_fn: Callable[[Any], None] | None = None
-
-
-CONFIG_FIELD_REGISTRY: Mapping[str, ConfigFieldRegistry] = {
-    entry.name: entry
-    for entry in [
-        # LLM section
-        ConfigFieldRegistry("http_timeout", "llm", True, validate_llm_http_timeout),
-        ConfigFieldRegistry(
-            "context_token_limit", "llm", False, validate_llm_context_token_limit
-        ),
-        ConfigFieldRegistry(
-            "context_char_limit", "llm", False, validate_llm_context_char_limit
-        ),
-        ConfigFieldRegistry("context_compress_turns", "llm", False),
-        ConfigFieldRegistry("llm_temperature", "llm", True, validate_llm_temperature),
-        ConfigFieldRegistry("llm_max_tokens", "llm", True, validate_llm_max_tokens),
-        ConfigFieldRegistry("llm_url", "llm", True),
-        ConfigFieldRegistry("llm_max_retries", "llm", True, validate_llm_max_retries),
-        ConfigFieldRegistry(
-            "llm_retry_base_delay", "llm", True, validate_llm_retry_base_delay
-        ),
-        ConfigFieldRegistry(
-            "sse_heartbeat_timeout", "llm", True, validate_llm_sse_heartbeat_timeout
-        ),
-        ConfigFieldRegistry(
-            "sse_malformed_retry", "llm", True, validate_llm_sse_malformed_retry
-        ),
-        ConfigFieldRegistry(
-            "sse_reconnect_max", "llm", True, validate_llm_sse_reconnect_max
-        ),
-        ConfigFieldRegistry("llm_stream_retry_on_heartbeat_timeout", "llm", True),
-        ConfigFieldRegistry("llm_stream_retry_on_malformed_chunk", "llm", True),
-        # RAG section
-        ConfigFieldRegistry("embed_url", "rag", True),
-        ConfigFieldRegistry("web_search_url", "rag", True),
-        ConfigFieldRegistry("use_refiner", "rag", True),
-        ConfigFieldRegistry(
-            "refiner_max_tokens", "rag", True, validate_rag_refiner_max_tokens
-        ),
-        ConfigFieldRegistry(
-            "refiner_timeout", "rag", True, validate_rag_refiner_timeout
-        ),
-        ConfigFieldRegistry(
-            "refiner_max_chars_per_chunk",
-            "rag",
-            True,
-            validate_rag_refiner_max_chars_per_chunk,
-        ),
-        # Tool section
-        ConfigFieldRegistry(
-            "max_tool_turns", "tool", True, validate_tool_max_tool_turns
-        ),
-        ConfigFieldRegistry(
-            "tool_result_max_llm_chars",
-            "tool",
-            True,
-            validate_tool_result_max_llm_chars,
-        ),
-        ConfigFieldRegistry("serial_tool_calls", "tool", True),
-        ConfigFieldRegistry("tool_definitions_strict", "tool", True),
-        ConfigFieldRegistry("plan_blocked_tools", "tool", True),
-        ConfigFieldRegistry("system_prompt_tool", "tool", True),
-        ConfigFieldRegistry("system_prompts", "tool", True),
-        ConfigFieldRegistry("tool_definitions", "tool", True),
-        ConfigFieldRegistry("allowed_tools", "tool", True),
-        ConfigFieldRegistry("routing_drift_strict", "tool", False),
-        # Approval section
-        ConfigFieldRegistry("approval_risk_rules", "approval", True),
-        ConfigFieldRegistry("approval_protected_paths", "approval", True),
-        ConfigFieldRegistry("approval_high_risk_branches", "approval", True),
-        ConfigFieldRegistry("approval_shell_safe_prefixes", "approval", True),
-        ConfigFieldRegistry("approval_resource_keys", "approval", True),
-        ConfigFieldRegistry("approval_dry_run_tools", "approval", True),
-        ConfigFieldRegistry("tool_safety_tiers", "approval", True),
-        ConfigFieldRegistry("allowed_root", "approval", True),
-        ConfigFieldRegistry("approval_github_allowed_repos", "approval", True),
-        ConfigFieldRegistry("gitops_push_blocked", "approval", False),
-        # Memory section
-        ConfigFieldRegistry("memory_retention_days", "memory", True),
-        ConfigFieldRegistry("memory_local_only", "memory", True),
-        ConfigFieldRegistry("use_memory_layer", "memory", False),
-        ConfigFieldRegistry("memory_embed_enabled", "memory", False),
-        # MCP section
-        ConfigFieldRegistry("security_profile", "mcp", True),
-        ConfigFieldRegistry("security_lockdown_enabled", "mcp", True),
-    ]
-}
-
-_MCP_SERVER_FIELDS = tuple(f.name for f in dataclasses.fields(McpServerConfig))
-
-
-def _diff_mcp_server_config(old: McpServerConfig, new: McpServerConfig) -> list[str]:
-    """Return names of McpServerConfig fields that differ between old and new.
-
-    Pure comparison — never mutates either argument. Field order follows
-    _MCP_SERVER_FIELDS, so output is deterministic for a given pair of inputs.
-    """
-    return [
-        field_name
-        for field_name in _MCP_SERVER_FIELDS
-        if getattr(old, field_name) != getattr(new, field_name)
-    ]
 
 
 @dataclass
@@ -222,42 +96,16 @@ class ConfigReloadService:
         outcome = ConfigReloadOutcome()
         for section_path in ("llm", "rag", "tool"):
             cfg = getattr(ctx.cfg, section_path)
-            changed_fields: dict[str, Any] = {}
-            for field_entry in CONFIG_FIELD_REGISTRY.values():
-                if field_entry.section_path != section_path:
-                    continue
-                value = new_cfg.get(field_entry.name)
-                if value is None or value == getattr(cfg, field_entry.name):
-                    continue
-                changed_fields[field_entry.name] = value
+            changed_fields = reload_validated_section(ctx, section_path, new_cfg)
             if changed_fields:
-                try:
-                    replaced = dataclasses.replace(cfg, **changed_fields)
-                except ValueError as e:
-                    raise ConfigReloadValidationError(str(e)) from e
-                for field_entry in CONFIG_FIELD_REGISTRY.values():
-                    if (
-                        field_entry.section_path == section_path
-                        and field_entry.validator_fn
-                    ):
-                        try:
-                            field_entry.validator_fn(replaced)
-                        except ValueError as e:
-                            raise ConfigReloadValidationError(
-                                f"{section_path}.{field_entry.name}: {e}"
-                            ) from e
-                setattr(ctx.cfg, section_path, replaced)
-        # web_search_url handled by registry-driven loop above
-        self._reload_section_fields(ctx, new_cfg, "approval")
-        self._reload_section_fields(ctx, new_cfg, "memory")
-        self._reload_section_fields(
-            ctx,
-            new_cfg,
-            "mcp",
-            field_filter=lambda e: (
-                e.name in ("security_profile", "security_lockdown_enabled")
-            ),
-        )
+                setattr(ctx.cfg, section_path, cfg)
+                outcome.applied.append(section_path)
+        for section_path in ("approval", "memory", "mcp"):
+            cfg = getattr(ctx.cfg, section_path)
+            changed_fields_dict = reload_direct_fields(ctx, new_cfg, section_path)
+            if changed_fields_dict:
+                setattr(ctx.cfg, section_path, cfg)
+                outcome.applied.append(section_path)
         if "system_prompt_tool" in new_cfg:
             ctx.conv.system_prompt_content = new_cfg["system_prompt_tool"]
         if "allowed_tools" in new_cfg:
@@ -315,41 +163,15 @@ class ConfigReloadService:
         runtime_tools_service: RuntimeToolRegistry | None,
     ) -> ConfigReloadOutcome:
         """Apply new_cfg values to running service instances; return a report."""
+        syncer = ServiceSyncer(self._ctx)
+        sync_result = syncer.sync_all(
+            self._ctx.cfg.llm,
+            self._ctx.cfg.rag,
+            self._ctx.cfg.tool,
+        )
         result = ConfigReloadOutcome()
-        ctx = self._ctx
-
-        if llm_service is not None:
-            llm_service.apply_config(
-                temperature=ctx.cfg.llm.llm_temperature,
-                max_tokens=ctx.cfg.llm.llm_max_tokens,
-                max_retries=ctx.cfg.llm.llm_max_retries,
-                retry_base_delay=ctx.cfg.llm.llm_retry_base_delay,
-                sse_heartbeat_timeout=ctx.cfg.llm.sse_heartbeat_timeout,
-                sse_malformed_retry=ctx.cfg.llm.sse_malformed_retry,
-                sse_reconnect_max=ctx.cfg.llm.sse_reconnect_max,
-                stream_retry_on_heartbeat_timeout=ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout,
-                stream_retry_on_malformed_chunk=ctx.cfg.llm.llm_stream_retry_on_malformed_chunk,
-            )
-            result.applied.append("llm")
-
-        if hist_mgr_service is not None:
-            hist_mgr_service.apply_config(
-                char_limit=ctx.cfg.llm.context_char_limit,
-                compress_turns=ctx.cfg.llm.context_compress_turns,
-                token_limit=ctx.cfg.llm.context_token_limit,
-                tokenize_url=ctx.cfg.llm.tokenize_url,
-            )
-            result.applied.append("hist_mgr")
-
-        if runtime_tools_service is not None:
-            runtime_tools_service.apply_policy(
-                tier_map=cast(
-                    Mapping[str, "AgentSafetyTier"], ctx.cfg.approval.tool_safety_tiers
-                ),
-                allowed_tools=ctx.cfg.tool.allowed_tools,
-            )
-            result.applied.append("runtime_tools")
-
+        result.applied.extend(sync_result.applied)
+        result.skipped.extend(sync_result.skipped)
         return result
 
     # ── cfg-field update helpers (moved from _ConfigMixin) ────────────────────
@@ -382,54 +204,12 @@ class ConfigReloadService:
             if old_srv is None:
                 result.needs_restart.append(f"mcp_servers/{key} (new server)")
                 continue
-            for field_name in _diff_mcp_server_config(old_srv, new_srv):
-                result.needs_restart.append(f"mcp_servers/{key}.{field_name}")
+            for path in classify_mcp_server_changes(ctx, new_cfg):
+                result.needs_restart.append(path)
         for key in old_mcp:
             if key not in new_mcp:
                 result.needs_restart.append(f"mcp_servers/{key} (removed server)")
         return result
-
-    def _reload_section_fields(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-        section_path: str,
-        field_filter: Callable[[ConfigFieldRegistry], bool] | None = None,
-    ) -> None:
-        """Apply field updates to a config section based on CONFIG_FIELD_REGISTRY.
-
-        Args:
-            ctx: AgentContext for accessing cfg
-            new_cfg: New configuration dict
-            section_path: Dot-separated path to the target section (e.g., "approval")
-            field_filter: Optional callable that takes a ConfigFieldRegistry entry
-                and returns True if the field should be processed. If None,
-                processes all entries whose section_path matches.
-        """
-        parts = section_path.split(".")
-        obj = ctx.cfg
-        for part in parts:
-            obj = getattr(obj, part)
-
-        # Determine which entries to process
-        entries_to_process = [
-            entry
-            for entry in CONFIG_FIELD_REGISTRY.values()
-            if entry.section_path == section_path
-        ]
-        if field_filter is not None:
-            entries_to_process = [e for e in entries_to_process if field_filter(e)]
-
-        for entry in entries_to_process:
-            value = new_cfg.get(entry.name)
-            if value is None:
-                continue
-            if isinstance(value, dict):
-                setattr(obj, entry.name, dict(value))
-            elif isinstance(value, list):
-                setattr(obj, entry.name, list(value))
-            else:
-                setattr(obj, entry.name, value)
 
     def _classify_startup_only_fields(
         self,
@@ -437,22 +217,9 @@ class ConfigReloadService:
     ) -> list[str]:
         """Return names of startup-only fields that differ between new_cfg and running cfg.
 
-        Uses CONFIG_FIELD_REGISTRY.hot_reloadable as the single source of truth:
-        fields with hot_reloadable=False that differ between new and running cfg
-        are reported here.
+        Delegates to classify_startup_only_fields from config_outcome_classification.
         """
-        changed: list[str] = []
-        ctx = self._ctx
-        for entry in CONFIG_FIELD_REGISTRY.values():
-            if entry.hot_reloadable:
-                continue
-            value = new_cfg.get(entry.name)
-            if value is None:
-                continue
-            current = getattr(getattr(ctx.cfg, entry.section_path), entry.name)
-            if value != current:
-                changed.append(entry.name)
-        return changed
+        return classify_startup_only_fields(self._ctx, new_cfg)
 
     def _detect_diagnostics_live_fields(
         self,
@@ -463,19 +230,4 @@ class ConfigReloadService:
         These fields take effect immediately on every DiagnosticStore save()/fetch()
         call, independent of /reload — they are config-file-driven, not startup-only.
         """
-        changed: list[str] = []
-        ctx = self._ctx
-        diag_new = new_cfg.get("diagnostics")
-        if diag_new is None:
-            return changed
-        diag_running = getattr(ctx.cfg, "diagnostics", None)
-        if diag_running is None:
-            return changed
-        for key in ("encryption_key", "retention_days", "sensitive_fields"):
-            v = diag_new.get(key)
-            if v is None:
-                continue
-            current = getattr(diag_running, key, None)
-            if v != current:
-                changed.append(f"diagnostics.{key}")
-        return changed
+        return detect_diagnostics_live_fields(self._ctx, new_cfg)

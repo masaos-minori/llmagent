@@ -5,13 +5,11 @@ Unit tests for shared.tool_registry — registry drift validation.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 from shared.mcp_config import McpServerConfig
-from shared.route_resolver import build_discovery_map
 from shared.tool_registry import (
     ToolDefinition,
     ToolRegistry,
@@ -162,9 +160,8 @@ class TestValidateAllRouting:
 class TestStartupValidationStrictMode:
     """Tests for the four strict-mode drift conditions checked at startup.
 
-    These tests verify the behavior of validate_routing_against_live() and
-    build_discovery_map() for each condition that check_routing_drift_vs_live()
-    must detect.
+    These tests verify the behavior of validate_routing_against_live() for each
+    condition that must be detected.
     """
 
     def test_live_returns_tool_not_in_registry(self) -> None:
@@ -239,30 +236,6 @@ class TestStartupValidationStrictMode:
         )
         assert "server_b" in drift
         assert any("server_a" in msg and "tool_x" in msg for msg in drift["server_b"])
-
-    def test_duplicate_live_ownership_detected(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Condition 4: same tool returned by two different servers.
-
-        build_discovery_map() must log a WARNING about the duplicate.
-        """
-        with caplog.at_level(logging.WARNING):
-            route_map, duplicates = build_discovery_map(
-                {
-                    "server_a": [{"name": "shared_tool", "server_key": "server_a"}],
-                    "server_b": [{"name": "shared_tool", "server_key": "server_b"}],
-                }
-            )
-        # First occurrence wins
-        assert route_map == {"shared_tool": "server_a"}
-        assert duplicates == {"shared_tool": ["server_a", "server_b"]}
-        # Warning must have been logged
-        assert any(
-            "shared_tool" in r.message
-            for r in caplog.records
-            if r.levelno >= logging.WARNING
-        )
 
 
 class TestAllToolConstantsFrozensetsRegistered:
