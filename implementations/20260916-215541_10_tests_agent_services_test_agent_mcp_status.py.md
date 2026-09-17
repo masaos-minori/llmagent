@@ -78,7 +78,7 @@ async def test_health_timeout_zero_does_not_cause_near_instant_timeout(self) -> 
     ctx.cfg.approval.tool_safety_tiers = {}
     ctx.cfg.mcp.mcp_servers = {"test_server": cfg}
     
-    status = McpStatus(ctx=ctx)
+    status = McpStatusService(ctx=ctx)
     await status.probe_all()
     
     # Assert: timeout should be None (no timeout), not 0 (near-instant)
@@ -121,9 +121,9 @@ async def test_health_timeout_zero_does_not_cause_near_instant_timeout(self) -> 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add REQ-006 regression test for status call site | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add REQ-006 regression test for status call site | Completed | 20260917-190600 | 20260917-190600 |  |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-190601 | 20260917-190601 |  |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-190603 | 20260917-190603 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
