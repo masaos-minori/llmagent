@@ -107,11 +107,11 @@ The `os.environ.get("AGENT_RESTRICT_CONFIG")` condition is removed entirely. The
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove AGENT_RESTRICT_CONFIG guard; add unconditional restrict_to() | Pending | — | — | |
-| 2 | Add autouse fixture to tests/conftest.py | Pending | — | — | See next row |
-| 3 | Add AgentContext() unconditional-restriction test | Pending | — | — | See next row |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove AGENT_RESTRICT_CONFIG guard; add unconditional restrict_to() | Completed | 20260917-195028 | 20260917-195028 |  |
+| 2 | Add autouse fixture to tests/conftest.py | Completed | 20260917-195028 | 20260917-195028 | See next row |
+| 3 | Add AgentContext() unconditional-restriction test | Completed | 20260917-195028 | 20260917-195028 | See next row |
+| 4 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-195028 | 20260917-195028 |  |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-195028 | 20260917-195028 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
