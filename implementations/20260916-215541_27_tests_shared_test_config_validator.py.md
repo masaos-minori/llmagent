@@ -220,11 +220,11 @@ def test_integration_rag_validator_real_config(self) -> None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite rag_cfg fixture to flat shape | Pending | — | — | |
-| 2 | Rewrite each test method in TestRagConfigValidator | Pending | — | — | |
-| 3 | Add REQ-007 integration test | Pending | — | — | |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Rewrite rag_cfg fixture to flat shape | Completed | 20260917-201328 | 20260917-201328 |  |
+| 2 | Rewrite each test method in TestRagConfigValidator | Completed | 20260917-201328 | 20260917-201328 |  |
+| 3 | Add REQ-007 integration test | Completed | 20260917-201328 | 20260917-201328 |  |
+| 4 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-201338 | 20260917-201338 |  |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-201338 | 20260917-201338 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
