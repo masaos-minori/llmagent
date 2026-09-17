@@ -102,6 +102,8 @@ them, are preserved here rather than lost:
 
 ### Active Items
 
+Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
+
 #### RAG-003
 
 RAG-003 ("Unresolved usage status of `RegisteredDocument` DTO") was resolved and removed from this active inventory 2026-09-14. Confirmed by direct code inspection while drafting `issues/done/20260914-105211_ragsvc02_unused-dto-and-config-dataclasses.md`: `grep -n "^class " scripts/rag/models_data.py` lists `EmbeddingResponse`, `ChunkDocument`, `CrawlDocument`, `ChunkRecord`, `PreparedChunk`, `TwoStageFetchResult` — no `RegisteredDocument` class exists anywhere in this file, and a repository-wide `grep -rn "class RegisteredDocument" scripts/` finds no definition anywhere. The class this entry's "unresolved usage status" question was about no longer exists — the entry's underlying question (required future component vs. removable dead code) is moot, since removal has already happened by some other change. Its absence from the active list is the correct, policy-compliant state — do not create a `#### RAG-003` heading.
@@ -220,19 +222,21 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Recommended Action**: Implement Agent topic management when this integration is prioritized.
 - **Resolution Target**: Next EventBus architecture review
 
-#### SHARED-001
-
-SHARED-001 was fully resolved this cycle; its content was transferred to SHARED-002 and SHARED-003, both since independently resolved and removed from this active inventory in turn. Its absence from the active list is the correct, policy-compliant state — do not create a `#### SHARED-001` heading.
-
 #### EVENTBUS-008
 
 EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was resolved 2026-09-14 and removed from this active inventory. Confirmed by direct code inspection: `scripts/eventbus/app.py` calls `attach_auth_middleware(app)`, and every route requires `Depends(require_role(...))`; the ACK/NACK/subscribe endpoints additionally require `Depends(require_consumer_identity)`, which validates the caller's bearer token and, when configured, a `consumer_id` allowlist. The entry's original claim ("no authentication middleware is implemented") no longer matches the code. Its absence from the active list is the correct, policy-compliant state — do not create a `#### EVENTBUS-008` heading. A narrower residual gap found during this same review — a token with no configured `consumer_id` allowlist entry has consumer-identity validation skipped (fail-open) — is tracked separately in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`, not under this entry.
+
+#### SHARED-001
+
+SHARED-001 was fully resolved this cycle; its content was transferred to SHARED-002 and SHARED-003, both since independently resolved and removed from this active inventory in turn. Its absence from the active list is the correct, policy-compliant state — do not create a `#### SHARED-001` heading.
 
 #### CI-001
 
 CI-001 ("EventBus process reads configuration directly instead of using ConfigLoader") was resolved and removed from this active inventory 2026-09-15. Confirmed by code inspection: `scripts/eventbus/config.py` now uses `ConfigLoader.load()` instead of direct `tomllib.load()`, preserving all EventBus-specific validation logic in `__post_init__` and `load_config()`. The migration was verified by tests confirming all existing validation error cases produce equivalent errors through the ConfigLoader path. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-001` heading.
 
 **CI-003**: Resolved. Resolution confirmed by `tests/agent/services/test_config_reload.py::test_apply_config_dict_exercises_real_registry_and_no_discovery_call` (confirmed: line 480). Re-evaluate if `mcpagent04` support is added. With the introduction of `llm_visibility_base` as an immutable discovery-time visibility field (REQ-001), the config reload path must also respect this field — a new Known Issue has been filed under REQ-001 to track this discrepancy. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-003` heading.
+
+CI-002 ("former-ADR-011 INV-01/INV-02 production/local recovery distinction — stale reference") was resolved and removed from this active inventory 2026-09-09. Confirmed by direct code inspection while drafting issues/done/20260909-192919_ci002_remove_placeholder.md: investigated against all three tracked ADR-011 revisions and current ADR-008 text, and the cited INV-01/INV-02 pair was found to have never existed; recover_corruption()'s lack of a production/local distinction was confirmed as correct, intended behavior, not a gap; removed 2026-09-09 with no further action required. Its absence from the active list is the correct, policy-compliant state — do not create a #### CI-002 heading.
 
 #### CI-004
 
@@ -761,7 +765,7 @@ NC-030 ("Should `adr` and `security` be permanent `area` enum values, or folded 
 - **Priority**: Low
 - **Related NC**: None
 - **Resolution Target**: Next ChunkSplitter specification review
- - **Blocking**: No
+- **Blocking**: No
 
 #### NC-034
 

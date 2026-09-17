@@ -164,13 +164,13 @@ For REQ-003's CI-002 placeholder, if the recovered history proves inaccurate, th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm Ci-/First Foun typos don't exist in docs/ (REQ-005) | Pending | — | — | Phase 1 precondition |
-| 2 | Move SHARED-001 to after EVENTBUS-008 (REQ-001) | Pending | — | — | |
-| 3 | Add ordering-convention statement to Active Items section (REQ-002) | Pending | — | — | |
-| 4 | Insert CI-002 removal placeholder before CI-003 (REQ-003) | Pending | — | — | |
-| 5 | Remove NC-033's leading-space indentation defect (REQ-004) | Pending | — | — | |
-| 6 | Run check_docs_quality.py and confirm it passes (REQ-006) | Pending | — | — | |
-| 7 | Re-run grep for indentation verification (AC-6) | Pending | — | — | |
+| 1 | Confirm Ci-/First Foun typos don't exist in docs/ (REQ-005) | Completed | 20260917-092030 | 20260917-092030 | Already fixed; no edit needed |
+| 2 | Move SHARED-001 to after EVENTBUS-008 (REQ-001) | Completed | 20260917-092030 | 20260917-092030 | |
+| 3 | Add ordering-convention statement to Active Items section (REQ-002) | Completed | 20260917-092030 | 20260917-092030 | |
+| 4 | Insert CI-002 removal placeholder before CI-003 (REQ-003) | Completed | 20260917-092030 | 20260917-092030 | |
+| 5 | Remove NC-033's leading-space indentation defect (REQ-004) | Completed | 20260917-092030 | 20260917-092030 | |
+| 6 | Run check_docs_quality.py and confirm it passes (REQ-006) | Completed | 20260917-092030 | 20260917-092030 | Passed with zero findings |
+| 7 | Re-run grep for indentation verification (AC-6) | Completed | 20260917-092030 | 20260917-092030 | No indentation anomalies found |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
