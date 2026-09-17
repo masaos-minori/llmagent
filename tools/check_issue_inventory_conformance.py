@@ -5,7 +5,7 @@ Conformance checker for docs/00_governance_03_issue-and-uncertainty-management.m
 
 Validates:
   (a) Vocabulary conformance — Status/Type/Severity/Area/Owner against defined value sets
-  (b) Template field-count — 16 fields per Part 1 entry, 15 per Part 2 entry
+   (b) Template field-count — 16 fields per Part 1 entry, 14 per Part 2 entry; exempt removal placeholders.
   (c) Orphaned bullets — - **Field:** bullets after removal placeholders
   (d) Closing-summary consistency — Part 1 closing ID list vs. actual headings
   (e) Referential integrity — Related/Related NC/Target ID resolution
@@ -33,20 +33,26 @@ from _docs_consistency_lib import DocFile, Issue, report_and_exit
 PART1_STATUS_VALUES = {"open", "investigating", "deferred"}
 PART1_TYPE_VALUES = {
     "document-code-mismatch",
-    "operational-gap",
+    "document-document-mismatch",
+    "obsolete-description",
+    "missing-documentation",
+    "ambiguous-behavior",
     "implementation-bug",
-    "design-decision",
+    "design-gap",
+    "operational-gap",
 }
-PART1_SEVERITY_VALUES = {"high", "medium", "low"}
+PART1_SEVERITY_VALUES = {"High", "Medium", "Low"}
 PART1_AREA_VALUES = {
-    "agent",
-    "mcp-server",
-    "workflow-engine",
-    "shared",
-    "governance",
-    "rag",
+    "Overview",
+    "Deployment",
+    "RAG",
+    "MCP",
+    "Agent",
+    "EventBus",
+    "Shared/DB",
+    "Governance",
 }
-PART1_OWNER_PATTERN = re.compile(r"^@[a-z][a-z0-9_-]*$")
+PART1_OWNER_VALUES = {"Unassigned", "[Name]", "Team"}
 
 PART2_STATUS_VALUES = {"open", "investigating", "deferred"}
 
@@ -118,6 +124,22 @@ def parse_entries(doc: DocFile) -> list[Entry]:
                 placeholder_match = REMOVAL_PLACEHOLDER_RE.search(line)
                 if placeholder_match:
                     current_entry = replace(current_entry, is_removal_placeholder=True)
+        else:
+            # Check for removal placeholder paragraph even without a preceding entry
+            if current_part == "Part 1":
+                placeholder_match = REMOVAL_PLACEHOLDER_RE.search(line)
+                if placeholder_match:
+                    # Create synthetic entry for orphaned-bullet detection
+                    entry_id = placeholder_match.group(1)
+                    synthetic = Entry(
+                        id=entry_id,
+                        part="Part 1",
+                        line_start=line_no,
+                        line_end=line_no,
+                        fields={},
+                        is_removal_placeholder=True,
+                    )
+                    entries.append(synthetic)
 
     # Don't forget the last entry
     if current_entry is not None:
@@ -185,7 +207,7 @@ def check_vocabulary(doc: DocFile) -> list[Issue]:
                 )
 
             owner_val = entry.fields.get("Owner", "")
-            if not PART1_OWNER_PATTERN.match(owner_val):
+            if owner_val not in PART1_OWNER_VALUES:
                 issues.append(
                     Issue(
                         file=doc.rel_path,
@@ -212,7 +234,7 @@ def check_vocabulary(doc: DocFile) -> list[Issue]:
 
 
 def check_template_field_count(doc: DocFile) -> list[Issue]:
-    """Count - **Field:** bullets per entry; require 16 (Part 1) / 15 (Part 2); exempt placeholders."""
+    """Count - **Field:** bullets per entry; require 16 (Part 1) / 14 (Part 2); exempt placeholders."""
     issues: list[Issue] = []
     entries = parse_entries(doc)
 
@@ -383,6 +405,10 @@ def check_referential_integrity(doc: DocFile) -> list[Issue]:
                 if not ref_id:
                     continue
 
+                # Skip values that don't look like IDs (e.g., dates, file paths)
+                if not re.match(r"^[A-Z]+-\d+$", ref_id):
+                    continue
+
                 if ref_id in valid_ids:
                     # Resolves to existing heading — OK
                     pass
@@ -443,6 +469,7 @@ def main() -> None:
         for issue in issues:
             print(f"  [{issue.severity}] {issue.message}", file=sys.stderr)
         report_and_exit(issues)
+        sys.exit(1)
     else:
         print("All conformance checks passed.", file=sys.stdout)
         sys.exit(0)
