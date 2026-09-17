@@ -62,7 +62,7 @@ _DEFAULTS_FOR_ALL = {
     "rag_min_score": 0.0,
     "use_rrf": True,
     "rrf_k": 60,
-    "use_search": True,
+    "use_search": False,
     "rag_service_url": None,
     "rag_auth_token": None,
     "use_refiner": False,

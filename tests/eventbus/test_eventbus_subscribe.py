@@ -108,9 +108,15 @@ def principal_client(
     monkeypatch.setattr(sr_module, "DEFAULT_SSE_IDLE_TIMEOUT", sse_idle_timeout)
 
     # Map consumer-token to a specific consumer ID for authorization testing
-    from eventbus.auth import _TOKEN_CONSUMER_MAP
+    from eventbus.auth import _TOKEN_PRINCIPAL_MAP, Principal
 
-    _TOKEN_CONSUMER_MAP["consumer-token"] = {"consumer-A"}
+    if "consumer-token" in _TOKEN_PRINCIPAL_MAP:
+        _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
+            roles=_TOKEN_PRINCIPAL_MAP["consumer-token"].roles,
+            allowed_consumer_ids=frozenset({"consumer-A"}),
+            allowed_topics=_TOKEN_PRINCIPAL_MAP["consumer-token"].allowed_topics,
+            token_fingerprint=_TOKEN_PRINCIPAL_MAP["consumer-token"].token_fingerprint,
+        )
 
     with TestClient(eb_app.app) as c:
         c.headers["Authorization"] = "Bearer consumer-token"

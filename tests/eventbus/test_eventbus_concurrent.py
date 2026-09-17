@@ -73,6 +73,7 @@ class TestConcurrentAck:
             resp = client.post(
                 f"/events/{event_id}/ack", params={"consumer_id": "consumer-1"}
             )
+            assert resp.status_code == 200
             results.append(resp.json())
 
         loop = asyncio.new_event_loop()
@@ -145,7 +146,7 @@ class TestConcurrentDlqRequeue:
         event_id = body["event_id"]
         # Nack 3 times to promote to DLQ
         for _ in range(3):
-            resp = client.post("/nack", params={"event_id": event_id})
+            resp = client.post("/nack", params={"event_id": event_id, "consumer_id": "consumer-A"})
             assert resp.status_code == 200
 
         results: list[dict[str, Any]] = []

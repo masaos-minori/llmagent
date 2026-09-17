@@ -58,6 +58,7 @@ class TestRagPipelineGetCfg:
         failing_loader = lambda: (_ for _ in ()).throw(ValueError("no file"))  # noqa: E731 — lambda required for zero-arg raising callable; generator expression used to avoid returning None
         result = pipeline_mod.resolve_rag_config(None, config_loader=failing_loader)
         assert isinstance(result, RagConfigImpl)
+        assert result.use_search is False
         assert result.llm_url == ""
         assert result.embed_url == ""
         assert result.rag_db_path == ":memory:"

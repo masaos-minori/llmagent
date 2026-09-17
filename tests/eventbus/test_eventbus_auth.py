@@ -202,6 +202,7 @@ async def _init_local_state(app: FastAPI, cfg: Any) -> None:
 
     app.state.config = cfg
     _populate_token_maps(cfg)
+    pathlib.Path(cfg.db_path).parent.mkdir(parents=True, exist_ok=True)
     app.state.db = eb_app.open_db(cfg.db_path)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"

@@ -65,9 +65,15 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     )
     _populate_token_maps(cfg)
     # Map consumer-token to a specific consumer ID for authorization testing
-    from eventbus.auth import _TOKEN_CONSUMER_MAP
+    from eventbus.auth import _TOKEN_PRINCIPAL_MAP, Principal
 
-    _TOKEN_CONSUMER_MAP["consumer-token"] = {"consumer-A"}
+    if "consumer-token" in _TOKEN_PRINCIPAL_MAP:
+        _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
+            roles=_TOKEN_PRINCIPAL_MAP["consumer-token"].roles,
+            allowed_consumer_ids=frozenset({"consumer-A"}),
+            allowed_topics=_TOKEN_PRINCIPAL_MAP["consumer-token"].allowed_topics,
+            token_fingerprint=_TOKEN_PRINCIPAL_MAP["consumer-token"].token_fingerprint,
+        )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"

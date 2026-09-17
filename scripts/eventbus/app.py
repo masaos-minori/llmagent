@@ -158,7 +158,7 @@ async def publish(
     _principal: Principal = Depends(require_role(Role.PUBLISHER)),
 ) -> dict[str, Any]:
     """Publish a new event to the event bus."""
-    result: dict[str, Any] = await publish_route(request)
+    result: dict[str, Any] = await publish_route(request, _principal=_principal)
     return result
 
 

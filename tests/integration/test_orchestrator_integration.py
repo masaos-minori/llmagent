@@ -90,11 +90,11 @@ def _patch_workflow_loader():
 
     with (
         patch("agent.orchestrator.WorkflowLoader"),
-        patch("agent.orchestrator.StateStore"),
+        patch("agent.workflow.StateStore"),
         patch("agent.workflow_engine_adapter.create_task", return_value=mock_task),
         patch("agent.workflow_engine_adapter.audit_workflow_start"),
         patch(
-            "agent.workflow_engine_adapter.WorkflowEngine",
+            "agent.workflow.WorkflowEngine",
             return_value=mock_engine_instance,
         ),
     ):
@@ -865,7 +865,7 @@ class TestApprovalWorkflowWithRealDB:
             AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
         ):
             with patch(
-                "agent.workflow_engine_adapter.WorkflowEngine",
+                "agent.workflow.WorkflowEngine",
                 return_value=mock_engine_instance,
             ):
                 await orch.handle_turn("hello")
