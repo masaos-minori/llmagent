@@ -198,7 +198,7 @@ See Related Documents > Implementation References for the current file/symbol li
 ## Known Deviations
 
 - `Orchestrator.__init__`（`scripts/agent/orchestrator.py`）が使用されない`LLMTurnRunner`インスタンスを`self._llm_runner`として生成しており、実際のLLM/Tool Call往復ループは`LlmTurnExecutor`（`scripts/agent/llm_turn_executor.py`）が内部で独自に生成する別インスタンスによって処理されている。これはINV-024（`LLMTurnRunner`生成の一元化）に対する現状の逸脱であり、修正issue（`issues/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md`）で追跡する。
-- 「Workflow Engineが再試行を担う」という本ADRの定義自体はINV-023に反しないが、`ToolLoopGuard.check_retry()`（`scripts/agent/tool_loop_guard.py`）とLLM transport層（`llm_max_retries`等、`config/agent.toml`）にも別個の"retry"概念が存在し、WorkflowEngineの`retry_policy`との関係が未文書化。粒度が異なるため直ちにINV-023違反とは判定しないが、整理不足はドキュメント化issue（`issues/20260914-123659_arch03_retry_ownership_documentation_and_layering.md`）で追跡する。
+- 「Workflow Engineが再試行を担う」という本ADRの定義自体はINV-023に反しないが、`ToolLoopGuard.check_retry()`（`scripts/agent/tool_loop_guard.py`）とLLM transport層（`llm_max_retries`等、`config/agent.toml`）にも別個の"retry"概念が存在し、WorkflowEngineの`retry_policy`との関係が未文書化。粒度が異なるため直ちにINV-023違反とは判定しないが、整理不足はドキュメント化issue（`issues/20260914-123659_arch03_retry_ownership_documentation_and_layering.md`）で追跡する。→ **RESOLVED**: 三層のリトライ範囲の説明は `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` に追加済み（REQ-002）。
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 

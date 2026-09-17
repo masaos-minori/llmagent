@@ -31,6 +31,18 @@ Within the tool loop, an LLM may potentially call the same tool infinitely. To p
 
 If any guard is triggered, subsequent checks are skipped and the loop terminates. After a guard is triggered, a fallback attempt is made to generate a final answer without calling any further tools.
 
+### Three-Layer Retry Landscape
+
+The system has three independent retry mechanisms at different granularities:
+
+| Layer | Config field | Scope | Relationship to other layers |
+|---|---|---|---|
+| ToolLoopGuard retry suppression | `tool_error_retry_max` (default 1) | Per-turn, per-(tool, args) pair within a single LLM turn's tool loop | Independent from WorkflowEngine retry; prevents same (tool, args) from being retried within one turn |
+| WorkflowEngine stage-level retry | `workflow_engine.retry_policy.max_attempts` | Stage-level across turns; retries entire workflow stages on failure | Independent from ToolLoopGuard; operates across turns at the workflow level |
+| LLM transport retry | `llm_max_retries` (config/agent.toml) | Connection-level; retries failed HTTP requests to the LLM endpoint | Independent from both above; operates at the network transport layer before the agent even sees the error |
+
+**Key distinction**: These mechanisms do NOT compose. A ToolLoopGuard retry block does NOT reduce WorkflowEngine retry budget, and an LLM transport retry does NOT count against either. They operate at orthogonal levels of the stack.
+
 ### Isolation of Incomplete Outputs
 
 If a transport error occurs during LLM streaming resulting in a partial completion, that output is isolated from the regular conversation history. This prevents polluting subsequent LLM context. Partial content is stored in the `session_diagnostics` table and can be inspected via the `/stats` command.
