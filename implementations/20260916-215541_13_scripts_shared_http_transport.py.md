@@ -220,12 +220,12 @@ def _build_exhaustion_message(self, tool_name: str, last_retryable_status: int |
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Attach redaction filter; register auth token as secret | Pending | — | — | |
-| 2 | Rework retry loop: increasing backoff, sleep gating, last status tracking | Pending | — | — | |
-| 3 | Replace raw-body detail with sanitized fields; add exhaustion message builder | Pending | — | — | |
-| 4 | Update test assertions for new behavior | Pending | — | — | See next row |
-| 5 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 6 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Attach redaction filter; register auth token as secret | Completed | 20260917-191524 | 20260917-191524 |  |
+| 2 | Rework retry loop: increasing backoff, sleep gating, last status tracking | Completed | 20260917-191524 | 20260917-191524 |  |
+| 3 | Replace raw-body detail with sanitized fields; add exhaustion message builder | Completed | 20260917-191524 | 20260917-191524 |  |
+| 4 | Update test assertions for new behavior | Completed | 20260917-191524 | 20260917-191524 | See next row |
+| 5 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-191524 | 20260917-191524 |  |
+| 6 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-191524 | 20260917-191524 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
