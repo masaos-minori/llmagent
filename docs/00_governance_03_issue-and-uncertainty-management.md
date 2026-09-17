@@ -167,41 +167,9 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Impact**: Without enforcement, new code could inadvertently operate on `chunks_fts` directly, breaking the abstraction boundary established by the ADR.
 - **Recommended Action**: Add a lint rule or test that scans for direct `chunks_fts` references outside the FTS wrapper, or add integration tests that verify all FTS operations go through the wrapper.
 
-#### EVENTBUS-001
+**EVENTBUS-001**: Resolved. Collision detection via `ValueError` on duplicate offsets was implemented in `scripts/eventbus/db.py::migrate_legacy_offsets()` (confirmed: lines 578-656). Legacy migration only — the live ACK path is unaffected. Its absence from the active list is the correct, policy-compliant state — do not create a `#### EVENTBUS-001` heading.
 
-- **ID**: EVENTBUS-001
-- **Title**: Consumer ID Collision Detection
-- **Status**: Mitigated
-- **Severity**: Medium
-- **Area**: EventBus
-- **Type**: design-gap
-- **Source**: `scripts/eventbus/db.py::migrate_legacy_offsets()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
-- **Summary**: The collision risk is limited to a one-time migration step, only triggered for legacy offset files lacking a `.map` companion. In `migrate_legacy_offsets()`, when a `.map` companion file is missing, the function falls back to `_sanitize_consumer_id()` on the raw filename — at which point the original EVENTBUS-001 collision risk (`user.1` vs `user_1` both sanitizing to the same filename) can still silently merge two legacy consumers' offsets during a one-time migration. This risk is bounded by the finite set of legacy offset files and does not affect the live ACK path. The live ACK path (`ack_event_for_consumer()`) writes to `consumer_delivery`/`consumer_offsets` using the caller's `consumer_id` verbatim with no call to `_sanitize_consumer_id()`, so two distinct IDs like `user.1` and `user_1` are stored as distinct rows and cannot collide here.
-- **Recommended Action**: Implemented via collision detection in `migrate_legacy_offsets()` — raises `ValueError` when multiple legacy files without `.map` companions sanitize to the same consumer_id. No workaround needed; operators must resolve collisions manually before running migration.
-
-#### EVENTBUS-002
-
-- **ID**: EVENTBUS-002
-- **Title**: `/replay?format=json` Pagination Format Undocumented
-- **Status**: resolved
-- **Severity**: Low
-- **Area**: EventBus
-- **Type**: missing-documentation
-- **Source**: `scripts/eventbus/replay_route.py` replay endpoint
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Resolved Date**: 20260915
-- **Resolution**: Documented in `docs/eventbus/03_replay_operations.md`
-- **Target**: `docs/eventbus/03_replay_operations.md`
-- **Related**: EVENTBUS-001
-- **Summary**: `/replay?format=json` returns `{total, limit, offset, items}`, now documented in `docs/eventbus/03_replay_operations.md`.
-- **Current Description**: The replay endpoint supports both SSE and JSON formats with full pagination support. Both response formats are now documented.
-- **Observed Implementation**: The replay endpoint returns paginated JSON when `format=json`; the format is now specified in the operations reference.
-- **Impact Resolved**: Clients can now discover the response structure through the documentation.
-- **Recommended Action**: Resolved — see `docs/eventbus/03_replay_operations.md`.
+**EVENTBUS-002**: Resolved. Resolution confirmed by `docs/eventbus/03_replay_operations.md` (JSON response schema `{total, limit, offset, items}` confirmed: lines 44-66). Its absence from the active list is the correct, policy-compliant state — do not create a `#### EVENTBUS-002` heading.
 
 #### EVENTBUS-005
 
@@ -272,24 +240,7 @@ EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was r
 
 CI-001 ("EventBus process reads configuration directly instead of using ConfigLoader") was resolved and removed from this active inventory 2026-09-15. Confirmed by code inspection: `scripts/eventbus/config.py` now uses `ConfigLoader.load()` instead of direct `tomllib.load()`, preserving all EventBus-specific validation logic in `__post_init__` and `load_config()`. The migration was verified by tests confirming all existing validation error cases produce equivalent errors through the ConfigLoader path. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-001` heading.
 
-#### CI-003
-
-- **ID**: CI-003
-- **Title**: ADR-003 Decision Details #14 — reload-updates-only-policy-fields claim not verified
-- **Status**: Mitigated
-- **Severity**: Medium
-- **Area**: MCP
-- **Type**: ambiguous-behavior
-- **Source**: `scripts/shared/runtime_tool_registry.py::apply_policy()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `docs/adr/ADR-003-runtime-tool-registry-routing-authority.md`
-- **Related**: ADR-003
-- **Summary**: ADR-003 (formerly ADR-013 Decision Details #6, merged 2026-08-31) states that reload operations update only policy-derived fields and do NOT rediscover tools.
-- **Current Description**: End-to-end verification added via `test_apply_config_dict_exercises_real_registry_and_no_discovery_call` in `tests/agent/services/test_config_reload.py`: constructs a real `RuntimeToolRegistry`, calls `ConfigReloadService._sync_services()` with tier/allowed-tools changes, asserts the tier/allowed-tools state changed on the real registry afterward, and asserts no discovery-style HTTP call occurred during the call. `requires_approval` (unread by any approval code) was removed from `RuntimeTool`/`apply_policy()`; the former ADR-013's mentions of it are now stale and were not carried into ADR-003.
-- **Observed Implementation**: Code inspection of `apply_policy()` in `runtime_tool_registry.py` confirmed correct; additionally traced end-to-end via E2E test exercising the real `/reload` trigger path (`_sync_services()` → `apply_policy()`).
-- **Impact**: If reload also rediscovered tools, it would violate the stated invariant that policy changes don't alter tool availability.
-- **Recommended Action**: Resolved — E2E test in `tests/agent/services/test_config_reload.py` confirms only policy fields are updated and no discovery call occurs. Re-evaluate if `mcpagent04` (issues/20260914-103138_mcpagent04_runtime-policy-reload-reversibility.md) introduces behavioral changes.
+**CI-003**: Resolved. Resolution confirmed by `tests/agent/services/test_config_reload.py::test_apply_config_dict_exercises_real_registry_and_no_discovery_call` (confirmed: line 480). Re-evaluate if `mcpagent04` support is added. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-003` heading.
 
 #### CI-004
 
