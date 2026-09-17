@@ -192,11 +192,11 @@ from agent.tool_loop_guard import ToolLoopGuard
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove _llm_runner property pair and __init__ construction | Pending | — | — | |
-| 2 | Remove _guard property pair and __init__ construction | Pending | — | — | |
-| 3 | Remove now-unused LLMTurnRunner/ToolLoopGuard imports | Pending | — | — | |
-| 4 | Correct module docstring's delegation claim | Pending | — | — | |
-| 5 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Remove _llm_runner property pair and __init__ construction | Completed | 20260917-122226 | 20260917-122226 |  |
+| 2 | Remove _guard property pair and __init__ construction | Completed | — | 20260917-122711 |  |
+| 3 | Remove now-unused LLMTurnRunner/ToolLoopGuard imports | Completed | 20260917-122238 | 20260917-122639 |  |
+| 4 | Correct module docstring's delegation claim | Completed | — | 20260917-122648 |  |
+| 5 | Run the validation sequence (rules/toolchain.md) | Completed | — | 20260917-122714 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
