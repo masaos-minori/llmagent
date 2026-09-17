@@ -160,11 +160,11 @@ def _extract_rag_section(self, cfg: dict[str, Any]) -> dict[str, Any]:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update ConfigValidationResult with default factories | Pending | — | — | |
-| 2 | Remove nested branch from _extract_rag_section(); correct docstring | Pending | — | — | |
-| 3 | Rewrite TestRagConfigValidator fixtures to flat shape | Pending | — | — | See next row |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Update ConfigValidationResult with default factories | Completed | 20260917-192945 | 20260917-192945 |  |
+| 2 | Remove nested branch from _extract_rag_section(); correct docstring | Completed | 20260917-192945 | 20260917-192945 |  |
+| 3 | Rewrite TestRagConfigValidator fixtures to flat shape | Completed | 20260917-192945 | 20260917-192945 | See next row |
+| 4 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-192945 | 20260917-192945 |  |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-192945 | 20260917-192945 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
