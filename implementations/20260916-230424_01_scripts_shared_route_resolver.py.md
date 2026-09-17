@@ -112,10 +112,10 @@ logger = logging.getLogger(__name__)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove build_discovery_map() and ToolDescriptor from route_resolver.py | Pending | — | — | |
-| 2 | Update module docstring to remove reference to build_discovery_map | Pending | — | — | |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove build_discovery_map() and ToolDescriptor from route_resolver.py | Completed | 20260917-213110 | 20260917-213110 |  |
+| 2 | Update module docstring to remove reference to build_discovery_map | Completed | 20260917-213110 | 20260917-213110 |  |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-213110 | 20260917-213110 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-213111 | 20260917-213111 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
