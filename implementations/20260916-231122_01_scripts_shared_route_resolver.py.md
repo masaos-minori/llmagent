@@ -111,8 +111,8 @@ Args:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct ToolRouteResolver.__init__ docstring to state strict_mode's full effect | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Correct ToolRouteResolver.__init__ docstring to state strict_mode's full effect | Completed | 20260917-201614 | 20260917-201614 |  |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-201615 | 20260917-201615 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
