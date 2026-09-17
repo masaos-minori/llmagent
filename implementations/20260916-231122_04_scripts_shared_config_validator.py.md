@@ -101,8 +101,8 @@ Correct the semantic-cache issue references in `config_validator.py`'s validatio
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct semantic-cache issue references in config_validator.py validation message | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Correct semantic-cache issue references in config_validator.py validation message | Completed | 20260917-201932 | 20260917-201932 |  |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-201933 | 20260917-201933 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
