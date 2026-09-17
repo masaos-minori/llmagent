@@ -186,11 +186,11 @@ class TestResetForTesting:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite test_multiple_restrict_calls_last_wins for REQ-002 | Pending | — | — | |
-| 2 | Migrate test_reload_without_restriction to use reset classmethod | Pending | — | — | |
-| 3 | Add reset mechanism tests | Pending | — | — | |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Rewrite test_multiple_restrict_calls_last_wins for REQ-002 | Completed | 20260917-195747 | 20260917-195747 |  |
+| 2 | Migrate test_reload_without_restriction to use reset classmethod | Completed | 20260917-195747 | 20260917-195747 |  |
+| 3 | Add reset mechanism tests | Completed | 20260917-195748 | 20260917-195748 |  |
+| 4 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-195748 | 20260917-195748 |  |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-195748 | 20260917-195748 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
