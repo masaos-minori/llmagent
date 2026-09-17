@@ -123,10 +123,10 @@ If the `__post_init__` approach causes issues with existing construction sites, 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `llm_visibility_base` field to `RuntimeTool` dataclass | Pending | — | — | |
-| 2 | Implement `__post_init__` default resolution | Pending | — | — | |
-| 3 | Update `build_runtime_tool()` to accept `llm_visibility_base` parameter | Pending | — | — | |
-| 4 | Add unit tests for default/override/preservation | Pending | — | — | |
+| 1 | Add `llm_visibility_base` field to `RuntimeTool` dataclass | Completed | 20260917-105836 | 20260917-105836 |  |
+| 2 | Implement `__post_init__` default resolution | Completed | 20260917-105841 | 20260917-105841 |  |
+| 3 | Update `build_runtime_tool()` to accept `llm_visibility_base` parameter | Completed | 20260917-110523 | 20260917-110523 |  |
+| 4 | Add unit tests for default/override/preservation | Completed | 20260917-110528 | 20260917-110528 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
