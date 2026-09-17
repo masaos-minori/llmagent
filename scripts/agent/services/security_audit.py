@@ -130,8 +130,12 @@ def audit_security_defaults(ctx: AgentContext) -> list[str]:
             from shared.tool_registry import get_registry
 
             known_tools = set(get_registry().get_all_tool_names())
-        except Exception:  # noqa: BLE001 — tool registry lookup is best-effort; fall back to unrestricted set rather than abort startup
-            known_tools = None
+        except ValueError as exc:
+            logger.error("Tool registry resolution failed during audit: %s", exc)
+            known_tools = None  # safe default for audit path only
+        except ImportError as exc:
+            logger.error("Tool registry module unavailable during audit: %s", exc)
+            known_tools = None  # safe default for audit path only
 
     github_cfg = _load_audit_config_or_raise(load_github_audit_config)
 
