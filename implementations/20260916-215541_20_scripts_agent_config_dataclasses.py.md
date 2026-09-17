@@ -109,9 +109,9 @@ This constant replaces the hardcoded inline list in `production_config_validator
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add _CANONICAL_SUB_CONFIG_CLASSES constant | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add _CANONICAL_SUB_CONFIG_CLASSES constant | Completed | 20260917-194816 | 20260917-194816 |  |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-194816 | 20260917-194816 |  |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-194816 | 20260917-194816 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
