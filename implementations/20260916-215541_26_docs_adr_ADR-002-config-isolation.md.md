@@ -91,8 +91,8 @@ This replaces the previous paragraph about the environment variable being a deli
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update ADR to remove AGENT_RESTRICT_CONFIG reference | Pending | — | — | |
-| 2 | Verify documentation accuracy | Pending | — | — | |
+| 1 | Update ADR to remove AGENT_RESTRICT_CONFIG reference | Completed | 20260917-201152 | 20260917-201152 |  |
+| 2 | Verify documentation accuracy | Completed | 20260917-201152 | 20260917-201152 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
