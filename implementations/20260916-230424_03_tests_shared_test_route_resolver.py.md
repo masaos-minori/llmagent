@@ -98,8 +98,8 @@ class TestBuildDiscoveryMap:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove build_discovery_map import and TestBuildDiscoveryMap class | Pending | — | — | |
-| 2 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Remove build_discovery_map import and TestBuildDiscoveryMap class | Completed | 20260917-213249 | 20260917-213249 |  |
+| 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-213249 | 20260917-213249 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
