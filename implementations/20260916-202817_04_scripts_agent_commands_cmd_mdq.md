@@ -114,9 +114,9 @@ If the denial message format causes UX issues, revert to silently skipping (the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `PolicyViolationError` import | Pending | — | — | |
-| 2 | Add `check_preflight()` call before `execute()` in `_execute_mdq()` | Pending | — | — | |
-| 3 | Add denial regression test | Pending | — | — | |
+| 1 | Add `PolicyViolationError` import | Completed | 20260917-114807 | 20260917-114807 |  |
+| 2 | Add `check_preflight()` call before `execute()` in `_execute_mdq()` | Completed | 20260917-114807 | 20260917-114807 |  |
+| 3 | Add denial regression test | Completed | 20260917-114815 | 20260917-114815 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
