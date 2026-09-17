@@ -447,9 +447,24 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
     system_prompt_tool = cfg.get("system_prompt_tool", "")
     security_profile_val = SecurityProfile(cfg.get("security_profile", "production"))
     # Production config validation (before REPL becomes available)
+    # REQ-002: resolve the authoritative known-tool set explicitly
+    try:
+        from shared.tool_registry import get_registry
+
+        known_tools = set(get_registry().get_all_tool_names())
+    except ValueError as exc:
+        raise ConfigReloadValidationError(
+            f"Tool registry resolution failed during config build: {exc}"
+        ) from exc
+    except ImportError as exc:
+        raise ConfigReloadValidationError(
+            f"Tool registry module unavailable during config build: {exc}"
+        ) from exc
+
     results = ProductionConfigValidator().validate(
         cfg,
         security_profile=security_profile_val,
+        known_tools=known_tools,
     )
 
     if results.errors:
