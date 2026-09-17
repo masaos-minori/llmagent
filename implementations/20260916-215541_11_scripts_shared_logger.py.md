@@ -93,10 +93,10 @@ The function is a thin wrapper around `logger.addFilter(_RedactionFilter())`, fo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add attach_redaction_filter() helper | Pending | — | — | |
-| 2 | Add unit test for the helper | Pending | — | — | See next row |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add attach_redaction_filter() helper | Completed | 20260917-190902 | 20260917-190902 |  |
+| 2 | Add unit test for the helper | Completed | 20260917-190902 | 20260917-190902 | See next row |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-190903 | 20260917-190903 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-190903 | 20260917-190903 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
