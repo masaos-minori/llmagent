@@ -498,6 +498,20 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 - **Status**: Resolved
 - **Resolution Target**: N/A: already resolved
 
+### ADR-004-D4-production-tool-safety-validation-fail-open
+
+- **Known Issue**: N/A: not registered as a governance Known Issue — see Recommended Action
+- **Type**: Resolved Gap
+- **Summary**: Production tool-safety validation could silently skip checks on registry failure (bare `except Exception:` returning `None` in `_resolve_known_tools()`) and accept unknown security-profile values without rejection. This was addressed by REQ-001–REQ-005: removing the broad exception fallback, adding explicit `SecurityProfile` coercion/rejection, and injecting authoritative known-tools from both runtime call sites. All safety-critical checks remain unconditional across `SecurityProfile.PRODUCTION`.
+- **Conflicting Source**: N/A: not a conflict — this entry records confirmation, not a discrepancy.
+- **Expected Design**: Production validation cannot succeed without an authoritative tool set; registry failures must produce actionable errors; unknown security profiles must fail during configuration construction.
+- **Observed Implementation**: REQ-001–REQ-005 completed: `_resolve_known_tools()` now raises `ValueError`/`ImportError` instead of silently skipping; `validate()` coerces/rejects unknown `SecurityProfile` values; `build_agent_config()` injects `known_tools` explicitly; `audit_security_defaults()` uses specific exception handling.
+- **Impact**: N/A: not an active discrepancy.
+- **Recommended Action**: 既にこのADR自身の`## Known Deviations`セクションでResolvedと記録されているため、新規のガバナンスKnown Issueは登録しない。
+- **Owner**: N/A: not applicable — no active issue to own
+- **Status**: Resolved
+- **Resolution Target**: N/A: already resolved
+
 ### CI-016: Undefined component criticality treatment relies on a safe default, untested
 
 - **Known Issue**: CI-016
