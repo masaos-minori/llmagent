@@ -132,10 +132,10 @@ If the atomic swap causes issues (e.g., external code holds stale references to 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite `apply_policy()` formula to use immutable base field | Pending | — | — | |
-| 2 | Change mutation strategy to atomic dict swap | Pending | — | — | |
-| 3 | Add disable-then-re-enable regression test | Pending | — | — | |
-| 4 | Add atomic-swap regression test | Pending | — | — | |
+| 1 | Rewrite `apply_policy()` formula to use immutable base field | Completed | 20260917-112328 | 20260917-112328 |  |
+| 2 | Change mutation strategy to atomic dict swap | Completed | 20260917-112334 | 20260917-112334 |  |
+| 3 | Add disable-then-re-enable regression test | Completed | 20260917-112540 | 20260917-112540 |  |
+| 4 | Add atomic-swap regression test | Completed | 20260917-112540 | 20260917-112540 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
