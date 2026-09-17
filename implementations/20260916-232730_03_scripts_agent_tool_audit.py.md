@@ -169,10 +169,10 @@ def audit_tool_exec(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add idempotency_key parameter to audit_tool_exec() | Pending | — | — | |
-| 2 | Add task-linkage parameter to audit_tool_exec() | Pending | — | — | |
-| 3 | Pass both new fields into ToolExecEvent(...) | Pending | — | — | |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add idempotency_key parameter to audit_tool_exec() | Completed | 20260917-214310 | 20260917-214310 |  |
+| 2 | Add task-linkage parameter to audit_tool_exec() | Completed | 20260917-214310 | 20260917-214310 |  |
+| 3 | Pass both new fields into ToolExecEvent(...) | Completed | 20260917-214310 | 20260917-214310 |  |
+| 4 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-214310 | 20260917-214310 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
