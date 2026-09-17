@@ -95,10 +95,10 @@ This ensures that any `TransportError` logged via `_record_transport_error()` wi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Attach redaction filter to module-level logger | Pending | — | — | |
-| 2 | Update test assertions if needed | Pending | — | — | |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Attach redaction filter to module-level logger | Completed | 20260917-191707 | 20260917-191707 |  |
+| 2 | Update test assertions if needed | Completed | 20260917-191707 | 20260917-191707 |  |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-191708 | 20260917-191708 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260917-191708 | 20260917-191708 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
