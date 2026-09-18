@@ -77,10 +77,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | REQ-EB-002-001; Remove _principal parameter from publish() | Completed | — | 20260918-175252 | Removed unused _principal param + Principal import; updated test harness /publish wrapper |
-| 2 | REQ-EB-002-001; Run mypy type check | Pending | — | — | |
-| 3 | REQ-EB-002-001; Update test harness /publish wrapper | Pending | — | — | |
-| 4 | REQ-EB-002-001; Run targeted test | Pending | — | — | |
-| 5 | REQ-EB-002-003; Run regression test | Pending | — | — | |
+| 2 | REQ-EB-002-001; Run mypy type check | Completed | 20260918-214026 | 20260918-214026 |  |
+| 3 | REQ-EB-002-001; Update test harness /publish wrapper | Completed | 20260918-214030 | 20260918-214030 |  |
+| 4 | REQ-EB-002-001; Run targeted test | Completed | 20260918-214034 | 20260918-214034 |  |
+| 5 | REQ-EB-002-003; Run regression test | Completed | 20260918-215810 | 20260918-215810 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
