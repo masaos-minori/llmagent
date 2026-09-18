@@ -97,8 +97,8 @@ If the comment text proves inaccurate later, the rollback is removing the added 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add heuristic marker above min_chunk/max_chunk/chunk_overlap | Pending | — | — | |
-| 2 | Run validation sequence (manual diff review) | Pending | — | — | |
+| 1 | Add heuristic marker above min_chunk/max_chunk/chunk_overlap | Completed | 20260918-171329 | 20260918-171329 |  |
+| 2 | Run validation sequence (manual diff review) | Completed | 20260918-171329 | 20260918-171329 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
