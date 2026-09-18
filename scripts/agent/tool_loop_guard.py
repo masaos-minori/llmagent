@@ -283,7 +283,15 @@ class ToolLoopGuard:
         failed_calls: set[str],
         message: LLMMessage,
     ) -> str | None:
-        """Block retry of already-failed (tool, args); return exit msg when hit."""
+        """Block retry of already-failed (tool, args); return exit msg when hit.
+
+        Distinction from WorkflowEngine retry: this is ToolLoopGuard's own
+        per-turn retry suppression — it prevents the same (tool, args) pair
+        from being retried within a single turn. It is NOT the same as
+        WorkflowEngine.retry_policy.max_attempts, which governs stage-level
+        retries across turns. These are two independent mechanisms at different
+        granularities.
+        """
         ctx = self._ctx
         if ctx.cfg.tool.tool_error_retry_max <= 0:
             return None

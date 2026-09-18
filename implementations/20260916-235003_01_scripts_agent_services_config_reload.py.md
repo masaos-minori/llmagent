@@ -206,22 +206,32 @@ def _diff_mcp_server_config(...) -> list[dict[str, str]]:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove CONFIG_FIELD_REGISTRY / ConfigFieldRegistry definitions | Completed | — | — | Already done in Phase 1 |
-| 2 | Add imports for the four new modules | Completed | — | — | Already done in Phase 1/Phase 2 |
-| 3 | Replace apply_config_dict() with delegation calls | Completed | — | — | Already delegated in Phase 2; verify correctness |
-| 4 | Replace _sync_services() with ServiceSyncer | Completed | — | — | Already done in Phase 2 |
-| 5 | Fully delegate _classify_mcp_server_changes() lifecycle cleanup | Pending | — | — | Hybrid pattern still exists locally; must migrate entirely |
-| 6 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Remove CONFIG_FIELD_REGISTRY / ConfigFieldRegistry definitions | Already completed | — | — | Definitions already removed from config_reload.py; moved to config_field_registry.py |
+| 2 | Add imports for the four new modules | Already completed | — | — | Imports already added at L18-27 |
+| 3 | Replace apply_config_dict() with delegation calls | Already completed | — | — | Delegated to reload_validated_section/reload_direct_fields at L99/L105 |
+| 4 | Replace _sync_services() with ServiceSyncer | Already completed | — | — | ServiceSyncer used at L166 |
+| 5 | Replace classification helpers with standalone functions | Already completed | — | — | classify_mcp_server_changes/classify_startup_only_fields/detect_diagnostics_live_fields imported and called |
+| 6 | Run the validation sequence (rules/toolchain.md) | Not run | — | — | File shows "Pending" but work is done; validation never executed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 6 | Validation never run despite work being complete. File status "Pending" is misleading — actual code reflects completion. Need to execute: pytest tests/agent/services/test_config_reload*.py tests/agent/commands/test_agent_cmd_config.py -q; ruff check; mypy; PYTHONPATH=scripts uv run lint-imports | No | — |
+
+### Adversarial Review Findings
+| # | Category | Severity | Finding |
+|---|----------|----------|---------|
+| 1 | Execution status falsification | Critical | All steps marked "Pending" but code changes are already applied. Evidence: L18-27 imports for 4 new modules; L99 reload_validated_section(); L105 reload_direct_fields(); L166 ServiceSyncer(); classify_* functions imported and called at L135-137 |
+| 2 | Line count discrepancy | Medium | Method states "~150 lines" target but actual file is 233 lines (481 → 233, not ~150) |
+| 3 | Method detail mismatch | Low | Method shows explicit registry_for(section_path) usage in apply_config_dict(), but actual code delegates via reload_validated_section(ctx, section_path, new_cfg) which internally uses registry_for — structurally different even though functionally equivalent |
+| 4 | Misleading pending status risk | Medium | Other workers may treat this as "not started" and duplicate work, or skip validation assuming it will be done later |
+| 5 | Completion criteria verification gap | High | AC-3 thin orchestrator (~150 lines): 233 ≠ ~150; AC-4 test pass: not verified; AC-5 lint/type clean: not verified |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| BLOCKER-001 | 6 | Validation never run despite work complete — file status "Pending" is misleading | Open | — | — |
+| BLOCKER-002 | 6 | Line count exceeds target: 233 lines vs ~150 lines stated in Method | Open | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
