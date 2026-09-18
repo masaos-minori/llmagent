@@ -95,16 +95,12 @@ class ConfigReloadService:
         ctx = self._ctx
         outcome = ConfigReloadOutcome()
         for section_path in ("llm", "rag", "tool"):
-            cfg = getattr(ctx.cfg, section_path)
             changed_fields = reload_validated_section(ctx, section_path, new_cfg)
             if changed_fields:
-                setattr(ctx.cfg, section_path, cfg)
                 outcome.applied.append(section_path)
         for section_path in ("approval", "memory", "mcp"):
-            cfg = getattr(ctx.cfg, section_path)
             changed_fields_dict = reload_direct_fields(ctx, new_cfg, section_path)
             if changed_fields_dict:
-                setattr(ctx.cfg, section_path, cfg)
                 outcome.applied.append(section_path)
         if "system_prompt_tool" in new_cfg:
             ctx.conv.system_prompt_content = new_cfg["system_prompt_tool"]
