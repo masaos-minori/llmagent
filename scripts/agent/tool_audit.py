@@ -199,8 +199,6 @@ def audit_tool_exec(
         idempotency_key=idempotency_key,
         task_linkage=task_linkage,
         artifact_uri=artifact_uri,
-        idempotency_key=idempotency_key,
-        task_linkage=task_linkage,
     )
     ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 

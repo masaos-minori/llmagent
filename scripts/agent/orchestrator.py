@@ -12,10 +12,6 @@ Composes six extracted concern classes (see
   audit_event_emitter.py       — AuditEventEmitter (audit event construction)
   conversation_state_manager.py — ConversationStateManager (conversation history manipulation)
 
-Delegates LLM streaming and tool-loop guarding to:
-  llm_turn_runner.py  — LLMTurnRunner (streaming + inner tool-call loop)
-  tool_loop_guard.py  — ToolLoopGuard + TurnLoopState (dedup/cycle/retry/error guards)
-
 All other concerns are delegated to extracted concern classes:
   bg_task_monitor.py      — BgTaskMonitor
   audit_event_emitter.py  — AuditEventEmitter
@@ -26,8 +22,7 @@ All other concerns are delegated to extracted concern classes:
 
 ADR-014: Orchestrator arbitrates processing within a single turn; it delegates
 persistent task state, stage transitions, retries, and approval to
-WorkflowEngine, and delegates the LLM/tool-call loop to LlmTurnExecutor rather
-than owning an LLMTurnRunner instance itself.
+WorkflowEngine, and delegates the LLM/tool-call loop to LlmTurnExecutor.
 """
 
 from __future__ import annotations
@@ -46,10 +41,8 @@ from agent.context import AgentContext
 from agent.conversation_state_manager import ConversationStateManager
 from agent.diagnostic_store import DiagnosticStore
 from agent.llm_turn_executor import LlmTurnExecutor
-from agent.llm_turn_runner import LLMTurnRunner
 from agent.mode_classification import classify_and_inject_mode
 from agent.output_tags import OutputTag
-from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
 from agent.workflow import (
     StateStore,
@@ -113,15 +106,9 @@ class Orchestrator:
         self._pause_on_critical_failure = pause_on_critical_failure
         self._diagnostic_store = DiagnosticStore()
         ctx.diagnostics = self._diagnostic_store
-        self._guard = ToolLoopGuard(ctx)
         self._background_tasks: set[asyncio.Task[object]] = set()
         self._state_store = StateStore()
         self._state_store.recover_stale_attempts(self._state_store.get_connection())
-        self._llm_runner = LLMTurnRunner(
-            ctx,
-            self._guard,
-            tracer=tracer,
-        )
 
         # ── Component initialization (new constructor signatures) ────────────
         self._bg_task_monitor = BgTaskMonitor(
@@ -184,60 +171,6 @@ class Orchestrator:
             on_error=on_error,
             allowed_tools=self._allowed_tools,
         )
-
-    # ── Deprecated private field accessors ──────────────────────────────────────
-    # These properties emit DeprecationWarning when accessed, guiding callers
-    # toward the replacement APIs while maintaining backward compatibility during
-    # the deprecation phase. See issues/20260913-172211_unused_orchestrator_llm_runner.md
-    # for migration context.
-
-    @property
-    def _llm_runner(self):
-        """Deprecated: use _llm_executor.handle_llm_turn() instead."""
-        import warnings
-
-        warnings.warn(
-            "Orchestrator._llm_runner is deprecated. Use Orchestrator._llm_executor.handle_llm_turn() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.__dict__.get("_llm_runner")
-
-    @_llm_runner.setter
-    def _llm_runner(self, value):
-        """Deprecated: use _llm_executor.handle_llm_turn() instead."""
-        import warnings
-
-        warnings.warn(
-            "Orchestrator._llm_runner is deprecated. Use Orchestrator._llm_executor.handle_llm_turn() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.__dict__["_llm_runner"] = value
-
-    @property
-    def _guard(self):
-        """Deprecated: create ToolLoopGuard directly if needed."""
-        import warnings
-
-        warnings.warn(
-            "Orchestrator._guard is deprecated. Create ToolLoopGuard directly if needed.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.__dict__.get("_guard")
-
-    @_guard.setter
-    def _guard(self, value):
-        """Deprecated: create ToolLoopGuard directly if needed."""
-        import warnings
-
-        warnings.warn(
-            "Orchestrator._guard is deprecated. Create ToolLoopGuard directly if needed.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.__dict__["_guard"] = value
 
     # ── Public entry point ────────────────────────────────────────────────────
 
