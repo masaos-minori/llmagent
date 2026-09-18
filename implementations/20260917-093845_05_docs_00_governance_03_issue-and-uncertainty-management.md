@@ -135,10 +135,10 @@ If the consolidation note proves inaccurate later, the rollback is removing the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove NC-027, NC-028, NC-034, NC-035 from Active Items | Pending | — | — | |
-| 2 | Add consolidation-decision note | Pending | — | — | |
-| 3 | Update closing sentence | Pending | — | — | |
-| 4 | Run validation sequence (check_docs_quality.py) | Pending | — | — | |
+| 1 | Remove NC-027, NC-028, NC-034, NC-035 from Active Items | Completed | 20260918-171704 | 20260918-171704 |  |
+| 2 | Add consolidation-decision note | Completed | 20260918-171704 | 20260918-171704 |  |
+| 3 | Update closing sentence | Completed | 20260918-171704 | 20260918-171704 |  |
+| 4 | Run validation sequence (check_docs_quality.py) | Completed | 20260918-171704 | 20260918-171704 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
