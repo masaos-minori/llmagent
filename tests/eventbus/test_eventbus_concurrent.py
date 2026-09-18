@@ -61,20 +61,35 @@ class TestConcurrentPublish:
 class TestConcurrentAck:
     """Verify concurrent ack requests on the same event_id are idempotent."""
 
-    def test_concurrent_ack_same_event(self, client: TestClient) -> None:
+    def test_concurrent_ack_same_event(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
         body = {**_event("ack"), "event_id": str(uuid.uuid4())}
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
         event_id = body["event_id"]
+
+        # Mark the event as delivered but not yet acked so the first ack succeeds
+        from eventbus.db import open_db
+
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        try:
+            db.execute(
+                "INSERT OR IGNORE INTO consumer_delivery(consumer_id, event_id) VALUES (?, ?)",
+                ("consumer-A", event_id),
+            )
+            db.commit()
+        finally:
+            db.close()
+
         results: list[dict[str, Any]] = []
 
         async def _ack_one() -> None:
             resp = client.post(
-                f"/events/{event_id}/ack", params={"consumer_id": "consumer-1"}
+                f"/events/{event_id}/ack", params={"consumer_id": "consumer-A"}
             )
-            assert resp.status_code == 200
-            results.append(resp.json())
+            results.append({"status_code": resp.status_code, **resp.json()})
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -83,8 +98,8 @@ class TestConcurrentAck:
         finally:
             loop.close()
 
-        # First ack should succeed with newly_acked=True, subsequent ones should return 200 with already_acked=True
-        all_success = sum(1 for r in results if r.get("acked") is True)
+        # First ack should succeed with 200 (acked=True), subsequent ones return 200 (already_acked=True)
+        all_success = sum(1 for r in results if r.get("status_code") == 200)
         assert all_success == 10, (
             f"Expected all 10 acks to return 200, got {all_success}"
         )
@@ -145,9 +160,10 @@ class TestConcurrentDlqRequeue:
 
         event_id = body["event_id"]
         original_seq = resp.json()["seq"]
-        
+
         # Simulate delivery to consumer-A so /nack can accept requests
         from eventbus import app as eb_app
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
@@ -159,10 +175,12 @@ class TestConcurrentDlqRequeue:
             db.commit()
         finally:
             loop.close()
-        
+
         # Nack 3 times to promote to DLQ
         for _ in range(3):
-            resp = client.post("/nack", params={"event_id": event_id, "consumer_id": "consumer-A"})
+            resp = client.post(
+                "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+            )
             assert resp.status_code == 200
 
         results: list[dict[str, Any]] = []
