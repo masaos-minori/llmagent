@@ -743,6 +743,7 @@ class TestLegacyOffsetMigrationDirect:
                 migrate_legacy_offsets(db, cfg.offsets_dir)
         finally:
             db.close()
+
     """Tests for REQ-001: identity validation before offset comparison."""
 
     def test_collision_rejected_for_equal_seq(self, tmp_path: Path) -> None:
@@ -879,3 +880,30 @@ class TestMalformedContent:
 
         with pytest.raises(CorruptOffsetError):
             read_offset(offsets_dir, safe_id)
+
+    def test_write_offset_rejects_seq_less_than_current(self, tmp_path: Path) -> None:
+        """INV-012: write_offset rejects seq < current offset."""
+        from eventbus.offsets import read_offset, write_offset
+
+        offsets_dir = str(tmp_path / "offsets")
+
+        # Write a higher offset first
+        write_offset(offsets_dir, "inv012-consumer", 100)
+        assert read_offset(offsets_dir, "inv012-consumer") == 100
+
+        # Attempt to write a lower offset -- should be silently skipped
+        write_offset(offsets_dir, "inv012-consumer", 50)
+        assert read_offset(offsets_dir, "inv012-consumer") == 100
+
+    def test_write_offset_allows_seq_equal_to_current(self, tmp_path: Path) -> None:
+        """INV-012: write_offset skips writes where seq equals current offset."""
+        from eventbus.offsets import read_offset, write_offset
+
+        offsets_dir = str(tmp_path / "offsets")
+
+        write_offset(offsets_dir, "inv012-equal", 42)
+        assert read_offset(offsets_dir, "inv012-equal") == 42
+
+        # Same seq should be skipped
+        write_offset(offsets_dir, "inv012-equal", 42)
+        assert read_offset(offsets_dir, "inv012-equal") == 42
