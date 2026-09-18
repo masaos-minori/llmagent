@@ -1,6 +1,6 @@
 ## Goal
 
-Add an explicit "unvalidated heuristic, pending performance tuning" marker above `_MAX_FTS_TOKENS = 20` in `scripts/rag/repository.py` (line 31), extending its existing "prevents query explosion" comment rather than replacing it. Per REQ-002; AC-1, AC-4.
+Add an explicit "unvalidated heuristic, pending performance tuning" marker above `_MAX_FTS_TOKENS = 20` in `scripts/rag/repository.py` (line 31), extending its existing "prevents query explosion" comment rather than replacing it. Note: the source issue (`issues/done/20260915-200627_rag03_establish-rationale-for-undocumented-chunking-and-crawler-tuning-constants.md`) is under `issues/done/` — verify whether this specific marker has already been applied before executing. Per REQ-002; AC-1, AC-4.
 
 ## Scope
 
@@ -11,7 +11,8 @@ Add an explicit "unvalidated heuristic, pending performance tuning" marker above
 
 - The constant's value (20) remains unchanged — this Plan does not alter any constant value
 - The existing comment "prevents query explosion" is accurate and should be preserved alongside the new marker
-- The prior investigation attempt (`git log -S"_MAX_FTS_TOKENS = 20"` earliest commit 2026-05-26 initial commit; `issues/done/20260802-080020_rag_02_08_usage_table_errors_and_fts_token_rationale.md` filed 2026-08-02) found no rationale and remains unresolved
+- The prior investigation attempt (`git log -S"_MAX_FTS_TOKENS = 20"` earliest commit 2026-05-26 initial commit; `issues/done/20260802-080020_rag_02_08_usage_table_errors_and_fts_token_rationale.md` filed 2026-08-02) found no definitive rationale and remains unresolved
+- The source issue is under `issues/done/`; if it was resolved by adding heuristic markers to ALL seven constants, this procedure may be redundant — verify before executing
 
 ## Design decisions
 
@@ -46,10 +47,11 @@ _MAX_FTS_TOKENS = 20
 After edit:
 ```python
 # Maximum number of tokens to include in an FTS5 query (prevents query explosion);
-# unvalidated heuristic, pending performance tuning — no recorded rationale found
-# via git history or originating issues (2026-08-02 investigation also inconclusive).
+# NOTE: unvalidated heuristic, pending performance tuning
 _MAX_FTS_TOKENS = 20
 ```
+
+Note: The simplified two-line format avoids dated references, removes non-ASCII characters, stays consistent with Python comment conventions, and makes the heuristic status clear without making unverifiable historical claims.
 
 ## Compatibility considerations
 
@@ -62,6 +64,13 @@ N/A: documentation-only change.
 ## Rollback considerations
 
 If the comment text proves inaccurate later, the rollback is reverting the comment to its original form — no code revert needed.
+
+## Risks
+
+- **Risk**: Multi-line comment format has no precedent in this file — adjacent constant `_FTS_KEEP_POS` at line 32 uses single-line comments. Future maintainers may question whether the two lines should be consolidated → **Mitigation**: keep the two-line format minimal (original comment + one NOTE line) to reduce ambiguity.
+- **Risk**: The phrase "no recorded rationale found" is itself a claim requiring evidence beyond `git log -S`. It doesn't mention searching `requires/`, `plans/`, or other directories → **Mitigation**: use qualified language ("no definitive rationale found") rather than absolute claims.
+- **Risk**: Dated references in comments (e.g., `(2026-08-02 investigation also inconclusive)`) become stale over time → **Mitigation**: avoid specific dates in comment text; use timeless phrasing like "pending performance tuning".
+- **Risk**: Non-ASCII characters (em dash `—`) in Python comments may cause issues with some editors/linters → **Mitigation**: use ASCII-safe punctuation (semicolon `;` instead of em dash).
 
 ## Validation plan
 
@@ -102,9 +111,9 @@ If the comment text proves inaccurate later, the rollback is reverting the comme
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
 - **Requirement ID**: REQ-002
-- **Source issue**: issues/20260915-200627_rag03_establish-rationale-for-undocumented-chunking-and-crawler-tuning-constants.md
+- **Source issue**: issues/done/20260915-200627_rag03_establish-rationale-for-undocumented-chunking-and-crawler-tuning-constants.md (resolved — verify this specific marker hasn't already been applied)
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20260916-153123_plan.md
+- **Source plan**: plans/done/20260916-153123_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260917-093845
 - **Related target files**: scripts/rag/repository.py
