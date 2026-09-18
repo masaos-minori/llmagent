@@ -25,7 +25,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any, cast
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 
@@ -44,7 +44,12 @@ from mcp_servers.rag_pipeline.rag_pipeline_service import (
     _service,
 )
 from mcp_servers.rag_pipeline.rag_pipeline_tools import TOOL_LIST
-from mcp_servers.server import MCPServer, ToolArgs, build_tools_response
+from mcp_servers.server import (
+    MCPServer,
+    ToolArgs,
+    build_tools_response,
+    extract_request_context,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -182,18 +187,23 @@ async def list_tools(
     )
 
 
-async def _dispatch_rag_tool(name: str, args: ToolArgs) -> DispatchResult:
+async def _dispatch_rag_tool(
+    name: str, args: ToolArgs, idempotency_key: str | None = None
+) -> DispatchResult:
     """Route RAG pipeline tool calls through the service's dispatch table."""
-    return await dispatch_tool(_service.get_dispatch_table(), name, args)
+    return await dispatch_tool(
+        _service.get_dispatch_table(), name, args, idempotency_key=idempotency_key
+    )
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
-async def call_tool(req: CallToolRequest) -> CallToolResponse:
+async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Dispatch an MCP tool call through the RAG pipeline service."""
     enabled, reason = _rag_pipeline_tool_availability(_cfg, req.name)
     if not enabled:
         return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
-    r = await _dispatch_rag_tool(req.name, req.args)
+    _, _, idempotency_key = extract_request_context(request)
+    r = await _dispatch_rag_tool(req.name, req.args, idempotency_key=idempotency_key)
     return _to_call_tool_response(r)
 
 
