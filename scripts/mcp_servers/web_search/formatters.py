@@ -58,6 +58,10 @@ _WEB_DISPATCH: dict[str, Callable[[ToolArgs], Awaitable[str]]] = {
 }
 
 
-async def dispatch_web_tool(name: str, args: ToolArgs) -> DispatchResult:
+async def dispatch_web_tool(
+    name: str, args: ToolArgs, idempotency_key: str | None = None
+) -> DispatchResult:
     """Route a tool call through the web-search dispatch table."""
-    return await dispatch_tool(_WEB_DISPATCH, name, args)
+    return await dispatch_tool(
+        _WEB_DISPATCH, name, args, idempotency_key=idempotency_key
+    )

@@ -261,11 +261,15 @@ _DISPATCH_TABLE = {
 }
 
 
-async def _dispatch_mdq_tool(name: str, args: ToolArgs) -> MdqDispatchResult:
+async def _dispatch_mdq_tool(
+    name: str, args: ToolArgs, idempotency_key: str | None = None
+) -> MdqDispatchResult:
     """Route a tool call through the shared dispatch mechanism, capturing mdq-local metadata."""
     token = _mdq_metadata_var.set({})
     try:
-        result = await dispatch_tool(_DISPATCH_TABLE, name, args)
+        result = await dispatch_tool(
+            _DISPATCH_TABLE, name, args, idempotency_key=idempotency_key
+        )
         metadata = _mdq_metadata_var.get()
     finally:
         _mdq_metadata_var.reset(token)
@@ -340,11 +344,13 @@ async def list_tools(
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Handle MCP call_tool requests with audit logging and error handling."""
     t0 = time.perf_counter()
-    request_id, session_id, _ = extract_request_context(request)
+    request_id, session_id, idempotency_key = extract_request_context(request)
     target = extract_audit_target(req.name, req.args)
 
     try:
-        r = await _dispatch_mdq_tool(req.name, req.args)
+        r = await _dispatch_mdq_tool(
+            req.name, req.args, idempotency_key=idempotency_key
+        )
     except (
         MdqValidationError,
         MdqAuthorizationError,

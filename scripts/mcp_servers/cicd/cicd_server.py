@@ -81,9 +81,13 @@ setup_exception_handlers(app)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-async def _dispatch_cicd_tool(name: str, args: ToolArgs) -> DispatchResult:
+async def _dispatch_cicd_tool(
+    name: str, args: ToolArgs, idempotency_key: str | None = None
+) -> DispatchResult:
     """Route CI/CD tool calls through the service's dispatch table."""
-    return await dispatch_tool(_service.get_dispatch_table(), name, args)
+    return await dispatch_tool(
+        _service.get_dispatch_table(), name, args, idempotency_key=idempotency_key
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -116,8 +120,8 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     if not enabled:
         return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
     t0 = time.perf_counter()
-    request_id, session_id, request_id = extract_request_context(request)
-    r = await _dispatch_cicd_tool(req.name, req.args)
+    request_id, session_id, idempotency_key = extract_request_context(request)
+    r = await _dispatch_cicd_tool(req.name, req.args, idempotency_key=idempotency_key)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
     _audit_log(

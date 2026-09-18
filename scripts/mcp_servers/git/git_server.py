@@ -182,7 +182,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     except ValueError as e:
         return CallToolResponse(result=f"Validation error: {e}", is_error=True)
     t0 = time.perf_counter()
-    request_id, session_id, request_id = extract_request_context(request)
+    request_id, session_id, idempotency_key = extract_request_context(request)
     repo_path = cast(str, req.args.get("repo_path", ""))
     ok, err, resolved = _resolve_repo_path(repo_path)
     if not ok:
@@ -243,7 +243,12 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     pre_state = RepositoryState.snapshot(
         resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
     )
-    result = await dispatch_tool(_service.get_dispatch_table(), req.name, req.args)
+    result = await dispatch_tool(
+        _service.get_dispatch_table(),
+        req.name,
+        req.args,
+        idempotency_key=idempotency_key,
+    )
     post_state = RepositoryState.snapshot(
         resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
     )

@@ -24,7 +24,7 @@ jobs:
       - name: Lint check
         run: uv run ruff check scripts/
       - name: Type check
-        run: uv run mypy scripts/
+        run: uv run mypy --no-namespace-packages scripts/
       - name: Security scan
         run: uv run bandit -r scripts/ -c pyproject.toml
       - name: Architecture check

@@ -119,9 +119,11 @@ async def health_endpoint() -> JSONResponse:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-async def _dispatch_web_tool(name: str, args: dict[str, Any]) -> DispatchResult:
+async def _dispatch_web_tool(
+    name: str, args: dict[str, Any], idempotency_key: str | None = None
+) -> DispatchResult:
     """Route a tool call through the web-search dispatch table."""
-    return await dispatch_web_tool(name, args)
+    return await dispatch_web_tool(name, args, idempotency_key=idempotency_key)
 
 
 def _classify_dispatch_error(output: str) -> str:
@@ -218,13 +220,15 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     if not enabled:
         return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
 
-    request_id, session_id, request_id = extract_request_context(request)
+    request_id, session_id, idempotency_key = extract_request_context(request)
     t0 = time.perf_counter()
     outcome = "ok"
     error_type = ""
     latency_ms = 0.0
     try:
-        r = await _dispatch_web_tool(req.name, req.args)
+        r = await _dispatch_web_tool(
+            req.name, req.args, idempotency_key=idempotency_key
+        )
         outcome = r.outcome
         latency_ms = (time.perf_counter() - t0) * 1000
         if outcome == "error":

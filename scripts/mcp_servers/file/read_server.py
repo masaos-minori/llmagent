@@ -23,7 +23,7 @@ Provided endpoints:
 import time
 from typing import Any, cast
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
@@ -64,6 +64,7 @@ from mcp_servers.server import (
     MCPServer,
     ToolArgs,
     build_tools_response,
+    extract_request_context,
 )
 
 logger = Logger(__name__, "/opt/llm/logs/file-read-mcp.log")
@@ -243,9 +244,13 @@ async def health() -> JSONResponse:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-async def _dispatch_read_tool(name: str, args: ToolArgs) -> DispatchResult:
+async def _dispatch_read_tool(
+    name: str, args: ToolArgs, idempotency_key: str | None = None
+) -> DispatchResult:
     """Route a tool call through the shared dispatch mechanism."""
-    return await dispatch_tool(_service.get_dispatch_table(), name, args)
+    return await dispatch_tool(
+        _service.get_dispatch_table(), name, args, idempotency_key=idempotency_key
+    )
 
 
 def _annotate_tool(
@@ -276,7 +281,7 @@ async def list_tools(
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
-async def call_tool(req: CallToolRequest) -> CallToolResponse:
+async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Handle MCP call_tool requests with audit logging and error handling."""
     if not _cfg.allowed_dirs:
         return CallToolResponse(
@@ -286,7 +291,8 @@ async def call_tool(req: CallToolRequest) -> CallToolResponse:
         req.validate_args()
     except ValueError as e:
         return CallToolResponse(result=f"Validation error: {e}", is_error=True)
-    r = await _dispatch_read_tool(req.name, req.args)
+    _, _, idempotency_key = extract_request_context(request)
+    r = await _dispatch_read_tool(req.name, req.args, idempotency_key=idempotency_key)
     return _to_call_tool_response(r)
 
 
