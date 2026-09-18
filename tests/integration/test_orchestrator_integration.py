@@ -90,13 +90,12 @@ def _patch_workflow_loader():
 
     with (
         patch("agent.orchestrator.WorkflowLoader"),
-        patch("agent.workflow.StateStore"),
+        patch("agent.orchestrator.StateStore"),
+        patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine_instance),
         patch("agent.workflow_engine_adapter.create_task", return_value=mock_task),
         patch("agent.workflow_engine_adapter.audit_workflow_start"),
-        patch(
-            "agent.orchestrator.WorkflowEngine",
-            return_value=mock_engine_instance,
-        ),
+        patch("agent.workflow_engine_adapter.StateStore"),
+        patch("agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine_instance),
     ):
         yield
 
@@ -858,18 +857,14 @@ class TestApprovalWorkflowWithRealDB:
         mock_engine_instance = MagicMock()
         mock_engine_instance.run = AsyncMock(side_effect=_engine_run)
 
-        with patch(
-            "agent.orchestrator.WorkflowEngine",
-            return_value=mock_engine_instance,
-        ):
-            orch = _make_orchestrator(ctx)
+        orch._workflow_adapter._workflow_engine = mock_engine_instance
 
-            with patch.object(
-                orch._llm_executor,
-                "handle_llm_turn",
-                AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
-            ):
-                await orch.handle_turn("hello")
+        with patch.object(
+            orch._llm_executor,
+            "handle_llm_turn",
+            AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
+        ):
+            await orch.handle_turn("hello")
 
         assert len(captured_calls) >= 1
         mock_engine_instance.run.assert_called()
