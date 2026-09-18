@@ -94,7 +94,7 @@ def _patch_workflow_loader():
         patch("agent.workflow_engine_adapter.create_task", return_value=mock_task),
         patch("agent.workflow_engine_adapter.audit_workflow_start"),
         patch(
-            "agent.workflow.WorkflowEngine",
+            "agent.orchestrator.WorkflowEngine",
             return_value=mock_engine_instance,
         ),
     ):
@@ -846,7 +846,6 @@ class TestApprovalWorkflowWithRealDB:
     async def test_handle_turn_invokes_workflow_engine_run(self) -> None:
         """handle_turn always drives execution through WorkflowEngine.run()."""
         ctx = _make_ctx()
-        orch = _make_orchestrator(ctx)
 
         captured_calls: list[int] = []
 
@@ -859,14 +858,16 @@ class TestApprovalWorkflowWithRealDB:
         mock_engine_instance = MagicMock()
         mock_engine_instance.run = AsyncMock(side_effect=_engine_run)
 
-        with patch.object(
-            orch._llm_executor,
-            "handle_llm_turn",
-            AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
+        with patch(
+            "agent.orchestrator.WorkflowEngine",
+            return_value=mock_engine_instance,
         ):
-            with patch(
-                "agent.workflow.WorkflowEngine",
-                return_value=mock_engine_instance,
+            orch = _make_orchestrator(ctx)
+
+            with patch.object(
+                orch._llm_executor,
+                "handle_llm_turn",
+                AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
             ):
                 await orch.handle_turn("hello")
 
