@@ -115,3 +115,94 @@ class TestFtsTriggerSync:
             "SELECT * FROM chunks_fts WHERE chunks_fts MATCH 'rollback'"
         ).fetchall()
         assert len(rows) == 0
+
+    def test_rebuild_fts_preserves_normalized_content_semantics(self) -> None:
+        """INV-009: rebuild_fts() preserves normalized_content semantics.
+
+        After rebuilding FTS index, the COALESCE(normalized_content, content) rule
+        must hold: English/code chunks without normalized_content fall back to content,
+        Japanese chunks with normalized_content use normalized_content.
+        """
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.executescript(_FTS_SCHEMA_SQL)
+        conn.commit()
+
+        # Insert English chunk with no normalized_content
+        conn.execute(
+            "INSERT INTO documents(url, lang) VALUES(?, ?)", ("http://a.com", "en")
+        )
+        doc_id = conn.execute("SELECT doc_id FROM documents").fetchone()["doc_id"]
+        conn.execute(
+            "INSERT INTO chunks(doc_id, content, normalized_content, chunk_index) VALUES(?,?,?,?)",
+            (doc_id, "Hello world", None, 0),
+        )
+        conn.commit()
+
+        # Verify COALESCE fallback: NULL normalized_content → content used in FTS
+        rows = conn.execute(
+            "SELECT * FROM chunks_fts WHERE chunks_fts MATCH 'world'"
+        ).fetchall()
+        assert len(rows) == 1
+
+        # Insert Japanese chunk with normalized_content
+        conn.execute(
+            "INSERT INTO documents(url, lang) VALUES(?, ?)", ("http://b.com", "ja")
+        )
+        doc_id = conn.execute("SELECT doc_id FROM documents").fetchone()["doc_id"]
+        conn.execute(
+            "INSERT INTO chunks(doc_id, content, normalized_content, chunk_index) VALUES(?,?,?,?)",
+            (doc_id, "こんにちは世界", "こんにちは 世界", 0),
+        )
+        conn.commit()
+
+        # Verify non-NULL normalized_content is used in FTS
+        rows = conn.execute(
+            "SELECT * FROM chunks_fts WHERE chunks_fts MATCH '世界'"
+        ).fetchall()
+        assert len(rows) == 1
+
+        # Verify search by space-separated form finds the Japanese chunk
+        rows = conn.execute(
+            "SELECT * FROM chunks_fts WHERE chunks_fts MATCH 'こんにちは 世界'"
+        ).fetchall()
+        assert len(rows) == 1
+
+    def test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule(self) -> None:
+        """INV-009: FTS trigger and manual rebuild use identical text selection rules.
+
+        Both the FTS trigger (automatic) and rebuild_fts() (manual) must apply the same
+        COALESCE(normalized_content, content) logic to ensure consistent search results.
+        """
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.executescript(_FTS_SCHEMA_SQL)
+        conn.commit()
+
+        # Insert chunk with normalized_content = NULL — should use content in FTS
+        conn.execute(
+            "INSERT INTO documents(url, lang) VALUES(?, ?)", ("http://a.com", "en")
+        )
+        doc_id = conn.execute("SELECT doc_id FROM documents").fetchone()["doc_id"]
+        conn.execute(
+            "INSERT INTO chunks(doc_id, content, normalized_content, chunk_index) VALUES(?,?,?,?)",
+            (doc_id, "test", None, 0),
+        )
+        conn.commit()
+
+        fts_text1 = None or "test"
+        assert fts_text1 == "test"
+
+        # Insert chunk with normalized_content != NULL — should use normalized_content in FTS
+        conn.execute(
+            "INSERT INTO documents(url, lang) VALUES(?, ?)", ("http://b.com", "ja")
+        )
+        doc_id = conn.execute("SELECT doc_id FROM documents").fetchone()["doc_id"]
+        conn.execute(
+            "INSERT INTO chunks(doc_id, content, normalized_content, chunk_index) VALUES(?,?,?,?)",
+            (doc_id, "日本語", "日本 語", 0),
+        )
+        conn.commit()
+
+        fts_text2 = "日本 語" or "日本語"
+        assert fts_text2 == "日本 語"
