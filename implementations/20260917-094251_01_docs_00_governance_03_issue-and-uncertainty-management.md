@@ -140,11 +140,11 @@ If the rebuilt closing summary proves inaccurate later, the rollback is revertin
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the two orphaned CI-005 bullets | Pending | — | — | |
-| 2 | Re-scan 8 other removal placeholders for orphaned bullets | Pending | — | — | |
-| 3 | Rebuild the Part 1 closing summary sentence | Pending | — | — | |
-| 4 | Run check_docs_quality.py and confirm it passes | Pending | — | — | |
-| 5 | Manually re-scan grep for heading/Status cross-check | Pending | — | — | |
+| 1 | Delete the two orphaned CI-005 bullets | Completed | 20260918-171552 | 20260918-171552 |  |
+| 2 | Re-scan 8 other removal placeholders for orphaned bullets | Completed | 20260918-171552 | 20260918-171552 |  |
+| 3 | Rebuild the Part 1 closing summary sentence | Completed | 20260918-171552 | 20260918-171552 |  |
+| 4 | Run check_docs_quality.py and confirm it passes | Completed | 20260918-171552 | 20260918-171552 |  |
+| 5 | Manually re-scan grep for heading/Status cross-check | Completed | 20260918-171552 | 20260918-171552 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
