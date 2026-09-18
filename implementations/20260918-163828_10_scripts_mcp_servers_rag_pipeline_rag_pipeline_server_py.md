@@ -136,10 +136,10 @@ async def _dispatch_rag_tool(name: str, args: ToolArgs, idempotency_key: str | N
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260918-213709 | 20260918-213709 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260918-213709 | 20260918-213709 |  |
+| 3 | Run the validation sequence (rules/toolchain.md) | Completed | 20260918-213710 | 20260918-213710 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260918-213710 | 20260918-213710 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
