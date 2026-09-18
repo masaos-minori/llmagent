@@ -96,8 +96,8 @@ If the comment text proves inaccurate later, the rollback is removing the added 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add heuristic marker above MIN_HEADING_LINES_FOR_MARKDOWN | Pending | — | — | |
-| 2 | Run validation sequence (ruff/mypy) | Pending | — | — | |
+| 1 | Add heuristic marker above MIN_HEADING_LINES_FOR_MARKDOWN | Completed | 20260918-171207 | 20260918-171207 |  |
+| 2 | Run validation sequence (ruff/mypy) | Completed | 20260918-171207 | 20260918-171207 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
