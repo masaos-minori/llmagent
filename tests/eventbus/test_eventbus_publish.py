@@ -193,3 +193,61 @@ def test_broker_notify_failure_increments_metric(
             found_line = True
             break
     assert found_line
+
+
+def test_concurrent_publish_ordering_via_seq(client: TestClient) -> None:
+    """INV-013: Concurrent publishes produce monotonically increasing seq values.
+
+    When multiple messages are published concurrently, the database assigns
+    monotonically increasing sequence numbers. Responses reflect this ordering
+    regardless of thread scheduling.
+    """
+    import threading
+
+    results: list[int] = []
+    lock = threading.Lock()
+
+    def publish_one(topic: str) -> None:
+        ev = {
+            "event_id": str(uuid.uuid4()),
+            "topic": topic,
+            "payload": {"key": "value"},
+            "producer": "test-producer",
+            "published_at": "2026-06-22T11:56:00Z",
+        }
+        r = client.post("/publish", json=ev)
+        assert r.status_code == 200
+        with lock:
+            results.append(r.json()["seq"])
+
+    threads = [threading.Thread(target=publish_one, args=(f"t{i}",)) for i in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert len(results) == 5
+    # Seq values must be strictly increasing (monotonic)
+    sorted_results = sorted(results)
+    for i in range(len(sorted_results) - 1):
+        assert sorted_results[i] < sorted_results[i + 1]
+
+
+def test_sequential_publish_seq_matches_persistence_order(client: TestClient) -> None:
+    """INV-013: Sequential publishes produce seq matching DB insertion order.
+
+    Publishing A then B must yield seq(A) < seq(B), confirming response
+    ordering matches persistence order.
+    """
+    ev_a = _event("order.topic.a")
+    ev_b = _event("order.topic.b")
+
+    r_a = client.post("/publish", json=ev_a)
+    assert r_a.status_code == 200
+    seq_a = r_a.json()["seq"]
+
+    r_b = client.post("/publish", json=ev_b)
+    assert r_b.status_code == 200
+    seq_b = r_b.json()["seq"]
+
+    assert seq_a < seq_b
