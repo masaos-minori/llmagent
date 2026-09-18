@@ -163,6 +163,9 @@ async def nack(
             detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
         )
 
+    db = get_db(request)
+    cfg = get_config(request)
+
     # REQ-009: Verify event was delivered to this consumer before accepting NACK
     try:
         row = await run_with_db_lock(
@@ -181,9 +184,6 @@ async def nack(
         raise HTTPException(
             status_code=409, detail="Event not delivered to this consumer"
         )
-
-    db = get_db(request)
-    cfg = get_config(request)
 
     def _nack_and_promote() -> tuple[int, bool]:
         """Nack an event and promote to DLQ if max retries exceeded.

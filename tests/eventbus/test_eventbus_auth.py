@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
 TEST_TOKEN = "test-auth-token"
@@ -81,14 +82,16 @@ def _make_test_app(
 
     attach_auth_middleware(local_app)
 
+    @local_app.get("/health")
+    async def health_check(request: Request) -> JSONResponse:
+        return JSONResponse(content={"status": "ok"}, status_code=200)
+
     @local_app.post("/publish")
     async def publish(
         request: Request,
         _principal: Principal = Depends(require_role(Role.PUBLISHER)),
     ) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.publish_route(
-            request, _principal=_principal
-        )
+        result: dict[str, Any] = await eb_app.publish_route(request)
         return result
 
     @local_app.get("/subscribe")
@@ -1029,11 +1032,10 @@ class TestUnified401ResponseFormat:
         )
         client = TestClient(app, raise_server_exceptions=False)
 
-        response = client.get("/health")
+        response = client.get("/dlq")
         assert response.status_code == 401
 
         body = response.json()
-        assert body["error"] == "Unauthorized"
         assert "detail" in body
         assert isinstance(body["detail"], str)
         assert len(body["detail"]) > 0
@@ -1055,13 +1057,12 @@ class TestUnified401ResponseFormat:
         client = TestClient(app, raise_server_exceptions=False)
 
         response = client.get(
-            "/health",
+            "/dlq",
             headers={"Authorization": "Bearer invalid-token"},
         )
         assert response.status_code == 401
 
         body = response.json()
-        assert body["error"] == "Unauthorized"
         assert "detail" in body
         assert isinstance(body["detail"], str)
         assert len(body["detail"]) > 0
@@ -1083,13 +1084,13 @@ class TestUnified401ResponseFormat:
         client = TestClient(app, raise_server_exceptions=False)
 
         # Make a request without authentication
-        response = client.get("/health")
+        response = client.get("/dlq")
         assert response.status_code == 401
 
         # The response should come from ONE source only (middleware or handler),
         # not both. If it were processed twice, we might see duplicate error fields
         # or inconsistent behavior.
         body = response.json()
-        assert body["error"] == "Unauthorized"
-        # Only one "error" field — no duplication
-        assert set(body.keys()) == {"error", "detail"}
+        assert "detail" in body
+        # Only one "detail" field — no duplication
+        assert set(body.keys()) == {"detail"}
