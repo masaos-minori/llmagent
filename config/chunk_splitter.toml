@@ -2,6 +2,9 @@
 
 rag_src_dir = "/opt/llm/rag-src"
 
+# Unvalidated heuristic, pending performance tuning — no recorded rationale found
+# via git history or originating issues. These three values interact as a group
+# (NC-034) and were set without measured justification.
 min_chunk = 40
 max_chunk = 500
 chunk_overlap = 50

@@ -250,9 +250,6 @@ CI-005 ("ADR-004 INV-03 — fail-closed for missing config not implemented") was
 
 **EventBus-specific verification (REQ-006)**: Verified by configuration test confirming `ConfigMissingError` is raised when a required config file is missing. The EventBus `load_config()` function (`scripts/eventbus/config.py`) validates required keys via `_REQUIRED_CONFIG_KEYS` and raises `ValueError` for missing keys — consistent with the fail-closed behavior described in CI-005.
 
-- **Impact**: Missing critical configuration silently fails open across all environments, including production.
-- **Recommended Action**: Pass `strict=True` to `load_all()` or add explicit validation after config loading.
-
 #### CI-006
 
 CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavior not verified") was resolved and removed from this active inventory 2026-09-14 — not by verifying the local-mode behavior it asked about, but because the premise no longer applies: `docs/adr/ADR-004-environment-failure-handling-policy.md`'s own 2026-09-04 revision record states `SecurityProfile.LOCAL` was fully abolished and production-grade validation made unconditional for every normal startup. Confirmed by direct code inspection: `scripts/shared/mcp_config.py`'s `SecurityProfile` enum now defines only `PRODUCTION`, and `security_profile: SecurityProfile = SecurityProfile.PRODUCTION` is the sole default in `scripts/agent/config_dataclasses.py` — there is no local/production branch left in which safety checks could fail open. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-006` heading.

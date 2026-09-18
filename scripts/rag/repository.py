@@ -27,7 +27,8 @@ from rag.utils import floats_to_blob
 
 logger = logging.getLogger(__name__)
 
-# Maximum number of tokens to include in an FTS5 query (prevents query explosion)
+# Maximum number of tokens to include in an FTS5 query (prevents query explosion);
+# NOTE: unvalidated heuristic, pending performance tuning
 _MAX_FTS_TOKENS = 20
 # Sudachi POS categories retained for Japanese FTS5 query tokens (content words only)
 _FTS_KEEP_POS: frozenset[str] = frozenset({"名詞", "動詞", "形容詞"})

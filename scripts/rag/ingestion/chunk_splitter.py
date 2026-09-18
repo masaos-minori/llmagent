@@ -33,6 +33,7 @@ from shared.logger import Logger
 from sudachipy import dictionary as sudachi_dict
 from sudachipy import tokenizer as sudachi_tok
 
+# NOTE: unvalidated heuristic, pending performance tuning
 MIN_HEADING_LINES_FOR_MARKDOWN = 2
 MARKDOWN_HEADING_RE = r"^#{1,6}"
 

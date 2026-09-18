@@ -12,11 +12,14 @@ sqlite_timeout = 30
 sqlite_busy_timeout_ms = 30000
 
 crawl_delay = 1.5
+# Unvalidated heuristic, pending performance tuning — no recorded rationale found
+# via git history or originating issues (NC-035).
 max_depth = 3
 min_chunk = 40
 fetch_retry = 3
 fetch_timeout = 15
 crawl_concurrency = 3
+# NOTE: max_pages default (500 in code, 200 in TOML) also lacks measured justification
 max_pages = 200
 
 skip_nofollow = true
