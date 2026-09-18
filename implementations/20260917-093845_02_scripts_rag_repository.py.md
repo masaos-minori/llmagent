@@ -95,8 +95,8 @@ If the comment text proves inaccurate later, the rollback is reverting the comme
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add heuristic marker above _MAX_FTS_TOKENS | Pending | — | — | |
-| 2 | Run validation sequence (ruff/mypy) | Pending | — | — | |
+| 1 | Add heuristic marker above _MAX_FTS_TOKENS | Completed | 20260918-171254 | 20260918-171254 |  |
+| 2 | Run validation sequence (ruff/mypy) | Completed | 20260918-171254 | 20260918-171254 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
