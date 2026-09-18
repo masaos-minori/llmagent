@@ -1032,7 +1032,16 @@ class TestUnified401ResponseFormat:
         )
         client = TestClient(app, raise_server_exceptions=False)
 
-        response = client.get("/dlq")
+        response = client.post(
+            "/publish",
+            json={
+                "event_id": "test-event-id",
+                "topic": "test.topic",
+                "payload": {"x": 1},
+                "producer": "test-producer",
+                "published_at": "2026-06-22T12:00:00Z",
+            },
+        )
         assert response.status_code == 401
 
         body = response.json()
@@ -1056,8 +1065,15 @@ class TestUnified401ResponseFormat:
         )
         client = TestClient(app, raise_server_exceptions=False)
 
-        response = client.get(
-            "/dlq",
+        response = client.post(
+            "/publish",
+            json={
+                "event_id": "test-event-id",
+                "topic": "test.topic",
+                "payload": {"x": 1},
+                "producer": "test-producer",
+                "published_at": "2026-06-22T12:00:00Z",
+            },
             headers={"Authorization": "Bearer invalid-token"},
         )
         assert response.status_code == 401
@@ -1084,7 +1100,16 @@ class TestUnified401ResponseFormat:
         client = TestClient(app, raise_server_exceptions=False)
 
         # Make a request without authentication
-        response = client.get("/dlq")
+        response = client.post(
+            "/publish",
+            json={
+                "event_id": "test-event-id",
+                "topic": "test.topic",
+                "payload": {"x": 1},
+                "producer": "test-producer",
+                "published_at": "2026-06-22T12:00:00Z",
+            },
+        )
         assert response.status_code == 401
 
         # The response should come from ONE source only (middleware or handler),

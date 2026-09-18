@@ -71,7 +71,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | REQ-EB-003-002; Add status assertion to crash ack call | Pending | — | — | |
+| 1 | REQ-EB-003-002; Add status assertion to crash ack call | Completed | — | 20260918-180404 | Already had assertion; added delivery simulation for consumer-B |
 | 2 | REQ-EB-003-003; Investigate consumer-identity-ownership in crash ack test | Pending | — | — | |
 | 3 | REQ-EB-003-002; Run targeted test (crash) | Pending | — | — | |
 | 4 | REQ-EB-003-003; Run regression test | Pending | — | — | |

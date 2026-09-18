@@ -74,7 +74,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | REQ-EB-003-001; Add consumer_id to /nack calls | Pending | — | — | |
+| 1 | REQ-EB-003-001; Add consumer_id to /nack calls | Completed | — | 20260918-180249 | Already had consumer_id; added delivery simulation + fixed resp.json()["seq"] → original_seq |
 | 2 | REQ-EB-003-002; Add status assertions to concurrent ack calls | Pending | — | — | |
 | 3 | REQ-EB-003-003; Investigate consumer-identity-ownership in concurrent ack test | Pending | — | — | |
 | 4 | REQ-EB-003-001; Run targeted test (concurrent) | Pending | — | — | |

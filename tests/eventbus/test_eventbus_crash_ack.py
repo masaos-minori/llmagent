@@ -138,6 +138,7 @@ class TestCrashBeforeAck:
 
     def test_partial_ack_replay(self, client: TestClient) -> None:
         """Consumer acks some events but not others — only unacked replayed."""
+        import asyncio
         import eventbus.app as eb_app
         from eventbus.db import get_consumer_offset
 
@@ -147,6 +148,20 @@ class TestCrashBeforeAck:
         resp2 = client.post("/publish", json=body2)
         assert resp1.status_code == 200
         assert resp2.status_code == 200
+
+        # Simulate delivery to consumer-B so /ack can accept requests
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            db = eb_app.app.state.db
+            for eid in (body1["event_id"], body2["event_id"]):
+                db.execute(
+                    "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, NULL)",
+                    ("consumer-B", eid),
+                )
+            db.commit()
+        finally:
+            loop.close()
 
         # Ack only the first event
         resp = client.post(

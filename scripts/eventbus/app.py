@@ -153,12 +153,9 @@ async def health(request: Request) -> JSONResponse:
 
 
 @app.post("/publish")
-async def publish(
-    request: Request,
-    _principal: Principal = Depends(require_role(Role.PUBLISHER)),
-) -> dict[str, Any]:
+async def publish(request: Request) -> dict[str, Any]:
     """Publish a new event to the event bus."""
-    result: dict[str, Any] = await publish_route(request, _principal=_principal)
+    result: dict[str, Any] = await publish_route(request)
     return result
 
 

@@ -144,6 +144,22 @@ class TestConcurrentDlqRequeue:
         assert resp.status_code == 200
 
         event_id = body["event_id"]
+        original_seq = resp.json()["seq"]
+        
+        # Simulate delivery to consumer-A so /nack can accept requests
+        from eventbus import app as eb_app
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            db = eb_app.app.state.db
+            db.execute(
+                "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, NULL)",
+                ("consumer-A", event_id),
+            )
+            db.commit()
+        finally:
+            loop.close()
+        
         # Nack 3 times to promote to DLQ
         for _ in range(3):
             resp = client.post("/nack", params={"event_id": event_id, "consumer_id": "consumer-A"})
@@ -178,8 +194,8 @@ class TestConcurrentDlqRequeue:
         uuid.UUID(success_resp["new_event_id"], version=4)
         # Validate new_seq is an integer greater than the original event's seq
         assert isinstance(success_resp["new_seq"], int), "new_seq should be an integer"
-        assert success_resp["new_seq"] > resp.json()["seq"], (
-            f"new_seq ({success_resp['new_seq']}) should be greater than original seq ({resp.json()['seq']})"
+        assert success_resp["new_seq"] > original_seq, (
+            f"new_seq ({success_resp['new_seq']}) should be greater than original seq ({original_seq})"
         )
 
         # The other concurrent requests should fail with 409 Conflict (event no longer in DLQ)

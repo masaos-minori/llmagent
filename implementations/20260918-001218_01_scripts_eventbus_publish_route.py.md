@@ -76,7 +76,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | REQ-EB-002-001; Remove _principal parameter from publish() | Pending | — | — | |
+| 1 | REQ-EB-002-001; Remove _principal parameter from publish() | Completed | — | 20260918-175252 | Removed unused _principal param + Principal import; updated test harness /publish wrapper |
 | 2 | REQ-EB-002-001; Run mypy type check | Pending | — | — | |
 | 3 | REQ-EB-002-001; Update test harness /publish wrapper | Pending | — | — | |
 | 4 | REQ-EB-002-001; Run targeted test | Pending | — | — | |

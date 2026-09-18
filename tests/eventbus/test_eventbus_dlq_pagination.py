@@ -100,7 +100,7 @@ def test_dlq_pagination(client: TestClient) -> None:
     for event_id in events:
         _simulate_delivery(client, event_id, "consumer-A")
 
-    # Promote all to DLQ (2 nacks per event)
+    # Promote all to DLQ (first nack per event — increments failure count; second nack promotes to DLQ)
     nack_headers = {"Authorization": "Bearer consumer-token"}
     for event_id in events:
         r = client.post(

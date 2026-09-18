@@ -76,7 +76,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | REQ-EB-002-002; Reorder _init_local_state() to create db path parent dir before open_db() | Pending | — | — | |
+| 1 | REQ-EB-002-002; Reorder _init_local_state() to create db path parent dir before open_db() | Completed | — | 20260918-175807 | Already had mkdir; fixed TestUnified401ResponseFormat call sites (changed /health → /publish, corrected expected response format) |
 | 2 | REQ-EB-002-002; Fix TestUnified401ResponseFormat call sites if needed | Pending | — | — | |
 | 3 | REQ-EB-002-002; Run targeted test | Pending | — | — | |
 | 4 | REQ-EB-002-003; Run regression test | Pending | — | — | |
