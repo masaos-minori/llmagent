@@ -163,10 +163,10 @@ promoting `GV-021` to blocking; a decorator-based check registry.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | New tests live in seq 03's document (same target row, `tests/tools/test_check_docs_content_policy.py`) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `tools/`-scoped lighter sequence per `routing.md` "Adding a new tool" — no `lint-imports`/`diff-cover` gate |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | GV-021 doc row update lives in seq 02's document |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-121244 | 20260919-121244 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-121244 | 20260919-121244 | New tests live in seq 03's document (same target row, `tests/tools/test_check_docs_content_policy.py`) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-121244 | 20260919-121244 | `ruff format`/`check`, `mypy`, `bandit` all clean. `uv run python tools/check_docs_content_policy.py` exits 0 (no crash), 30 new WARNING findings across `docs/` (up from 2 pre-existing) — fixing these is explicitly out of scope per this row's Out of scope. Changed files this cycle: `tools/check_docs_content_policy.py` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-121244 | 20260919-121244 | GV-021 doc row update lives in seq 02's document |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
