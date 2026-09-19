@@ -95,10 +95,10 @@ Changes to `tools/manage_frontmatter.py` (seq 03) or `tools/check_docs_structure
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests live in seq 06's document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `tools/`-scoped lighter sequence |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: internal module, no docs/*.md reference |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-122120 | 20260919-122120 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-122120 | 20260919-122120 | Tests live in seq 06's document |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-122120 | 20260919-122120 | `tools/`-scoped lighter sequence |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-122120 | 20260919-122120 | N/A: internal module, no docs/*.md reference |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
