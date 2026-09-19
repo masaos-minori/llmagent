@@ -13,7 +13,7 @@ The file was written incrementally over multiple iterations (see `implementation
 Three concrete problems:
 1. **Inline default tables duplicate dataclass defaults** (lines 71-127): `_DEFAULT_PLAN_BLOCKED_TOOLS`, `_DEFAULT_APPROVAL_RISK_RULES`, `_DEFAULT_PROTECTED_PATHS`, `_DEFAULT_SHELL_SAFE_PREFIXES`, `_DEFAULT_RESOURCE_KEYS`, `_DEFAULT_DRY_RUN_TOOLS` — these are defined here but also exist as dataclass defaults, creating two sources of truth.
 2. **Structural repetition in `_get_*_or_default` helpers** (lines 135-177): six nearly-identical wrapper functions (`_get_list_or_default`, `_get_dict_or_default`, `_get_str_or_default`, `_get_int_or_default`, `_get_float_or_default`, `_get_bool_or_default`) that differ only in type and return annotation.
-3. **Each `_build_*` function is too long** (199-249, 278-326, 329-373, 376-420): each extracts 15-20 fields, validates them, and constructs a dataclass — exceeding typical function length guidelines and making it hard to verify correctness of individual field mappings.
+3. **Builder functions vary in complexity**: `_build_llm_config` (51 lines), `_build_tool_config` (49 lines), `_build_memory_config` (45 lines), and `_build_approval_config` (45 lines) extract 15-20 fields each and exceed typical function length guidelines; however, `_build_rag_config` (24 lines) and `_build_diagnostics_config` (15 lines) are within reasonable bounds.
 
 ## Reason for Change
 - Maintainability: a 507-line file with 6+ distinct responsibilities is difficult to review and extend safely.
@@ -45,27 +45,30 @@ Preserve: public API surface (`build_agent_config`, `load_config`, `ConfigLoadEr
 - Update `config_dataclasses.py` to import defaults from `constants.py` instead of defining inline literals.
 - Remove `_DEFAULT_*` constants from `config_builders.py`.
 - Consolidate `_get_*_or_default` helpers (lines 135-177) into a single generic helper or inline pattern.
-- Decompose `_build_llm_config` (199-249), `_build_tool_config` (278-326), `_build_memory_config` (329-373), `_build_approval_config` (376-420) into smaller sub-functions (<30 lines each).
-- Split `build_agent_config` (440-507) into factory orchestration and validation layers.
+- Decompose `_build_llm_config` (199-249), `_build_tool_config` (278-326), `_build_memory_config` (329-373), `_build_approval_config` (376-420) into smaller sub-functions (<30 lines each); exclude `_build_rag_config` (24 lines) and `_build_diagnostics_config` (15 lines) as they are already within reasonable length.
+- Split `build_agent_config` (440-507) into three parts: (1) config loading + security profile computation, (2) production validation, (3) builder orchestration + AgentConfig assembly.
 - Run `uv run pytest tests/agent/test_config_builders.py -q` and confirm zero failures.
 - Run `uv run pytest tests/ -q` to confirm no regressions elsewhere.
 
 ## Constraints
-- Preserve all public exports: `build_agent_config`, `load_config`, `ConfigLoadError`, `_build_mcp_servers`, `SecurityProfile`.
+- Preserve all locally-defined public exports: `build_agent_config`, `load_config`, `ConfigLoadError`.
 - Do not change any error types, exception messages, or validation behavior.
 - Do not change the default values — only move them to a shared location.
 - All existing tests must continue to pass without modification.
 - Do not introduce new dependencies or change the import graph beyond what is necessary for the split.
+- When consolidating `_get_*_or_default` helpers, the empty-string semantics of `_get_str_or_default` (preserving `None vs ""` distinction) MUST NOT be lost. A single generic helper replacing all six is unsafe without explicit handling of this distinction.
+- The `build_agent_config` split should produce three sub-functions: (1) config loading + security profile, (2) production validation, (3) builder orchestration + AgentConfig assembly.
+- `_build_rag_config` (24 lines) and `_build_diagnostics_config` (15 lines) do not meet the >30-line threshold for decomposition and should be excluded.
 
 ## Acceptance Criteria
-- `scripts/agent/config_builders.py` is under 200 lines.
+- `scripts/agent/config_builders.py` is under 200 lines (excluding `constants.py`).
 - `scripts/agent/constants.py` exists and contains all `_DEFAULT_*` tables; `config_dataclasses.py` imports from it.
-- No `_get_*_or_default` wrapper functions remain in `config_builders.py`.
-- Each `_build_*` function in `config_builders.py` is under 30 lines.
-- `build_agent_config` is split into at least two named sub-functions (factory + validation).
+- No `_get_*_or_default` wrapper functions remain in `config_builders.py`; the empty-string `None vs ""` semantics of `_get_str_or_default` is preserved.
+- Each decomposed `_build_*` function (excluding `_build_rag_config` and `_build_diagnostics_config`) in `config_builders.py` is under 30 lines.
+- `build_agent_config` is split into three named sub-functions: (1) config loading + security profile, (2) production validation, (3) builder orchestration + AgentConfig assembly.
 - `uv run pytest tests/agent/test_config_builders.py -q` passes with zero failures.
 - `uv run pytest tests/ -q` passes with zero failures.
-- Public API surface unchanged (verified by import check).
+- Public API surface unchanged (verified by import check for `build_agent_config`, `load_config`, `ConfigLoadError`).
 
 ## Testing Expectations
 - `uv run pytest tests/agent/test_config_builders.py -q` — unit tests for config builders.
@@ -85,9 +88,31 @@ Update module docstrings in `config_builders.py` and `constants.py` to reflect t
 ## Dependencies
 N/A: none.
 
-## Unresolved Questions
-- Should `_get_str_or_default`'s special empty-string-default semantics be preserved as a separate helper or documented in the generic helper's signature? Not decided — left for the implementer to evaluate.
-- Is there value in moving `_validate_dry_run_tools` to `constants.py` alongside the dry-run tools table, or should it stay in `config_builders.py` since it references the constant? Not decided — left for the implementer.
+## Adversarial Validation (20260919-223836)
+
+### Verified claims
+- **File line count**: `config_builders.py` is indeed 507 lines.
+- **Inline default duplication**: All 6 `_DEFAULT_*` tables (`_DEFAULT_PLAN_BLOCKED_TOOLS`, `_DEFAULT_APPROVAL_RISK_RULES`, `_DEFAULT_PROTECTED_PATHS`, `_DEFAULT_SHELL_SAFE_PREFIXES`, `_DEFAULT_RESOURCE_KEYS`, `_DEFAULT_DRY_RUN_TOOLS`) have exact copies in `config_dataclasses.py` dataclass defaults (lines 196-202, 293-311, 314-322, 330-343, 346-357, 359-367 respectively). Two sources of truth confirmed.
+
+### Disputed / inaccurate claims
+- **`_build_rag_config` length**: Claimed as part of the ~50-line builders but is actually 24 lines (252-275). It does not exceed typical function length guidelines and should not be decomposed.
+- **`_build_diagnostics_config` omission**: At 15 lines (423-437), this is the shortest builder function but is not mentioned in the Problem section. The claim "each `_build_*` function" overstates the problem.
+- **`_get_*_or_default` consolidation risk**: The generic helper proposal would conflate `_get_str_or_default`'s empty-string semantics (`v if v is not None else default`) with the five other helpers' semantics (`v or default`). This is not a minor nuance — it would silently break `memory_jsonl_dir` fallback logic at `config_builders.py:334` where `_get_str + or` is intentionally used instead. The Issue leaves this as an unresolved question but offers no concrete resolution path.
+- **`build_agent_config` separation boundary**: "validation/registry resolution layer" conflates two distinct concerns. Production config validation and tool registry resolution are orthogonal operations with different failure modes and lifecycles. A cleaner split would be: (a) config loading + security profile computation, (b) production validation, (c) builder orchestration + AgentConfig assembly.
+- **Public API preservation list**: `_build_mcp_servers` and `SecurityProfile` are imported from `shared/mcp_config.py`, not defined locally in `config_builders.py`. Including them in the "preserve" list misrepresents the scope of local changes needed.
+
+### Acceptance Criteria concerns
+- **"config_builders.py under 200 lines"**: Achievable by moving constants, but `constants.py` line count is not counted. Total code volume may increase due to module overhead.
+- **"No `_get_*_or_default` wrappers remain"**: Would require careful handling of the empty-string semantics distinction. A generic helper alone cannot preserve both patterns safely.
+- **"Each `_build_*` under 30 lines"**: Already satisfied by `_build_rag_config` (24 lines) and `_build_diagnostics_config` (15 lines). Applying this uniformly wastes effort on short functions.
+- **"`build_agent_config` split into factory + validation"**: The term "validation" is ambiguous — validation and registry resolution should be separate sub-functions given their different responsibilities.
+- **Test compatibility after internal restructuring**: Tests call `_build_*` directly, so they are weakly coupled to internal structure. Moving defaults to `constants.py` breaks the implicit assumption that defaults live in `config_dataclasses.py`. Tests will need updating even though behavior is unchanged.
+
+### Updated constraints
+- When consolidating `_get_*_or_default` helpers, the empty-string semantics of `_get_str_or_default` MUST be preserved as a separate code path or documented in the generic helper's contract. A single generic helper replacing all six is unsafe without explicit handling of the `None vs ""` distinction.
+- The `build_agent_config` split should produce three sub-functions rather than two: (1) config loading + security profile, (2) production validation, (3) builder orchestration + AgentConfig assembly.
+- `_build_rag_config` (24 lines) and `_build_diagnostics_config` (15 lines) do not meet the >30-line threshold for decomposition and should be excluded from the builder decomposition requirement.
+- The public API preservation list should only include locally-defined exports: `build_agent_config`, `load_config`, `ConfigLoadError`.
 
 ## AI Implementation Instruction
 Refactor `scripts/agent/config_builders.py` following the Implementation Intent above. Do not add new features, change default values, or modify the public API. After each step, run `uv run pytest tests/agent/test_config_builders.py -q` to verify no regressions. If any test fails, revert the last change before proceeding. Keep the diff minimal and focused on structural changes only.
