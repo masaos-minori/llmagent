@@ -116,10 +116,10 @@ regression test; parametrized test restructuring.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on seq 01's actual function implementations |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's own Target file IS the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `uv run pytest tests/tools/test_check_docs_content_policy.py -v` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test file only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-121244 | 20260919-121244 | Depends on seq 01's actual function implementations |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-121244 | 20260919-121244 | This document's own Target file IS the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-121244 | 20260919-121244 | `uv run pytest tests/tools/test_check_docs_content_policy.py -v` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-121244 | 20260919-121244 | N/A: test file only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
