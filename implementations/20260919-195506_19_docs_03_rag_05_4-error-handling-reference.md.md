@@ -105,10 +105,10 @@ any other design doc.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Classify and apply action for 3 real bullets; bullet 2 expected Known Issues |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no test to add |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_quality.py, check_docs_structure.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-220649 | 20260919-220649 | Classify and apply action for 3 real bullets; bullet 2 expected Known Issues Re-verified all 3 bullets against current source (RagRerankError/RagPipelineError locations, pipeline.py catch tuple, exceptions.py's 7 classes, no ADR documents the rationale) -- all still accurate. Bullet 1: Delete. Bullet 2: Move to Known Issues, reserved CI-018 (created by row 21); full evidentiary detail (3 commit hashes) handed to row 21's entry; found this file's main body 'Known hierarchy deviation' subsection already cross-referenced the old Implementation Notes line number -- corrected that cross-reference to point to CI-018 instead. Bullet 3: Retain, promoted into the ## RagPipeline table as a new row. |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-220649 | 20260919-220649 | N/A: documentation-only, no test to add N/A: documentation-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-220649 | 20260919-220649 | check_docs_quality.py, check_docs_structure.py check_docs_quality.py: no issues found; check_docs_structure.py: all checks passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-220649 | 20260919-220649 | N/A: this document's own Target file IS the documentation being updated Edited this file's own Implementation Notes + main body only; governance-doc counterpart entry filed by row 21 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
