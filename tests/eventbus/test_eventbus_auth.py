@@ -15,6 +15,7 @@ import time
 from datetime import UTC
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -682,6 +683,12 @@ class TestRequireConsumerIdentityTopicSemantics:
 class TestPrincipalFieldValidation:
     """Unit-level tests for Principal field resolution from tokens."""
 
+    @staticmethod
+    def _make_request_mock(auth_token: str = "test-token") -> MagicMock:
+        mock = MagicMock()
+        mock.app.state.config.auth_token = auth_token
+        return mock
+
     @pytest.mark.asyncio
     async def test_publisher_token_grants_only_publisher_role(self) -> None:
         from unittest.mock import MagicMock
@@ -702,7 +709,7 @@ class TestPrincipalFieldValidation:
         )
         try:
             principal = await resolve_principal(
-                MagicMock(),
+                self._make_request_mock(),
                 credentials=MagicMock(credentials=token),
             )
             assert isinstance(principal, Principal)
@@ -732,7 +739,7 @@ class TestPrincipalFieldValidation:
         )
         try:
             principal = await resolve_principal(
-                MagicMock(),
+                self._make_request_mock(),
                 credentials=MagicMock(credentials=token),
             )
             assert isinstance(principal, Principal)
@@ -762,7 +769,7 @@ class TestPrincipalFieldValidation:
         )
         try:
             principal = await resolve_principal(
-                MagicMock(),
+                self._make_request_mock(),
                 credentials=MagicMock(credentials=token),
             )
             assert isinstance(principal, Principal)
@@ -794,7 +801,7 @@ class TestPrincipalFieldValidation:
         )
         try:
             principal = await resolve_principal(
-                MagicMock(),
+                self._make_request_mock(),
                 credentials=MagicMock(credentials=token),
             )
             assert isinstance(principal, Principal)
