@@ -24,6 +24,14 @@ from dataclasses import dataclass, field
 
 from shared.mcp_config import McpServerConfig, SecurityProfile
 
+from agent.constants import (
+    _DEFAULT_APPROVAL_RISK_RULES,
+    _DEFAULT_DRY_RUN_TOOLS,
+    _DEFAULT_PLAN_BLOCKED_TOOLS,
+    _DEFAULT_PROTECTED_PATHS,
+    _DEFAULT_RESOURCE_KEYS,
+    _DEFAULT_SHELL_SAFE_PREFIXES,
+)
 from agent.services.config_validators import (
     validate_approval_risk_rules as _v_app_risk,
 )
@@ -194,12 +202,7 @@ class ToolConfig:
     masked_fields: list[str] = field(default_factory=lambda: ["file_content"])
     # Tools blocked when plan_mode is active; empty = block nothing
     plan_blocked_tools: list[str] = field(
-        default_factory=lambda: [
-            "write_file",
-            "create_directory",
-            "delete_file",
-            "delete_directory",
-        ],
+        default_factory=lambda: list(_DEFAULT_PLAN_BLOCKED_TOOLS),
     )
     max_tool_turns: int = 5
     # Max chars of a tool result injected into LLM context
@@ -291,35 +294,11 @@ class ApprovalConfig:
 
     # tool_name -> "none" | "medium" | "high"; absent tools default to "medium" (fail-closed)
     approval_risk_rules: dict[str, str] = field(
-        default_factory=lambda: {
-            "write_file": "medium",
-            "edit_file": "medium",
-            "create_directory": "medium",
-            "move_file": "medium",
-            "delete_file": "high",
-            "delete_directory": "high",
-            "shell_run": "high",
-            "github_push_files": "high",
-            "github_create_or_update_file": "high",
-            "github_delete_file": "high",
-            "github_merge_pull_request": "high",
-            "github_create_branch": "medium",
-            "github_create_pull_request": "medium",
-            "github_update_pull_request": "medium",
-            "github_create_issue": "medium",
-            "github_add_issue_comment": "medium",
-        },
+        default_factory=lambda: dict(_DEFAULT_APPROVAL_RISK_RULES),
     )
     # File path prefixes that escalate any operation to "high" risk
     approval_protected_paths: list[str] = field(
-        default_factory=lambda: [
-            "/opt/",
-            "/etc/",
-            "/boot/",
-            "/usr/",
-            "/bin/",
-            "/sbin/",
-        ],
+        default_factory=lambda: list(_DEFAULT_PROTECTED_PATHS),
     )
     # GitHub branch names where write operations escalate to "high" risk
     approval_high_risk_branches: list[str] = field(
@@ -328,43 +307,15 @@ class ApprovalConfig:
     # shell_run commands whose parsed leading tokens exactly match these entries
     # (after shlex.split()) receive RiskLevel.NONE when all path constraints pass
     approval_shell_safe_prefixes: list[str] = field(
-        default_factory=lambda: [
-            "ls",
-            "cat",
-            "echo",
-            "git log",
-            "git status",
-            "git diff",
-            "git show",
-            "git branch",
-            "pwd",
-            "find",
-            "grep",
-        ],
+        default_factory=lambda: list(_DEFAULT_SHELL_SAFE_PREFIXES),
     )
     # Arg keys treated as resource identifiers for path/branch escalation
     approval_resource_keys: dict[str, list[str]] = field(
-        default_factory=lambda: {
-            "path_keys": [
-                "path",
-                "file_path",
-                "directory_path",
-                "source",
-                "destination",
-            ],
-            "branch_keys": ["branch", "base", "head"],
-        },
+        default_factory=lambda: dict(_DEFAULT_RESOURCE_KEYS),
     )
     # Tools with dry_run=True support; approval flow injects dry_run automatically
     approval_dry_run_tools: list[str] = field(
-        default_factory=lambda: [
-            "write_file",
-            "edit_file",
-            "create_directory",
-            "delete_file",
-            "delete_directory",
-            "move_file",
-        ],
+        default_factory=lambda: list(_DEFAULT_DRY_RUN_TOOLS),
     )
     # tool_name -> "READ_ONLY" | "WRITE_SAFE" | "WRITE_DANGEROUS" | "ADMIN"
     # Absent tools default to "WRITE_DANGEROUS" (fail-safe)
