@@ -230,7 +230,7 @@ class TestDiffMcpServerConfig:
         return old, new
 
     def test_identical_configs_no_diff(self) -> None:
-        from agent.services.config_reload import _diff_mcp_server_config
+        from agent.services.config_outcome_classification import _diff_mcp_server_config
 
         old, new = self._make_pair()
         assert _diff_mcp_server_config(old, new) == []
@@ -251,7 +251,7 @@ class TestDiffMcpServerConfig:
     def test_single_field_change_detected(
         self, field_name: str, new_value: object
     ) -> None:
-        from agent.services.config_reload import _diff_mcp_server_config
+        from agent.services.config_outcome_classification import _diff_mcp_server_config
 
         old, new = self._make_pair()
         before_old = old.__dict__.copy()
@@ -261,7 +261,7 @@ class TestDiffMcpServerConfig:
         assert old.__dict__ == before_old  # never mutated
 
     def test_startup_mode_change_detected(self) -> None:
-        from agent.services.config_reload import _diff_mcp_server_config
+        from agent.services.config_outcome_classification import _diff_mcp_server_config
         from shared.mcp_config import StartupMode
 
         old, new = self._make_pair()

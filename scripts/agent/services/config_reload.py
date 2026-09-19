@@ -91,34 +91,23 @@ class ConfigReloadService:
 
         Replaces _apply_config_params() + all _apply_* helpers from _ConfigMixin.
         The command handler only calls this method and renders the result.
+
+        Delegates to:
+            _apply_validated_sections() — section-based reload for llm/rag/tool
+            _apply_direct_reloads()     — direct field reload for approval/memory/mcp
+            _apply_direct_fields()      — direct field updates for system_prompt_tool etc.
+            _handle_mcp_changes()       — MCP server change classification + lifecycle cleanup
+            _sync_services()            — propagate updated cfg to running service instances
+            _classify_outcomes()        — outcome classification for startup-only and diagnostics fields
         """
         ctx = self._ctx
         outcome = ConfigReloadOutcome()
-        for section_path in ("llm", "rag", "tool"):
-            changed_fields = reload_validated_section(ctx, section_path, new_cfg)
-            if changed_fields:
-                outcome.applied.append(section_path)
-        for section_path in ("approval", "memory", "mcp"):
-            changed_fields_dict = reload_direct_fields(ctx, new_cfg, section_path)
-            if changed_fields_dict:
-                outcome.applied.append(section_path)
-        if "system_prompt_tool" in new_cfg:
-            ctx.conv.system_prompt_content = new_cfg["system_prompt_tool"]
-        if "allowed_tools" in new_cfg:
-            ctx.cfg.tool.allowed_tools = list(new_cfg["allowed_tools"])
-        if "masked_fields" in new_cfg:
-            ctx.cfg.tool.masked_fields = list(new_cfg["masked_fields"])
-        result = self._classify_mcp_server_changes(ctx, new_cfg)
-        for item in result.needs_restart:
-            if item.endswith(" (removed server)"):
-                server_key = item.replace("mcp_servers/", "").removesuffix(
-                    " (removed server)"
-                )
-                lifecycle = ctx.services_required.lifecycle
-                if lifecycle is not None:
-                    lifecycle.cleanup_server_resources(server_key)
-            else:
-                outcome.needs_restart.append(item)
+
+        outcome.applied.extend(self._apply_validated_sections(ctx, new_cfg))
+        outcome.applied.extend(self._apply_direct_reloads(ctx, new_cfg))
+        self._apply_direct_fields(new_cfg)
+        mcp_result = self._handle_mcp_changes(ctx, new_cfg)
+        outcome.needs_restart.extend(mcp_result.needs_restart)
         service_result = self._sync_services(
             new_cfg,
             ctx.services_required.llm,
@@ -127,8 +116,9 @@ class ConfigReloadService:
         )
         outcome.applied.extend(service_result.applied)
         outcome.skipped.extend(service_result.skipped)
-        outcome.startup_only = self._classify_startup_only_fields(new_cfg)
-        outcome.always_live = self._detect_diagnostics_live_fields(new_cfg)
+        startup_only, always_live = self._classify_outcomes(new_cfg)
+        outcome.startup_only = startup_only
+        outcome.always_live = always_live
         return outcome
 
     @staticmethod
@@ -214,3 +204,70 @@ class ConfigReloadService:
         call, independent of /reload — they are config-file-driven, not startup-only.
         """
         return detect_diagnostics_live_fields(self._ctx, new_cfg)
+
+    # ── Extracted private methods (REQ-001 through REQ-006) ────────────────
+
+    def _apply_validated_sections(
+        self,
+        ctx: AgentContext,
+        new_cfg: dict[str, Any],
+    ) -> list[str]:
+        """Apply validated section reloads for llm/rag/tool sections."""
+        applied: list[str] = []
+        for section_path in ("llm", "rag", "tool"):
+            changed_fields = reload_validated_section(ctx, section_path, new_cfg)
+            if changed_fields:
+                applied.append(section_path)
+        return applied
+
+    def _apply_direct_reloads(
+        self,
+        ctx: AgentContext,
+        new_cfg: dict[str, Any],
+    ) -> list[str]:
+        """Apply direct field reloads for approval/memory/mcp sections."""
+        applied: list[str] = []
+        for section_path in ("approval", "memory", "mcp"):
+            changed_fields_dict = reload_direct_fields(ctx, new_cfg, section_path)
+            if changed_fields_dict:
+                applied.append(section_path)
+        return applied
+
+    def _apply_direct_fields(self, new_cfg: dict[str, Any]) -> None:
+        """Apply direct field updates for system_prompt_tool, allowed_tools, masked_fields."""
+        if "system_prompt_tool" in new_cfg:
+            self._ctx.conv.system_prompt_content = new_cfg["system_prompt_tool"]
+        if "allowed_tools" in new_cfg:
+            self._ctx.cfg.tool.allowed_tools = list(new_cfg["allowed_tools"])
+        if "masked_fields" in new_cfg:
+            self._ctx.cfg.tool.masked_fields = list(new_cfg["masked_fields"])
+
+    def _handle_mcp_changes(
+        self,
+        ctx: AgentContext,
+        new_cfg: dict[str, Any],
+    ) -> ConfigReloadOutcome:
+        """Classify MCP server changes and handle lifecycle cleanup for removed servers."""
+        result = ConfigReloadOutcome()
+        if "mcp_servers" not in new_cfg:
+            return result
+        for item in classify_mcp_server_changes(ctx, new_cfg):
+            if item.endswith(" (removed server)"):
+                server_key = item.replace("mcp_servers/", "").removesuffix(
+                    " (removed server)"
+                )
+                lifecycle = ctx.services_required.lifecycle
+                if lifecycle is not None:
+                    lifecycle.cleanup_server_resources(server_key)
+            else:
+                result.needs_restart.append(item)
+        return result
+
+    def _classify_outcomes(
+        self,
+        new_cfg: dict[str, Any],
+    ) -> tuple[list[str], list[str]]:
+        """Classify outcomes for startup-only and diagnostics live fields."""
+        startup_only = self._classify_startup_only_fields(new_cfg)
+        always_live = self._detect_diagnostics_live_fields(new_cfg)
+        return startup_only, always_live

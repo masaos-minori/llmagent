@@ -48,7 +48,10 @@ def reload_validated_section(
         if field_entry.name in changed_fields:
             validator = field_entry.validator_fn
             if validator is not None:
-                validator(replaced)
+                try:
+                    validator(replaced)
+                except ValueError as e:
+                    raise ConfigReloadValidationError(str(e)) from e
 
     setattr(ctx.cfg, section_path, replaced)
     return [section_path]
