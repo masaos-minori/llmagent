@@ -188,7 +188,9 @@ class StaleResult:
             # Fallback: try to find any backtick-quoted path starting with "/"
             target_matches = _TARGET_FILE_RE.findall(text)
             if target_matches:
-                result.target_file = target_matches[0]  # First match is typically the primary target
+                result.target_file = target_matches[
+                    0
+                ]  # First match is typically the primary target
 
         if not result.target_file:
             # No target file found — cannot perform stale detection
@@ -374,7 +376,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Check implementation procedure for stale references",
     )
-    parser.add_argument("proc_path", help="Path to the implementation procedure document")
+    parser.add_argument(
+        "proc_path", help="Path to the implementation procedure document"
+    )
     parser.add_argument(
         "--source-dir",
         default=None,

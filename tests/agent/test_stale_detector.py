@@ -6,12 +6,6 @@ StaleResult dataclass and detection functions.
 
 from __future__ import annotations
 
-import json
-import tempfile
-from pathlib import Path
-
-import pytest
-
 from agent.stale_detector import (
     StaleResult,
     _check_before_blocks,
@@ -38,7 +32,9 @@ class TestStaleResultFactoryMethods:
         assert result.is_stale is False
 
     def test_with_mismatch_sets_stale_and_records_mismatch(self) -> None:
-        result = StaleResult.with_mismatch("symbol_missing", "Symbol 'x' not found in source")
+        result = StaleResult.with_mismatch(
+            "symbol_missing", "Symbol 'x' not found in source"
+        )
         assert result.is_stale is True
         assert len(result.mismatches) == 1
         assert result.mismatches[0]["type"] == "symbol_missing"
@@ -53,6 +49,7 @@ class TestStaleResultFactoryMethods:
         target = "scripts/agent/orchestrator.py"
         result = StaleResult.stale(target_file=target)
         assert result.target_file == target
+
 
 # ── StaleResult instance methods ─────────────────────────────────────────────
 
@@ -84,7 +81,11 @@ class TestStaleResultInstanceMethods:
         assert d["mismatches"][0]["type"] == "symbol_missing"
 
     def test_from_dict_deserializes_correctly(self) -> None:
-        d = {"is_stale": True, "target_file": "foo/bar.py", "mismatches": [{"type": "a", "detail": "d"}]}
+        d = {
+            "is_stale": True,
+            "target_file": "foo/bar.py",
+            "mismatches": [{"type": "a", "detail": "d"}],
+        }
         result = StaleResult.from_dict(d)
         assert result.is_stale is True
         assert result.target_file == "foo/bar.py"
@@ -108,6 +109,7 @@ class TestStaleResultInstanceMethods:
         result = StaleResult.stale()
         assert result.abort_execution is True
 
+
 # ── from_procedure — file-not-found case ─────────────────────────────────────
 
 
@@ -116,6 +118,7 @@ class TestFromProcedureFileNotFound:
         result = StaleResult.from_procedure("/nonexistent/path/file.md")
         assert result.is_stale is True
         assert any(m["type"] == "file_not_found" for m in result.mismatches)
+
 
 # ── _check_line_refs ─────────────────────────────────────────────────────────
 
@@ -142,6 +145,7 @@ class TestCheckLineRefs:
         source_lines = [""] * 15
         _check_line_refs(result, proc_text, source_lines)
         assert result.is_stale is True
+
 
 # ── _check_symbol_refs ───────────────────────────────────────────────────────
 
@@ -176,6 +180,7 @@ class TestCheckSymbolRefs:
         _check_symbol_refs(result, proc_text, source_content)
         assert result.is_stale is False
 
+
 # ── _check_import_refs ───────────────────────────────────────────────────────
 
 
@@ -194,6 +199,7 @@ class TestCheckImportRefs:
         _check_import_refs(result, proc_text, source_content)
         assert result.is_stale is True
         assert any(m["type"] == "import_missing" for m in result.mismatches)
+
 
 # ── _check_before_blocks ─────────────────────────────────────────────────────
 
