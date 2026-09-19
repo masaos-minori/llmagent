@@ -107,10 +107,10 @@ design doc.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Classify 3 sub-items independently; expected split outcome |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no test to add |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_quality.py, check_docs_structure.py, check_adr_structure.py, check_needs_confirmation_inventory.py (conditional) |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-220112 | 20260919-220112 | Classify 3 sub-items independently; expected split outcome Verified: docs/05_agent_14_reference-api-generated.md and docs/06_eventbus_06_reference-api.md's AUTO-GENERATED block both confirm Agent/EventBus migrations complete -> Delete/Compress applied (removed as static candidate bullets, replaced with a brief completed-status statement). Memory sub-item confirmed still In Progress in plans/done/20260919-105034_plan.md Step 4/UNK-01, no existing NC entry found -> Move to Needs Confirmation, reserved NC-038 (added by row 21). NOTE (out of scope, not edited): this file's own Known Deviations section still states no Reference-class doc has been migrated -- now stale vs Agent/EventBus completion; left unedited per this row's explicit Out of scope (other sections). |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-220112 | 20260919-220112 | N/A: documentation-only, no test to add N/A: documentation-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-220112 | 20260919-220112 | check_docs_quality.py, check_docs_structure.py, check_adr_structure.py, check_needs_confirmation_inventory.py (conditional) check_docs_quality.py: 0 error; check_docs_structure.py: 2 pre-existing findings (out of scope); check_adr_structure.py: No issues found; check_needs_confirmation_inventory.py: no new finding for this file |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-220112 | 20260919-220112 | N/A: this document's own Target file IS the documentation being updated Edited this file's own Implementation Notes only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
