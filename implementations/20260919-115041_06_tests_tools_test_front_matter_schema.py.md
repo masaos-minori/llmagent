@@ -84,10 +84,10 @@ Modifying existing `area_enum`/`status_enum` test coverage.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on seq 01/seq 02 landing first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's own Target file IS the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `uv run pytest tests/tools/test_front_matter_schema.py -v` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test file only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-122120 | 20260919-122120 | Depends on seq 01/seq 02 landing first |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-122120 | 20260919-122120 | This document's own Target file IS the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-122120 | 20260919-122120 | `uv run pytest tests/tools/test_front_matter_schema.py -v` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-122120 | 20260919-122120 | N/A: test file only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
