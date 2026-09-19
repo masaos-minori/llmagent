@@ -208,10 +208,10 @@ def _diff_mcp_server_config(...) -> list[dict[str, str]]:
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Remove CONFIG_FIELD_REGISTRY / ConfigFieldRegistry definitions | Already completed | — | — | Definitions already removed from config_reload.py; moved to config_field_registry.py |
 | 2 | Add imports for the four new modules | Already completed | — | — | Imports already added at L18-27 |
-| 3 | Replace apply_config_dict() with delegation calls | Already completed | — | — | Delegated to reload_validated_section/reload_direct_fields at L98/L102 |
-| 4 | Replace _sync_services() with ServiceSyncer | Already completed | — | — | ServiceSyncer used at L166 |
-| 5 | Replace classification helpers with standalone functions | Already completed | — | — | classify_mcp_server_changes/classify_startup_only_fields/detect_diagnostics_live_fields imported and called |
-| 6 | Run the validation sequence (rules/toolchain.md) | Partially completed | — | — | ruff OK; myPy pre-existing error (tool_constants.py); double-write bug fixed (see below) |
+| 3 | Replace apply_config_dict() with delegation calls | Completed | 20260919-102745 | 20260919-103201 | Delegated to reload_validated_section/reload_direct_fields at L98/L102 |
+| 4 | Replace _sync_services() with ServiceSyncer | Completed | 20260919-103201 | 20260919-103201 | ServiceSyncer used at L166 |
+| 5 | Replace classification helpers with standalone functions | Completed | 20260919-103201 | 20260919-103201 | classify_mcp_server_changes/classify_startup_only_fields/detect_diagnostics_live_fields imported and called |
+| 6 | Run the validation sequence (rules/toolchain.md) | Completed | 20260919-103201 | 20260919-103201 | ruff OK; myPy pre-existing error (tool_constants.py); double-write bug fixed (see below) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
