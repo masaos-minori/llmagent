@@ -74,10 +74,11 @@ class TestDLQPROMotionSemantics:
         assert resp.status_code == 200
 
         # Nack the event to increment delivery_failure_count
-        client.post(
+        resp = client.post(
             "/nack",
             params={"event_id": body["event_id"], "consumer_id": "consumer-A"},
         )
+        assert resp.status_code == 200, f"NACK failed: {resp.json()}"
 
         dfc = _get_field(client, body["event_id"], "delivery_failure_count")
         assert dfc == 1, f"Expected delivery_failure_count=1, got {dfc}"

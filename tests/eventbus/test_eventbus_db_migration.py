@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.eventbus.db import _migrate
+from scripts.eventbus.schema import _migrate
 
 
 @pytest.fixture
@@ -145,7 +145,7 @@ class TestApplyEventbusPragmas:
     def test_apply_eventbus_pragmas_sets_all_four_pragmas(
         self, tmp_conn: sqlite3.Connection
     ) -> None:
-        from scripts.eventbus.db import _apply_eventbus_pragmas
+        from scripts.eventbus.schema import _apply_eventbus_pragmas
 
         _apply_eventbus_pragmas(tmp_conn, busy_timeout_ms=9999)
         journal_mode = tmp_conn.execute("PRAGMA journal_mode").fetchone()[0]

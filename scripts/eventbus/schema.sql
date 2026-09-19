@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS events (
     cycle_failure_count    INTEGER NOT NULL DEFAULT 0,
     redelivered_from       TEXT,
     dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
-    dlq_at                 TEXT
+    dlq_at                 TEXT,
+    consumer_id            TEXT,
+    consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);

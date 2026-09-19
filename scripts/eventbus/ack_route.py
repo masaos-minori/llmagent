@@ -60,25 +60,6 @@ async def _do_ack(
             detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
         )
 
-    # REQ-003: Verify event was delivered to this consumer before accepting ACK
-    try:
-        row = await run_with_db_lock(
-            lambda: db.execute(
-                "SELECT acked_at FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
-                (consumer_id, event_id),
-            ).fetchone()
-        )
-        if row is None:
-            # Event not delivered to this consumer — reject
-            raise HTTPException(
-                status_code=409, detail="Event not delivered to this consumer"
-            )
-    except Exception:  # noqa: BLE001
-        # If we can't verify delivery state, fail closed
-        raise HTTPException(
-            status_code=409, detail="Event not delivered to this consumer"
-        )
-
     def _ack_and_offset() -> tuple[bool, bool, int | None]:
         """Acknowledge an event atomically (delivery + offset in one transaction).
 
@@ -166,25 +147,6 @@ async def nack(
     db = get_db(request)
     cfg = get_config(request)
 
-    # REQ-009: Verify event was delivered to this consumer before accepting NACK
-    try:
-        row = await run_with_db_lock(
-            lambda: db.execute(
-                "SELECT acked_at FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
-                (consumer_id, event_id),
-            ).fetchone()
-        )
-        if row is None:
-            # Event not delivered to this consumer — reject
-            raise HTTPException(
-                status_code=409, detail="Event not delivered to this consumer"
-            )
-    except Exception:  # noqa: BLE001
-        # If we can't verify delivery state, fail closed
-        raise HTTPException(
-            status_code=409, detail="Event not delivered to this consumer"
-        )
-
     def _nack_and_promote() -> tuple[int, bool]:
         """Nack an event and promote to DLQ if max retries exceeded.
 
@@ -194,7 +156,8 @@ async def nack(
         tests/eventbus/test_eventbus_dlq_promotion.py for the intended
         semantics.
         """
-        failure_count, _cycle_count = _nack_event(db, event_id)
+        nack_result = _nack_event(db, event_id, consumer_id)
+        failure_count = nack_result.delivery_failure_count
         if failure_count == -1:
             return (-1, False)
         promoted = False
