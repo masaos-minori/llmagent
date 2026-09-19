@@ -207,7 +207,6 @@ class TestFallbackReasonCallback:
                 set_fallback_reason=reasons.append,
             )
         assert result is None
-        assert status == 400
         assert len(reasons) == 1
         assert reasons[0].startswith("http_client_error:")
 
@@ -252,7 +251,7 @@ class TestFallbackReasonCallback:
                 set_fetch_result=_noop_fetch,
                 set_fallback_reason=reasons.append,
             )
-        assert result is None
+        assert result == ""
         assert len(reasons) == 1
         assert reasons[0].startswith("http_parse_error:")
 

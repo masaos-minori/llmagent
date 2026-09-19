@@ -82,8 +82,9 @@ async def call_rag_service(
         |                | - HTTP 4xx (client error, no retry)               |
         |                | - HTTP 5xx with all retries exhausted             |
         |                | - Transport error (connection refused, timeout)   |
-        |                | - JSON parse error on response body               |
         |                | None triggers in-process fallback in the caller.  |
+        | ``""``         | JSON parse error on response body                 |
+        |                | Empty result — not a failure, no fallback.        |
         +----------------+---------------------------------------------------+
 
     Retry behavior:
@@ -107,8 +108,9 @@ async def call_rag_service(
         set_fallback_reason: Optional callback called with a reason string on failure.
 
     Returns:
-        Augmented context string, empty string for valid empty results,
-        or None to signal failure and trigger in-process fallback.
+        Augmented context string, empty string for valid empty results
+        or JSON parse errors, or None to signal failure and trigger
+        in-process fallback.
     """
     headers: dict[str, str] = {}
     if auth_token:
@@ -167,7 +169,7 @@ async def call_rag_service(
                 e,
             )
             _set_fallback_reason(set_fallback_reason, f"http_parse_error: {e}")
-            return None, None, 0.0
+            return "", None, 0.0
         if attempt < _MAX_ATTEMPTS - 1:
             await asyncio.sleep(min(2**attempt, 5))
 
