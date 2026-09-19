@@ -729,7 +729,7 @@ class TestRegistryFieldClassification:
         return svc
 
     def test_llm_section_fields_are_classified_correctly(self) -> None:
-        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+        from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
 
         llm_fields = [
             entry.name
@@ -755,7 +755,7 @@ class TestRegistryFieldClassification:
         assert set(llm_fields) == expected
 
     def test_rag_section_fields_are_classified_correctly(self) -> None:
-        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+        from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
 
         rag_fields = [
             entry.name
@@ -773,7 +773,7 @@ class TestRegistryFieldClassification:
         assert set(rag_fields) == expected
 
     def test_tool_section_fields_are_classified_correctly(self) -> None:
-        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+        from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
 
         tool_fields = [
             entry.name
@@ -795,7 +795,7 @@ class TestRegistryFieldClassification:
         assert set(tool_fields) == expected
 
     def test_approval_section_fields_are_classified_correctly(self) -> None:
-        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+        from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
 
         approval_fields = [
             entry.name
@@ -817,7 +817,7 @@ class TestRegistryFieldClassification:
         assert set(approval_fields) == expected
 
     def test_memory_section_fields_are_classified_correctly(self) -> None:
-        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+        from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
 
         memory_fields = [
             entry.name
@@ -833,7 +833,7 @@ class TestRegistryFieldClassification:
         assert set(memory_fields) == expected
 
     def test_mcp_section_fields_are_classified_correctly(self) -> None:
-        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+        from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
 
         mcp_fields = [
             entry.name
@@ -844,7 +844,7 @@ class TestRegistryFieldClassification:
         assert set(mcp_fields) == expected
 
     def test_all_registry_entries_have_validators_or_none(self) -> None:
-        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+        from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
 
         for entry in CONFIG_FIELD_REGISTRY.values():
             assert isinstance(entry.name, str)
@@ -855,7 +855,7 @@ class TestRegistryFieldClassification:
                 assert callable(entry.validator_fn)
 
     def test_no_duplicate_field_names_in_registry(self) -> None:
-        from agent.services.config_reload import CONFIG_FIELD_REGISTRY
+        from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
 
         names = [entry.name for entry in CONFIG_FIELD_REGISTRY.values()]
         assert len(names) == len(set(names)), (

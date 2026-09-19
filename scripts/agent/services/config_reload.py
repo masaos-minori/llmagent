@@ -179,32 +179,19 @@ class ConfigReloadService:
     ) -> ConfigReloadOutcome:
         """Classify MCP server definition changes as restart-required, field by field.
 
-        MCP server definitions are restart-time snapshots: ToolExecutor and
-        HttpTransport are built from them at startup, so mutating
-        `ctx.cfg.mcp.mcp_servers` here would desync already-running instances
-        from the reported config. This method only compares; it never writes.
-
-        auth_token in particular is restart-only by design: a live /reload must
-        never apply a changed credential to an already-running HttpTransport
-        instance mid-session.
+        Delegates to classify_mcp_server_changes from config_outcome_classification.
+        Lifecycle cleanup for removed servers is handled locally.
         """
-        from agent.config_builders import (
-            _build_mcp_servers,  # lazy: avoids circular import at module level
-        )
-
         result = ConfigReloadOutcome()
-        new_mcp = _build_mcp_servers(new_cfg)
-        old_mcp = ctx.cfg.mcp.mcp_servers
-        for key, new_srv in new_mcp.items():
-            old_srv = old_mcp.get(key)
-            if old_srv is None:
-                result.needs_restart.append(f"mcp_servers/{key} (new server)")
-                continue
-            for path in classify_mcp_server_changes(ctx, new_cfg):
-                result.needs_restart.append(path)
-        for key in old_mcp:
-            if key not in new_mcp:
-                result.needs_restart.append(f"mcp_servers/{key} (removed server)")
+        for item in classify_mcp_server_changes(ctx, new_cfg):
+            if item.endswith(" (removed server)"):
+                server_key = item.replace("mcp_servers/", "").removesuffix(
+                    " (removed server)"
+                )
+                lifecycle = ctx.services_required.lifecycle
+                if lifecycle is not None:
+                    lifecycle.cleanup_server_resources(server_key)
+            result.needs_restart.append(item)
         return result
 
     def _classify_startup_only_fields(
