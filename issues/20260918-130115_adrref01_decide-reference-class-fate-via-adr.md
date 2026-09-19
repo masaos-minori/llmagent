@@ -17,11 +17,21 @@ Three options were identified: (A) retire the Reference class, keep only
 canonical-source pointers; (B) treat Reference documents as generated artifacts
 (auto-produced from code/docstrings, hand-editing prohibited); (C) keep the status quo
 and accept drift. `tools/generate_reference_table.py` already implements option (B)'s
-pattern for MCP/RAG/deployment reference tables (`<!-- AUTO-GENERATED -->`-guarded
-blocks refreshed from `config/agent.toml` and source), and
-`docs/00_governance_04_documentation-checks.md`'s `GV-021`
-(`check_docs_content_policy.py`) already exempts that guarded content from its
-mechanical-content warnings — establishing working precedent for (B).
+pattern for MCP/RAG/deployment reference tables (guard-commented blocks — actual
+format `<!-- AUTO-GENERATED: <generator>.py <purpose> -->`, e.g.
+`GUARD_START_MCP`/`GUARD_START_DEPLOYMENT` — refreshed from `config/agent.toml` and
+source). `docs/00_governance_04_documentation-checks.md`'s `GV-021`
+(`check_docs_content_policy.py`) documents an intent to exempt this guarded content
+from its mechanical-content warnings, but the exemption is currently implemented only
+in `check_literal_port_number`, and its literal string check (`"<!-- AUTO-GENERATED -->"
+in line`) does not match the actual guard format above — confirmed:
+`"<!-- AUTO-GENERATED -->" in "<!-- AUTO-GENERATED: gen_mcp_reference.py
+port-tool-reference -->"` evaluates to `False`. This has not surfaced as a live false
+positive only because neither existing guarded block currently contains text the
+literal-port-number regex matches. The exemption is therefore a stated intent, not yet
+a working precedent, for Option B — see
+`issues/20260918-130159_docschk01_extend-check_docs_content_policy-instead-of-new-tool.md`,
+which should fix this before Option B is implemented against it.
 
 ## Problem
 Without this decision, mechanical-content removal work cannot proceed against
@@ -78,9 +88,10 @@ Implementing the chosen option (tool changes, document edits) — tracked as sep
 dependent follow-up issues.
 
 ## Dependencies
-Gates the follow-up issue extending `tools/generate_reference_table.py`, and informs
-the follow-up issue adding a `class` front-matter field (specifically what counts as
-`class: Reference`).
+Gates `issues/20260918-130225_docsref01_extend-generate_reference_table-for-agent-eventbus-memory.md`
+(extends `tools/generate_reference_table.py`), and informs
+`issues/20260918-130249_docsmeta01_add-class-front-matter-field.md` (specifically what
+counts as `class: Reference`).
 
 ## Unresolved Questions
 N/A: none — the three options and the existing `generate_reference_table.py`/`GV-021`
