@@ -6,7 +6,10 @@ from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 import pytest
-from agent.http_lifecycle_stderr_log_manager import _DEFAULT_STDERR_TAIL_BYTES, StderrLogManager
+from agent.http_lifecycle_stderr_log_manager import (
+    _DEFAULT_STDERR_TAIL_BYTES,
+    StderrLogManager,
+)
 
 
 class TestReadTail:
@@ -160,3 +163,48 @@ class TestRotateLog:
         mgr._log_paths["server1"] = "/nonexistent/path/stderr.log"
         result = mgr.rotate_log("server1", 1024)
         assert result is False
+
+
+class TestGetLogPath:
+    def test_get_log_path_missing_server_key(self):
+        mgr = StderrLogManager()
+        assert mgr.get_log_path("nonexistent") is None
+
+    def test_get_log_path_returns_tracked_path(self):
+        mgr = StderrLogManager()
+        mgr._log_paths["server1"] = "/tmp/server1.stderr.log"
+        assert mgr.get_log_path("server1") == "/tmp/server1.stderr.log"
+
+
+class TestForget:
+    def test_forget_missing_server_key_is_noop(self):
+        mgr = StderrLogManager()
+        mgr.forget("nonexistent")  # must not raise
+        assert mgr._log_paths == {}
+
+    def test_forget_removes_tracked_path(self):
+        mgr = StderrLogManager()
+        mgr._log_paths["server1"] = "/tmp/server1.stderr.log"
+        mgr.forget("server1")
+        assert "server1" not in mgr._log_paths
+
+    def test_forget_leaves_other_entries_intact(self):
+        mgr = StderrLogManager()
+        mgr._log_paths["server1"] = "/tmp/server1.stderr.log"
+        mgr._log_paths["server2"] = "/tmp/server2.stderr.log"
+        mgr.forget("server1")
+        assert mgr._log_paths == {"server2": "/tmp/server2.stderr.log"}
+
+
+class TestClear:
+    def test_clear_empty_is_noop(self):
+        mgr = StderrLogManager()
+        mgr.clear()  # must not raise
+        assert mgr._log_paths == {}
+
+    def test_clear_removes_all_entries(self):
+        mgr = StderrLogManager()
+        mgr._log_paths["server1"] = "/tmp/server1.stderr.log"
+        mgr._log_paths["server2"] = "/tmp/server2.stderr.log"
+        mgr.clear()
+        assert mgr._log_paths == {}

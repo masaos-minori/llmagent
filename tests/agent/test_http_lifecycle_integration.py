@@ -22,7 +22,6 @@ from agent.http_lifecycle import (
     StartupFailure,
 )
 from agent.http_lifecycle_shutdown_coordinator import ShutdownCoordinator
-import agent.http_lifecycle_shutdown_coordinator as slc_mod
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 
@@ -60,11 +59,12 @@ class TestSignalHandling:
             "_absorb_sigint_during_shutdown",
             new=capture,
         ):
-            manager = HttpServerLifecycleManager()
             old = signal.default_int_handler
             try:
                 old = signal.getsignal(signal.SIGINT)
-                signal.signal(signal.SIGINT, ShutdownCoordinator._absorb_sigint_during_shutdown)
+                signal.signal(
+                    signal.SIGINT, ShutdownCoordinator._absorb_sigint_during_shutdown
+                )
                 signal.raise_signal(signal.SIGINT)
                 assert sig_received is True
             finally:
@@ -140,12 +140,8 @@ class TestSignalHandling:
             return handler
 
         with (
-            patch.object(
-                signal, "getsignal", return_value=original_handler
-            ),
-            patch.object(
-                signal, "signal", side_effect=failing_signal
-            ) as mock_signal,
+            patch.object(signal, "getsignal", return_value=original_handler),
+            patch.object(signal, "signal", side_effect=failing_signal) as mock_signal,
         ):
             await manager.shutdown_all()
 
@@ -222,7 +218,7 @@ class TestSignalHandling:
     async def test_shutdown_all_clears_stderr_log_paths(self) -> None:
         manager = HttpServerLifecycleManager()
         manager._http_procs["test"] = Mock(poll=Mock(return_value=0))
-        manager._stderr_log_paths["test"] = "/tmp/test.log"
+        manager._stderr_log_manager._log_paths["test"] = "/tmp/test.log"
 
         with (
             patch.object(signal, "getsignal", return_value=signal.default_int_handler),
@@ -230,7 +226,7 @@ class TestSignalHandling:
         ):
             await manager.shutdown_all()
 
-        assert len(manager._stderr_log_paths) == 0
+        assert manager._stderr_log_manager.get_log_path("test") is None
 
     @pytest.mark.asyncio
     async def test_shutdown_all_skips_already_exited_procs(self) -> None:
@@ -439,7 +435,7 @@ class TestSubprocessLifecycle:
         assert mgr._http_procs.get("test") is None
         assert mgr._http_pgids.get("test") is None
         assert mgr._stderr_files.get("test") is None
-        assert mgr._stderr_log_paths.get("test") is None
+        assert mgr._stderr_log_manager.get_log_path("test") is None
         stderr_fh_mock.close.assert_called_once()
 
     @pytest.mark.asyncio
@@ -481,7 +477,7 @@ class TestSubprocessLifecycle:
         mgr._http_procs["test"] = old_proc
         fh_mock = MagicMock()
         mgr._stderr_files["test"] = fh_mock
-        mgr._stderr_log_paths["test"] = "/tmp/test.log"
+        mgr._stderr_log_manager._log_paths["test"] = "/tmp/test.log"
 
         new_proc = Mock(pid=8888, poll=Mock(return_value=None))
 
@@ -497,7 +493,7 @@ class TestSubprocessLifecycle:
                     await mgr.restart("test", _make_cfg())
 
         assert mgr._stderr_files.get("test") is None
-        assert mgr._stderr_log_paths.get("test") is None
+        assert mgr._stderr_log_manager.get_log_path("test") is None
 
     @pytest.mark.asyncio
     async def test_verify_running_returns_true_when_alive(
@@ -563,7 +559,7 @@ class TestSubprocessLifecycle:
         proc_mock = Mock(pid=9999, poll=Mock(return_value=None))
         mgr._http_procs["test"] = proc_mock
         mgr._http_pgids["test"] = 9999
-        mgr._stderr_log_paths["test"] = "/tmp/test.stderr.log"
+        mgr._stderr_log_manager._log_paths["test"] = "/tmp/test.stderr.log"
 
         info = mgr.get_process_info("test")
         assert info is not None
@@ -713,7 +709,7 @@ class TestShutdownSequence:
         proc_mock = Mock(poll=Mock(return_value=None))
         mgr._http_procs["test"] = proc_mock
         mgr._http_pgids["test"] = 9999
-        mgr._stderr_log_paths["test"] = "/tmp/test.log"
+        mgr._stderr_log_manager._log_paths["test"] = "/tmp/test.log"
 
         with (
             patch.object(signal, "getsignal", return_value=signal.default_int_handler),
@@ -725,7 +721,7 @@ class TestShutdownSequence:
 
         assert len(mgr._http_procs) == 0
         assert len(mgr._http_pgids) == 0
-        assert len(mgr._stderr_log_paths) == 0
+        assert mgr._stderr_log_manager.get_log_path("test") is None
 
     @pytest.mark.asyncio
     async def test_shutdown_all_restores_handler_even_on_exception(

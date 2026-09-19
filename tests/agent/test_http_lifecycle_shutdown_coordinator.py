@@ -16,7 +16,7 @@ class TestShutdownCoordinatorShutdownAll:
         mgr._http_procs = {}
         mgr._http_pgids = {}
         mgr._stderr_files = {}
-        mgr._stderr_log_paths = {}
+        mgr._stderr_log_manager = Mock()
         mgr._last_health_check = {}
         mgr._process_terminator = AsyncMock()
         return mgr
@@ -34,11 +34,12 @@ class TestShutdownCoordinatorShutdownAll:
         fh.close = MagicMock()
         return fh
 
-    async def test_shutdown_all_clears_internal_state(self, mock_manager, mock_proc, mock_stderr_fh):
+    async def test_shutdown_all_clears_internal_state(
+        self, mock_manager, mock_proc, mock_stderr_fh
+    ):
         mock_manager._http_procs["server1"] = mock_proc
         mock_manager._http_pgids["server1"] = 1234
         mock_manager._stderr_files["server1"] = mock_stderr_fh
-        mock_manager._stderr_log_paths["server1"] = "/tmp/server1.stderr.log"
         mock_manager._last_health_check["server1"] = time.monotonic()
 
         coord = ShutdownCoordinator()
@@ -46,10 +47,12 @@ class TestShutdownCoordinatorShutdownAll:
 
         assert mock_manager._http_pgids == {}
         assert mock_manager._stderr_files == {}
-        assert mock_manager._stderr_log_paths == {}
+        mock_manager._stderr_log_manager.clear.assert_called_once()
         assert mock_manager._last_health_check == {}
 
-    async def test_shutdown_all_uses_caller_supplied_terminator(self, mock_manager, mock_proc):
+    async def test_shutdown_all_uses_caller_supplied_terminator(
+        self, mock_manager, mock_proc
+    ):
         mock_manager._http_procs["server1"] = mock_proc
         custom_terminator = AsyncMock()
 
@@ -60,7 +63,9 @@ class TestShutdownCoordinatorShutdownAll:
             mock_proc, "server1", timeout=30.0
         )
 
-    async def test_shutdown_all_closes_stderr_file_handles(self, mock_manager, mock_proc, mock_stderr_fh):
+    async def test_shutdown_all_closes_stderr_file_handles(
+        self, mock_manager, mock_proc, mock_stderr_fh
+    ):
         mock_manager._http_procs["server1"] = mock_proc
         mock_manager._stderr_files["server1"] = mock_stderr_fh
 

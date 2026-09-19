@@ -115,9 +115,7 @@ class ShutdownCoordinator:
                         proc, server_key, **terminate_kwargs
                     )
                 except (OSError, TimeoutError) as e:
-                    logger.warning(
-                        "Lifecycle: error terminating %r: %s", server_key, e
-                    )
+                    logger.warning("Lifecycle: error terminating %r: %s", server_key, e)
                 manager._http_pgids.pop(server_key, None)
                 stderr_fh = manager._stderr_files.pop(server_key, None)
                 if stderr_fh is not None:
@@ -129,7 +127,7 @@ class ShutdownCoordinator:
                             server_key,
                             close_err,
                         )
-            manager._stderr_log_paths.clear()
+            manager._stderr_log_manager.clear()
             manager._last_health_check.clear()
         finally:
             if old_sigint is not None:

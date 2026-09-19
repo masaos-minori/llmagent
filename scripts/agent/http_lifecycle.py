@@ -25,7 +25,7 @@ import subprocess  # nosec B404 — used to launch admin-controlled MCP server p
 import time
 from dataclasses import asdict
 from http import HTTPStatus
-from typing import IO, Any, cast
+from typing import IO, Any, NoReturn, cast
 
 import httpx
 from shared.mcp_config import McpServerConfig
@@ -84,20 +84,15 @@ class HttpServerLifecycleManager:
         self._http_procs: dict[str, subprocess.Popen[bytes]] = {}
         self._http_pgids: dict[str, int] = {}
         self._stderr_files: dict[str, IO[bytes]] = {}
-        self._stderr_log_paths: dict[str, str] = {}
         self._last_health_check: dict[str, float] = {}
 
     def _open_stderr_log(self, server_key: str, cfg: McpServerConfig) -> IO[bytes]:
-        """Open an append-mode file for the server's stderr output and track its path."""
-        fh = self._stderr_log_manager.open_log(server_key, cfg)
-        self._stderr_log_paths[server_key] = self._stderr_log_manager._log_paths.get(
-            server_key, ""
-        )
-        return fh
+        """Open an append-mode file for the server's stderr output."""
+        return self._stderr_log_manager.open_log(server_key, cfg)
 
     def _read_stderr_tail(self, server_key: str) -> str:
         """Read the last N bytes from a server's stderr log file."""
-        log_path = self._stderr_log_paths.get(server_key)
+        log_path = self._stderr_log_manager.get_log_path(server_key)
         if not log_path:
             return ""
         try:
@@ -164,21 +159,17 @@ class HttpServerLifecycleManager:
             self._last_health_check[server_key] = time.monotonic()
             return False
 
-    def _read_stderr_for_cleanup(self, server_key: str) -> str:
-        """Read the last N bytes from a server's stderr log file."""
-        return self._read_stderr_tail(server_key)
-
     def _clear_server_tracking_data(self, server_key: str) -> None:
         """Remove health check timestamps, stderr file handles, and paths for a server."""
         fh = self._stderr_files.pop(server_key, None)
         if fh is not None:
             fh.close()
-        self._stderr_log_paths.pop(server_key, None)
+        self._stderr_log_manager.forget(server_key)
         self._last_health_check.pop(server_key, None)
 
     def _cleanup_server_resources(self, server_key: str) -> str:
         """Read stderr tail, close stderr file handle, and remove tracking data for a server."""
-        stderr_content = self._read_stderr_for_cleanup(server_key)
+        stderr_content = self._read_stderr_tail(server_key)
         self._clear_server_tracking_data(server_key)
         return stderr_content
 
@@ -190,7 +181,7 @@ class HttpServerLifecycleManager:
         running = proc.poll() is None
         last_exit_code = proc.poll() if not running else None
         pgid = self._http_pgids.get(server_key)
-        stderr_log = self._stderr_log_paths.get(server_key, "")
+        stderr_log = self._stderr_log_manager.get_log_path(server_key) or ""
         return ProcessInfoSnapshot(
             server_key=server_key,
             managed=True,
@@ -241,6 +232,12 @@ class HttpServerLifecycleManager:
             task.cancel()
         return shutdown_task in done
 
+    def _close_and_forget_stderr(self, server_key: str, stderr_fh: IO[bytes]) -> None:
+        """Close the stderr handle and drop stderr-path tracking (startup-failure cleanup)."""
+        stderr_fh.close()
+        self._stderr_files.pop(server_key, None)
+        self._stderr_log_manager.forget(server_key)
+
     async def _create_and_validate_proc(
         self,
         server_key: str,
@@ -273,9 +270,7 @@ class HttpServerLifecycleManager:
         try:
             self._command_validator.validate(server_key, cfg.cmd[0])
         except ValueError as e:
-            stderr_fh.close()
-            self._stderr_files.pop(server_key, None)
-            self._stderr_log_paths.pop(server_key, None)
+            self._close_and_forget_stderr(server_key, stderr_fh)
             raise HttpStartupError(
                 StartupFailure(
                     server_key=server_key,
@@ -300,9 +295,7 @@ class HttpServerLifecycleManager:
                 ),
             )
         except Exception:
-            stderr_fh.close()
-            self._stderr_files.pop(server_key, None)
-            self._stderr_log_paths.pop(server_key, None)
+            self._close_and_forget_stderr(server_key, stderr_fh)
             raise
         try:
             self._http_pgids[server_key] = os.getpgid(proc.pid)
@@ -326,14 +319,24 @@ class HttpServerLifecycleManager:
                     )
             finally:
                 # Always cleanup resources if getpgid fails, even if termination fails
-                stderr_fh.close()
-                self._stderr_files.pop(server_key, None)
-                self._stderr_log_paths.pop(server_key, None)
+                self._close_and_forget_stderr(server_key, stderr_fh)
                 self._http_procs.pop(server_key, None)
                 self._http_pgids.pop(server_key, None)
             raise e
         self._http_procs[server_key] = proc
         return proc, stderr_fh
+
+    def _raise_startup_failure(
+        self, server_key: str, reason: str, stderr_full: str
+    ) -> NoReturn:
+        """Drop tracked process/pgid entries and raise HttpStartupError with the given reason."""
+        self._http_procs.pop(server_key, None)
+        self._http_pgids.pop(server_key, None)
+        raise HttpStartupError(
+            StartupFailure(
+                server_key=server_key, reason=reason, stderr_full=stderr_full
+            )
+        )
 
     async def _health_poll_until_ready(
         self,
@@ -371,20 +374,13 @@ class HttpServerLifecycleManager:
             while time.monotonic() < deadline:
                 if proc.poll() is not None:
                     stderr_full = self._cleanup_server_resources(server_key)
-                    failure = StartupFailure(
-                        server_key=server_key,
-                        reason="exited early",
-                        stderr_full=stderr_full,
-                    )
                     logger.error(
                         "Lifecycle: %r exited early; stderr (%s chars): %s",
                         server_key,
                         len(stderr_full),
                         _mask_secrets(stderr_full[:500]),
                     )
-                    self._http_procs.pop(server_key, None)
-                    self._http_pgids.pop(server_key, None)
-                    raise HttpStartupError(failure)
+                    self._raise_startup_failure(server_key, "exited early", stderr_full)
                 try:
                     resp = await client.get(health_url)
                     if resp.status_code == HTTPStatus.OK:
@@ -400,27 +396,19 @@ class HttpServerLifecycleManager:
                     HEALTH_POLL_INTERVAL_SEC, shutdown_event
                 ):
                     stderr_full = self._cleanup_server_resources(server_key)
-                    failure = StartupFailure(
-                        server_key=server_key,
-                        reason="shutdown requested",
-                        stderr_full=stderr_full,
+                    self._raise_startup_failure(
+                        server_key, "shutdown requested", stderr_full
                     )
-                    self._http_procs.pop(server_key, None)
-                    self._http_pgids.pop(server_key, None)
-                    raise HttpStartupError(failure)
 
             stderr_full = self._cleanup_server_resources(server_key)
             await self._terminate_with_timeout(
                 proc, server_key, timeout=TERMINATE_TIMEOUT_SEC
             )
-            timeout_failure = StartupFailure(
-                server_key=server_key,
-                reason=f"did not become healthy within {cfg.startup_timeout_sec}s",
-                stderr_full=stderr_full,
+            self._raise_startup_failure(
+                server_key,
+                f"did not become healthy within {cfg.startup_timeout_sec}s",
+                stderr_full,
             )
-            self._http_procs.pop(server_key, None)
-            self._http_pgids.pop(server_key, None)
-            raise HttpStartupError(timeout_failure)
 
     async def start(
         self,
@@ -473,7 +461,7 @@ class HttpServerLifecycleManager:
                 stderr_fh.close()
             except OSError:
                 pass
-        self._stderr_log_paths.pop(server_key, None)
+        self._stderr_log_manager.forget(server_key)
         self._last_health_check.pop(server_key, None)
         proc = self._http_procs.pop(server_key, None)
         if proc is not None and proc.poll() is None:

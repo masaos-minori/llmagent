@@ -13,7 +13,10 @@ _DEFAULT_BUSY_TIMEOUT_MS = 30_000
 _db_lock = threading.Lock()
 
 # Import schema functions — open_db depends on them
-from eventbus.schema import _apply_eventbus_pragmas, _init_schema  # noqa: PLC0415
+from eventbus.schema import (  # noqa: PLC0415 — deferred import avoids a circular import with eventbus.schema
+    _apply_eventbus_pragmas,
+    _init_schema,
+)
 
 
 def get_db_lock() -> threading.Lock:

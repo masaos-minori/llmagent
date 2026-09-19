@@ -115,3 +115,15 @@ class StderrLogManager:
         except OSError:
             pass
         return False
+
+    def get_log_path(self, server_key: str) -> str | None:
+        """Return the tracked stderr log path for a server key, or None if untracked."""
+        return self._log_paths.get(server_key)
+
+    def forget(self, server_key: str) -> None:
+        """Remove the tracked stderr log path for a server key, if present."""
+        self._log_paths.pop(server_key, None)
+
+    def clear(self) -> None:
+        """Remove all tracked stderr log paths."""
+        self._log_paths.clear()

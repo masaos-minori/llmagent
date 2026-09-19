@@ -10,7 +10,10 @@ from typing import Literal
 logger = logging.getLogger(__name__)
 
 # Shared column constants
-from eventbus._constants import _COL_ACKED_AT, _COL_EVENT_ID  # noqa: PLC0415
+from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a circular import with eventbus._constants
+    _COL_ACKED_AT,
+    _COL_EVENT_ID,
+)
 
 # Layer-owned column constants
 _COL_DELIVERY_FAILURE_COUNT = "delivery_failure_count"

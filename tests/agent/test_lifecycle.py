@@ -101,7 +101,7 @@ def _patch_open_to_tmp(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     ) -> object:
         log_path = tmp_path / f"{server_key}.stderr.log"
         fh = log_path.open("ab")
-        self._stderr_log_paths[server_key] = str(log_path)
+        self._stderr_log_manager._log_paths[server_key] = str(log_path)
         return fh
 
     monkeypatch.setattr(HttpServerLifecycleManager, "_open_stderr_log", patched_open)
@@ -444,7 +444,9 @@ class TestStartHttpSubprocess:
                 "agent.http_lifecycle.os.getpgid",
                 side_effect=OSError("no such process"),
             ),
-            patch("agent.http_lifecycle.os.killpg", side_effect=OSError("no such process")),
+            patch(
+                "agent.http_lifecycle.os.killpg", side_effect=OSError("no such process")
+            ),
         ):
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start_http_subprocess("s", cfg)
@@ -452,7 +454,7 @@ class TestStartHttpSubprocess:
         assert "s" not in mgr._http_mgr._http_procs
         assert "s" not in mgr._http_mgr._http_pgids
         assert "s" not in mgr._http_mgr._stderr_files
-        assert "s" not in mgr._http_mgr._stderr_log_paths
+        assert mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
         mock_proc.terminate.assert_called_once()
 
     async def test_getpgid_failure_escalates_to_kill_on_non_exit(self) -> None:
@@ -472,7 +474,9 @@ class TestStartHttpSubprocess:
                 "agent.http_lifecycle.os.getpgid",
                 side_effect=OSError("no such process"),
             ),
-            patch("agent.http_lifecycle.os.killpg", side_effect=OSError("no such process")),
+            patch(
+                "agent.http_lifecycle.os.killpg", side_effect=OSError("no such process")
+            ),
         ):
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start_http_subprocess("s", cfg)
@@ -480,7 +484,7 @@ class TestStartHttpSubprocess:
         assert "s" not in mgr._http_mgr._http_procs
         assert "s" not in mgr._http_mgr._http_pgids
         assert "s" not in mgr._http_mgr._stderr_files
-        assert "s" not in mgr._http_mgr._stderr_log_paths
+        assert mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
         mock_proc.terminate.assert_called_once()
 
 
@@ -829,7 +833,7 @@ class TestHttpLifecycleStderrLog:
         mgr._http_procs["srv"] = mock_proc
         fh = (tmp_path / "srv.stderr.log").open("ab")
         mgr._stderr_files["srv"] = fh
-        mgr._stderr_log_paths["srv"] = str(tmp_path / "srv.stderr.log")
+        mgr._stderr_log_manager._log_paths["srv"] = str(tmp_path / "srv.stderr.log")
 
         async def fake_start(server_key: str, cfg: McpServerConfig) -> None:
             pass
@@ -1147,7 +1151,6 @@ class TestProcessGroupShutdown:
     ) -> None:
         """shutdown_all() must restore the original SIGINT handler even when
         signal.signal() fails after signals.getsignal() succeeds."""
-        from agent import http_lifecycle_shutdown_coordinator as slc_mod
 
         original_handler = object()
         call_count = 0
@@ -1188,20 +1191,20 @@ class TestCleanupServerResources:
         mgr = HttpServerLifecycleManager()
         mgr._last_health_check["srv"] = time.monotonic()
         mgr._stderr_files["srv"] = MagicMock()
-        mgr._stderr_log_paths["srv"] = "/tmp/test.log"
+        mgr._stderr_log_manager._log_paths["srv"] = "/tmp/test.log"
 
         result = mgr._cleanup_server_resources("srv")
 
         assert "srv" not in mgr._last_health_check
         assert "srv" not in mgr._stderr_files
-        assert "srv" not in mgr._stderr_log_paths
+        assert mgr._stderr_log_manager.get_log_path("srv") is None
         assert result == ""
 
     def test_removes_stderr_file_handle_and_closes_it(self) -> None:
         mgr = HttpServerLifecycleManager()
         mock_fh = MagicMock()
         mgr._stderr_files["srv"] = mock_fh
-        mgr._stderr_log_paths["srv"] = "/tmp/test.log"
+        mgr._stderr_log_manager._log_paths["srv"] = "/tmp/test.log"
 
         mgr._cleanup_server_resources("srv")
 
@@ -1210,7 +1213,7 @@ class TestCleanupServerResources:
     def test_returns_empty_string_when_no_stderr_tail(self) -> None:
         mgr = HttpServerLifecycleManager()
         mgr._stderr_files["srv"] = MagicMock()
-        mgr._stderr_log_paths["srv"] = "/tmp/test.log"
+        mgr._stderr_log_manager._log_paths["srv"] = "/tmp/test.log"
 
         result = mgr._cleanup_server_resources("srv")
 

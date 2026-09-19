@@ -9,7 +9,10 @@ import uuid
 logger = logging.getLogger(__name__)
 
 # Shared column constants
-from eventbus._constants import _COL_DLQ_AT, _COL_EVENT_ID  # noqa: PLC0415
+from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a circular import with eventbus._constants
+    _COL_DLQ_AT,
+    _COL_EVENT_ID,
+)
 
 # Layer-owned column constants
 _COL_DLQ_REQUEUE_COUNT = "dlq_requeue_count"

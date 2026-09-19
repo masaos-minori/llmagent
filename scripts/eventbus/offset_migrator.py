@@ -28,7 +28,9 @@ def migrate_legacy_offsets(
         List of consumer_ids that were migrated.
     """
     # Deferred import to avoid circular import with eventbus.offsets
-    from eventbus.offsets import _sanitize_consumer_id  # noqa: PLC0415
+    from eventbus.offsets import (
+        _sanitize_consumer_id,  # noqa: PLC0415 — deferred import avoids a circular import with eventbus.offsets
+    )
 
     migrated: list[str] = []
     dir_path = Path(offsets_dir)
