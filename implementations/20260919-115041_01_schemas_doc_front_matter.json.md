@@ -110,10 +110,10 @@ value (only documenting the decision to keep it as-is).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Check for an accountable-party override comment on `plans/done/20260919-105328_plan.md` before executing (see Assumptions) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests live in seq 06's document (`tests/tools/test_front_matter_schema.py`) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | JSON validity + `tools/check_docs_structure.py` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Doc update lives in seq 04's document (`docs/00_governance_02_documentation-metadata.md`) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-122120 | 20260919-122120 | Check for an accountable-party override comment on `plans/done/20260919-105328_plan.md` before executing (see Assumptions) |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-122120 | 20260919-122120 | Tests live in seq 06's document (`tests/tools/test_front_matter_schema.py`) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-122120 | 20260919-122120 | JSON validity + `tools/check_docs_structure.py` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-122120 | 20260919-122120 | Doc update lives in seq 04's document (`docs/00_governance_02_documentation-metadata.md`) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
