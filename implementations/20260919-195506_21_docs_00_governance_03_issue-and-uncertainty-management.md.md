@@ -105,10 +105,10 @@ Plan's findings.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Conditional on rows 1-20's outcomes; process last |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no test to add |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_needs_confirmation_inventory.py, check_docs_quality.py, check_docs_structure.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-220940 | 20260919-220940 | Conditional on rows 1-20's outcomes; process last Processed last, after rows 1-20. Added 2 Known Issues entries (CI-017 from row 16, CI-018 from row 19) to Part 1 Active Items, and 3 Needs Confirmation entries (NC-037 from row 04, NC-038 from row 14, NC-039 from row 18) to Part 2 Active Items -- checked for duplicates first (UNK-01 was not previously tracked here). Updated the closing 'No other active items' line from NC-036 to NC-039. |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-220940 | 20260919-220940 | N/A: documentation-only, no test to add N/A: documentation-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-220940 | 20260919-220940 | check_needs_confirmation_inventory.py, check_docs_quality.py, check_docs_structure.py check_needs_confirmation_inventory.py: same 11 pre-existing untracked-marker warnings, none involving the 5 new entries; check_docs_quality.py: 0 error/4 pre-existing warnings (none referencing new entries); check_docs_structure.py: 1 pre-existing finding (file size limit, out of scope) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-220940 | 20260919-220940 | N/A: this document's own Target file IS the documentation being updated Edited Part 1/Part 2 Active Items only, additive |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
