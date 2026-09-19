@@ -16,9 +16,14 @@ mechanical-content-heavy.
 `tools/generate_reference_table.py` currently supports exactly three types (`rag`,
 `mcp`, `deployment`), each mapped to its own `generate_*_table()` function, guard-
 comment pair, and target document.
-`docs/00_governance_04_documentation-checks.md`'s `GV-021` already exempts this tool's
-guarded output from mechanical-content warnings, establishing the pattern this issue
-extends.
+`docs/00_governance_04_documentation-checks.md`'s `GV-021` documents an intent to
+exempt this tool's guarded output from mechanical-content warnings, but that exemption
+is currently implemented only for one of `check_docs_content_policy.py`'s five checks
+(`check_literal_port_number`), and even there its literal string match does not
+recognize the actual guard-comment format this tool emits (confirmed in
+`issues/20260918-130115_adrref01_decide-reference-class-fate-via-adr.md`'s
+Background) — so this issue's Acceptance Criteria below depends on that check being
+fixed first, not on an already-working exemption.
 
 ## Problem
 N/A: covered by Background/Summary — no defect in the existing tool, this is a scope
@@ -90,9 +95,14 @@ for the specific block replaced by the guarded output, not a broader mechanical-
 sweep of the target document.
 
 ## Dependencies
-Blocked by the Reference-class ADR issue reaching Accepted status with Option B
-chosen. Complements the `check_docs_content_policy.py` extension issue, which should
-treat this tool's guarded output the same way `GV-021` already does.
+Blocked by `issues/20260918-130115_adrref01_decide-reference-class-fate-via-adr.md`
+reaching Accepted status with Option B chosen. Also blocked by
+`issues/20260918-130159_docschk01_extend-check_docs_content_policy-instead-of-new-tool.md`
+fixing `check_literal_port_number`'s guard-comment detection and propagating the same
+exemption to the other check functions — without that fix, the three new guarded
+blocks this issue produces will not actually be exempt from
+`check_docs_content_policy.py`'s warnings, contradicting this issue's own Acceptance
+Criteria.
 
 ## Unresolved Questions
 The exact target document path for each of the three new `--type` values was not
