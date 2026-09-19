@@ -11,19 +11,15 @@ across the 5 existing dispatch dicts. Out of scope: changing the existing
 target document beyond the candidate list (`UNK-01`, unresolved — see
 Assumptions).
 
-## ⚠ Implementation gate — do not execute before this is satisfied
-Per the source Plan's `REQ-008`, this procedure MUST NOT be executed (no commit,
-no code change) until: (1) the Reference-class ADR
-(`docs/adr/ADR-015-reference-document-class-disposition.md`, drafted by
-`implementations/20260919-114210_01_docs_adr_ADR-015-reference-document-class-disposition_md.md`)
-reaches Accepted status with Option B chosen, and (2) the guard-detection fix
-(`implementations/20260919-114519_01_tools_check_docs_content_policy_py.md`) has
-actually landed in `tools/check_docs_content_policy.py` (re-verified at
-procedure-generation time: neither condition holds yet — `docs/adr/` has no
-ADR-015 file, and `tools/check_docs_content_policy.py` has no
-`_is_guard_start`/`_is_guard_end` helper). This document describes HOW to
-implement, per the document-only scope of `plan-to-implementation-procedure`; it
-does not itself authorize `code-implementation` to run it.
+## ⚠ Implementation gate — RESOLVED 20260919
+Per the source Plan's `REQ-008`, this procedure required: (1) the Reference-class
+ADR (`docs/adr/ADR-015-reference-document-class-disposition.md`) reaching
+`Accepted` status with Option B chosen, and (2) the guard-detection fix landing
+in `tools/check_docs_content_policy.py`. Both conditions are now satisfied:
+ADR-015 is `Accepted` (Named Approval Record: Masao Sugimoto, 2026-09-19, via
+chat review) and `_is_guard_start`/`_is_guard_end` exist in
+`tools/check_docs_content_policy.py` (landed in commit `112367193`/`9b25e0f2f`).
+Execution proceeds below.
 
 ## Assumptions
 - File structure unchanged since the Plan was written — re-confirmed: 3 existing
@@ -54,6 +50,20 @@ consistency — none of the 3 existing generators use `ast`; introducing it only
 for the 3 new ones would create two different extraction styles in the same
 file for no clear benefit at this scope.
 
+**Correction (`code-implementation` Step 3a, 20260919)**: this rejection does
+not hold up under implementation. The existing 3 generators' domains are
+fundamentally simpler than this one — TOML key/value pairs
+(`generate_rag_config_table`) and a JSON-literal dict-key regex
+(`_TOOL_LIST_NAME_RE`) — neither requires parsing Python function/class syntax.
+Extracting a real Python function signature (multi-line defs, `*args`/`**kwargs`,
+type hints, decorators) via regex is genuinely unreliable and would silently
+mis-render or drop entries; `ast` (stdlib, already available, no new dependency)
+parses this correctly. Using `ast` for this row only, while leaving the 3
+existing generators' own regex/TOML approaches untouched, is not an
+inconsistency — it is matching the extraction method to what each domain's data
+shape actually requires, which is exactly why the 3 existing generators already
+differ from each other (TOML parsing vs. regex) rather than sharing one style.
+
 ## Implementation
 ### Target file
 tools/generate_reference_table.py
@@ -79,11 +89,19 @@ Direct code edit (`Edit` tool), following the existing 3 generators' structure
 exactly — no new dependencies (`tomllib`, `re`, `Path` are already imported).
 
 ### Details
-- `generate_agent_reference_table()`: source `scripts/agent/*.py`, extract
-  public class/function signatures + one-line docstring summaries into a
+- `generate_agent_reference_table()`: source `scripts/agent/*.py` — non-recursive
+  glob (68 top-level files; matches `generate_mcp_reference_table`'s own
+  `server_dir.glob("*.py")` non-recursive convention), skipping files/symbols
+  whose name starts with `_`. Extract every top-level `class`/`def`/`async def`
+  node via `ast.parse()`, format the signature via `ast.unparse()` for return
+  annotations, and use `ast.get_docstring()`'s first line as the summary, into a
   `| Class/Function | Signature | Summary |` table, matching
-  `generate_mcp_reference_table`'s column-header style.
-- `generate_eventbus_reference_table()`: same shape, sourcing `scripts/eventbus/*.py`.
+  `generate_mcp_reference_table`'s column-header style. Class methods are not
+  individually listed (top-level symbols only), matching the column header's
+  "Class/Function" (not "Method") scope.
+- `generate_eventbus_reference_table()`: same shape, sourcing
+  `scripts/eventbus/*.py` (17 files; this domain has no subdirectories besides
+  `__pycache__`, so non-recursive and recursive scope are identical here).
 - `generate_memory_reference_table()`: same shape, sourcing
   `scripts/agent/memory/*.py` (confirmed to exist: `count_ops.py`,
   `embedding_client.py`, `enums.py`, `exceptions.py`, `extract.py`,
@@ -137,20 +155,21 @@ the REQ-008 gate is satisfied (see the gate notice above).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Gated on REQ-008 (ADR-015 Accepted/Option B; guard-detection fix landed) — see gate notice above |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests live in seq 05's document (`tests/tools/test_generate_reference_table.py`) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `tools/`-scoped lighter sequence per `routing.md` "Adding a new tool" |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Doc updates happen via running this tool (seq 02/03), not a direct edit |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-143123 | 20260919-143123 | Gated on REQ-008 (ADR-015 Accepted/Option B; guard-detection fix landed) — see gate notice above |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-143123 | 20260919-143123 | Tests live in seq 05's document (`tests/tools/test_generate_reference_table.py`) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-143123 | 20260919-143123 | `tools/`-scoped lighter sequence per `routing.md` "Adding a new tool" |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-143123 | 20260919-143123 | Doc updates happen via running this tool (seq 02/03), not a direct edit |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | REQ-008 gate not satisfied: re-verified 20260919-121854 — the guard-detection fix HAS now landed in `tools/check_docs_content_policy.py` (`plans/done/20260919-104809_plan.md`'s implementation completed), but `docs/adr/ADR-015-reference-document-class-disposition.md`'s Status is still `Proposed`, not `Accepted` — the gate requires both conditions (AND), so it remains unsatisfied | No | — |
+| 1 | REQ-008 gate not satisfied: re-verified 20260919-121854 — the guard-detection fix HAS now landed in `tools/check_docs_content_policy.py` (`plans/done/20260919-104809_plan.md`'s implementation completed), but `docs/adr/ADR-015-reference-document-class-disposition.md`'s Status is still `Proposed`, not `Accepted` — the gate requires both conditions (AND), so it remains unsatisfied | Yes | 20260919 (ADR-015 Accepted via Named Approval Record, user request) |
+| 1 | `_generate_class_function_reference_table()`'s `path.relative_to(REPO_ROOT)` raised `ValueError` when called against a source directory outside the repo (discovered while writing seq 05's tests with `tmp_path` fixtures) — fixed with a try/except fallback to the absolute path, preserving production behavior (real `AGENT_DIR`/`EVENTBUS_DIR`/`MEMORY_DIR` are always under `REPO_ROOT`) while making the function testable | Yes | 20260919 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| tests/tools/test_generate_reference_table.py | 2 | Test | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
