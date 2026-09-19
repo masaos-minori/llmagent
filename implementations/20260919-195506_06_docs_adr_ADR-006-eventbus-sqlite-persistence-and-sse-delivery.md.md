@@ -89,10 +89,10 @@ This file's other sections beyond `## Implementation Notes`; any other ADR or de
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Classify and apply action for 3 real bullets |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no test to add |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_quality.py, check_docs_structure.py, check_adr_structure.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-215638 | 20260919-215638 | Classify and apply action for 3 real bullets Bullets 1,3 already minimal navigational pointers (Compress/Retain, already compliant, no change). Bullet 2 compressed: removed literal SQL restatement, kept INV-05/INV-09 cross-reference (Compress). |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-215638 | 20260919-215638 | N/A: documentation-only, no test to add N/A: documentation-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-215638 | 20260919-215638 | check_docs_quality.py, check_docs_structure.py, check_adr_structure.py check_docs_quality.py: 0 error/1 pre-existing warning; check_docs_structure.py: 9 pre-existing findings (out of scope); check_adr_structure.py: No issues found |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-215638 | 20260919-215638 | N/A: this document's own Target file IS the documentation being updated Edited this file's own Implementation Notes only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
