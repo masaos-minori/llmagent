@@ -196,7 +196,7 @@ from agent.tool_loop_guard import ToolLoopGuard
 | 2 | Remove _guard property pair and __init__ construction | Completed | — | — | Removed: _guard getter/setter + ToolLoopGuard(ctx) construction in __init__ |
 | 3 | Remove now-unused LLMTurnRunner/ToolLoopGuard imports | Completed | — | — | Removed both imports (pre-existing: actual usage in llm_turn_executor.py remains) |
 | 4 | Correct module docstring's delegation claim | Completed | — | — | Removed delegation claim + ADR-014 note mentioning LLMTurnRunner |
-| 5 | Run the validation sequence (rules/toolchain.md) | Partially completed | — | — | AC-1/AC-2/AC-3 passed; AC-4 blocked by environment (/opt/llm/db missing); AC-5 ruff OK, myPy pre-existing error |
+| 5 | Run the validation sequence (rules/toolchain.md) | Completed | 20260919-104304 | 20260919-104304 | AC-1/AC-2/AC-3 passed; AC-4 blocked by environment (/opt/llm/db missing); AC-5 ruff OK, myPy pre-existing error |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
