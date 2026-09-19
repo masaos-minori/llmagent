@@ -108,11 +108,11 @@ Run the corresponding `tools/generate_reference_table.py --type <domain>` genera
 
 ## Implementation Notes
 
-If Option B is adopted, the following existing Reference-class documents are candidates for migration (from `plans/done/20260919-105034_plan.md`'s target list, not re-derived here):
+Agent (`docs/05_agent_13_reference-api.md`) and EventBus (`docs/06_eventbus_06_reference-api.md`)
+have both been migrated to generated Reference-class status under Option B.
 
-- Agent: `docs/05_agent_13_reference-api.md`
-- EventBus: `docs/06_eventbus_06_reference-api.md`
-- Memory: 6 candidate chapter files under `docs/05_agent_12_*.md` (exact target document(s) unresolved — see that Plan's `UNK-01`)
+Memory migration target document(s) remain unresolved — see
+`docs/00_governance_03_issue-and-uncertainty-management.md` NC-038.
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 

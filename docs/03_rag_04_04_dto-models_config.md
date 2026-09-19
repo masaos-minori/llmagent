@@ -77,12 +77,8 @@ source:
 
 ## Implementation Notes
 
-- All dataclasses in this file (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) are not imported or instantiated by any module under `scripts/rag/`. 
-  Runtime configuration loading uses the raw `dict` returned by `ConfigLoader().load("xxx.toml")` accessed directly via `cfg.get("key", default)` (e.g., in `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`), bypassing these dataclasses.
-  [Explicit in code] — Based on grep results, there are no references to this file except for its own definition.
-- The actual runtime configuration contract used by `RagPipeline` is the `RagConfig` (Protocol) in `shared/types.py`, whose docstring states: "The `rag.models_config.*` files are DTOs for the ingestion TOML format."
-  However, as mentioned above, ingestion scripts currently use direct dictionary access and there is no confirmed connection with the dataclasses in this file.
-- The `ResultSource` mentioned in this file has already been deprecated; the current `ResultSource` is actually used as `SearchDiagnostics.result_source` in `scripts/rag/models_result.py`.
+See Known Issue CI-017 in `docs/00_governance_03_issue-and-uncertainty-management.md`
+for the documented-dataclasses-vs-actual-runtime-contract mismatch tracked for this file.
 
 ## Related Documents
 

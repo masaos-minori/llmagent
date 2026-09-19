@@ -22,18 +22,15 @@ source:
 
 **Common Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 
+If the log file cannot be opened (`OSError`), these scripts intentionally continue
+running with stderr-only output rather than failing — this fallback is a deliberate
+availability choice, not a silent failure mode.
+
 ## Implementation Notes
 
-- All three scripts above use the `Logger` class from `shared/logger.py` as `Logger(__name__, "<path>.log")`. The log level cannot be changed in the constructor and is always fixed to `logging.INFO` (as `setLevel(logging.INFO)` is executed during logger initialization).
-  [Explicit in code]
-- Output destinations include both a `FileHandler` and a `StreamHandler` to `stderr`. If opening the log file fails (`OSError`), a warning is issued to the fallback `shared.logger.fallback` logger, and execution continues using only the `stderr` handler.
-  [Explicit in code]
-- `propagate=False` is configured, so duplicate output to the root logger does not occur.
-  [Explicit in code]
-- The `Logger` can switch to JSON-lines format (`_JsonFormatter`) when `structured_log=True` is specified. However, since `crawler.py`, `chunk_splitter.py`, and `ingester.py` do not specify `structured_log`, they continue using the common text format described in this document.
-  [Explicit in code]
-- Context fields such as `turn_id`, `session_id`, `rag_query_id`, `workflow_id`, and `task_id` provided via `extra={...}` are not output in the text format (`_FORMAT`). These are reflected in the JSON output only when using structured logging (`structured_log=True`), because the `_FORMAT` string does not reference these fields.
-  [Explicit in code]
+JSON-lines output is available (`structured_log=True`) but unused by these 3 scripts;
+whether this is a deliberate scope decision or unfinished work is tracked as
+`docs/00_governance_03_issue-and-uncertainty-management.md` NC-039.
 
 ---
 

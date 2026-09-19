@@ -90,7 +90,8 @@ base classes.
 
 #### Known hierarchy deviation
 
-The existing Implementation Notes (line 79) document one known edge case: `RagRerankError`
+Tracked as Known Issue CI-018 in
+`docs/00_governance_03_issue-and-uncertainty-management.md`. `RagRerankError`
 and `RagPipelineError` are defined outside `scripts/rag/exceptions.py` (in
 `llm_prompts.py` and `pipeline.py` respectively), inheriting from `RuntimeError` rather
 than `RagLayerError`. This fragmentation arose from three independent refactoring efforts
@@ -114,19 +115,7 @@ No ADR or design document records a rationale for keeping them separate.
 | `use_search=False` | Immediately returns `""` |
 | Failure when setting `rag_service_url` | Fallback to in-process pipeline |
 | Cross-encoder failure | `RagRerankError` is caught as a `RuntimeError`, and `StageResult.status="failure"` is recorded, with a warning logged. The pipeline continues with `ctx.reranked=[]` (no fallback to RRF). If `use_rerank=False`, RRF ordering and deduplication are used instead. |
-
-## Implementation Notes
-
-- `RagRerankError` is defined as `class RagRerankError(RuntimeError)` in `scripts/rag/llm_prompts.py` rather than `scripts/rag/exceptions.py`. Since it is a subclass of `RuntimeError`, it is included in the exception handling tuple in `pipeline.py` (`RuntimeError`, `sqlite3.OperationalError`, `httpx.HTTPStatusError`, `httpx.RequestError`, `TimeoutError`), so the description "caught as `RuntimeError`" is accurate.
-  [Explicit in code]
-- The actual exception classes defined in `scripts/rag/exceptions.py` are 7 types: `RagLayerError` (base) / `EmbeddingSchemaError` / `PipelineValidationError` / `SearchQueryError` / `ChunkFormatError` / `TokenizationError` / `UnknownMetadataError`. `RagRerankError` and `RagPipelineError` are not included here (both are individually defined in `llm_prompts.py` and `pipeline.py` respectively). The exception hierarchy is not unified under a single base class across the entire rag layer. **Cause**: This fragmentation arose from three independent refactoring efforts at different times, each introducing its own exception class without referencing the others':
-  - `5ac7b757 refactor(rag): Phase 1-3 — backward-compat removal, foundation files, dataclass migration` — introduced `RagLayerError` and its 6 subclasses as the foundational error hierarchy.
-  - `2ff62348 refactor(rag): split llm.py (413→42+260+245 lines) into prompts + client` — introduced `RagRerankError` and `RagExpansionError` (both inherit from `RuntimeError`, not `RagLayerError`).
-  - `c0477811 refactor(rag): pipeline/stages fail-fast — remove expand_queries_safe, except Exception fallbacks, add RagPipelineError` — introduced `RagPipelineError` (inherits from `RuntimeError`, not `RagLayerError`).
-  No ADR or design document records a rationale for keeping them separate; the fragmentation is a byproduct of independently-scoped refactors, not a deliberate architectural decision. **Future unification** would require touching every `except` clause across `scripts/rag/` that currently catches `RagRerankError`/`RagPipelineError`/`RagExpansionError`/`RuntimeError` by name — a cross-cutting change outside the scope of a documentation fix.
-   [Explicit in code]
-- `RagPipeline.__init__()` executes `RagConfigValidator().validate()` (`shared/config_validator.py`) at startup. If `result.ok` is `False`, it raises a `ValueError` and aborts instance creation. Warnings (`result.warnings`) are only logged, allowing continuation.
-  [Explicit in code] — This note is added because this section lacked information about this initialization-time validation.
+| Startup config validation failure | `RagPipeline.__init__()` runs `RagConfigValidator().validate()`; a failing result raises `ValueError` and aborts construction. Warnings-only results are logged and allow continuation. |
 
 ---
 

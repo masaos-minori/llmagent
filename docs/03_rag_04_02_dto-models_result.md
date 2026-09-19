@@ -32,6 +32,10 @@ source:
 | `"error"` | HTTP error path |
 | `"not_used"` | HTTP mode is inactive |
 
+`ResultSource`/`HttpResultKind` are `StrEnum`; every other DTO in this module is
+`@dataclass(frozen=True)`, following the DTO-layer immutability policy shared with
+[03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md).
+
 **ExpandedQuerySet** — MQE expansion results.
 
 | Field | Type | Description |
@@ -107,12 +111,6 @@ These fields are only meaningful when the search is delegated to a remote HTTP R
 | `remote_status_code` | `int \| None` | `None` | HTTP status code from the remote RAG service |
 | `remote_latency_ms` | `float \| None` | `None` | Latency of remote call (ms) |
 | `fallback_reason` | `str \| None` | `None` | Reason for in-process fallback (if applicable) |
-
-## Implementation Notes
-
-- `ResultSource` and `HttpResultKind` are defined as `StrEnum`. All other DTOs (`ExpandedQuerySet` and below) are defined as `@dataclass(frozen=True)`. This follows the design policy of ensuring immutability across the entire DTO layer, similar to `03_rag_04_01_dto-models_data.md` (Explicit in code).
-- The fields `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`, and `fallback_reason` in `SearchDiagnostics` are categorized as "Remote mode fields (new)" in the code comments (Explicit in code, `scripts/rag/models_result.py`). While `embed_ok`, `embed_failed`, and `fts_errors` are existing counters from local execution, the remote fields were added after the introduction of the HTTP RAG service.
-- `fallback_reason` is set in `scripts/rag/pipeline.py` and `scripts/rag/http_augment.py` to record the reason for in-process fallback when an HTTP call fails (Explicit in code).
 
 ## Related Documents
 

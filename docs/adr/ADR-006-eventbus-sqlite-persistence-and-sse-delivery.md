@@ -374,7 +374,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
 - トランザクション保証: INV-16参照（`ack_event_for_consumer()`内の単一トランザクション）
-- Monotonicity Enforcement: INV-05, INV-09参照（`consumer_offsets`テーブルへの`INSERT ... ON CONFLICT(consumer_id) DO UPDATE SET offset = excluded.offset WHERE excluded.offset > consumer_offsets.offset`で実装）
+- Monotonicity Enforcement: INV-05, INV-09参照
 - レガシー移行: `migrate_legacy_offsets()`の詳細はKnown Deviations EVENTBUS-007参照
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。

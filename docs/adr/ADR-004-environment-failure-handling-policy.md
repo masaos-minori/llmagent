@@ -195,6 +195,12 @@ Accepted
 
 「現行コードがこの方式で実装されているため」だけを採用理由にしない。
 
+### 6. 起動検証結果の非永続化
+
+`StartupOrchestrator`が構築する起動検証結果は、プロセス起動ごとに再構築されるメモリ上の集約であり、
+意図的に永続化しない。過去の起動履歴を保持することは本Decisionのスコープに含まれず、各起動時点での
+判定のみが有効である。
+
 ## Alternatives Considered
 
 ### Alternative A: Separate failure-handling policies per Environment Profile
@@ -447,8 +453,11 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- `StartupOrchestrator`が構築する`StartupValidationResult`（`scripts/agent/shared/health_models.py`）は、プロセス起動ごとに再構築されるメモリ上の集約オブジェクトであり、`workflow.sqlite`等へ永続化されない。
-- MCPサーバー到達不能時の現行の再試行は、固定遅延（`HEALTH_CHECK_RETRY_DELAY_SEC`）による単発の再試行であり、設定可能な試行回数を持つ汎用Retry Policyではない。
+起動検証結果の非永続化については`## Rationale`の「6. 起動検証結果の非永続化」を参照。
+
+MCPサーバー到達不能時の再試行方針（固定単発再試行が意図的な簡素化か、設定可能な汎用Retry Policyが
+未実装なだけかの区別）については`docs/00_governance_03_issue-and-uncertainty-management.md`の
+NC-037を参照。
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 

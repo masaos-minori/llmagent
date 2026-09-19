@@ -456,6 +456,46 @@ CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavi
 
 Note on CI-008 through CI-016 batching: These nine structurally identical "ADR invariant verified by code inspection, no automated test" entries are treated as one initiative. Their Area fields span Agent (CI-008, CI-016), Shared/DB (CI-009), MCP (CI-010, CI-013, CI-015), RAG (CI-011, CI-014), and EventBus (CI-012) — no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
 
+#### CI-017
+
+- **ID**: CI-017
+- **Title**: `docs/03_rag_04_04_dto-models_config.md`'s documented DTOs no longer exist — `scripts/rag/models_config.py` replaced by `RagConfigImpl`
+- **Status**: open
+- **Severity**: Medium
+- **Area**: RAG
+- **Type**: document-code-mismatch
+- **Source**: `scripts/rag/models_config.py`, `scripts/shared/types.py::RagConfig`
+- **Owner**: Unassigned
+- **First Found**: 2026-09-20
+- **Target**: `docs/03_rag_04_04_dto-models_config.md`
+- **Related**: N/A
+- **Summary**: The 7 dataclasses documented in `docs/03_rag_04_04_dto-models_config.md` (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) no longer exist in `scripts/rag/models_config.py`, which now defines only `RagConfigImpl`.
+- **Current Description**: The doc's main body still describes the 7 legacy per-stage config dataclasses as the runtime config contract.
+- **Observed Implementation**: `scripts/rag/models_config.py` defines only `RagConfigImpl` (a flat dataclass), actively used by `scripts/rag/pipeline.py` and 5 test files, implementing the `RagConfig` Protocol (`scripts/shared/types.py`), whose docstring no longer claims these files are "DTOs for the ingestion TOML format".
+- **Impact**: A reader of this doc would look for config classes that no longer exist and miss the actual runtime contract (`RagConfigImpl`/`RagConfig` Protocol).
+- **Recommended Action**: Rewrite `docs/03_rag_04_04_dto-models_config.md`'s main body to document `RagConfigImpl` and the `RagConfig` Protocol instead of the removed per-stage dataclasses.
+- **Resolution Target**: Next RAG documentation pass covering `scripts/rag/models_config.py`
+
+#### CI-018
+
+- **ID**: CI-018
+- **Title**: RAG exception hierarchy fragmented across `exceptions.py`/`llm_prompts.py`/`pipeline.py` with no recorded rationale
+- **Status**: open
+- **Severity**: Low
+- **Area**: RAG
+- **Type**: design-gap
+- **Source**: `scripts/rag/exceptions.py`, `scripts/rag/llm_prompts.py::RagRerankError`, `scripts/rag/pipeline.py::RagPipelineError`
+- **Owner**: Unassigned
+- **First Found**: 2026-09-19
+- **Target**: `docs/03_rag_05_4-error-handling-reference.md`
+- **Related**: N/A
+- **Summary**: `RagRerankError` and `RagPipelineError` are defined outside `scripts/rag/exceptions.py` and inherit from `RuntimeError` rather than the `RagLayerError` base class used by the other 7 rag-layer exceptions, with no ADR or design document recording a rationale for the split.
+- **Current Description**: The exception hierarchy is not unified under a single base class across the rag layer.
+- **Observed Implementation**: Confirmed via 3 independent refactoring commits: `5ac7b757 refactor(rag): Phase 1-3 — backward-compat removal, foundation files, dataclass migration` introduced `RagLayerError` and its 6 subclasses; `2ff62348 refactor(rag): split llm.py (413→42+260+245 lines) into prompts + client` introduced `RagRerankError`/`RagExpansionError` (`RuntimeError`-based); `c0477811 refactor(rag): pipeline/stages fail-fast — remove expand_queries_safe, except Exception fallbacks, add RagPipelineError` introduced `RagPipelineError` (`RuntimeError`-based). No ADR or design document records a rationale for keeping them separate.
+- **Impact**: Future unification would require touching every `except` clause across `scripts/rag/` that currently catches `RagRerankError`/`RagPipelineError`/`RagExpansionError`/`RuntimeError` by name — a cross-cutting change; until then, a caller could catch the wrong exception type or miss one to a base-class catch.
+- **Recommended Action**: Decide whether to unify `RagRerankError`/`RagPipelineError`/`RagExpansionError` under `RagLayerError` in a dedicated cross-cutting refactor, or document the split as an accepted permanent exception via ADR.
+- **Resolution Target**: Next RAG exception-hierarchy refactor or ADR decision
+
 #### REQ-001
 
 - **ID**: REQ-001
@@ -787,7 +827,58 @@ NC-030 ("Should `adr` and `security` be permanent `area` enum values, or folded 
 - **Resolution Target**: Next RAG architecture review
 - **Blocking**: No
 
-No other active items beyond NC-021 through NC-036 above.
+#### NC-037
+
+- **Source File**: `docs/adr/ADR-004-environment-failure-handling-policy.md`
+- **Section**: Implementation Notes (MCP server retry policy)
+- **Line Number**: ~450 (pre-reclassification; now a cross-reference to this entry)
+- **Question**: Is the current single fixed-delay retry (`HEALTH_CHECK_RETRY_DELAY_SEC`) on MCP server unreachability an intentional simplicity choice, or is a configurable-attempt-count general Retry Policy still pending implementation?
+- **Evidence**: Neither this ADR's `## Rationale` nor its `## Known Deviations` sections state or acknowledge this design choice either way.
+- **Impact**: A future implementer might either leave the fixed retry alone (if intentional) or build unneeded complexity (if a general policy was never actually planned) without knowing which is correct.
+- **Required Action**: Owner/architect confirmation of whether a configurable Retry Policy was ever intended for MCP server health checks.
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-19
+- **Priority**: Low
+- **Related NC**: None
+- **Resolution Target**: Next Agent/MCP health-check design review
+- **Blocking**: No
+
+#### NC-038
+
+- **Source File**: `docs/adr/ADR-015-reference-document-class-disposition.md`
+- **Section**: Implementation Notes (Memory Reference-class migration candidates)
+- **Line Number**: ~113 (pre-reclassification; now a cross-reference to this entry)
+- **Question**: Which of the 6 candidate `docs/05_agent_12_*.md` chapter files (or how many) is/are the correct target for Memory-layer Reference-class migration under Option B?
+- **Evidence**: `plans/done/20260919-105034_plan.md`'s own Unknowns table (`UNK-01`) and Execution Status (Step 4, still `In Progress`) confirm this is genuinely unresolved — `generate_memory_reference_table()` has not yet been added.
+- **Impact**: The Memory Reference-class migration (Steps 2/3 of that Plan already completed for Agent/EventBus) cannot proceed until the target document(s) are confirmed.
+- **Required Action**: Confirm target document(s) for `generate_memory_reference_table()`, per `plans/done/20260919-105034_plan.md` Step 4.
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-19
+- **Priority**: Medium
+- **Related NC**: None
+- **Resolution Target**: Completion of `plans/done/20260919-105034_plan.md` Step 4
+- **Blocking**: No
+
+#### NC-039
+
+- **Source File**: `docs/03_rag_05_3-logging.md`
+- **Section**: Implementation Notes (JSON-lines structured logging)
+- **Line Number**: ~33 (pre-reclassification; now a cross-reference to this entry)
+- **Question**: Is it deliberate that `crawler.py`, `chunk_splitter.py`, and `ingester.py` never set `structured_log=True` (staying on text format), or was JSON-lines output intended for these scripts and never enabled?
+- **Evidence**: Neither this doc nor `shared/logger.py` states whether JSON-lines was intended for these 3 scripts.
+- **Impact**: Context fields (`turn_id`, `session_id`, `rag_query_id`, `workflow_id`, `task_id`) passed via `extra={...}` are silently dropped from these scripts' text-format output; if JSON logging was intended, this is a lost-observability gap, not a documented decision.
+- **Required Action**: Owner confirmation of whether these 3 ingestion scripts should adopt `structured_log=True`.
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-09-19
+- **Priority**: Low
+- **Related NC**: None
+- **Resolution Target**: Next RAG ingestion logging review
+- **Blocking**: No
+
+No other active items beyond NC-021 through NC-039 above.
 
 ## Part 3: Canonical Source Conflict
 

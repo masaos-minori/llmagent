@@ -341,8 +341,6 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
 
-- Circuit Breaker: INV-11参照（`McpServerHealthRegistry`が実装）
-
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
 行番号は記載せず、File PathとSymbol名で参照する。
