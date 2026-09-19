@@ -136,10 +136,10 @@ exact risk this step exists to close).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's Implementation step 1 is itself the test update |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260920-074400 | 20260920-074400 | All 3 cited lines (19, 41, 49) matched current source exactly; updated as specified. `rg "_stderr_log_paths"` confirms zero remaining matches in this file. |
+| 2 | Add or update tests per Validation plan | Completed | 20260920-074400 | 20260920-074400 | `pytest tests/agent/test_http_lifecycle_shutdown_coordinator.py -v`: 4 passed, 0 failed — the 1 failure observed during Step 03's cycle (deferred, forward-dependency on this step) is now resolved. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260920-074400 | 20260920-074400 | ruff format/check clean; pyright clean (0 errors). mypy/bandit/lint-imports not applicable to tests/ scope. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260920-074400 | 20260920-074400 | N/A: test-only file, no documentation update in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
