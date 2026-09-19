@@ -98,6 +98,68 @@ def _find_sentences(line: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Content similarity helpers
+# ---------------------------------------------------------------------------
+
+def _compute_section_similarity(
+    section_a_text: str, section_b_text: str, *, threshold: float = 0.85
+) -> bool:
+    """Return True if the two section texts overlap above the given threshold."""
+    def tokenize(text: str) -> set[str]:
+        text = re.sub(r'```[\s\S]*?```', '', text)
+        text = re.sub(r'`[^`]+`', '', text)
+        words = re.findall(r'[a-z0-9]+', text.lower())
+        return set(words)
+
+    set_a = tokenize(section_a_text)
+    set_b = tokenize(section_b_text)
+
+    if not set_a or not set_b:
+        return False
+
+    intersection = len(set_a & set_b)
+    union = len(set_a | set_b)
+
+    if union == 0:
+        return False
+
+    return (intersection / union) >= threshold
+
+
+def _extract_sections(content: str) -> list[dict]:
+    """Extract sections from markdown content, returning list of dicts with 'heading', 'body', 'line' keys."""
+    sections = []
+    lines = content.split('\n')
+    current_heading = None
+    current_body_lines: list[str] = []
+    current_line: int | None = None
+
+    for idx, line in enumerate(lines, start=1):
+        match = re.match(r"^(#{1,6})\s+(.+)$", line)
+        if match:
+            if current_heading is not None:
+                sections.append({
+                    "heading": current_heading.strip(),
+                    "body": "\n".join(current_body_lines).strip(),
+                    "line": current_line,
+                })
+            current_heading = match.group(2)
+            current_line = idx
+            current_body_lines = []
+        else:
+            current_body_lines.append(line)
+
+    if current_heading is not None:
+        sections.append({
+            "heading": current_heading.strip(),
+            "body": "\n".join(current_body_lines).strip(),
+            "line": current_line,
+        })
+
+    return sections
+
+
+# ---------------------------------------------------------------------------
 # Check registry — both core and custom rules use the same mechanism
 # ---------------------------------------------------------------------------
 
@@ -360,7 +422,10 @@ def check_duplicate_heading_numbers(
     issues: list[Issue] = []
     for doc in files:
         in_fenced_block = False
-        seen: dict[tuple[int, str], int] = {}
+        # Purely-numeric: exact duplicate detection
+        numeric_seen: dict[tuple[int, str], int] = {}
+        # Alphabetic-suffix: near-duplicate detection (base number matching)
+        alpha_groups: dict[tuple[int, int], list[tuple[int, str]]] = {}
         for i, line in enumerate(doc.lines, 1):
             stripped = line.strip()
             if stripped.startswith("```") or stripped.startswith("~~~"):
@@ -368,22 +433,82 @@ def check_duplicate_heading_numbers(
                 continue
             if in_fenced_block:
                 continue
+            # Purely-numeric pattern: ## 2.1, ## 3.2.1, etc.
             m = re.match(r"^(#{1,6})\s+(\d[\d.]*\.)\s+", stripped)
             if m:
                 level = len(m.group(1))
                 number = m.group(2)
                 key = (level, number)
-                if key in seen:
+                if key in numeric_seen:
                     issues.append(
                         Issue(
                             doc.rel_path,
                             i,
                             "ERROR",
-                            f"duplicate heading number: '#{level} {number}' also at line {seen[key]}: '{stripped}'",
+                            f"duplicate heading number: '#{level} {number}' also at line {numeric_seen[key]}: '{stripped}'",
                         )
                     )
                 else:
-                    seen[key] = i
+                    numeric_seen[key] = i
+            # Alphabetic-suffix pattern: ## 2a., ## 7c., etc.
+            am = re.match(r"^(#{1,6})\s+(\d+[a-z]+)\.\s+", stripped)
+            if am:
+                level = len(am.group(1))
+                heading_number = am.group(2)
+                base_match = re.match(r"(\d+)[a-z]+", heading_number)
+                if base_match:
+                    base_number = int(base_match.group(1))
+                    key = (level, base_number)
+                    if key not in alpha_groups:
+                        alpha_groups[key] = []
+                    alpha_groups[key].append((i, heading_number))
+        # Report near-duplicates among alphabetic-suffix headings
+        for key, entries in alpha_groups.items():
+            if len(entries) > 1:
+                for ii in range(len(entries)):
+                    for jj in range(ii + 1, len(entries)):
+                        _, num_i = entries[ii]
+                        _, num_j = entries[jj]
+                        if num_i != num_j:
+                            issues.append(
+                                Issue(
+                                    doc.rel_path,
+                                    entries[jj][0],
+                                    "WARNING",
+                                    f"Probable near-duplicate heading: '{num_i}' and '{num_j}' at same level {key[0]}",
+                                )
+                            )
+    return issues
+
+
+@register_core_check(
+    "content_similarity",
+    "Sections within the same document with overlapping body text above threshold",
+)
+def check_content_similarity(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
+    """Flag sections within the same document whose body text overlaps above threshold."""
+    issues: list[Issue] = []
+    for doc in files:
+        try:
+            content = doc.path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        sections = _extract_sections(content)
+        for i in range(len(sections)):
+            for j in range(i + 1, len(sections)):
+                body_a = sections[i]["body"]
+                body_b = sections[j]["body"]
+                if not body_a or not body_b:
+                    continue
+                if _compute_section_similarity(body_a, body_b):
+                    issues.append(
+                        Issue(
+                            doc.rel_path,
+                            sections[j]["line"],
+                            "WARNING",
+                            f"Content similarity detected between sections '{sections[i]['heading']}' and '{sections[j]['heading']}'",
+                        )
+                    )
     return issues
 
 
