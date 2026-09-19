@@ -18,16 +18,18 @@ deploy 時に本エージェント本体および各 MCP サーバーを Nuitka 
 
 ## 前提条件（確定事項）
 
-検討の過程で以下の3点を前提として確定した。
+検討の過程で以下の2点を前提として確定した。
 
-1. **plugin 機構は廃止する**
-   `scripts/shared/plugin_registry.py` による `plugins/` 配下の動的ロードを廃止し、
-   静的 import 前提の構成に変更する。
-2. **MCP サーバーも個別に単一バイナリ化する**
+1. **MCP サーバーも個別に単一バイナリ化する**
    メインエージェントとは別に、MCP サーバー1種につき1バイナリを作成する。
-3. **`config/`, `sudachidict-core`, `sqlite-vec.so` は外部データとして配置する**
+2. **`config/`, `sudachidict-core`, `sqlite-vec.so` は外部データとして配置する**
    バイナリに埋め込まず、`/opt/llm/` 配下の外部ファイル・ディレクトリとして
    実行時に参照する。
+
+plugin 機構（`scripts/shared/plugin_registry.py` による `plugins/` 配下の動的ロード）は
+本提案とは別の作業により既に廃止されており、静的 import 前提の構成になっている
+（`scripts/` 配下に "plugin" 関連の参照は残っていない）。Nuitka 化にあたって
+追加対応は不要。
 
 ## 現状調査結果（事実）
 
@@ -35,9 +37,10 @@ deploy 時に本エージェント本体および各 MCP サーバーを Nuitka 
 
 - `scripts/agent.py` は既に削除済み（過去のレガシーエントリポイント）。
 - 本番導線は `deploy/start_agent.sh:76` の `uv run python -m agent.repl` であり、
-  `scripts/agent/repl.py:453` の `if __name__ == "__main__":` が起点。
+  `scripts/agent/repl.py:162` の `if __name__ == "__main__":` が起点
+  （`main()` → `AgentREPL().run()`）。
 - `scripts/agent/__main__.py`（`python -m agent`）は存在するが本番導線では未使用。
-- `pyproject.toml:128-130`（coverage omit）に存在しない `scripts/agent.py` の記述が
+- `pyproject.toml:140`（coverage omit）に存在しない `scripts/agent.py` の記述が
   残存しており、ドキュメントドリフトがある（本件とは別問題として要整理）。
 
 ### MCP サーバー構成
@@ -63,27 +66,27 @@ deploy 時に本エージェント本体および各 MCP サーバーを Nuitka 
 `subprocess` で個別プロセスとして起動する。HTTP 越しの独立プロセスであるため、
 `cmd` をバイナリパスに差し替えるだけで移行できる。
 
-### 動的ロード機構（廃止・確認対象）
+### 動的ロード機構（確認対象）
 
-- `scripts/shared/plugin_registry.py`: `plugins/` 配下の `*.py` を実行時にファイルシステム
-  走査して import（呼び出し元 `scripts/agent/factory.py:393`）。→ 前提1により廃止。
 - `scripts/mcp_launcher.py:36-51`: `pkgutil.walk_packages` + `importlib.import_module` で
   `mcp_servers.*` を動的発見。本番導線（`http_lifecycle.py` 経由の起動）では使用されて
   いない単体起動用ツールと判明しており、個別バイナリ化方式では影響しない。
 
 ### ネイティブ依存・外部データ化対象
 
-- **sqlite-vec**: `scripts/db/helper.py:129-140` の `_load_vec_extension()` が
+- **sqlite-vec**: `scripts/db/helper.py:140` の `_load_vec_extension()` が
   `sqlite3.load_extension()` 経由でロード。パスは `config/agent.toml:9` に
   `sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"` と絶対パスで設定済み。
   Python の import 機構とは無関係のため **変更不要**、現状のまま外部データとして扱える。
-- **sudachidict-core**: `sudachipy` 経由で `rag/repository.py:37-70` の
-  `_SudachiTokenizer` と `chunk_splitter.py:34-35,107,109` が使用。パッケージ内
-  `resources/system.dic`（約217MB）を外部配置に変更する必要があり、
+- **sudachidict-core**: `sudachipy` 経由で `rag/repository.py:37` の
+  `_SudachiTokenizer` と `scripts/rag/ingestion/chunk_splitter.py:33-34,81,83`
+  （import が33-34行目、`sudachi_dict.Dictionary(dict="core")` 呼び出しが81行目・
+  83行目）が使用。パッケージ内 `resources/system.dic`（約217MB）を外部配置に
+  変更する必要があり、現在も組み込み辞書指定方式（`dict="core"`）のままである。
   `sudachipy.Dictionary()` に外部辞書パスを渡す API 仕様の確認が実装時に必要
   （未検証）。
-- **`config/`**: `scripts/agent/config_builders.py:38` と
-  `scripts/shared/config_loader.py:61-62` がいずれも `__file__` 基準の相対パスで
+- **`config/`**: `scripts/agent/config_builders.py:50` と
+  `scripts/shared/config_loader.py:74` がいずれも `__file__` 基準の相対パスで
   解決している。onefile 展開後の一時ディレクトリでは崩れるため、実行ファイル隣接
   ディレクトリまたは環境変数（例: `LLMAGENT_CONFIG_DIR`）基準に変更する必要がある。
 
@@ -102,12 +105,10 @@ deploy 時に本エージェント本体および各 MCP サーバーを Nuitka 
   `lxml` / `PyGithub` / `gitpython` のビルド可否を PoC で確認。
 
 ### Phase 1: コード側の設計変更
-1. plugin 廃止: `plugin_registry.py` 削除、`factory.py:393` の呼び出し除去
-   （廃止前に `plugins/` 配下の現存プラグイン有無を確認）
-2. `config_loader.py` / `config_builders.py` のパス解決を環境変数/実行ファイル
+1. `config_loader.py` / `config_builders.py` のパス解決を環境変数/実行ファイル
    隣接ディレクトリ基準に変更
-3. `_SudachiTokenizer` を外部 `system.dic` パス指定方式に変更
-4. `config/agent.toml` の10個の `cmd` をバイナリパス形式に書き換え
+2. `_SudachiTokenizer` を外部 `system.dic` パス指定方式に変更
+3. `config/agent.toml` の10個の `cmd` をバイナリパス形式に書き換え
 
 ### Phase 2: PoC
 - 依存の軽い `shell` サーバーで1本ビルドし、外部 config 読み込み・HTTP 起動を確認
@@ -153,8 +154,6 @@ deploy 時に本エージェント本体および各 MCP サーバーを Nuitka 
 
 - `sudachipy.Dictionary()` が外部 `system.dic` 絶対パスを受け付ける API 仕様の
   確認が未実施（実装フェーズで要検証）。
-- plugin 廃止対象の `plugins/` ディレクトリに現在有効なプラグインが存在するか未確認。
-  削除前に中身の確認が必要。
 - `pyproject.toml` の coverage omit に残る `scripts/agent.py` 等の存在しないパス
   記述は本件とは別に整理が必要（ドキュメントドリフト）。
 - 11バイナリ分のビルド時間・CI 負荷は Phase 0 の PoC 結果を待って見積もる。
@@ -164,8 +163,8 @@ deploy 時に本エージェント本体および各 MCP サーバーを Nuitka 
 - 本要望書は 2026-07-17 の Nuitka 化検討セッションでの調査・議論に基づく。
   関連ファイル: `scripts/agent/repl.py`, `scripts/db/helper.py`,
   `scripts/rag/repository.py`, `scripts/shared/config_loader.py`,
-  `scripts/agent/config_builders.py`, `scripts/shared/plugin_registry.py`,
-  `scripts/agent/factory.py`, `scripts/mcp_launcher.py`, `config/agent.toml`,
+  `scripts/agent/config_builders.py`, `scripts/agent/factory.py`,
+  `scripts/mcp_launcher.py`, `config/agent.toml`,
   `skills/deploy/SKILL.md`, `deploy/deploy.sh`
 
 ## Traceability
