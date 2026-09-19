@@ -86,10 +86,10 @@ Changing `GV-021`'s blocking status; any other matrix row.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on seq 01 for exact category names |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only — manual review + structural checks only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Scoped to `tools/check_docs_quality.py` + `tools/check_docs_structure.py` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-121733 | 20260919-121733 | Depends on seq 01 for exact category names |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-121733 | 20260919-121733 | N/A: documentation-only — manual review + structural checks only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-121733 | 20260919-121733 | The file was already near `check_docs_structure.py`'s 24576-byte limit (24510 bytes before this edit) — the first draft of the appended sentence pushed it over; trimmed the wording iteratively until the file passed at 24573 bytes |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-121733 | 20260919-121733 | N/A: this document's own Target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
