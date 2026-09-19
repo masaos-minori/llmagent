@@ -70,9 +70,13 @@ N/A: documentation-only.
 
 ## Completion criteria
 - Both rows accurately describe the tool's actual `--type` choices as of
-  execution time (not necessarily all 3 new types, if `memory` registration is
-  still pending `UNK-01`).
-- `uv run python tools/check_tool_descriptions_sync.py` passes.
+  execution time. Met: confirmed at execution time via
+  `DOMAIN_GENERATORS.keys()` that only `agent`/`deployment`/`eventbus`/`mcp`/`rag`
+  are registered (`memory` remains unregistered, pending `UNK-01`); both rows
+  updated to name `agent`/`eventbus` alongside the existing 3 and note `memory`
+  as pending.
+- `uv run python tools/check_tool_descriptions_sync.py` passes. Met: "No issues
+  found."
 
 ## Out of scope
 Any other row in this file; claiming `--type memory` works before it is
@@ -83,15 +87,15 @@ actually registered.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Should land alongside/after seq 01 to avoid describing types that don't exist yet; gated on REQ-008 for the overall row set |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `uv run python tools/check_tool_descriptions_sync.py` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919 | 20260919 | Landed after seq 01-03; gate cleared (ADR-015 Accepted via chat Named Approval Record) |
+| 2 | Add or update tests per Validation plan | Completed | 20260919 | 20260919 | N/A: documentation-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919 | 20260919 | `uv run python tools/check_tool_descriptions_sync.py` — "No issues found." |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919 | 20260919 | This document's own Target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | REQ-008 gate not satisfied — re-verified 20260919-121854: guard-detection fix has landed but ADR-015 is still `Proposed`, not `Accepted` (gate requires both); wording also depends on seq 01's final `--type` choices | No | — |
+| 1 | REQ-008 gate not satisfied — re-verified 20260919-121854: guard-detection fix has landed but ADR-015 is still `Proposed`, not `Accepted` (gate requires both); wording also depends on seq 01's final `--type` choices | Yes | 20260919 (ADR-015 reached Accepted via chat Named Approval Record) |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
