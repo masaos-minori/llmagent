@@ -6,7 +6,16 @@ Add documentation for pre-execution stale detection (Step 2.5) and post-executio
 
 ## Scope
 
-- Modify `.opencode/skills/code-implementation/SKILL.md` only
+- Modify `skills/code-implementation/SKILL.md` only
+
+**Correction (Step 3a adversarial verification, applied before implementation)**:
+the original version of this document cited `.opencode/skills/code-implementation/SKILL.md`
+throughout. `.opencode/skills` is a broken symlink in this repository (its target,
+`/home/sugimoto/llmagent/skills/`, does not exist on this host — confirmed via
+`realpath`), so that path never resolves. Every other Plan/Issue/implementation
+procedure document in this repository consistently references this file as
+`skills/code-implementation/SKILL.md` (no `.opencode/` prefix) — the correct,
+resolvable path is used throughout this correction.
 - Document the stale detection behavior: when it triggers, what it reports
 - Document the auto-archive behavior: when it triggers, how collisions are handled
 - No behavioral changes to the skill itself — documentation-only update
@@ -32,7 +41,7 @@ Add documentation for pre-execution stale detection (Step 2.5) and post-executio
 
 ### Target file
 
-`.opencode/skills/code-implementation/SKILL.md`
+`skills/code-implementation/SKILL.md`
 
 ### Procedure
 
@@ -81,7 +90,7 @@ Edit-based modification of the existing SKILL.md file.
 | SKILL.md stale detection docs | Manual review | Read SKILL.md | Documentation accurately describes Step 2.5 behavior |
 | SKILL.md auto-archive docs | Manual review | Read SKILL.md | Documentation accurately describes Step 7 auto-archive behavior |
 | Cross-reference consistency | Manual review | Compare SKILL.md ↔ workflow.md | All cross-references point to correct step numbers |
-| Markdown structure | Lint check | `uv run ruff check .opencode/skills/code-implementation/SKILL.md` | Clean |
+| Markdown structure | Reference check | `uv run python tools/check_skills_references.py` | Clean — `ruff` does not lint Markdown; this repo's `routing.md` Tools table names `check_skills_references.py` as the checker for a `skills/*.md` edit |
 
 ## Completion criteria
 
@@ -90,7 +99,7 @@ Edit-based modification of the existing SKILL.md file.
 - [ ] Phase overview table includes Step 2.5 and Step 7 with accurate descriptions
 - [ ] All cross-references to workflow.md steps are correct
 - [ ] Documentation is consistent with workflow.md content
-- [ ] ruff lint clean on the modified file
+- [ ] `tools/check_skills_references.py` passes clean
 
 ## Out of scope
 
@@ -105,11 +114,11 @@ Edit-based modification of the existing SKILL.md file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read the current SKILL.md content | Pending | — | — | |
-| 2 | Update Core Execution Rules with stale detection and auto-archive documentation | Pending | — | — | |
-| 3 | Update phase overview table if needed | Pending | — | — | |
-| 4 | Validate documentation accuracy and cross-references | Pending | — | — | |
-| 5 | Run lint check on modified file | Pending | — | — | |
+| 1 | Read the current SKILL.md content | Completed | 20260920-080000 | 20260920-080000 | Read `skills/code-implementation/SKILL.md` in full (Step 3a). Corrected this document's Target file path from the non-resolving `.opencode/skills/...` (broken symlink; target `/home/sugimoto/llmagent/skills/` does not exist on this host) to `skills/code-implementation/SKILL.md`, matching every other Plan/Issue in this repository. |
+| 2 | Update Core Execution Rules with stale detection and auto-archive documentation | Completed | 20260920-080000 | 20260920-080000 | Both bullets already existed in Core Execution Rules from prior work (this Plan's own Execution Status Phase 3 row already records this as Completed on 20260919). Enhanced both bullets with the procedure's additional explanatory sentences (stale-detection rationale; no-approval-gate cross-reference) that were missing from the condensed existing text — a small, safe addition, not a duplicate. |
+| 3 | Update phase overview table if needed | Completed | 20260920-080000 | 20260920-080000 | Step 2.5 and Step 7 rows already present with accurate descriptions; no change needed (kept concise per this document's own Design decisions). |
+| 4 | Validate documentation accuracy and cross-references | Completed | 20260920-080000 | 20260920-080000 | Cross-checked against current `workflow.md` (already loaded this session): Step 2.5 "Pre-execution Stale Detection" and Step 7's "Auto-archive collision handling (REQ-005)" subsection both exist and match. |
+| 5 | Run lint check on modified file | Completed | 20260920-080000 | 20260920-080000 | Corrected Validation plan: `ruff` does not lint Markdown — the applicable checker per `routing.md` Tools table for a `skills/*.md` edit is `tools/check_skills_references.py`, run and passed ("No issues found."). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -129,4 +138,4 @@ Edit-based modification of the existing SKILL.md file.
 - **Source plan**: plans/20260919-122149_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260919-234412
-- **Related target files**: .opencode/skills/code-implementation/SKILL.md
+- **Related target files**: skills/code-implementation/SKILL.md
