@@ -143,10 +143,10 @@ fail against pre-Step-02 source.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's Implementation step 1 is itself the test update |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260920-074000 | 20260920-074000 | All 8 cited call sites (lines 225,233,442,484,500,566,716,728) matched current source exactly and were updated as specified. `rg "\._stderr_log_paths"` confirms zero remaining matches (the sole remaining plain-text match is the unrelated test function name `test_shutdown_all_clears_stderr_log_paths`, not an attribute access). |
+| 2 | Add or update tests per Validation plan | Completed | 20260920-074000 | 20260920-074000 | `pytest tests/agent/test_http_lifecycle_integration.py -v`: 48 passed, 0 failed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260920-074000 | 20260920-074000 | ruff format clean; ruff check: 1 pre-existing F841 (unused `manager` at line 62, `test_absorb_sigint_handler_exists`, not one of the 8 cited call sites) confirmed present on the pre-change file via HEAD comparison — unrelated to this change. pyright clean (0 errors). mypy/bandit/lint-imports not applicable to tests/ scope. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260920-074000 | 20260920-074000 | N/A: test-only file, no documentation update in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
