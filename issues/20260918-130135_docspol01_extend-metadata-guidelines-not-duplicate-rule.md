@@ -29,10 +29,15 @@ restate independently.
 
 ## Reason for Change
 Two governance documents independently defining "what counts as removable mechanical
-content" is itself the kind of duplication this policy exists to prevent (per
-`docs/00_governance_01_documentation-policy.md`'s own Claim Type Taxonomy treating a
-repeated non-canonical statement as a drift risk). A future edit to one rule and not
-the other would silently diverge.
+content" is itself the kind of duplication the project's own anti-duplication
+principle exists to prevent (`skills/DESIGN.md` "Avoid implementation-reference
+duplication" applies to design/review documents generally; the same logic applies
+here at the governance-rule level). Note: `docs/00_governance_01_documentation-policy.md`'s
+Claim Type Taxonomy does not directly regulate this — its `documentation-metadata`
+claim type covers front-matter fields (title/area/tags/related), not body-content
+policy, so it is not itself a stated rule against this specific duplication; the
+argument here is a general anti-duplication one, not a taxonomy citation. A future
+edit to one rule and not the other would silently diverge regardless.
 
 ## Implementation Intent
 Extend `docs/00_governance_02_documentation-metadata.md`'s existing Guidelines section
