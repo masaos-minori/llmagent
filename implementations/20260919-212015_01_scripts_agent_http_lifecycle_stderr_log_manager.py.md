@@ -120,10 +120,10 @@ change, no restart-order dependency.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation update in scope, see Out of scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260920-070828 | 20260920-070828 | Added get_log_path/forget/clear to StderrLogManager. Step 2.5 stale_detector.py CLI produced no output (no __main__ entry point); direct library call mis-extracted target file as '/tmp' due to a Target-file regex bug requiring backtick-wrapping — manually re-verified target file/symbols/line numbers against current source instead (all matched, not stale). |
+| 2 | Add or update tests per Validation plan | Completed | 20260920-070828 | 20260920-070828 | Targeted tests/agent/test_http_lifecycle_stderr_log_manager.py: 16 passed. Full suite (pytest --testmon tests/): 7710 passed, 119 failed, 22 skipped — all 119 failures pre-existing/unrelated (eventbus, mcp_servers/git|shell|mdq, shared config validation); none in tests/agent/; this change is purely additive (12 lines, 3 new methods, no existing code touched). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260920-070843 | 20260920-070843 | ruff format/check clean; pyright clean (0 errors); mypy blocked by pre-existing unrelated module-collision error in scripts/shared/tool_constants.py (reproduces on scripts/ and on an untouched file — not caused by this change); lint-imports pre-existing unrelated shared->agent boundary violation (shared.production_config_validator); bandit pre-existing B108 at line 46 (documented in Out of scope). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260920-070843 | 20260920-070843 | N/A: no docs/00_index.md task-scope mapping for scripts/agent/http_lifecycle_stderr_log_manager.py (rg confirms no reference); Out of scope section already stated no documentation update in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
