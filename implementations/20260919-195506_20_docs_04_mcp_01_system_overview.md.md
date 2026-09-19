@@ -97,10 +97,10 @@ promotion destination; any other design doc.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Split bullet 1; promote circuit-breaker behavior + bullet 2's rationale together |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no test to add |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_quality.py, check_docs_structure.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-220740 | 20260919-220740 | Split bullet 1; promote circuit-breaker behavior + bullet 2's rationale together Bare 5-state enum list already duplicated in Major Components table -> Delete. Circuit-breaker auto-transition + record_degraded() rationale (bullet 1 behavioral half + bullet 2): Retain, promoted together as a new Major Constraints table row. Implementation Notes section removed (fully emptied). |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-220740 | 20260919-220740 | N/A: documentation-only, no test to add N/A: documentation-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-220740 | 20260919-220740 | check_docs_quality.py, check_docs_structure.py check_docs_quality.py: no issues found; check_docs_structure.py: 1 pre-existing finding (missing Related Documents heading -- file uses Related Chapters instead, untouched by this edit; confirmed via git diff), out of scope |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-220740 | 20260919-220740 | N/A: this document's own Target file IS the documentation being updated Edited this file's own Implementation Notes + Major Constraints table only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
