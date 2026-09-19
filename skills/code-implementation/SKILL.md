@@ -57,10 +57,15 @@ structure.
 - **One procedure file at a time**: see `workflow.md` Multi-file processing.
 - **Move is required**: see `workflow.md` Step 7. The move MUST NOT be skipped.
 - **Pre-execution stale detection**: see `workflow.md` Step 2.5 — abort execution if
-  any referenced construct is missing from current source.
+  any referenced construct is missing from current source. This prevents wasted effort
+  on procedures whose targets have been modified by another process or prior
+  execution; any single mismatch constitutes "stale," and all failures are reported in
+  a single pass.
 - **Auto-archive with collision handling**: see `workflow.md` Step 7 — if the archive
   destination already exists, generate a disambiguated path per
-  `rules/filename-collision.md` (zero-padded sequence suffix, max 3 retries).
+  `rules/filename-collision.md` (zero-padded sequence suffix, max 3 retries). As with
+  the ordinary archival move (see the no-approval-gate bullet above), this move
+  requires no human approval.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
 ## Output format
