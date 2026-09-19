@@ -18,6 +18,13 @@ all-roles `admin_token`), but `docs/06_eventbus_05_configuration-and-operations.
 "Configuration Fields" section — the operational reference an operator would use to
 configure `config/eventbus.toml` — does not mention any of them.
 
+A related prior issue, `issues/done/20260914-102535_eventbus09_config-validation-role-token-policy.md`,
+already listed "Document valid token combinations" as one of its Required Changes
+(`REQ-007`). Its resulting plan (`plans/done/20260914-175822_plan.md`) mapped that
+requirement only to `tests/eventbus/test_eventbus_config.py` (test-level documentation
+of valid combinations), not to this operational reference document — so this specific
+gap was never actually closed by that prior work; this issue is not a duplicate of it.
+
 ## Problem
 An operator configuring EventBus purely from
 `docs/06_eventbus_05_configuration-and-operations.md`'s Configuration Fields list would
@@ -60,9 +67,15 @@ documentation-only.
   to `ADR-013`.
 
 ## Testing Expectations
-No unit/integration tests apply (documentation-only). Run `uv run python
-tools/check_docs_consistency.py --domain eventbus` after the edit to confirm no new
-drift is introduced.
+No unit/integration tests apply (documentation-only). `tools/check_docs_consistency.py
+--domain` does not currently accept an `eventbus` value (confirmed via `--help`; valid
+choices are `agent`/`mcp`/`rag`/`deployment`/`overview` — this absence is itself a
+pre-existing, separately-tracked gap, see
+`issues/done/20260905-153715_dcp006_eventbus_docs_content_policy_cleanup.md`'s
+Unresolved Questions), so no automated consistency check currently covers this file.
+Verify the edit by manual review against `scripts/eventbus/config.py`'s current field
+list, and run `uv run python tools/check_docs_quality.py` and `uv run python
+tools/check_docs_structure.py` to confirm no structural regression.
 
 ## Documentation Impact
 This issue's entire deliverable is the documentation fix itself (see Required
