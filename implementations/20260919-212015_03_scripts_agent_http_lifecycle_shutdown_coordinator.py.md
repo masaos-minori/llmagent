@@ -98,10 +98,10 @@ removes the attribute this line used to read, but does not read this file itself
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Test update tracked separately in Step 07 of this pass |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation update in scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260920-071900 | 20260920-071900 | Replaced `manager._stderr_log_paths.clear()` with `manager._stderr_log_manager.clear()` at line 132 (now 130 post-format). `rg "_stderr_log_paths"` confirms zero remaining matches in this file. |
+| 2 | Add or update tests per Validation plan | Completed | 20260920-071900 | 20260920-071900 | Ran `pytest tests/agent/test_http_lifecycle_shutdown_coordinator.py -v`: 3 passed, 1 failed — `test_shutdown_all_clears_internal_state` asserts `mock_manager._stderr_log_paths == {}`, exactly the assertion this document's own Validation plan states is "updated in Step 07 of this pass". No other/unrelated failure. Deferred re-verification to after Step 07 lands later in this same batch. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260920-071900 | 20260920-071900 | ruff format/check clean; pyright clean (0 errors); mypy blocked by the same pre-existing unrelated scripts/shared/tool_constants.py module-collision as Steps 01/02; bandit: 2 pre-existing low-severity findings unrelated to this change (B404 subprocess import at line 10, B101 assert at line 32 in `_get_pgid`, both outside the modified line). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260920-071900 | 20260920-071900 | N/A: no docs/00_index.md task-scope mapping for scripts/agent/http_lifecycle_shutdown_coordinator.py; Out of scope section already stated no documentation update in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
