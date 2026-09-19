@@ -6,7 +6,26 @@ Add pre-execution stale detection step (Step 2.5) and post-execution auto-archiv
 
 ## Scope
 
-- Modify `.opencode/skills/code-implementation/workflow.md` only
+- Modify `skills/code-implementation/workflow.md` only
+
+**Correction (Step 3a adversarial verification, applied before implementation)**:
+the original version of this document cited `.opencode/skills/code-implementation/workflow.md`
+throughout — the same broken-symlink path issue identified and corrected in the
+sibling procedure `implementations/done/20260919-234412_01_code-implementation_SKILL.md`
+(`.opencode/skills` does not resolve on this host). The correct, resolvable path is
+`skills/code-implementation/workflow.md`, used throughout this correction.
+
+**Second correction (Step 3a)**: verification against current `skills/code-implementation/workflow.md`
+found that both target additions already exist there, essentially verbatim (and in
+some places more detailed than this document's own Details section): `## Step 2.5:
+Pre-execution Stale Detection` (with its `### Stale detection result handling` and
+`### Design decisions applied` subsections) and Step 7's `### Auto-archive collision
+handling (REQ-005)` subsection. This work was already completed directly against the
+Plan (see `plans/done/20260919-122149_plan.md` Execution Status, Phase 3: "Completed
+... Added Step 2.5 to workflow.md; added auto-archive collision handling to Step 7")
+before this implementation procedure document was generated from the same Plan row.
+No further content edit to `workflow.md` is required by Step 3d; see Execution Status
+Notes for the verification detail.
 - Add detailed procedure for stale detection before implementation
 - Add detailed procedure for auto-archive after implementation with collision handling
 - No behavioral changes to the skill itself — workflow documentation update
@@ -35,7 +54,7 @@ Add pre-execution stale detection step (Step 2.5) and post-execution auto-archiv
 
 ### Target file
 
-`.opencode/skills/code-implementation/workflow.md`
+`skills/code-implementation/workflow.md`
 
 ### Procedure
 
@@ -107,7 +126,7 @@ After the move succeeds, update the source Plan's own Execution Status: read thi
 | Auto-archive step | Integration — execute real procedure | Manual: execute procedure, verify move to implementations/done/ | Procedure moved to implementations/done/ |
 | Collision handling | Integration — create duplicate filename in implementations/done/ | Manual: create duplicate filename, verify graceful handling | Graceful handling per filename-collision.md |
 | Cross-reference consistency | Manual review | Compare workflow.md ↔ SKILL.md | All cross-references point to correct step numbers |
-| Markdown structure | Lint check | `uv run ruff check .opencode/skills/code-implementation/workflow.md` | Clean |
+| Markdown structure | Reference check | `uv run python tools/check_skills_references.py` | Clean — `ruff` does not lint Markdown; this repo's `routing.md` Tools table names `check_skills_references.py` as the checker for a `skills/*.md` edit |
 
 ## Completion criteria
 
@@ -116,7 +135,7 @@ After the move succeeds, update the source Plan's own Execution Status: read thi
 - [ ] Phase overview table includes Step 2.5
 - [ ] All cross-references to rules/filename-collision.md and manage_workitem_stage.py are correct
 - [ ] Documentation is consistent with SKILL.md Core Execution Rules
-- [ ] ruff lint clean on the modified file
+- [ ] `tools/check_skills_references.py` passes clean
 
 ## Out of scope
 
@@ -131,12 +150,12 @@ After the move succeeds, update the source Plan's own Execution Status: read thi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read the current workflow.md content | Pending | — | — | |
-| 2 | Add Step 2.5: Pre-execution stale detection | Pending | — | — | |
-| 3 | Update Step 7: Auto-archive collision handling | Pending | — | — | |
-| 4 | Update phase overview table | Pending | — | — | |
-| 5 | Validate documentation accuracy and cross-references | Pending | — | — | |
-| 6 | Run lint check on modified file | Pending | — | — | |
+| 1 | Read the current workflow.md content | Completed | 20260920-081000 | 20260920-081000 | Read `skills/code-implementation/workflow.md` in full (Step 3a). Corrected this document's Target file path from the non-resolving `.opencode/skills/...` to `skills/code-implementation/workflow.md`, same as the sibling procedure 01. |
+| 2 | Add Step 2.5: Pre-execution stale detection | Completed | 20260920-081000 | 20260920-081000 | Already present in full (`## Step 2.5: Pre-execution Stale Detection` with its `### Stale detection result handling` and `### Design decisions applied` subsections), matching this document's Details essentially verbatim. Confirmed via Plan's own Execution Status Phase 3 row (already Completed 20260919). No edit needed. |
+| 3 | Update Step 7: Auto-archive collision handling | Completed | 20260920-081000 | 20260920-081000 | Already present in full (`### Auto-archive collision handling (REQ-005)` subsection, including the source-Plan Execution Status update instruction), matching and slightly exceeding this document's Details. No edit needed. |
+| 4 | Update phase overview table | Completed | 20260920-081000 | 20260920-081000 | The Phase overview table lives in the sibling `SKILL.md`, not `workflow.md` — already contains a Step 2.5 row (confirmed and handled by procedure 01, `implementations/done/20260919-234412_01_code-implementation_SKILL.md`). No table in `workflow.md` itself to update. |
+| 5 | Validate documentation accuracy and cross-references | Completed | 20260920-081000 | 20260920-081000 | Cross-references to `rules/filename-collision.md` and `tools/manage_workitem_stage.py` confirmed correct; content consistent with `SKILL.md` Core Execution Rules (both already cross-checked in procedure 01). |
+| 6 | Run lint check on modified file | Completed | 20260920-081000 | 20260920-081000 | Corrected Validation plan: `ruff` does not lint Markdown — ran `tools/check_skills_references.py` instead, passed ("No issues found."). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -156,4 +175,4 @@ After the move succeeds, update the source Plan's own Execution Status: read thi
 - **Source plan**: plans/20260919-122149_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260919-234412
-- **Related target files**: .opencode/skills/code-implementation/workflow.md
+- **Related target files**: skills/code-implementation/workflow.md
