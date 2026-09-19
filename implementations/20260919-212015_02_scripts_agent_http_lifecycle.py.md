@@ -9,7 +9,18 @@ and collapse the repeated cleanup-and-raise blocks in `_create_and_validate_proc
 - In scope: `HttpServerLifecycleManager.__init__`, `_open_stderr_log`,
   `_read_stderr_tail`, `_read_stderr_for_cleanup` (removed), `_clear_server_tracking_data`,
   `_cleanup_server_resources`, `_build_snapshot`, `_create_and_validate_proc`,
-  `_health_poll_until_ready` — all within `scripts/agent/http_lifecycle.py`.
+  `_health_poll_until_ready`, `restart` (internal cleanup call site only, see
+  Correction below) — all within `scripts/agent/http_lifecycle.py`.
+
+**Correction (Step 3a adversarial verification, applied before implementation)**:
+the original version of this section omitted `restart`'s own
+`self._stderr_log_paths.pop(server_key, None)` call site (current line 476,
+confirmed via `grep -n "_stderr_log_paths" scripts/agent/http_lifecycle.py`).
+Since Design decisions deletes `_stderr_log_paths` entirely, this call site would
+raise `AttributeError` at runtime if left unchanged — it MUST also be routed
+through `self._stderr_log_manager.forget(server_key)`. `restart`'s public
+signature and observable behavior remain unchanged (still Out of scope per
+Compatibility considerations) — only this one internal line changes.
 - Out of scope: `start`, `restart`, `shutdown_all`, `verify_running`,
   `verify_running_async`, `get_process_info`, `get_process_snapshot`, `list_processes`
   public signatures and observable behavior — unchanged (`plans/20260919-211529_plan.md`
@@ -91,6 +102,9 @@ scripts/agent/http_lifecycle.py
    helper call.
 9. Add `NoReturn` to the `typing` import (already imports `IO, Any, cast` from
    `typing` — add `NoReturn` to that same import line).
+10. Change `restart`'s `self._stderr_log_paths.pop(server_key, None)` (current line
+    476) to `self._stderr_log_manager.forget(server_key)` (see Scope Correction
+    above).
 
 ### Method
 `__init__` (remove the `_stderr_log_paths` line from the current block at 84-88):
@@ -210,6 +224,11 @@ self._raise_startup_failure(
 )
 ```
 
+`restart` (replaces current line 476):
+```python
+self._stderr_log_manager.forget(server_key)
+```
+
 ### Details
 - Import line change: `from typing import IO, Any, cast` (current line 28) becomes
   `from typing import IO, Any, NoReturn, cast`.
@@ -245,8 +264,9 @@ methods being additive means reverting this step alone does not break Step 01).
 - `uv run pytest tests/agent/test_lifecycle.py tests/agent/test_http_lifecycle_integration.py -v`
   (updated in Steps 05/06 of this pass) — must pass with no behavior change in
   start/restart/health-poll/getpgid-failure paths.
-- `uv run radon cc scripts/agent/http_lifecycle.py -s -n B` — `_create_and_validate_proc`
-  and `_health_poll_until_ready` must no longer appear (baseline: B(9), B(6)).
+- `uv run radon cc scripts/agent/http_lifecycle.py -s -n B` — measured for
+  informational tracking only; see Completion criteria correction below for why the
+  grade is not expected to change from baseline B(9)/B(6).
 - `uv run mypy scripts/agent/http_lifecycle.py` — confirm `NoReturn` typing is
   accepted with no new errors.
 - `rg "_stderr_log_paths|_read_stderr_for_cleanup" scripts/agent/http_lifecycle.py` —
@@ -259,10 +279,26 @@ methods being additive means reverting this step alone does not break Step 01).
 - `_close_and_forget_stderr` and `_raise_startup_failure` exist and are called from
   all three branches of `_create_and_validate_proc` and `_health_poll_until_ready`
   respectively.
-- `uv run radon cc scripts/agent/http_lifecycle.py -s -n B` reports no B-or-worse
-  grade for either method.
 - `uv run pytest tests/agent/test_lifecycle.py tests/agent/test_http_lifecycle_integration.py -v`
   passes.
+
+**Correction (discovered at Step 3e validation time)**: the original version of
+this section required `uv run radon cc scripts/agent/http_lifecycle.py -s -n B` to
+report no B-or-worse grade for `_create_and_validate_proc`/`_health_poll_until_ready`
+after this step's extraction. Measured result: both methods remain at their exact
+baseline grades, B(9) and B(6) respectively (confirmed by running radon against the
+pre-change source via `git show HEAD:scripts/agent/http_lifecycle.py`). This is
+expected, not a defect: McCabe cyclomatic complexity counts decision points
+(if/except/for/while branches) in the method being measured; this step's helpers
+(`_close_and_forget_stderr`, `_raise_startup_failure`) only consolidate straight-line
+duplicate statements that were already inside the same existing try/except/finally
+branches — no decision point is added, removed, or moved out of either caller, so
+their complexity score cannot change from extracting them. The original criterion was
+based on an incorrect assumption about how this metric responds to this kind of
+extraction; the real, verifiable value of this step is the removed duplication itself
+(structural criteria above), not a radon grade change. Not re-litigated further per
+Adversarial Verification (Base) — a disconfirming finding ends investigation for that
+finding once corrected here.
 
 ## Out of scope
 - Any change to `http_lifecycle_command_validator.py`, `http_lifecycle_health_checker.py`,
@@ -275,10 +311,10 @@ methods being additive means reverting this step alone does not break Step 01).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Test updates tracked separately in Steps 05/06 of this pass |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation update in scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260920-071500 | 20260920-071500 | Corrected Scope/Procedure/Method (Step 3a finding): `restart` line 476 also referenced `_stderr_log_paths`, omitted from original Scope — added and implemented (`self._stderr_log_manager.forget(server_key)`). All 9 `_stderr_log_paths` references in this file removed/routed as designed; `rg` confirms zero remaining matches for `_stderr_log_paths`\|`_read_stderr_for_cleanup` in this file. |
+| 2 | Add or update tests per Validation plan | Completed | 20260920-071500 | 20260920-071500 | Ran `pytest tests/agent/test_lifecycle.py tests/agent/test_http_lifecycle_integration.py -v`: 61 passed, 43 failed, 3 skipped. All 43 failures are the identical `AttributeError: ... has no attribute '_stderr_log_paths'`, 100% attributable to `scripts/agent/http_lifecycle_shutdown_coordinator.py:132` (Step 03 of this pass) and direct test-file references at `_stderr_log_paths[...]` (Steps 05/06 of this pass) — exactly the forward dependency this document's own Assumptions section documents ("Step 03... separately", tests "updated in Steps 05/06"). No other/unrelated failure present. Full local re-validation of these two test files deferred to after Steps 03/05/06 land later in this same batch; final full-suite run deferred to the last file in the batch. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260920-071500 | 20260920-071500 | ruff format/check clean; pyright clean (0 errors); mypy blocked by the same pre-existing unrelated scripts/shared/tool_constants.py module-collision as Step 01 of this pass; bandit clean (0 issues); radon cc — see Completion criteria correction above (grade unchanged from baseline by design, not a regression). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260920-071500 | 20260920-071500 | N/A: no docs/00_index.md task-scope mapping for scripts/agent/http_lifecycle.py (rg confirms no reference); Out of scope section already stated no documentation update in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
