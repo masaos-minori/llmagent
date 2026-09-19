@@ -64,9 +64,13 @@ independently.
 
 ## Completion criteria
 - `docs/06_eventbus_06_reference-api.md` contains a guarded block matching
-  `generate_eventbus_reference_table()`'s current output.
-- `--dry-run` output matches the live-written content exactly.
+  `generate_eventbus_reference_table()`'s current output. Met: 16,503 bytes,
+  well under the 24576-byte limit (no split needed, unlike seq 02's Agent
+  domain).
+- `--dry-run` output matches the live-written content exactly. Met: confirmed
+  via a second live run producing an identical MD5 checksum.
 - `tools/check_docs_content_policy.py` does not flag the new guarded block.
+  Met: no findings.
 
 ## Out of scope
 Any hand-edit of this file's non-guarded content; executing before the REQ-008
@@ -77,15 +81,15 @@ gate clears.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Gated on REQ-008 and on seq 01 landing first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: generator output, verified via seq 05's generator tests + this row's dry-run/live comparison |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `tools/check_docs_content_policy.py` + `tools/check_docs_quality.py`/`check_docs_structure.py` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919 | 20260919 | Gate cleared (ADR-015 Accepted via chat Named Approval Record) |
+| 2 | Add or update tests per Validation plan | Completed | 20260919 | 20260919 | N/A: generator output, verified via seq 05's generator tests (7/7 passing) + this row's dry-run/live comparison |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919 | 20260919 | `tools/check_docs_content_policy.py` + `tools/check_docs_quality.py`/`check_docs_structure.py` — no new findings |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919 | 20260919 | This document's own Target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | REQ-008 gate not satisfied — re-verified 20260919-121854: guard-detection fix has landed but ADR-015 is still `Proposed`, not `Accepted` (gate requires both); also depends on seq 01 landing first | No | — |
+| 1 | REQ-008 gate not satisfied — re-verified 20260919-121854: guard-detection fix has landed but ADR-015 is still `Proposed`, not `Accepted` (gate requires both); also depends on seq 01 landing first | Yes | 20260919 (ADR-015 reached Accepted via chat Named Approval Record) |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
