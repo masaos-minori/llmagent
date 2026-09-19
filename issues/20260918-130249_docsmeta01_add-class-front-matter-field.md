@@ -96,8 +96,9 @@ Actually classifying all existing documents — this issue adds the field and th
 assistive tooling only; a bulk-classification pass is separate follow-up work.
 
 ## Dependencies
-Loosely related to the Reference-class ADR issue (see Constraints) but not blocked by
-it.
+Loosely related to
+`issues/20260918-130115_adrref01_decide-reference-class-fate-via-adr.md` (see
+Constraints) but not blocked by it.
 
 ## Unresolved Questions
 N/A: none — the schema gap, the required NC-032 decision, and the existing tool
