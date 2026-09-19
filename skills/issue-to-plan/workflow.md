@@ -415,11 +415,10 @@ Plan, and every Requirement ID is traceable to all four of its required links.
 ### Step 8b: Validate and freeze Implementation Target Files
 
 Apply `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
-Freeze) — Initial validation, to every row of `Implementation Target Files`. Mark the
-section `Frozen` only when every row is `Verified` and the section's additional checks
-(no directory/glob/component/group/vague-phrase row, no file listed in both
-`Implementation Target Files` and `Reference Files`) pass. Do not report `Pass` while
-any row remains `Needs confirmation` or the section is not `Frozen`.
+Freeze) — Initial validation, to every row of `Implementation Target Files`, including
+that section's additional checks. Mark the section `Frozen` only when every row is
+`Verified` and those additional checks pass. Do not report `Pass` while any row
+remains `Needs confirmation` or the section is not `Frozen`.
 
 **Completed when**: every row is `Verified` and the section is marked `Frozen`.
 

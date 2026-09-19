@@ -367,7 +367,7 @@ After adding tests, update project knowledge if patterns changed:
 
 - **`tests/conftest.py`**: add fixtures used by 2+ test files
 - **`CLAUDE.md` test library table**: document any new test library with its use case
-- **`.gitignore`**: add `.testmondata` if not present
+- **`.gitignore`**: add `.testmondata` if not present (see Step 10)
 
 Fixture naming conventions:
 

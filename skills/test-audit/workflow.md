@@ -121,7 +121,7 @@ the root cause is an environment or setup issue — the required env vars or ser
 ## Step 5: Gap Analysis (Analysis)
 
 Follow `discovery.md` Gap Analysis in full: Missing or weak tests, and Inconsistent or
-outdated tests. Do not execute any new command in this step.
+outdated tests.
 
 ---
 
@@ -130,7 +130,7 @@ outdated tests. Do not execute any new command in this step.
 Merge Step 4's confirmed failures and Step 5's gaps/inconsistencies into a single
 Finding list. Assign each a `F-{NNN}` ID (per `evidence.md` Finding, Task, and Test
 Case IDs), a category (per `evidence.md` Finding Categories), and a severity (per
-`skills/DESIGN.md` Severity levels). Do not execute any new command in this step.
+`skills/DESIGN.md` Severity levels).
 
 Report the consolidated Finding list before proceeding to Step 7 — this is the single
 source Step 7's Tasks and Test Cases must cite by ID.

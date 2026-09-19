@@ -26,13 +26,12 @@ follow-up work (see `SKILL.md` Composes with / Called by).
 
 ## Out of Scope
 
-Apply `rules/ai-execution.md` Global Safety Restrictions (Base). Additionally for this
-workflow, do not perform any of the following:
+Apply `rules/ai-execution.md` Global Safety Restrictions (Base) — this already covers
+not moving existing documentation files and not changing the workflow directory
+structure. Additionally for this workflow, do not perform any of the following:
 - refactoring code without explicit instruction — see `SKILL.md`, section "Core rules"
 - implementing a behavior change discovered mid-refactor (record it as a proposal
   instead — see Step 2)
-- moving existing documentation files
-- changing workflow directory structure
 
 ## Multi-file processing
 

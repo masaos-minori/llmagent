@@ -23,7 +23,8 @@ document — there is no separate design phase in this pipeline.
 This is a document-only phase. Allowed operations:
 - Create implementation procedure documents in `implementations/`.
 - Move the processed plan file to `plans/done/` once Step 3's validation passes —
-  no human approval is required for this move.
+  no human approval is required for this move, per `rules/workflow-lifecycle.md`
+  Validation Reporting.
 - Correct the Plan file itself (`plans/{filename}_plan.md`, via Edit) when Step 3's
   adversarial verification finds an unconfirmed item or an inconsistency — this
   phase's document-only constraint applies to source code and `docs/*.md`, not to the

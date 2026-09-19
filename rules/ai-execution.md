@@ -262,3 +262,8 @@ Scope discipline (no unrelated refactoring/cleanup/reformatting) is universal �
 workflows:
 - Do not modify files outside the scope allowed by the active workflow.
 - Do not process target-file cycles in parallel.
+- Do not move or rename an existing file — except the active workflow's own explicitly
+  designated archival move (e.g. `issues/` → `issues/done/`, `plans/` → `plans/done/`,
+  `implementations/` → `implementations/done/`), which remains permitted.
+- Do not change the workflow directory structure — raise a directory-structure change
+  as its own separate Issue/Plan instead.

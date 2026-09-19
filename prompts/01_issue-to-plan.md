@@ -134,7 +134,4 @@ Proceeding to Step 10 is required once Step 9 confirms information completeness 
 #### Step 10: Move the completed Issue file
 
 This step MUST NOT be skipped. Follow `skills/issue-to-plan/workflow.md` Step 10 in
-full: `git mv
-issues/{filename}.md issues/done/{filename}.md` only, with its pre- and post-move
-verification checklist. Do not use `mv`, `cp` + `rm`, file-copy APIs, or any fallback
-move method. Report `Completed` only after successful verification.
+full. Report `Completed` only after successful verification.

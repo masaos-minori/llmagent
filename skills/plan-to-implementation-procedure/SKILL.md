@@ -49,12 +49,8 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
   document under `implementations/` or `implementations/done/` has both a matching
   `Source plan` and a matching `Related target files` (by `target_file_path`, not
   `target_file_name`) — see `workflow.md` Step 3.
-- **Sortable, collision-safe naming**: output filenames are
-  `{timestamp}_{seq}_{target_file_slug}.md`. `target_file_slug` is `target_file_path`
-  (not `target_file_name`) with `/` and any non-alphanumeric/`_`/`-`/`.` character
-  replaced by `_`. `timestamp` is captured once and shared across every document
-  generated in one Step 3 pass; `seq` is the row's 1-indexed, zero-padded position
-  within the plan's `Implementation Target Files` table — see `workflow.md` Step 3.
+- **Sortable, collision-safe naming**: see `workflow.md`, section "Workflow position",
+  for the `{timestamp}_{seq}_{target_file_slug}.md` naming algorithm.
 - **Frozen-inventory revalidation**: before generating any procedure document,
   revalidate the Plan's `Implementation Target Files` section per
   `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze) —

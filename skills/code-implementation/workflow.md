@@ -60,10 +60,9 @@ use if the tool is unavailable.
 
 ## Out of Scope
 
-Apply `rules/ai-execution.md` Global Safety Restrictions (Base). Additionally for this
-workflow, do not perform any of the following:
-- moving existing documentation files
-- changing workflow directory structure
+Apply `rules/ai-execution.md` Global Safety Restrictions (Base) — this already covers
+not moving existing documentation files and not changing the workflow directory
+structure. Additionally for this workflow, do not perform any of the following:
 - making code/behavior changes while performing Steps 5-6 (documentation update/validation)
 
 ## Multi-file processing

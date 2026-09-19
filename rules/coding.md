@@ -164,4 +164,6 @@ code that the discrepancy it describes no longer applies.
 - suppression justification: see Suppression governance above
 - do not add global ignores to `pyproject.toml` without justification
 - do not suppress `lint-imports` violations without updating the contract definition
-- do not commit `import ipdb`, temporary `structlog` debug calls, viztracer/tracemalloc instrumentation, or Sentry DSN
+- do not commit `import ipdb`, temporary `structlog` debug calls, viztracer/tracemalloc
+  instrumentation, or Sentry DSN — a Sentry DSN in code must be sourced from an
+  environment variable only, never hardcoded

@@ -102,7 +102,7 @@ with sentry_sdk.push_scope() as scope:
     sentry_sdk.capture_exception(exc)
 ```
 
-Remove before committing. DSN must come from environment only.
+See `rules/coding.md`, section "Prohibited behavior (all tasks)" — remove before committing.
 
 **Completed when**: at least one observability source above has surfaced enough
 signal to inform Phase 3's classification, or all applicable sources were checked

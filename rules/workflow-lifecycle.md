@@ -5,13 +5,11 @@ Applies to document-generation workflows: issue-to-plan, plan-to-impl-procedure.
 ## Global Safety Restrictions
 
 Apply `rules/ai-execution.md` Global Safety Restrictions (Base) and Sequential Target
-Processing (Base) (interleave-steps prohibition). Additionally, for document-generation
-workflows, do not perform any of the following:
-- move existing documentation files — instead, leave documentation files in place;
-  only `issue-to-plan`/`plan-to-implementation-procedure`'s own designated archival
-  moves (`issues/` → `issues/done/`, `plans/` → `plans/done/`) are permitted.
-- change the workflow directory structure — instead, raise a directory-structure
-  change as its own separate Issue/Plan outside this document-generation cycle.
+Processing (Base) (interleave-steps prohibition) — Global Safety Restrictions (Base)
+already covers not moving existing documentation files (its own archival-move
+exception already includes `issues/` → `issues/done/` and `plans/` → `plans/done/`)
+and not changing the workflow directory structure. Additionally, for
+document-generation workflows, do not perform the following:
 - change implementation behavior during document-only phases — instead, record the
   needed behavior change as a Requirement in the generated Plan/implementation
   procedure document for a later, dedicated implementation phase to apply.

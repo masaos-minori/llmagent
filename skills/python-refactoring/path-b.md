@@ -31,6 +31,5 @@ Drift Detection all still apply — they are not Path-gated (see `workflow.md` S
 
 ## Note for Path C
 
-Path C applies at least this Path's Step 3/4 depth (Path C's criteria entail the
-import-boundary/dependency-direction conditions Path B already tests for) — see
-`path-c.md`.
+See `path-c.md`, opening paragraph, for how Path C's required tool depth relates to
+this Path's Step 3/4.
