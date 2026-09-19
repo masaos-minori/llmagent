@@ -27,6 +27,7 @@ class TestFallbackWhenSchemaAbsent:
         assert schema.required_fields == DEFAULT_REQUIRED_FIELDS
         assert schema.area_enum is None
         assert schema.status_enum is None
+        assert schema.class_enum is None
         assert schema.source == "built-in default"
 
     def test_malformed_json_falls_back_to_default(self, tmp_path: Path) -> None:
@@ -73,6 +74,39 @@ class TestSchemaFileParsing:
         assert schema.area_enum == ("agent", "rag", "mcp")
         assert schema.status_enum == ("draft", "stable")
 
+    def test_class_enum_loaded_from_schema(self, tmp_path: Path) -> None:
+        schema_path = tmp_path / "doc_front_matter.json"
+        schema_path.write_text(
+            json.dumps(
+                {
+                    "required": ["title", "area", "tags", "related"],
+                    "properties": {
+                        "class": {
+                            "enum": [
+                                "Governance",
+                                "Guide",
+                                "Specification",
+                                "Reference",
+                                "Operations",
+                                "Note",
+                                "Known Issues",
+                            ]
+                        },
+                    },
+                }
+            )
+        )
+        schema = load_front_matter_schema(schema_path)
+        assert schema.class_enum == (
+            "Governance",
+            "Guide",
+            "Specification",
+            "Reference",
+            "Operations",
+            "Note",
+            "Known Issues",
+        )
+
     def test_missing_enum_stays_none(self, tmp_path: Path) -> None:
         schema_path = tmp_path / "doc_front_matter.json"
         schema_path.write_text(
@@ -86,3 +120,4 @@ class TestSchemaFileParsing:
         schema = load_front_matter_schema(schema_path)
         assert schema.area_enum is None
         assert schema.status_enum is None
+        assert schema.class_enum is None

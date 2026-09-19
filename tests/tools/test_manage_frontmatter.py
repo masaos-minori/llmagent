@@ -11,7 +11,9 @@ import pytest
 
 from tools.manage_frontmatter import (
     AMBIGUOUS,
+    classify_from_filename,
     cmd_add_missing,
+    cmd_classify,
     cmd_rename_category_to_area,
     extract_area_from_filename,
 )
@@ -288,3 +290,60 @@ class TestRenameCategoryToArea:
         result = cmd_rename_category_to_area(["--fix"])
         assert result == 0
         assert doc.read_text(encoding="utf-8") == original
+
+
+# ---------------------------------------------------------------------------
+# classify subcommand
+# ---------------------------------------------------------------------------
+
+
+class TestClassify:
+    """`classify` never guesses and never writes — report-only, following
+    `add-missing`'s existing never-guess/report-ambiguous pattern."""
+
+    def test_confident_signal_detected(self) -> None:
+        assert classify_from_filename("05_agent_13_reference-api.md") == "Reference"
+
+    def test_no_signal_is_ambiguous(self) -> None:
+        assert classify_from_filename("notes.md") is None
+
+    def test_confident_case_reported_and_no_file_modified(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        doc = docs / "06_eventbus_06_reference-api.md"
+        original = "# Event Bus: Reference API\n\nBody.\n"
+        doc.write_text(original)
+        monkeypatch.setattr("tools.manage_frontmatter.DOCS_DIR", docs)
+        result = cmd_classify([])
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "[CONFIDENT]" in captured.out
+        assert "Reference" in captured.out
+        assert doc.read_text(encoding="utf-8") == original, (
+            "classify must never modify a file's content"
+        )
+
+    def test_ambiguous_case_reported_and_no_file_modified(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        doc = docs / "notes.md"
+        original = "# Notes\n\nSome working notes.\n"
+        doc.write_text(original)
+        monkeypatch.setattr("tools.manage_frontmatter.DOCS_DIR", docs)
+        result = cmd_classify([])
+        assert result == 0  # ambiguous is reported, not a nonzero exit
+        captured = capsys.readouterr()
+        assert "[AMBIGUOUS]" in captured.out
+        assert doc.read_text(encoding="utf-8") == original, (
+            "classify must never modify a file's content"
+        )

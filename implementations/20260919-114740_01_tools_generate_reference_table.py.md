@@ -145,7 +145,7 @@ the REQ-008 gate is satisfied (see the gate notice above).
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | REQ-008 gate not satisfied: ADR-015 not yet Accepted/Option B; guard-detection fix not yet landed in `tools/check_docs_content_policy.py` (re-verified at this document's generation time) | No | — |
+| 1 | REQ-008 gate not satisfied: re-verified 20260919-121854 — the guard-detection fix HAS now landed in `tools/check_docs_content_policy.py` (`plans/done/20260919-104809_plan.md`'s implementation completed), but `docs/adr/ADR-015-reference-document-class-disposition.md`'s Status is still `Proposed`, not `Accepted` — the gate requires both conditions (AND), so it remains unsatisfied | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

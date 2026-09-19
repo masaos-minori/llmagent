@@ -64,12 +64,17 @@ Loaded from a TOML file (default: `/opt/llm/config/eventbus.toml`).
 - `publish_rate` — Maximum publish rate in events/sec before backpressure applies (default: 100.0)
 - `host` — Listening address (default: `127.0.0.1`; must be `127.0.0.1` or `::1` — see Bind Address below)
 - `auth_token` — Required for all requests (startup fails if empty)
+- `publisher_token` — Grants publish-role access when set (per-role alternative to the shared `auth_token`)
+- `consumer_token` — Grants consume-role access when set
+- `operator_token` — Grants operator-role access when set
+- `monitoring_token` — Grants monitoring-role (read-only health/metrics) access when set
+- `admin_token` — Grants all-roles access when set (superuser-equivalent per-role token)
 - `sse_heartbeat_interval` — SSE heartbeat interval in seconds (default: 30.0)
 - `slow_consumer_threshold` — Queue depth at which a subscriber is considered slow (default: 100)
 - `subscriber_queue_maxsize` — Per-subscriber queue capacity (default: 1000)
 - `backlog_health_threshold` — Max queue depth before health endpoint reports `broker_queue_backlog_high` (default: 500)
 
-Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`.
+Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Startup fails unless `auth_token` or at least one of the 5 per-role tokens above is configured — see `docs/adr/ADR-013-eventbus-authentication-authorization.md` for the four-role authorization model these tokens implement.
 
 ### Deprecated Keys
 

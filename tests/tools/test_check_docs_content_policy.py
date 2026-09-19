@@ -11,12 +11,19 @@ from pathlib import Path
 
 from tools.check_docs_content_policy import (
     DocFile,
+    check_cli_command_enumeration,
+    check_config_file_inventory_table,
+    check_ddl_schema_block,
+    check_default_value_restatement,
+    check_environment_setup_sequence,
+    check_field_type_table,
     check_full_file_tree,
     check_index_table,
     check_literal_port_number,
     check_location_mapping,
     check_per_file_description,
 )
+from tools.generate_reference_table import GUARD_START_MCP
 
 
 def _doc(text: str, rel_path: str = "fixture.md") -> DocFile:
@@ -132,3 +139,130 @@ def test_literal_port_number_flagged_outside_auto_generated_block() -> None:
     issues = check_literal_port_number([doc])
     assert len(issues) == 1
     assert "literal port number" in issues[0].message
+
+
+def test_default_value_restatement_detected() -> None:
+    doc = _doc("The `max_retry` defaults to `3` (see config.py).\n")
+    issues = check_default_value_restatement([doc])
+    assert len(issues) == 1
+    assert "default-value restatement" in issues[0].message
+
+
+def test_default_value_restatement_not_flagged_with_rationale() -> None:
+    doc = _doc(
+        "`max_retry` defaults to `3` because a lower value causes premature "
+        "DLQ promotion under transient failures.\n"
+    )
+    issues = check_default_value_restatement([doc])
+    assert issues == []
+
+
+def test_field_type_table_detected() -> None:
+    doc = _doc(
+        "| Field | Type | Default |\n"
+        "|---|---|---|\n"
+        "| a | int | 1 |\n"
+        "| b | str | x |\n"
+        "| c | bool | true |\n"
+    )
+    issues = check_field_type_table([doc])
+    assert len(issues) == 1
+    assert "field/type/default table" in issues[0].message
+
+
+def test_field_type_table_not_flagged_when_short() -> None:
+    doc = _doc("| Field | Type | Default |\n|---|---|---|\n| a | int | 1 |\n")
+    issues = check_field_type_table([doc])
+    assert issues == []
+
+
+def test_config_file_inventory_table_detected() -> None:
+    doc = _doc("### Configuration Fields\n\n- `port` — HTTP listening port\n")
+    issues = check_config_file_inventory_table([doc])
+    assert len(issues) == 1
+    assert "config-file inventory" in issues[0].message
+
+
+def test_config_file_inventory_table_not_flagged_without_heading() -> None:
+    doc = _doc("## Notes\n\n- `port` — an example field name mentioned in passing\n")
+    issues = check_config_file_inventory_table([doc])
+    assert issues == []
+
+
+def test_cli_command_enumeration_detected() -> None:
+    doc = _doc(
+        "## CLI Commands\n"
+        "\n"
+        "```bash\n"
+        "cmd1\n"
+        "```\n"
+        "```bash\n"
+        "cmd2\n"
+        "```\n"
+        "```bash\n"
+        "cmd3\n"
+        "```\n"
+    )
+    issues = check_cli_command_enumeration([doc])
+    assert len(issues) == 3
+    assert all("CLI-command enumeration" in i.message for i in issues)
+
+
+def test_cli_command_enumeration_not_flagged_for_single_example() -> None:
+    doc = _doc("## CLI Commands\n\n```bash\ncmd1\n```\n")
+    issues = check_cli_command_enumeration([doc])
+    assert issues == []
+
+
+def test_environment_setup_sequence_detected() -> None:
+    doc = _doc(
+        "## Setup\n"
+        "\n"
+        "1. Install dependencies\n"
+        "2. Configure environment\n"
+        "3. Run the server\n"
+    )
+    issues = check_environment_setup_sequence([doc])
+    assert len(issues) == 3
+    assert all("environment-setup command sequence" in i.message for i in issues)
+
+
+def test_environment_setup_sequence_not_flagged_when_short() -> None:
+    doc = _doc("## Setup\n\n1. Install dependencies\n2. Run the server\n")
+    issues = check_environment_setup_sequence([doc])
+    assert issues == []
+
+
+def test_ddl_schema_block_detected() -> None:
+    doc = _doc("```sql\nCREATE TABLE events (id INTEGER PRIMARY KEY);\n```\n")
+    issues = check_ddl_schema_block([doc])
+    assert len(issues) == 1
+    assert "DDL/schema block" in issues[0].message
+
+
+def test_ddl_schema_block_not_flagged_without_ddl_statement() -> None:
+    doc = _doc("```sql\nSELECT * FROM events WHERE id = 1;\n```\n")
+    issues = check_ddl_schema_block([doc])
+    assert issues == []
+
+
+def test_guard_detection_recognizes_real_generator_format() -> None:
+    doc = _doc(
+        f"{GUARD_START_MCP}\n"
+        "## File Structure\n"
+        "├─ rag-src/\n"
+        "└─ sqlite-vec/\n"
+        "\n"
+        "| Function | Signature | Description |\n"
+        "|---|---|---|\n"
+        "| foo | foo() -> None | does foo |\n"
+        "\n"
+        "# Files ingested into DB (moved by ingester.py)\n"
+        "\n"
+        "## file-write-mcp (Port 8007)\n"
+        "<!-- END AUTO-GENERATED -->\n"
+    )
+    assert check_full_file_tree([doc]) == []
+    assert check_index_table([doc]) == []
+    assert check_location_mapping([doc]) == []
+    assert check_literal_port_number([doc]) == []

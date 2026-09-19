@@ -337,7 +337,7 @@ class RagIngester:
 
     def _read_chunk_json(self, path: Path) -> ChunkDocument:
         """Read and validate a chunk JSON file; returns ChunkDocument."""
-        return read_chunk_json(path)
+        return read_chunk_json(path)  # type: ignore[no-any-return]  # — read_chunk_json() is correctly typed -> ChunkDocument; mypy loses this across the rag.* vs scripts.rag.* dual module-path resolution (see scripts/shared/tool_constants.py's confirmed duplicate-module-name issue)
 
     def _log_ingest_failure(self, doc_id: int, path: Path, e: Exception) -> None:
         """Log a chunk ingestion failure."""

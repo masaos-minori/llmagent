@@ -169,7 +169,7 @@ async def nack(
     # REQ-009: Verify event was delivered to this consumer before accepting NACK
     try:
         row = await run_with_db_lock(
-            lambda: db.execute(  # type: ignore[has-type]
+            lambda: db.execute(
                 "SELECT acked_at FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
                 (consumer_id, event_id),
             ).fetchone()

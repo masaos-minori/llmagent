@@ -2,8 +2,8 @@
 
 Shared, non-CLI helper (same role as tools/_docs_consistency_lib.py) that
 gives every Front Matter tool a single source of truth for the required
-field set and the `area`/`status` enums, instead of each tool hardcoding its
-own copy.
+field set and the `area`/`status`/`class` enums, instead of each tool
+hardcoding its own copy.
 
 If `schemas/doc_front_matter.json` exists (the artifact
 `plans/20260903-124425_plan.md` REQ-006 assigns to a future documentation
@@ -43,6 +43,7 @@ class FrontMatterSchema:
     required_fields: tuple[str, ...]
     area_enum: tuple[str, ...] | None
     status_enum: tuple[str, ...] | None
+    class_enum: tuple[str, ...] | None
     source: str  # SCHEMA_PATH's str, or "built-in default" when absent/unreadable
 
 
@@ -51,6 +52,7 @@ def _default_schema() -> FrontMatterSchema:
         required_fields=DEFAULT_REQUIRED_FIELDS,
         area_enum=None,
         status_enum=None,
+        class_enum=None,
         source="built-in default",
     )
 
@@ -80,6 +82,7 @@ def load_front_matter_schema(schema_path: Path | None = None) -> FrontMatterSche
     properties = data.get("properties")
     area_enum: tuple[str, ...] | None = None
     status_enum: tuple[str, ...] | None = None
+    class_enum: tuple[str, ...] | None = None
     if isinstance(properties, dict):
         area_prop = properties.get("area")
         if isinstance(area_prop, dict):
@@ -91,10 +94,16 @@ def load_front_matter_schema(schema_path: Path | None = None) -> FrontMatterSche
             enum = status_prop.get("enum")
             if isinstance(enum, list) and all(isinstance(v, str) for v in enum):
                 status_enum = tuple(enum)
+        class_prop = properties.get("class")
+        if isinstance(class_prop, dict):
+            enum = class_prop.get("enum")
+            if isinstance(enum, list) and all(isinstance(v, str) for v in enum):
+                class_enum = tuple(enum)
 
     return FrontMatterSchema(
         required_fields=required_fields,
         area_enum=area_enum,
         status_enum=status_enum,
+        class_enum=class_enum,
         source=str(path),
     )

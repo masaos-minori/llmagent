@@ -73,9 +73,13 @@ def build_tracer(
 def _import_sdk() -> Any | None:
     """Lazy-import the OpenTelemetry SDK; returns None on ImportError."""
     try:
-        from opentelemetry.sdk.resources import Resource
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import (
+        from opentelemetry.sdk.resources import (  # type: ignore[attr-defined]  # — opentelemetry-sdk 1.37.0 re-exports this via a dynamic __init__; verified present at runtime, mypy's stub resolution does not see it
+            Resource,
+        )
+        from opentelemetry.sdk.trace import (  # type: ignore[attr-defined]  # — same dynamic re-export as above, verified present at runtime
+            TracerProvider,
+        )
+        from opentelemetry.sdk.trace.export import (  # type: ignore[attr-defined]  # — same dynamic re-export as above, verified present at runtime
             ConsoleSpanExporter,
             SimpleSpanProcessor,
         )
@@ -140,10 +144,12 @@ def _attach_otlp_exporter(provider: Any, otlp_endpoint: str, service_name: str) 
 def _import_otlp() -> Any | None:
     """Lazy-import the OTLP exporter; returns None on ImportError."""
     try:
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # type: ignore[attr-defined]  # — verified present at runtime; see _import_sdk()'s justification above
             OTLPSpanExporter,
         )
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.sdk.trace.export import (  # type: ignore[attr-defined]  # — verified present at runtime; see _import_sdk()'s justification above
+            BatchSpanProcessor,
+        )
 
         return SimpleNamespace(
             OTLPSpanExporter=OTLPSpanExporter,
@@ -158,7 +164,7 @@ class _ConsoleProcessor:
 
     def __init__(self) -> None:
         """Initialize by creating the underlying OpenTelemetry processor."""
-        from opentelemetry.sdk.trace.export import (
+        from opentelemetry.sdk.trace.export import (  # type: ignore[attr-defined]  # — verified present at runtime; see _import_sdk()'s justification above
             ConsoleSpanExporter,
             SimpleSpanProcessor,
         )

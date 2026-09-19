@@ -27,7 +27,7 @@ The following four metadata fields are required in every document's front matter
 
 ## Recommended Additional Fields
 
-One optional metadata field beyond the four required fields in "Existing Metadata Fields":
+Two optional metadata fields beyond the four required fields in "Existing Metadata Fields":
 
 ### status
 
@@ -39,6 +39,18 @@ the active set rather than marked with a historical status.
 - Example:
 ```yaml
 status: stable
+```
+
+### class
+
+Document class (see `00_governance_01_documentation-policy.md`'s Document
+Classification). Optional — no default; a document without this field has an
+unclassified status, not an error.
+
+- Allowed values: `Governance`, `Guide`, `Specification`, `Reference`, `Operations`, `Note`, `Known Issues`
+- Example:
+```yaml
+class: Reference
 ```
 
 ## Front Matter Example
@@ -155,6 +167,11 @@ Internal anchor: `[Section](05_agent_01_system-overview.md#workflow-engine)`
 
 Criteria for deciding whether to include implementation details in design documents.
 
+Content in the "Delete or Compress" category below is removable when all three
+conditions hold: it is verifiable from code, configuration, or schema alone; it
+changes only when the code changes; and a wrong statement about it is caught by
+execution (a test failing, a config load erroring), not by review.
+
 ### Information to be Deleted or Compressed Normally
 
 - Implementation details at the file path or line number level
@@ -173,6 +190,10 @@ Criteria for deciding whether to include implementation details in design docume
 - Design decisions regarding performance
 - Design decisions regarding security
 - Decisions regarding future extensibility
+- Correlated constraints and their rationale (e.g. why two fields must satisfy a relationship, not just that they do)
+- Security-boundary defaults and why they are set that way
+- The absence of a documented rationale, when that absence is itself operationally significant (e.g. "no retry policy is intentional, not an oversight")
+- Operational pitfalls (a config combination that is valid but inadvisable)
 
 ### Decision Categories
 

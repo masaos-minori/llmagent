@@ -30,8 +30,6 @@ logger = logging.getLogger(__name__)
 
 ToolArgs = dict[str, Any]
 
-_duplicate_cache: dict[str, DispatchResult] = {}
-
 _write_tools = (
     set(WRITE_TOOLS)
     | set(DELETE_TOOLS)
@@ -42,8 +40,6 @@ _write_tools = (
     | set(GITHUB_DANGEROUS_TOOLS)
     | set(SHELL_TOOLS)
 )
-
-
 
 
 @dataclass(frozen=True)

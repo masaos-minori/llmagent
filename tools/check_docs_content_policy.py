@@ -52,6 +52,47 @@ _PORT_NUMBER_RE = re.compile(r"\bPort\s+\d{2,5}\b", re.IGNORECASE)
 _ILLUSTRATIVE_MARKERS = frozenset(
     {"illustrative", "worked example", "for example", "e.g."}
 )
+_DEFAULT_VALUE_RE = re.compile(
+    r"`[\w.]+`\s+defaults?\s+to\s+`?[\w.\"']+`?", re.IGNORECASE
+)
+_RATIONALE_MARKERS = frozenset(
+    {"because", "since", "in order to", "so that", "rationale", "to avoid", "to ensure"}
+)
+_FIELD_TYPE_TABLE_HEADER_RE = re.compile(
+    r"^\s*\|\s*(?:Field|Key)\s*\|.*\|\s*(?:Type|Default)\s*\|", re.IGNORECASE
+)
+_MIN_MECHANICAL_TABLE_ROWS = 4
+_CONFIG_BULLET_RE = re.compile(r"^\s*-\s+`\w+`\s+—")
+_CONFIG_HEADING_RE = re.compile(
+    r"^#{1,6}\s+(?:Configuration\s+Fields|Config(?:uration)?\s+Reference)\b",
+    re.IGNORECASE,
+)
+_CLI_HEADING_RE = re.compile(r"^#{1,6}\s+(?:CLI|Commands?|Usage)\b", re.IGNORECASE)
+_MIN_CLI_BLOCKS = 3
+_SETUP_HEADING_RE = re.compile(
+    r"^#{1,6}\s+(?:Setup|Installation|Getting\s+Started|Environment)\b",
+    re.IGNORECASE,
+)
+_ORDERED_LIST_ITEM_RE = re.compile(r"^\s*\d+\.\s+\S")
+_MIN_SETUP_STEPS = 3
+_DDL_STATEMENT_RE = re.compile(r"\bCREATE\s+(?:TABLE|INDEX)\b", re.IGNORECASE)
+
+
+def _is_guard_start(line: str) -> bool:
+    """Return True if *line* opens an auto-generated guarded block.
+
+    Recognizes any line starting with `<!-- AUTO-GENERATED` — not only the
+    exact bare `<!-- AUTO-GENERATED -->` string — so the real guard-comment
+    format `tools/generate_reference_table.py` emits (e.g. `<!--
+    AUTO-GENERATED: gen_mcp_reference.py port-tool-reference -->`) is
+    recognized.
+    """
+    return line.strip().startswith("<!-- AUTO-GENERATED")
+
+
+def _is_guard_end(line: str) -> bool:
+    """Return True if *line* closes an auto-generated guarded block."""
+    return line.strip().startswith("<!-- END AUTO-GENERATED")
 
 
 @dataclass(frozen=True)
@@ -84,7 +125,16 @@ def check_full_file_tree(files: list[DocFile]) -> list[Issue]:
     """
     issues: list[Issue] = []
     for doc in files:
+        in_auto_generated = False
         for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
             if not _TREE_CHARS_RE.search(line):
                 continue
             # Check for a file-tree heading within the last HEADINGS_WINDOW lines.
@@ -135,7 +185,16 @@ def check_index_table(files: list[DocFile]) -> list[Issue]:
     """Flag a Markdown table header naming a Function/Method/Class + Signature/Description."""
     issues: list[Issue] = []
     for doc in files:
+        in_auto_generated = False
         for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
             if _INDEX_TABLE_HEADER_RE.search(line):
                 issues.append(
                     Issue(
@@ -155,7 +214,16 @@ def check_location_mapping(files: list[DocFile]) -> list[Issue]:
     """Flag an inline statement naming which `.py` file implements a behavior."""
     issues: list[Issue] = []
     for doc in files:
+        in_auto_generated = False
         for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
             if _LOCATION_MAPPING_RE.search(line):
                 issues.append(
                     Issue(
@@ -177,10 +245,10 @@ def check_literal_port_number(files: list[DocFile]) -> list[Issue]:
     for doc in files:
         in_auto_generated = False
         for i, line in enumerate(doc.lines, 1):
-            if "<!-- AUTO-GENERATED -->" in line:
+            if _is_guard_start(line):
                 in_auto_generated = True
                 continue
-            if "<!-- END AUTO-GENERATED -->" in line:
+            if _is_guard_end(line):
                 in_auto_generated = False
                 continue
             if in_auto_generated:
@@ -204,6 +272,288 @@ def check_literal_port_number(files: list[DocFile]) -> list[Issue]:
     return issues
 
 
+def check_default_value_restatement(files: list[DocFile]) -> list[Issue]:
+    """Flag a default-value restatement outside a table row (e.g. "`x` defaults to `y`").
+
+    Conservative: skips a line carrying a rationale marker (e.g. "because"),
+    since explaining *why* a default was chosen is retain-category content,
+    not a mechanical restatement — see `docs/00_governance_02_documentation-metadata.md`'s
+    Guidelines.
+    """
+    issues: list[Issue] = []
+    for doc in files:
+        in_auto_generated = False
+        for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
+            if line.lstrip().startswith("|"):
+                continue
+            if not _DEFAULT_VALUE_RE.search(line):
+                continue
+            lowered = line.lower()
+            if any(marker in lowered for marker in _RATIONALE_MARKERS):
+                continue
+            issues.append(
+                Issue(
+                    file=doc.rel_path,
+                    line_no=i,
+                    severity="WARNING",
+                    message=(
+                        "default-value restatement outside a table — see "
+                        "skills/DESIGN.md Docs content policy — remove"
+                    ),
+                )
+            )
+    return issues
+
+
+def check_field_type_table(files: list[DocFile]) -> list[Issue]:
+    """Flag a plain field/type/default table not caught by `check_index_table`'s
+    narrower Function/Method/Class-specific header regex.
+
+    Conservative: only flags a table with at least `_MIN_MECHANICAL_TABLE_ROWS`
+    data rows, so a legitimately short, non-mechanical table is not flagged.
+    """
+    issues: list[Issue] = []
+    for doc in files:
+        in_auto_generated = False
+        i = 1
+        n = len(doc.lines)
+        while i <= n:
+            line = doc.lines[i - 1]
+            if _is_guard_start(line):
+                in_auto_generated = True
+                i += 1
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                i += 1
+                continue
+            if in_auto_generated:
+                i += 1
+                continue
+            if not _FIELD_TYPE_TABLE_HEADER_RE.search(line):
+                i += 1
+                continue
+            header_line_no = i
+            j = i + 1
+            data_rows = 0
+            while j <= n and doc.lines[j - 1].lstrip().startswith("|"):
+                if not re.match(r"^\s*\|[\s:|-]*\|\s*$", doc.lines[j - 1]):
+                    data_rows += 1
+                j += 1
+            if data_rows >= _MIN_MECHANICAL_TABLE_ROWS - 1:
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=header_line_no,
+                        severity="WARNING",
+                        message=(
+                            "plain field/type/default table header — see "
+                            "skills/DESIGN.md Docs content policy — remove"
+                        ),
+                    )
+                )
+            i = j
+    return issues
+
+
+def check_config_file_inventory_table(files: list[DocFile]) -> list[Issue]:
+    """Flag a config-field bullet list near a "Configuration Fields"/"Config
+    Reference" heading (the config-file inventory correspondence pattern)."""
+    issues: list[Issue] = []
+    for doc in files:
+        in_auto_generated = False
+        for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
+            if not _CONFIG_BULLET_RE.match(line):
+                continue
+            has_config_heading = False
+            for j in range(max(0, i - _HEADINGS_WINDOW), i):
+                if _CONFIG_HEADING_RE.search(doc.lines[j]):
+                    has_config_heading = True
+                    break
+            if not has_config_heading:
+                continue
+            issues.append(
+                Issue(
+                    file=doc.rel_path,
+                    line_no=i,
+                    severity="WARNING",
+                    message=(
+                        "config-file inventory correspondence entry — see "
+                        "skills/DESIGN.md Docs content policy — remove"
+                    ),
+                )
+            )
+    return issues
+
+
+def check_cli_command_enumeration(files: list[DocFile]) -> list[Issue]:
+    """Flag 3+ fenced `bash` blocks under a CLI/Commands/Usage heading (a CLI-command
+    enumeration), not a single illustrative command example."""
+    issues: list[Issue] = []
+    for doc in files:
+        in_auto_generated = False
+        section_active = False
+        block_starts: list[int] = []
+        in_block = False
+        for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
+            if line.startswith("#"):
+                if section_active and len(block_starts) >= _MIN_CLI_BLOCKS:
+                    for start in block_starts:
+                        issues.append(
+                            Issue(
+                                file=doc.rel_path,
+                                line_no=start,
+                                severity="WARNING",
+                                message=(
+                                    "CLI-command enumeration — see "
+                                    "skills/DESIGN.md Docs content policy — remove"
+                                ),
+                            )
+                        )
+                section_active = bool(_CLI_HEADING_RE.match(line))
+                block_starts = []
+                in_block = False
+                continue
+            if section_active:
+                stripped = line.strip()
+                if stripped.startswith("```bash"):
+                    in_block = True
+                    block_starts.append(i)
+                elif in_block and stripped == "```":
+                    in_block = False
+        if section_active and len(block_starts) >= _MIN_CLI_BLOCKS:
+            for start in block_starts:
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=start,
+                        severity="WARNING",
+                        message=(
+                            "CLI-command enumeration — see skills/DESIGN.md "
+                            "Docs content policy — remove"
+                        ),
+                    )
+                )
+    return issues
+
+
+def check_environment_setup_sequence(files: list[DocFile]) -> list[Issue]:
+    """Flag a 3+ item ordered list under a Setup/Installation/Getting Started/
+    Environment heading (an environment-setup command sequence)."""
+    issues: list[Issue] = []
+    for doc in files:
+        in_auto_generated = False
+        section_active = False
+        step_lines: list[int] = []
+        for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
+            if line.startswith("#"):
+                if section_active and len(step_lines) >= _MIN_SETUP_STEPS:
+                    for start in step_lines:
+                        issues.append(
+                            Issue(
+                                file=doc.rel_path,
+                                line_no=start,
+                                severity="WARNING",
+                                message=(
+                                    "environment-setup command sequence — see "
+                                    "skills/DESIGN.md Docs content policy — remove"
+                                ),
+                            )
+                        )
+                section_active = bool(_SETUP_HEADING_RE.match(line))
+                step_lines = []
+                continue
+            if section_active and _ORDERED_LIST_ITEM_RE.match(line):
+                step_lines.append(i)
+        if section_active and len(step_lines) >= _MIN_SETUP_STEPS:
+            for start in step_lines:
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=start,
+                        severity="WARNING",
+                        message=(
+                            "environment-setup command sequence — see "
+                            "skills/DESIGN.md Docs content policy — remove"
+                        ),
+                    )
+                )
+    return issues
+
+
+def check_ddl_schema_block(files: list[DocFile]) -> list[Issue]:
+    """Flag a `sql` fenced block containing a `CREATE TABLE`/`CREATE INDEX`
+    statement (a DDL/schema block restated in prose), corpus-wide."""
+    issues: list[Issue] = []
+    for doc in files:
+        in_auto_generated = False
+        in_sql_block = False
+        block_start = 0
+        for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
+            stripped = line.strip()
+            if stripped.startswith("```sql"):
+                in_sql_block = True
+                block_start = i
+                continue
+            if in_sql_block and stripped == "```":
+                in_sql_block = False
+                continue
+            if in_sql_block and _DDL_STATEMENT_RE.search(line):
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=block_start,
+                        severity="WARNING",
+                        message=(
+                            "DDL/schema block restated in prose — see "
+                            "skills/DESIGN.md Docs content policy — remove"
+                        ),
+                    )
+                )
+                in_sql_block = False
+    return issues
+
+
 def main() -> int:
     files = discover_all_md_files(DOCS_DIR)
 
@@ -213,6 +563,12 @@ def main() -> int:
     all_issues += check_index_table(files)
     all_issues += check_location_mapping(files)
     all_issues += check_literal_port_number(files)
+    all_issues += check_default_value_restatement(files)
+    all_issues += check_field_type_table(files)
+    all_issues += check_config_file_inventory_table(files)
+    all_issues += check_cli_command_enumeration(files)
+    all_issues += check_environment_setup_sequence(files)
+    all_issues += check_ddl_schema_block(files)
 
     return report_and_exit(all_issues)
 

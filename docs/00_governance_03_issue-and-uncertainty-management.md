@@ -719,34 +719,6 @@ NC-030 ("Should `adr` and `security` be permanent `area` enum values, or folded 
 - **Resolution Target**: Next governance metadata review
 - **Blocking**: No
 
-#### NC-032
-
-- **Source File**: `schemas/doc_front_matter.json`
-- **Section**: `additionalProperties` (top-level schema property)
-- **Line Number**: ~6
-- **Question**: Should `schemas/doc_front_matter.json` set
-  `additionalProperties: false` (strict, matching `schemas/event_envelope.json`'s
-  own convention) or remain permissive (`true`) to allow forward-compatible,
-  area-specific extension fields?
-- **Evidence**: `schemas/event_envelope.json` itself uses
-  `additionalProperties: false`; however, this repository's actual `docs/*.md`
-  front matter already carries area-specific extra keys in active use in some
-  files (e.g. `source:` seen in several RAG documents)
-- **Impact**: If later set to `false` without first auditing which documents
-  carry extension keys, `docmeta03`'s CI enforcement would immediately fail on
-  every file using one
-- **Required Action**: Owner decision, informed by a survey of which documents
-  currently use non-required front-matter keys, before `docmeta03`'s
-  CI-enforcement implementation begins
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-03
-- **Priority**: Medium
-- **Related NC**: None
-- **Resolution Target**: Before `docmeta03`'s CI-enforcement implementation
-  begins
-- **Blocking**: No
-
 #### NC-033
 
 - **Source File**: `03_rag_02_03_ingestion_pipeline-chunksplitter.md`

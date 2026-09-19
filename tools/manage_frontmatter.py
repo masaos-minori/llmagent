@@ -11,6 +11,8 @@ Subcommands:
   rename-category-to-area
                         Rename a `category:` key to `area:` in files that already
                         have valid, `---`-fenced Front Matter (value unchanged)
+  classify              Report each file's inferred `class` (report-only, never
+                        writes — bulk classification is separate follow-up work)
 
 Usage:
     python tools/manage_frontmatter.py add-missing [--dry-run]   # report-only (safe default)
@@ -18,6 +20,7 @@ Usage:
     python tools/manage_frontmatter.py dedupe-lists
     python tools/manage_frontmatter.py rename-category-to-area [--dry-run]
     python tools/manage_frontmatter.py rename-category-to-area --fix
+    python tools/manage_frontmatter.py classify
 
 `add-missing`'s area inference never guesses when a file's Front Matter area
 cannot be confidently determined from its filename — such files are reported
@@ -442,6 +445,82 @@ def cmd_dedupe_lists() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Subcommand: classify
+# ---------------------------------------------------------------------------
+
+_CLASS_FILENAME_SIGNALS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"reference-api|[-_]reference\b", re.IGNORECASE), "Reference"),
+    (re.compile(r"_document-guide$", re.IGNORECASE), "Guide"),
+    (re.compile(r"^\d+_governance_", re.IGNORECASE), "Governance"),
+)
+
+
+def classify_from_filename(filename: str) -> str | None:
+    """Infer a document's `class` from filename signals only.
+
+    Returns `None` (ambiguous) when no signal confidently determines the
+    class — callers MUST treat `None` as "cannot infer, do not guess",
+    the same never-guess contract `extract_area_from_filename()` already
+    follows for `area`.
+    """
+    base = filename.rsplit(".", 1)[0]
+    for pattern, doc_class in _CLASS_FILENAME_SIGNALS:
+        if pattern.search(base):
+            return doc_class
+    return None
+
+
+def cmd_classify(argv: list[str] | argparse.Namespace | None = None) -> int:
+    """Report each docs/*.md file's confidently-inferred `class`, or flag it
+    ambiguous. Report-only: this subcommand never writes to any file — there
+    is no `--fix` mode, since bulk classification of all existing documents is
+    separate follow-up work (see module docstring)."""
+    if isinstance(argv, argparse.Namespace):
+        args = argv
+    else:
+        parser = argparse.ArgumentParser(
+            description="Report inferred `class` for docs/*.md (report-only, never writes)"
+        )
+        args = parser.parse_args(argv)
+    del args  # no options accepted; parsed only to reject unexpected arguments
+
+    if not DOCS_DIR.is_dir():
+        print(f"ERROR: docs directory not found: {DOCS_DIR}", file=sys.stderr)
+        return 1
+
+    schema = load_front_matter_schema()
+    valid_classes = schema.class_enum
+
+    total_confident = 0
+    total_ambiguous = 0
+
+    for md_file in sorted(DOCS_DIR.glob("*.md")):
+        inferred = classify_from_filename(md_file.name)
+        if inferred is None:
+            total_ambiguous += 1
+            print(
+                f"[AMBIGUOUS] {md_file.name}: cannot confidently infer 'class' "
+                f"from filename — needs manual classification"
+            )
+            continue
+        if valid_classes is not None and inferred not in valid_classes:
+            total_ambiguous += 1
+            print(
+                f"[AMBIGUOUS] {md_file.name}: inferred class {inferred!r} is not "
+                f"in the schema's allowed values {list(valid_classes)}"
+            )
+            continue
+        total_confident += 1
+        print(f"[CONFIDENT] {md_file.name}: {inferred}")
+
+    print(
+        f"\n{total_confident} file(s) confidently classified, "
+        f"{total_ambiguous} file(s) ambiguous"
+    )
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -478,6 +557,12 @@ def main(argv: list[str] | None = None) -> int:
         "--fix", action="store_true", help="Actually modify files"
     )
 
+    # classify
+    subparsers.add_parser(
+        "classify",
+        help="Report inferred document 'class' (report-only, never writes)",
+    )
+
     args = parser.parse_args(argv)
 
     # Pass the parsed Namespace straight through — both cmd_* functions
@@ -494,6 +579,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     elif args.subcommand == "rename-category-to-area":
         return cmd_rename_category_to_area(args)
+    elif args.subcommand == "classify":
+        return cmd_classify(args)
     else:
         parser.print_help()
         return 1

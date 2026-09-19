@@ -34,6 +34,7 @@ definitions, ID format rules, and section header conventions are defined once in
 | ADR-010 | RAGの外部実行失敗時のインプロセスフォールバック | Accepted | `adr/ADR-010-rag-fallback.md` |
 | ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | `adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
 | ADR-014 | Agent制御プレーンの責任境界 | Accepted | `adr/ADR-014-agent-control-plane-responsibility-boundaries.md` |
+| ADR-015 | Reference Document Class Disposition | Proposed | `adr/ADR-015-reference-document-class-disposition.md` |
 
 ADR-011（Database Corruption Recovery Safety Boundary）はADR-008へ統合され、削除された。
 ADR-013（MCP Tool Availability Model）はADR-003へ統合され、削除された。

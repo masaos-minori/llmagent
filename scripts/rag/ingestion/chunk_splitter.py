@@ -194,7 +194,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     def _read_source_data(self, src_path: Path) -> ChunkDocument | None:
         """Read and parse a JSON crawl file; returns ChunkDocument or None on failure."""
         try:
-            return read_crawl_json(src_path)
+            return read_crawl_json(src_path)  # type: ignore[no-any-return]  # — read_crawl_json() is correctly typed -> ChunkDocument; mypy loses this across the rag.* vs scripts.rag.* dual module-path resolution (see scripts/shared/tool_constants.py's confirmed duplicate-module-name issue)
         except (FileNotFoundError, ChunkFormatError) as e:
             logger.error("skip %s: %s", src_path.name, e)
             return None

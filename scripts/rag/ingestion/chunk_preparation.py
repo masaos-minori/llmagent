@@ -77,7 +77,7 @@ class ChunkFactory:
         self, doc_id: int, path: Path
     ) -> PreparedChunk | IngestionFailureReason:
         """Embed one chunk without DB access; returns PreparedChunk or failure reason."""
-        return self._embed_service.embed_and_store(doc_id, path)
+        return self._embed_service.embed_and_store(doc_id, path)  # type: ignore[no-any-return]  # — embed_and_store() is correctly typed -> PreparedChunk | IngestionFailureReason; mypy loses this across the rag.* vs scripts.rag.* dual module-path resolution (see scripts/shared/tool_constants.py's confirmed duplicate-module-name issue)
 
     def _log_ingest_failure(self, doc_id: int, path: Path, error: Exception) -> None:
         """Log an ingest failure with context."""

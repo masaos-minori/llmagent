@@ -131,6 +131,8 @@ A claim whose truth has not yet been verified through evidence. Canonical source
 | documentation-metadata | Metadata on documentation assets | `docs/00_governance_02_documentation-metadata.md` | Metadata Validator | Known Issues | |
 | unconfirmed-claim | Unverified claim | Needs Confirmation inventory | Investigation Evidence | Needs Confirmation | |
 
+Any rule for deciding whether documentation content is mechanically removable (verifiable from code, config, or schema alone) belongs in `00_governance_02_documentation-metadata.md`'s "Guidelines for Recording Information Verifiable via Implementation Reference" section — do not add a second, independently-worded rule here.
+
 ### Authority vs. Evidence
 
 The "Canonical source kind" column identifies **authority** — the artifact whose word settles the question. The "Auxiliary evidence" column identifies **evidence** — supporting material that can confirm or challenge the authority's position. These are never interchangeable: evidence alone does not establish authority, and authority without evidence is incomplete.

@@ -41,6 +41,19 @@
       "enum": ["stable", "draft"],
       "default": "stable",
       "description": "Current state of the document; defaults to stable when absent"
+    },
+    "class": {
+      "type": "string",
+      "enum": [
+        "Governance",
+        "Guide",
+        "Specification",
+        "Reference",
+        "Operations",
+        "Note",
+        "Known Issues"
+      ],
+      "description": "Document class — one of the 7 classes defined in 00_governance_01_documentation-policy.md's Document Classification"
     }
   }
 }

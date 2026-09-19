@@ -99,7 +99,7 @@ class WebCrawler:
 
     def crawl_file(self, path: Path, lang: str) -> int:
         """Save a local file as a crawl result JSON in rag-src/; .py files stored as code blocks; returns 1 on success, 0 on failure."""
-        return self.crawl_persister.save(path, lang)
+        return self.crawl_persister.save(path, lang)  # type: ignore[no-any-return]  # — CrawlPersister.save() is correctly typed -> int; mypy loses this across the rag.* vs scripts.rag.* dual module-path resolution (see scripts/shared/tool_constants.py's confirmed duplicate-module-name issue)
 
     async def crawl_site(self, start_url: str, hint_lang: str) -> None:
         """Crawl a single site starting from start_url with optional language hint."""
