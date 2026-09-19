@@ -21,6 +21,7 @@ Design decisions:
 from __future__ import annotations
 
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -364,3 +365,27 @@ def _check_before_blocks(
             )
 
     return None
+
+
+def main(argv=None):
+    """CLI entry point for stale detection."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Check implementation procedure for stale references",
+    )
+    parser.add_argument("proc_path", help="Path to the implementation procedure document")
+    parser.add_argument(
+        "--source-dir",
+        default=None,
+        help="Directory containing the source files",
+    )
+    args = parser.parse_args(argv)
+
+    result = StaleResult.from_procedure(args.proc_path, args.source_dir)
+    print(result.summary)
+    return 1 if result.abort_execution else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
