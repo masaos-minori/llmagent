@@ -87,10 +87,10 @@ section extension from `plans/done/20260919-104700_plan.md`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `tools/check_docs_quality.py` + `tools/check_docs_structure.py` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-122435 | 20260919-122435 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-122435 | 20260919-122435 | N/A: documentation-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-122435 | 20260919-122435 | `tools/check_docs_quality.py` + `tools/check_docs_structure.py` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-122435 | 20260919-122435 | N/A: this document's own Target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
