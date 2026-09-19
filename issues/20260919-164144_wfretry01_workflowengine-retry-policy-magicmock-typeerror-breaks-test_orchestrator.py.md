@@ -93,8 +93,11 @@ N/A: none.
 ## Unresolved Questions
 - Was the `policy.max_attempts`/timeout comparison in `workflow_engine.py` added or
   changed recently (making this a fixture drift), or has it existed for a while with
-  these tests silently broken since some earlier unrelated change? Not investigated —
-  left for the implementer.
+  these tests silently broken since some earlier unrelated change? Resolved: git log
+  confirms the retry/timeout comparison logic was introduced in commit `4ec2ea85`
+  ("refactor: remove unused config keys, wire up MDQ/web-search knobs and per-stage
+  retry") around August 2026, predating this session's unrelated Agent/EventBus
+  reference-table work rebased on top. This is not a recent regression.
 
 ## AI Implementation Instruction
 Investigate `git log -p` for `scripts/agent/workflow/workflow_engine.py` to find when the
@@ -103,6 +106,59 @@ Investigate `git log -p` for `scripts/agent/workflow/workflow_engine.py` to find
 touch unrelated tests in this file. Do not modify `workflow_engine.py` unless the
 investigation finds a genuine production defect — if so, stop and report it separately
 before changing production code. Keep the diff minimal.
+
+## Adversarial Verification Results
+
+### Evidence labels (per `skills/DESIGN.md`)
+
+- **Claim: 39 TypeError failures** — Confirmed by repository evidence. Multiple runs of
+  `uv run pytest tests/agent/test_orchestrator.py -q --tb=no` consistently report
+  exactly 39 failed / 48 passed. No test-order dependency observed.
+- **Claim: Deterministic in isolation** — Confirmed by repository evidence. Same 39
+  failures reproduce identically across consecutive runs without other test files involved.
+- **Claim: Root cause is MagicMock comparison** — Confirmed by repository evidence.
+  Single-test run (`-v --tb=short`) shows:
+  ```
+  TypeError: '<=' not supported between instances of 'MagicMock' and 'int'
+    at scripts/agent/workflow/workflow_engine.py:321
+      artifact_uri = await asyncio.wait_for(fn(), timeout=timeout)
+  TypeError: '>=' not supported between instances of 'int' and 'MagicMock'
+    at scripts/agent/workflow/workflow_engine.py:254
+      if attempt >= policy.max_attempts:
+  ```
+- **Claim: Production code reads real numeric values** — Confirmed by repository evidence.
+  `workflow_engine.py:254`: `if attempt >= policy.max_attempts`;
+  `workflow_engine.py:304`: `timeout = stage_def.timeout_sec if stage_def else 60`;
+  `workflow_engine.py:321`: `await asyncio.wait_for(fn(), timeout=timeout)`.
+- **Claim: Models define these as int fields** — Confirmed by repository evidence.
+  `models.py:71`: `timeout_sec: int`; `models.py:79`: `max_attempts: int`;
+  `models.py:91`: `default_factory=lambda: RetryPolicy(max_attempts=3, backoff_sec=1)`.
+- **Claim: Fix belongs in test fixtures, not production code** — Derived from confirmed
+  evidence. The autouse fixture `_patch_workflow_loader` (line 117) returns
+  `MagicMock(version="test-v1")` for the WorkflowDef, making `retry_policy` and `stages`
+  also MagicMock instances. Tests that pass (using `monkeypatch.setattr` to restore real
+  classes) explicitly set up a real `WorkflowDef` with proper `RetryPolicy` and
+  `StageDefinition` objects. The failing tests never set `orch._workflow_def` at all.
+- **Priority classification (High)** — Confirmed by repository evidence. Per Phase 7 of
+  `skills/issue-creator/workflow.md`: "workflow execution" correctness is explicitly a
+  High-priority category.
+- **Claim: Background predates unrelated Agent/EventBus work** — Confirmed by repository
+  evidence. Git log for `scripts/agent/workflow/workflow_engine.py` shows the retry/timeout
+  comparison logic was introduced in commit `4ec2ea85` (~August 2026).
+
+### Assessment
+
+The issue's core claim is valid: 39 of 87 tests cannot execute due to MagicMock
+comparison errors, providing zero regression coverage for
+`Orchestrator._handle_workflow_engine`. The proposed fix direction (test fixture
+correction, not production code change) is correct based on model definitions and
+the pattern of passing vs. failing tests.
+
+### Resolution status
+
+- **Unresolved Question**: Resolved by git history evidence. The retry/timeout comparison
+  logic predates this session's unrelated work.
+- All other claims verified as accurate.
 
 ## Traceability
 - **Workflow phase**: issue-creator
