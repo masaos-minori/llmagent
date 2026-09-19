@@ -21,7 +21,6 @@ import asyncio
 import logging
 import os
 import shutil  # noqa: F401 — kept for tests patching agent.http_lifecycle.shutil.which (shared module object also used by CommandValidator)
-import signal
 import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
 import time
 from dataclasses import asdict
@@ -36,13 +35,9 @@ from agent.services.models import ProcessInfoSnapshot
 
 from .http_lifecycle_command_validator import CommandValidator
 from .http_lifecycle_errors import HttpStartupError, StartupFailure
-from .http_lifecycle_health_checker import HealthChecker
-from .http_lifecycle_process_snapshot import ProcessSnapshotProvider
+from .http_lifecycle_health_checker import HEALTH_RECHECK_INTERVAL_SEC, HealthChecker
 from .http_lifecycle_process_terminator import ProcessTerminator
-from .http_lifecycle_shutdown_coordinator import (
-    ShutdownCoordinator,
-    _absorb_sigint_during_shutdown,
-)
+from .http_lifecycle_shutdown_coordinator import ShutdownCoordinator
 from .http_lifecycle_stderr_log_manager import StderrLogManager
 
 logger = logging.getLogger(__name__)
@@ -76,7 +71,6 @@ class HttpServerLifecycleManager:
         stderr_log_manager: StderrLogManager | None = None,
         process_terminator: ProcessTerminator | None = None,
         health_checker: HealthChecker | None = None,
-        snapshot_provider: ProcessSnapshotProvider | None = None,
         shutdown_coordinator: ShutdownCoordinator | None = None,
     ) -> None:
         """Initialize HttpServerLifecycleManager with injected components."""
@@ -86,7 +80,6 @@ class HttpServerLifecycleManager:
         self._stderr_log_manager = stderr_log_manager or StderrLogManager()
         self._process_terminator = process_terminator or ProcessTerminator()
         self._health_checker = health_checker or HealthChecker()
-        self._snapshot_provider = snapshot_provider or ProcessSnapshotProvider()
         self._shutdown_coordinator = shutdown_coordinator or ShutdownCoordinator()
         self._http_procs: dict[str, subprocess.Popen[bytes]] = {}
         self._http_pgids: dict[str, int] = {}
@@ -159,30 +152,34 @@ class HttpServerLifecycleManager:
         if not self.verify_running(server_key):
             return False
         last_check = self._last_health_check.get(server_key, 0.0)
-        if time.monotonic() - last_check < 10.0:
+        if time.monotonic() - last_check < HEALTH_RECHECK_INTERVAL_SEC:
             return True
+        url = cfg.url.rstrip("/") + "/health"
         try:
-            hc_timeout = self._health_checker.compute_health_check_timeout(
-                cfg.startup_timeout_sec
-            )
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(timeout=hc_timeout)
-            ) as client:
-                resp = await client.get(cfg.url.rstrip("/") + "/health")
-                self._last_health_check[server_key] = time.monotonic()
-                return resp.status_code == HTTPStatus.OK
-        except (httpx.HTTPError, OSError):
+            result = await HealthChecker.verify_running_async(server_key, cfg, url=url)
+            self._last_health_check[server_key] = time.monotonic()
+            return result
+        except (httpx.HTTPError, OSError) as exc:
+            logger.error("Health check failed for %s: %s", cfg.url, exc)
             self._last_health_check[server_key] = time.monotonic()
             return False
 
-    def _cleanup_server_resources(self, server_key: str) -> str:
-        """Read stderr tail, close stderr file handle, and remove tracking data for a server."""
-        stderr_content = self._read_stderr_tail(server_key)
+    def _read_stderr_for_cleanup(self, server_key: str) -> str:
+        """Read the last N bytes from a server's stderr log file."""
+        return self._read_stderr_tail(server_key)
+
+    def _clear_server_tracking_data(self, server_key: str) -> None:
+        """Remove health check timestamps, stderr file handles, and paths for a server."""
         fh = self._stderr_files.pop(server_key, None)
         if fh is not None:
             fh.close()
         self._stderr_log_paths.pop(server_key, None)
         self._last_health_check.pop(server_key, None)
+
+    def _cleanup_server_resources(self, server_key: str) -> str:
+        """Read stderr tail, close stderr file handle, and remove tracking data for a server."""
+        stderr_content = self._read_stderr_for_cleanup(server_key)
+        self._clear_server_tracking_data(server_key)
         return stderr_content
 
     def _build_snapshot(self, server_key: str) -> ProcessInfoSnapshot | None:
@@ -485,55 +482,9 @@ class HttpServerLifecycleManager:
         self._http_pgids.pop(server_key, None)
         await self.start(server_key, cfg)
 
-    _absorb_sigint_during_shutdown = staticmethod(_absorb_sigint_during_shutdown)
-
     async def shutdown_all(self) -> None:
-        """Terminate all HTTP subprocess servers and clear internal state."""
-        old_sigint: object | None = None
-        try:
-            old_sigint = signal.getsignal(signal.SIGINT)
-        except ValueError:
-            old_sigint = None
+        """Shut down all managed servers.
 
-        if old_sigint is not None:
-            try:
-                signal.signal(signal.SIGINT, self._absorb_sigint_during_shutdown)
-            except ValueError:
-                logger.debug("Lifecycle: could not set SIGINT guard handler")
-
-        try:
-            keys = list(self._http_procs.keys())
-            for key in keys:
-                proc = self._http_procs.pop(key, None)
-                if proc is None:
-                    continue
-                if proc.poll() is not None:
-                    logger.debug("Lifecycle: %r already exited; removing entry", key)
-                else:
-                    try:
-                        await self._terminate_with_timeout(
-                            proc, key, timeout=TERMINATE_TIMEOUT_SEC
-                        )
-                    except (OSError, TimeoutError) as e:
-                        logger.warning(
-                            "Lifecycle: error stopping HTTP subprocess %r: %s", key, e
-                        )
-                self._http_pgids.pop(key, None)
-                stderr_fh = self._stderr_files.pop(key, None)
-                if stderr_fh is not None:
-                    try:
-                        stderr_fh.close()
-                    except OSError as close_err:
-                        logger.warning(
-                            "Lifecycle: error closing stderr log for %r: %s",
-                            key,
-                            close_err,
-                        )
-            self._stderr_log_paths.clear()
-            self._last_health_check.clear()
-        finally:
-            if old_sigint is not None:
-                try:
-                    signal.signal(signal.SIGINT, old_sigint)
-                except ValueError:
-                    logger.debug("Lifecycle: could not restore SIGINT handler")
+        Delegates to ShutdownCoordinator.shutdown_all().
+        """
+        await self._shutdown_coordinator.shutdown_all(self)

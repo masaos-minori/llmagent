@@ -85,10 +85,24 @@ class ShutdownCoordinator:
             for server_key, proc in list(procs.items()):
                 if proc is None:
                     continue
+                # Pop before termination to avoid double-shutdown if terminated fails
+                manager._http_procs.pop(server_key, None)
                 if proc.poll() is not None:
                     logger.debug(
                         "Lifecycle: %r already exited; removing entry", server_key
                     )
+                    # Clean up tracking data even for exited procs
+                    manager._http_pgids.pop(server_key, None)
+                    stderr_fh = manager._stderr_files.pop(server_key, None)
+                    if stderr_fh is not None:
+                        try:
+                            stderr_fh.close()
+                        except OSError as close_err:
+                            logger.warning(
+                                "Lifecycle: error closing stderr log for %r: %s",
+                                server_key,
+                                close_err,
+                            )
                     continue
                 logger.info("Shutting down %s...", server_key)
                 terminate_kwargs: dict[str, Any] = {
@@ -96,9 +110,14 @@ class ShutdownCoordinator:
                 }
                 if fields:
                     terminate_kwargs.update(fields)
-                await terminator.terminate_with_timeout(
-                    proc, server_key, **terminate_kwargs
-                )
+                try:
+                    await terminator.terminate_with_timeout(
+                        proc, server_key, **terminate_kwargs
+                    )
+                except (OSError, TimeoutError) as e:
+                    logger.warning(
+                        "Lifecycle: error terminating %r: %s", server_key, e
+                    )
                 manager._http_pgids.pop(server_key, None)
                 stderr_fh = manager._stderr_files.pop(server_key, None)
                 if stderr_fh is not None:

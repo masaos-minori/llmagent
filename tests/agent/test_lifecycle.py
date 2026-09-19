@@ -555,9 +555,8 @@ class TestShutdownAll:
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex)
         mgr._http_mgr._http_procs["srv"] = proc
-        mgr._http_mgr._terminate_with_timeout = AsyncMock()
         await mgr.shutdown_all()
-        proc.terminate.assert_not_called()
+        proc.terminate.assert_called_once()
         proc.wait.assert_not_called()
 
     @pytest.mark.asyncio
@@ -887,9 +886,12 @@ class TestShutdownAllCleanup:
             if key == "srv1":
                 raise OSError("terminate failed")
 
-        mgr._terminate_with_timeout = flaky_terminate
-
-        await mgr.shutdown_all()
+        with patch.object(
+            mgr._process_terminator,
+            "terminate_with_timeout",
+            side_effect=flaky_terminate,
+        ):
+            await mgr.shutdown_all()
 
         assert len(mgr._http_procs) == 0
         assert call_count == 2
@@ -926,9 +928,12 @@ class TestShutdownAllCleanup:
                 assert callable(current_handler)
                 current_handler(signal.SIGINT, None)
 
-        mgr._terminate_with_timeout = terminate_and_interrupt
-
-        await mgr.shutdown_all()
+        with patch.object(
+            mgr._process_terminator,
+            "terminate_with_timeout",
+            side_effect=terminate_and_interrupt,
+        ):
+            await mgr.shutdown_all()
 
         assert (
             call_count == 2
@@ -1142,7 +1147,7 @@ class TestProcessGroupShutdown:
     ) -> None:
         """shutdown_all() must restore the original SIGINT handler even when
         signal.signal() fails after signals.getsignal() succeeds."""
-        from agent import http_lifecycle as mod
+        from agent import http_lifecycle_shutdown_coordinator as slc_mod
 
         original_handler = object()
         call_count = 0
@@ -1163,13 +1168,14 @@ class TestProcessGroupShutdown:
 
         last_call_args: tuple[int, object] | None = None
 
-        monkeypatch.setattr(mod.signal, "getsignal", mock_getsig)
-        monkeypatch.setattr(mod.signal, "signal", mock_sigsig)
+        with (
+            patch.object(signal, "getsignal", side_effect=mock_getsig),
+            patch.object(signal, "signal", side_effect=mock_sigsig),
+        ):
+            mgr = HttpServerLifecycleManager()
+            mgr._http_procs["srv"] = MagicMock(poll=MagicMock(return_value=0))
 
-        mgr = HttpServerLifecycleManager()
-        mgr._http_procs["srv"] = MagicMock(poll=MagicMock(return_value=0))
-
-        await mgr.shutdown_all()
+            await mgr.shutdown_all()
 
         # Verify the final signal.signal() call restored the original handler
         assert call_count >= 2
