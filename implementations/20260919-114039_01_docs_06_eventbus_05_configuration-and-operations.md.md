@@ -118,10 +118,10 @@ or any other section of the target file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the 5 field entries + validation note (Implementation > Procedure/Method/Details) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no automated test — manual review + structural checks only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Scoped to `tools/check_docs_quality.py` + `tools/check_docs_structure.py`, not the full Python toolchain (no code changed) |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the 5 field entries + validation note (Implementation > Procedure/Method/Details) | Completed | 20260919-120206 | 20260919-120206 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-120206 | 20260919-120206 | N/A: documentation-only, no automated test — manual review + structural checks only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-120206 | 20260919-120206 | `check_docs_quality.py`: no new findings. `check_docs_structure.py`: reports a pre-existing "missing '## Keywords' section" finding for this file — confirmed via `git diff` that this edit did not touch that structural gap; out of scope per this procedure's own Out of scope (any other section of this file) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-120206 | 20260919-120206 | N/A: this document's own Target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
