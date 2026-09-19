@@ -168,6 +168,44 @@ Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) — target files 
 - If the implementation procedure is ambiguous or the scope is unclear, stop and ask
   for clarification before proceeding.
 
+## Step 2.5: Pre-execution Stale Detection
+
+Before proceeding to implementation, verify that the procedure's referenced code
+constructs still exist in the current source. This prevents wasted effort on procedures
+whose targets have been modified by another process or prior execution.
+
+Run `uv run python scripts/agent/stale_detector.py {proc_path}` where `{proc_path}` is
+the repository-relative path to the implementation procedure file (e.g.,
+`implementations/20260916-232443_01_scripts_agent_orchestrator.py.md`). The tool reads
+the procedure document, extracts cited line ranges, symbol names, import paths, and
+"Before:" code blocks, checks each against the current source, and reports which
+references are stale.
+
+**Completed when**: either the check passes (no stale references found) or the
+procedure is aborted (stale references detected).
+
+### Stale detection result handling
+
+If the stale detector reports any mismatch:
+- Abort execution immediately — do not proceed to Step 3.
+- Report the findings to the user: list each stale reference type and detail
+  (e.g., `"symbol_missing: Symbol '_llm_runner' not found in source"`).
+- Do not correct the procedure and continue — the procedure cannot be reliably
+  executed if even one referenced construct is missing. Per REQ-003, abort and report.
+
+If the stale detector reports no mismatches:
+- Proceed to Step 3 normally.
+- Record the clean check result in the Execution Status Notes for this step.
+
+### Design decisions applied
+
+- Any single mismatch constitutes "stale" — the procedure cannot be reliably
+  executed if even one referenced construct is missing (REQ-002 decision).
+- Report all failures in a single pass — simpler and provides more information
+  to the operator (UNK-01 resolution).
+- Uses simple regex/string matching against the cited line ranges specified in
+  the procedure document — avoids AST parsing (REQ-002 constraint).
+
 ## Step 3: Implement the Feature
 
 This step has five sub-steps, applied in order: verify the procedure's claims (3a),
@@ -377,6 +415,14 @@ only and does not apply to this workflow at all.
   applied and validated, and its implementation procedure document remains generated
   but unarchived — then continue Multi-file processing with the next target file in
   the batch. Do not halt the entire batch because one file's Archival Move failed.
+
+### Auto-archive collision handling (REQ-005)
+
+When the destination `implementations/done/{filename}.md` already exists, apply
+`rules/filename-collision.md`: regenerate a disambiguated candidate path using a
+zero-padded sequence suffix (e.g., `{filename}-001.md`). Retry up to 3 times
+(per AGENTS.md Attempt Limit). After 3 collisions, stop and report
+`Blocked: repeated filename collision — {path}` rather than continuing to increment.
 - **After the move succeeds**, update the source Plan's own Execution Status: read
   this implementation procedure's Traceability `Source plan` and `Related target
   files` values (already extracted in Step 2), locate that Plan file (it may already
