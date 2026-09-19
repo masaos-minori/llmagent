@@ -104,10 +104,10 @@ destinations named above; any other ADR or design doc.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Classify and apply action for 2 real bullets |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no test to add |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_quality.py, check_docs_structure.py, check_adr_structure.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-215525 | 20260919-215525 | Classify and apply action for 2 real bullets Bullet 1 (StartupValidationResult non-persistence) classified Retain -> moved to new Rationale item 6. Bullet 2 (fixed-delay retry) had no supporting Rationale/Known Deviations either way -> classified Move to Needs Confirmation, reserved NC-037 (created by row 21's cycle), Implementation Notes bullet replaced with cross-reference. |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-215525 | 20260919-215525 | N/A: documentation-only, no test to add N/A: documentation-only, no test to add |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-215525 | 20260919-215525 | check_docs_quality.py, check_docs_structure.py, check_adr_structure.py check_docs_quality.py: 0 error/3 pre-existing warnings; check_docs_structure.py: 9 pre-existing findings (out of scope, incl. pre-existing size-limit); check_adr_structure.py: No issues found (drift warning resolved by removing health_models.py ref); check_needs_confirmation_inventory.py: no new finding |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-215525 | 20260919-215525 | N/A: this document's own Target file IS the documentation being updated Edited this file's own Rationale + Implementation Notes only, per Compatibility considerations |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
