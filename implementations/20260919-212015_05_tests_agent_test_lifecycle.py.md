@@ -4,14 +4,26 @@ Update every assertion/fixture-setup in this file that reads or writes
 the same behavior after Step 02 of this pass removes that attribute (`REQ-001`).
 
 ## Scope
-- In scope: the 7 call sites confirmed by `rg "_stderr_log_paths" tests/agent/test_lifecycle.py`
-  — lines 455, 483 (`mgr._http_mgr._stderr_log_paths`, read-only assertions in two
-  getpgid-failure test methods inside `TestStartHttpSubprocess`, current lines
-  166-486), 832 (fixture write in `test_restart_closes_old_stderr_handle`),
+- In scope: the 8 call sites confirmed by `rg "_stderr_log_paths" tests/agent/test_lifecycle.py`
+  — line 104 (`self._stderr_log_paths[server_key] = str(log_path)`, inside the
+  `_patch_open_to_tmp` monkeypatch helper that replaces
+  `HttpServerLifecycleManager._open_stderr_log`, used by 6 tests at lines 520, 727,
+  759, 793, 826, 1115), lines 455, 483 (`mgr._http_mgr._stderr_log_paths`, read-only
+  assertions in two getpgid-failure test methods inside `TestStartHttpSubprocess`,
+  current lines 166-486), 832 (fixture write in `test_restart_closes_old_stderr_handle`),
   1191, 1204, 1213 (fixture writes in `TestCleanupServerResources`), and 1197
   (read-only assertion in `TestCleanupServerResources.test_removes_last_health_check_entry`).
 - Out of scope: any other test in this file; any change to what each test verifies
   (only how it reads/writes the now-relocated tracking data).
+
+**Correction (Step 3a adversarial verification, applied before implementation)**:
+the original version of this section counted only 7 call sites and omitted line 104
+inside `_patch_open_to_tmp`. Since Step 02 of this pass removes
+`HttpServerLifecycleManager._stderr_log_paths` entirely, this helper would raise
+`AttributeError` on its next use if left unchanged — it is used by 6 tests in this
+file, so this omission would have broken 6 tests, not zero. It MUST also be routed
+through `self._stderr_log_manager._log_paths`, consistent with this document's own
+Design decisions for other fixture-setup writes.
 
 ## Assumptions
 - Step 02 of this pass
@@ -47,12 +59,18 @@ the same behavior after Step 02 of this pass removes that attribute (`REQ-001`).
 tests/agent/test_lifecycle.py
 
 ### Procedure
-1. Replace the two read-only assertions at current lines 455 and 483.
-2. Replace the fixture-write line at current line 832.
-3. Replace the three fixture-write lines at current lines 1191, 1204, 1213, and the
+1. Replace the fixture-write line at current line 104 (inside `_patch_open_to_tmp`).
+2. Replace the two read-only assertions at current lines 455 and 483.
+3. Replace the fixture-write line at current line 832.
+4. Replace the three fixture-write lines at current lines 1191, 1204, 1213, and the
    one read-only assertion at current line 1197.
 
 ### Method
+Line 104 (`_patch_open_to_tmp`):
+```python
+self._stderr_log_manager._log_paths[server_key] = str(log_path)
+```
+
 Lines 455 and 483 (each inside its own test method, identical replacement in both
 places):
 ```python
@@ -132,10 +150,10 @@ longer exercise the latter) — apply in the Plan's stated Phase order
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's Implementation step 1 is itself the test update |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260920-073200 | 20260920-073200 | Corrected Scope (Step 3a finding): line 104 inside `_patch_open_to_tmp` (6 dependent tests) was omitted from the original 7-call-site count — added and implemented. All 8 call sites updated; `rg "_stderr_log_paths"` confirms zero remaining matches in this file. |
+| 2 | Add or update tests per Validation plan | Completed | 20260920-073200 | 20260920-073200 | `pytest tests/agent/test_lifecycle.py -v`: 56 passed, 3 skipped, 0 failed — the 43 failures observed during Step 02's cycle (deferred, forward-dependency on this step) are now resolved. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260920-073200 | 20260920-073200 | ruff format/check clean; pyright shows 12 pre-existing findings, all confirmed present (same error classes/count) on the pre-change file via `git stash`-based comparison — none newly introduced by this change. mypy/bandit/lint-imports not applicable to tests/ scope. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260920-073200 | 20260920-073200 | N/A: test-only file, no documentation update in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
