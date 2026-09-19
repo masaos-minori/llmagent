@@ -33,7 +33,7 @@
 | `check_workitem_structure.py` | ワークアイテム関連 | 正本テンプレート見出しの網羅性検証 |
 | `check_conftest_integrity.py` | テスト関連 | conftest.pyの必須autouseフィクスチャ定義確認 |
 | `generate_mcp_inventory.py` | リファレンス生成 | エージェント設定からMCPサーバー一覧をJSON/CSV出力 |
-| `generate_reference_table.py` | リファレンス生成 | RAG/MCP/デプロイメントのリファレンス表生成 |
+| `generate_reference_table.py` | リファレンス生成 | RAG/MCP/デプロイメント/Agent/EventBusのリファレンス表生成(Memory型は対象文書確定待ち) |
 | `generate_workitem.py` | ワークアイテム生成 | プレースホルダー付きワークアイテムスケルトン生成 |
 | `manage_frontmatter.py` | フロントマッター管理 | Front Matter欠落検知・重複除去・area改名 |
 | `manage_workitem_stage.py` | ワークアイテム管理 | アーカイブ移動・ステータス更新・期限切れ検出 |
@@ -78,7 +78,7 @@
 
 | ファイル | 生成元 | 反映先 |
 |---|---|---|
-| `generate_reference_table.py` | `--type rag\|mcp\|deployment` で指定 | RAG/MCP/デプロイメントのリファレンスセクション |
+| `generate_reference_table.py` | `--type rag\|mcp\|deployment\|agent\|eventbus` で指定(`memory`は対象文書確定後に追加予定) | RAG/MCP/デプロイメント/Agent/EventBusのリファレンスセクション |
 | `generate_mcp_inventory.py` | `--format json\|csv` で指定 | エージェント設定からMCPサーバー一覧をJSON/CSVで出力 |
 | `generate_workitem.py` | `--kind issue\|plan\|implementation-procedure\|unknowns\|risks` で指定 | 対応する`templates/*.md`からプレースホルダーのみのスケルトンを抽出し、命名規則に沿ったパスで`issues/`・`plans/`・`implementations/`に出力(実質的な内容は生成しない)。`unknowns`/`risks`は衝突時`--seq`でゼロパッド連番を明示指定して再試行する(自動連番なし、reject-only) |
 

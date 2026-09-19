@@ -6,6 +6,7 @@ tags:
   - api-reference
 related:
   - 05_agent_02_runtime-architecture.md
+  - 05_agent_14_reference-api-generated.md
 ---
 # Agent Reference API — Part 1
 
@@ -46,6 +47,7 @@ The API reference focuses on "what the API is" and "how it works." "Why this API
 
 - `05_agent_00_document-guide.md`
 - `05_agent_13_reference-api.md`
+- `05_agent_14_reference-api-generated.md` — generated `scripts/agent/*.py` class/function index
 
 ---
 
@@ -165,6 +167,7 @@ The API reference focuses on "what the API is" and "how it works." "Why this API
 
 - `05_agent_00_document-guide.md`
 - `05_agent_13_reference-api.md`
+- `05_agent_14_reference-api-generated.md` (generated class/function index)
 
 ---
 

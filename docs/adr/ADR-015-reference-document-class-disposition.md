@@ -13,7 +13,7 @@ related:
 
 ## Status
 
-Proposed
+Accepted
 
 使用可能なStatusは次のとおりとする。
 
@@ -134,11 +134,11 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Approval Record
 
-- **Approved By**: pending
-- **Approval Date**: pending
-- **Approval Reference**: pending
+- **Approved By**: Masao Sugimoto (repository owner)
+- **Approval Date**: 2026-09-19
+- **Approval Reference**: Reviewed and approved via chat (Claude Code session llmagent-73), content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
 
-This ADR is `Proposed` — it has not yet been reviewed or accepted. Per the ADR Acceptance Evidence Standard (`docs/00_governance_01_documentation-policy.md`), it must reach either a Named Approval Record or an explicit task-level approval decision before its Status may change to `Accepted`.
+This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance_01_documentation-policy.md`) — not the task-level fallback path.
 
 ## Related Documents
 
@@ -165,5 +165,5 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] 各InvariantにVerificationが対応している
 - [x] 自動化可能な検証がManual Reviewだけになっていない（現時点では自動検証なし。将来のCI統合はReview Triggers対象）
 - [x] 現行実装との差異がKnown Issueへ登録されている（対象なし、Known Deviations参照）
-- [ ] Ownerと必要なReviewerが定義されている（Required Reviewersは記載済みだが、Approval Recordは`pending` — レビュー未実施のため`Proposed`のまま）
+- [x] Ownerと必要なReviewerが定義されている（Approval Record参照 — Named Approval Recordによりレビュー実施済み）
 - [x] Review Triggersが記載されている
