@@ -104,15 +104,16 @@ performance/large-corpus testing.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Gated on REQ-008; also depends on seq 01's functions existing first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's own Target file IS the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `uv run pytest tests/tools/test_generate_reference_table.py -v` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test file only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-143123 | 20260919-143123 | Gated on REQ-008; also depends on seq 01's functions existing first |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-143123 | 20260919-143123 | This document's own Target file IS the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-143123 | 20260919-143123 | `uv run pytest tests/tools/test_generate_reference_table.py -v` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-143123 | 20260919-143123 | N/A: test file only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | REQ-008 gate not satisfied — re-verified 20260919-121854: guard-detection fix has landed but ADR-015 is still `Proposed`, not `Accepted` (gate requires both); also depends on seq 01 landing first | No | — |
+| 1 | REQ-008 gate not satisfied — re-verified 20260919-121854: guard-detection fix has landed but ADR-015 is still `Proposed`, not `Accepted` (gate requires both); also depends on seq 01 landing first | Yes | 20260919 (ADR-015 Accepted via Named Approval Record, user request) |
+| 1 | Discovered `_generate_class_function_reference_table()`'s `path.relative_to(REPO_ROOT)` raised `ValueError` for a `tmp_path` fixture directory outside the repo — reported back to seq 01, fixed there with a try/except fallback | Yes | 20260919 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
