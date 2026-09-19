@@ -94,10 +94,10 @@ Any other Needs Confirmation entry in this file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on seq 01's additionalProperties decision actually landing first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `tools/check_needs_confirmation_inventory.py` + `tools/check_docs_quality.py`/`check_docs_structure.py` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own Target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-122529 | 20260919-122529 | Depends on seq 01's additionalProperties decision actually landing first |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-122529 | 20260919-122529 | N/A: documentation-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-122529 | 20260919-122529 | `tools/check_needs_confirmation_inventory.py` + `tools/check_docs_quality.py`/`check_docs_structure.py` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-122529 | 20260919-122529 | N/A: this document's own Target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
