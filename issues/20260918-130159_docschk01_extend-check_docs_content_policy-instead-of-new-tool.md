@@ -25,6 +25,18 @@ detects: default-value restatement outside a table, a configuration-file-to-doc
 correspondence table, a CLI-command enumeration, environment-setup command sequences,
 or a DDL/schema block restated in prose.
 
+Separately, a pre-existing bug was found in the same file: `check_literal_port_number`'s
+auto-generated-block exemption (`if "<!-- AUTO-GENERATED -->" in line:`) does not match
+the actual guard-comment format `tools/generate_reference_table.py` emits
+(`<!-- AUTO-GENERATED: <generator>.py <purpose> -->`, e.g. `GUARD_START_MCP`) —
+confirmed: `"<!-- AUTO-GENERATED -->" in "<!-- AUTO-GENERATED: gen_mcp_reference.py
+port-tool-reference -->"` evaluates to `False`. This has not surfaced as a live false
+positive only because neither of the two currently-guarded documents
+(`docs/04_mcp_01_tool_ownership_matrix.md`, `docs/02_deployment.md`) contains text the
+literal-port-number regex matches inside its guarded block. The exemption also exists
+only in this one check function — `check_full_file_tree`, `check_index_table`, and
+`check_location_mapping` have no guard-awareness at all.
+
 ## Reason for Change
 A second, separately-registered tool covering overlapping ground duplicates
 `GV-021`'s existing role in the Governance Verification Matrix and its existing
@@ -50,25 +62,39 @@ file to be confirmed at implementation time)
 - Add one check function per new category listed in Implementation Intent, each
   returning `Issue` objects with `severity="WARNING"` and a message citing the same
   `skills/DESIGN.md` Docs content policy reference the existing checks use.
+- Fix `check_literal_port_number`'s auto-generated-block detection to recognize the
+  actual guard-comment format (a line starting with `<!-- AUTO-GENERATED` regardless of
+  what follows before `-->`, not only the exact bare string), and extract this
+  detection into a shared helper so every new check function added by this issue (and
+  `check_full_file_tree`/`check_index_table`/`check_location_mapping`, which currently
+  have none) applies the same guard exemption consistently.
 - Append each new function's call to `main()`.
 - Update `GV-021`'s row in `docs/00_governance_04_documentation-checks.md`'s
   Governance Verification Matrix to describe the expanded category coverage (still
-  Warning/Partial — do not change its blocking status in this issue).
+  Warning/Partial — do not change its blocking status in this issue) and to note the
+  guard-detection fix.
 - Add unit tests for each new check covering a true-positive and a plausible
   false-positive case (e.g. a legitimately short, non-mechanical table must not be
-  flagged).
+  flagged), plus a regression test asserting the actual `GUARD_START_MCP`/
+  `GUARD_START_DEPLOYMENT`-shaped guard comment is recognized by every check.
 
 ## Constraints
-Do not change any existing check function's behavior or the tool's `WARNING`/
-report-only severity; do not promote `GV-021` to blocking as part of this issue.
+Do not change any existing check function's behavior beyond the guard-detection fix
+named in Required Changes (which only widens what counts as a guarded block — it must
+not narrow it or otherwise change what `check_literal_port_number` flags outside a
+guarded block). Do not change the tool's `WARNING`/report-only severity; do not promote
+`GV-021` to blocking as part of this issue.
 
 ## Acceptance Criteria
 - Each new check function flags a constructed true-positive example and does not
   flag a constructed false-positive example.
+- A guarded block using the actual `<!-- AUTO-GENERATED: <generator>.py <purpose> -->`
+  format is recognized and exempted by every check function that has guard-awareness,
+  not only `check_literal_port_number`.
 - `tools/check_docs_content_policy.py` continues to run cleanly (exit reflects only
   WARNING findings, no crash) against the full `docs/` tree.
 - `GV-021`'s Governance Verification Matrix description reflects the new category
-  coverage.
+  coverage and the guard-detection fix.
 
 ## Testing Expectations
 Add unit tests for each new check function (true-positive and false-positive cases).
@@ -86,8 +112,10 @@ separate content-migration work, scoped once the docs-inventory re-baseline and 
 metadata-guidelines consolidation issues land.
 
 ## Dependencies
-Benefits from the metadata-guidelines consolidation issue landing first (so new
-checks cite a single, consolidated rule location), but is not strictly blocked by it.
+Benefits from
+`issues/20260918-130135_docspol01_extend-metadata-guidelines-not-duplicate-rule.md`
+landing first (so new checks cite a single, consolidated rule location), but is not
+strictly blocked by it.
 
 ## Unresolved Questions
 The exact test file location for `check_docs_content_policy.py`'s own tests was not
@@ -98,9 +126,11 @@ convention of neighboring test files).
 ## AI Implementation Instruction
 Follow the existing file's exact function/registration pattern — do not introduce a
 decorator-based registry (that pattern belongs to `check_docs_quality.py`, a different
-tool) or otherwise restructure the file beyond adding new functions and their `main()`
-calls. Keep new checks conservative (favor missing a real case over flagging a false
-positive), consistent with this tool's current "Partial" rollout status.
+tool). The only permitted restructuring is extracting the guard-detection logic into a
+shared helper (per Required Changes) and adding the new check functions plus their
+`main()` calls — do not otherwise reorganize the file. Keep new checks conservative
+(favor missing a real case over flagging a false positive), consistent with this
+tool's current "Partial" rollout status.
 
 ## Traceability
 - **Workflow phase**: issue-creator
