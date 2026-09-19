@@ -104,10 +104,10 @@ A `--fix` write mode; classifying all existing documents in this Plan.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on seq 02's `class_enum` existing |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests live in seq 07's document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `tools/`-scoped lighter sequence |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs/*.md reference required for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-122343 | 20260919-122343 | Depends on seq 02's `class_enum` existing |
+| 2 | Add or update tests per Validation plan | Completed | 20260919-122343 | 20260919-122343 | Tests live in seq 07's document |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-122343 | 20260919-122343 | `tools/`-scoped lighter sequence |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-122343 | 20260919-122343 | N/A: no docs/*.md reference required for this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
