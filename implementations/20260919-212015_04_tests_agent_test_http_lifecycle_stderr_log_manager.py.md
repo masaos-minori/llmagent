@@ -119,10 +119,10 @@ Revert this file's diff. No other file depends on these new test classes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's Implementation step 1 is itself the test addition |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only file, no documentation update |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260920-072300 | 20260920-072300 | Appended TestGetLogPath/TestForget/TestClear (7 new tests) after TestRotateLog, exactly as specified. |
+| 2 | Add or update tests per Validation plan | Completed | 20260920-072300 | 20260920-072300 | This document's Implementation step 1 is itself the test addition. `pytest tests/agent/test_http_lifecycle_stderr_log_manager.py -v`: 23 passed (16 existing + 7 new), 0 failures. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260920-072300 | 20260920-072300 | ruff format/check clean; pyright clean (0 errors). mypy/bandit/lint-imports not applicable to tests/ scope per `rules/toolchain.md`. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260920-072300 | 20260920-072300 | N/A: test-only file, no documentation update in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
