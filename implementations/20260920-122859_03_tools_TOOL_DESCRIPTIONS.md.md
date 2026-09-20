@@ -85,10 +85,10 @@ after the sibling `seq` 01 procedure lands) matches the stated count.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | N/A: no test suite applies to a Markdown documentation-count change | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | N/A: no further documentation update needed beyond this file itself | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260920-134553 | 20260920-134553 | Both lines confirmed unchanged at 15カテゴリ/15種 before edit. Applied both Edits. |
+| 2 | N/A: no test suite applies to a Markdown documentation-count change | Completed | 20260920-134553 | 20260920-134553 | N/A: no test suite applies to a Markdown documentation-count change. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260920-134553 | 20260920-134553 | Direct Read confirms both lines now state 16カテゴリ/16種; new category named as 16th item; actual check_* count in tools/check_docs_content_policy.py confirmed 16 (matches). |
+| 4 | N/A: no further documentation update needed beyond this file itself | Completed | 20260920-134553 | 20260920-134553 | N/A: no further documentation update needed beyond this file itself. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
