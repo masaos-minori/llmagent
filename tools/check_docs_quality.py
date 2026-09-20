@@ -66,6 +66,15 @@ _HISTORICAL_MARKERS: frozenset[str] = frozenset(
     {"legacy", "historical", "archive only", "resolved", "was:", "removed"}
 )
 
+# Minimum tokenized-word count for a section to be eligible for cross-file
+# similarity comparison. Empirically justified: full-corpus review found the
+# dominant noise source was templated placeholder bodies (e.g. a "Keywords"
+# section containing only "configuration", or an "Operational Notes"/"Known
+# Limitations" section containing only "- Unknown") trivially matching any
+# other section sharing that single word at 100% Jaccard similarity. Within-
+# file comparison is unaffected by this threshold (see check_content_similarity).
+_MIN_CROSS_FILE_TOKEN_COUNT = 10
+
 _SENTENCE_BOUNDARY = re.compile(r"[.!?:]")
 
 
@@ -101,19 +110,20 @@ def _find_sentences(line: str) -> list[str]:
 # Content similarity helpers
 # ---------------------------------------------------------------------------
 
-def _compute_section_similarity(
-    section_a_text: str, section_b_text: str, *, threshold: float = 0.85
+
+def _tokenize_for_similarity(text: str) -> set[str]:
+    """Tokenize section body text for Jaccard similarity comparison: strip
+    fenced and inline code, then lowercase alphanumeric words."""
+    text = re.sub(r"```[\s\S]*?```", "", text)
+    text = re.sub(r"`[^`]+`", "", text)
+    words = re.findall(r"[a-z0-9]+", text.lower())
+    return set(words)
+
+
+def _jaccard_similarity_above(
+    set_a: set[str], set_b: set[str], *, threshold: float = 0.85
 ) -> bool:
-    """Return True if the two section texts overlap above the given threshold."""
-    def tokenize(text: str) -> set[str]:
-        text = re.sub(r'```[\s\S]*?```', '', text)
-        text = re.sub(r'`[^`]+`', '', text)
-        words = re.findall(r'[a-z0-9]+', text.lower())
-        return set(words)
-
-    set_a = tokenize(section_a_text)
-    set_b = tokenize(section_b_text)
-
+    """Return True if the two pre-tokenized word sets overlap above threshold."""
     if not set_a or not set_b:
         return False
 
@@ -126,10 +136,19 @@ def _compute_section_similarity(
     return (intersection / union) >= threshold
 
 
+def _compute_section_similarity(
+    section_a_text: str, section_b_text: str, *, threshold: float = 0.85
+) -> bool:
+    """Return True if the two section texts overlap above the given threshold."""
+    set_a = _tokenize_for_similarity(section_a_text)
+    set_b = _tokenize_for_similarity(section_b_text)
+    return _jaccard_similarity_above(set_a, set_b, threshold=threshold)
+
+
 def _extract_sections(content: str) -> list[dict]:
     """Extract sections from markdown content, returning list of dicts with 'heading', 'body', 'line' keys."""
     sections = []
-    lines = content.split('\n')
+    lines = content.split("\n")
     current_heading = None
     current_body_lines: list[str] = []
     current_line: int | None = None
@@ -138,11 +157,13 @@ def _extract_sections(content: str) -> list[dict]:
         match = re.match(r"^(#{1,6})\s+(.+)$", line)
         if match:
             if current_heading is not None:
-                sections.append({
-                    "heading": current_heading.strip(),
-                    "body": "\n".join(current_body_lines).strip(),
-                    "line": current_line,
-                })
+                sections.append(
+                    {
+                        "heading": current_heading.strip(),
+                        "body": "\n".join(current_body_lines).strip(),
+                        "line": current_line,
+                    }
+                )
             current_heading = match.group(2)
             current_line = idx
             current_body_lines = []
@@ -150,11 +171,13 @@ def _extract_sections(content: str) -> list[dict]:
             current_body_lines.append(line)
 
     if current_heading is not None:
-        sections.append({
-            "heading": current_heading.strip(),
-            "body": "\n".join(current_body_lines).strip(),
-            "line": current_line,
-        })
+        sections.append(
+            {
+                "heading": current_heading.strip(),
+                "body": "\n".join(current_body_lines).strip(),
+                "line": current_line,
+            }
+        )
 
     return sections
 
@@ -486,7 +509,13 @@ def check_duplicate_heading_numbers(
     "Sections within the same document with overlapping body text above threshold",
 )
 def check_content_similarity(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
-    """Flag sections within the same document whose body text overlaps above threshold."""
+    """Flag sections within the same document whose body text overlaps above
+    threshold. Also flags sections across different documents whose body text
+    overlaps above the same threshold (e.g. a governance rule copied
+    verbatim into a second document — see
+    docs/00_governance_01_documentation-policy.md's 'Merge Conditions' vs.
+    docs/00_governance_04_documentation-checks.md's 'Merge Condition
+    Validation' for a confirmed real-world example)."""
     issues: list[Issue] = []
     for doc in files:
         try:
@@ -509,6 +538,46 @@ def check_content_similarity(docs_dir: Path, files: list[DocFile]) -> list[Issue
                             f"Content similarity detected between sections '{sections[i]['heading']}' and '{sections[j]['heading']}'",
                         )
                     )
+
+    # Pre-tokenize each non-empty section exactly once (instead of inside the
+    # O(files^2 * sections^2) comparison loop below) — re-tokenizing on every
+    # pairwise comparison made a full-corpus run take ~2.5 minutes instead of
+    # ~2 seconds; tokenizing once per section and comparing cached word sets
+    # keeps the same Jaccard-similarity semantics at a fraction of the cost.
+    doc_tokenized_sections: list[tuple[DocFile, list[tuple[dict, set[str]]]]] = []
+    for doc in files:
+        try:
+            content = doc.path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        sections = _extract_sections(content)
+        tokenized = []
+        for sec in sections:
+            if not sec["body"]:
+                continue
+            tokens = _tokenize_for_similarity(sec["body"])
+            if len(tokens) < _MIN_CROSS_FILE_TOKEN_COUNT:
+                continue
+            tokenized.append((sec, tokens))
+        doc_tokenized_sections.append((doc, tokenized))
+
+    for a in range(len(doc_tokenized_sections)):
+        doc_a, sections_a = doc_tokenized_sections[a]
+        for b in range(a + 1, len(doc_tokenized_sections)):
+            doc_b, sections_b = doc_tokenized_sections[b]
+            for sec_a, tokens_a in sections_a:
+                for sec_b, tokens_b in sections_b:
+                    if _jaccard_similarity_above(tokens_a, tokens_b):
+                        issues.append(
+                            Issue(
+                                doc_b.rel_path,
+                                sec_b["line"],
+                                "WARNING",
+                                f"Content similarity detected between "
+                                f"{doc_a.rel_path}#'{sec_a['heading']}' and "
+                                f"{doc_b.rel_path}#'{sec_b['heading']}'",
+                            )
+                        )
     return issues
 
 

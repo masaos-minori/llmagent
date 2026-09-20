@@ -26,7 +26,9 @@ _KNOWN_DEFECT_PATH = (
 )
 
 
-def _make_doc_file(content: str, path: Path | None = None) -> object:
+def _make_doc_file(
+    content: str, path: Path | None = None, tmp_name: str = ".tmp_test_doc.md"
+) -> object:
     """Construct an object that behaves like DocFile for check functions."""
 
     class FakeDocFile:
@@ -36,10 +38,10 @@ def _make_doc_file(content: str, path: Path | None = None) -> object:
                 self.path = path
                 self.rel_path = str(path.relative_to(_ROOT_DIR / "docs"))
             else:
-                tmp = _ROOT_DIR / ".tmp_test_doc.md"
+                tmp = _ROOT_DIR / tmp_name
                 tmp.write_text(content, encoding="utf-8")
                 self.path = tmp
-                self.rel_path = ".tmp_test_doc.md"
+                self.rel_path = tmp_name
 
     return FakeDocFile(content, path)
 
@@ -180,6 +182,46 @@ class TestContentSimilarity:
         assert len(issues) >= 1
 
 
+class TestContentSimilarityCrossFile:
+    def test_true_positive_cross_file_overlap(self):
+        """Two different documents sharing a near-duplicate section body → expect cross-file Issue."""
+        common_text = (
+            "This is boilerplate content that appears in many documents. "
+            "It describes the purpose and scope of the section."
+        )
+        content_a = f"# Title A\n\n## Section One\n\n{common_text}"
+        content_b = f"# Title B\n\n## Section Two\n\n{common_text}"
+        doc_a = _make_doc_file(content_a, tmp_name=".tmp_test_doc_a.md")
+        doc_b = _make_doc_file(content_b, tmp_name=".tmp_test_doc_b.md")
+        try:
+            issues = check_content_similarity(_DOCS_DIR, [doc_a, doc_b])
+            assert len(issues) >= 1
+            assert any(
+                doc_a.rel_path in issue.message and doc_b.rel_path in issue.message
+                for issue in issues
+            )
+        finally:
+            (_ROOT_DIR / ".tmp_test_doc_a.md").unlink(missing_ok=True)
+            (_ROOT_DIR / ".tmp_test_doc_b.md").unlink(missing_ok=True)
+
+    def test_false_positive_cross_file_unrelated(self):
+        """Two different documents with unrelated content → no cross-file Issue."""
+        content_a = (
+            "# Title A\n\n## Section One\n\nCompletely unrelated discussion of widgets."
+        )
+        content_b = (
+            "# Title B\n\n## Section Two\n\nA totally different discussion of gadgets."
+        )
+        doc_a = _make_doc_file(content_a, tmp_name=".tmp_test_doc_a.md")
+        doc_b = _make_doc_file(content_b, tmp_name=".tmp_test_doc_b.md")
+        try:
+            issues = check_content_similarity(_DOCS_DIR, [doc_a, doc_b])
+            assert issues == []
+        finally:
+            (_ROOT_DIR / ".tmp_test_doc_a.md").unlink(missing_ok=True)
+            (_ROOT_DIR / ".tmp_test_doc_b.md").unlink(missing_ok=True)
+
+
 # ---------------------------------------------------------------------------
 # Integration tests
 # ---------------------------------------------------------------------------
@@ -228,3 +270,33 @@ class TestRegressionFullDocsTree:
                 assert "duplicate" not in line.lower(), (
                     f"False positive on numeric subsection: {line}"
                 )
+
+    def test_cross_file_duplication_detected_on_full_docs_tree(self):
+        """Run the extended checker against the full docs/ tree → confirm the
+        within-file finding count is unchanged and the known governance_01/
+        governance_04 duplication is now detected cross-file."""
+        if not _DOCS_DIR.exists():
+            pytest.skip(f"Docs directory not found: {_DOCS_DIR}")
+
+        result = subprocess.run(
+            [sys.executable, "-m", "tools.check_docs_quality"],
+            capture_output=True,
+            text=True,
+            cwd=str(_ROOT_DIR),
+        )
+        output = result.stdout + result.stderr
+
+        within_file_count = output.count(
+            "Content similarity detected between sections '"
+        )
+        assert within_file_count == 206, (
+            f"Expected 206 within-file content-similarity findings (Plan baseline), "
+            f"got {within_file_count}"
+        )
+
+        assert (
+            "00_governance_01_documentation-policy.md" in output
+            and "00_governance_04_documentation-checks.md" in output
+        ), (
+            "Expected a cross-file finding between the known governance_01/governance_04 duplication"
+        )
