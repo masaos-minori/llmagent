@@ -175,9 +175,9 @@ it was newly added) leaves every existing test in this file unaffected.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_apply_policy_keeps_hidden_tool_disabled_when_allowed` | Pending | — | — | |
-| 2 | Add `test_apply_policy_logs_warning_when_hidden_tool_would_otherwise_be_enabled` and `test_apply_policy_does_not_log_warning_for_visible_tool` | Pending | — | — | |
-| 3 | Run `uv run pytest tests/shared/test_runtime_tool_registry.py -v` (after Row 1 lands) and lint/type checks | Pending | — | — | |
+| 1 | Add `test_apply_policy_keeps_hidden_tool_disabled_when_allowed` | Completed | 20260920-211035 | 20260920-211035 |  |
+| 2 | Add `test_apply_policy_logs_warning_when_hidden_tool_would_otherwise_be_enabled` and `test_apply_policy_does_not_log_warning_for_visible_tool` | Completed | 20260920-211035 | 20260920-211035 |  |
+| 3 | Run `uv run pytest tests/shared/test_runtime_tool_registry.py -v` (after Row 1 lands) and lint/type checks | Completed | 20260920-211035 | 20260920-211035 | 31/31 tests pass in test_runtime_tool_registry.py; 56/56 pass in test_config_reload.py regression check |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
