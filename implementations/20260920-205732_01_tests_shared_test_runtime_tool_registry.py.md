@@ -202,9 +202,9 @@ unaffected.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_apply_policy_leaves_tools_unchanged_when_build_raises` | Pending | — | — | |
-| 2 | Add `test_apply_policy_swap_never_exposes_mixed_state_to_concurrent_reader` | Pending | — | — | |
-| 3 | Run full test file multiple times to check for flakiness, plus lint/type checks | Pending | — | — | |
+| 1 | Add `test_apply_policy_leaves_tools_unchanged_when_build_raises` | Completed | 20260920-211647 | 20260920-211647 |  |
+| 2 | Add `test_apply_policy_swap_never_exposes_mixed_state_to_concurrent_reader` | Completed | 20260920-211647 | 20260920-211647 |  |
+| 3 | Run full test file multiple times to check for flakiness, plus lint/type checks | Completed | 20260920-211647 | 20260920-211647 | 33/33 tests pass; concurrency test re-run 10x with no flakiness; fixed a mypy type-var error with a justified type:ignore comment |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
