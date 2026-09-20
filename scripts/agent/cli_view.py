@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from agent.commands.output_port import CliOutputPort, OutputPort
-from agent.output_tags import OutputTag
 
 logger = logging.getLogger(__name__)
 

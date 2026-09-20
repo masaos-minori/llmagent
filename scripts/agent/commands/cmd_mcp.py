@@ -21,6 +21,7 @@ from agent.services.enums import McpAvailability
 from agent.services.mcp_status import TIER_LABELS, McpStatusService
 from agent.services.models import McpProbeResult
 from agent.shared.health_models import interpret_health_body
+
 logger = logging.getLogger(__name__)
 
 
@@ -97,8 +98,16 @@ class _McpMixin(MixinBase):
         self._out.write("")
         rows = await svc.probe_all()
         mcp_headers = [
-            "SERVER", "TRANS", "MODE", "AUTH", "WRITE", "ROLE",
-            "STATUS", "LIFECYCLE", "PID", "ENDPOINT/CMD",
+            "SERVER",
+            "TRANS",
+            "MODE",
+            "AUTH",
+            "WRITE",
+            "ROLE",
+            "STATUS",
+            "LIFECYCLE",
+            "PID",
+            "ENDPOINT/CMD",
         ]
         mcp_rows: list[list[str]] = []
         for r in rows:
@@ -109,18 +118,20 @@ class _McpMixin(MixinBase):
             )
             lifecycle_display = str(r.lifecycle_state) if r.lifecycle_state else "-"
             pid_display = str(r.pid) if r.pid is not None else "-"
-            mcp_rows.append([
-                r.key,
-                r.transport,
-                r.startup_mode,
-                "yes" if r.auth else "no",
-                TIER_LABELS.get(r.tier, r.tier.value),
-                role_display,
-                f"{r.availability.value}/{r.health}",
-                lifecycle_display,
-                pid_display,
-                r.endpoint,
-            ])
+            mcp_rows.append(
+                [
+                    r.key,
+                    r.transport,
+                    r.startup_mode,
+                    "yes" if r.auth else "no",
+                    TIER_LABELS.get(r.tier, r.tier.value),
+                    role_display,
+                    f"{r.availability.value}/{r.health}",
+                    lifecycle_display,
+                    pid_display,
+                    r.endpoint,
+                ]
+            )
         self._out.write_table(mcp_headers, mcp_rows)
         _UNREACHABLE = {
             McpAvailability.FAIL,
@@ -192,21 +203,27 @@ class _McpMixin(MixinBase):
                 self._out.write("")
                 self._out.write("  Tools (RuntimeToolRegistry):")
                 diag_headers = [
-                    "NAME", "SERVER", "CONFIG_DEP", "ENABLED",
-                    "DISABLED_REASON", "LLM_VISIBLE",
+                    "NAME",
+                    "SERVER",
+                    "CONFIG_DEP",
+                    "ENABLED",
+                    "DISABLED_REASON",
+                    "LLM_VISIBLE",
                 ]
                 diag_list: list[list[str]] = []
                 for row in diag_rows:
                     name_display = row.get("name", "-")
                     marker = "[DISABLED] " if not row.get("enabled", True) else ""
-                    diag_list.append([
-                        f"{marker}{name_display}",
-                        row.get("server_key", "-"),
-                        str(row.get("config_dependent", "-")),
-                        str(row.get("enabled", "-")),
-                        row.get("disabled_reason", "-") or "-",
-                        str(row.get("enabled_for_llm", "-")),
-                    ])
+                    diag_list.append(
+                        [
+                            f"{marker}{name_display}",
+                            row.get("server_key", "-"),
+                            str(row.get("config_dependent", "-")),
+                            str(row.get("enabled", "-")),
+                            row.get("disabled_reason", "-") or "-",
+                            str(row.get("enabled_for_llm", "-")),
+                        ]
+                    )
                 self._out.write_table(diag_headers, diag_list)
 
     async def _cmd_mcp(self, args: str = "") -> None:
@@ -235,19 +252,25 @@ class _McpMixin(MixinBase):
             self._out.write("  No tools registered.")
             return
         diag_headers = [
-            "NAME", "SERVER", "CONFIG_DEP", "ENABLED",
-            "DISABLED_REASON", "LLM_VISIBLE",
+            "NAME",
+            "SERVER",
+            "CONFIG_DEP",
+            "ENABLED",
+            "DISABLED_REASON",
+            "LLM_VISIBLE",
         ]
         diag_list: list[list[str]] = []
         for row in diag_rows:
             name_display = row.get("name", "-")
             marker = "[DISABLED] " if not row.get("enabled", True) else ""
-            diag_list.append([
-                f"{marker}{name_display}",
-                row.get("server_key", "-"),
-                str(row.get("config_dependent", "-")),
-                str(row.get("enabled", "-")),
-                row.get("disabled_reason", "-") or "-",
-                str(row.get("enabled_for_llm", "-")),
-            ])
+            diag_list.append(
+                [
+                    f"{marker}{name_display}",
+                    row.get("server_key", "-"),
+                    str(row.get("config_dependent", "-")),
+                    str(row.get("enabled", "-")),
+                    row.get("disabled_reason", "-") or "-",
+                    str(row.get("enabled_for_llm", "-")),
+                ]
+            )
         self._out.write_table(diag_headers, diag_list)

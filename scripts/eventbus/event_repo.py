@@ -9,20 +9,7 @@ import orjson
 
 logger = logging.getLogger(__name__)
 
-# Shared column constants
-from eventbus._constants import (
-    _COL_EVENT_ID,
-    _COL_SEQ,
-    _COL_ACKED_AT,
-    _COL_DLQ_AT,
-    _COL_DELIVERY_FAILURE_COUNT,
-    _COL_CYCLE_FAILURE_COUNT,
-    _COL_DLQ_REQUEUE_COUNT,
-    _COL_REDISTRIBUTED_FROM,
-    _COL_CONSUMER_DELIVERY_FAILURE_COUNT,
-    _COL_CONSUMER_ID,
-    _COL_OFFSET,
-)
+
 
 
 def _canonical_payload(payload_str: str) -> bytes:

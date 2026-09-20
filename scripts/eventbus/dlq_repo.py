@@ -10,12 +10,11 @@ logger = logging.getLogger(__name__)
 
 # Shared column constants
 from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a circular import with eventbus._constants
-    _COL_DLQ_AT,
-    _COL_EVENT_ID,
-    _COL_DLQ_REQUEUE_COUNT,
-    _COL_REDISTRIBUTED_FROM,
-    _COL_DELIVERY_FAILURE_COUNT,
     _COL_CYCLE_FAILURE_COUNT,
+    _COL_DELIVERY_FAILURE_COUNT,
+    _COL_DLQ_AT,
+    _COL_DLQ_REQUEUE_COUNT,
+    _COL_EVENT_ID,
 )
 
 
