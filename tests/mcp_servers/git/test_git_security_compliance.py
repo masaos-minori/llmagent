@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import stat
 import tempfile
 from pathlib import Path
@@ -11,7 +12,27 @@ from fastapi.testclient import TestClient
 from mcp_servers.git.git_models import GitConfig
 from mcp_servers.git.git_service import GitService
 from mcp_servers.git.repository_state import RepositoryState
-import copy
+
+
+@pytest.fixture(autouse=True)
+def _disable_dispatch_duplicate_cache(monkeypatch):
+    """Disable mcp_servers.dispatch's idempotency-key duplicate-cache for every
+    test in this file.
+
+    None of this file's live-HTTP tests set an `x-idempotency-key` header, so
+    every side-effecting tool call (git_add/git_commit/git_checkout/git_pull/
+    git_push) resolves to the same empty-string key. dispatch_tool() caches
+    the first such call's result (success or failure) under that key and
+    replays it verbatim for every later side-effecting call in the process —
+    including a second call within the same test, and every call in every
+    later test — regardless of tool name, repo path, or branch. Disabling the
+    side-effecting classification here (rather than only clearing the cache
+    between tests) also covers a single test that makes two sequential
+    side-effecting calls of its own (e.g. "denied then allowed").
+    """
+    import mcp_servers.dispatch as dispatch
+
+    monkeypatch.setattr(dispatch, "_is_side_effecting", lambda name: False)
 
 
 class TestGitSecurityCompliance:
@@ -1780,6 +1801,15 @@ class TestNewlyReachableToolsViaHTTP:
     @pytest.fixture
     def enabled(self, repo_dir):
         from scripts.mcp_servers.git import git_server
+
+        # Snapshot BEFORE mutating so restore returns to the true prior state
+        # (whatever it was before this fixture ran), not to this fixture's own
+        # test-scoped baseline — snapshotting after setup left _cfg/_service
+        # permanently zeroed out (protected_branches=[], etc.) for every test
+        # that ran afterward in the same session, once any test using this
+        # fixture had run at all.
+        cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
+        svc_snap = copy.deepcopy(git_server._service.__dict__)
         # Modify attributes IN PLACE (app holds refs to these objects)
         git_server._cfg.allowed_repo_paths = [str(repo_dir)]
         git_server._cfg.read_only = False
@@ -1789,9 +1819,6 @@ class TestNewlyReachableToolsViaHTTP:
         git_server._service._read_only = False
         git_server._service._protected_branches = []
         git_server._service._allow_detached_head = False
-        # Snapshot AFTER setup so restore goes back to clean state
-        cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
-        svc_snap = copy.deepcopy(git_server._service.__dict__)
         try:
             yield
         finally:
@@ -1885,6 +1912,15 @@ class TestRemoteAuthorizationViaHTTP:
     @pytest.fixture
     def enabled(self, repo_dir):
         from scripts.mcp_servers.git import git_server
+
+        # Snapshot BEFORE mutating so restore returns to the true prior state
+        # (whatever it was before this fixture ran), not to this fixture's own
+        # test-scoped baseline — snapshotting after setup left _cfg/_service
+        # permanently zeroed out (protected_branches=[], etc.) for every test
+        # that ran afterward in the same session, once any test using this
+        # fixture had run at all.
+        cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
+        svc_snap = copy.deepcopy(git_server._service.__dict__)
         # Modify attributes IN PLACE (app holds refs to these objects)
         git_server._cfg.allowed_repo_paths = [str(repo_dir)]
         git_server._cfg.read_only = False
@@ -1894,9 +1930,6 @@ class TestRemoteAuthorizationViaHTTP:
         git_server._service._read_only = False
         git_server._service._protected_branches = []
         git_server._service._allow_detached_head = False
-        # Snapshot AFTER setup so restore goes back to clean state
-        cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
-        svc_snap = copy.deepcopy(git_server._service.__dict__)
         try:
             yield
         finally:
@@ -2038,6 +2071,15 @@ class TestGitServiceErrorHandlerIdentity:
     @pytest.fixture
     def enabled(self, repo_dir):
         from scripts.mcp_servers.git import git_server
+
+        # Snapshot BEFORE mutating so restore returns to the true prior state
+        # (whatever it was before this fixture ran), not to this fixture's own
+        # test-scoped baseline — snapshotting after setup left _cfg/_service
+        # permanently zeroed out (protected_branches=[], etc.) for every test
+        # that ran afterward in the same session, once any test using this
+        # fixture had run at all.
+        cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
+        svc_snap = copy.deepcopy(git_server._service.__dict__)
         # Modify attributes IN PLACE (app holds refs to these objects)
         git_server._cfg.allowed_repo_paths = [str(repo_dir)]
         git_server._cfg.read_only = False
@@ -2047,9 +2089,6 @@ class TestGitServiceErrorHandlerIdentity:
         git_server._service._read_only = False
         git_server._service._protected_branches = []
         git_server._service._allow_detached_head = False
-        # Snapshot AFTER setup so restore goes back to clean state
-        cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
-        svc_snap = copy.deepcopy(git_server._service.__dict__)
         try:
             yield
         finally:
