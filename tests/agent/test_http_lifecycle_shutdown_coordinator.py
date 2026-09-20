@@ -23,6 +23,11 @@ class TestShutdownCoordinatorShutdownAll:
         mgr.cleanup_server_key = Mock()
         mgr.remove_process_entry = Mock()
         mgr.clear_all_health_checks = Mock()
+        
+        def iter_processes():
+            yield from mgr._http_procs.items()
+        
+        mgr.iter_processes = iter_processes
         return mgr
 
     @pytest.fixture

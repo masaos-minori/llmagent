@@ -16,6 +16,10 @@ import time
 
 logger = logging.getLogger(__name__)
 
+# Note: _TERMINATE_POLL_INTERVAL_SEC (0.05) in http_lifecycle.py serves a different
+# purpose than this constant. The former is used by _wait_exited() which polls
+# proc.poll() in the main event loop; this one is used by ProcessTerminator.wait_exited()
+# which polls via os.killpg(). Different semantics require different defaults.
 _DEFAULT_TERMINATE_POLL_INTERVAL_SEC: float = 0.1
 
 

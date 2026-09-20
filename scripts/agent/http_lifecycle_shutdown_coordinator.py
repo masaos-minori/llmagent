@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from agent.http_lifecycle import HttpServerLifecycleManager
-    from agent.http_lifecycle_process_terminator import ProcessTerminator
 
 _SHUTDOWN_TIMEOUT_SEC = 30.0
 _KILL_TIMEOUT_SEC = 5.0
@@ -85,9 +84,8 @@ class ShutdownCoordinator:
                 logger.debug("Lifecycle: could not set SIGINT guard handler")
 
         try:
-            procs = manager._http_procs
             terminator = terminator or manager.process_terminator
-            for server_key, proc in list(procs.items()):
+            for server_key, proc in list(manager.iter_processes()):
                 if proc is None:
                     continue
                 # Pop before termination to avoid double-shutdown if terminated fails

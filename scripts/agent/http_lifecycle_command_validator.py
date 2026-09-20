@@ -2,8 +2,8 @@
 
 Command validation for HTTP subprocess MCP servers.
 
-Owns allowlist/symlink-resolution/regular-file checks currently inline in
-HttpServerLifecycleManager.start(). Enables independent unit testing of
+HttpServerLifecycleManager delegates all command validation operations to this module.
+Owning allowlist/symlink-resolution/regular-file checks enables independent unit testing of
 security-critical validation logic.
 """
 

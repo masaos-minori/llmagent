@@ -2,6 +2,7 @@
 
 HTTP health check for verifying server readiness.
 
+HttpServerLifecycleManager delegates all health check operations to this module.
 Timeout values are passed as parameters rather than imported from
 http_lifecycle.py to avoid circular imports.
 """

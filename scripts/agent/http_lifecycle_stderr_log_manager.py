@@ -2,8 +2,8 @@
 
 Stderr log management for HTTP subprocess MCP servers.
 
-Owns stderr log rotation logic currently inline in HttpServerLifecycleManager.start().
-Enables independent unit testing of log management behavior.
+HttpServerLifecycleManager delegates all stderr log operations to this module.
+Owning stderr log rotation logic enables independent unit testing of log management behavior.
 """
 
 from __future__ import annotations

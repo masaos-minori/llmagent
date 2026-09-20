@@ -30,7 +30,7 @@ import subprocess  # nosec B404 — used to launch admin-controlled MCP server p
 import time
 from dataclasses import asdict
 from http import HTTPStatus
-from typing import IO, Any, NoReturn, cast
+from typing import IO, Any, Iterator, NoReturn, cast
 
 import httpx
 from shared.mcp_config import McpServerConfig
@@ -235,6 +235,16 @@ class HttpServerLifecycleManager:
             for key in list(self._http_procs.keys())
             if (snap := self.get_process_info(key)) is not None
         ]
+
+    def iter_processes(self) -> Iterator[tuple[str, subprocess.Popen[bytes]]]:
+        """Yield (server_key, proc) pairs for all managed HTTP subprocess servers.
+        
+        This method provides controlled access to managed processes without
+        exposing the internal `_http_procs` dictionary directly. Callers receive
+        an iterator and cannot modify the underlying dictionary.
+        """
+        for key, proc in self._http_procs.items():
+            yield key, proc
 
     async def _interruptible_poll_sleep(
         self, delay: float, shutdown_event: asyncio.Event | None
