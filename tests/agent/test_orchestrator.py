@@ -114,7 +114,17 @@ def _patch_workflow_loader():
             return_value=mock_engine_instance,
         ),
     ):
-        mock_loader.return_value.load.return_value = MagicMock(version="test-v1")
+        _default_wdef = WorkflowDef(
+            name="default",
+            version="test-v1",
+            stages=[
+                StageDefinition(id="plan", timeout_sec=60, retryable=False),
+                StageDefinition(id="execute", timeout_sec=60, retryable=True),
+                StageDefinition(id="verify", timeout_sec=60, retryable=False),
+            ],
+            retry_policy=RetryPolicy(max_attempts=3, backoff_sec=1),
+        )
+        mock_loader.return_value.load.return_value = _default_wdef
         yield mock_loader
 
 
