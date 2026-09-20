@@ -218,10 +218,10 @@ file after running them; the 17 existing tests still pass unmodified.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260920 | 20260920 | All 3 Method edits applied verbatim per Procedure: `_make_doc_file` extended with `tmp_name` param, `TestContentSimilarityCrossFile` class (2 tests) added, `test_cross_file_duplication_detected_on_full_docs_tree` appended to `TestRegressionFullDocsTree`. `within_file_count == 206` assertion confirmed to match the sibling procedure's actual Step 4 full-tree review outcome — no discrepancy. |
+| 2 | Add or update tests per Validation plan | Completed | 20260920 | 20260920 | 3 new tests added as specified (REQ-002). One deviation from the Procedure's literal code: removed the `# type: ignore[arg-type]` comment from the 2 new `TestContentSimilarityCrossFile` calls (mypy reported them as unused — the pre-existing 9 identical comments elsewhere in this file are also unused/pre-existing and out of scope to fix, but new code should not add 2 more instances of an already-broken pattern). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260920 | 20260920 | ruff format/check: clean. mypy: 9 pre-existing "Unused type: ignore" errors unchanged from baseline (confirmed via `git stash` diff — pre-existing/unrelated, Step-Level Failure Triage), 0 new. vulture --min-confidence 80: no findings. bandit: 30 Low/High-confidence findings (B101 assert_used, B603 subprocess) — same categories present in every test file in this repo including this file's pre-existing baseline (confirmed exit code 1 pre-existing too); not a regression. radon: average A(2.93) across 27 blocks. `uv run pytest tests/tools/test_check_docs_quality.py -v`: 20 passed (17 existing + 3 new), 0 failed. `git status --short`: no new untracked file left after the test run (try/finally cleanup confirmed working). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260920 | 20260920 | N/A — test-only change, no documentation update in scope per Compatibility considerations/Out of scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
