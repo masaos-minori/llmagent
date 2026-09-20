@@ -256,30 +256,14 @@ only.
 
 ### 13. Merge Condition Validation
 
-Before merging any change:
-
-**Blocking conditions (prevent merge):**
-- Critical open issue exists in affected area
-- RACI approval not obtained from accountable party
-- Canonical source conflict unresolved
-- Test suite failing
-
-**Non-blocking conditions (allow merge with warning):**
-- High-severity open issue exists in affected area
-- Documentation outdated but code is correct
-- Config drift detected but no behavioral impact
-- Removed-name reintroduction detected by `check_compat_shims.py --check-removed-names` (`GV-020`), without an approved temporary exception (`docs/00_governance_03_issue-and-uncertainty-management.md`)
+Merge is gated on [Policy's Merge Conditions](00_governance_01_documentation-policy.md#merge-conditions)
+(Blocking/Non-Blocking conditions and the Merge Workflow) — see that
+section for the full list, including the `GV-020`-specific
+removed-name-reintroduction condition this checker enforces.
 
 A `GV-020` finding is not itself blocking, but every finding must be resolved or
 covered by an approved temporary exception before merge — an unexplained finding
 left neither fixed nor excepted is treated as incomplete review, not a passing PR.
-
-**Merge workflow:**
-1. Check blocking conditions — if any fail, reject merge
-2. If non-blocking conditions exist, add warning to PR description
-3. Obtain RACI approval from accountable party
-4. Resolve canonical source conflicts before merging
-5. Verify test suite passes before merging
 
 ### 14. Cross-Area Reference Validation
 
@@ -382,40 +366,14 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
 
 ## Change Impact Assessment
 
-To determine which documents are affected by a change:
-
-1. Identify the change category (architecture, configuration, command, behavioral, deployment, governance-policy, documentation-only)
-2. Select which relation type governs the change, by category:
-   - Architecture, behavioral, or command changes → Software Runtime Dependency Graph
-   - Deployment changes → Deployment Management Graph
-   - Documentation-only changes → Documentation Reference Graph
-   - Governance-policy changes → Governance Applicability Matrix
-   - Configuration or API changes → continue to use the existing Canonical Source
-     Precedence matrix (Decision Target Canonical Source Matrix); no separate
-     Configuration Ownership Map or API Consumer Map exists (tracked as a Needs
-     Confirmation entry in `docs/00_governance_03_issue-and-uncertainty-management.md`)
-
-   Map the change to the areas or components covered by the selected graph or matrix.
-3. List all documents in affected areas that reference the changed element
-4. Prioritize updates by document class priority: Specification > Guide > Reference > Operations > Note
-
-### Change-Impact Matrix
-
-| Change Type | Architecture Impact | Config Impact | Behavior Impact | Doc-Only Impact | Approval Required |
-|-------------|---------------------|---------------|-----------------|-----------------|-------------------|
-| Architecture | High | Medium | High | Low | Yes (RACI) |
-| Config | Low | High | Medium | Low | Yes (Owner) |
-| Behavior | Medium | Low | High | Low | Yes (RACI) |
-| Doc-Only | Low | Low | Low | High | No |
+See [Policy's Change Impact Rule and Change-Impact Matrix](00_governance_01_documentation-policy.md#change-impact-rule)
+for the full procedure and matrix determining which documents are
+affected by a change.
 
 ## Review Gate Conditions
 
-The following conditions require review before merging:
-
-- Any change to Governance-class documents
-- Any change affecting more than three area documents simultaneously
-- Any change that removes or renames a documented feature
-- Any change that alters cross-area relationships or dependencies
+See [Policy's Review Rule](00_governance_01_documentation-policy.md#review-rule)
+for the conditions that require review before merging.
 
 ## Maintenance Rules
 
