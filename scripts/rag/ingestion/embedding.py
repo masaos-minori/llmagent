@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 import httpx
-from rag.exceptions import IngestionFailureReason
+from rag.exceptions import ChunkFormatError, IngestionFailureReason
 from rag.ingestion.pipeline_utils import read_chunk_json
 from rag.models_data import PreparedChunk
 from rag.utils import floats_to_blob
@@ -74,7 +74,7 @@ class EmbeddingService:
         """Embed one chunk without DB access; returns PreparedChunk or failure reason."""
         try:
             data = read_chunk_json(path)
-        except Exception:
+        except ChunkFormatError:
             return IngestionFailureReason.PARSE_FAILED
         content: str = data.content
         nc_raw = data.normalized_content
