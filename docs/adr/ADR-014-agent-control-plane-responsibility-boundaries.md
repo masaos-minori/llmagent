@@ -19,13 +19,13 @@ Accepted
 
 ## Summary
 
-Workflow Engineは必須かつ唯一のWorkflow制御経路である（ADR-001）が、実際のAgent処理は`Orchestrator`、`LLMTurnRunner`、`ToolExecutor`、MCP Serverという複数のコンポーネントが層をなして構成しており、これらも実質的に処理順序や検証を担っている。本ADRは、これら5コンポーネントの責任境界を固定し、各コンポーネントが自身の層を超えて他層の責任（永続的業務状態の決定、tool call実行順序の管理、外部操作の技術的安全性判断など）を重複して保持しないことを定める。
+Workflow Engineは必須かつ唯一のWorkflow制御経路である（ADR-001）が、実際のAgent処理は`Orchestrator`、`LlmTurnExecutor`、`ToolExecutor`、MCP Serverという複数のコンポーネントが層をなして構成しており、これらも実質的に処理順序や検証を担っている。本ADRは、これら5コンポーネントの責任境界を固定し、各コンポーネントが自身の層を超えて他層の責任（永続的業務状態の決定、tool call実行順序の管理、外部操作の技術的安全性判断など）を重複して保持しないことを定める。
 
 ## Context
 
 ### Problem
 
-ADR-001はWorkflow Engineが必須かつ唯一のWorkflow制御経路であることを定めたが、Workflow Engine以外のコンポーネント（`Orchestrator`、`LLMTurnRunner`、`ToolExecutor`、MCP Server）が実際にどの責任を負うかは文書化されていなかった。責任境界が未文書化のまま実装が積み重なると、同じ責務（例: LLM/Tool呼び出しループの生成・保持）が複数コンポーネントに重複して現れたり、ある層が本来別の層が持つべき判断（例: Orchestratorが個別Tool呼び出しの安全性を判断する）を代行したりするリスクがある。実際、本ADR起草時の実装検証で、`Orchestrator`が使用されない`LLMTurnRunner`インスタンスを自身のコンストラクタで生成し、実際のLLM/Tool呼び出しループは`LlmTurnExecutor`が内部で独自に生成する別インスタンスによって処理されているという重複が見つかった（Known Deviations参照）。
+ADR-001はWorkflow Engineが必須かつ唯一のWorkflow制御経路であることを定めたが、Workflow Engine以外のコンポーネント（`Orchestrator`、`LlmTurnExecutor`、`ToolExecutor`、MCP Server）が実際にどの責任を負うかは文書化されていなかった。責任境界が未文書化のまま実装が積み重なると、同じ責務（例: LLM/Tool呼び出しループの生成・保持）が複数コンポーネントに重複して現れたり、ある層が本来別の層が持つべき判断（例: Orchestratorが個別Tool呼び出しの安全性を判断する）を代行したりするリスクがある。実際、本ADR起草時の実装検証で、`Orchestrator`が使用されない`LLMTurnRunner`インスタンスを自身のコンストラクタで生成し、実際のLLM/Tool呼び出しループは`LlmTurnExecutor`が内部で独自に生成する別インスタンスによって処理されているという重複が見つかった（Known Deviations参照）。
 
 ### Constraints
 
@@ -37,7 +37,7 @@ ADR-001はWorkflow Engineが必須かつ唯一のWorkflow制御経路である�
 
 - 対象環境: 単一Host、単一Agentプロセス
 - 信頼境界: Agentプロセス内でのみ権限を付与する（ADR-001と同じ）
-- 前提が崩れた場合に再評価が必要な事項: 複数Host構成、分散実行、コンポーネント構成の大幅な再設計（例: `LLMTurnRunner`と`ToolExecutor`の統合）
+- 前提が崩れた場合に再評価が必要な事項: 複数Host構成、分散実行、コンポーネント構成の大幅な再設計（例: `LlmTurnExecutor`と`ToolExecutor`の統合）
 
 ## Decision
 
@@ -47,27 +47,27 @@ ADR-001はWorkflow Engineが必須かつ唯一のWorkflow制御経路である�
 
    - **Workflow Engine**（`scripts/agent/workflow/workflow_engine.py`）: 永続的な業務状態（Task、Attempt）、stage遷移（`plan -> execute -> approval -> verify -> complete/failed`）、再試行、承認を担う。ADR-001が定める必須性・唯一性はそのまま維持する。
    - **Orchestrator**（`scripts/agent/orchestrator.py`）: 1ターン内の処理調停を担う。Workflow Engineへのタスク初期化・起動委譲、会話状態管理、監査イベント発行など、ターン単位で完結する調整のみを行い、永続的な業務状態の決定はWorkflow Engineに委譲する。
-   - **LLMTurnRunner**（`scripts/agent/llm_turn_runner.py`）: LLMとTool Callの短期ループ（1ターン内のストリーミングおよびTool呼び出し往復）を担う。このループの生成・保持は、実際にそのループを駆動するコンポーネント（現状は`LlmTurnExecutor`）に一元化し、他のコンポーネントが未使用のインスタンスを重複して保持しない。
-   - **ToolExecutor**（`scripts/shared/tool_executor.py`）: 1回のTool Call実行（gate確認、lifecycle確認、transport解決、実行記録）を担う。複数呼び出しにまたがる状態やターン単位の調停はOrchestrator/LLMTurnRunnerに委ねる。
+    - **LlmTurnExecutor**（`scripts/agent/llm_turn_executor.py`）: LLMとTool Callの短期ループ（1ターン内のストリーミングおよびTool呼び出し往復）を担う。このループの生成・保持は、実際にそのループを駆動するコンポーネント（現状は`LlmTurnExecutor`）に一元化し、他のコンポーネントが未使用のインスタンスを重複して保持しない。
+    - **ToolExecutor**（`scripts/shared/tool_executor.py`）: 1回のTool Call実行（gate確認、lifecycle確認、transport解決、実行記録）を担う。複数呼び出しにまたがる状態やターン単位の調停はOrchestrator/LlmTurnExecutorに委ねる。
    - **MCP Server**（`scripts/mcp_servers/`配下、例: `shell/shell_service.py`、`tool_validators.py`）: 外部操作の技術的安全性（allowlist検証、path検証、サンドボックス実行、リソース制限、引数バリデーション）を担う。これらの安全性判断をOrchestrator/ToolExecutor層で代行しない。
 
 2. 各コンポーネントは、自身より上位または下位の層が担うべき責任（永続的業務状態の決定、Tool呼び出しループの二重生成、外部操作の技術的安全性判断など）を代行または重複して保持しない。
 
-3. 本ADRはADR-001が定めるWorkflow Engineの必須性・唯一性を変更しない。ADR-001のScope（`Orchestrator`, `WorkflowEngine`, `WorkflowLoader`, `StateStore`）を、本ADRが`LLMTurnRunner`, `ToolExecutor`, MCP Serverまで拡張して補完する位置づけとする。
+3. 本ADRはADR-001が定めるWorkflow Engineの必須性・唯一性を変更しない。ADR-001のScope（`Orchestrator`, `WorkflowEngine`, `WorkflowLoader`, `StateStore`）を、本ADRが`LlmTurnExecutor`, `ToolExecutor`, MCP Serverまで拡張して補完する位置づけとする。
 
 ### Scope
 
-- **対象コンポーネント**: `Orchestrator`, `WorkflowEngine`, `LLMTurnRunner`, `ToolExecutor`, MCP Server（`scripts/mcp_servers/`配下の各サーバー実装）
+- **対象コンポーネント**: `Orchestrator`, `WorkflowEngine`, `LlmTurnExecutor`, `ToolExecutor`, MCP Server（`scripts/mcp_servers/`配下の各サーバー実装）
 - **対象プロセス**: Agentプロセス全体
 - **対象データ**: なし（本ADRはコンポーネント間の責任配分を定めるものであり、データモデル自体は変更しない）
 - **対象Environment Profile**: production（ADR-001と同じ、唯一サポートされる実行モード）
-- **対象APIまたは処理経路**: `Orchestrator.handle_turn()`, `WorkflowEngineAdapter.execute_turn()`, `LlmTurnExecutor.handle_llm_turn()`, `LLMTurnRunner.run()`, `ToolExecutor.execute()`（または`_raw_execute()`）, MCP Server側の`validate_tool_args()`
+- **対象APIまたは処理経路**: `Orchestrator.handle_turn()`, `WorkflowEngineAdapter.execute_turn()`, `LlmTurnExecutor.handle_llm_turn()`, `LlmTurnExecutor.run()`, `ToolExecutor.execute()`（または`_raw_execute()`）, MCP Server側の`validate_tool_args()`
 
 ### Out of Scope
 
 - Workflow Engineの必須性・唯一性の再定義（ADR-001が扱う）
 - 承認ポリシーのリデザイン
-- `LLMTurnRunner`と`ToolExecutor`の統合など、コンポーネント構成自体の再設計
+- `LlmTurnExecutor`と`ToolExecutor`の統合など、コンポーネント構成自体の再設計
 - 個別MCP Serverごとの安全性ポリシー詳細（allowlist内容、サンドボックス種別など）
 
 ## Rationale
@@ -112,7 +112,7 @@ Maintainabilityを優先し、境界の明文化により再発を防ぐため�
 
 - コンポーネント構成が大幅に単純化され、境界文書化のコストに見合わなくなった場合
 
-### Alternative B: `Orchestrator`と`LLMTurnRunner`を単一コンポーネントへ統合する
+### Alternative B: `Orchestrator`と`LlmTurnExecutor`を単一コンポーネントへ統合する
 
 #### Description
 
@@ -151,15 +151,15 @@ Maintainabilityを優先し、境界の明文化により再発を防ぐため�
 
 ## Invariants
 
-- INV-023: Workflow Engine以外のコンポーネント（`Orchestrator`、`LLMTurnRunner`、`ToolExecutor`）は、永続的なTask/Attempt状態、stage遷移、再試行、承認可否を自ら決定しない。これらはWorkflow Engineの管理下でのみ決定される。
-- INV-024: `LLMTurnRunner`のインスタンス生成は、実際にLLM/Tool Call往復ループを駆動するコンポーネント1箇所に一元化される。他のコンポーネントが未使用または重複した`LLMTurnRunner`インスタンスを保持しない。
+- INV-023: Workflow Engine以外のコンポーネント（`Orchestrator`、`LlmTurnExecutor`、`ToolExecutor`）は、永続的なTask/Attempt状態、stage遷移、再試行、承認可否を自ら決定しない。これらはWorkflow Engineの管理下でのみ決定される。
+- INV-024: `LlmTurnExecutor`のインスタンス生成は、実際にLLM/Tool Call往復ループを駆動するコンポーネント1箇所に一元化される。他のコンポーネントが未使用または重複した`LlmTurnExecutor`インスタンスを保持しない。
 - INV-025: MCP Serverが担う外部操作の技術的安全性判断（allowlist検証、path検証、サンドボックス実行、リソース制限、引数バリデーション）は、Orchestrator層またはToolExecutor層で代行・重複実装されない。
 
 ## Verification
 
 ### Automated Tests
 
-- **Test**: `Orchestrator`が`LLMTurnRunner`の未使用インスタンスを保持しないことの回帰テスト（新規作成が必要）
+- **Test**: `Orchestrator`が`LlmTurnExecutor`の未使用インスタンスを保持しないことの回帰テスト（新規作成が必要）
   - **Verifies**: INV-024
   - **Type**: Unit
   - **Blocking**: No（現時点で未実装、Known Deviationsのissue解決後に追加）
@@ -181,7 +181,7 @@ Maintainabilityを優先し、境界の明文化により再発を防ぐため�
 
 ### Manual Review
 
-- 新規コンポーネント追加時、またはOrchestrator/LLMTurnRunner/ToolExecutor/MCP Serverいずれかの責任範囲を変更する変更のコードレビュー時に、本ADRの責任境界との整合性を確認する
+- 新規コンポーネント追加時、またはOrchestrator/LlmTurnExecutor/ToolExecutor/MCP Serverいずれかの責任範囲を変更する変更のコードレビュー時に、本ADRの責任境界との整合性を確認する
 
 Verificationが存在しないInvariantは、未検証事項としてIssue登録する。INV-023、INV-025は現時点で自動テストがなく、コードレビュー（Manual Review）にのみ依存している。
 
@@ -197,7 +197,7 @@ See Related Documents > Implementation References for the current file/symbol li
 
 ## Known Deviations
 
-- `Orchestrator.__init__`（`scripts/agent/orchestrator.py`）が使用されない`LLMTurnRunner`インスタンスを`self._llm_runner`として生成しており、実際のLLM/Tool Call往復ループは`LlmTurnExecutor`（`scripts/agent/llm_turn_executor.py`）が内部で独自に生成する別インスタンスによって処理されている。これはINV-024（`LLMTurnRunner`生成の一元化）に対する現状の逸脱であり、修正issue（`issues/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md`）で追跡する。
+- `Orchestrator.__init__`（`scripts/agent/orchestrator.py`）が使用されない`LLMTurnRunner`インスタンスを`self._llm_runner`として生成しており、実際のLLM/Tool Call往復ループは`LlmTurnExecutor`（`scripts/agent/llm_turn_executor.py`）が内部で独自に生成する別インスタンスによって処理されている。これはINV-024（`LlmTurnExecutor`生成の一元化）に対する現状の逸脱であり、修正issue（`issues/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md`）で追跡する。
 - 「Workflow Engineが再試行を担う」という本ADRの定義自体はINV-023に反しないが、`ToolLoopGuard.check_retry()`（`scripts/agent/tool_loop_guard.py`）とLLM transport層（`llm_max_retries`等、`config/agent.toml`）にも別個の"retry"概念が存在し、WorkflowEngineの`retry_policy`との関係が未文書化。粒度が異なるため直ちにINV-023違反とは判定しないが、整理不足はドキュメント化issue（`issues/20260914-123659_arch03_retry_ownership_documentation_and_layering.md`）で追跡する。→ **RESOLVED**: 三層のリトライ範囲の説明は `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` に追加済み（REQ-002）。
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
@@ -206,7 +206,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 次の条件が発生した場合、このADRを再評価する。
 
-- Orchestrator/LLMTurnRunner/ToolExecutor/MCP Serverいずれかのコンポーネント構成が統合または分割により大きく変更された場合
+- Orchestrator/LlmTurnExecutor/ToolExecutor/MCP Serverいずれかのコンポーネント構成が統合または分割により大きく変更された場合
 - Workflow Engineの必須性・唯一性（ADR-001）自体が再評価された場合
 - 複数Hostまたは分散実行構成へ変更する場合
 - 本ADRの責任境界と矛盾する実装が新たに発見され、Known Deviationsとして追跡しきれない規模になった場合
@@ -247,7 +247,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/agent/workflow/workflow_engine.py` — `WorkflowEngine.run()`
 - `scripts/agent/workflow_engine_adapter.py` — `WorkflowEngineAdapter.execute_turn()`
 - `scripts/agent/llm_turn_executor.py` — `LlmTurnExecutor.handle_llm_turn()`
-- `scripts/agent/llm_turn_runner.py` — `LLMTurnRunner.run()`
+- `scripts/agent/llm_turn_executor.py` — `LlmTurnExecutor.run()`
 - `scripts/shared/tool_executor.py` — `ToolExecutor._raw_execute()`
 - `scripts/mcp_servers/tool_validators.py` — `validate_tool_args()`
 - `scripts/mcp_servers/shell/shell_service.py`

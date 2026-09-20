@@ -86,7 +86,7 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 |  | `handle_partial_completion` | `def handle_partial_completion(e, ctx, diagnostic_store) -> None` | Save partial text to diagnostic channel only. |
 |  | `handle_non_partial_error` | `def handle_non_partial_error(e, ctx, diagnostic_store) -> None` | Save non-partial error to diagnostic channel and log. |
 | `scripts/agent/llm_turn_executor.py` | `LlmTurnExecutor` | `class LlmTurnExecutor` | Executes an LLM turn: streaming + inner tool-call loop. |
-| `scripts/agent/llm_turn_runner.py` | `LLMTurnRunner` | `class LLMTurnRunner` | Manages the inner LLM streaming + tool-call loop for one agent turn. |
+| `scripts/agent/llm_turn_runner.py` | `LLMTurnRunner` | `class LLMTurnRunner` | Legacy alias for `LlmTurnExecutor`; kept for backward compatibility during transition. |
 | `scripts/agent/mdq_rag_classifier.py` | `MdqRagMode` | `class MdqRagMode` | Mode for selecting between MDQ and RAG search strategies. |
 |  | `classify_query` | `def classify_query(query) -> MdqRagMode` | Return MDQ if query contains Markdown-structural terms; RAG otherwise. |
 |  | `resolve_mode` | `def resolve_mode(query, config_mode) -> MdqRagMode` | Config override takes precedence; AUTO falls back to classifier heuristics. |

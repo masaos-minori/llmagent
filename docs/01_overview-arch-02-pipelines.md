@@ -43,7 +43,7 @@ User Input
 
 #### Implementation Notes for Query Pipeline
 
-- **Turn processing is separated into 4 layers**: `AgentREPL` (REPL loop) → `Orchestrator` (Turn control / Workflow management) → `LLMTurnRunner` (LLM streaming + internal tool loop) → `agent/tool_runner.py` (Tool execution). The responsibilities of each layer are declared in the docstrings of `agent/repl.py`.
+- **Turn processing is separated into 4 layers**: `AgentREPL` (REPL loop) → `Orchestrator` (Turn control / Workflow management) → `LlmTurnExecutor` (LLM streaming + internal tool loop) → `agent/tool_runner.py` (Tool execution). The responsibilities of each layer are declared in the docstrings of `agent/repl.py`.
 - **MDQ/RAG Tool Selection**: `agent/mdq_rag_classifier.py` analyzes the query string; if it contains keywords related to Markdown structure, it injects a hint into the history as an ephemeral message with the `system` role to prioritize MDQ tools, otherwise prioritizing RAG tools. This can also be fixed via configuration. (Source: `agent/orchestrator.py`)
 - **Tool Loop Guard**: Detects abnormal repetitive tool calling patterns within a turn and returns a stop hint to the LLM to force termination. Details → [`05_agent_03_02_turn-processing-flow-llm-tool-loop.md`](05_agent_03_02_turn-processing-flow-llm-tool-loop.md) (Source: `agent/tool_loop_guard.py`)
 - **Workflow Engine**: `agent/workflow/workflow_engine.py` manages stage transitions: plan → execute → [Post-execution approval gate] → verify. The post-execution approval gate is passed using `/approve` / `/reject` slash commands. If waiting for approval at the start of a turn, LLM processing is blocked. (Source: `agent/orchestrator.py`)
@@ -56,7 +56,7 @@ The execution order within a turn is hardcoded (`orchestrator.py`):
 2. **MDQ/RAG Hint Injection** — Adds hints as a system message with flags.
 3. **User Message Addition** — Added to `history` after synchronizing the system prompt, then saved to `session.sqlite`.
 4. **History Compression** — LLM summarization is performed only when character/token limits are exceeded.
-5. **LLM Call** — Streaming + tool loop via `LLMTurnRunner`.
+5. **LLM Call** — Streaming + tool loop via `LlmTurnExecutor`.
 
 Messages with flags are removed during the system prompt synchronization process at the start of each turn. They are not saved to persistent session history.
 

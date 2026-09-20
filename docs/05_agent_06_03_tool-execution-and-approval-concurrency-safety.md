@@ -40,7 +40,7 @@ Documents responsibility separation for safety controls, design decisions for `T
 
 ### ToolLoopGuard Design Decisions
 
-Controls the internal tool loop within `LLMTurnRunner`:
+Controls the internal tool loop within `LlmTurnExecutor`:
 
 | Guard | Config field | Behavior |
 |---|---|---|

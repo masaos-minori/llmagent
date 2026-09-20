@@ -55,8 +55,8 @@ User input (line)
          │    → HistoryManager.compress(history)
          │    → If character/token limit exceeded, replace oldest turns with LLM summary
          │
-        ⑤ LLM Turn Processing
-         │    → LLMTurnRunner.run(llm_url)
+         ⑤ LLM Turn Processing
+          │    → LlmTurnExecutor.handle_llm_turn(llm_url)
          │         ├─ LLMClient.stream(url, history, tool_defs)
          │         │    → SSE streaming $\rightarrow$ on_token callback $\rightarrow$ CLIView.write_token()
          │         │    $\rightarrow$ Collect content_parts + tool_calls_map

@@ -69,7 +69,7 @@ Full details: [05_agent_02_runtime-architecture.md AgentREPL](05_agent_02_runtim
 - **Role:** Turn-level facade. Manages memory injection → compression → LLM → tool loop.
 - **Primary API:** `await Orchestrator.handle_turn(line)`, `workflow_status() -> dict[str, str]`
 - **Caller:** REPL loop driver
-- **Callees:** `LLMTurnRunner`, `HistoryManager` (`ctx.services_required.hist_mgr.compress()`), `AgentSession`, `MemoryServices` (`ctx.services_required.memory.on_user_prompt()`), `WorkflowEngine` / `StateStore` / `WorkflowLoader` (`agent/workflow/`), `ToolLoopGuard`
+- **Callees:** `LlmTurnExecutor`, `HistoryManager` (`ctx.services_required.hist_mgr.compress()`), `AgentSession`, `MemoryServices` (`ctx.services_required.memory.on_user_prompt()`), `WorkflowEngine` / `StateStore` / `WorkflowLoader` (`agent/workflow/`), `ToolLoopGuard`
 - **Configuration:** `cfg.llm.*`, `cfg.tool.*`, `cfg.memory.*`
 - **On Failure:** `LLMTransportError` is caught internally; REPL continues. If `WorkflowLoader().load()` fails during `__init__()`, a `RuntimeError` is raised, causing construction of the `Orchestrator` itself to fail (workflow definitions are mandatory).
 
@@ -94,7 +94,7 @@ Full details: [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_
 
 - **Role:** HTTP communication with LLM. SSE streaming + retries.
 - **Primary API:** `await client.stream(url, history, tool_defs)`, `client.build_payload(...)`
-- **Caller:** `LLMTurnRunner`, `HistoryManager` (via `call()`), `SessionTitleService`
+- **Caller:** `LlmTurnExecutor`, `HistoryManager` (via `call()`), `SessionTitleService`
 - **Callee:** `RobustSSEParser`, `httpx.AsyncClient`
 - **Configuration:** `cfg.llm.*`
 - **On Failure:** Raises `LLMTransportError` with `partial_text` upon stream failure.
@@ -107,7 +107,7 @@ Full details: [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.m
 
 - **Role:** MCP tool routing, side-effect classification, and concurrency limits.
 - **Primary API:** `await executor.execute(tool_name, args) -> ToolCallResult`
-- **Caller:** `LLMTurnRunner` (via `execute_all_tool_calls`)
+- **Caller:** `LlmTurnExecutor` (via `execute_all_tool_calls`)
 - **Callee:** `ToolRouteResolver`, `HttpTransport`, `McpServerHealthRegistry`
 - **Configuration:** `cfg.tool.*`, `cfg.mcp.*`
 - **On Failure:** Returns `ToolCallResult(is_error=True)` upon transport failure.

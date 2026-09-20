@@ -51,7 +51,7 @@ If a transport error occurs during LLM streaming resulting in a partial completi
 
 ### LLM Invocation and Tool Loop
 
-`LLMTurnRunner.run(llm_url)` manages the internal loop:
+`LlmTurnExecutor.handle_llm_turn(llm_url)` manages the internal loop:
 
 - Constructs payload: `history + tool_definitions + temperature + max_tokens + stream=True`
 - Sends to LLM via SSE streaming.
