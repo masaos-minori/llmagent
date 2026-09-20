@@ -24,14 +24,26 @@ of `plans/20260920-203022_plan.md`.
   style, confirmed present in the same file at lines 239-245).
 
 ## Design decisions
-- Follow the existing resolved-entry precedent already in this same file for CI-002/
-  CI-004 (lines 239-245, confirmed via Read during the source Plan's Step 3
-  investigation): a short paragraph appended after the entry (or a `Resolution` bullet
-  within it) that states the resolution date, the evidence, and an explicit note that
-  the entry stays removed from future active-list confusion — rather than deleting the
-  entry outright, since `docs/00_governance_03_issue-and-uncertainty-management.md`'s
-  own convention (confirmed by CI-002/CI-004) is to keep a resolved entry's record in
-  place with its status changed, not to delete the heading.
+- **Correction (Step 4a adversarial re-verification during code-implementation):**
+  the Plan's original Design decisions here misread the CI-002/CI-004 precedent. Line
+  22 of this same document states explicitly: "An item is removed from this active
+  inventory once it is resolved or no longer applies to the current system; it is not
+  retained here with a closed-out status." Direct re-reading of CI-001 (line 236),
+  CI-002 (line 239), CI-003 (line 237), and CI-004 (line 243) confirms every one of
+  them **removes the `#### {ID}` heading and all 17 template fields**, replacing them
+  with a single short paragraph in the surrounding prose — not a `Status: resolved`
+  field change with the heading retained. Each resolved paragraph ends with an
+  explicit `Its absence from the active list is the correct, policy-compliant state —
+  do not create a #### {ID} heading.` sentence. This document's own `## Resolution
+  Rules` section (line 955) independently confirms the *substantive* resolution
+  criterion ("Known Issue resolved only when implementation and design agree") is
+  satisfied here, but says nothing about retaining a closed-out heading — line 22's
+  rule is the controlling one for *how* to record it.
+- Therefore this row implements: remove the `#### REQ-001` heading and its entire
+  field list (lines 499-516), and add a short paragraph — in the same prose style and
+  position as CI-001/CI-002/CI-003/CI-004 — stating the resolution, citing commit
+  `520c9b39f9` and the two new tests, ending with the standard "do not create a ####
+  REQ-001 heading" sentence.
 - Cite commit `520c9b39f9` (the actual code fix date, 2026-09-17) separately from this
   Plan's own generated-at date (2026-09-20), so a future reader can distinguish "when
   the code was actually fixed" from "when the governance record caught up" — consistent
@@ -52,36 +64,30 @@ leave the `Impact` line's wording as-is; do not silently rewrite it as an unscop
 extra edit while making the `Status`/`Resolution` change.
 
 ## Alternatives considered
-- Deleting the REQ-001 heading entirely instead of marking it resolved in place:
-  rejected — inconsistent with this same document's own CI-002/CI-004 precedent
-  (resolved entries stay, with status changed and a resolution note added, explicitly
-  to avoid "recreate the heading" confusion per those entries' own closing sentences).
+- Keeping the `#### REQ-001` heading and only changing its `Status` field to
+  `resolved` (the Plan's original approach): rejected after Step 4a's adversarial
+  re-verification found this contradicts this document's own explicit rule (line 22)
+  and every existing resolved-entry precedent (CI-001 through CI-004) — see Design
+  decisions above.
 
 ## Implementation
 ### Target file
 `docs/00_governance_03_issue-and-uncertainty-management.md`
 
 ### Procedure
-1. Re-run `rg -n "Resolution" docs/00_governance_03_issue-and-uncertainty-management.md`
-   to confirm the exact resolved-entry format convention in current use (a `-
-   **Resolution**:` bullet vs. a following prose paragraph) before choosing which
-   shape to add — do not assume the Design decisions section's CI-002/CI-004 precedent
-   is the only shape without this direct re-check, since the document may have
-   accumulated other conventions since that Plan-time investigation.
-2. Change the REQ-001 entry's `- **Status**: open` line (currently at the line
-   confirmed via Read) to `- **Status**: resolved`.
-3. Add a `- **Resolution**: ...` bullet (or a following short paragraph, per step 1's
-   confirmed convention) stating: the enforcement was implemented in commit
-   `520c9b39f9` (2026-09-17); regression coverage was added by
+1. Remove the entire `#### REQ-001` heading and its 17-field list (lines 499-516).
+2. In its place, add a single short paragraph — matching CI-001/CI-002/CI-003/CI-004's
+   prose style and position — stating: REQ-001 ("Immutable discovery-time visibility
+   field (`llm_visibility_base`) not enforced during config reload") was resolved;
+   enforcement was implemented in commit `520c9b39f9` (2026-09-17); regression
+   coverage was added by
    `tests/shared/test_runtime_tool_registry.py::test_apply_policy_keeps_hidden_tool_disabled_when_allowed`
    and `::test_apply_policy_logs_warning_when_hidden_tool_would_otherwise_be_enabled`;
    a diagnostic warning log was added to
    `scripts/shared/runtime_tool_registry.py::apply_policy()`; resolved per
-   `plans/20260920-203022_plan.md`.
-4. Leave every other field of the REQ-001 entry (`Title`, `Severity`, `Area`, `Type`,
-   `Source`, `Owner`, `First Found`, `Target`, `Related`, `Summary`, `Current
-   Description`, `Observed Implementation`, `Impact`, `Recommended Action`) unchanged —
-   this row's scope is `Status` + `Resolution` only.
+   `plans/20260920-203022_plan.md`. End with: "Its absence from the active list is the
+   correct, policy-compliant state — do not create a `#### REQ-001` heading."
+3. Leave every other entry in the document unchanged.
 
 ### Method
 Direct file edit (`Edit` tool) — two localized changes (one field value, one new
@@ -100,25 +106,29 @@ Current entry (confirmed via Read, lines 499-516):
 - **Recommended Action**: Enforce immutability of `llm_visibility_base` in the config reload path; add tests to verify this invariant.
 ```
 
-Target shape after this change (illustrative — confirm exact bullet-vs-paragraph
-convention per Procedure step 1 before finalizing wording):
+Target shape after this change (illustrative — match CI-001/CI-003's exact prose
+cadence when finalizing wording; the heading and field list are removed entirely):
 ```
-#### REQ-001
+CI-004 ("ADR-010 INV-02 ...") was resolved and removed from this active inventory
+2026-09-14. ...
 
-- **ID**: REQ-001
-- **Title**: Immutable discovery-time visibility field (`llm_visibility_base`) not enforced during config reload
-- **Status**: resolved
-- **Severity**: High
+REQ-001 ("Immutable discovery-time visibility field (`llm_visibility_base`) not
+enforced during config reload") was resolved 2026-09-20. Enforcement was implemented
+in commit `520c9b39f9` (2026-09-17), three days before this entry was filed.
+Regression coverage added by
+`tests/shared/test_runtime_tool_registry.py::test_apply_policy_keeps_hidden_tool_disabled_when_allowed`
+and `::test_apply_policy_logs_warning_when_hidden_tool_would_otherwise_be_enabled`; a
+diagnostic warning log added to
+`scripts/shared/runtime_tool_registry.py::apply_policy()`. Resolved per
+`plans/20260920-203022_plan.md`. Its absence from the active list is the correct,
+policy-compliant state — do not create a `#### REQ-001` heading.
+
+#### REQ-002
 ...
-- **Recommended Action**: Enforce immutability of `llm_visibility_base` in the config reload path; add tests to verify this invariant.
-- **Resolution**: Enforcement was implemented in commit `520c9b39f9` (2026-09-17),
-  three days before this entry was filed. Regression coverage added by
-  `tests/shared/test_runtime_tool_registry.py::test_apply_policy_keeps_hidden_tool_disabled_when_allowed`
-  and `::test_apply_policy_logs_warning_when_hidden_tool_would_otherwise_be_enabled`;
-  a diagnostic warning log added to
-  `scripts/shared/runtime_tool_registry.py::apply_policy()`. Resolved per
-  `plans/20260920-203022_plan.md`.
 ```
+(The surrounding CI-004/REQ-002 headings above are shown only to illustrate REQ-001's
+new paragraph fits between them in document order — CI-004 and REQ-002 themselves are
+untouched by this row.)
 
 ## Compatibility considerations
 N/A: documentation-only change, no code/API surface affected.
@@ -128,25 +138,29 @@ N/A: no security-relevant behavior change — this row only updates a governance
 to reflect already-implemented, already-verified enforcement.
 
 ## Rollback considerations
-Trivially revertable: reverting the `Status` field to `open` and removing the
-`Resolution` bullet/paragraph restores the prior text exactly.
+Trivially revertable: restoring the removed `#### REQ-001` heading and its 17-field
+list, and removing the new resolved-paragraph, restores the prior text exactly (the
+removed block is fully captured in this document's own "Current entry" quote above).
 
 ## Validation plan
 - `uv run python tools/check_needs_confirmation_inventory.py` — structural check
   confirming the edit does not break the governance inventory's structure (REQ-003,
   AC-4 of `plans/20260920-203022_plan.md`).
-- Manual re-read of the edited entry to confirm no other field was accidentally
-  changed.
+- Manual re-read of the surrounding entries (CI-004, REQ-002) to confirm neither was
+  accidentally altered, and that the new paragraph reads consistently with
+  CI-001/CI-002/CI-003's own prose style.
 
 ## Completion criteria
-- REQ-001's `Status` field reads `resolved`.
-- A `Resolution` bullet/paragraph exists citing commit `520c9b39f9`, the two new test
-  names from Row 2, and this Plan's path.
-- No other field of the REQ-001 entry, and no other entry in the document, is changed.
+- The `#### REQ-001` heading and its 17-field list no longer exist in the document.
+- A short paragraph in CI-001/CI-002/CI-003's style exists in their place, citing
+  commit `520c9b39f9`, the two new test names from Row 2, this Plan's path, and ending
+  with "do not create a `#### REQ-001` heading."
+- No other entry in the document (CI-004, REQ-002, etc.) is changed.
 
 ## Out of scope
-- REQ-001's own `Impact` field's self-referential wording discrepancy (see Design
-  decisions "Non-blocking discrepancy" note) — not part of this row's Requirement.
+- REQ-001's own former `Impact` field's self-referential wording discrepancy (see
+  Design decisions "Non-blocking discrepancy" note) — moot once the field list is
+  removed per this row's corrected approach; not re-introduced elsewhere.
 - Any other governance entry (REQ-002, REQ-003, CI-*) — REQ-002's sibling Plan
   (`plans/20260920-203342_plan.md`) has its own separate implementation procedure
   document for REQ-002's entry.
@@ -156,9 +170,9 @@ Trivially revertable: reverting the `Status` field to `open` and removing the
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm resolved-entry format convention via `rg -n "Resolution"` | Pending | — | — | |
-| 2 | Change `Status` to `resolved` and add `Resolution` bullet/paragraph | Pending | — | — | |
-| 3 | Run `tools/check_needs_confirmation_inventory.py` and manually re-verify | Pending | — | — | |
+| 1 | Confirm resolved-entry format convention via `rg -n "Resolution"` | Completed | 20260920-211348 | 20260920-211348 | Adversarial verification found the Plan's Design decisions misread CI-002/CI-004's actual format (heading removal, not Status-field change) — corrected in this procedure document before implementing; see corrected Design decisions section |
+| 2 | Change `Status` to `resolved` and add `Resolution` bullet/paragraph | Completed | 20260920-211348 | 20260920-211348 |  |
+| 3 | Run `tools/check_needs_confirmation_inventory.py` and manually re-verify | Completed | 20260920-211348 | 20260920-211348 | check_needs_confirmation_inventory.py, check_docs_quality.py, check_docs_structure.py warnings all pre-existing/unrelated (confirmed via git diff --stat and file-size comparison: 70451 to 69473 bytes, decreased) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
