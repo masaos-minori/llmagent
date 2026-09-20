@@ -32,12 +32,12 @@ definitions, ID format rules, and section header conventions are defined once in
 | ADR-008 | SQLiteを4DBへ分離する | Accepted | `adr/ADR-008-sqlite-4db-separation.md` |
 | ADR-009 | RAGのFTS5検索用テキストとLLM提示用テキスト分離 | Accepted | `adr/ADR-009-rag-ft5-text-separation.md` |
 | ADR-010 | RAGの外部実行失敗時のインプロセスフォールバック | Accepted | `adr/ADR-010-rag-fallback.md` |
+| ADR-013 | EventBus認証・認可 | Accepted | `adr/ADR-013-eventbus-authentication-authorization.md` |
 | ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | `adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
 | ADR-014 | Agent制御プレーンの責任境界 | Accepted | `adr/ADR-014-agent-control-plane-responsibility-boundaries.md` |
 | ADR-015 | Reference Document Class Disposition | Accepted | `adr/ADR-015-reference-document-class-disposition.md` |
 
 ADR-011（Database Corruption Recovery Safety Boundary）はADR-008へ統合され、削除された。
-ADR-013（MCP Tool Availability Model）はADR-003へ統合され、削除された。
 
 ## ADR Dependency Graph
 
@@ -50,6 +50,7 @@ ADR-006 → ADR-008
 ADR-007 → ADR-004
 ADR-009 → ADR-005
 ADR-010 → ADR-004
+ADR-013 → ADR-002, ADR-006
 ADR-014 → ADR-001
 ```
 
