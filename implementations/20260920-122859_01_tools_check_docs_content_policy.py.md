@@ -201,10 +201,10 @@ to the Plan's baseline.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260920-134553 | 20260920-134553 | Stale detection: tool false-positive (known bug), verified manually instead — 15 checks/main() unchanged. Applied all 3 Edits. |
+| 2 | Add or update tests per Validation plan | Completed | 20260920-134553 | 20260920-134553 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260920-134553 | 20260920-134553 | ruff/mypy: clean. radon: check_code_fallback_value_comparison grade B(8). vulture/bandit: 0 findings. Full-tree run: expected new findings confirmed (crawler.md:48, system_overview.md:213/214, constraints-reference.md:23/24, plus accepted config-reference.md:93/94/96/99). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260920-134553 | 20260920-134553 | N/A: TOOL_DESCRIPTIONS.md update tracked in the sibling seq 03 procedure document. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
