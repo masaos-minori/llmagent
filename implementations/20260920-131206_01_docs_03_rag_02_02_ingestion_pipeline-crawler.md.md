@@ -90,10 +90,10 @@ this file relative to the Plan's baseline (0 findings on both, unchanged).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the 1 Edit per Procedure/Method | Pending | — | — | |
-| 2 | N/A: no test suite applies to a documentation content change | Pending | — | — | |
-| 3 | Run the 3 commands in Validation plan | Pending | — | — | |
-| 4 | N/A: no further documentation update needed beyond this file itself | Pending | — | — | |
+| 1 | Apply the 1 Edit per Procedure/Method | Completed | 20260920-134553 | 20260920-134553 | Table confirmed unchanged before edit. Applied the 1 Edit. |
+| 2 | N/A: no test suite applies to a documentation content change | Completed | 20260920-134553 | 20260920-134553 |  |
+| 3 | Run the 3 commands in Validation plan | Completed | 20260920-134553 | 20260920-134553 | check_docs_quality.py/check_docs_structure.py: No issues. check_docs_content_policy.py: 0 findings for this file (was 1, from the newly-added check). |
+| 4 | N/A: no further documentation update needed beyond this file itself | Completed | 20260920-134553 | 20260920-134553 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
