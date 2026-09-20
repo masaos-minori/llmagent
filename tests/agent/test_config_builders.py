@@ -7,7 +7,7 @@ _build_tool_config, build_agent_config, and load_config error handling.
 from __future__ import annotations
 
 import logging
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.config_builders import (
@@ -439,20 +439,18 @@ class TestBuildAgentConfig:
     def test_production_validation_passes_without_exit_when_strict_flags_set(
         self,
     ) -> None:
-        # Companion to test_production_validation_errors_exit_process: proves the
-        # sys.exit(1) path is specifically gated on results.errors, not on
-        # security_profile=="production" alone.
-        with patch("agent.config_builders.sys.exit") as mock_exit:
-            build_agent_config(
-                {
-                    **_MIN_CFG,
-                    "security_profile": "production",
-                    "tool_definitions_strict": True,
-                    "routing_drift_strict": True,
-                    "allowed_tools": ["some_tool"],
-                }
-            )
-        mock_exit.assert_not_called()
+        # Companion to test_production_validation_errors_raises: proves the
+        # ConfigReloadValidationError path is specifically gated on results.errors,
+        # not on security_profile=="production" alone.
+        build_agent_config(
+            {
+                **_MIN_CFG,
+                "security_profile": "production",
+                "tool_definitions_strict": True,
+                "routing_drift_strict": True,
+                "allowed_tools": ["some_tool"],
+            }
+        )
 
     def test_llm_defaults_reflected(self) -> None:
         cfg = build_agent_config(
@@ -485,19 +483,22 @@ class TestBuildAgentConfig:
             cfg = build_agent_config(None)
         assert isinstance(cfg, AgentConfig)
 
-    def test_production_validation_errors_exit_process(
+    def test_production_validation_errors_raises(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
         # security_profile="production" without tool_definitions_strict/
         # routing_drift_strict set to True produces ProductionConfigValidator
-        # errors, which build_agent_config logs and turns into sys.exit(1).
+        # errors, which build_agent_config logs and raises ConfigReloadValidationError.
         cfg = {**_MIN_CFG, "security_profile": "production"}
         with (
             caplog.at_level(logging.ERROR, logger="agent.config_builders"),
-            patch("agent.config_builders.sys.exit") as mock_exit,
+            patch(
+                "shared.production_config_validator.ProductionConfigValidator.validate"
+            ) as mock_validate,
         ):
-            build_agent_config(cfg)
-        mock_exit.assert_called_once_with(1)
+            mock_validate.return_value = MagicMock(errors=["error1"], warnings=[])
+            with pytest.raises(ConfigReloadValidationError):
+                build_agent_config(cfg)
         assert any(
             "Production config validation failed" in r.message for r in caplog.records
         )

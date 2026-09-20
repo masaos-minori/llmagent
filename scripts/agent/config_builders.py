@@ -11,7 +11,6 @@ Import from here:  from agent.config_builders import (
 from __future__ import annotations
 
 import logging
-import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -24,6 +23,7 @@ from shared.mcp_config import (
     _build_mcp_servers,  # noqa: F401 — used by config_reload.py (lazy import)
 )
 from shared.production_config_validator import ProductionConfigValidator
+from shared.tool_registry import get_registry
 
 from agent.config_dataclasses import (
     AgentConfig,
@@ -123,74 +123,49 @@ def _validate_dry_run_tools(tools: list[str]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def _extract_llm_transport_fields(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Extract LLM transport-related fields."""
-    return {
-        "llm_url": _get_str_or_default(cfg, "llm_url", ""),
-        "http_timeout": _get_or_default(cfg, "http_timeout", _get_float, 30.0),
-        "llm_max_retries": _get_or_default(cfg, "llm_max_retries", _get_int, 3),
-        "llm_retry_base_delay": _get_or_default(
-            cfg, "llm_retry_base_delay", _get_float, 1.0
-        ),
-        "sse_heartbeat_timeout": _get_or_default(
-            cfg, "sse_heartbeat_timeout", _get_float, 30.0
-        ),
-        "sse_malformed_retry": _get_or_default(cfg, "sse_malformed_retry", _get_int, 2),
-        "sse_reconnect_max": _get_or_default(cfg, "sse_reconnect_max", _get_int, 1),
-        "llm_stream_retry_on_heartbeat_timeout": _get_or_default(
-            cfg, "llm_stream_retry_on_heartbeat_timeout", _get_bool, True
-        ),
-        "llm_stream_retry_on_malformed_chunk": _get_or_default(
-            cfg, "llm_stream_retry_on_malformed_chunk", _get_bool, False
-        ),
-    }
-
-
-def _extract_llm_temperature_fields(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Extract LLM temperature-related fields."""
-    return {
-        "llm_temperature": _get_or_default(cfg, "llm_temperature", _get_float, 0.2),
-        "llm_max_tokens": _get_or_default(cfg, "llm_max_tokens", _get_int, 1024),
-        "title_llm_temperature": _get_or_default(
-            cfg, "title_llm_temperature", _get_float, 0.1
-        ),
-        "title_llm_max_tokens": _get_or_default(
-            cfg, "title_llm_max_tokens", _get_int, 20
-        ),
-        "llm_compress_temperature": _get_or_default(
-            cfg, "llm_compress_temperature", _get_float, 0.3
-        ),
-        "llm_compress_max_tokens": _get_or_default(
-            cfg, "llm_compress_max_tokens", _get_int, 300
-        ),
-    }
-
-
-def _extract_llm_context_fields(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Extract LLM context-related fields."""
-    return {
-        "tokenize_url": _get_str_or_default(cfg, "tokenize_url", ""),
-        "context_token_limit": _get_or_default(cfg, "context_token_limit", _get_int, 0),
-        "context_char_limit": _get_or_default(
-            cfg, "context_char_limit", _get_int, 8000
-        ),
-        "context_compress_turns": _get_or_default(
-            cfg, "context_compress_turns", _get_int, 4
-        ),
-        "history_protect_turns": _get_or_default(
-            cfg, "history_protect_turns", _get_int, 2
-        ),
-        "budget_warn_ratio": _get_or_default(cfg, "budget_warn_ratio", _get_float, 0.8),
-    }
-
-
 def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
     """Build LLMConfig from a raw config dict."""
-    transport = _extract_llm_transport_fields(cfg)
-    temperature = _extract_llm_temperature_fields(cfg)
-    context = _extract_llm_context_fields(cfg)
-    all_fields = {**transport, **temperature, **context}
-    return LLMConfig(**all_fields)
+    return LLMConfig(
+        llm_url=_get_str_or_default(cfg, "llm_url", ""),
+        http_timeout=_get_or_default(cfg, "http_timeout", _get_float, 30.0),
+        llm_max_retries=_get_or_default(cfg, "llm_max_retries", _get_int, 3),
+        llm_retry_base_delay=_get_or_default(
+            cfg, "llm_retry_base_delay", _get_float, 1.0
+        ),
+        sse_heartbeat_timeout=_get_or_default(
+            cfg, "sse_heartbeat_timeout", _get_float, 30.0
+        ),
+        sse_malformed_retry=_get_or_default(cfg, "sse_malformed_retry", _get_int, 2),
+        sse_reconnect_max=_get_or_default(cfg, "sse_reconnect_max", _get_int, 1),
+        llm_stream_retry_on_heartbeat_timeout=_get_or_default(
+            cfg, "llm_stream_retry_on_heartbeat_timeout", _get_bool, True
+        ),
+        llm_stream_retry_on_malformed_chunk=_get_or_default(
+            cfg, "llm_stream_retry_on_malformed_chunk", _get_bool, False
+        ),
+        llm_temperature=_get_or_default(cfg, "llm_temperature", _get_float, 0.2),
+        llm_max_tokens=_get_or_default(cfg, "llm_max_tokens", _get_int, 1024),
+        title_llm_temperature=_get_or_default(
+            cfg, "title_llm_temperature", _get_float, 0.1
+        ),
+        title_llm_max_tokens=_get_or_default(cfg, "title_llm_max_tokens", _get_int, 20),
+        llm_compress_temperature=_get_or_default(
+            cfg, "llm_compress_temperature", _get_float, 0.3
+        ),
+        llm_compress_max_tokens=_get_or_default(
+            cfg, "llm_compress_max_tokens", _get_int, 300
+        ),
+        tokenize_url=_get_str_or_default(cfg, "tokenize_url", ""),
+        context_token_limit=_get_or_default(cfg, "context_token_limit", _get_int, 0),
+        context_char_limit=_get_or_default(cfg, "context_char_limit", _get_int, 8000),
+        context_compress_turns=_get_or_default(
+            cfg, "context_compress_turns", _get_int, 4
+        ),
+        history_protect_turns=_get_or_default(
+            cfg, "history_protect_turns", _get_int, 2
+        ),
+        budget_warn_ratio=_get_or_default(cfg, "budget_warn_ratio", _get_float, 0.8),
+    )
 
 
 def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
@@ -219,83 +194,54 @@ def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
     )
 
 
-def _extract_tool_execution_fields(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Extract tool execution-related fields."""
-    return {
-        "serial_tool_calls": _get_or_default(
-            cfg, "serial_tool_calls", _get_bool, False
-        ),
-        "tool_definitions_strict": _get_or_default(
-            cfg, "tool_definitions_strict", _get_bool, False
-        ),
-        "routing_drift_strict": _get_or_default(
-            cfg, "routing_drift_strict", _get_bool, False
-        ),
-        "tool_dedup_max_repeats": _get_or_default(
-            cfg, "tool_dedup_max_repeats", _get_int, 3
-        ),
-        "tool_cycle_detect_window": _get_or_default(
-            cfg, "tool_cycle_detect_window", _get_int, 2
-        ),
-        "tool_error_max_consecutive": _get_or_default(
-            cfg, "tool_error_max_consecutive", _get_int, 3
-        ),
-        "tool_error_retry_max": _get_or_default(
-            cfg, "tool_error_retry_max", _get_int, 1
-        ),
-    }
-
-
-def _extract_tool_limits_fields(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Extract tool limits-related fields."""
-    return {
-        "tool_concurrency_limits": _get_or_default(
-            cfg, "tool_concurrency_limits", _get_dict, {}
-        ),
-        "masked_fields": _get_or_default(
-            cfg, "masked_fields", _get_list, ["file_content"]
-        ),
-        "plan_blocked_tools": _get_or_default(
-            cfg, "plan_blocked_tools", _get_list, list(_DEFAULT_PLAN_BLOCKED_TOOLS)
-        ),
-        "max_tool_turns": _get_or_default(cfg, "max_tool_turns", _get_int, 5),
-        "tool_result_max_llm_chars": _get_or_default(
-            cfg, "tool_result_max_llm_chars", _get_int, 8000
-        ),
-        "tool_results_turn_max_chars": _get_or_default(
-            cfg, "tool_results_turn_max_chars", _get_int, 50000
-        ),
-    }
-
-
-def _extract_tool_schema_fields(
-    cfg: dict[str, Any], system_prompt_tool: str
-) -> dict[str, Any]:
-    """Extract tool schema-related fields."""
-    return {
-        "tool_definitions": _get_or_default(cfg, "tool_definitions", _get_list, []),
-        "system_prompts": _get_or_default(
-            cfg, "system_prompts", _get_dict, {"default": system_prompt_tool}
-        ),
-        "system_prompt_tool": system_prompt_tool,
-        "allowed_tools": _get_or_default(cfg, "allowed_tools", _get_list, []),
-    }
-
-
 def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConfig:
     """Build ToolConfig from a raw config dict and system prompt template."""
-    execution = _extract_tool_execution_fields(cfg)
-    limits = _extract_tool_limits_fields(cfg)
-    schema = _extract_tool_schema_fields(cfg, system_prompt_tool)
-    all_fields = {**execution, **limits, **schema}
-    return ToolConfig(**all_fields)
+    return ToolConfig(
+        serial_tool_calls=_get_or_default(cfg, "serial_tool_calls", _get_bool, False),
+        tool_definitions_strict=_get_or_default(
+            cfg, "tool_definitions_strict", _get_bool, False
+        ),
+        routing_drift_strict=_get_or_default(
+            cfg, "routing_drift_strict", _get_bool, False
+        ),
+        tool_dedup_max_repeats=_get_or_default(
+            cfg, "tool_dedup_max_repeats", _get_int, 3
+        ),
+        tool_cycle_detect_window=_get_or_default(
+            cfg, "tool_cycle_detect_window", _get_int, 2
+        ),
+        tool_error_max_consecutive=_get_or_default(
+            cfg, "tool_error_max_consecutive", _get_int, 3
+        ),
+        tool_error_retry_max=_get_or_default(cfg, "tool_error_retry_max", _get_int, 1),
+        tool_concurrency_limits=_get_or_default(
+            cfg, "tool_concurrency_limits", _get_dict, {}
+        ),
+        masked_fields=_get_or_default(
+            cfg, "masked_fields", _get_list, ["file_content"]
+        ),
+        plan_blocked_tools=_get_or_default(
+            cfg, "plan_blocked_tools", _get_list, list(_DEFAULT_PLAN_BLOCKED_TOOLS)
+        ),
+        max_tool_turns=_get_or_default(cfg, "max_tool_turns", _get_int, 5),
+        tool_result_max_llm_chars=_get_or_default(
+            cfg, "tool_result_max_llm_chars", _get_int, 8000
+        ),
+        tool_results_turn_max_chars=_get_or_default(
+            cfg, "tool_results_turn_max_chars", _get_int, 50000
+        ),
+        tool_definitions=_get_or_default(cfg, "tool_definitions", _get_list, []),
+        system_prompts=_get_or_default(
+            cfg, "system_prompts", _get_dict, {"default": system_prompt_tool}
+        ),
+        system_prompt_tool=system_prompt_tool,
+        allowed_tools=_get_or_default(cfg, "allowed_tools", _get_list, []),
+    )
 
 
-def _extract_memory_core_fields(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Extract memory core fields."""
+def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
+    """Build MemoryConfig from a raw config dict."""
     use_memory_layer = _get_or_default(cfg, "use_memory_layer", _get_bool, True)
-    # Non-empty default: an explicit "" override intentionally falls back too
-    # (see _get_str_or_default docstring) — do not convert to that helper.
     memory_jsonl_dir = _get_str(cfg, "memory_jsonl_dir") or "/opt/llm/memory"
     memory_max_inject_semantic = _get_or_default(
         cfg, "memory_max_inject_semantic", _get_int, 5
@@ -309,18 +255,6 @@ def _extract_memory_core_fields(cfg: dict[str, Any]) -> dict[str, Any]:
     memory_max_content_chars = _get_or_default(
         cfg, "memory_max_content_chars", _get_int, 500
     )
-    return {
-        "use_memory_layer": use_memory_layer,
-        "memory_jsonl_dir": memory_jsonl_dir,
-        "memory_max_inject_semantic": memory_max_inject_semantic,
-        "memory_max_inject_episodic": memory_max_inject_episodic,
-        "memory_min_importance": memory_min_importance,
-        "memory_max_content_chars": memory_max_content_chars,
-    }
-
-
-def _extract_memory_embedding_fields(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Extract memory embedding fields."""
     memory_embed_enabled = _get_or_default(cfg, "memory_embed_enabled", _get_bool, True)
     memory_dedup_threshold = _get_or_default(
         cfg, "memory_dedup_threshold", _get_float, 0.3
@@ -328,45 +262,34 @@ def _extract_memory_embedding_fields(cfg: dict[str, Any]) -> dict[str, Any]:
     memory_embed_timeout_sec = _get_or_default(
         cfg, "memory_embed_timeout_sec", _get_float, 5.0
     )
-    return {
-        "memory_embed_enabled": memory_embed_enabled,
-        "memory_dedup_threshold": memory_dedup_threshold,
-        "memory_embed_timeout_sec": memory_embed_timeout_sec,
-    }
-
-
-def _extract_memory_search_fields(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Extract memory search fields."""
     memory_retention_days = _get_or_default(cfg, "memory_retention_days", _get_int, 90)
     memory_fts_limit = _get_or_default(cfg, "memory_fts_limit", _get_int, 50)
     memory_rrf_k = _get_or_default(cfg, "memory_rrf_k", _get_int, 60)
     memory_recency_days = _get_or_default(cfg, "memory_recency_days", _get_float, 7.0)
     memory_local_only = _get_or_default(cfg, "memory_local_only", _get_bool, False)
-    return {
-        "memory_retention_days": memory_retention_days,
-        "memory_fts_limit": memory_fts_limit,
-        "memory_rrf_k": memory_rrf_k,
-        "memory_recency_days": memory_recency_days,
-        "memory_local_only": memory_local_only,
-    }
-
-
-def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
-    """Build MemoryConfig from a raw config dict."""
-    core = _extract_memory_core_fields(cfg)
-    embedding = _extract_memory_embedding_fields(cfg)
-    search = _extract_memory_search_fields(cfg)
-    all_fields = {**core, **embedding, **search}
     try:
-        return MemoryConfig(**all_fields)
+        return MemoryConfig(
+            use_memory_layer=use_memory_layer,
+            memory_jsonl_dir=memory_jsonl_dir,
+            memory_max_inject_semantic=memory_max_inject_semantic,
+            memory_max_inject_episodic=memory_max_inject_episodic,
+            memory_min_importance=memory_min_importance,
+            memory_max_content_chars=memory_max_content_chars,
+            memory_embed_enabled=memory_embed_enabled,
+            memory_dedup_threshold=memory_dedup_threshold,
+            memory_embed_timeout_sec=memory_embed_timeout_sec,
+            memory_retention_days=memory_retention_days,
+            memory_fts_limit=memory_fts_limit,
+            memory_rrf_k=memory_rrf_k,
+            memory_recency_days=memory_recency_days,
+            memory_local_only=memory_local_only,
+        )
     except ValueError as e:
-        # Convert ValueError from MemoryConfig.__post_init__ validators
-        # to ConfigReloadValidationError for reload path error handling
         raise ConfigReloadValidationError(str(e)) from e
 
 
-def _extract_approval_risk_fields(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Extract approval risk-related fields."""
+def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
+    """Build ApprovalConfig from a raw config dict."""
     approval_risk_rules = _get_or_default(
         cfg, "approval_risk_rules", _get_dict, _DEFAULT_APPROVAL_RISK_RULES
     )
@@ -385,57 +308,32 @@ def _extract_approval_risk_fields(cfg: dict[str, Any]) -> dict[str, Any]:
     approval_resource_keys = _get_or_default(
         cfg, "approval_resource_keys", _get_dict, _DEFAULT_RESOURCE_KEYS
     )
-    return {
-        "approval_risk_rules": approval_risk_rules,
-        "approval_protected_paths": approval_protected_paths,
-        "approval_high_risk_branches": approval_high_risk_branches,
-        "approval_shell_safe_prefixes": approval_shell_safe_prefixes,
-        "approval_resource_keys": approval_resource_keys,
-    }
-
-
-def _extract_approval_tool_fields(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Extract approval tool-related fields."""
     approval_dry_run_tools = _validate_dry_run_tools(
         _get_or_default(
             cfg, "approval_dry_run_tools", _get_list, _DEFAULT_DRY_RUN_TOOLS
         ),
     )
     tool_safety_tiers = _get_or_default(cfg, "tool_safety_tiers", _get_dict, {})
-    ALLOWED_TIERS = {"READ_ONLY", "WRITE_SAFE", "WRITE_DANGEROUS", "ADMIN"}
-    for key, val in tool_safety_tiers.items():
-        if isinstance(val, str) and val not in ALLOWED_TIERS:
-            raise ConfigReloadValidationError(
-                f"tool_safety_tiers[{key!r}] must be one of "
-                f"{ALLOWED_TIERS}, got {val!r}"
-            )
-    return {
-        "approval_dry_run_tools": approval_dry_run_tools,
-        "tool_safety_tiers": tool_safety_tiers,
-    }
-
-
-def _extract_approval_github_fields(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Extract approval GitHub-related fields."""
     allowed_root = _get_str_or_default(cfg, "allowed_root", "")
     approval_github_allowed_repos = _get_or_default(
         cfg, "approval_github_allowed_repos", _get_list, []
     )
     gitops_push_blocked = _get_or_default(cfg, "gitops_push_blocked", _get_bool, False)
-    return {
-        "allowed_root": allowed_root,
-        "approval_github_allowed_repos": approval_github_allowed_repos,
-        "gitops_push_blocked": gitops_push_blocked,
-    }
-
-
-def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
-    """Build ApprovalConfig from a raw config dict."""
-    risk = _extract_approval_risk_fields(cfg)
-    tool = _extract_approval_tool_fields(cfg)
-    github = _extract_approval_github_fields(cfg)
-    all_fields = {**risk, **tool, **github}
-    return ApprovalConfig(**all_fields)
+    try:
+        return ApprovalConfig(
+            approval_risk_rules=approval_risk_rules,
+            approval_protected_paths=approval_protected_paths,
+            approval_high_risk_branches=approval_high_risk_branches,
+            approval_shell_safe_prefixes=approval_shell_safe_prefixes,
+            approval_resource_keys=approval_resource_keys,
+            approval_dry_run_tools=approval_dry_run_tools,
+            tool_safety_tiers=tool_safety_tiers,
+            allowed_root=allowed_root,
+            approval_github_allowed_repos=approval_github_allowed_repos,
+            gitops_push_blocked=gitops_push_blocked,
+        )
+    except ValueError as e:
+        raise ConfigReloadValidationError(str(e)) from e
 
 
 def _build_diagnostics_config(cfg: dict[str, Any]) -> DiagnosticsConfig:
@@ -461,8 +359,6 @@ def _resolve_config_source_and_registry(
     """Resolve config source and tool registry. Returns (cfg, known_tools)."""
     cfg = cfg_override if cfg_override is not None else load_config()
     try:
-        from shared.tool_registry import get_registry
-
         known_tools = set(get_registry().get_all_tool_names())
     except ValueError as exc:
         raise ConfigReloadValidationError(
@@ -488,7 +384,9 @@ def _run_production_validation(
         logger.error("Production config validation failed:")
         for err in results.errors:
             logger.error(f"  - {err}")
-        sys.exit(1)
+        raise ConfigReloadValidationError(
+            f"Production config validation failed: {results.errors}"
+        )
     for warning in results.warnings:
         logger.warning(warning)
 
