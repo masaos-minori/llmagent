@@ -161,10 +161,10 @@ to this Plan's baseline (ingester.md: 4 tool findings → 0).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the 4 Edits per Procedure/Method | Pending | — | — | |
-| 2 | N/A: no test suite applies to a documentation content change | Pending | — | — | |
-| 3 | Run the 3 commands in Validation plan | Pending | — | — | |
-| 4 | N/A: no further documentation update needed beyond this file itself | Pending | — | — | |
+| 1 | Apply the 4 Edits per Procedure/Method | Completed | 20260920-100804 | 20260920-100804 | Stale detection: not stale. Adversarial verification: all 4 locations confirmed unchanged. Applied all 4 Edits, both CLI/error-handling replacements textually identical across the 4a/4c duplicate, resolving the prior factual contradiction by construction. |
+| 2 | N/A: no test suite applies to a documentation content change | Completed | 20260920-100804 | 20260920-100804 |  |
+| 3 | Run the 3 commands in Validation plan | Completed | 20260920-100804 | 20260920-100804 | check_docs_quality.py: 12 pre-existing content-similarity/near-duplicate-heading warnings (unchanged category, baseline). check_docs_structure.py: 1 pre-existing finding (3 H1 headings, unrelated). check_docs_content_policy.py: 0 findings for this file (was 4). |
+| 4 | N/A: no further documentation update needed beyond this file itself | Completed | 20260920-100804 | 20260920-100804 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
