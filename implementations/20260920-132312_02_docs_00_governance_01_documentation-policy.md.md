@@ -97,10 +97,10 @@ regression this row introduces) and no other new finding appears.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the 1 Edit per Procedure/Method | Pending | — | — | |
-| 2 | N/A: no test suite applies to a documentation content change | Pending | — | — | |
-| 3 | Run the 3 commands in Validation plan | Pending | — | — | |
-| 4 | N/A: no further documentation update needed beyond this file itself | Pending | — | — | |
+| 1 | Apply the 1 Edit per Procedure/Method | Completed | 20260920 | 20260920 | 4th bullet appended verbatim, matching `documentation-checks.md:271`'s wording exactly (confirmed by Read before editing). |
+| 2 | N/A: no test suite applies to a documentation content change | N/A | — | — | |
+| 3 | Run the 3 commands in Validation plan | Completed | 20260920 | 20260920 | `check_docs_quality.py`: 10 pre-existing within-file warnings (RAG/MCP/Agent/EventBus sections, lines 209-227), unrelated to and unchanged by this edit — no new finding. `check_docs_structure.py`: pre-existing byte-size finding remains (29997 bytes, up from the ~29795-byte pre-edit baseline — consistent with the ~150-200 byte bullet addition), no other new finding. `grep -n "GV-020"`: exactly 1 match, the newly added bullet. |
+| 4 | N/A: no further documentation update needed beyond this file itself | N/A | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
