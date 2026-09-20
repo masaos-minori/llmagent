@@ -19,6 +19,10 @@ class TestShutdownCoordinatorShutdownAll:
         mgr._stderr_log_manager = Mock()
         mgr._last_health_check = {}
         mgr._process_terminator = AsyncMock()
+        mgr.process_terminator = mgr._process_terminator
+        mgr.cleanup_server_key = Mock()
+        mgr.remove_process_entry = Mock()
+        mgr.clear_all_health_checks = Mock()
         return mgr
 
     @pytest.fixture
@@ -45,10 +49,9 @@ class TestShutdownCoordinatorShutdownAll:
         coord = ShutdownCoordinator()
         await coord.shutdown_all(mock_manager)
 
-        assert mock_manager._http_pgids == {}
-        assert mock_manager._stderr_files == {}
-        mock_manager._stderr_log_manager.clear.assert_called_once()
-        assert mock_manager._last_health_check == {}
+        mock_manager.remove_process_entry.assert_called_once_with("server1")
+        mock_manager.cleanup_server_key.assert_called_once_with("server1")
+        mock_manager.clear_all_health_checks.assert_called_once()
 
     async def test_shutdown_all_uses_caller_supplied_terminator(
         self, mock_manager, mock_proc
@@ -72,7 +75,8 @@ class TestShutdownCoordinatorShutdownAll:
         coord = ShutdownCoordinator()
         await coord.shutdown_all(mock_manager)
 
-        mock_stderr_fh.close.assert_called_once()
+        mock_manager.remove_process_entry.assert_called_once_with("server1")
+        mock_manager.cleanup_server_key.assert_called_once_with("server1")
 
     async def test_shutdown_all_skips_already_exited_processes(self, mock_manager):
         exited_proc = Mock()

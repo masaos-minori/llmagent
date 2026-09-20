@@ -1,6 +1,10 @@
 """scripts/agent/http_lifecycle_shutdown_coordinator.py
 
-Shutdown coordinator for graceful HTTP server lifecycle management."""
+Shutdown coordinator for graceful HTTP server lifecycle management.
+
+Delegates cleanup operations back to HttpServerLifecycleManager via its public
+methods (cleanup_server_key, clear_all_health_checks, process_terminator).
+"""
 
 from __future__ import annotations
 
@@ -56,7 +60,8 @@ class ShutdownCoordinator:
         """Gracefully shut down every managed server.
 
         Iterates over all entries in ``manager._http_procs``, delegates termination
-        to ``ProcessTerminator.terminate_with_timeout`` for each process.
+        to ``ProcessTerminator.terminate_with_timeout`` for each process, then
+        delegates cleanup back to the manager's public methods.
 
         Args:
             manager: The lifecycle manager owning the processes.
@@ -81,28 +86,17 @@ class ShutdownCoordinator:
 
         try:
             procs = manager._http_procs
-            terminator = terminator or manager._process_terminator
+            terminator = terminator or manager.process_terminator
             for server_key, proc in list(procs.items()):
                 if proc is None:
                     continue
                 # Pop before termination to avoid double-shutdown if terminated fails
-                manager._http_procs.pop(server_key, None)
+                manager.remove_process_entry(server_key)
                 if proc.poll() is not None:
                     logger.debug(
                         "Lifecycle: %r already exited; removing entry", server_key
                     )
-                    # Clean up tracking data even for exited procs
-                    manager._http_pgids.pop(server_key, None)
-                    stderr_fh = manager._stderr_files.pop(server_key, None)
-                    if stderr_fh is not None:
-                        try:
-                            stderr_fh.close()
-                        except OSError as close_err:
-                            logger.warning(
-                                "Lifecycle: error closing stderr log for %r: %s",
-                                server_key,
-                                close_err,
-                            )
+                    manager.cleanup_server_key(server_key)
                     continue
                 logger.info("Shutting down %s...", server_key)
                 terminate_kwargs: dict[str, Any] = {
@@ -116,19 +110,8 @@ class ShutdownCoordinator:
                     )
                 except (OSError, TimeoutError) as e:
                     logger.warning("Lifecycle: error terminating %r: %s", server_key, e)
-                manager._http_pgids.pop(server_key, None)
-                stderr_fh = manager._stderr_files.pop(server_key, None)
-                if stderr_fh is not None:
-                    try:
-                        stderr_fh.close()
-                    except OSError as close_err:
-                        logger.warning(
-                            "Lifecycle: error closing stderr log for %r: %s",
-                            server_key,
-                            close_err,
-                        )
-            manager._stderr_log_manager.clear()
-            manager._last_health_check.clear()
+                manager.cleanup_server_key(server_key)
+            manager.clear_all_health_checks()
         finally:
             if old_sigint is not None:
                 try:

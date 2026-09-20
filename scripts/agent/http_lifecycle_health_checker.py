@@ -1,6 +1,10 @@
 """scripts/agent/http_lifecycle_health_checker.py
 
-HTTP health check for verifying server readiness."""
+HTTP health check for verifying server readiness.
+
+Timeout values are passed as parameters rather than imported from
+http_lifecycle.py to avoid circular imports.
+"""
 
 from __future__ import annotations
 
@@ -23,16 +27,16 @@ class HealthChecker:
     """Performs HTTP health checks against a running server."""
 
     @staticmethod
-    def compute_health_check_timeout(startup_timeout: float) -> float:
+    def compute_health_check_timeout(
+        startup_timeout: float, mcpserver_health_timeout: float = 5.0
+    ) -> float:
         """Compute the timeout for a single health-check request.
 
-        Uses the smaller of the global constant :data:`MCPSERVER_HEALTH_TIMEOUT`
-        and the configured *startup_timeout* so that no individual request can
-        block longer than the shorter interval.
+        Uses the smaller of *mcpserver_health_timeout* and the configured
+        *startup_timeout* so that no individual request can block longer than
+        the shorter interval.
         """
-        from agent.http_lifecycle import MCPSERVER_HEALTH_TIMEOUT
-
-        return min(MCPSERVER_HEALTH_TIMEOUT, startup_timeout)
+        return min(mcpserver_health_timeout, startup_timeout)
 
     @staticmethod
     async def verify_running_async(

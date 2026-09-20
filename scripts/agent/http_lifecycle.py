@@ -5,14 +5,19 @@ HTTP subprocess MCP server lifecycle: start, health-poll, restart, shutdown.
 Extracted from lifecycle.py. _ServerLifecycleRouter in factory.py delegates
 to HttpServerLifecycleManager for all HTTP subprocess operations.
 
-Refactored: HttpServerLifecycleManager is now a thin composition facade
-delegating to six concern-specific modules:
+Refactored: HttpServerLifecycleManager is a true composition facade delegating
+all concern-specific work to six modules with zero pure-delegation wrappers:
 - CommandValidator: command allowlist and symlink resolution checks
 - StderrLogManager: stderr log file creation, appending, and tail retrieval
 - ProcessTerminator: graceful and forced process termination
 - HealthChecker: HTTP health check polling
 - ProcessSnapshotProvider: process info snapshots
 - ShutdownCoordinator: coordinated shutdown of all managed processes
+
+Custom logic retained in this class:
+- _read_stderr_tail: seek/read/decode implementation for stderr log tailing
+- _wait_exited: asyncio-aware proc.poll() polling loop with timeout
+- MCPSERVER_HEALTH_TIMEOUT: global constant for httpx.AsyncClient timeout
 """
 
 from __future__ import annotations
@@ -86,10 +91,6 @@ class HttpServerLifecycleManager:
         self._stderr_files: dict[str, IO[bytes]] = {}
         self._last_health_check: dict[str, float] = {}
 
-    def _open_stderr_log(self, server_key: str, cfg: McpServerConfig) -> IO[bytes]:
-        """Open an append-mode file for the server's stderr output."""
-        return self._stderr_log_manager.open_log(server_key, cfg)
-
     def _read_stderr_tail(self, server_key: str) -> str:
         """Read the last N bytes from a server's stderr log file."""
         log_path = self._stderr_log_manager.get_log_path(server_key)
@@ -119,17 +120,6 @@ class HttpServerLifecycleManager:
                 return False
             await asyncio.sleep(_TERMINATE_POLL_INTERVAL_SEC)
         return True
-
-    async def _terminate_with_timeout(
-        self,
-        proc: subprocess.Popen[bytes],
-        server_key: str,
-        timeout: float = RESTART_TERMINATE_TIMEOUT_SEC,
-    ) -> None:
-        """Terminate proc; escalate to kill if terminate times out."""
-        if proc.poll() is not None:
-            return
-        await self._process_terminator.terminate_with_timeout(proc, server_key, timeout)
 
     def verify_running(self, server_key: str) -> bool:
         """Return True if the HTTP subprocess server is running, False if missing or exited."""
@@ -163,7 +153,10 @@ class HttpServerLifecycleManager:
         """Remove health check timestamps, stderr file handles, and paths for a server."""
         fh = self._stderr_files.pop(server_key, None)
         if fh is not None:
-            fh.close()
+            try:
+                fh.close()
+            except OSError:
+                pass
         self._stderr_log_manager.forget(server_key)
         self._last_health_check.pop(server_key, None)
 
@@ -172,6 +165,38 @@ class HttpServerLifecycleManager:
         stderr_content = self._read_stderr_tail(server_key)
         self._clear_server_tracking_data(server_key)
         return stderr_content
+
+    def cleanup_server_key(self, server_key: str) -> None:
+        """Remove process tracking entries for a server key.
+
+        Called by ShutdownCoordinator after terminating a server process.
+        Removes the process entry, pgid entry, and delegates stderr/log cleanup
+        to _clear_server_tracking_data.
+        """
+        self._http_procs.pop(server_key, None)
+        self._http_pgids.pop(server_key, None)
+        self._clear_server_tracking_data(server_key)
+
+    def remove_process_entry(self, server_key: str) -> None:
+        """Remove the process entry from tracking.
+
+        Called before termination to prevent double-shutdown if termination fails.
+        Does NOT close file handles or clear other tracking data — those are cleaned
+        up after termination via cleanup_server_key().
+        """
+        self._http_procs.pop(server_key, None)
+
+    def clear_all_health_checks(self) -> None:
+        """Clear all health check timestamps.
+
+        Called by ShutdownCoordinator at the end of shutdown_all().
+        """
+        self._last_health_check.clear()
+
+    @property
+    def process_terminator(self) -> ProcessTerminator:
+        """Return the configured ProcessTerminator."""
+        return self._process_terminator
 
     def _build_snapshot(self, server_key: str) -> ProcessInfoSnapshot | None:
         """Return a typed snapshot for a managed subprocess, or None if unknown."""
@@ -232,12 +257,6 @@ class HttpServerLifecycleManager:
             task.cancel()
         return shutdown_task in done
 
-    def _close_and_forget_stderr(self, server_key: str, stderr_fh: IO[bytes]) -> None:
-        """Close the stderr handle and drop stderr-path tracking (startup-failure cleanup)."""
-        stderr_fh.close()
-        self._stderr_files.pop(server_key, None)
-        self._stderr_log_manager.forget(server_key)
-
     async def _create_and_validate_proc(
         self,
         server_key: str,
@@ -255,7 +274,7 @@ class HttpServerLifecycleManager:
             HttpStartupError: If command validation fails or getpgid fails.
         """
         env = self._command_validator.filter_env(cfg.env)
-        stderr_fh = self._open_stderr_log(server_key, cfg)
+        stderr_fh = self._stderr_log_manager.open_log(server_key, cfg)
         self._stderr_files[server_key] = stderr_fh
         if not cfg.cmd or not cfg.cmd[0]:
             raise HttpStartupError(
@@ -270,7 +289,9 @@ class HttpServerLifecycleManager:
         try:
             self._command_validator.validate(server_key, cfg.cmd[0])
         except ValueError as e:
-            self._close_and_forget_stderr(server_key, stderr_fh)
+            stderr_fh.close()
+            self._stderr_files.pop(server_key, None)
+            self._stderr_log_manager.forget(server_key)
             raise HttpStartupError(
                 StartupFailure(
                     server_key=server_key,
@@ -295,7 +316,9 @@ class HttpServerLifecycleManager:
                 ),
             )
         except Exception:
-            self._close_and_forget_stderr(server_key, stderr_fh)
+            stderr_fh.close()
+            self._stderr_files.pop(server_key, None)
+            self._stderr_log_manager.forget(server_key)
             raise
         try:
             self._http_pgids[server_key] = os.getpgid(proc.pid)
@@ -306,7 +329,7 @@ class HttpServerLifecycleManager:
                 proc.pid,
             )
             try:
-                await self._terminate_with_timeout(
+                await self._process_terminator.terminate_with_timeout(
                     proc, server_key, timeout=TERMINATE_TIMEOUT_SEC
                 )
                 poll_result = proc.poll()
@@ -319,7 +342,9 @@ class HttpServerLifecycleManager:
                     )
             finally:
                 # Always cleanup resources if getpgid fails, even if termination fails
-                self._close_and_forget_stderr(server_key, stderr_fh)
+                stderr_fh.close()
+                self._stderr_files.pop(server_key, None)
+                self._stderr_log_manager.forget(server_key)
                 self._http_procs.pop(server_key, None)
                 self._http_pgids.pop(server_key, None)
             raise e
@@ -366,7 +391,7 @@ class HttpServerLifecycleManager:
         """
         health_url = cfg.url.rstrip("/") + "/health"
         hc_timeout = self._health_checker.compute_health_check_timeout(
-            cfg.startup_timeout_sec
+            cfg.startup_timeout_sec, MCPSERVER_HEALTH_TIMEOUT
         )
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(timeout=hc_timeout)
@@ -401,7 +426,7 @@ class HttpServerLifecycleManager:
                     )
 
             stderr_full = self._cleanup_server_resources(server_key)
-            await self._terminate_with_timeout(
+            await self._process_terminator.terminate_with_timeout(
                 proc, server_key, timeout=TERMINATE_TIMEOUT_SEC
             )
             self._raise_startup_failure(
@@ -466,7 +491,7 @@ class HttpServerLifecycleManager:
         proc = self._http_procs.pop(server_key, None)
         if proc is not None and proc.poll() is None:
             logger.info("Lifecycle: terminating %r for restart", server_key)
-            await self._terminate_with_timeout(proc, server_key)
+            await self._process_terminator.terminate_with_timeout(proc, server_key)
         self._http_pgids.pop(server_key, None)
         await self.start(server_key, cfg)
 

@@ -311,7 +311,9 @@ class TestSubprocessLifecycle:
             patch.object(time, "monotonic", side_effect=fake_monotonic),
             patch.object(asyncio, "sleep", return_value=None),
         ):
-            with patch.object(type(mgr), "_terminate_with_timeout", new=AsyncMock()):
+            with patch.object(
+                mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
+            ):
                 with pytest.raises(HttpStartupError):
                     await mgr.start("test", cfg)
 
@@ -341,7 +343,9 @@ class TestSubprocessLifecycle:
             patch.object(time, "monotonic", side_effect=fake_monotonic),
             patch.object(asyncio, "sleep", return_value=None),
         ):
-            with patch.object(type(mgr), "_terminate_with_timeout", new=AsyncMock()):
+            with patch.object(
+                mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
+            ):
                 with pytest.raises(HttpStartupError):
                     await mgr.start("test", cfg)
 
@@ -380,7 +384,9 @@ class TestSubprocessLifecycle:
             patch.object(time, "monotonic", side_effect=fake_monotonic),
             patch.object(asyncio, "sleep", return_value=None),
         ):
-            with patch.object(type(mgr), "_terminate_with_timeout", new=AsyncMock()):
+            with patch.object(
+                mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
+            ):
                 with pytest.raises(HttpStartupError):
                     await mgr.start("test", cfg)
 
@@ -427,7 +433,9 @@ class TestSubprocessLifecycle:
         with (
             patch.object(subprocess, "Popen", return_value=proc_mock),
             patch.object(os, "getpgid", side_effect=OSError("no such process")),
-            patch.object(type(mgr), "_open_stderr_log", return_value=stderr_fh_mock),
+            patch.object(
+                mgr._stderr_log_manager, "open_log", return_value=stderr_fh_mock
+            ),
         ):
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start("test", cfg)
@@ -462,7 +470,9 @@ class TestSubprocessLifecycle:
             patch.object(time, "monotonic", side_effect=fake_monotonic),
             patch.object(asyncio, "sleep", return_value=None),
         ):
-            with patch.object(type(mgr), "_terminate_with_timeout", new=AsyncMock()):
+            with patch.object(
+                mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
+            ):
                 with pytest.raises(HttpStartupError):
                     await mgr.restart("test", _make_cfg())
 
@@ -664,7 +674,9 @@ class TestShutdownSequence:
             patch.object(signal, "signal", side_effect=lambda sig, h: h),
             patch.object(asyncio, "sleep", return_value=None),
         ):
-            with patch.object(type(mgr), "_terminate_with_timeout", new=AsyncMock()):
+            with patch.object(
+                mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
+            ):
                 await mgr.shutdown_all()
 
         fh_mock.close.assert_called_once()
@@ -684,7 +696,9 @@ class TestShutdownSequence:
             patch.object(signal, "signal", side_effect=lambda sig, h: h),
             patch.object(asyncio, "sleep", return_value=None),
         ):
-            with patch.object(type(mgr), "_terminate_with_timeout", new=AsyncMock()):
+            with patch.object(
+                mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
+            ):
                 await mgr.shutdown_all()
 
     @pytest.mark.asyncio
@@ -716,7 +730,9 @@ class TestShutdownSequence:
             patch.object(signal, "signal", side_effect=lambda sig, h: h),
             patch.object(asyncio, "sleep", return_value=None),
         ):
-            with patch.object(type(mgr), "_terminate_with_timeout", new=AsyncMock()):
+            with patch.object(
+                mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
+            ):
                 await mgr.shutdown_all()
 
         assert len(mgr._http_procs) == 0
@@ -780,7 +796,7 @@ class TestShutdownSequence:
                 patch.object(asyncio, "sleep", return_value=None),
             ):
                 with patch.object(
-                    type(mgr), "_terminate_with_timeout", new=AsyncMock()
+                    mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
                 ):
                     await mgr.shutdown_all()
 
@@ -846,7 +862,9 @@ class TestErrorRecovery:
             patch.object(time, "monotonic", side_effect=fake_monotonic_first),
             patch.object(asyncio, "sleep", return_value=None),
         ):
-            with patch.object(type(mgr), "_terminate_with_timeout", new=AsyncMock()):
+            with patch.object(
+                mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
+            ):
                 with pytest.raises(HttpStartupError):
                     await mgr.start("test", cfg)
 
@@ -927,7 +945,7 @@ class TestErrorRecovery:
                 new=MagicMock(return_value="timeout stderr"),
             ):
                 with patch.object(
-                    type(mgr), "_terminate_with_timeout", new=AsyncMock()
+                    mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
                 ):
                     with pytest.raises(HttpStartupError) as exc_info:
                         await mgr.start("test", cfg)
@@ -1015,7 +1033,7 @@ class TestErrorRecovery:
                 type(mgr), "_read_stderr_tail", new=MagicMock(return_value="")
             ):
                 with patch.object(
-                    type(mgr), "_terminate_with_timeout", new=AsyncMock()
+                    mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
                 ):
                     with pytest.raises(HttpStartupError):
                         await mgr.start("test", cfg)

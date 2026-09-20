@@ -35,7 +35,9 @@ async def test_terminate_warning_when_no_pgid():
         with (
             patch.object(mgr, "_wait_exited", new=AsyncMock(return_value=True)),
         ):
-            await mgr._terminate_with_timeout(proc_mock, "test-server", timeout=1.0)
+            await mgr._process_terminator.terminate_with_timeout(
+                proc_mock, "test-server", timeout=1.0
+            )
 
         assert any(
             "terminated, but children may remain" in w for w in captured_warnings
@@ -69,7 +71,9 @@ async def test_terminate_warning_when_killpg_fails():
             patch.object(mgr, "_http_pgids", {"test-server": 1234}),
             patch.object(os, "killpg", side_effect=OSError("No such process")),
         ):
-            await mgr._terminate_with_timeout(proc_mock, "test-server", timeout=1.0)
+            await mgr._process_terminator.terminate_with_timeout(
+                proc_mock, "test-server", timeout=1.0
+            )
 
         assert any(
             "terminated, but children may remain" in w for w in captured_warnings
@@ -103,7 +107,9 @@ async def test_terminate_warning_integration_simulation():
             patch.object(mgr, "_wait_exited", new=AsyncMock(return_value=True)),
             patch.object(os, "killpg", side_effect=OSError("Permission denied")),
         ):
-            await mgr._terminate_with_timeout(proc_mock, "test-server", timeout=1.0)
+            await mgr._process_terminator.terminate_with_timeout(
+                proc_mock, "test-server", timeout=1.0
+            )
 
         assert any(
             "terminated, but children may remain" in w for w in captured_warnings
