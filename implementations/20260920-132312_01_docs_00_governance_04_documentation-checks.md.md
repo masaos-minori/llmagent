@@ -145,10 +145,10 @@ decreases (from 24573 bytes).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the 3 Edits per Procedure/Method | Pending | — | — | |
-| 2 | N/A: no test suite applies to a documentation content change | Pending | — | — | |
-| 3 | Run the 3 commands in Validation plan | Pending | — | — | |
-| 4 | N/A: no further documentation update needed beyond this file itself | Pending | — | — | |
+| 1 | Apply the 3 Edits per Procedure/Method | Completed | 20260920 | 20260920 | Sequencing note satisfied: sibling `seq` 02 procedure (`documentation-policy.md`'s GV-020 bullet addition) was executed first, so the GV-020 condition existed in the canonical location before this file's copy was removed — no transient gap. Adversarial Verification found one internal inconsistency in this document: Details said to preserve the `### Change-Impact Matrix` heading "exactly as-is", but Procedure step 2's own explicit line range (through "the Change-Impact Matrix's last data row") and Design decisions ("replace both with one summary sentence") both call for collapsing that sub-heading into the parent `## Change Impact Assessment` section. Resolved in favor of the more specific Procedure/Design decisions text (treated as an editorial oversight in the Details bullet, not a live requirement) — the `### Change-Impact Matrix` heading no longer exists as a separate heading; its content is folded into `## Change Impact Assessment`'s one-sentence summary+link. All 3 target headings that remain (`### 13. Merge Condition Validation`, `## Change Impact Assessment`, `## Review Gate Conditions`) are unchanged; the `GV-020` paragraph is retained verbatim. |
+| 2 | N/A: no test suite applies to a documentation content change | N/A | — | — | |
+| 3 | Run the 3 commands in Validation plan | Completed | 20260920 | 20260920 | `check_docs_quality.py`: 0 issues found (was 0 in Plan baseline — no new finding). `check_docs_structure.py`: all checks passed. `grep -rn "documentation-checks.md#" docs/`: 0 matches (AC-5 confirmed, no incoming anchor references broken). Manual anchor check: `#merge-conditions`, `#change-impact-rule`, `#review-rule` all confirmed to exist as `##`-level headings in `docs/00_governance_01_documentation-policy.md` (lines 393, 328, 319 respectively) via the sibling `seq` 02 procedure already having landed. File byte size: 22417 bytes, down from the Plan's 24573-byte baseline. |
+| 4 | N/A: no further documentation update needed beyond this file itself | N/A | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
