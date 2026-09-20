@@ -45,11 +45,14 @@ TypedDict field set used for crawl output JSON files.
 
 ### 2.1.1 Configuration Parameters
 
-| Parameter | Code Fallback Value | Production Value (config/crawler.toml) |
-|---|---|---|
-| max_depth | None | 3 |
-| max_pages | 500 | 200 |
-| skip_nofollow | False | true |
+`max_depth` and `max_pages` bound the crawl's BFS traversal to prevent
+unbounded growth in processing time, storage, and external-site load — see
+[section 1.1 Configuration Reference](03_rag_05_1-configuration-reference.md)
+below for the current operational values. The rationale for the specific
+limit values is tracked as unresolved in NC-035
+(`docs/00_governance_03_issue-and-uncertainty-management.md`).
+`skip_nofollow` controls whether nofollow-marked links are excluded from
+the BFS queue.
 
 > For a full list of parameters, see [section 1.1 Configuration Reference](03_rag_05_1-configuration-reference.md).
 

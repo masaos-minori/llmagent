@@ -207,11 +207,11 @@ Troubleshooting:
 | Constraint | Value | Source |
 |---|---|---|
 | Language Detection | CJK ratio ≥ 0.10 → `ja`; otherwise `en`; fallback to hint if < 100 chars | `crawler.py` |
-| Chunk Size | Min 40 chars, Max 500 chars | `config/chunk_splitter.toml` |
-| Chunk Overlap | 50 character sliding window | `config/chunk_splitter.toml` |
+| Chunk Size | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale for the specific bounds tracked as unresolved in NC-034 (`docs/00_governance_03_issue-and-uncertainty-management.md`). | `config/chunk_splitter.toml` |
+| Chunk Overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale tracked as unresolved in NC-034. | `config/chunk_splitter.toml` |
 | Embedding Dimension | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB | `scripts/db/store_protocols.py` |
-| Crawl Depth | Operational value is 3 (max 3 hops from start URL, `config/crawler.toml`'s `max_depth`). Differs from code fallback; use operational config | `config/crawler.toml` |
-| Max Pages Per Site | Operational value is 200 (max 200 pages per site, `config/crawler.toml`'s `max_pages`). Code fallback is 500; use operational config | `config/crawler.toml` |
+| Crawl Depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference §1.1](03_rag_05_1-configuration-reference.md). Rationale for the specific limit tracked as unresolved in NC-035. | `config/crawler.toml` |
+| Max Pages Per Site | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value in [Configuration Reference §1.1](03_rag_05_1-configuration-reference.md). Rationale for the specific limit tracked as unresolved in NC-035. | `config/crawler.toml` |
 | Database | SQLite single node only | Architecture |
 
 Note: No empirical basis or trade-off analysis for these six constraint values is recorded in this repository's code, configuration files, or ADRs (as of this cycle's search). If these values are tuned, verify the change against actual retrieval quality/performance for your intended use case rather than assuming a known-good adjustment — this documentation set does not currently provide quality-impact guidance for any of them.

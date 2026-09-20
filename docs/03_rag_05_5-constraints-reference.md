@@ -17,11 +17,11 @@ source:
 | Constraint | Value |
 |---|---|
 | Language detection threshold | CJK ratio $\ge$ 0.10 $\rightarrow$ `ja`; If page < 100 chars $\rightarrow$ use hint language |
-| Chunk size range | 40–500 characters (Configurable via `min_chunk`/`max_chunk` in `config/chunk_splitter.toml`) |
-| Chunk overlap | 50 character sliding window (`config/chunk_splitter.toml:chunk_overlap`) |
+| Chunk size range | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale for the specific bounds tracked as unresolved in NC-034 (`docs/00_governance_03_issue-and-uncertainty-management.md`). |
+| Chunk overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale tracked as unresolved in NC-034. |
 | Embedding dimensions | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB |
-| Crawl depth | Code default requires `max_depth` to be specified (`config/crawler.toml` is mandatory). Operational `config/crawler.toml` uses `max_depth = 3` |
-| Max crawl pages | Code default is 500 pages per site (`crawler.py` uses `cfg.get("max_pages", 500)`). Operational `config/crawler.toml` uses `max_pages = 200` |
+| Crawl depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference §1.1](03_rag_05_1-configuration-reference.md). Rationale for the specific limit tracked as unresolved in NC-035. |
+| Max crawl pages | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value in [Configuration Reference §1.1](03_rag_05_1-configuration-reference.md). Rationale for the specific limit tracked as unresolved in NC-035. |
 | Replication | Single-node SQLite only |
 | `chunk_index` type constraint | Non-negative `int`; `bool` is explicitly rejected before the `int` check (`_validate_int_non_negative`) — no implicit conversion from strings or booleans |
 | `url` non-empty requirement | Required non-empty string for both crawl and chunk artifacts (`_validate_str`); no fallback |
