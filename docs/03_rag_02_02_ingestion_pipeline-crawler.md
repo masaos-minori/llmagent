@@ -36,9 +36,8 @@ source:
 
 **Typed dict**
 
-| TypedDict | Purpose |
-|---|---|
-| `CrawlPayload` | Typed dictionary for crawl output JSON files (url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by) |
+See `CrawlJsonPayload` in `scripts/rag/ingestion/pipeline_utils.py` for the exact
+TypedDict field set used for crawl output JSON files.
 
 **Public Methods** — See `scripts/rag/ingestion/crawler.py` for details.
 
@@ -100,11 +99,8 @@ This separation exists for two reasons: (1) **separation of concerns** — `craw
 
 ### 2.3 CLI Arguments
 
-| Argument | Description | Default |
-|---|---|---|
-| `--url URL [URL ...]` | Target URL(s) (multiple allowed. If omitted, uses `target_urls` from config) | — |
-| `--lang {en,ja,auto}` | Hint language for per-page CJK ratio detection | `en` |
-| `--targets-file PATH` | Path to a TOML file containing `target_urls = [[url, lang], ...]`. Supports `http://`, `https://`, and `file://`. Cannot be used with `--url`. | — |
+Run `uv run python scripts/rag/ingestion/crawler.py --help` for the current argument
+list.
 
 ### 2.4 Output JSON Format
 
@@ -122,12 +118,10 @@ the `ChunkDocument` DTO this reader returns.
 
 ### 2.5 Error Handling
 
-| Case | Action |
-|---|---|
-| HTTP request failure | Retries with exponential backoff up to `fetch_retry` times (e.g., `min(2**i, 10)` seconds) |
-| Exception per URL | Logs a `WARNING` and continues to the next URL |
-| Text < 100 characters | Uses hint language (falls back to `en` if `--lang auto`) |
-| Language is not `ja`/`en` | Silently skips the URL without logging |
+See [03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md)'s
+"Crawler" section for HTTP-failure retry, per-URL exception, and language-mismatch
+handling. (The short-text hint-language fallback is covered in section 2.2's
+"Language Detection" bullet, not an error case.)
 
 ### 2.6 Logging
 

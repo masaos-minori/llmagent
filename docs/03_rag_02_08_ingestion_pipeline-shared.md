@@ -63,16 +63,8 @@ from rag.utils import (
 )
 ```
 
-**Used by:**
-
-| Script | Functions Used |
-|---|---|
-| `scripts/rag/ingestion/chunk_japanese.py` | `normalize_unicode` |
-| `scripts/rag/ingestion/ingester.py` | `floats_to_blob`, `validate_url` |
-| `scripts/rag/ingestion/crawler.py` | `validate_url` |
-| `scripts/rag/stages/augment.py` | `sanitize_document` |
-| `scripts/rag/repository.py` | `floats_to_blob` |
-| `scripts/rag/cache.py` | `cosine_sim` |
+**Used by:** See each dependent script's own `from rag.utils import (...)` statement
+for the functions it currently uses.
 
 ---
 

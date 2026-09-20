@@ -143,9 +143,8 @@ chunks_vec (explicitly deleted) → documents (deleting documents triggers casca
 
 ### 4.3 CLI Arguments
 
-| Argument | Description | Default |
-|---|---|---|
-| `--force` | Deletes existing `document`/`chunks`/`chunks_vec` records and re-embeds. For `file://` URLs, it always re-ingests regardless of ETag. | false |
+Run `uv run python scripts/rag/ingestion/ingester.py --help` for the current argument
+list.
 
 ### 4.4 Embedding API
 
@@ -169,15 +168,12 @@ Current DB schema definition $\rightarrow$ [RAG schema reference document](03_ra
 
 ### 4.6 Error Handling
 
-| Case | Action |
-|---|---|
-| Embedding API failure | Retries with exponential backoff up to `embed_retry` times (max 10s) |
-| Retry limit reached (single chunk) | Logs a `WARNING`; skips the chunk and continues |
-| Invalid `lang` value | Raises `ValueError`; skips the URL group; logs an `ERROR` with traceback |
-| Improper `chunks_vec` deletion order | Raises `ValueError`; skips the chunk; logs a `WARNING` |
-| Embedding dimension mismatch | Raises `ValueError`; skips the chunk; logs a `WARNING` |
-| Artifact validation failure (`ChunkFormatError` from `read_chunk_json()`) | The entire URL's chunk group is marked failed via `IngestUrlResult.validation_failure()` (`n_failed = len(chunk_files)`, `n_success = 0`); not counted as an embedding failure (`n_embed_failed` unchanged); no `WARNING` is logged at this layer |
-| File move failure | Logs an `ERROR` containing structured fields: `url`, `source_type`, and `stage_name` |
+See `scripts/rag/ingestion/ingester.py` for the exact raise/catch sites covering:
+embedding API retry, per-chunk embedding retry-limit handling, invalid `lang` value,
+`chunks_vec` deletion-order and embedding-dimension checks,
+`IngestUrlResult.validation_failure()` (artifact validation failure — the whole URL's
+chunk group fails, not counted toward `n_embed_failed`, and no `WARNING` is logged at
+this layer), and file-move failure logging.
 
 ### 4.7 Logging
 
@@ -221,9 +217,8 @@ rag
 
 ### 4.3 CLI Arguments
 
-| Argument | Description | Default |
-|---|---|---|
-| `--force` | Deletes existing `document`/`chunks`/`chunks_vec` records and re-embeds. For `file://` URLs, it always re-ingests regardless of ETag. | false |
+Run `uv run python scripts/rag/ingestion/ingester.py --help` for the current argument
+list.
 
 ### 4.4 Embedding API
 
@@ -247,15 +242,12 @@ Current DB schema definition $\rightarrow$ [RAG schema reference document](03_ra
 
 ### 4.6 Error Handling
 
-| Case | Action |
-|---|---|
-| Embedding API failure | Retries with exponential backoff up to `embed_retry` times (max 10s) |
-| Retry limit reached (single chunk) | Logs a `WARNING`; skips the chunk and continues |
-| Invalid `lang` value | Raises `ValueError`; skips the URL group; logs an `ERROR` with traceback |
-| Improper `chunks_vec` deletion order | Raises `ValueError`; skips the chunk; logs a `WARNING` |
-| Embedding dimension mismatch | Raises `ValueError`; skips the chunk; logs a `WARNING` |
-| Artifact validation failure | Logs a `WARNING`; skips the chunk as an embedding failure |
-| File move failure | Logs an `ERROR` containing structured fields: `url`, `source_type`, and `stage_name` |
+See `scripts/rag/ingestion/ingester.py` for the exact raise/catch sites covering:
+embedding API retry, per-chunk embedding retry-limit handling, invalid `lang` value,
+`chunks_vec` deletion-order and embedding-dimension checks,
+`IngestUrlResult.validation_failure()` (artifact validation failure — the whole URL's
+chunk group fails, not counted toward `n_embed_failed`, and no `WARNING` is logged at
+this layer), and file-move failure logging.
 
 ### 4.7 Logging
 

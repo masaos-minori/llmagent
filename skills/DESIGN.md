@@ -172,9 +172,10 @@ restate this schema inline — reference this section instead.
 ### Avoid implementation-reference duplication
 
 When writing a design document, review report, or documentation update, do not copy exhaustive
-file lists, method catalogs, DTO/config-key field tables, or long command/JSON examples into the
-document — recommend or write a concise, evidence-grounded summary instead, and point to the
-source for exhaustive detail.
+file lists, method catalogs, DTO/config-key field tables, TypedDict field lists, HTTP
+request/response examples, CLI argument tables, per-exception handling tables, or long
+command/JSON examples into the document — recommend or write a concise, evidence-grounded
+summary instead, and point to the source for exhaustive detail.
 
 ### No source-code line numbers
 

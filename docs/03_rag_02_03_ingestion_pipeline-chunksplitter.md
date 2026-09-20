@@ -41,13 +41,13 @@ This module defines the following constants. See source code for details. Note t
 
 **Typed dict**
 
-| TypedDict | Purpose |
-|---|---|
-| `CrawlJsonPayload` | Typed dictionary for crawl output JSON files (url, title, lang, content, code_blocks are required; etag, last_modified are optional via NotRequired) |
-| `ChunkJsonPayload` | Typed dictionary for chunk output JSON files (schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, content are required; normalized_content is optional via NotRequired) |
-| `ChunkMetadata` | Optional metadata dictionary to be expanded with ** in the output payload (total=False). Fields: url, title, lang, fetched_at (str, mandatory), etag, last_modified, source_file, chunking_strategy. |
-
-> Evidence: Explicit in code — `CrawlJsonPayload` is declared as a TypedDict in `pipeline_utils.py` (line 23) and used as a type annotation in `crawl_persister.py` (lines 71, 119). `ChunkJsonPayload` does not exist in the codebase; the actual TypedDict for chunk payloads is `ChunkJsonRaw` in `pipeline_utils.py` (line 219), and `_build_chunk_payload()` in `chunk_splitter.py` returns `dict[str, object]` because its return value combines `**metadata` unpacking with additional literal keys, which is incompatible with a strict `TypedDict` return annotation under current type-checker support.
+See `CrawlJsonPayload` and `ChunkJsonRaw` in `scripts/rag/ingestion/pipeline_utils.py`
+for the exact TypedDict field sets used for crawl-stage and chunk-stage JSON payloads,
+and `ChunkMetadata` in the same file for the optional metadata dictionary expanded with
+`**` into the output payload. Note: `_build_chunk_payload()` in `chunk_splitter.py`
+returns `dict[str, object]`, not `ChunkJsonRaw` directly, because its return value
+combines `**metadata` unpacking with additional literal keys, which is incompatible
+with a strict `TypedDict` return annotation under current type-checker support.
 
 **Inheritance**
 
@@ -185,31 +185,13 @@ normalization for accurate segmentation, but the heading chunking path bypasses 
 
 ### 3.3 CLI Arguments
 
-| Argument | Description | Default |
-|---|---|---|
-| `--file PATH` | Processes only a single file (path is relative to `rag_src_dir`) | All unprocessed `.json` in `rag-src/` |
-| `--force` | Regenerates chunks ignoring the sentinel check | false |
+Run `uv run python scripts/rag/ingestion/chunk_splitter.py --help` for the current
+argument list.
 
 ### 3.4 Output JSON Format
 
-```json
-{
-  "schema_version": "1",
-  "artifact_type": "chunk",
-  "created_by": "chunk_splitter",
-  "url": "https://example.com/page",
-  "title": "Page title",
-  "lang": "ja",
-  "source_file": "20240101120000-example.json",
-  "chunk_index": 0,
-  "chunk_type": "text",
-  "chunking_strategy": "text",
-  "content": "original chunk text",
-  "normalized_content": "normalized form (JA only; null for EN/code)",
-  "etag": "optional-etag",
-  "last_modified": "optional-http-date"
-}
-```
+See `ChunkJsonRaw` in `scripts/rag/ingestion/pipeline_utils.py` for the exact output
+JSON shape.
 
 - `chunk_type`: `text` / `code`
 - `chunking_strategy`: `text` / `heading`
@@ -234,16 +216,9 @@ only for `Nullable` fields; empty string is accepted only for `Conditional` fiel
 
 #### Crawl artifacts (8 required keys) — reader: `read_crawl_json()`
 
-| Field | Classification | Validator | Notes |
-|---|---|---|---|
-| `url` | Required | `_validate_str` | non-empty string |
-| `content` | Conditional | `_validate_str_or_empty` | empty string allowed only when `code_blocks` is non-empty (cross-field rule) |
-| `title` | Nullable | `_validate_nullable_str` | defaults to `""` when `null` |
-| `lang` | Required | `_validate_str` | any non-empty string accepted; the `en`/`ja` value set (`LanguageCode`) is convention only — not enforced at parse time (Needs confirmation: whether enforcement is intended) |
-| `code_blocks` | Required | `_validate_list_of_str` | list of `str`; may be an empty list |
-| `etag` | Nullable | `_validate_nullable_str` | optional upstream metadata, not always available at crawl time |
-| `last_modified` | Nullable | `_validate_nullable_str` | optional upstream metadata, not always available at crawl time |
-| `fetched_at` | Required | `_validate_str` | non-empty string |
+See `read_crawl_json()` and its `_validate_*` helper functions in
+`scripts/rag/ingestion/pipeline_utils.py` for the exact per-field
+classification/validator mapping.
 
 Crawl artifacts do not carry `normalized_content` / `chunk_index` / `source_file` /
 `chunk_type` / `chunking_strategy` as input keys — `read_crawl_json()` sets these
@@ -253,21 +228,9 @@ crawl-stage values do not exist yet).
 
 #### Chunk artifacts (13 required keys) — reader: `read_chunk_json()`
 
-| Field | Classification | Validator | Notes |
-|---|---|---|---|
-| `url` | Required | `_validate_str` | non-empty string |
-| `content` | Required | `_validate_str` | non-empty string — no cross-field exception here, unlike crawl artifacts |
-| `title` | Nullable | `_validate_nullable_str` | defaults to `""` when `null` |
-| `lang` | Required | `_validate_str` | same non-enforcement note as crawl artifacts |
-| `code_blocks` | Required | `_validate_list_of_str` | list of `str`; may be an empty list |
-| `etag` | Nullable | `_validate_nullable_str` | optional upstream metadata |
-| `last_modified` | Nullable | `_validate_nullable_str` | optional upstream metadata |
-| `normalized_content` | Nullable | `_validate_nullable_str` | Japanese-only Sudachi normalization; `null` for English/code chunks |
-| `chunk_index` | Required | `_validate_int_non_negative` | non-negative int; `bool` is explicitly rejected before the `int` check |
-| `source_file` | Conditional | `_validate_str_or_empty` | empty string allowed unconditionally; otherwise the crawler output filename stem without `.json` |
-| `chunk_type` | Conditional | `_validate_str_or_empty` | `"text"` or `"code"` by convention; empty string allowed unconditionally; no enum enforced in code |
-| `chunking_strategy` | Required | `_validate_str` | `"text"` or `"heading"` by convention; no enum enforced in code (Needs confirmation: whether a closed value set is intended) |
-| `fetched_at` | Required | `_validate_str` | non-empty string |
+See `read_chunk_json()` and its `_validate_*` helper functions in
+`scripts/rag/ingestion/pipeline_utils.py` for the exact per-field
+classification/validator mapping.
 
 `read_chunk_json()` additionally rejects any key beyond these 13, except
 `schema_version`, `artifact_type`, and `created_by`, which are accepted but not
@@ -285,11 +248,15 @@ There is exactly one cross-field validation rule among the crawl/chunk artifact 
 
 ### 3.5 Error Handling
 
-| Case | Action |
-|---|---|
-| Sudachi tokenization error | `_normalize_ja_sentence()` raises a `TokenizationError` (subclass of `RagLayerError`/`RuntimeError`). There is no try/except at the individual chunk level; instead, errors propagate to the `except (OSError, RuntimeError, ValueError)` block in the file-level loop of `process_all()`. As a result, processing fails for the **entire file**, not just the individual chunk. |
-| File-level failure | Logs an `ERROR` (with traceback, via `logger.exception`); continues to the next file |
-| Existing chunks (`{stem}-0000.json`) | Skipped unless `--force` is used |
+For the file-level-failure and existing-chunks cases, see
+[03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md)'s
+"ChunkSplitter" section. For the Sudachi-tokenization-error case specifically, see
+`scripts/rag/ingestion/chunk_japanese.py::_normalize_ja_sentence` and
+`scripts/rag/ingestion/chunk_splitter.py::process_all` directly instead —
+error-handling-reference.md's entry for this one case is stale (it describes a
+per-chunk skip, but the current code has no try/except at the chunk level: a
+`TokenizationError` propagates to `process_all()`'s per-file catch, aborting the
+**entire file**, not one chunk).
 
 ### 3.6 Logging
 
