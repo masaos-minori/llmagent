@@ -13,6 +13,7 @@ from tools.check_docs_content_policy import (
     DocFile,
     check_cli_argument_table,
     check_cli_command_enumeration,
+    check_code_fallback_value_comparison,
     check_config_file_inventory_table,
     check_ddl_schema_block,
     check_default_value_restatement,
@@ -359,4 +360,31 @@ def test_full_json_example_detected() -> None:
 def test_full_json_example_not_flagged_for_short_snippet() -> None:
     doc = _doc('```json\n{"status": "ok"}\n```\n')
     issues = check_full_json_example([doc])
+    assert issues == []
+
+
+def test_code_fallback_value_comparison_header_shaped_detected() -> None:
+    doc = _doc(
+        "| Parameter | Code Fallback Value | Production Value (config/x.toml) |\n"
+        "|---|---|---|\n"
+        "| max_depth | None | 3 |\n"
+    )
+    issues = check_code_fallback_value_comparison([doc])
+    assert len(issues) == 1
+    assert "code-fallback-vs-operational-value comparison" in issues[0].message
+
+
+def test_code_fallback_value_comparison_phrase_shaped_detected() -> None:
+    doc = _doc(
+        "| Crawl Depth | Operational value is 3. Differs from code fallback; "
+        "use operational config | `config/crawler.toml` |\n"
+    )
+    issues = check_code_fallback_value_comparison([doc])
+    assert len(issues) == 1
+    assert "code-fallback-vs-operational-value comparison" in issues[0].message
+
+
+def test_code_fallback_value_comparison_not_flagged_for_unrelated_table() -> None:
+    doc = _doc("| Component | Owner |\n|---|---|\n| RAG | rag-team |\n")
+    issues = check_code_fallback_value_comparison([doc])
     assert issues == []

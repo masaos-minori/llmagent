@@ -18,7 +18,7 @@
 | `check_canonical_source_conflicts.py` | Canonical Source関連 | Canonical Source Registryのセマンティック競合検出 |
 | `check_canonical_source_registry.py` | Canonical Source関連 | Canonical Source Registryのスキーマ検証 |
 | `check_compat_shims.py` | 整合性チェッカー | 後方互換スタブ・shimの残存検出 |
-| `check_docs_content_policy.py` | ドキュメントポリシー | `skills/DESIGN.md` Docs content policy — remove / Avoid implementation-reference duplication に基づく実装詳細コンテンツ違反検出(15カテゴリ) |
+| `check_docs_content_policy.py` | ドキュメントポリシー | `skills/DESIGN.md` Docs content policy — remove / Avoid implementation-reference duplication に基づく実装詳細コンテンツ違反検出(16カテゴリ) |
 | `check_docs_japanese.py` | ドキュメントポリシー | ひらがな・カタカナ・漢字を含むMarkdownファイルの列挙 |
 | `check_docs_quality.py` | ドキュメント品質 | コアチェック + カスタムルールによるドキュメント品質チェック |
 | `check_docs_structure.py` | ドキュメント構造 | `docs/*.md` の構造規約検証 |
@@ -69,7 +69,7 @@
 | `check_workitem_structure.py` | `issues/`, `plans/`, `implementations/`(`--include-done`指定時のみ各`done/`含む) | 各ドキュメントが対応する正本テンプレート(`templates/issue.md`/`templates/plan.md`/`templates/implementation-procedure.md`)の`` ```markdown `` フェンス内で定義された`## `見出しをすべて含んでいるかを検証する(`Implementation Target Files`や`Traceability`節の丸ごとの欠落など、構造そのものの不備を検出——既存の`check_workitem_traceability.py`は`## Traceability`節の中身の整合性のみを検証し、節自体の有無は見ない)。`--file <path>`で単一ファイルのみを対象にでき(kindはパスから自動推定)、`--kind`で対象種別を絞り込み可能。読み取り専用。`--format json\|csv`で機械可読形式の出力にも対応 |
 | `check_compat_shims.py` | `scripts/`, `docs/`, `tests/`, `tools/` | 後方互換スタブ・shimの残存検出。`--check-removed-names`(デフォルトOFF)で`docs/*.md`限定の削除済み識別子再出現チェック(`_update_null_fill`の不在確認、`ToolRouteResolver`+`server_configs`のセクション内共起検出、いずれも履歴/resolved文脈は除外)を追加実行できる。既知の指摘1件(`docs/05_agent_13_reference-api.md:114`、対応Plan: `plans/20260903-090104_plan.md`)が解消されるまでは`.pre-commit-config.yaml`のデフォルト呼び出し(フラグなし)には含めないreport-only運用 |
 | `check_docs_quality.py` | `docs/*.md` 全体 | コアチェック(壊れた見出し、不正なMarkdownテーブル、閉じられていないコードブロック、JSON例のフェンス漏れ、重複見出し番号、Migration Notesの配置、解決済みissueの記載等)+ カスタムルール(`config/doc_quality_rules.json`から動的ロード)。`--core-only`/`--custom-only`/`--skip <check>`/`--only <check>`でフィルタリング可能 |
-| `check_docs_content_policy.py` | `docs/*.md` 全体(`docs/adr/`等サブディレクトリ含む再帰スキャン) | `skills/DESIGN.md`の「Docs content policy — remove」等が定める実装詳細カテゴリ15種(ASCIIファイルツリー、ツリー/テーブルに埋め込まれた1行説明、クラス/関数/メソッドのインデックス表、実装箇所マッピング、リテラルなポート番号、テーブル外のデフォルト値再掲、Field/Type/Defaultテーブル、config-fileインベントリ対応表、CLIコマンド列挙、環境構築コマンド列、DDL/スキーマブロック、TypedDict/DTOフィールド表、CLI引数表、例外処理表、JSON全文例)を検出する。report-only(Warning)運用、`rules/env.md`は`docs/*.md`外のためスキャン対象外(`GV-021`) |
+| `check_docs_content_policy.py` | `docs/*.md` 全体(`docs/adr/`等サブディレクトリ含む再帰スキャン) | `skills/DESIGN.md`の「Docs content policy — remove」等が定める実装詳細カテゴリ16種(ASCIIファイルツリー、ツリー/テーブルに埋め込まれた1行説明、クラス/関数/メソッドのインデックス表、実装箇所マッピング、リテラルなポート番号、テーブル外のデフォルト値再掲、Field/Type/Defaultテーブル、config-fileインベントリ対応表、CLIコマンド列挙、環境構築コマンド列、DDL/スキーマブロック、TypedDict/DTOフィールド表、CLI引数表、例外処理表、JSON全文例、コードのフォールバック値と運用値の比較記述)を検出する。report-only(Warning)運用、`rules/env.md`は`docs/*.md`外のためスキャン対象外(`GV-021`) |
 | `check_docs_japanese.py` | `docs/*.md` 全体 | ひらがな・カタカナ・漢字(`U+3040`-`U+9FFF`)を含むMarkdownファイルを列挙する。`skills/DESIGN.md` §Output language の英語化ポリシー(`docs/`配下は常に英語)への違反箇所を洗い出す用途。 |
 
 ## リファレンス自動生成スクリプト

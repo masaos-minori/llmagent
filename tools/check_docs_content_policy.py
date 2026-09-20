@@ -93,6 +93,16 @@ _ERROR_ACTION_TABLE_HEADER_RE = re.compile(
 )
 _TABLE_SEPARATOR_ROW_RE = re.compile(r"^\s*\|[\s:|-]*\|\s*$")
 _MIN_JSON_EXAMPLE_LINES = 15
+_CODE_FALLBACK_TABLE_HEADER_RE = re.compile(
+    r"^\s*\|.*\b(?:Code\s+Fallback|Fallback\s+Value)\b.*\|.*"
+    r"\b(?:Production|Operational)\s+Value\b",
+    re.IGNORECASE,
+)
+_CODE_FALLBACK_PHRASE_RE = re.compile(
+    r"\b(?:code\s+default|code\s+fallback)\b.*\b(?:operational|production)\b"
+    r"|\b(?:operational|production)\b.*\b(?:code\s+default|code\s+fallback)\b",
+    re.IGNORECASE,
+)
 
 
 def _is_guard_start(line: str) -> bool:
@@ -745,6 +755,68 @@ def check_full_json_example(files: list[DocFile]) -> list[Issue]:
     return issues
 
 
+def check_code_fallback_value_comparison(files: list[DocFile]) -> list[Issue]:
+    """Flag a table header or prose/cell line stating both a code-level
+    default/fallback value and a separate operational/production value for
+    the same parameter — a comparison that duplicates config already
+    canonically documented in a configuration-reference doc, and risks the
+    same staleness already observed once in this corpus (see
+    skills/DESIGN.md "No concrete configuration values").
+
+    Two independent detection paths: a header-shaped table (dedicated
+    Code-Fallback/Production-Value columns) and a phrase-shaped line (a
+    code-default/fallback phrase and an operational/production phrase
+    together, in either order). If a line matches the header-shaped path,
+    the phrase-shaped path is skipped for that same line to avoid
+    double-reporting.
+
+    Known, accepted false positive: a canonical configuration-reference
+    doc that legitimately states this same comparison as part of its own
+    role is not exempted here — no check in this tool uses a
+    filename-based exemption; see this repository's Plan history for the
+    accepted-outcome rationale (the same precedent already applies to
+    check_error_handling_table's unexempted canonical-doc finding).
+    """
+    issues: list[Issue] = []
+    for doc in files:
+        in_auto_generated = False
+        for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
+            if _CODE_FALLBACK_TABLE_HEADER_RE.search(line):
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=i,
+                        severity="WARNING",
+                        message=(
+                            "code-fallback-vs-operational-value comparison — "
+                            "see skills/DESIGN.md Docs content policy — remove"
+                        ),
+                    )
+                )
+                continue
+            if _CODE_FALLBACK_PHRASE_RE.search(line):
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=i,
+                        severity="WARNING",
+                        message=(
+                            "code-fallback-vs-operational-value comparison — "
+                            "see skills/DESIGN.md Docs content policy — remove"
+                        ),
+                    )
+                )
+    return issues
+
+
 def main() -> int:
     files = discover_all_md_files(DOCS_DIR)
 
@@ -764,6 +836,7 @@ def main() -> int:
     all_issues += check_cli_argument_table(files)
     all_issues += check_error_handling_table(files)
     all_issues += check_full_json_example(files)
+    all_issues += check_code_fallback_value_comparison(files)
 
     return report_and_exit(all_issues)
 
