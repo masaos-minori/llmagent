@@ -24,40 +24,40 @@ from `plans/20260920-203022_plan.md`) — do not duplicate that row's edit here.
   document, rather than independently re-deciding the format.
 
 ## Design decisions
-- Follow the same resolved-entry convention as REQ-001's sibling edit (see
-  `implementations/20260920-205403_03_docs_00_governance_03_issue-and-uncertainty-management.md.md`
-  Design decisions, which itself follows the pre-existing CI-002/CI-004 precedent in
-  this same file) — keep the entry in place, change `Status`, add a `Resolution`
-  bullet/paragraph. Re-verify the exact convention chosen by whichever of the two rows
-  (this one or REQ-001's) is implemented first, rather than deciding independently, so
-  both resolved entries in the same document read consistently.
+- **Correction (Step 4a adversarial re-verification during code-implementation,
+  carried forward from the sibling REQ-001 row):** this document's own line 22 states
+  "An item is removed from this active inventory once it is resolved ...; it is not
+  retained here with a closed-out status." REQ-001's sibling row
+  (`implementations/done/20260920-205403_03_docs_00_governance_03_issue-and-uncertainty-management.md.md`)
+  already corrected the same mistaken assumption and removed REQ-001's heading
+  entirely, replacing it with a short prose paragraph matching CI-001/CI-002/CI-003/
+  CI-004's style. This row follows the same, now-confirmed convention for REQ-002.
 
 ## Alternatives considered
-- Deleting the REQ-002 heading instead of marking it resolved: rejected, same
-  rationale as REQ-001's sibling document (this document's own CI-002/CI-004
-  precedent keeps resolved entries in place).
+- Keeping the `#### REQ-002` heading and only changing its `Status` field: rejected —
+  same correction as REQ-002's sibling REQ-001 row; contradicts this document's own
+  explicit rule (line 22) and existing resolved-entry precedent.
 
 ## Implementation
 ### Target file
 `docs/00_governance_03_issue-and-uncertainty-management.md`
 
 ### Procedure
-1. Re-read the current state of this file's REQ-001 entry (lines ~499-520, exact
-   range may have shifted if the sibling row already landed) to confirm the
-   `Resolution` bullet/paragraph format actually used, if already present — reuse it
-   here for consistency; if REQ-001's edit has not landed yet, follow the convention
-   confirmed via `rg -n "Resolution"` (same check as the sibling document's Procedure
-   step 1).
-2. Change the REQ-002 entry's `- **Status**: open` line to `- **Status**: resolved`.
-3. Add a `- **Resolution**: ...` bullet (or paragraph, per step 1's confirmed
-   convention) stating: the build-then-swap structure that already provides rollback
-   and atomicity was implemented in commit `520c9b39f9` (2026-09-17); regression
-   coverage added by
+1. Re-read the current state of this file around REQ-002 (line range may have shifted
+   if REQ-001's sibling row already landed and shortened the document) to confirm the
+   exact current line numbers before editing.
+2. Remove the entire `#### REQ-002` heading and its 17-field list.
+3. In its place, add a single short paragraph — matching CI-001/CI-002/CI-003/CI-004's
+   (and REQ-001's, once its own row lands) prose style and position — stating: REQ-002
+   ("Atomic registry swap invariant not verified during config reload") was resolved;
+   the build-then-swap structure that already provides rollback and atomicity was
+   implemented in commit `520c9b39f9` (2026-09-17); regression coverage added by
    `tests/shared/test_runtime_tool_registry.py::test_apply_policy_leaves_tools_unchanged_when_build_raises`
    and
    `::test_apply_policy_swap_never_exposes_mixed_state_to_concurrent_reader`; resolved
-   per `plans/20260920-203342_plan.md`.
-4. Leave every other field of the REQ-002 entry unchanged.
+   per `plans/20260920-203342_plan.md`. End with: "Its absence from the active list is
+   the correct, policy-compliant state — do not create a `#### REQ-002` heading."
+4. Leave every other entry in the document unchanged.
 
 ### Method
 Direct file edit (`Edit` tool) — two localized changes to an existing entry.
@@ -78,22 +78,17 @@ Current entry (confirmed via Read, lines 518-527):
 ...
 ```
 
-Target shape after this change (illustrative — confirm exact bullet-vs-paragraph
-convention per Procedure step 1):
+Target shape after this change (illustrative — the heading and field list are removed
+entirely, replaced by a plain paragraph in CI-001/CI-002/CI-003's style):
 ```
-#### REQ-002
-
-- **ID**: REQ-002
-- **Title**: Atomic registry swap invariant not verified during config reload
-- **Status**: resolved
-- **Severity**: Medium
-...
-- **Resolution**: The build-then-swap structure providing rollback-on-failure and
-  atomic-swap-to-concurrent-readers was already implemented in commit `520c9b39f9`
-  (2026-09-17). Regression coverage added by
-  `tests/shared/test_runtime_tool_registry.py::test_apply_policy_leaves_tools_unchanged_when_build_raises`
-  and `::test_apply_policy_swap_never_exposes_mixed_state_to_concurrent_reader`.
-  Resolved per `plans/20260920-203342_plan.md`.
+REQ-002 ("Atomic registry swap invariant not verified during config reload") was
+resolved 2026-09-20. The build-then-swap structure providing rollback-on-failure and
+atomic-swap-to-concurrent-readers was already implemented in commit `520c9b39f9`
+(2026-09-17). Regression coverage added by
+`tests/shared/test_runtime_tool_registry.py::test_apply_policy_leaves_tools_unchanged_when_build_raises`
+and `::test_apply_policy_swap_never_exposes_mixed_state_to_concurrent_reader`.
+Resolved per `plans/20260920-203342_plan.md`. Its absence from the active list is the
+correct, policy-compliant state — do not create a `#### REQ-002` heading.
 ```
 
 ## Compatibility considerations
@@ -103,22 +98,21 @@ N/A: documentation-only change.
 N/A: no security-relevant behavior change.
 
 ## Rollback considerations
-Trivially revertable: reverting the `Status` field to `open` and removing the
-`Resolution` bullet/paragraph restores the prior text exactly.
+Trivially revertable: restoring the removed `#### REQ-002` heading and its field list,
+and removing the new resolved-paragraph, restores the prior text exactly.
 
 ## Validation plan
 - `uv run python tools/check_needs_confirmation_inventory.py` — structural check
   (REQ-003, AC-4 of `plans/20260920-203342_plan.md`).
-- Manual re-read of the edited entry to confirm no other field was accidentally
-  changed, and no conflict was introduced with the sibling REQ-001 edit in the same
-  file.
+- Manual re-read of the surrounding entries to confirm no other entry (including
+  REQ-001, whose own edit is a separate row) was accidentally altered.
 
 ## Completion criteria
-- REQ-002's `Status` field reads `resolved`.
-- A `Resolution` bullet/paragraph exists citing commit `520c9b39f9` and the two new
-  test names from Row 1.
-- No other field of the REQ-002 entry, and no other entry in the document (including
-  REQ-001, whose own edit is a separate row), is changed by this row.
+- The `#### REQ-002` heading and its 17-field list no longer exist in the document.
+- A short paragraph in CI-001/CI-002/CI-003's style exists in their place, citing
+  commit `520c9b39f9` and the two new test names from Row 1, ending with "do not
+  create a `#### REQ-002` heading."
+- No other entry in the document is changed by this row.
 
 ## Out of scope
 - REQ-001's entry — handled by the sibling Plan's own separate implementation
@@ -130,9 +124,9 @@ Trivially revertable: reverting the `Status` field to `open` and removing the
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm Resolution format convention (reuse REQ-001's if already landed) | Pending | — | — | |
-| 2 | Change `Status` to `resolved` and add `Resolution` bullet/paragraph | Pending | — | — | |
-| 3 | Run `tools/check_needs_confirmation_inventory.py` and manually re-verify | Pending | — | — | |
+| 1 | Re-confirm Resolution format convention (reuse REQ-001's if already landed) | Completed | 20260920-211834 | 20260920-211834 | Reused REQ-001's corrected heading-removal convention (see sibling row); same pre-existing/unrelated doc-checker warnings as REQ-001's row |
+| 2 | Change `Status` to `resolved` and add `Resolution` bullet/paragraph | Completed | 20260920-211834 | 20260920-211834 |  |
+| 3 | Run `tools/check_needs_confirmation_inventory.py` and manually re-verify | Completed | 20260920-211834 | 20260920-211834 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
