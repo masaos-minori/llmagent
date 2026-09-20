@@ -119,10 +119,10 @@ findings → 0).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the 3 Edits per Procedure/Method | Pending | — | — | |
-| 2 | N/A: no test suite applies to a documentation content change | Pending | — | — | |
-| 3 | Run the 3 commands in Validation plan | Pending | — | — | |
-| 4 | N/A: no further documentation update needed beyond this file itself | Pending | — | — | |
+| 1 | Apply the 3 Edits per Procedure/Method | Completed | 20260920-100634 | 20260920-100634 | Stale detection: not stale. Adversarial verification: all 3 locations confirmed unchanged. Applied all 3 Edits, correcting CrawlPayload->CrawlJsonPayload naming. |
+| 2 | N/A: no test suite applies to a documentation content change | Completed | 20260920-100634 | 20260920-100634 |  |
+| 3 | Run the 3 commands in Validation plan | Completed | 20260920-100634 | 20260920-100634 | check_docs_quality.py: No issues found. check_docs_structure.py: All checks passed. check_docs_content_policy.py: 0 findings for this file (was 3). |
+| 4 | N/A: no further documentation update needed beyond this file itself | Completed | 20260920-100634 | 20260920-100634 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
