@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from mcp_servers.git.git_models import GitConfig
 from mcp_servers.git.git_service import GitService
 from mcp_servers.git.repository_state import RepositoryState
+import copy
 
 
 class TestGitSecurityCompliance:
@@ -1057,6 +1058,12 @@ class TestLiveCallToolAuthorization:
             return PipelineResult.ok_result(post_state, output, post_state=post_state)
 
         monkeypatch.setattr(WriteProtectionPipeline, "run", mock_pipeline_run)
+        orig_snapshot = RepositoryState.snapshot
+        orig_run = WriteProtectionPipeline.run
+        yield
+        # Restore originals after tests complete
+        RepositoryState.snapshot = orig_snapshot
+        WriteProtectionPipeline.run = orig_run
 
     @pytest.mark.asyncio
     async def test_checkout_protected_branch_denied(
@@ -1773,22 +1780,23 @@ class TestNewlyReachableToolsViaHTTP:
     @pytest.fixture
     def enabled(self, repo_dir):
         from scripts.mcp_servers.git import git_server
-
-        original_paths = git_server._cfg.allowed_repo_paths
-        original_read_only = git_server._cfg.read_only
-        original_svc_paths = git_server._service._allowed_repo_paths
-        original_svc_read_only = git_server._service._read_only
+        # Modify attributes IN PLACE (app holds refs to these objects)
         git_server._cfg.allowed_repo_paths = [str(repo_dir)]
         git_server._cfg.read_only = False
+        git_server._cfg.protected_branches = []
+        git_server._cfg.allow_detached_head = False
         git_server._service._allowed_repo_paths = [str(repo_dir)]
         git_server._service._read_only = False
+        git_server._service._protected_branches = []
+        git_server._service._allow_detached_head = False
+        # Snapshot AFTER setup so restore goes back to clean state
+        cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
+        svc_snap = copy.deepcopy(git_server._service.__dict__)
         try:
             yield
         finally:
-            git_server._cfg.allowed_repo_paths = original_paths
-            git_server._cfg.read_only = original_read_only
-            git_server._service._allowed_repo_paths = original_svc_paths
-            git_server._service._read_only = original_svc_read_only
+            git_server._cfg.__dict__.update(cfg_snap)
+            git_server._service.__dict__.update(svc_snap)
 
     @pytest.mark.parametrize(
         ("tool_name", "extra_args"),
@@ -1877,22 +1885,23 @@ class TestRemoteAuthorizationViaHTTP:
     @pytest.fixture
     def enabled(self, repo_dir):
         from scripts.mcp_servers.git import git_server
-
-        original_paths = git_server._cfg.allowed_repo_paths
-        original_read_only = git_server._cfg.read_only
-        original_svc_paths = git_server._service._allowed_repo_paths
-        original_svc_read_only = git_server._service._read_only
+        # Modify attributes IN PLACE (app holds refs to these objects)
         git_server._cfg.allowed_repo_paths = [str(repo_dir)]
         git_server._cfg.read_only = False
+        git_server._cfg.protected_branches = []
+        git_server._cfg.allow_detached_head = False
         git_server._service._allowed_repo_paths = [str(repo_dir)]
         git_server._service._read_only = False
+        git_server._service._protected_branches = []
+        git_server._service._allow_detached_head = False
+        # Snapshot AFTER setup so restore goes back to clean state
+        cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
+        svc_snap = copy.deepcopy(git_server._service.__dict__)
         try:
             yield
         finally:
-            git_server._cfg.allowed_repo_paths = original_paths
-            git_server._cfg.read_only = original_read_only
-            git_server._service._allowed_repo_paths = original_svc_paths
-            git_server._service._read_only = original_svc_read_only
+            git_server._cfg.__dict__.update(cfg_snap)
+            git_server._service.__dict__.update(svc_snap)
 
     def test_pull_rejects_unauthorized_remote(self, client, enabled, repo_dir):
         """AC-1: an unauthorized remote URL is rejected, not silently allowed."""
@@ -2029,22 +2038,23 @@ class TestGitServiceErrorHandlerIdentity:
     @pytest.fixture
     def enabled(self, repo_dir):
         from scripts.mcp_servers.git import git_server
-
-        original_paths = git_server._cfg.allowed_repo_paths
-        original_read_only = git_server._cfg.read_only
-        original_svc_paths = git_server._service._allowed_repo_paths
-        original_svc_read_only = git_server._service._read_only
+        # Modify attributes IN PLACE (app holds refs to these objects)
         git_server._cfg.allowed_repo_paths = [str(repo_dir)]
         git_server._cfg.read_only = False
+        git_server._cfg.protected_branches = []
+        git_server._cfg.allow_detached_head = False
         git_server._service._allowed_repo_paths = [str(repo_dir)]
         git_server._service._read_only = False
+        git_server._service._protected_branches = []
+        git_server._service._allow_detached_head = False
+        # Snapshot AFTER setup so restore goes back to clean state
+        cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
+        svc_snap = copy.deepcopy(git_server._service.__dict__)
         try:
             yield
         finally:
-            git_server._cfg.allowed_repo_paths = original_paths
-            git_server._cfg.read_only = original_read_only
-            git_server._service._allowed_repo_paths = original_svc_paths
-            git_server._service._read_only = original_svc_read_only
+            git_server._cfg.__dict__.update(cfg_snap)
+            git_server._service.__dict__.update(svc_snap)
 
     def test_induced_git_service_error_is_caught_by_registered_handler(
         self, client, enabled, repo_dir, monkeypatch

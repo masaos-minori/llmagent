@@ -110,17 +110,65 @@ dual-copy architecture beyond what test isolation strictly requires.
 ## Dependencies
 N/A: none.
 
-## Unresolved Questions
-- The exact earlier test (or tests) whose incomplete save/restore first corrupts shared
-  state was not identified via bisection in this investigation — left as the implementer's
-  first step (e.g. via `pytest --randomly-seed=<same seed that failed>` combined with
-  `-x` and progressively narrowing the test selection, or by auditing every `finally`
-  block by hand for a missing attribute).
-- Whether `_service`'s "built once at import time from `_cfg`'s then-current value" design
-  has additional un-audited copies beyond `_allowed_repo_paths`/`_read_only`/
-  `_allow_detached_head` (e.g. inside a nested `RepositoryState`/`RepoValidationResult`
-  object, given a `RepoValidationResult is deprecated; use RepositoryState instead`
-  deprecation warning was observed during this investigation) is not confirmed.
+## Work Status (2026-09-20)
+### Completed
+- Confirmed flakiness via pytest-randomly with multiple seeds (14 failures with seed=1 and seed=42).
+- Audited all `_cfg`/`_service` attribute mutations across test classes.
+- Added `isolate_git_server_state` autouse fixture and helper functions `_snap`/`_rst` to the top of the test file.
+- Removed manual save/restore `try/finally` blocks from `TestHTTPSiblingPathRejection`, `TestLiveCallToolAuthorization`, and `TestDryRunAndDetachedHeadLivePath`.
+- Attempted reverting `enabled` fixtures to try/finally — same 14 failures persisted (autouse fixture teardown ordering issue).
+- Attempted removing `mock_repo_state_snapshot_dynamic` — resulted in 19 failures due to `git.exc.NoSuchPathError: /tmp/allowed/repo`.
+- Restored file from git.
+- Updated first `enabled` fixture in `TestNewlyReachableToolsViaHTTP` to use `_snap`/`_rst` with `_CFG_ATTRS`/`_SVC_ATTRS`.
+- Created v5 script (`apply_all_fixes_v5.py`) that adds an autouse fixture replacing BOTH `server_module` and `http_module` singletons with fresh copies per test.
+- Applied the v5 script: `uv run python tools/apply_all_fixes_v5.py`
+- Verified syntax: `python -m py_compile tests/mcp_servers/git/test_git_security_compliance.py`
+- Ran tests with multiple random seeds: `for seed in 1 42 123; do uv run pytest tests/mcp_servers/git/test_git_security_compliance.py --randomly-seed=$seed -q 2>&1 | tail -3; done`
+- Discovered that replacing singletons doesn't affect the app's reference to the old object. Modified attributes in place instead.
+- Updated all three `enabled` fixtures to modify attributes IN PLACE and snapshot AFTER setup so restoration goes back to the clean post-setup state.
+- Manually applied edits to fixtures that the script missed.
+- Verified `__dict__.update()` works for dataclass instances.
+- Ran isolated tests confirming `TestGitServiceErrorHandlerIdentity` passes alone but fails after `TestLiveCallToolAuthorization`.
+
+### Active
+- Investigating cross-test pollution where `TestLiveCallToolAuthorization` leaves `protected_branches=["main"]` behind, affecting subsequent tests.
+- Need to figure out why `TestLiveCallToolAuthorization`'s manual save/restore isn't working or how it interacts with the `enabled` fixture.
+- The `enabled` fixture sets `protected_branches=[]` BEFORE snapshotting, so the snapshot captures `[]`. Then when the test modifies `protected_branches`, restoration goes back to `[]`. But the test expects `protected_branches=["main"]` because a prior test set it.
+- `TestLiveCallToolAuthorization` does NOT use the `enabled` fixture; it uses its own manual save/restore.
+
+### Blocked
+- Flaky tests persisting (13-14 failures) despite applying the in-place attribute modification strategy.
+
+## Root Cause Analysis
+### Primary Cause
+Two import paths create separate singleton instances — `mcp_servers.git.server` (module-scoped client) and `scripts.mcp_servers.git.git_server` (class-local clients). Both must be isolated simultaneously.
+
+### Mutable Attributes on `_cfg`
+- `allowed_repo_paths`: list of allowed repository paths
+- `read_only`: boolean flag for read-only mode
+- `protected_branches`: list of protected branch names
+- `allow_detached_head`: boolean flag for detached HEAD access
+- `auth_token`: authentication token string
+- `max_log_entries`: integer for log entry limit
+- `audit_log_path`: path to audit log file
+- `allowed_remote_urls`: list of allowed remote URLs
+
+### Mutable Attributes on `_service`
+- `_allowed_repo_paths`: list of allowed repository paths
+- `_read_only`: boolean flag for read-only mode
+- `_protected_branches`: list of protected branch names
+- `_allow_detached_head`: boolean flag for detached HEAD access
+- `_max_log_entries`: integer for log entry limit
+- `_config`: GitConfig instance containing configuration
+
+### Key Discovery
+Replacing module-level singletons does not work because the FastAPI app holds references to the **original** `_cfg` and `_service` objects. Attributes must be modified IN PLACE using `__dict__.update()`.
+
+## Blocking Factors
+1. **Cross-test pollution**: `TestLiveCallToolAuthorization` leaves `protected_branches=["main"]` behind, affecting subsequent tests like `TestGitServiceErrorHandlerIdentity`.
+2. **Snapshot timing**: The `enabled` fixture sets `protected_branches=[]` BEFORE snapshotting, so the snapshot captures `[]`. Then when the test modifies `protected_branches`, restoration goes back to `[]` — which is correct isolation within the `enabled` fixture. But the test expects `protected_branches=["main"]` because a prior test set it.
+3. **Fixture interaction**: `TestLiveCallToolAuthorization` does NOT use the `enabled` fixture; it uses its own manual save/restore. This creates inconsistency in how state is managed across test classes.
+4. **Incomplete isolation**: Despite applying the in-place attribute modification strategy, 13-14 tests still fail intermittently. The root cause appears to be that some tests are not properly restoring state after execution, or the `mock_repo_state_snapshot_dynamic` fixture is not correctly isolating the `active_ref` field used by the validation logic.
 
 ## AI Implementation Instruction
 Start by auditing every test in this file that reads or writes `git_server._cfg`/
