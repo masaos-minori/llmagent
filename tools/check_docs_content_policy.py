@@ -56,7 +56,18 @@ _DEFAULT_VALUE_RE = re.compile(
     r"`[\w.]+`\s+defaults?\s+to\s+`?[\w.\"']+`?", re.IGNORECASE
 )
 _RATIONALE_MARKERS = frozenset(
-    {"because", "since", "in order to", "so that", "rationale", "to avoid", "to ensure"}
+    {
+        "because",
+        "since",
+        "in order to",
+        "so that",
+        "rationale",
+        "to avoid",
+        "to ensure",
+        "fail-safe",
+        "fail-closed",
+        "fail-open",
+    }
 )
 _FIELD_TYPE_TABLE_HEADER_RE = re.compile(
     r"^\s*\|\s*(?:Field|Key)\s*\|.*\|\s*(?:Type|Default)\s*\|", re.IGNORECASE

@@ -153,7 +153,7 @@ If inconsistencies are detected, follow this controlled restart procedure:
 
 4. Start the EventBus process again:
    ```bash
-   uvicorn eventbus.app:app --host 127.0.0.1 --port 8080 &
+   uvicorn eventbus.app:app --host 127.0.0.1 --port <port> &
    ```
 
 5. Verify the process started successfully:
@@ -182,7 +182,7 @@ If inconsistencies are detected, follow this controlled restart procedure:
 
 4. Start the EventBus process again:
    ```bash
-   uvicorn scripts.eventbus.app:app --host 127.0.0.1 --port 8080 &
+   uvicorn scripts.eventbus.app:app --host 127.0.0.1 --port <port> &
    ```
 
 5. Verify the process started successfully:

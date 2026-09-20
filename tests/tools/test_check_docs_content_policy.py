@@ -162,6 +162,15 @@ def test_default_value_restatement_not_flagged_with_rationale() -> None:
     assert issues == []
 
 
+def test_default_value_restatement_not_flagged_with_fail_safe_marker() -> None:
+    doc = _doc(
+        "Fail-safe: Undefined tools in `tool_safety_tiers` default to "
+        "`WRITE_DANGEROUS`.\n"
+    )
+    issues = check_default_value_restatement([doc])
+    assert issues == []
+
+
 def test_field_type_table_detected() -> None:
     doc = _doc(
         "| Field | Type | Default |\n"

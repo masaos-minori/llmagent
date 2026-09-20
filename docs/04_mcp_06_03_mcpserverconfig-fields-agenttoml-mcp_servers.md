@@ -17,23 +17,10 @@ Each MCP server's application settings are described in its corresponding `*_mcp
 
 ## Agent-side MCP fields (agent.toml `[mcp_servers.*]`)
 
-There are 13 configurable fields in `agent.toml`, plus an automatically derived `key` field (described below):
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `transport` | `TransportType` | Required | `TransportType.HTTP` (`"http"`); TOML string values are converted by the config loader (not at runtime) |
-| `url` | `str` | Required | Base URL of the HTTP server |
-| `startup_mode` | `str` | `"none"` | `"none"` / `"persistent"` / `"subprocess"` |
-| `call_timeout_sec` | `float` | `60.0` | Timeout in seconds per tool call; `0` means no timeout |
-| `startup_timeout_sec` | `int` | `30` | Health polling timeout during subprocess startup |
-| `tool_names` | `list[str]` | `[]` | Metadata for drift validation, not used for routing (described below) |
-| `auth_token` | `str` | `""` | Bearer token sent by `ToolExecutor` |
-| `role` | `str` | `""` | Human-readable label (described below) |
-| `cmd` | `list[str]` | `[]` | Startup command for `startup_mode=subprocess`; must not be empty when using subprocess mode |
-| `env` | `dict[str, str]` | `{}` | Additional environment variables for subprocess; `LD_PRELOAD`/`LD_LIBRARY_PATH`/`PYTHONPATH` are rejected via denylist |
-| `startup_stagger_delay_sec` | `float` | `0.0` | Delay between consecutive server startups (seconds) |
-| `max_stderr_log_size_mb` | `float` | `100.0` | Maximum stderr log size before rotation (MB) |
-| `max_stderr_log_files` | `int` | `3` | Number of rotated stderr log files to retain |
+The 13 configurable fields, plus an automatically derived `key` field (described
+below), are defined in `scripts/shared/mcp_config.py::McpServerConfig`. The `env`
+field's values are filtered through a denylist that rejects `LD_PRELOAD`,
+`LD_LIBRARY_PATH`, and `PYTHONPATH`.
 
 **About `tool_names`:** Not used for routing decisions. It is metadata for drift validation (see `docs/04_mcp_03_01_dispatch-and-routing.md`), used by `validate_tool_names_match()` in `scripts/shared/tool_routing_validation.py`. There are three states: field omitted (default `[]`), explicit empty list `[]`, or a list with values. In all cases, validation is skipped via `if not cfg.tool_names: continue`.
 

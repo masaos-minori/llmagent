@@ -67,12 +67,7 @@ source:
 
 **PipelineExecutionResult** — Pipeline execution result.
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `success` | `bool` | (required) | Whether execution succeeded |
-| `processed` | `int` | (required) | Number of processed chunks |
-| `failed` | `int` | (required) | Number of failures |
-| `errors` | `list[str]` | `[]` | Error messages |
+Fields and defaults are defined in `scripts/rag/models_result.py::PipelineExecutionResult`.
 
 **SearchDocsResult** — Document search result.
 
@@ -95,22 +90,11 @@ source:
 The following table groups fields that are active depending on the execution mode (Local or Remote).
 
 #### Local Execution Counters (Always aggregated)
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `embed_ok` | `int` | `0` | Count of successful embedding calls |
-| `embed_failed` | `int` | `0` | Count of failed embedding calls |
-| `fts_errors` | `int` | `0` | Count of FTS5 query errors |
+Fields and defaults are defined in `scripts/rag/models_result.py::SearchDiagnostics`:
+`embed_ok`, `embed_failed`, `fts_errors`.
 
 #### Fields Added After HTTP Introduction (Meaningful only in Remote mode)
-These fields are only meaningful when the search is delegated to a remote HTTP RAG service; they remain at their default values during pure local execution.
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `result_source` | `ResultSource` | `LOCAL` | Source of result (in `remote` mode) |
-| `http_result_kind` | `HttpResultKind` | `NOT_USED` | Classification of HTTP result (in `remote` mode) |
-| `remote_status_code` | `int \| None` | `None` | HTTP status code from the remote RAG service |
-| `remote_latency_ms` | `float \| None` | `None` | Latency of remote call (ms) |
-| `fallback_reason` | `str \| None` | `None` | Reason for in-process fallback (if applicable) |
+These fields are only meaningful when the search is delegated to a remote HTTP RAG service; they remain at their default values during pure local execution: `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`, `fallback_reason`.
 
 ## Related Documents
 

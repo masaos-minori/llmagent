@@ -52,14 +52,15 @@ Loaded from a TOML file (default: `/opt/llm/config/eventbus.toml`).
 
 ### Configuration Fields
 
-- `port` — HTTP listening port (startup fails if outside 1024–65535)
-- `db_path` — SQLite DB path
-- `storage_dir` — JSONL archive directory
-- `offsets_dir` — Consumer offset directory
-- `deadletter_dir` — DLQ directory
-- `max_retry` — Retry threshold before DLQ promotion (startup fails if < 1)
-- `replay_batch_size` — Replay fetch batch size for bounded memory during large replays (default: 1000)
-- `subscriber_count` — Maximum number of concurrent subscribers before capacity limits apply (default: 10)
+Fields and defaults are defined in `scripts/eventbus/config.py::EventBusConfig`. This
+covers connection/storage settings (`port`, `db_path`, `storage_dir`, `offsets_dir`,
+`deadletter_dir`), retry/replay tuning (`max_retry`, `replay_batch_size`,
+`subscriber_count`), and the fields listed individually below, each of which carries
+additional constraints or operational notes not captured by the dataclass alone. See
+that dataclass's `__post_init__()` for the exact validation rules enforced at startup,
+and `docs/adr/ADR-013-eventbus-authentication-authorization.md` for the authorization
+model the token fields below implement.
+
 - `retained_event_count` — Number of events retained in SQLite for replay (default: 10000)
 - `publish_rate` — Maximum publish rate in events/sec before backpressure applies (default: 100.0)
 - `host` — Listening address (default: `127.0.0.1`; must be `127.0.0.1` or `::1` — see Bind Address below)

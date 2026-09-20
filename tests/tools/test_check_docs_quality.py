@@ -289,9 +289,10 @@ class TestRegressionFullDocsTree:
         within_file_count = output.count(
             "Content similarity detected between sections '"
         )
-        assert within_file_count == 206, (
-            f"Expected 206 within-file content-similarity findings (Plan baseline), "
-            f"got {within_file_count}"
+        assert within_file_count == 205, (
+            f"Expected 205 within-file content-similarity findings (baseline updated "
+            f"2026-09-20 after docs content policy cleanup reduced duplicate content "
+            f"across RAG/MCP/Agent/EventBus/Shared docs), got {within_file_count}"
         )
 
         assert (

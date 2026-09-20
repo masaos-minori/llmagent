@@ -47,27 +47,13 @@ The `RobustSSEParser` implementation is in `shared/sse_parser.py`. The SSE chunk
 
 ### Partial Completion Persistence Rules
 
-Handled by the orchestrator's transport error handler:
+The exact case/action mapping for partial-completion persistence is implemented in
+`scripts/agent/llm_turn_runner.py`'s transport error handling.
 
-| Case | Action |
-|---|---|
-| Non-empty `partial_text` (failure during stream) | Save assistant message as `[INCOMPLETE: {kind}]` only to `session_diagnostics`. |
-| Empty `partial_text` (failure before stream starts) | Pop the previous user message from history. Do not save an assistant message. |
-| Tool execution failure | Append synthesized `tool` error message. Conversation continues. |
+### LLMTransportError Kind Categories
 
-### Error Type Design
-
-The `kind` of `LLMTransportError` is categorized as follows:
-
-| Category | Description |
-|---|---|
-| `HTTP_STATUS_RETRYABLE` | HTTP 429 / 503 |
-| `HTTP_STATUS_FATAL` | Other HTTP errors |
-| `CONNECT_ERROR` | Connection failures |
-| `READ_TIMEOUT` | Read timeouts |
-| `HEARTBEAT_TIMEOUT` | No SSE event within `sse_heartbeat_timeout` seconds |
-| `MALFORMED_SSE_FRAME` | Too many malformed SSE frames |
-| `PREMATURE_EOF` | SSE stream ends earlier than expected content-length |
+The full set of `LLMTransportError.kind` categories is defined by `LLMErrorKind` in
+`scripts/shared/llm_exceptions.py`.
 
 ### Runtime Parameter Generation
 

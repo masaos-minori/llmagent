@@ -32,13 +32,9 @@ To trace a failed tool call through agent, transport, and server logs, follow th
 
 **Regarding cross-layer correlation:** Per-server audit logs (`github_audit.log`, `shell_audit.log`, `delete_audit.log`) do not contain correlation fields like `X-Session-Id` or `X-Request-Id`. Correlation between these logs must be established using the agent-side audit log as the reference.
 
-The agent-side audit event includes an `error_type` field:
-
-| error_type | Meaning | Example Cause |
-|---|---|---|
-| `transport` | Unable to reach MCP server (network failure, timeout, crash) | Server process stopped, port not listening, HTTP 5xx |
-| `tool` | Reachable, but tool returned `is_error=true` | Tool validation failed, database constraint violation |
-| _(empty)_ | Execution successful | — |
+The agent-side audit event includes an `error_type` field distinguishing transport
+failures from tool-level failures — see `scripts/agent/tool_audit.py` for the exact
+values and their assignment logic.
 
 Example audit log line:
 ```json

@@ -46,37 +46,13 @@ Incremental migration mechanisms like this do not exist for `rag.sqlite` or `ses
 
 ### 8b. Incremental Migration for `eventbus.sqlite` (Explicit in code)
 
-`scripts/eventbus/db.py::_migrate()` performs incremental, additive schema evolution on `eventbus.sqlite` at every EventBus service startup. It is called from `open_db()` when the `events` table already exists (see `_init_schema()` line 67–70).
-
-```sql
--- Event persistence (auto-incrementing seq)
-CREATE TABLE events (
-    seq INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_id TEXT UNIQUE NOT NULL,
-    topic TEXT NOT NULL,
-    payload TEXT NOT NULL,
-    producer_id TEXT,
-    created_at TEXT
-);
-```
-
-```sql
--- Per-consumer delivery state (one row per (consumer, event) pair)
-CREATE TABLE consumer_delivery (
-    consumer_id TEXT NOT NULL,
-    event_id TEXT NOT NULL,
-    acked_at TEXT,
-    PRIMARY KEY (consumer_id, event_id)
-);
-```
-
-```sql
--- Per-consumer offset store (one row per consumer)
-CREATE TABLE consumer_offsets (
-    consumer_id TEXT PRIMARY KEY,
-    offset INTEGER NOT NULL DEFAULT 0
-);
-```
+`scripts/eventbus/schema.py::_migrate()` performs incremental, additive schema
+evolution on `eventbus.sqlite` at every EventBus service startup, called from
+`_init_schema()` when the `events` table already exists. The base schema for
+`events`, `consumer_delivery`, and `consumer_offsets` is defined in
+`scripts/eventbus/schema.sql`; see `scripts/eventbus/schema.py` for the additive
+migration logic that creates `consumer_delivery`/`consumer_offsets` on existing
+databases.
 
 Each table serves a distinct purpose:
 - `events`: Stores all published events with auto-incrementing sequence numbers.

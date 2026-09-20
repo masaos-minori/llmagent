@@ -64,14 +64,10 @@ HTTP transport errors (4xx/5xx) are caught by `HttpTransport.call()`, which rais
 
 ### Error Classification Table
 
-| Error Type | HTTP Status | HealthRegistry Action | request_id | is_retryable |
-|---|---|---|---|---|
-| HTTP 4xx (Non-retryable: 401/403/404) | 4xx | `record_failure()` | `""` | No |
-| HTTP 5xx (Server error) | 5xx | `record_failure()` | `""` | Yes (with backoff) |
-| Timeout | N/A | `record_failure()` | `""` | Yes (with backoff) |
-| Connection Refused | N/A | `record_failure()` | `""` | No |
-| DNS/Network Error | N/A | `record_failure()` | `""` | No |
-| Malformed Response (not dict, missing 'result') | 200 | `record_failure()` | `""` | No |
+The exact HTTP-status/retryability classification for each transport failure kind is
+determined by `scripts/shared/mcp_health.py::HealthRegistry.record_failure()` and its
+callers in the transport-error-handling path — see that module for the current
+mapping.
 
 For all transport failures, `request_id=""` is set because the request did not complete normally. For tool-level errors (HTTP 200 and `is_error=True`), the actual `request_id` from the server response is used, and `record_success()` is called.
 

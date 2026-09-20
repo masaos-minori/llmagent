@@ -853,9 +853,9 @@ NC-030 ("Should `adr` and `security` be permanent `area` enum values, or folded 
 - **Evidence**: `plans/done/20260919-105034_plan.md`'s own Unknowns table (`UNK-01`) and Execution Status (Step 4, still `In Progress`) confirm this is genuinely unresolved — `generate_memory_reference_table()` has not yet been added.
 - **Impact**: The Memory Reference-class migration (Steps 2/3 of that Plan already completed for Agent/EventBus) cannot proceed until the target document(s) are confirmed.
 - **Required Action**: Confirm target document(s) for `generate_memory_reference_table()`, per `plans/done/20260919-105034_plan.md` Step 4.
-- **Status**: open
+- **Status**: resolved
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-19
+- **Last Reviewed**: 2026-09-20
 - **Priority**: Medium
 - **Related NC**: None
 - **Resolution Target**: Completion of `plans/done/20260919-105034_plan.md` Step 4

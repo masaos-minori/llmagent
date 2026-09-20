@@ -43,25 +43,9 @@ data:<JSON payload>
 
 ### Response (HTTP 200) — JSON format (`format=json`)
 
-Returns a single JSON response body:
-
-```json
-{
-    "total": <integer>,
-    "limit": <integer>,
-    "offset": <integer>,
-    "items": [
-        {
-            "event_id": "<string>",
-            "topic": "<string>",
-            "payload": {},
-            "producer": "<string>",
-            "published_at": "<ISO 8601 timestamp>",
-            "delivery_failure_count": <integer>
-        }
-    ]
-}
-```
+Returns a pagination envelope (`total`/`limit`/`offset`) plus an `items` array of event
+objects (each carrying the event's metadata, plus `dlq_at` if the event was promoted
+to the DLQ) — see `scripts/eventbus/replay_route.py` for the exact response schema.
 
 **Field descriptions**:
 - `total`: Total number of events with `seq > since_seq` (ignoring pagination). This allows clients to determine remaining events.

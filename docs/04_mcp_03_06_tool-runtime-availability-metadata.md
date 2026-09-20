@@ -47,26 +47,7 @@ Added to each tool dict in the live `/v1/tools` response body, computed per-requ
 
 ## 4. `/v1/tools` behavioral rules
 
-Always returns every implemented tool; disabled tools are never omitted from the response. Example JSON response block, one enabled + one disabled tool side by side:
-
-```json
-{
-  "tools": [
-    {
-      "name": "git_status",
-      "config_dependent": true,
-      "enabled": true,
-      "disabled_reason": ""
-    },
-    {
-      "name": "git_push",
-      "config_dependent": true,
-      "enabled": false,
-      "disabled_reason": "read_only=true"
-    }
-  ]
-}
-```
+Always returns every implemented tool; disabled tools are never omitted from the response. Each tool entry carries `config_dependent`, `enabled`, and `disabled_reason` alongside its other fields — see each server's own `/v1/tools` handler (named in section 3 above) for the exact response shape.
 
 ## /v1/tools as RuntimeToolRegistry Source
 

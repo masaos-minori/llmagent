@@ -60,11 +60,17 @@ GUARD_START_AGENT = (
 GUARD_START_EVENTBUS = (
     "<!-- AUTO-GENERATED: gen_eventbus_reference.py class-function-reference -->"
 )
+GUARD_START_MEMORY = (
+    "<!-- AUTO-GENERATED: gen_memory_reference.py class-function-reference -->"
+)
 
 REFERENCE_DOC_MCP = REPO_ROOT / "docs" / "04_mcp_01_tool_ownership_matrix.md"
 REFERENCE_DOC_DEPLOYMENT = REPO_ROOT / "docs" / "02_deployment-part2.md"
 REFERENCE_DOC_AGENT = REPO_ROOT / "docs" / "05_agent_14_reference-api-generated.md"
 REFERENCE_DOC_EVENTBUS = REPO_ROOT / "docs" / "06_eventbus_06_reference-api.md"
+REFERENCE_DOC_MEMORY = (
+    REPO_ROOT / "docs" / "05_agent_12_07_memory-module-reference-generated.md"
+)
 
 # ---------------------------------------------------------------------------
 # RAG domain: generate configuration tables
@@ -299,6 +305,10 @@ DOMAIN_GENERATORS = {
         "EventBus module class/function reference table",
         generate_eventbus_reference_table,
     ),
+    "memory": (
+        "Memory module class/function reference table",
+        generate_memory_reference_table,
+    ),
 }
 
 DOMAIN_DOCS = {
@@ -306,6 +316,7 @@ DOMAIN_DOCS = {
     "deployment": REFERENCE_DOC_DEPLOYMENT,
     "agent": REFERENCE_DOC_AGENT,
     "eventbus": REFERENCE_DOC_EVENTBUS,
+    "memory": REFERENCE_DOC_MEMORY,
 }
 
 DOMAIN_GUARDS = {
@@ -313,6 +324,7 @@ DOMAIN_GUARDS = {
     "deployment": (GUARD_START_DEPLOYMENT, GUARD_END),
     "agent": (GUARD_START_AGENT, GUARD_END),
     "eventbus": (GUARD_START_EVENTBUS, GUARD_END),
+    "memory": (GUARD_START_MEMORY, GUARD_END),
 }
 
 DOMAIN_WELCOME_LINES = {
@@ -320,12 +332,14 @@ DOMAIN_WELCOME_LINES = {
     "deployment": "Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type deployment` to refresh.",
     "agent": "Generated from `scripts/agent/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type agent` to refresh.",
     "eventbus": "Generated from `scripts/eventbus/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type eventbus` to refresh.",
+    "memory": "Generated from `scripts/agent/memory/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type memory` to refresh.",
 }
 
 DOMAIN_HEADING = {
     "mcp": "## Server Port & Tool Reference (auto-generated)",
     "deployment": "### DB Path Reference (auto-generated)",
     "agent": "## Module Class/Function Reference (auto-generated)",
+    "memory": "## Module Class/Function Reference (auto-generated)",
     "eventbus": "## Module Class/Function Reference (auto-generated)",
 }
 

@@ -15,11 +15,11 @@ source:
 
 ## Crawler
 
-| Error | Action |
-|---|---|
-| HTTP failure | Retry with exponential backoff up to `fetch_retry` (`min(2**i, 10)` seconds) |
-| Exception at URL level | Output `WARNING` and continue |
-| `lang` is not `ja` or `en` | Skip URL |
+All Crawler-level failures are non-fatal at URL granularity. An HTTP failure is
+retried with backoff before falling through to the same per-URL exception handling
+that an unhandled exception or an unsupported `lang` value also hits, each of which
+skips just that URL without stopping the overall crawl — see
+`scripts/rag/ingestion/crawler.py` for the exact retry count/backoff formula.
 
 ## ChunkSplitter
 

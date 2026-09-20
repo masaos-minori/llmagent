@@ -29,17 +29,19 @@ source:
 ctx = PipelineContext(query="search query", history_context="conversation history")
 ```
 
-| Field | Type | Default | Modified By |
-|---|---|---|---|
-| `query` | `str` | (Required) | — |
-| `history_context` | `str` | `""` | — |
-| `queries` | `list[str]` | `[]` | `MqeStage` |
-| `search_results` | `list[list[RawHit]]` | `[]` | `SearchStage` |
-| `merged` | `list[RagHit]` | `[]` | `FusionStage` |
-| `reranked` | `list[RagHit]` | `[]` | `RerankStage` |
-| `augment_result` | `str` | `""` | `AugmentStage` |
-| `stage_results` | `list[StageResult]` | `[]` | `RagPipeline.run()` |
-| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` (default_factory) | `SearchStage` — Replaced by a new `SearchDiagnostics` object containing populated `embed_ok`/`embed_failed`/`fts_errors` during search; In HTTP mode, the HTTP augment handler replaces it using `dataclasses.replace()` with `result_source`, `http_result_kind`, `remote_status_code`, and `remote_latency_ms`. |
+Fields and defaults are defined in `scripts/rag/stage.py::PipelineContext`. Each
+stage-populated field is written by a specific pipeline stage:
+
+- `queries` — written by `MqeStage`
+- `search_results` — written by `SearchStage`
+- `merged` — written by `FusionStage`
+- `reranked` — written by `RerankStage`
+- `augment_result` — written by `AugmentStage`
+- `stage_results` — appended by `RagPipeline.run()`
+- `search_diagnostics` — replaced by `SearchStage` with a new `SearchDiagnostics`
+  object containing populated `embed_ok`/`embed_failed`/`fts_errors` during search; in
+  HTTP mode, the HTTP augment handler replaces it using `dataclasses.replace()` with
+  `result_source`, `http_result_kind`, `remote_status_code`, and `remote_latency_ms`.
 
 ### 4.2 SearchDiagnostics (`scripts/rag/models_result.py`)
 

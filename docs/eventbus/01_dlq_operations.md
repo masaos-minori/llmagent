@@ -24,24 +24,9 @@ List dead-letter queue entries with pagination support.
 
 ### Response (HTTP 200)
 
-```json
-{
-    "total": <integer>,
-    "limit": <integer>,
-    "offset": <integer>,
-    "items": [
-        {
-            "event_id": "<string>",
-            "topic": "<string>",
-            "payload": {},
-            "producer": "<string>",
-            "published_at": "<ISO 8601 timestamp>",
-            "delivery_failure_count": <integer>,
-            "dlq_at": "<ISO 8601 timestamp>"
-        }
-    ]
-}
-```
+Returns a pagination envelope (`total`/`limit`/`offset`) plus an `items` array of DLQ
+event objects (each carrying the event's metadata plus `dlq_at`) — see
+`scripts/eventbus/dlq_route.py` for the exact response schema.
 
 **Field descriptions**:
 - `total`: Total number of events in the DLQ (ignoring pagination).
