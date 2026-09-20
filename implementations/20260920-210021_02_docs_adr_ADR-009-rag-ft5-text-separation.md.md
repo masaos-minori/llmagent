@@ -149,9 +149,9 @@ the prior (stale but previously-committed) text exactly.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the INV-09 behavior paragraph | Pending | — | — | |
-| 2 | Correct all 6 stale file-path citations (including the 4th one found during this row's investigation) | Pending | — | — | |
-| 3 | Run `check_docs_quality.py` / `check_docs_structure.py` and manually re-verify all corrected paths | Pending | — | — | |
+| 1 | Add the INV-09 behavior paragraph | Completed | 20260920-212459 | 20260920-212459 |  |
+| 2 | Correct all 6 stale file-path citations (including the 4th one found during this row's investigation) | Completed | 20260920-212459 | 20260920-212459 | Confirmed Row 1 landed test name matches; corrected all 6 stale paths including the 4th one found during Plan investigation |
+| 3 | Run `check_docs_quality.py` / `check_docs_structure.py` and manually re-verify all corrected paths | Completed | 20260920-212459 | 20260920-212459 | check_docs_quality.py/check_docs_structure.py warnings confirmed pre-existing and identical before/after via git stash comparison (all 12 findings, unrelated sections/links) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
