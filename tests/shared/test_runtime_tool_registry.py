@@ -5,6 +5,12 @@ tool_spec_map/tool_spec_for_call, apply_policy, diagnostics.
 
 from __future__ import annotations
 
+import dataclasses
+import logging
+import threading
+from typing import Any
+from unittest.mock import patch
+
 import pytest
 from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
@@ -149,6 +155,42 @@ class TestRuntimeToolRegistry:
         reg.apply_policy(tier_map={}, allowed_tools=())
         assert reg.get("search_web").enabled_for_llm is True
 
+    def test_apply_policy_keeps_hidden_tool_disabled_when_allowed(self) -> None:
+        tool = build_runtime_tool(
+            name="hidden_tool",
+            server_key="s",
+            enabled_for_llm=True,
+            llm_visibility_base=False,
+        )
+        reg = _registry_with(tool)
+        reg.apply_policy(tier_map={}, allowed_tools=["hidden_tool"])
+        assert reg.get("hidden_tool").enabled_for_llm is False
+
+    def test_apply_policy_logs_warning_when_hidden_tool_would_otherwise_be_enabled(
+        self, caplog: Any
+    ) -> None:
+        tool = build_runtime_tool(
+            name="hidden_tool",
+            server_key="s",
+            enabled_for_llm=True,
+            llm_visibility_base=False,
+        )
+        reg = _registry_with(tool)
+        with caplog.at_level(logging.WARNING, logger="shared.runtime_tool_registry"):
+            reg.apply_policy(tier_map={}, allowed_tools=["hidden_tool"])
+        assert "hidden_tool" in caplog.text
+
+    def test_apply_policy_does_not_log_warning_for_visible_tool(
+        self, caplog: Any
+    ) -> None:
+        tool = build_runtime_tool(
+            name="visible_tool", server_key="s", enabled_for_llm=True
+        )
+        reg = _registry_with(tool)
+        with caplog.at_level(logging.WARNING, logger="shared.runtime_tool_registry"):
+            reg.apply_policy(tier_map={}, allowed_tools=["visible_tool"])
+        assert "visible_tool" not in caplog.text
+
     def test_apply_policy_updates_tier_to_read_only(self) -> None:
         tool = build_runtime_tool(
             name="read_file", server_key="s", enabled_for_llm=True
@@ -261,6 +303,63 @@ class TestRuntimeToolRegistry:
         reg.apply_policy(tier_map={}, allowed_tools=("t",))
         new_id = id(reg._tools)
         assert old_id != new_id
+
+    def test_apply_policy_leaves_tools_unchanged_when_build_raises(self) -> None:
+        tool_a = build_runtime_tool(name="tool_a", server_key="s", enabled_for_llm=True)
+        tool_b = build_runtime_tool(name="tool_b", server_key="s", enabled_for_llm=True)
+        reg = _registry_with(tool_a, tool_b)
+        original_a = reg.get("tool_a")
+        original_b = reg.get("tool_b")
+
+        real_replace = dataclasses.replace
+
+        def _raising_replace(obj: object, **changes: object) -> object:
+            if getattr(obj, "name", None) == "tool_b":
+                raise ValueError("simulated mid-build failure")
+            return real_replace(obj, **changes)  # type: ignore[type-var]  # — obj is a RuntimeTool at runtime; typed as object only to match dataclasses.replace's patched signature
+
+        with patch(
+            "shared.runtime_tool_registry.dataclasses.replace",
+            side_effect=_raising_replace,
+        ):
+            with pytest.raises(ValueError):
+                reg.apply_policy(tier_map={}, allowed_tools=())
+
+        assert reg.get("tool_a") is original_a
+        assert reg.get("tool_b") is original_b
+
+    def test_apply_policy_swap_never_exposes_mixed_state_to_concurrent_reader(
+        self,
+    ) -> None:
+        """CPython-GIL-dependent regression test: a single self._tools reference swap
+        is atomic with respect to concurrent readers under CPython's GIL."""
+        tool = build_runtime_tool(
+            name="t",
+            server_key="s",
+            agent_safety_tier="READ_ONLY",
+            enabled_for_llm=True,
+        )
+        reg = _registry_with(tool)
+        snapshots: list[tuple[str, bool]] = []
+        stop = threading.Event()
+
+        def _reader() -> None:
+            while not stop.is_set():
+                observed = reg.get("t")
+                snapshots.append((observed.agent_safety_tier, observed.enabled_for_llm))
+
+        reader = threading.Thread(target=_reader)
+        reader.start()
+        for i in range(5000):
+            if i % 2 == 0:
+                reg.apply_policy(tier_map={"t": "ADMIN"}, allowed_tools=("t",))
+            else:
+                reg.apply_policy(tier_map={"t": "READ_ONLY"}, allowed_tools=("t",))
+        stop.set()
+        reader.join()
+
+        valid_states = {("ADMIN", True), ("READ_ONLY", True)}
+        assert set(snapshots) <= valid_states
 
 
 class TestDisabledServerExclusion:

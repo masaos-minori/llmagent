@@ -225,6 +225,12 @@ Search Qualityを優先し、すべての言語の検索を可能にするため
 - INV-09: Markdown見出しチャンクなど、日本語正規化を行わないケースの挙動を明記する。
 - INV-10: AugmentStageは`content`のみを出力し、`normalized_content`をLLM Contextへ出力しない。
 
+INV-09の挙動: Markdown見出しチャンク（および日本語正規化対象外のその他のテキスト、
+`_is_markdown_source()`分岐で判定）は、取り込み時に`normalized_content = NULL`となる
+（`scripts/rag/ingestion/chunk_splitter.py::_build_text_triples()`）。FTS5はINV-04が
+定義する英語・コードチャンクと同じ`COALESCE(normalized_content, content)`規則により
+`content`へFallbackする。
+
 ## Exceptions
 
 なし
@@ -279,37 +285,37 @@ Search Qualityを優先し、すべての言語の検索を可能にするため
   - **Verifies**: INV-03
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/test_fts_fallback.py::TestEnglishFtsFallback`
+  - **Implementation**: `tests/rag/test_fts_fallback.py::TestEnglishFtsFallback`
 
 - **Test**: LLM Contextに元テキストが使用されること
   - **Verifies**: INV-01
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/test_rag_pipeline.py::TestFormatChunksDesign2::test_content_appears_in_output`
+  - **Implementation**: `tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_content_appears_in_output`
 
 - **Test**: 英語とコードでは`content`がFTS5に使用されること
   - **Verifies**: INV-04
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/test_fts_fallback.py::TestCodeFtsFallback::test_code_search_returns_original_content`
+  - **Implementation**: `tests/rag/test_fts_fallback.py::TestCodeFtsFallback::test_code_search_returns_original_content`
 
 - **Test**: FTS再構築後も同じIndex内容になること
   - **Verifies**: INV-07
   - **Type**: Regression
   - **Blocking**: Yes
-  - **Implementation**: `tests/test_rag_index_integrity.py::test_fts_rebuild_uses_cascade` (TEST-DESIGN3-01)
+  - **Implementation**: `tests/rag/test_fts_sync.py::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`
 
 - **Test**: `normalized_content`がRAG Context Blockへ混入しないこと
   - **Verifies**: INV-02
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/test_rag_pipeline.py::TestFormatChunksDesign2::test_normalized_content_does_not_appear`
+  - **Implementation**: `tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_normalized_content_does_not_appear`
 
 - **Test**: AugmentStageが`content`のみを出力すること
   - **Verifies**: INV-10
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/test_rag_pipeline_stage.py::TestAugmentStage::test_augment_stage_content_only_invariant`
+  - **Implementation**: `tests/rag/test_rag_pipeline_stage.py::TestAugmentStage::test_augment_stage_content_only_invariant`
 
 ### Startup Validation
 

@@ -254,24 +254,16 @@ CI-005 ("ADR-004 INV-03 — fail-closed for missing config not implemented") was
 
 CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavior not verified") was resolved and removed from this active inventory 2026-09-14 — not by verifying the local-mode behavior it asked about, but because the premise no longer applies: `docs/adr/ADR-004-environment-failure-handling-policy.md`'s own 2026-09-04 revision record states `SecurityProfile.LOCAL` was fully abolished and production-grade validation made unconditional for every normal startup. Confirmed by direct code inspection: `scripts/shared/mcp_config.py`'s `SecurityProfile` enum now defines only `PRODUCTION`, and `security_profile: SecurityProfile = SecurityProfile.PRODUCTION` is the sole default in `scripts/agent/config_dataclasses.py` — there is no local/production branch left in which safety checks could fail open. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-006` heading.
 
-#### CI-007
-
-- **ID**: CI-007
-- **Title**: ADR-009 INV-09 — FTS5 rebuild rules not verified
-- **Status**: open
-- **Severity**: Low
-- **Area**: RAG
-- **Type**: ambiguous-behavior
-- **Source**: `scripts/rag/`
-- **Owner**: @data-eng
-- **First Found**: 2026-09-03
-- **Target**: `docs/adr/ADR-009-rag-ft5-text-separation.md`
-- **Related**: ADR-009, DESIGN-2
-- **Summary**: ADR-009 defines specific FTS5 rebuild rules that must be followed.
-- **Current Description**: These rules have not been validated against the actual implementation.
-- **Observed Implementation**: Not verified.
-- **Impact**: Incorrect FTS5 rebuild could lead to inconsistent search results.
-- **Recommended Action**: Validate FTS5 rebuild logic against documented rules.
+CI-007 ("ADR-009 INV-09 — FTS5 rebuild rules not verified") was resolved 2026-09-20.
+INV-07's trigger-vs-manual-rebuild text selection confirmed identical by direct code
+reading (both apply `COALESCE(normalized_content, content)`). The previously-named
+INV-07 test was non-functional and has been rewritten to exercise the real
+`RagMaintenanceService.rebuild_fts()`
+(`tests/rag/test_fts_sync.py::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`).
+INV-09's behavior documented in ADR-009. DESIGN-2 now has a static-analysis guard
+(`tests/rag/test_fts_sync.py::test_no_unsanctioned_direct_chunks_fts_write`). Resolved
+per `plans/done/20260920-203952_plan.md`. Its absence from the active list is the
+correct, policy-compliant state — do not create a `#### CI-007` heading.
 - **Resolution Target**: Next RAG architecture review
 
 #### CI-008
@@ -496,43 +488,25 @@ Note on CI-008 through CI-016 batching: These nine structurally identical "ADR i
 - **Recommended Action**: Decide whether to unify `RagRerankError`/`RagPipelineError`/`RagExpansionError` under `RagLayerError` in a dedicated cross-cutting refactor, or document the split as an accepted permanent exception via ADR.
 - **Resolution Target**: Next RAG exception-hierarchy refactor or ADR decision
 
-#### REQ-001
+REQ-001 ("Immutable discovery-time visibility field (`llm_visibility_base`) not
+enforced during config reload") was resolved 2026-09-20. Enforcement was implemented
+in commit `520c9b39f9` (2026-09-17), three days before this entry was filed.
+Regression coverage added by
+`tests/shared/test_runtime_tool_registry.py::test_apply_policy_keeps_hidden_tool_disabled_when_allowed`
+and `::test_apply_policy_logs_warning_when_hidden_tool_would_otherwise_be_enabled`; a
+diagnostic warning log added to
+`scripts/shared/runtime_tool_registry.py::apply_policy()`. Resolved per
+`plans/done/20260920-203022_plan.md`. Its absence from the active list is the correct,
+policy-compliant state — do not create a `#### REQ-001` heading.
 
-- **ID**: REQ-001
-- **Title**: Immutable discovery-time visibility field (`llm_visibility_base`) not enforced during config reload
-- **Status**: open
-- **Severity**: High
-- **Area**: Agent
-- **Type**: document-code-mismatch
-- **Source**: `scripts/shared/runtime_tool.py`, `scripts/shared/runtime_tool_registry.py::apply_policy()`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `docs/00_governance_03_issue-and-uncertainty-management.md`
-- **Related**: CI-003
-- **Summary**: `llm_visibility_base` is defined as an immutable discovery-time visibility field on `RuntimeTool` (confirmed: 11 matches across `scripts/`), but the config reload path via `apply_policy()` does not enforce immutability of this field — a tool hidden from the LLM at discovery time could be unhidden via config reload.
-- **Current Description**: `llm_visibility_base` exists on `RuntimeTool` (lines 53, 72, 76-77, 96, 111, 128-129, 148 in `runtime_tool.py`). The `apply_policy()` formula uses this field as the immutable base (confirmed: `scripts/shared/runtime_tool_registry.py` lines 166-167). However, no enforcement prevents config reload from overriding this field.
-- **Observed Implementation**: `apply_policy()` reads `llm_visibility_base` as the starting point for visibility computation, but the config reload path can modify tool visibility without respecting this constraint.
-- **Impact**: A tool hidden from the LLM at discovery time could become visible again through config reload, violating the security boundary established by REQ-001.
-- **Recommended Action**: Enforce immutability of `llm_visibility_base` in the config reload path; add tests to verify this invariant.
-
-#### REQ-002
-
-- **ID**: REQ-002
-- **Title**: Atomic registry swap invariant not verified during config reload
-- **Status**: open
-- **Severity**: Medium
-- **Area**: Agent
-- **Type**: design-gap
-- **Source**: `scripts/shared/runtime_tool_registry.py`
-- **Owner**: Unassigned
-- **First Found**: Unconfirmed
-- **Target**: `docs/00_governance_03_issue-and-uncertainty-management.md`
-- **Related**: N/A
-- **Summary**: Config reload swaps the tool registry, but there is no guarantee that the swap is atomic — intermediate states where some tools use the old registry and others use the new one could cause inconsistent routing decisions.
-- **Current Description**: The registry swap mechanism during config reload does not provide atomicity guarantees. If the swap fails partway through, some tools may route through the old registry while others route through the new one.
-- **Observed Implementation**: Not verified.
-- **Impact**: Inconsistent routing decisions during partial registry swaps could lead to unauthorized tool access or incorrect fallback behavior.
-- **Recommended Action**: Implement atomic registry swap (e.g., using a two-phase commit pattern) and add tests to verify this invariant.
+REQ-002 ("Atomic registry swap invariant not verified during config reload") was
+resolved 2026-09-20. The build-then-swap structure providing rollback-on-failure and
+atomic-swap-to-concurrent-readers was already implemented in commit `520c9b39f9`
+(2026-09-17). Regression coverage added by
+`tests/shared/test_runtime_tool_registry.py::test_apply_policy_leaves_tools_unchanged_when_build_raises`
+and `::test_apply_policy_swap_never_exposes_mixed_state_to_concurrent_reader`.
+Resolved per `plans/done/20260920-203342_plan.md`. Its absence from the active list is
+the correct, policy-compliant state — do not create a `#### REQ-002` heading.
 
 #### REQ-003
 

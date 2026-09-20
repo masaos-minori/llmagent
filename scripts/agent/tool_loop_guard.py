@@ -231,7 +231,7 @@ class ToolLoopGuard:
             return None
 
         # Get unique tool names for this round
-        tool_names = frozenset()
+        tool_names: frozenset[str] = frozenset()
         for func, _key in self._iter_tool_call_keys(message):
             name = func.get("name", "")
             if name:
@@ -331,7 +331,9 @@ class ToolLoopGuard:
         """Run cycle, stagnation, dedup, retry, and empty result guards in order; return first hit or None."""
         if msg := self.check_cycle(round_fingerprints, message):
             return msg
-        if msg := self._check_progress_stagnation(round_fingerprints, round_tool_names, message):
+        if msg := self._check_progress_stagnation(
+            round_fingerprints, round_tool_names, message
+        ):
             return msg  # NEW: check stagnation before dedup/retry
         if msg := self.check_empty_result_repeat(message):
             return msg

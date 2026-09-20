@@ -4,9 +4,13 @@ In-memory SQLite tests for FTS5 trigger synchronization (chunks <-> chunks_fts).
 
 from __future__ import annotations
 
+import re
 import sqlite3
+from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
+from db.config import DbConfig
 
 # Minimal RAG schema for FTS trigger tests; chunks_vec is stubbed (vec0 not required).
 _FTS_SCHEMA_SQL = """
@@ -51,6 +55,19 @@ AFTER UPDATE ON chunks BEGIN
     VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
 END;
 """
+
+
+def _make_db_cfg(tmp_path: Path, rag_name: str = "rag.sqlite") -> DbConfig:
+    """Return a mock DbConfig pointing rag_db_path at tmp_path (bypasses path validation)."""
+    cfg = MagicMock(spec=DbConfig)
+    cfg.rag_db_path = str(tmp_path / rag_name)
+    cfg.session_db_path = str(tmp_path / "session.sqlite")
+    cfg.workflow_db_path = str(tmp_path / "workflow.sqlite")
+    cfg.eventbus_db_path = str(tmp_path / "eventbus.sqlite")
+    cfg.sqlite_vec_so = ""
+    cfg.sqlite_timeout = 30
+    cfg.sqlite_busy_timeout_ms = 30000
+    return cfg
 
 
 @pytest.fixture()
@@ -168,41 +185,73 @@ class TestFtsTriggerSync:
         ).fetchall()
         assert len(rows) == 1
 
-    def test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule(self) -> None:
-        """INV-009: FTS trigger and manual rebuild use identical text selection rules.
+    def test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """INV-07: FTS trigger and manual rebuild (RagMaintenanceService.rebuild_fts())
+        produce identical chunks_fts contents for the same underlying chunk data."""
+        from agent.services.rag_maintenance_service import RagMaintenanceService
 
-        Both the FTS trigger (automatic) and rebuild_fts() (manual) must apply the same
-        COALESCE(normalized_content, content) logic to ensure consistent search results.
-        """
-        conn = sqlite3.connect(":memory:")
-        conn.row_factory = sqlite3.Row
+        db_file = tmp_path / "rag.sqlite"
+        conn = sqlite3.connect(str(db_file))
         conn.executescript(_FTS_SCHEMA_SQL)
-        conn.commit()
-
-        # Insert chunk with normalized_content = NULL — should use content in FTS
         conn.execute(
             "INSERT INTO documents(url, lang) VALUES(?, ?)", ("http://a.com", "en")
         )
-        doc_id = conn.execute("SELECT doc_id FROM documents").fetchone()["doc_id"]
+        doc_id = conn.execute("SELECT doc_id FROM documents").fetchone()[0]
         conn.execute(
-            "INSERT INTO chunks(doc_id, content, normalized_content, chunk_index) VALUES(?,?,?,?)",
-            (doc_id, "test", None, 0),
+            "INSERT INTO chunks(doc_id, content, normalized_content, chunk_index)"
+            " VALUES(?,?,?,?)",
+            (doc_id, "Hello world", None, 0),
         )
-        conn.commit()
-
-        fts_text1 = None or "test"
-        assert fts_text1 == "test"
-
-        # Insert chunk with normalized_content != NULL — should use normalized_content in FTS
         conn.execute(
             "INSERT INTO documents(url, lang) VALUES(?, ?)", ("http://b.com", "ja")
         )
-        doc_id = conn.execute("SELECT doc_id FROM documents").fetchone()["doc_id"]
+        doc_id = conn.execute(
+            "SELECT doc_id FROM documents WHERE url = ?", ("http://b.com",)
+        ).fetchone()[0]
         conn.execute(
-            "INSERT INTO chunks(doc_id, content, normalized_content, chunk_index) VALUES(?,?,?,?)",
-            (doc_id, "日本語", "日本 語", 0),
+            "INSERT INTO chunks(doc_id, content, normalized_content, chunk_index)"
+            " VALUES(?,?,?,?)",
+            (doc_id, "こんにちは世界", "こんにちは 世界", 1),
         )
         conn.commit()
+        before = conn.execute(
+            "SELECT rowid, content FROM chunks_fts ORDER BY rowid"
+        ).fetchall()
+        conn.close()
 
-        fts_text2 = "日本 語" or "日本語"
-        assert fts_text2 == "日本 語"
+        monkeypatch.setattr(
+            "db.helper.build_db_config",
+            lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
+        )
+        RagMaintenanceService().rebuild_fts()
+
+        conn2 = sqlite3.connect(str(db_file))
+        after = conn2.execute(
+            "SELECT rowid, content FROM chunks_fts ORDER BY rowid"
+        ).fetchall()
+        conn2.close()
+        assert before == after
+
+    def test_no_unsanctioned_direct_chunks_fts_write(self) -> None:
+        """DESIGN-2: only sanctioned files may write to chunks_fts directly."""
+        allowlist = {
+            "scripts/db/schema_sql.py",
+            "scripts/agent/services/rag_maintenance_service.py",
+            "scripts/rag/maintenance.py",
+        }
+        write_pattern = re.compile(
+            r"(INSERT\s+INTO\s+chunks_fts|DELETE\s+FROM\s+chunks_fts"
+            r"|UPDATE\s+chunks_fts)",
+            re.IGNORECASE,
+        )
+        repo_root = Path(__file__).resolve().parents[2]
+        offenders: list[str] = []
+        for base in ("scripts/rag", "scripts/agent", "scripts/db"):
+            for path in (repo_root / base).rglob("*.py"):
+                rel = str(path.relative_to(repo_root))
+                if write_pattern.search(path.read_text(encoding="utf-8")):
+                    if rel not in allowlist:
+                        offenders.append(rel)
+        assert offenders == []

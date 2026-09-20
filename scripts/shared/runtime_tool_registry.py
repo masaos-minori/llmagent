@@ -19,12 +19,15 @@ Import-layer design decisions (do not "fix" these by adding the imports back):
 from __future__ import annotations
 
 import dataclasses
+import logging
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 from shared.resource_scope import resolve_resource_scopes
 from shared.runtime_tool import AgentSafetyTier, RuntimeTool, _or_default
 from shared.tool_spec import ToolSpec
+
+logger = logging.getLogger(__name__)
 
 
 class RuntimeToolRegistry:
@@ -164,9 +167,14 @@ class RuntimeToolRegistry:
         for name, tool in list(self._tools.items()):
             tier = tier_map.get(name, tool.agent_safety_tier)
             resolved_llm_visibility_base = _or_default(tool.llm_visibility_base, True)
-            new_enabled = resolved_llm_visibility_base and (
-                not allowed_tools or name in allowed_tools
-            )
+            allowed_alone = not allowed_tools or name in allowed_tools
+            if not resolved_llm_visibility_base and allowed_alone:
+                logger.warning(
+                    "tool %r hidden at discovery (llm_visibility_base=False);"
+                    " reload's allowed_tools would otherwise have re-enabled it",
+                    name,
+                )
+            new_enabled = resolved_llm_visibility_base and allowed_alone
             new_tools[name] = dataclasses.replace(
                 tool,
                 agent_safety_tier=tier,
