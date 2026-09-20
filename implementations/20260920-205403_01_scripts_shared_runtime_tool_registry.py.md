@@ -195,9 +195,9 @@ in-memory transformation with no persisted side effect from the log call itself.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `import logging`, module-level `logger`, and the warning-log call inside `apply_policy()` | Pending | — | — | |
-| 2 | Run `ruff check` / `mypy` on this file | Pending | — | — | |
-| 3 | Run `tests/shared/test_runtime_tool_registry.py` and `tests/agent/services/test_config_reload.py` (full validation, after Row 2's tests also land) | Pending | — | — | |
+| 1 | Add `import logging`, module-level `logger`, and the warning-log call inside `apply_policy()` | Completed | 20260920-210758 | 20260920-210758 |  |
+| 2 | Run `ruff check` / `mypy` on this file | Completed | 20260920-210758 | 20260920-210758 |  |
+| 3 | Run `tests/shared/test_runtime_tool_registry.py` and `tests/agent/services/test_config_reload.py` (full validation, after Row 2's tests also land) | Completed | 20260920-210854 | 20260920-210854 | Existing 28 tests in tests/shared/test_runtime_tool_registry.py all pass; new caplog-based tests land in Row 2's cycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
