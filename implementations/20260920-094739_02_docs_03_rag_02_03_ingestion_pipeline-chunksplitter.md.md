@@ -176,10 +176,10 @@ no new broken internal link is introduced.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the 5 Edits per Procedure/Method | Pending | — | — | |
-| 2 | N/A: no test suite applies to a documentation content change | Pending | — | — | |
-| 3 | Run the 4 commands in Validation plan | Pending | — | — | |
-| 4 | N/A: no further documentation update needed beyond this file itself | Pending | — | — | |
+| 1 | Apply the 5 Edits per Procedure/Method | Completed | 20260920-100529 | 20260920-100529 | Stale detection: not stale. Adversarial verification: all 5 locations confirmed unchanged at recorded line numbers. Applied all 5 Edits. |
+| 2 | N/A: no test suite applies to a documentation content change | Completed | 20260920-100529 | 20260920-100529 |  |
+| 3 | Run the 4 commands in Validation plan | Completed | 20260920-100529 | 20260920-100529 | check_docs_content_policy.py: 0 findings for this file (was 4). check_docs_quality.py: 2 pre-existing warnings (unchanged, unrelated). check_docs_structure.py: 1 pre-existing finding (2 H1 headings, unrelated). check_docs_consistency.py --domain rag: no new finding, no other doc links to the Canonical Artifact-Field Contract heading (UNK-01 resolved). |
+| 4 | N/A: no further documentation update needed beyond this file itself | Completed | 20260920-100529 | 20260920-100529 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
