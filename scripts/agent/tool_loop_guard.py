@@ -73,6 +73,7 @@ class TurnLoopState:
     failed_calls: set[str] = field(default_factory=set)
     consecutive_errors: int = 0
     round_fingerprints: list[str] = field(default_factory=list)
+    round_tool_names: list[frozenset[str]] = field(default_factory=list)
     _round_tool_names: set[str] | None = field(default=None)
 
 
@@ -221,6 +222,7 @@ class ToolLoopGuard:
     def _check_progress_stagnation(
         self,
         round_fingerprints: list[str],
+        round_tool_names: list[frozenset[str]],
         message: LLMMessage,
     ) -> str | None:
         """Detect when the same subset of tools is invoked repeatedly without progress."""
@@ -229,11 +231,11 @@ class ToolLoopGuard:
             return None
 
         # Get unique tool names for this round
-        tool_names = set()
+        tool_names = frozenset()
         for func, _key in self._iter_tool_call_keys(message):
             name = func.get("name", "")
             if name:
-                tool_names.add(name)
+                tool_names |= {name}
 
         # Skip if no tool calls or single tool (can't stagnate with one tool)
         if len(tool_names) < 2:
@@ -241,20 +243,30 @@ class ToolLoopGuard:
 
         # Check against recent rounds' tool name sets
         recent_rounds = [
-            fp
-            for fp in round_fingerprints[
-                -(ctx.cfg.tool.progress_stagnation_window + 1) :
-            ]
+            tn
+            for tn in round_tool_names[-(ctx.cfg.tool.progress_stagnation_window + 1) :]
         ]
 
-        # If we've seen similar tool name sets before, flag stagnation
-        # (simplified: compare tool name counts rather than exact sets)
-        if len(recent_rounds) >= ctx.cfg.tool.progress_stagnation_window:
-            # Count how many times similar tool name sets appeared
-            # For now, use a simple heuristic: same number of tools used
-            pass  # TODO: implement proper comparison logic
+        # Count how many times the same tool name set appeared in recent rounds
+        same_set_count = sum(1 for tn in recent_rounds if tn == tool_names)
+        if same_set_count >= ctx.cfg.tool.progress_stagnation_window:
+            logger.warning(
+                "Progress stagnation detected: tool set %r repeated %s times",
+                tool_names,
+                same_set_count,
+            )
+            self._save_guard_hint(
+                ctx,
+                "stagnation",
+                tool_names=str(tool_names),
+                repeat_count=same_set_count,
+                hint=STAGNATION_HINT,
+            )
+            return "Progress stagnation detected."
 
-        return None  # Placeholder until full implementation
+        # Append current tool name set for future rounds
+        round_tool_names.append(tool_names)
+        return None
 
     def check_dedup(
         self,
@@ -312,13 +324,14 @@ class ToolLoopGuard:
         self,
         seen_calls: dict[str, int],
         round_fingerprints: list[str],
+        round_tool_names: list[frozenset[str]],
         failed_calls: set[str],
         message: LLMMessage,
     ) -> str | None:
         """Run cycle, stagnation, dedup, retry, and empty result guards in order; return first hit or None."""
         if msg := self.check_cycle(round_fingerprints, message):
             return msg
-        if msg := self._check_progress_stagnation(round_fingerprints, message):
+        if msg := self._check_progress_stagnation(round_fingerprints, round_tool_names, message):
             return msg  # NEW: check stagnation before dedup/retry
         if msg := self.check_empty_result_repeat(message):
             return msg

@@ -97,6 +97,7 @@ class LLMTurnRunner:
             if msg := self._guard.check_all(
                 state.seen_calls,
                 state.round_fingerprints,
+                state.round_tool_names,
                 state.failed_calls,
                 message,
             ):
