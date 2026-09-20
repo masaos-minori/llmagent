@@ -28,6 +28,22 @@ finds 17 candidate files that mention these classes; which of the others (beyond
 `chunksplitter.md`) actually contain implementation-reference content, versus a
 passing mention, has not been individually confirmed (see Unresolved Questions).
 
+**Adversarial verification note**: the companion tool issue
+(`issues/done/20260920-084638_docreftool01_add-a-docs-checker-for-implementation-reference-content.md`)
+has since been implemented and merged (`tools/check_docs_content_policy.py` now
+detects TypedDict/DTO tables, CLI argument tables, error-handling tables, and full
+JSON payload examples). Running it against the full `docs/` tree and cross-checking
+its findings against the 16 "Other files" below resolves most of this issue's own
+Unresolved Questions with concrete evidence — see the corrected Target Files or
+Areas and Unresolved Questions sections. One additional detection gap was found in
+the process: the "Canonical Artifact-Field Contract" table in `chunksplitter.md`
+itself (header `| Field | Classification | Validator | Notes |`) is *not* caught by
+any of the tool's 15 checks — its column shape (no `Type`/`Default` column) does not
+match `check_field_type_table`'s pattern. This does not change this issue's own
+manual finding for that section (still confirmed by direct reading, per Acceptance
+Criteria), but is noted as a residual gap for any future extension of the companion
+tool, not something this issue's own scope covers fixing.
+
 ## Problem
 This kind of content (a) goes stale the moment the underlying type, validator, CLI,
 or exception definition changes, since nothing enforces doc/code agreement, and (b)
@@ -70,25 +86,37 @@ for the detection tool tracked in this issue's companion issue (see Dependencies
 - `skills/DESIGN.md` (Avoid implementation-reference duplication — wording expansion
   only)
 - `docs/03_rag_02_03_ingestion_pipeline-chunksplitter.md` (confirmed: TypedDict
-  fields, JSON example, CLI table, exception table, "Canonical Artifact-Field
-  Contract" section)
-- Other files among: `docs/03_rag_05_2-execution-guide.md`,
-  `docs/00_governance_03_issue-and-uncertainty-management.md`,
+  fields at line 44, CLI argument table at line 188, full JSON example at line 195,
+  error-handling table at line 288 — all four confirmed by
+  `tools/check_docs_content_policy.py`; plus the "Canonical Artifact-Field
+  Contract" section, confirmed only by direct reading — see Background's
+  adversarial-verification note)
+- Confirmed via `tools/check_docs_content_policy.py` (run after the companion tool
+  issue landed) to contain at least one of this issue's named categories:
+  - `docs/03_rag_02_02_ingestion_pipeline-crawler.md` (TypedDict table line 39, CLI
+    argument table line 103, error-handling table line 125 — the `WebCrawler` doc
+    the source memo named directly)
+  - `docs/03_rag_02_04_ingestion_pipeline-ingester.md` (CLI argument tables lines
+    146/224, error-handling tables lines 172/250)
+  - `docs/03_rag_04_04_dto-models_config.md` (DTO field/type/default tables lines
+    20/34/43/54/63)
+  - `docs/03_rag_05_4-error-handling-reference.md` (error-handling table line 18)
+- No automated finding from `tools/check_docs_content_policy.py` for this issue's
+  named categories — spot-check manually before treating as clean, since the tool
+  is heuristic and its "Canonical Artifact-Field Contract"-style gap (see
+  Background) shows it does not catch every shape: `docs/03_rag_05_2-execution-guide.md`,
   `docs/03_rag_02_07_ingestion_pipeline-utils.md`,
-  `docs/03_rag_02_08_ingestion_pipeline-shared.md`,
-  `docs/03_rag_04_04_dto-models_config.md`, `docs/03_rag_01_system_overview.md`,
-  `docs/03_rag_05_4-error-handling-reference.md`,
-  `docs/03_rag_02_04_ingestion_pipeline-ingester.md`,
+  `docs/03_rag_02_08_ingestion_pipeline-shared.md`, `docs/03_rag_01_system_overview.md`,
   `docs/03_rag_04_01_dto-models_data.md`,
-  `docs/05_agent_09_02_data-layer-access-patterns.md`,
-  `docs/03_rag_00_document-guide.md`,
+  `docs/05_agent_09_02_data-layer-access-patterns.md`, `docs/03_rag_00_document-guide.md`,
   `docs/03_rag_02_06_ingestion_pipeline-supporting-components.md`,
   `docs/03_rag_02_05_ingestion_pipeline-document-manager.md`,
   `docs/adr/ADR-005-rag-source-derived-index-relationships.md`,
-  `docs/03_rag_02_02_ingestion_pipeline-crawler.md`,
-  `docs/adr/ADR-009-rag-ft5-text-separation.md` — Unknown whether each actually
-  contains implementation-reference content; confirm individually before editing
-  (see Unresolved Questions).
+  `docs/adr/ADR-009-rag-ft5-text-separation.md`
+- `docs/00_governance_03_issue-and-uncertainty-management.md` — the tool flags 2
+  findings here, but both are "default-value restatement outside a table"
+  (lines 451/454), a different `skills/DESIGN.md` category not named by this
+  issue — not a target for this issue's remediation.
 
 ## Required Changes
 - Expand `skills/DESIGN.md` Avoid implementation-reference duplication's category
@@ -98,8 +126,11 @@ for the detection tool tracked in this issue's companion issue (see Dependencies
 - For each confirmed file, replace the implementation-reference content with the
   canonical-source pointer per Implementation Intent, keeping the design-intent
   content listed there.
-- Run `tools/check_docs_quality.py` and `tools/check_docs_structure.py` on every
-  edited file.
+- Run `tools/check_docs_quality.py`, `tools/check_docs_structure.py`, and
+  `tools/check_docs_content_policy.py` on every edited file — the last of these
+  did not exist when this issue was originally filed, but is now the direct,
+  automated check for whether a remediated file still trips this issue's target
+  categories (per `routing.md`'s "When to run which tool", added this session).
 
 ## Constraints
 Do not remove design-intent content — only implementation-reference detail (see
@@ -114,14 +145,15 @@ code, TypedDicts, DTOs, or CLI behavior — this is a documentation-only issue.
 - `skills/DESIGN.md` Avoid implementation-reference duplication explicitly names
   TypedDict field lists, HTTP request/response examples, CLI argument tables, and
   per-exception handling tables.
-- `tools/check_docs_quality.py` and `tools/check_docs_structure.py` pass on every
-  edited file.
+- `tools/check_docs_quality.py`, `tools/check_docs_structure.py`, and
+  `tools/check_docs_content_policy.py` pass (report zero findings) on every edited
+  file.
 
 ## Testing Expectations
 Not required for code (documentation-only, no behavior or public API change). Run
-`tools/check_docs_quality.py` and `tools/check_docs_structure.py` on every edited
-`docs/*.md` file, and `tools/check_skills_references.py` after editing
-`skills/DESIGN.md`.
+`tools/check_docs_quality.py`, `tools/check_docs_structure.py`, and
+`tools/check_docs_content_policy.py` on every edited `docs/*.md` file, and
+`tools/check_skills_references.py` after editing `skills/DESIGN.md`.
 
 ## Documentation Impact
 This issue is itself a documentation change, including to `skills/DESIGN.md`'s own
@@ -129,24 +161,37 @@ policy wording (Avoid implementation-reference duplication) — apply `routing.m
 Documentation row per `AGENTS.md` Global Rule 10.
 
 ## Out of Scope
-- Building the detection tool for finding all remaining violations — tracked as a
-  separate, companion issue (see Dependencies).
+- Further extending the detection tool (`tools/check_docs_content_policy.py`,
+  already built and merged via the companion issue — see Dependencies), including
+  closing its "Canonical Artifact-Field Contract" detection gap noted in
+  Background.
 - Any change to the actual TypedDicts, DTOs, CLI argument parsing, or
   exception-handling code.
 - Remediating a `docs/*.md` file not yet confirmed to actually contain
-  implementation-reference content.
+  implementation-reference content (the 11 files listed in Target Files or Areas
+  with no automated finding).
+- `docs/00_governance_03_issue-and-uncertainty-management.md`'s "default-value
+  restatement" findings — a different `skills/DESIGN.md` category not named by
+  this issue.
 
 ## Dependencies
-Complements a companion issue that creates a documentation-implementation-reference
-detection tool (filed alongside this one). That tool's output can scope the "Other
-files" row above beyond what this issue's own manual `grep` found, but this issue's
-`chunksplitter.md` remediation does not require the tool to exist first.
+N/A: none remaining. The companion tool issue
+(`issues/done/20260920-084638_docreftool01_add-a-docs-checker-for-implementation-reference-content.md`)
+that this issue originally depended on for scoping is now implemented and merged —
+its output has already been used (see Background/Target Files or Areas) to resolve
+this issue's own Unresolved Questions for 15 of the 16 candidate files. No
+outstanding dependency blocks this issue's remediation work from proceeding.
 
 ## Unresolved Questions
-Which of the 16 other `docs/*.md`/`docs/adr/*.md` files found by `grep -rl
-"DocumentManager\|ETagManager\|ChunkSplitter\|WebCrawler" docs/` actually contain
-implementation-reference content (versus a passing mention) is not yet confirmed —
-the implementer's first step for any file beyond `chunksplitter.md`.
+**Mostly resolved by adversarial verification** (see Background note): running the
+now-implemented `tools/check_docs_content_policy.py` against all 16 other
+`docs/*.md`/`docs/adr/*.md` candidates confirms 4 of them contain at least one of
+this issue's named categories (see Target Files or Areas) and shows no automated
+finding for the remaining 11. The 11 with no finding are not proven clean — the
+tool is heuristic and known to miss at least one table shape (the
+"Canonical Artifact-Field Contract" pattern) — so a manual spot-check remains the
+implementer's first step for any of those 11 specifically, but the 4 confirmed
+files no longer need that initial confirmation step.
 
 ## AI Implementation Instruction
 Confirm each target file actually contains implementation-reference content (per
