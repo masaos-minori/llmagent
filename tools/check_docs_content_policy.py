@@ -76,6 +76,23 @@ _SETUP_HEADING_RE = re.compile(
 _ORDERED_LIST_ITEM_RE = re.compile(r"^\s*\d+\.\s+\S")
 _MIN_SETUP_STEPS = 3
 _DDL_STATEMENT_RE = re.compile(r"\bCREATE\s+(?:TABLE|INDEX)\b", re.IGNORECASE)
+_TYPED_DICT_TABLE_HEADER_RE = re.compile(
+    r"^\s*\|\s*(?:TypedDict|DTO)\s*\|", re.IGNORECASE
+)
+_CLI_ARG_TABLE_HEADER_RE = re.compile(
+    r"^\s*\|\s*(?:Argument|Parameter|Option|Flag)\s*\|", re.IGNORECASE
+)
+_CLI_ARG_HEADING_RE = re.compile(
+    r"^#{1,6}\s+(?:[\d.]+\s+)?(?:CLI|Arguments?|Options?)\b", re.IGNORECASE
+)
+_ERROR_HEADING_RE = re.compile(
+    r"^#{1,6}\s+(?:[\d.]+\s+)?(?:Error|Exception|Error\s+Handling)\b", re.IGNORECASE
+)
+_ERROR_ACTION_TABLE_HEADER_RE = re.compile(
+    r"^\s*\|\s*(?:Case|Scenario)\s*\|(?:.*\|)?\s*Action\s*\|", re.IGNORECASE
+)
+_TABLE_SEPARATOR_ROW_RE = re.compile(r"^\s*\|[\s:|-]*\|\s*$")
+_MIN_JSON_EXAMPLE_LINES = 15
 
 
 def _is_guard_start(line: str) -> bool:
@@ -554,6 +571,180 @@ def check_ddl_schema_block(files: list[DocFile]) -> list[Issue]:
     return issues
 
 
+def check_typed_dict_table(files: list[DocFile]) -> list[Issue]:
+    """Flag a table header labeled TypedDict/DTO (e.g. `| TypedDict | Purpose |`).
+
+    Unconditional on match, like `check_index_table` — a TypedDict/DTO-labeled
+    header is specific enough that no minimum-row threshold is needed.
+    """
+    issues: list[Issue] = []
+    for doc in files:
+        in_auto_generated = False
+        for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
+            if _TYPED_DICT_TABLE_HEADER_RE.search(line):
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=i,
+                        severity="WARNING",
+                        message=(
+                            "TypedDict/DTO field table header — see "
+                            "skills/DESIGN.md Docs content policy — remove"
+                        ),
+                    )
+                )
+    return issues
+
+
+def check_cli_argument_table(files: list[DocFile]) -> list[Issue]:
+    """Flag a Markdown table (not a bash-block enumeration) under a CLI/Arguments/
+    Options heading, with a header column named Argument/Parameter/Option/Flag."""
+    issues: list[Issue] = []
+    for doc in files:
+        in_auto_generated = False
+        for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
+            if not _CLI_ARG_TABLE_HEADER_RE.search(line):
+                continue
+            has_cli_heading = False
+            for j in range(max(0, i - _HEADINGS_WINDOW), i):
+                if _CLI_ARG_HEADING_RE.search(doc.lines[j]):
+                    has_cli_heading = True
+                    break
+            if not has_cli_heading:
+                continue
+            issues.append(
+                Issue(
+                    file=doc.rel_path,
+                    line_no=i,
+                    severity="WARNING",
+                    message=(
+                        "CLI argument table — see skills/DESIGN.md "
+                        "Docs content policy — remove"
+                    ),
+                )
+            )
+    return issues
+
+
+def check_error_handling_table(files: list[DocFile]) -> list[Issue]:
+    """Flag a table under an Error/Exception/Error Handling heading, or a table
+    with a Case/Scenario + Action-shaped header, independent of a nearby heading.
+
+    Flags only the table's header row (identified by the next line being a
+    Markdown table separator row), not every data row of a matching table.
+    """
+    issues: list[Issue] = []
+    for doc in files:
+        in_auto_generated = False
+        n = len(doc.lines)
+        for idx in range(n):
+            i = idx + 1
+            line = doc.lines[idx]
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
+            if _ERROR_ACTION_TABLE_HEADER_RE.search(line):
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=i,
+                        severity="WARNING",
+                        message=(
+                            "error-handling table — see skills/DESIGN.md "
+                            "Docs content policy — remove"
+                        ),
+                    )
+                )
+                continue
+            if not line.lstrip().startswith("|"):
+                continue
+            if idx + 1 >= n or not _TABLE_SEPARATOR_ROW_RE.match(doc.lines[idx + 1]):
+                continue
+            has_error_heading = False
+            for j in range(max(0, i - _HEADINGS_WINDOW), idx):
+                if _ERROR_HEADING_RE.search(doc.lines[j]):
+                    has_error_heading = True
+                    break
+            if not has_error_heading:
+                continue
+            issues.append(
+                Issue(
+                    file=doc.rel_path,
+                    line_no=i,
+                    severity="WARNING",
+                    message=(
+                        "error-handling table — see skills/DESIGN.md "
+                        "Docs content policy — remove"
+                    ),
+                )
+            )
+    return issues
+
+
+def check_full_json_example(files: list[DocFile]) -> list[Issue]:
+    """Flag a fenced JSON code block at or above `_MIN_JSON_EXAMPLE_LINES` lines."""
+    issues: list[Issue] = []
+    for doc in files:
+        in_auto_generated = False
+        in_json_block = False
+        block_start = 0
+        block_lines = 0
+        for i, line in enumerate(doc.lines, 1):
+            if _is_guard_start(line):
+                in_auto_generated = True
+                continue
+            if _is_guard_end(line):
+                in_auto_generated = False
+                continue
+            if in_auto_generated:
+                continue
+            stripped = line.strip()
+            if stripped.startswith("```json"):
+                in_json_block = True
+                block_start = i
+                block_lines = 0
+                continue
+            if in_json_block and stripped == "```":
+                if block_lines >= _MIN_JSON_EXAMPLE_LINES:
+                    issues.append(
+                        Issue(
+                            file=doc.rel_path,
+                            line_no=block_start,
+                            severity="WARNING",
+                            message=(
+                                "full JSON payload example — see "
+                                "skills/DESIGN.md Docs content policy — remove"
+                            ),
+                        )
+                    )
+                in_json_block = False
+                continue
+            if in_json_block:
+                block_lines += 1
+    return issues
+
+
 def main() -> int:
     files = discover_all_md_files(DOCS_DIR)
 
@@ -569,6 +760,10 @@ def main() -> int:
     all_issues += check_cli_command_enumeration(files)
     all_issues += check_environment_setup_sequence(files)
     all_issues += check_ddl_schema_block(files)
+    all_issues += check_typed_dict_table(files)
+    all_issues += check_cli_argument_table(files)
+    all_issues += check_error_handling_table(files)
+    all_issues += check_full_json_example(files)
 
     return report_and_exit(all_issues)
 

@@ -11,17 +11,21 @@ from pathlib import Path
 
 from tools.check_docs_content_policy import (
     DocFile,
+    check_cli_argument_table,
     check_cli_command_enumeration,
     check_config_file_inventory_table,
     check_ddl_schema_block,
     check_default_value_restatement,
     check_environment_setup_sequence,
+    check_error_handling_table,
     check_field_type_table,
     check_full_file_tree,
+    check_full_json_example,
     check_index_table,
     check_literal_port_number,
     check_location_mapping,
     check_per_file_description,
+    check_typed_dict_table,
 )
 from tools.generate_reference_table import GUARD_START_MCP
 
@@ -266,3 +270,93 @@ def test_guard_detection_recognizes_real_generator_format() -> None:
     assert check_index_table([doc]) == []
     assert check_location_mapping([doc]) == []
     assert check_literal_port_number([doc]) == []
+
+
+def test_typed_dict_table_detected() -> None:
+    doc = _doc(
+        "**Typed dict**\n"
+        "\n"
+        "| TypedDict | Purpose |\n"
+        "|---|---|\n"
+        "| CrawlJsonPayload | Typed dictionary for crawl output JSON files |\n"
+    )
+    issues = check_typed_dict_table([doc])
+    assert len(issues) == 1
+    assert "TypedDict/DTO field table" in issues[0].message
+
+
+def test_typed_dict_table_not_flagged_for_unrelated_table() -> None:
+    doc = _doc("| Component | Owner |\n|---|---|\n| RAG | rag-team |\n")
+    issues = check_typed_dict_table([doc])
+    assert issues == []
+
+
+def test_cli_argument_table_detected() -> None:
+    doc = _doc(
+        "### CLI Arguments\n"
+        "\n"
+        "| Argument | Description | Default |\n"
+        "|---|---|---|\n"
+        "| `--file PATH` | Process only one file | all files |\n"
+    )
+    issues = check_cli_argument_table([doc])
+    assert len(issues) == 1
+    assert "CLI argument table" in issues[0].message
+
+
+def test_cli_argument_table_not_flagged_without_cli_heading() -> None:
+    doc = _doc(
+        "## Notes\n"
+        "\n"
+        "| Argument | Description | Default |\n"
+        "|---|---|---|\n"
+        "| `--file PATH` | Process only one file | all files |\n"
+    )
+    issues = check_cli_argument_table([doc])
+    assert issues == []
+
+
+def test_error_handling_table_detected_by_heading() -> None:
+    doc = _doc(
+        "### Error Handling\n"
+        "\n"
+        "| Case | Action |\n"
+        "|---|---|\n"
+        "| Tokenization error | Raises TokenizationError |\n"
+    )
+    issues = check_error_handling_table([doc])
+    assert len(issues) == 1
+    assert "error-handling table" in issues[0].message
+
+
+def test_error_handling_table_detected_by_header_shape_without_heading() -> None:
+    doc = _doc(
+        "## Notes\n"
+        "\n"
+        "| Case | Action |\n"
+        "|---|---|\n"
+        "| Tokenization error | Raises TokenizationError |\n"
+    )
+    issues = check_error_handling_table([doc])
+    assert len(issues) == 1
+    assert "error-handling table" in issues[0].message
+
+
+def test_error_handling_table_not_flagged_for_unrelated_table() -> None:
+    doc = _doc("## Notes\n\n| Component | Owner |\n|---|---|\n| RAG | rag-team |\n")
+    issues = check_error_handling_table([doc])
+    assert issues == []
+
+
+def test_full_json_example_detected() -> None:
+    lines = "\n".join(f'  "field{i}": {i},' for i in range(16))
+    doc = _doc(f"```json\n{{\n{lines}\n}}\n```\n")
+    issues = check_full_json_example([doc])
+    assert len(issues) == 1
+    assert "full JSON payload example" in issues[0].message
+
+
+def test_full_json_example_not_flagged_for_short_snippet() -> None:
+    doc = _doc('```json\n{"status": "ok"}\n```\n')
+    issues = check_full_json_example([doc])
+    assert issues == []
