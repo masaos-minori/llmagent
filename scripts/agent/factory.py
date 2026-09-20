@@ -1,9 +1,15 @@
 """scripts/agent/factory.py
 
 AgentContext assembly factory.
+
 Service injection into ctx.services is separated from AgentREPL to enable testing.
 CommandRegistry and Orchestrator remain on AgentREPL because they reference
 REPL instance state directly.
+
+Two lifecycle classes:
+  _ServerLifecycleRouter — coordinator (state tracking, cooldown, shutdown guard)
+  _SubprocessLifecycleManager — subprocess operations (start/restart/shutdown)
+Both implement LifecycleManagerProtocol.
 """
 
 from __future__ import annotations
@@ -13,8 +19,9 @@ import logging
 import subprocess
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
 import httpx
 from db.store_protocols import get_embedding_dims
@@ -39,17 +46,126 @@ from agent.services.models import ProcessInfoSnapshot
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices
 
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class LlmClientResult:
+    """Result of building httpx.AsyncClient and LLMClient."""
+
+    http: httpx.AsyncClient
+    llm: LLMClient
+
+
+@dataclass(frozen=True)
+class ToolExecutorResult:
+    """Result of building ToolExecutor, lifecycle manager, and health registry."""
+
+    tools: ToolExecutor
+    lifecycle: LifecycleManagerProtocol
+    health_registry: McpServerHealthRegistry
+
+
+@dataclass(frozen=True)
+class HistoryManagerResult:
+    """Result of building HistoryManager."""
+
+    history_manager: HistoryManager
+
+
+class _SubprocessLifecycleManager(LifecycleManagerProtocol):
+    """Manages HTTP subprocess server lifecycle operations.
+
+    Handles subprocess start/restart/shutdown while delegating state/cooldown
+    logic to _ServerLifecycleRouter which coordinates via this instance.
+    """
+
+    def __init__(
+        self,
+        server_configs: dict[str, McpServerConfig],
+        tool_executor: ToolExecutor,
+    ) -> None:
+        """Initialize the subprocess lifecycle manager."""
+        self._server_configs = server_configs
+        self._http_mgr = HttpServerLifecycleManager()
+
+    async def ensure_ready(self, server_key: str) -> None:
+        """Ensure the HTTP subprocess server is running; start it if needed."""
+        cfg = self._server_configs.get(server_key)
+        if cfg is None:
+            return
+        if (
+            cfg.transport != TransportType.HTTP
+            or cfg.startup_mode != StartupMode.SUBPROCESS
+        ):
+            return
+        os_alive = self._http_mgr.verify_running(server_key)
+        if not os_alive:
+            _logger.info(
+                "Lifecycle: %r not running; starting via ensure_ready", server_key
+            )
+            await self._http_mgr.start(server_key, cfg)
+        else:
+            app_healthy = await self._http_mgr.verify_running_async(server_key, cfg)
+            if not app_healthy:
+                _logger.warning(
+                    "Lifecycle: %r OS-alive but app-unhealthy; restarting", server_key
+                )
+                await self._http_mgr.restart(server_key, cfg)
+
+    async def shutdown_all(self) -> None:
+        """Shut down all managed HTTP subprocess servers."""
+        await self._http_mgr.shutdown_all()
+
+    async def restart(self, server_key: str) -> None:
+        """Restart a single HTTP subprocess MCP server."""
+        cfg = self._server_configs.get(server_key)
+        if cfg is None or cfg.startup_mode != StartupMode.SUBPROCESS:
+            _logger.warning(
+                "Lifecycle: restart %r: not a subprocess-mode server; manual restart required",
+                server_key,
+            )
+            return
+        await self._http_mgr.restart(server_key, cfg)
+
+    async def shutdown_idle(self) -> None:
+        """No-op for idle shutdown — only applies to stdio servers."""
+        pass
+
+    def get_transport_state(self, server_key: str) -> LifecycleState:
+        """Return the current lifecycle state for a server."""
+        return LifecycleState.UNKNOWN
+
+    async def start_http_subprocess(
+        self,
+        server_key: str,
+        cfg: McpServerConfig,
+        shutdown_event: asyncio.Event | None = None,
+    ) -> subprocess.Popen[bytes] | None:
+        """Start a single HTTP subprocess MCP server; returns the Popen object or None."""
+        await self._http_mgr.start(server_key, cfg, shutdown_event=shutdown_event)
+        return self._http_mgr._http_procs.get(server_key)
+
+    def get_process_snapshot(self, server_key: str) -> dict | None:
+        """Return process snapshot dict for a managed subprocess server, or None."""
+        snapshot: dict | None = self._http_mgr.get_process_snapshot(server_key)
+        return snapshot
+
+    def cleanup_server_resources(self, server_key: str) -> str:
+        """Clean up resources for a removed MCP server. Delegates to HttpServerLifecycleManager."""
+        return self._http_mgr._cleanup_server_resources(server_key)
+
+
 _logger = logging.getLogger(__name__)
 
 # Cooldown duration for failed MCP subprocess starts (seconds)
 _COOLDOWN_SECONDS: float = 30.0
-_COOLDOWN_TIMEOUT_SEC: int = 30
 
 
 class _ServerLifecycleRouter:
-    """Production implementation of LifecycleManagerProtocol for HTTP MCP servers.
+    """Coordinator for HTTP MCP server lifecycle management.
 
-    Delegates subprocess management to HttpServerLifecycleManager (_http_mgr) while
+    Delegates subprocess operations to _SubprocessLifecycleManager while
     adding:
     - Shutdown guard (_shutting_down): prevents start/restart after shutdown begins.
     - LifecycleState tracking (_states): provides get_transport_state() with real values.
@@ -63,7 +179,9 @@ class _ServerLifecycleRouter:
     ) -> None:
         """Initialize the lifecycle router with MCP server configurations."""
         self._server_configs = server_configs
-        self._http_mgr = HttpServerLifecycleManager()
+        self._subprocess_mgr = _SubprocessLifecycleManager(
+            server_configs, tool_executor
+        )
         self._shutting_down: bool = False
         self._states: dict[str, LifecycleState] = {}
         self._failed_starts: dict[str, float] = {}
@@ -147,28 +265,32 @@ class _ServerLifecycleRouter:
             raise ServerCooldownError(
                 f"MCP server {server_key!r} is restarting. Try again in {max(0, remaining):.0f}s"
             )
-        os_alive = self._http_mgr.verify_running(server_key)
+        os_alive = self._subprocess_mgr._http_mgr.verify_running(server_key)
         if not os_alive:
             _logger.info(
                 "Lifecycle: %r not running; starting via ensure_ready", server_key
             )
             await self._run_lifecycle_transition(
-                server_key, lambda: self._http_mgr.start(server_key, cfg)
+                server_key,
+                lambda: self._subprocess_mgr._http_mgr.start(server_key, cfg),
             )
         else:
-            app_healthy = await self._http_mgr.verify_running_async(server_key, cfg)
+            app_healthy = await self._subprocess_mgr._http_mgr.verify_running_async(
+                server_key, cfg
+            )
             if not app_healthy:
                 _logger.warning(
                     "Lifecycle: %r OS-alive but app-unhealthy; restarting", server_key
                 )
                 await self._run_lifecycle_transition(
-                    server_key, lambda: self._http_mgr.restart(server_key, cfg)
+                    server_key,
+                    lambda: self._subprocess_mgr._http_mgr.restart(server_key, cfg),
                 )
 
     async def shutdown_all(self) -> None:
         """Shut down all managed HTTP subprocess servers."""
         self._shutting_down = True
-        await self._http_mgr.shutdown_all()
+        await self._subprocess_mgr._http_mgr.shutdown_all()
         for key in self._server_configs:
             self._set_state(key, LifecycleState.STOPPED)
 
@@ -189,11 +311,11 @@ class _ServerLifecycleRouter:
             return None
         await self._run_lifecycle_transition(
             server_key,
-            lambda: self._http_mgr.start(
+            lambda: self._subprocess_mgr._http_mgr.start(
                 server_key, cfg, shutdown_event=shutdown_event
             ),
         )
-        return self._http_mgr._http_procs.get(server_key)
+        return self._subprocess_mgr._http_mgr._http_procs.get(server_key)
 
     async def restart(self, server_key: str) -> None:
         """Restart a single HTTP subprocess MCP server."""
@@ -212,7 +334,7 @@ class _ServerLifecycleRouter:
         if self._in_cooldown(server_key):
             return
         await self._run_lifecycle_transition(
-            server_key, lambda: self._http_mgr.restart(server_key, cfg)
+            server_key, lambda: self._subprocess_mgr._http_mgr.restart(server_key, cfg)
         )
 
     async def shutdown_idle(self) -> None:
@@ -227,17 +349,23 @@ class _ServerLifecycleRouter:
 
     def get_process_snapshot(self, server_key: str) -> dict | None:
         """Return process snapshot dict for a managed subprocess server, or None."""
-        snapshot: dict | None = self._http_mgr.get_process_snapshot(server_key)
+        snapshot: dict | None = self._subprocess_mgr._http_mgr.get_process_snapshot(
+            server_key
+        )
         return snapshot
 
     def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
         """Return ProcessInfoSnapshot for a managed subprocess server, or None."""
-        info: ProcessInfoSnapshot | None = self._http_mgr.get_process_info(server_key)
+        info: ProcessInfoSnapshot | None = (
+            self._subprocess_mgr._http_mgr.get_process_info(server_key)
+        )
         return info
 
     def list_processes(self) -> list[ProcessInfoSnapshot]:
         """Return list of ProcessInfoSnapshot for all managed subprocess servers."""
-        processes: list[ProcessInfoSnapshot] = self._http_mgr.list_processes()
+        processes: list[ProcessInfoSnapshot] = (
+            self._subprocess_mgr._http_mgr.list_processes()
+        )
         return processes
 
     def get_subprocess_server_configs(self) -> list[tuple[str, McpServerConfig]]:
@@ -251,7 +379,7 @@ class _ServerLifecycleRouter:
 
     def cleanup_server_resources(self, server_key: str) -> str:
         """Clean up resources for a removed MCP server. Delegates to HttpServerLifecycleManager."""
-        return self._http_mgr._cleanup_server_resources(server_key)
+        return self._subprocess_mgr._http_mgr._cleanup_server_resources(server_key)
 
 
 def _build_audit_logger(ctx: AgentContext) -> Logger:
@@ -266,7 +394,7 @@ def _build_audit_logger(ctx: AgentContext) -> Logger:
 def _build_llm_client(
     ctx: AgentContext,
     view: CLIView,
-) -> tuple[httpx.AsyncClient, LLMClient]:
+) -> LlmClientResult:
     """Build httpx.AsyncClient and LLMClient; return both."""
 
     def _on_llm_usage(prompt_tokens: int, completion_tokens: int) -> None:
@@ -291,13 +419,13 @@ def _build_llm_client(
         llm_stream_retry_on_heartbeat_timeout=ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout,
         llm_stream_retry_on_malformed_chunk=ctx.cfg.llm.llm_stream_retry_on_malformed_chunk,
     )
-    return http, llm
+    return LlmClientResult(http=http, llm=llm)
 
 
 def _build_tool_executor(
     ctx: AgentContext,
     http: httpx.AsyncClient,
-) -> tuple[ToolExecutor, LifecycleManagerProtocol, McpServerHealthRegistry]:
+) -> ToolExecutorResult:
     """Build ToolExecutor, lifecycle manager, and health registry; return all three."""
     tools = ToolExecutor(
         http,
@@ -311,26 +439,30 @@ def _build_tool_executor(
         tools,
     )
     tools.set_lifecycle(lifecycle)
-    return tools, lifecycle, registry
+    return ToolExecutorResult(
+        tools=tools, lifecycle=lifecycle, health_registry=registry
+    )
 
 
 def _build_history_manager(
     ctx: AgentContext,
     view: CLIView,
     http: httpx.AsyncClient,
-) -> HistoryManager:
+) -> HistoryManagerResult:
     """Build and return HistoryManager."""
-    return HistoryManager(
-        http,
-        llm_url=build_llm_url(ctx.cfg.llm.llm_url),
-        char_limit=ctx.cfg.llm.context_char_limit,
-        compress_turns=ctx.cfg.llm.context_compress_turns,
-        compress_temperature=ctx.cfg.llm.llm_compress_temperature,
-        compress_max_tokens=ctx.cfg.llm.llm_compress_max_tokens,
-        on_compress=view.write_compress_notice,
-        protect_turns=ctx.cfg.llm.history_protect_turns,
-        token_limit=ctx.cfg.llm.context_token_limit,
-        tokenize_url=ctx.cfg.llm.tokenize_url,
+    return HistoryManagerResult(
+        history_manager=HistoryManager(
+            http,
+            llm_url=build_llm_url(ctx.cfg.llm.llm_url),
+            char_limit=ctx.cfg.llm.context_char_limit,
+            compress_turns=ctx.cfg.llm.context_compress_turns,
+            compress_temperature=ctx.cfg.llm.llm_compress_temperature,
+            compress_max_tokens=ctx.cfg.llm.llm_compress_max_tokens,
+            on_compress=view.write_compress_notice,
+            protect_turns=ctx.cfg.llm.history_protect_turns,
+            token_limit=ctx.cfg.llm.context_token_limit,
+            tokenize_url=ctx.cfg.llm.tokenize_url,
+        )
     )
 
 
@@ -507,9 +639,15 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
     by AgentREPL._init_components() after this returns.
     """
     audit_logger = _build_audit_logger(ctx)
-    http, llm = _build_llm_client(ctx, view)
-    tools, lifecycle, health_registry = _build_tool_executor(ctx, http)
-    hist_mgr = _build_history_manager(ctx, view, http)
+    llm_result = _build_llm_client(ctx, view)
+    http = llm_result.http
+    llm = llm_result.llm
+    tools_result = _build_tool_executor(ctx, http)
+    tools = tools_result.tools
+    lifecycle = tools_result.lifecycle
+    health_registry = tools_result.health_registry
+    hist_result = _build_history_manager(ctx, view, http)
+    hist_mgr = hist_result.history_manager
     memory = _build_memory_services(ctx, http)
     gateway = RepositoryGateway(executor=tools, cfg=ctx.cfg, audit_logger=audit_logger)
 

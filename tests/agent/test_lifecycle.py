@@ -1,5 +1,5 @@
 """tests/test_lifecycle.py
-Unit tests for agent.factory._ServerLifecycleRouter.
+Unit tests for agent.factory _ServerLifecycleRouter and _SubprocessLifecycleManager.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from agent.factory import _ServerLifecycleRouter
+from agent.factory import _ServerLifecycleRouter, _SubprocessLifecycleManager
 from agent.http_lifecycle import (
     HttpServerLifecycleManager,
     HttpStartupError,
@@ -135,7 +135,7 @@ class TestEnsureReadySubprocess:
         cfg = _http_subprocess_cfg()
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"srv": cfg}, ex)
-        mgr._http_mgr._http_procs["srv"] = proc
+        mgr._subprocess_mgr._http_mgr._http_procs["srv"] = proc
 
         with (
             patch(
@@ -143,7 +143,7 @@ class TestEnsureReadySubprocess:
             ),
             patch("agent.http_lifecycle.os.getpgid", return_value=9999),
         ):
-            mgr._http_mgr.verify_running_async = AsyncMock(return_value=True)
+            mgr._subprocess_mgr._http_mgr.verify_running_async = AsyncMock(return_value=True)
             await mgr.ensure_ready("srv")
         await mgr.ensure_ready("srv")
         # verify no attempt to start a new process
@@ -158,7 +158,7 @@ class TestEnsureReadySubprocess:
         mgr = _ServerLifecycleRouter({"srv": cfg}, ex)
         mock_mgr = _AsyncMock()
         mock_mgr.verify_running = MagicMock(return_value=False)
-        mgr._http_mgr = mock_mgr
+        mgr._subprocess_mgr._http_mgr = mock_mgr
         await mgr.ensure_ready("srv")
         mock_mgr.start.assert_awaited_once()
 
@@ -194,7 +194,7 @@ class TestStartHttpSubprocess:
             _wire_http_client(MockClient, status_code=200)
             await mgr.start_http_subprocess("s", cfg)
 
-        assert mgr._http_mgr._http_procs["s"] is mock_proc
+        assert mgr._subprocess_mgr._http_mgr._http_procs["s"] is mock_proc
 
     @pytest.mark.asyncio
     async def test_reuses_alive_proc(self) -> None:
@@ -203,7 +203,7 @@ class TestStartHttpSubprocess:
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
         existing = MagicMock()
         existing.poll.return_value = None
-        mgr._http_mgr._http_procs["s"] = existing
+        mgr._subprocess_mgr._http_mgr._http_procs["s"] = existing
 
         with patch("agent.http_lifecycle.subprocess.Popen") as mock_popen:
             await mgr.start_http_subprocess("s", cfg)
@@ -270,7 +270,7 @@ class TestStartHttpSubprocess:
                 return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
-            patch.object(mgr._http_mgr, "_terminate_with_timeout"),
+            patch.object(mgr._subprocess_mgr._http_mgr, "_terminate_with_timeout"),
         ):
             client_instance, _ = _wire_http_client(MockClient)
             await mgr.start_http_subprocess("s", cfg)
@@ -330,7 +330,7 @@ class TestStartHttpSubprocess:
                 return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
-            patch.object(mgr._http_mgr, "_terminate_with_timeout"),
+            patch.object(mgr._subprocess_mgr._http_mgr, "_terminate_with_timeout"),
             pytest.raises(RuntimeError, match="did not become healthy"),
         ):
             client_instance, _ = _wire_http_client(MockClient)
@@ -451,10 +451,10 @@ class TestStartHttpSubprocess:
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start_http_subprocess("s", cfg)
 
-        assert "s" not in mgr._http_mgr._http_procs
-        assert "s" not in mgr._http_mgr._http_pgids
-        assert "s" not in mgr._http_mgr._stderr_files
-        assert mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
+        assert "s" not in mgr._subprocess_mgr._http_mgr._http_procs
+        assert "s" not in mgr._subprocess_mgr._http_mgr._http_pgids
+        assert "s" not in mgr._subprocess_mgr._http_mgr._stderr_files
+        assert mgr._subprocess_mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
         mock_proc.terminate.assert_called_once()
 
     async def test_getpgid_failure_escalates_to_kill_on_non_exit(self) -> None:
@@ -481,10 +481,10 @@ class TestStartHttpSubprocess:
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start_http_subprocess("s", cfg)
 
-        assert "s" not in mgr._http_mgr._http_procs
-        assert "s" not in mgr._http_mgr._http_pgids
-        assert "s" not in mgr._http_mgr._stderr_files
-        assert mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
+        assert "s" not in mgr._subprocess_mgr._http_mgr._http_procs
+        assert "s" not in mgr._subprocess_mgr._http_mgr._http_pgids
+        assert "s" not in mgr._subprocess_mgr._http_mgr._stderr_files
+        assert mgr._subprocess_mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
         mock_proc.terminate.assert_called_once()
 
 
@@ -558,7 +558,7 @@ class TestShutdownAll:
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex)
-        mgr._http_mgr._http_procs["srv"] = proc
+        mgr._subprocess_mgr._http_mgr._http_procs["srv"] = proc
         await mgr.shutdown_all()
         proc.terminate.assert_called_once()
         proc.wait.assert_not_called()
@@ -570,7 +570,7 @@ class TestShutdownAll:
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex)
-        mgr._http_mgr._http_procs["srv"] = proc
+        mgr._subprocess_mgr._http_mgr._http_procs["srv"] = proc
         await mgr.shutdown_all()
         proc.terminate.assert_not_called()
 
@@ -593,7 +593,7 @@ class TestShutdownAll:
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex)
-        mgr._http_mgr._http_procs["srv"] = proc
+        mgr._subprocess_mgr._http_mgr._http_procs["srv"] = proc
         # Must not propagate the exception
         await mgr.shutdown_all()
 

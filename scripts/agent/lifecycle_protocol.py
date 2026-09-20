@@ -3,7 +3,8 @@
 LifecycleManager protocol types for structural subtyping.
 
 Two protocols:
-  LifecycleManagerProtocol — shared methods implemented by HTTP lifecycle manager
+  LifecycleManagerProtocol — shared methods implemented by HTTP lifecycle managers
+    Implementations: _ServerLifecycleRouter (coordinator), _SubprocessLifecycleManager (subprocess operations)
   HttpLifecycleProtocol    — HTTP-only: start_http_subprocess
 """
 
@@ -22,8 +23,9 @@ from agent.lifecycle import LifecycleState
 class LifecycleManagerProtocol(Protocol):
     """Protocol for MCP server lifecycle managers.
 
-    _ServerLifecycleRouter in factory.py is the production implementation.
-    HttpServerLifecycleManager is the low-level subprocess manager it delegates to.
+    _ServerLifecycleRouter in factory.py is the coordinator implementation.
+    _SubprocessLifecycleManager in factory.py is the subprocess operations implementation.
+    HttpServerLifecycleManager is the low-level subprocess manager they delegate to.
     """
 
     async def ensure_ready(self, server_key: str) -> None:

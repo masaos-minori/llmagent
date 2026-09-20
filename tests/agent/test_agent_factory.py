@@ -17,6 +17,7 @@ import pytest
 from agent.factory import (
     _logger,
     _ServerLifecycleRouter,
+    _SubprocessLifecycleManager,
     build_agent_context,
     init_tracer,
 )
@@ -93,6 +94,7 @@ _FACTORY_PATCHES = [
     "agent.factory.LLMClient",
     "agent.factory.ToolExecutor",
     "agent.factory._ServerLifecycleRouter",
+    "agent.factory._SubprocessLifecycleManager",
     "agent.factory.HistoryManager",
     "agent.factory.build_tracer",
 ]
@@ -329,7 +331,7 @@ class TestInitTracer:
 # ── _ServerLifecycleRouter shutdown guard ────────────────────────────────────
 
 
-def _make_router(server_key: str = "srv") -> _ServerLifecycleRouter:
+def _make_router(server_key: str = "srv") -> tuple[_ServerLifecycleRouter, _SubprocessLifecycleManager]:
     cfg = McpServerConfig(
         transport=TransportType.HTTP,
         url="http://localhost:9999",
@@ -337,32 +339,37 @@ def _make_router(server_key: str = "srv") -> _ServerLifecycleRouter:
         startup_mode=StartupMode.SUBPROCESS,
         cmd=["echo", "hi"],
     )
+    subprocess_mgr = _SubprocessLifecycleManager(
+        server_configs={server_key: cfg},
+        tool_executor=MagicMock(),
+    )
     router = _ServerLifecycleRouter(
         server_configs={server_key: cfg},
         tool_executor=MagicMock(),
     )
-    router._http_mgr = AsyncMock()
-    return router
+    router._subprocess_mgr = subprocess_mgr
+    subprocess_mgr._http_mgr = AsyncMock()
+    return router, subprocess_mgr
 
 
 class TestShutdownGuard:
     @pytest.mark.asyncio
     async def test_shutdown_guard_blocks_restart(self) -> None:
-        router = _make_router()
+        router, _ = _make_router()
         await router.shutdown_all()
         await router.restart("srv")
-        router._http_mgr.restart.assert_not_called()
+        router._subprocess_mgr._http_mgr.restart.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_shutdown_guard_blocks_ensure_ready(self) -> None:
-        router = _make_router()
+        router, _ = _make_router()
         await router.shutdown_all()
         await router.ensure_ready("srv")
-        router._http_mgr.start.assert_not_called()
+        router._subprocess_mgr._http_mgr.start.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_repeated_shutdown_all_is_idempotent(self) -> None:
-        router = _make_router()
+        router, _ = _make_router()
         await router.shutdown_all()
         await router.shutdown_all()
 
@@ -370,7 +377,7 @@ class TestShutdownGuard:
     async def test_shutdown_guard_restart_emits_warning(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        router = _make_router()
+        router, _ = _make_router()
         await router.shutdown_all()
         with caplog.at_level(logging.WARNING, logger="agent.factory"):
             await router.restart("srv")
@@ -398,7 +405,7 @@ def _make_router_with_mock_mgr(
     )
     mock_mgr = AsyncMock()
     mock_mgr.verify_running = MagicMock(return_value=verify_running_result)
-    router._http_mgr = mock_mgr
+    router._subprocess_mgr._http_mgr = mock_mgr
     return router, mock_mgr
 
 
@@ -444,15 +451,15 @@ class TestEnsureReadyAutoStart:
 class TestLifecycleStateTracking:
     @pytest.mark.asyncio
     async def test_state_running_after_start(self) -> None:
-        router = _make_router()
+        router, _ = _make_router()
         cfg = router._server_configs["srv"]
         await router.start_http_subprocess("srv", cfg)
         assert router.get_transport_state("srv") == LifecycleState.RUNNING
 
     @pytest.mark.asyncio
     async def test_state_failed_when_start_raises(self) -> None:
-        router = _make_router()
-        router._http_mgr.start.side_effect = RuntimeError("startup error")
+        router, _ = _make_router()
+        router._subprocess_mgr._http_mgr.start.side_effect = RuntimeError("startup error")
         cfg = router._server_configs["srv"]
         with pytest.raises(RuntimeError):
             await router.start_http_subprocess("srv", cfg)
@@ -460,23 +467,23 @@ class TestLifecycleStateTracking:
 
     @pytest.mark.asyncio
     async def test_state_running_after_restart(self) -> None:
-        router = _make_router()
+        router, _ = _make_router()
         await router.restart("srv")
         assert router.get_transport_state("srv") == LifecycleState.RUNNING
 
     @pytest.mark.asyncio
     async def test_state_stopped_after_shutdown(self) -> None:
-        router = _make_router()
+        router, _ = _make_router()
         await router.shutdown_all()
         assert router.get_transport_state("srv") == LifecycleState.STOPPED
 
     def test_state_unknown_for_unknown_key(self) -> None:
-        router = _make_router()
+        router, _ = _make_router()
         assert router.get_transport_state("nonexistent") == LifecycleState.UNKNOWN
 
     @pytest.mark.asyncio
     async def test_state_starting_before_start_completes(self) -> None:
-        router = _make_router()
+        router, _ = _make_router()
         states_during_start: list[LifecycleState] = []
 
         async def capture_state_start(
@@ -486,7 +493,7 @@ class TestLifecycleStateTracking:
         ) -> None:
             states_during_start.append(router.get_transport_state(server_key))
 
-        router._http_mgr.start.side_effect = capture_state_start
+        router._subprocess_mgr._http_mgr.start.side_effect = capture_state_start
         cfg = router._server_configs["srv"]
 
         await router.start_http_subprocess("srv", cfg)
@@ -497,7 +504,7 @@ class TestLifecycleStateTracking:
     @pytest.mark.asyncio
     async def test_first_time_server_initialization_logs_info(self) -> None:
         """First-time server initialization emits an INFO-level log."""
-        router = _make_router()
+        router, _ = _make_router()
         cfg = router._server_configs["srv"]
 
         with patch.object(_logger, "info") as mock_info:
