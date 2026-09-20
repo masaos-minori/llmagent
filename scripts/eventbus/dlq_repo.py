@@ -12,13 +12,11 @@ logger = logging.getLogger(__name__)
 from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a circular import with eventbus._constants
     _COL_DLQ_AT,
     _COL_EVENT_ID,
+    _COL_DLQ_REQUEUE_COUNT,
+    _COL_REDISTRIBUTED_FROM,
+    _COL_DELIVERY_FAILURE_COUNT,
+    _COL_CYCLE_FAILURE_COUNT,
 )
-
-# Layer-owned column constants
-_COL_DLQ_REQUEUE_COUNT = "dlq_requeue_count"
-_COL_REDISTRIBUTED_FROM = "redelivered_from"
-_COL_DELIVERY_FAILURE_COUNT = "delivery_failure_count"
-_COL_CYCLE_FAILURE_COUNT = "cycle_failure_count"
 
 
 def requeue_event(conn: sqlite3.Connection, event_id: str) -> bool:

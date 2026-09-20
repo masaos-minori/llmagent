@@ -13,15 +13,13 @@ logger = logging.getLogger(__name__)
 from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a circular import with eventbus._constants
     _COL_ACKED_AT,
     _COL_EVENT_ID,
+    _COL_DLQ_AT,
+    _COL_DELIVERY_FAILURE_COUNT,
+    _COL_CYCLE_FAILURE_COUNT,
+    _COL_CONSUMER_DELIVERY_FAILURE_COUNT,
+    _COL_CONSUMER_ID,
+    _COL_OFFSET,
 )
-
-# Layer-owned column constants
-_COL_DELIVERY_FAILURE_COUNT = "delivery_failure_count"
-_COL_CYCLE_FAILURE_COUNT = "cycle_failure_count"
-_COL_CONSUMER_DELIVERY_FAILURE_COUNT = "consumer_delivery_failure_count"
-_COL_CONSUMER_ID = "consumer_id"
-_COL_OFFSET = "offset"
-_COL_DLQ_AT = "dlq_at"
 
 
 @dataclass(frozen=True)

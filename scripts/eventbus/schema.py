@@ -11,15 +11,19 @@ _SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 _DEFAULT_BUSY_TIMEOUT_MS = 30_000
 
 # Shared column constants
-
-# Layer-owned column constants
-_COL_DELIVERY_FAILURE_COUNT = "delivery_failure_count"
-_COL_CYCLE_FAILURE_COUNT = "cycle_failure_count"
-_COL_DLQ_REQUEUE_COUNT = "dlq_requeue_count"
-_COL_REDISTRIBUTED_FROM = "redelivered_from"
-_COL_CONSUMER_DELIVERY_FAILURE_COUNT = "consumer_delivery_failure_count"
-_COL_CONSUMER_ID = "consumer_id"
-_COL_OFFSET = "offset"
+from eventbus._constants import (
+    _COL_EVENT_ID,
+    _COL_SEQ,
+    _COL_ACKED_AT,
+    _COL_DLQ_AT,
+    _COL_DELIVERY_FAILURE_COUNT,
+    _COL_CYCLE_FAILURE_COUNT,
+    _COL_DLQ_REQUEUE_COUNT,
+    _COL_REDISTRIBUTED_FROM,
+    _COL_CONSUMER_DELIVERY_FAILURE_COUNT,
+    _COL_CONSUMER_ID,
+    _COL_OFFSET,
+)
 
 
 def _apply_eventbus_pragmas(
