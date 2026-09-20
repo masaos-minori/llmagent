@@ -67,12 +67,14 @@ def _resp(status_code: int = 200, json_value: object = None) -> MagicMock:
 def _server(
     url: str = "http://127.0.0.1:9000",
     startup_mode: StartupMode = StartupMode.PERSISTENT,
+    required: bool = True,
 ) -> McpServerConfig:
     return McpServerConfig(
         transport=TransportType.HTTP,
         url=url,
         startup_mode=startup_mode,
         auth_token="test-token",
+        required=required,
     )
 
 
@@ -1173,7 +1175,7 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
         if "enabled" in f.message and "test_tool" in f.message
     ]
     assert len(enabled_findings) == 1
-    assert enabled_findings[0].status == StartupCheckStatus.WARNING
+    assert enabled_findings[0].status == StartupCheckStatus.FATAL
 
     http2 = AsyncMock(spec=httpx.AsyncClient)
     http2.get = _async_result(
@@ -1394,6 +1396,41 @@ async def test_malformed_capabilities_produces_warning_not_fatal() -> None:
         )
     )
     ctx = _make_ctx({"fs": _server()}, http)
+
+    result = await McpToolDiscoveryService(ctx).discover_all()
+
+    assert result.registry.all_tools() == []
+    capability_findings = [f for f in result.findings if "capabilities" in f.message]
+    assert len(capability_findings) == 1
+    assert capability_findings[0].status == StartupCheckStatus.FATAL
+    assert "bad_tool" in capability_findings[0].message
+
+
+@pytest.mark.asyncio
+async def test_malformed_capabilities_produces_warning_for_non_required_server() -> None:
+    """Verify WARNING (not FATAL) when server has required=False."""
+    http = AsyncMock(spec=httpx.AsyncClient)
+    http.get = _async_result(
+        _resp(
+            200,
+            {
+                "schema_version": "1.0",
+                "tools": [
+                    {
+                        "name": "bad_tool",
+                        "description": "malformed capabilities",
+                        "inputSchema": {"type": "object", "properties": {}},
+                        "capabilities": "filesystem.read",
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
+                    }
+                ],
+            },
+        )
+    )
+    ctx = _make_ctx({"fs": _server(required=False)}, http)
 
     result = await McpToolDiscoveryService(ctx).discover_all()
 

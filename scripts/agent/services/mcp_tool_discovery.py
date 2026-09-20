@@ -289,7 +289,7 @@ class McpToolDiscoveryService:
         checks), rejects the entry with a per-tool finding; it is never
         silently defaulted. Optional `status`/`resource_scope` (legacy
         singular)/`enabled`/`capabilities` remain type-checked only if
-        present. Schema errors are per-tool WARNING findings, not FATAL.
+        present. Schema errors are per-tool WARNING findings for `required=False` servers; escalated to FATAL for `required=True` servers.
         """
         if not isinstance(entry, dict):
             return _warning_entry(

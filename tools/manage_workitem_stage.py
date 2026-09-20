@@ -74,7 +74,37 @@ _LOCK_RETRY_ATTEMPTS = 3
 _LOCK_RETRY_DELAY_SECONDS = 0.2
 
 _VALID_STATUSES = frozenset({"Pending", "In Progress", "Blocked", "Completed"})
+# Alias mapping: camelCase / snake_case variants → canonical status string
+_STATUS_ALIASES = {
+    "inprogress": "In Progress",
+    "in_progress": "In Progress",
+}
 _KIND_IMPL = "implementation-procedure"
+
+
+def _normalize_status(raw: str) -> str:
+    """Normalize a status string to its canonical form.
+
+    Accepts camelCase / snake_case variants (e.g. ``InProgress``, ``in_progress``)
+    and returns the canonical value defined in ``_VALID_STATUSES``.
+    Raises ``ValueError`` when the raw value cannot be mapped.
+    """
+    lower = raw.lower()
+    if lower in _STATUS_ALIASES:
+        return _STATUS_ALIASES[lower]
+    if raw in _VALID_STATUSES:
+        return raw
+    raise ValueError(
+        f"invalid status '{raw}'; must be one of: {', '.join(sorted(_VALID_STATUSES))}"
+    )
+
+
+def _valid_status_type(value: str) -> str:
+    """argparse ``type`` callback: validate + normalize a status argument."""
+    try:
+        return _normalize_status(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 @dataclass(frozen=True)
@@ -344,7 +374,9 @@ def update_execution_status(
     Returns ``True`` when at least one row was modified; ``False`` when nothing
     matched or the file could not be written.
     """
-    if new_status not in _VALID_STATUSES:
+    try:
+        new_status = _normalize_status(new_status)
+    except ValueError:
         print(
             f"ERROR: invalid status '{new_status}', must be one of: "
             f"{', '.join(sorted(_VALID_STATUSES))}",
@@ -643,8 +675,8 @@ def build_parser() -> argparse.ArgumentParser:
     set_status_parser.add_argument("path", help="Path to the file")
     set_status_parser.add_argument(
         "status",
-        choices=sorted(_VALID_STATUSES),
-        help="New status value for all rows",
+        type=_valid_status_type,
+        help="New status value for all rows (e.g. 'In Progress', 'InProgress', 'in_progress')"
     )
     set_status_parser.add_argument(
         "--notes",
@@ -688,8 +720,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     set_step_parser.add_argument(
         "status",
-        choices=sorted(_VALID_STATUSES),
-        help="New status value for the matched row",
+        type=_valid_status_type,
+        help="New status value for the matched row (e.g. 'In Progress', 'InProgress', 'in_progress')"
     )
     set_step_parser.add_argument(
         "--notes",
@@ -734,9 +766,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     list_parser.add_argument(
         "--status",
-        choices=sorted(_VALID_STATUSES),
+        type=_valid_status_type,
         default=None,
-        help="Filter by status (omit to show all statuses)",
+        help="Filter by status (omit to show all; e.g. 'In Progress', 'InProgress', 'in_progress')",
     )
 
     # show: display Execution Status table
