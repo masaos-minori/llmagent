@@ -28,12 +28,12 @@ not document-only.
 | 0 | Load required instructions | Read routing, rules, templates, and the implementation/lint/test skills before starting. |
 | 1 | Identify the target implementation procedure file(s) | Confirm every specified `implementations/{filename}.md` path exists before processing. |
 | 2 | Read the current implementation procedure file | Read in full; extract its Traceability values for reuse in the Final Report. |
-| 2.5 | Pre-execution stale detection | Verify the procedure's referenced code constructs still exist in current source; abort if stale. |
-| 3 | Implement the feature | Apply `python-implementation` + `python-lint-typecheck` guidance; fix all validation errors. |
-| 4 | Test the feature | Determine targeted test scope, run it, then run the full suite once (retry on failure within Attempt Limit). |
-| 5 | Update documentation | Update only `docs/*.md` sections matched by `docs/00_index.md`'s Document References by Task table. |
-| 6 | Validate documentation | Check the sections edited in Step 5, or skip if none were edited. |
-| 7 | Move the completed implementation procedure file | `git mv` only, once Steps 3/4/6 pass; no human approval required. |
+| 3 | Pre-execution stale detection | Verify the procedure's referenced code constructs still exist in current source; abort if stale. |
+| 4 | Implement the feature | Apply `python-implementation` + `python-lint-typecheck` guidance; fix all validation errors. |
+| 5 | Test the feature | Determine targeted test scope, run it, then run the full suite once (retry on failure within Attempt Limit). |
+| 6 | Update documentation | Update only `docs/*.md` sections matched by `docs/00_index.md`'s Document References by Task table. |
+| 7 | Validate documentation | Check the sections edited in Step 5, or skip if none were edited. |
+| 8 | Move the completed implementation procedure file | `git mv` only, once Steps 3/4/6 pass; no human approval required. |
 
 See `workflow.md` for the detailed per-step procedure and multi-file processing
 rules, and `templates/implementation-procedure.md` for the input document's
@@ -56,7 +56,7 @@ structure.
   within Attempt Limit (3 attempts) — see `workflow.md` Step 4.
 - **One procedure file at a time**: see `workflow.md` Multi-file processing.
 - **Move is required**: see `workflow.md` Step 7. The move MUST NOT be skipped.
-- **Pre-execution stale detection**: see `workflow.md` Step 2.5 — abort execution if
+- **Pre-execution stale detection**: see `workflow.md` Step 3 — abort execution if
   any referenced construct is missing from current source. This prevents wasted effort
   on procedures whose targets have been modified by another process or prior
   execution; any single mismatch constitutes "stale," and all failures are reported in

@@ -62,9 +62,9 @@ Apply `rules/ai-execution.md`, section "Required File Validation".
 
 Follow `skills/issue-to-plan/workflow.md` Step 1 (loaded in Step 0) in full.
 
-#### Step 1.5: Check for existing plans
+#### Step 2: Check for existing plans
 
-Follow `skills/issue-to-plan/workflow.md` Step 1.5 in full. If the Issue filename contains
+Follow `skills/issue-to-plan/workflow.md` Step 2 in full. If the Issue filename contains
 an ID, perform automatic dedup via glob. If it has a timestamp but no ID, also check
 `plans/done/` for archived plans. If no ID or timestamp exists, this case is outside the
 scope of the issue-creator skill — proceed to Step 2 without skipping plan creation.

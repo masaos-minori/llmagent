@@ -88,7 +88,7 @@ rules, markdown safety rules, and the final checklist.
 ## Issue Filename Generation
 
 Every issue file must follow the naming convention below. This enables automatic duplicate
-detection in `skills/issue-to-plan` Step 1.5.
+detection in `skills/issue-to-plan` Step 2.
 
 ### Naming convention
 

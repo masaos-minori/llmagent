@@ -29,7 +29,7 @@ code files or `docs/*.md`.
 
 Issue filenames follow the convention `{timestamp}_{id}_{slug}.md` (defined in
 `skills/issue-creator` Issue Filename Generation). This enables automatic duplicate
-detection via Step 1.5.
+detection via Step 2.
 
 ---
 
@@ -57,7 +57,7 @@ only when Step 3 determines Path B).
 
 ## Routing (AI Task Size Assessment)
 
-Before proceeding to any analysis step, execute **Step 3's classification** (this
+Before proceeding to any analysis step, execute **Step 4's classification** (this
 skill's task-size assessment, carried forward unchanged from this skill's
 predecessor). Assess the current Issue against the following criteria to determine the
 execution path.
@@ -69,9 +69,9 @@ execution path.
 - [ ] No database schema changes
 
 **Execution Path:**
-Perform Step 3's direct-verification inspection only (no architecture/dependency/
-historical/operational analysis) → establish the Step 6-equivalent validation quality
-baseline in Step 5 → Steps 6-10 run unconditionally.
+Perform Step 4's direct-verification inspection only (no architecture/dependency/
+historical/operational analysis) → establish the Step 7-equivalent validation quality
+baseline in Step 5 → Steps 7-11 run unconditionally.
 
 ### [Path B] Large Task
 **Criteria (Satisfies ANY):**
@@ -114,7 +114,7 @@ validation quality analysis. Do not skip any analysis.
 - **No approval gate on the archival move**: this skill's move to `issues/done/`
   does not require human approval — it is gated on Step 9's validation passing
   instead, per `rules/workflow-lifecycle.md` Validation Reporting.
-- **Move is required**: see `workflow.md` Step 10. The move MUST NOT be skipped.
+- **Move is required**: see `workflow.md` Step 11. The move MUST NOT be skipped.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 - Output language: see `skills/DESIGN.md` §Output language.
 

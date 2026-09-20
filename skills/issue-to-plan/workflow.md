@@ -90,7 +90,7 @@ If a required file is missing, unreadable, or contradictory, apply
 
 ---
 
-## Step 1: Identify Target Issues
+## Step 2: Identify Target Issues
 
 Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) and `rules/ai-execution.md`
 Sequential Target Processing (Base). Workflow-specific: input path `issues/{filename}.md`;
@@ -98,7 +98,7 @@ archive directory `issues/done/`.
 
 ---
 
-## Step 1.5: Check for Existing Plans
+## Step 2: Check for Existing Plans
 
 Before creating a new Plan, verify whether one already exists for this Issue. This prevents
 duplicate plans when multiple agents process the same Issue concurrently.
@@ -120,7 +120,7 @@ duplicate plans when multiple agents process the same Issue concurrently.
 
 ---
 
-## Step 2: Assess the Current Issue
+## Step 3: Assess the Current Issue
 
 - Read the current Issue file in full.
 - Verify any factual claims against current source (affected files, whether the
@@ -170,7 +170,7 @@ duplicate plans when multiple agents process the same Issue concurrently.
 
 ---
 
-## Step 3: Inspect Related Files — Task-Size Classification
+## Step 4: Inspect Related Files — Task-Size Classification
 
 Classify the Issue as Path A or Path B per `SKILL.md`'s Routing (AI Task Size
 Assessment) section, **before** inspecting.
@@ -215,7 +215,7 @@ cite them in prose.
 
 ---
 
-## Step 4: Map Issue Information to Plan Information
+## Step 5: Map Issue Information to Plan Information
 
 Create an explicit mapping before writing the Plan:
 
@@ -248,9 +248,9 @@ are for judgment calls made during analysis, not for unverified Issue claims.
 
 ---
 
-## Step 5: Create the Plan
+## Step 6: Create the Plan
 
-Using the Path A/B classification from Step 3:
+Using the Path A/B classification from Step 4:
 
 - **Path A**: skip architecture analysis, dependency graphing, historical analysis, and
   operational dependency inspection. Still establish the validation quality baseline
@@ -324,7 +324,7 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 
 ---
 
-## Step 6: Analyze Unknowns and Risks
+## Step 7: Analyze Unknowns and Risks
 
 - Write any generated `issues/{timestamp}_unknowns.md` / `issues/{timestamp}_risks.md`
   file in English (see `SKILL.md` Core Execution Rules), same as the Plan. Optionally
@@ -374,7 +374,7 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 
 ---
 
-## Step 7: Add Traceability
+## Step 8: Add Traceability
 
 - Fill the Traceability section using `templates/traceability.md`'s structure:
   Workflow phase `issue-to-plan`; Source issue = the Issue path; Source requirement =
@@ -390,7 +390,7 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 
 ---
 
-## Step 8: Validate Information Completeness
+## Step 9: Validate Information Completeness
 
 This step has three sub-steps, applied in order: verify completeness and traceability
 (8a), validate and freeze the target-file inventory (8b), then report the outcome (8c).
@@ -457,7 +457,7 @@ has a full table; risks are stated with mitigations.
 
 ---
 
-## Step 9: Final Validation
+## Step 10: Final Validation
 
 Report: generated Plan path; generated Unknown/Risk files (or `None`); number of
 Requirements; number of `Implementation Target Files` rows; Path A/B classification
@@ -481,7 +481,7 @@ Step 8's cause → re-entry-Step table above, then re-run Step 8 before reconsid
 
 ---
 
-## Step 10: Move the Issue
+## Step 11: Move the Issue
 
 This step MUST NOT be skipped. Apply `rules/workflow-lifecycle.md` Archival Move
 (issue-to-plan section) — same before/after verification checklist and `Blocked`-on-

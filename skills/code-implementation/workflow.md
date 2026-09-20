@@ -167,7 +167,7 @@ Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) — target files 
 - If the implementation procedure is ambiguous or the scope is unclear, stop and ask
   for clarification before proceeding.
 
-## Step 2.5: Pre-execution Stale Detection
+## Step 3: Pre-execution Stale Detection
 
 Before proceeding to implementation, verify that the procedure's referenced code
 constructs still exist in the current source. This prevents wasted effort on procedures
@@ -205,13 +205,13 @@ If the stale detector reports no mismatches:
 - Uses simple regex/string matching against the cited line ranges specified in
   the procedure document — avoids AST parsing (REQ-002 constraint).
 
-## Step 3: Implement the Feature
+## Step 4: Implement the Feature
 
 This step has five sub-steps, applied in order: verify the procedure's claims (3a),
 correct the procedure on a finding (3b), check for cross-file conflicts (3c), implement
 (3d), then validate (3e).
 
-### Step 3a: Verify the procedure's claims (adversarial verification)
+### Step 4a: Verify the procedure's claims (adversarial verification)
 
 Before implementing, apply `rules/ai-execution.md` Adversarial Verification (Base) to
 the procedure's claims about current source: do not assume its Procedure/Method/Details
@@ -225,7 +225,7 @@ content within this cycle.
 **Completed when**: the target file, its specific symbol/line/call-path claims, and its
 stated dependencies have each been checked once against current source.
 
-### Step 3b: Correct the procedure document on a finding
+### Step 4b: Correct the procedure document on a finding
 
 If verification finds an unconfirmed item or an inconsistency, correct the
 implementation procedure document itself (`implementations/{filename}.md`, via Edit)
@@ -240,7 +240,7 @@ message is "implementation procedure".
 **Completed when**: no unconfirmed item or inconsistency from Step 3a remains
 unaddressed in the procedure document (or Step 3a found none).
 
-### Step 3c: Check for cross-file conflicts
+### Step 4c: Check for cross-file conflicts
 
 If adversarial verification, or the implementation itself, reveals that the current
 file's required change conflicts with, or invalidates an assumption of, an
@@ -254,7 +254,7 @@ the next target file in the batch (same continuation policy as Step 7's move fai
 **Completed when**: no unresolved conflict with an already-processed file in this batch
 is outstanding.
 
-### Step 3d: Implement
+### Step 4d: Implement
 
 Implement the feature per the (possibly corrected) procedure, applying the guidance
 loaded in Step 0 from `skills/python-implementation/SKILL.md` and
@@ -266,7 +266,7 @@ time.
 **Completed when**: the change described in the (possibly corrected) procedure is
 applied and its file list is recorded.
 
-### Step 3e: Validate
+### Step 4e: Validate
 
 Run repository-defined non-test validation: formatting, linting, type checking,
 architecture/import-boundary checks, security checks.
@@ -280,7 +280,7 @@ most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt mus
 recorded (approach, error, reason) before trying a different approach. If the Attempt
 Limit is reached, apply Rollback on Failure below.
 
-## Step 4: Test the Feature
+## Step 5: Test the Feature
 
 Apply the guidance from `skills/python-test-and-fix/SKILL.md` (loaded in Step 0). If a
 failure's cause is not immediately obvious, load and apply
@@ -314,7 +314,7 @@ failure's cause is not immediately obvious, load and apply
 - Check the repository-defined coverage threshold if one exists.
 - Continue to documentation only after required tests pass.
 
-## Step 5: Update Documentation
+## Step 6: Update Documentation
 
 Update `docs/*.md` only for changed files under a Task scope row in
 `docs/00_index.md`'s "Document References by Task" table (see `routing.md` Docs → task
@@ -338,7 +338,7 @@ Move the implementation procedure file only after:
 - documentation validation passes (or was skipped per Step 6, when no row matched),
 - every changed file without a matching row is recorded in the Execution Status Notes.
 
-## Step 6: Validate Documentation
+## Step 7: Validate Documentation
 
 If Step 5 made no edits (no changed file matched a Task scope row), skip this step's
 content checks entirely and mark Step 6 Completed with Notes = `N/A: no documentation
@@ -370,7 +370,7 @@ attempts per distinct failing checker); if a checker still fails after 3 fix att
 stop and report `Blocked: {checker} still failing after 3 attempts` rather than
 continuing to patch.
 
-## Step 7: Move the Completed Implementation Procedure File
+## Step 8: Move the Completed Implementation Procedure File
 
 This step MUST NOT be skipped.
 
