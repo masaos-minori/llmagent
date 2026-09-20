@@ -250,9 +250,9 @@ DB operations occur inside `tmp_path` (auto-cleaned by pytest).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Compare `_FTS_SCHEMA_SQL` against production DDL; rewrite the INV-07 test to call the real `rebuild_fts()` | Pending | — | — | |
-| 2 | Add `test_no_unsanctioned_direct_chunks_fts_write` and verify it fails on a synthetic offender before finalizing | Pending | — | — | |
-| 3 | Run full validation (`tests/rag/test_fts_sync.py`, regression check, lint/type) | Pending | — | — | |
+| 1 | Compare `_FTS_SCHEMA_SQL` against production DDL; rewrite the INV-07 test to call the real `rebuild_fts()` | Completed | 20260920-212200 | 20260920-212200 | _FTS_SCHEMA_SQL trigger bodies confirmed identical to scripts/db/schema_sql.py; rewrote INV-07 test to call real RagMaintenanceService.rebuild_fts() via db.helper.build_db_config monkeypatch |
+| 2 | Add `test_no_unsanctioned_direct_chunks_fts_write` and verify it fails on a synthetic offender before finalizing | Completed | 20260920-212200 | 20260920-212200 | Verified DESIGN-2 test fails on a synthetic offender (scripts/rag/_scratch_offender_test.py, removed after verification) before finalizing |
+| 3 | Run full validation (`tests/rag/test_fts_sync.py`, regression check, lint/type) | Completed | 20260920-212200 | 20260920-212200 | 6/6 tests pass in test_fts_sync.py; 10 pre-existing failures in tests/rag_http_mode.py etc. confirmed unrelated via git stash comparison |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
