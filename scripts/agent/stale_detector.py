@@ -312,7 +312,8 @@ def _check_line_refs(
     are within the source file bounds. Out-of-bounds references indicate
     the procedure may be stale. When a scoped path is resolved via
     _find_scoped_path(), validate against that file's line count instead
-    of the target file's.
+    of the target file's. If the scoped file cannot be loaded, skip the
+    citation (prevents false positives when the scoped file is inaccessible).
     """
     for match in _LINE_REF_RE.finditer(proc_text):
         start = int(match.group(1))  # Keep 1-indexed for comparison
@@ -327,6 +328,11 @@ def _check_line_refs(
             if scoped_content is not None:
                 lines_to_check = scoped_content.split("\n")
                 label = scoped_path
+            else:
+                # Scoped path found but file couldn't be loaded — skip this
+                # citation instead of falling back to the target file (which
+                # would produce a false positive).
+                continue
 
         if start > len(lines_to_check):
             result.add_mismatch(
@@ -354,7 +360,9 @@ def _check_symbol_refs(
 ) -> None:
     """Check whether cited symbol names still exist in the current source.
 
-    Symbols matching _NON_SYMBOL_ALLOWLIST are skipped. When a scoped path
+    Symbols matching _NON_SYMBOL_ALLOWLIST are skipped. Single common words
+    that don't match any known symbol shape (_-prefixed, CamelCase, or
+    snake_case with 2+ segments) are also skipped. When a scoped path
     is resolved via _find_scoped_path(), validate the symbol against that
     file's content instead of the target file's. Each occurrence is checked
     independently (no de-duplication).
@@ -370,6 +378,15 @@ def _check_symbol_refs(
         if sym.startswith(".") or sym.startswith("~"):
             continue
         if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", sym):
+            continue
+        # Minimum symbol shape: skip single common words that are unlikely to be
+        # actual source-code symbols. Matches: _-prefixed, CamelCase, or snake_case
+        # with 2+ underscore-separated segments.
+        if not (
+            re.match(r"^_[a-zA-Z0-9_]+$", sym)           # _-prefixed
+            or re.search(r"[A-Z]", sym)                    # CamelCase (has uppercase)
+            or "_" in sym                                    # snake_case with segment
+        ):
             continue
 
         content_to_check = source_content

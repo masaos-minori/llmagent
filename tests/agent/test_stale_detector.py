@@ -259,6 +259,113 @@ class TestCheckSymbolRefsAllowlistAndScoping:
         assert result.is_stale is False
 
 
+class TestCheckSymbolRefsMinimumShapeHeuristic:
+    """Tests for REQ-001 through REQ-004: single common words should not be flagged."""
+
+    def test_single_letter_word_not_flagged(self) -> None:
+        """Single common words like 'y', 'a', 'i' should not be flagged."""
+        result = StaleResult.clean()
+        proc_text = "Use `y` coordinate here"
+        source_content = "# no such symbol exists"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_common_english_word_not_flagged(self) -> None:
+        """Common English words like 'the', 'and', 'for' should not be flagged."""
+        result = StaleResult.clean()
+        proc_text = "Use `the` variable name here"
+        source_content = "# no such symbol exists"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_workflow_status_value_not_flagged(self) -> None:
+        """Workflow status values like 'Pending', 'Blocked', 'Completed' should not be flagged."""
+        result = StaleResult.clean()
+        proc_text = "Status is `Completed` now"
+        source_content = "# no such symbol exists"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_front_matter_key_not_flagged(self) -> None:
+        """Front-matter keys like 'title', 'area' should not be flagged."""
+        result = StaleResult.clean()
+        proc_text = "Set `title` and `area` fields"
+        source_content = "# no such symbol exists"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_cli_tool_name_not_flagged(self) -> None:
+        """CLI tool names like 'ruff', 'pytest', 'bandit' should not be flagged."""
+        result = StaleResult.clean()
+        proc_text = "Run `ruff check` and `pytest` here"
+        source_content = "# no such symbol exists"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_snake_case_symbol_is_flagged_if_missing(self) -> None:
+        """snake_case symbols with underscores should still be checked."""
+        result = StaleResult.clean()
+        proc_text = "Use `_missing_field` here"
+        source_content = "# no such symbol exists"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is True
+        assert any(m["type"] == "symbol_missing" for m in result.mismatches)
+
+    def test_camelcase_symbol_is_flagged_if_missing(self) -> None:
+        """CamelCase symbols should still be checked."""
+        result = StaleResult.clean()
+        proc_text = "Use `MissingClass` here"
+        source_content = "# no such symbol exists"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is True
+        assert any(m["type"] == "symbol_missing" for m in result.mismatches)
+
+    def test_prefixed_symbol_is_flagged_if_missing(self) -> None:
+        """_-prefixed symbols should still be checked."""
+        result = StaleResult.clean()
+        proc_text = "Use `_private_var` here"
+        source_content = "# no such symbol exists"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is True
+        assert any(m["type"] == "symbol_missing" for m in result.mismatches)
+
+    def test_existing_snake_case_symbol_passes(self) -> None:
+        """Existing snake_case symbols should pass validation."""
+        result = StaleResult.clean()
+        proc_text = "Use `existing_field` here"
+        source_content = "existing_field = 1"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_existing_camelcase_symbol_passes(self) -> None:
+        """Existing CamelCase symbols should pass validation."""
+        result = StaleResult.clean()
+        proc_text = "Use `ExistingClass` here"
+        source_content = "class ExistingClass:"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+
 class TestCheckLineRefsScoping:
     def test_line_citation_for_reference_file_not_flagged_against_target_length(
         self,
@@ -276,9 +383,80 @@ class TestCheckLineRefsScoping:
     def test_line_citation_for_target_file_still_flagged_out_of_bounds(self) -> None:
         result = StaleResult.clean()
         proc_text = (
-            "See `scripts/agent/does_not_exist.py` in passing. See Line 9999 here."
+            "See `scripts/agent/does_not_exist.py` in passing.\n\n"
+            "See Line 9999 here."
         )
         source_lines = [""] * 100
+        _check_line_refs(
+            result, proc_text, source_lines, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is True
+        assert any(m["type"] == "line_out_of_bounds" for m in result.mismatches)
+
+
+class TestCheckLineRefsFallbackHandling:
+    """Tests for REQ-005: scoped file load failure should not produce false positives."""
+
+    def test_scoped_file_load_failure_skips_citation(self, monkeypatch):
+        """When scoped file can't be loaded, skip citation instead of flagging."""
+        result = StaleResult.clean()
+        proc_text = (
+            "See `scripts/agent/missing_file.py` (lines 149-163) for details."
+        )
+        source_lines = [""] * 10
+        # Mock _find_scoped_path to return a path, but _load_scoped_source returns None
+        monkeypatch.setattr(
+            "agent.stale_detector._find_scoped_path",
+            lambda *args: "scripts/agent/missing_file.py",
+        )
+        monkeypatch.setattr(
+            "agent.stale_detector._load_scoped_source",
+            lambda *args: None,
+        )
+        _check_line_refs(
+            result, proc_text, source_lines, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_scoped_file_load_success_validates_against_scoped_file(self, monkeypatch):
+        """When scoped file loads successfully, validate against it."""
+        result = StaleResult.clean()
+        proc_text = (
+            "See `scripts/agent/exists_file.py` (lines 149-163) for details."
+        )
+        source_lines = [""] * 10
+        scoped_lines = [""] * 200  # 200 lines, so 149-163 is valid
+        # Mock _find_scoped_path to return a path, and _load_scoped_source returns content
+        monkeypatch.setattr(
+            "agent.stale_detector._find_scoped_path",
+            lambda *args: "scripts/agent/exists_file.py",
+        )
+        monkeypatch.setattr(
+            "agent.stale_detector._load_scoped_source",
+            lambda *args: "\n".join(scoped_lines),
+        )
+        _check_line_refs(
+            result, proc_text, source_lines, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_scoped_file_load_success_invalid_range_flagged(self, monkeypatch):
+        """When scoped file loads but range exceeds its length, flag as out-of-bounds."""
+        result = StaleResult.clean()
+        proc_text = (
+            "See `scripts/agent/small_file.py` (lines 149-163) for details."
+        )
+        source_lines = [""] * 10
+        scoped_lines = [""] * 50  # Only 50 lines, so 149-163 is invalid
+        # Mock _find_scoped_path to return a path, and _load_scoped_source returns content
+        monkeypatch.setattr(
+            "agent.stale_detector._find_scoped_path",
+            lambda *args: "scripts/agent/small_file.py",
+        )
+        monkeypatch.setattr(
+            "agent.stale_detector._load_scoped_source",
+            lambda *args: "\n".join(scoped_lines),
+        )
         _check_line_refs(
             result, proc_text, source_lines, Path("."), "dummy_target.py", {}
         )
