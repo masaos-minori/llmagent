@@ -203,9 +203,9 @@ new signatures remain would break these calls.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update 6 existing call sites to the new signatures | Pending | — | — | |
-| 2 | Add the 4 new regression tests | Pending | — | — | |
-| 3 | Run full test file (after Row 1 lands) and lint/type checks | Pending | — | — | |
+| 1 | Update 6 existing call sites to the new signatures | Completed | — | 20260921-192353 |  |
+| 2 | Add the 4 new regression tests | Completed | — | 20260921-192353 |  |
+| 3 | Run full test file (after Row 1 lands) and lint/type checks | Completed | — | 20260921-192353 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
