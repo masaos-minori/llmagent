@@ -89,7 +89,7 @@ Partial completion occurs when an LLM response stream is interrupted before all 
 
 | Trigger | Storage Location | Display Method | `stat_partial_completions` |
 |---|---|---|---|
-| `LLMTransportError` while `partial_text` is non-empty | `session_diagnostics` table | `/stats` | +1 |
+| `LLMTransportError` while `partial_text` is non-empty | `session_diagnostics` table | stats subcommand | +1 |
 | `LLMTransportError` while `partial_text` is empty (before stream start) | Not stored (user message popped from history) | Error message visible to user | No change |
 
 **Critical Invariant:** Partial content is NEVER added to `ctx.conv.history`. By isolating it to the diagnostic channel, subsequent LLM context is not polluted.

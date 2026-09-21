@@ -59,7 +59,7 @@ To prevent orphaned records, `delete_document()` enforces a strict deletion orde
 
 ## Responsibility Boundary
 
-- **Canonical Source**: `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`, `scripts/mcp_servers/rag_pipeline/rag_pipeline_document_manager.py`
+- **Canonical Source**: `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`, `scripts/mcp_servers/rag_pipeline/document_manager.py`
 - **Schema**: `schema_sql.py` (authority)
 
 ## Key Constraints

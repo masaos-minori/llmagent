@@ -35,8 +35,8 @@ Documents the relationship between session persistence and conversation history 
 AgentREPL.run()
   → AgentSession.start()              — INSERT into sessions; get session_id
   → each turn: AgentSession.save()    — INSERT into messages
-  → /session load <id>                — fetch_messages() → reconstruct ctx.conv.history
-  → /session delete <id>              — DELETE sessions + messages (CASCADE)
+   → session subcommand: `load <id>` — fetch_messages() → reconstruct ctx.conv.history
+   → session subcommand: `delete <id>` — DELETE sessions + messages (CASCADE)
 ```
 
 ### Message Saving Rules
@@ -80,7 +80,7 @@ AgentSession (session.sqlite: sessions + messages)
 
 - During a session, `history` is the source of truth.
 - The database is a persistent backup.
-- `/session load <id>` reconstructs `ctx.conv.history` from the database.
+- `session load <id>` subcommand reconstructs `ctx.conv.history` from the database.
 - `delete_last_turn()` deletes the last (up to 2) rows from the DB.
 - `undo_last_turn()` deletes everything after the last `role='user'` message.
 

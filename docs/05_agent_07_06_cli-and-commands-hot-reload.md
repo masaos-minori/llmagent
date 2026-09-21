@@ -17,13 +17,13 @@ source:
 
 ## Purpose
 
-Documents the scope of the `/reload` command and the classification of configuration changes.
+Documents the scope of the reload subcommand and the classification of configuration changes.
 
 ## Design Intent
 
-### Role of `/reload`
+### Role of reload subcommand
 
-`/reload` reads the base configuration files and applies changes as much as possible. Settings that are only loaded at startup are detected but not applied.
+The reload subcommand reads the base configuration files and applies changes as much as possible. Settings that are only loaded at startup are detected but not applied.
 
 ### Configuration Files
 
@@ -35,7 +35,7 @@ Documents the scope of the `/reload` command and the classification of configura
 |---|---|---|
 | Hot-reloadable | `[OK]` | Applied immediately to the running process |
 | Requires restart | `[RESTART]` | A full restart of the agent is required |
-| Startup-only | `[STARTUP-ONLY]` | Loaded only once at startup. Ignored by `/reload` even if changed |
+| Startup-only | `[STARTUP-ONLY]` | Loaded only once at startup. Ignored by reload subcommand even if changed |
 | Skipped | `[SKIP]` | Changes intentionally ignored |
 
 ### Output Messages
@@ -79,5 +79,5 @@ Documents the scope of the `/reload` command and the classification of configura
 ## Keywords
 
 hot-reload scope
-/reload
+reload subcommand
 change classification

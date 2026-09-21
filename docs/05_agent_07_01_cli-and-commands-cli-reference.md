@@ -29,7 +29,7 @@ File index for this chapter (07 CLI and Commands).
 | [05_agent_07_09_cli-and-commands-slash-commands-context-db.md](05_agent_07_09_cli-and-commands-slash-commands-context-db.md) | Slash commands: Context, DB, Plan |
 | [05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md](05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md) | Slash commands: Workflow, Debug/audit, Compact/Export |
 | [05_agent_07_11_cli-and-commands-slash-commands-memory-other.md](05_agent_07_11_cli-and-commands-slash-commands-memory-other.md) | Slash commands: Memory, MDQ, Other |
-| [05_agent_07_06_cli-and-commands-hot-reload.md](05_agent_07_06_cli-and-commands-hot-reload.md) | Hot-reload scope (/reload) |
+| [05_agent_07_06_cli-and-commands-hot-reload.md](05_agent_07_06_cli-and-commands-hot-reload.md) | Hot-reload scope (reload subcommand) |
 | [05_agent_07_07_cli-and-commands-migration-notes.md](05_agent_07_07_cli-and-commands-migration-notes.md) | Migration notes |
 
 ## Related Docs

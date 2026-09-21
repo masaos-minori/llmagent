@@ -143,7 +143,7 @@ With this setting, changes to GitHub Actions workflows or Docker-related files a
 allow_force_push = false   # default: force push disabled
 ```
 
-- Only controls whether `merge_method="rebase"` can be used with the `merge_pull_request` tool (`scripts/mcp_servers/github/service_pull_requests.py`). If `false`, rebase merges are rejected with a `GitHubAuthorizationError`.
+- Only controls whether `merge_method="rebase"` can be used with the `merge_pull_request` tool (`scripts/mcp_servers/github/github_service_pull_requests.py`). If `false`, rebase merges are rejected with a `GitHubAuthorizationError`.
 - **Recommended: Keep as `false` in production.** Rebase merging rewrites history and can disrupt team collaboration.
 - github-mcp does not have a tool to execute a force-push itself; it only interacts with the `protected_branches` protection.
 

@@ -32,7 +32,7 @@ User input (line)
    │    └─ CommandRegistry.dispatch(line)     — Slash command, no LLM call
    │
    └─ Orchestrator.handle_turn(line)
-        │  (If workflow.approval_pending is set, block here and return an error prompting /approve or /reject)
+         │  (If workflow.approval_pending is set, block here and return an error prompting `/approve` or `/reject` subcommands)
         │  (Also block here if any background task type is temporarily paused via _bg_pause_state)
         │
         ① Turn Start Processing
