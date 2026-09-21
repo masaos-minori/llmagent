@@ -39,7 +39,7 @@ curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 - **HTTP 200**: Server is fully healthy (`status="ok"`, `ready=true`)
 - **HTTP 503**: Server has dependency failures (`status="degraded"`, `ready=false`)
 
-`/mcp status` (`McpStatusService.probe_all()`) reads both the HTTP status code and the `restart_recommended`/`operator_action_required` fields in the response body, reflecting them in the `health_reason` column. This is for display only and does not trigger automatic restarts (see [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md), as the MCP watchdog was removed on 2026-07-16).
+The mcp subcommand's `status` action (`McpStatusService.probe_all()`) reads both the HTTP status code and the `restart_recommended`/`operator_action_required` fields in the response body, reflecting them in the `health_reason` column. This is for display only and does not trigger automatic restarts (see [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md), as the MCP watchdog was removed on 2026-07-16).
 
 ```bash
 # Check HTTP status code (not just body)
@@ -74,9 +74,9 @@ HTTP 200 — Fully healthy.
   "details": {"sandbox_backend": "firejail"}
 }
 ```
-HTTP 503 — `sh` not found in PATH. Reflected in `/mcp status`'s `health_reason` as `operator_action_required` (display only; no automatic restart occurs).
+HTTP 503 — `sh` not found in PATH. Reflected in the mcp subcommand's `status` action's `health_reason` as `operator_action_required` (display only; no automatic restart occurs).
 
-Other servers share the same `degraded` response shape (`status`/`ready`/`liveness`/`restart_recommended`/`operator_action_required`/`dependencies`/`details`), with only the content of `dependencies` representing server-specific unmet conditions. All return HTTP 503 and are reflected in `/mcp status`'s `health_reason` as `operator_action_required` (display only; no automatic restart occurs).
+Other servers share the same `degraded` response shape (`status`/`ready`/`liveness`/`restart_recommended`/`operator_action_required`/`dependencies`/`details`), with only the content of `dependencies` representing server-specific unmet conditions. All return HTTP 503 and are reflected in the mcp subcommand's `status` action's `health_reason` as `operator_action_required` (display only; no automatic restart occurs).
 
 | Server (Port) | `dependencies` Example | Meaning |
 |---|---|---|
@@ -94,7 +94,7 @@ curl -s http://127.0.0.1:8005/v1/tools | jq '.tools[].name'
 ## Checking in Agent REPL
 
 ```text
-agent[:#N]> /mcp
+agent[:#N]> mcp
 ```
 
 Probes all HTTP servers. Expected result: All show `OK` along with their tool lists.
@@ -105,7 +105,7 @@ Probes all HTTP servers. Expected result: All show `OK` along with their tool li
 |---|---|---|
 | Server fails to start | Subprocess startup failure | Check stderr; check if port is in use |
 | Subprocess timeout | uvicorn startup failure | Check stderr; check if port is in use |
-| Tool definition mismatch | Config sync missing | Run `/mcp` → check tool count vs config |
+| Tool definition mismatch | Config sync missing | Run `mcp` → check tool count vs config |
 
 ## Standalone Launch (dev/debug)
 
