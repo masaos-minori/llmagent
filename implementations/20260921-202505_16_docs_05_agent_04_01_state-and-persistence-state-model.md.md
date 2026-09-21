@@ -91,8 +91,8 @@ Read the file, identify the exact line numbers containing the incorrect referenc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Clarify CLI command references | Pending | — | — | REQ-005 |
-| 2 | Validate with consistency checker | Pending | — | — | REQ-005 |
+| 1 | Clarify CLI command references | Completed | 20260922-055157 | 20260922-055157 | REQ-005 |
+| 2 | Validate with consistency checker | Completed | 20260922-055157 | 20260922-055157 | REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
