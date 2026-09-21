@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +14,250 @@ from tools.check_docs_quality import (
     _compute_section_similarity,
     check_content_similarity,
     check_duplicate_heading_numbers,
+)
+
+# Baseline snapshot of within-file content-similarity pairs (post-2026-09-20-batch).
+# Regenerate by running: uv run python tools/check_docs_quality.py --only content_similarity
+#   | grep 'between sections' > /tmp/pairs.txt
+# Then extract pairs from /tmp/pairs.txt and update this constant.
+EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
+    [
+        # 00_governance_01_documentation-policy.md
+        "00_governance_01_documentation-policy.md:'Agent' <-> 'EventBus'",
+        "00_governance_01_documentation-policy.md:'Agent' <-> 'Shared/DB'",
+        "00_governance_01_documentation-policy.md:'EventBus' <-> 'Shared/DB'",
+        "00_governance_01_documentation-policy.md:'MCP' <-> 'Agent'",
+        "00_governance_01_documentation-policy.md:'MCP' <-> 'EventBus'",
+        "00_governance_01_documentation-policy.md:'MCP' <-> 'Shared/DB'",
+        "00_governance_01_documentation-policy.md:'RAG' <-> 'Agent'",
+        "00_governance_01_documentation-policy.md:'RAG' <-> 'EventBus'",
+        "00_governance_01_documentation-policy.md:'RAG' <-> 'MCP'",
+        "00_governance_01_documentation-policy.md:'RAG' <-> 'Shared/DB'",
+        # 00_governance_03_issue-and-uncertainty-management.md
+        "00_governance_03_issue-and-uncertainty-management.md:'CI-009' <-> 'CI-012'",
+        "00_governance_03_issue-and-uncertainty-management.md:'Lifecycle' <-> 'Lifecycle'",
+        # 03_rag_02_01_ingestion_pipeline-overview.md
+        "03_rag_02_01_ingestion_pipeline-overview.md:'Batch split unprocessed files' <-> 'Regenerate existing chunks'",
+        "03_rag_02_01_ingestion_pipeline-overview.md:'Embed and save to DB' <-> 'Force re-registration'",
+        "03_rag_02_01_ingestion_pipeline-overview.md:'Step 1: Crawling' <-> 'Step 2: Chunk Splitting'",
+        "03_rag_02_01_ingestion_pipeline-overview.md:'Step 1: Crawling' <-> 'Step 3: Embedding and Storage'",
+        "03_rag_02_01_ingestion_pipeline-overview.md:'Step 2: Chunk Splitting' <-> 'Step 3: Embedding and Storage'",
+        # 03_rag_02_03_ingestion_pipeline-chunksplitter.md
+        "03_rag_02_03_ingestion_pipeline-chunksplitter.md:'Keywords' <-> 'Keywords'",
+        "03_rag_02_03_ingestion_pipeline-chunksplitter.md:'RAG Ingestion Pipeline' <-> 'RAG Ingestion Pipeline'",
+        # 03_rag_02_04_ingestion_pipeline-ingester.md
+        "03_rag_02_04_ingestion_pipeline-ingester.md:'4.2 Detailed Behavior' <-> '4.2 Detailed Behavior'",
+        "03_rag_02_04_ingestion_pipeline-ingester.md:'4.2.1 Immutable Deletion Order' <-> '4.2.1 Immutable Deletion Order'",
+        "03_rag_02_04_ingestion_pipeline-ingester.md:'4.3 CLI Arguments' <-> '4.3 CLI Arguments'",
+        "03_rag_02_04_ingestion_pipeline-ingester.md:'4.4 Embedding API' <-> '4.4 Embedding API'",
+        "03_rag_02_04_ingestion_pipeline-ingester.md:'4.5 Database Updates' <-> '4.5 Database Updates'",
+        "03_rag_02_04_ingestion_pipeline-ingester.md:'4.6 Error Handling' <-> '4.6 Error Handling'",
+        "03_rag_02_04_ingestion_pipeline-ingester.md:'4.7 Logging' <-> '4.7 Logging'",
+        "03_rag_02_04_ingestion_pipeline-ingester.md:'Keywords' <-> 'Keywords'",
+        "03_rag_02_04_ingestion_pipeline-ingester.md:'RAG Ingestion Pipeline' <-> 'RAG Ingestion Pipeline'",
+        # 03_rag_03_02_query_pipeline-rag-pipeline-class.md
+        "03_rag_03_02_query_pipeline-rag-pipeline-class.md:'Keywords' <-> 'Keywords'",
+        # 03_rag_03_06_query_pipeline-helpers-and-cache.md
+        "03_rag_03_06_query_pipeline-helpers-and-cache.md:'RAG Query Pipeline' <-> 'RAG Query Pipeline Implementation Details'",
+        # 03_rag_05_2-execution-guide.md
+        "03_rag_05_2-execution-guide.md:'2.1 Prerequisites' <-> '2.2 Step 1: Crawling'",
+        "03_rag_05_2-execution-guide.md:'2.1 Prerequisites' <-> '2.3 Step 2: Chunk Splitting'",
+        "03_rag_05_2-execution-guide.md:'2.1 Prerequisites' <-> '2.4 Embedding and Storage'",
+        "03_rag_05_2-execution-guide.md:'2.2 Step 1: Crawling' <-> '2.3 Step 2: Chunk Splitting'",
+        "03_rag_05_2-execution-guide.md:'2.2 Step 1: Crawling' <-> '2.4 Embedding and Storage'",
+        "03_rag_05_2-execution-guide.md:'2.3 Step 2: Chunk Splitting' <-> '2.4 Embedding and Storage'",
+        "03_rag_05_2-execution-guide.md:'Batch split unprocessed files' <-> 'Regenerate existing chunks'",
+        "03_rag_05_2-execution-guide.md:'Embed and save to DB' <-> 'Force re-registration'",
+        # 04_mcp_05_01_access-control-and-allowlists.md
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allow_force_push`' <-> 'Workflow Allowlist (cicd-mcp)'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allow_force_push`' <-> '`require_pr_review`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> 'Workflow Allowlist (cicd-mcp)'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> '`allow_force_push`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> '`allowed_repo_paths` (git-mcp)'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> '`path_denylist`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> '`protected_branches`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> '`require_pr_review`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allowed_repo_paths` (git-mcp)' <-> 'Workflow Allowlist (cicd-mcp)'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allowed_repo_paths` (git-mcp)' <-> '`allow_force_push`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allowed_repo_paths` (git-mcp)' <-> '`path_denylist`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allowed_repo_paths` (git-mcp)' <-> '`protected_branches`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`allowed_repo_paths` (git-mcp)' <-> '`require_pr_review`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`path_denylist`' <-> 'Workflow Allowlist (cicd-mcp)'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`path_denylist`' <-> '`allow_force_push`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`path_denylist`' <-> '`require_pr_review`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`protected_branches`' <-> 'Workflow Allowlist (cicd-mcp)'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`protected_branches`' <-> '`allow_force_push`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`protected_branches`' <-> '`path_denylist`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`protected_branches`' <-> '`require_pr_review`'",
+        "04_mcp_05_01_access-control-and-allowlists.md:'`require_pr_review`' <-> 'Workflow Allowlist (cicd-mcp)'",
+        # 04_mcp_06_07_reading-audit-logs.md
+        "04_mcp_06_07_reading-audit-logs.md:'View all audit events (MCP server + agent-side)' <-> 'View raw agent-side audit events (JSON-lines format)'",
+        # 04_mcp_06_13_watchdog-health-reasons-scheduling.md
+        "04_mcp_06_13_watchdog-health-reasons-scheduling.md:'Keywords' <-> 'Keywords'",
+        # 05_agent_02_runtime-architecture.md
+        "05_agent_02_runtime-architecture.md:'Agent Runtime Architecture (Part 1)' <-> 'Agent Runtime Architecture (Part 2)'",
+        "05_agent_02_runtime-architecture.md:'Keywords' <-> 'Keywords'",
+        "05_agent_02_runtime-architecture.md:'Known Limitations' <-> 'Known Limitations'",
+        # 05_agent_07_02_cli-and-commands-cliview.md
+        "05_agent_07_02_cli-and-commands-cliview.md:'Operational Notes' <-> 'Known Limitations'",
+        # 05_agent_07_03_cli-and-commands-command-registry.md
+        "05_agent_07_03_cli-and-commands-command-registry.md:'Key Constraints' <-> 'Operational Notes'",
+        # 05_agent_07_06_cli-and-commands-hot-reload.md
+        "05_agent_07_06_cli-and-commands-hot-reload.md:'Key Constraints' <-> 'Known Limitations'",
+        # 05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md
+        "05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md:'Key Constraints' <-> 'Known Limitations'",
+        "05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md:'Key Constraints' <-> 'Operational Notes'",
+        "05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md:'Operational Notes' <-> 'Known Limitations'",
+        # 05_agent_07_09_cli-and-commands-slash-commands-context-db.md
+        "05_agent_07_09_cli-and-commands-slash-commands-context-db.md:'Key Constraints' <-> 'Known Limitations'",
+        "05_agent_07_09_cli-and-commands-slash-commands-context-db.md:'Key Constraints' <-> 'Operational Notes'",
+        "05_agent_07_09_cli-and-commands-slash-commands-context-db.md:'Operational Notes' <-> 'Known Limitations'",
+        # 05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
+        "05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md:'Key Constraints' <-> 'Operational Notes'",
+        # 05_agent_07_11_cli-and-commands-slash-commands-memory-other.md
+        "05_agent_07_11_cli-and-commands-slash-commands-memory-other.md:'Key Constraints' <-> 'Operational Notes'",
+        # 05_agent_08_01_configuration-loading-agent-config.md
+        "05_agent_08_01_configuration-loading-agent-config.md:'Key Constraints' <-> 'Known Limitations'",
+        "05_agent_08_01_configuration-loading-agent-config.md:'Key Constraints' <-> 'Operational Notes'",
+        "05_agent_08_01_configuration-loading-agent-config.md:'Operational Notes' <-> 'Known Limitations'",
+        # 05_agent_08_02_configuration-llm-rag.md
+        "05_agent_08_02_configuration-llm-rag.md:'Operational Notes' <-> 'Known Limitations'",
+        # 05_agent_08_03_configuration-tools-memory.md
+        "05_agent_08_03_configuration-tools-memory.md:'Operational Notes' <-> 'Known Limitations'",
+        # 05_agent_09_02_data-layer-access-patterns.md
+        "05_agent_09_02_data-layer-access-patterns.md:'Operational Notes' <-> 'Known Limitations'",
+        # 05_agent_09_03_data-layer-indexing-boundaries.md
+        "05_agent_09_03_data-layer-indexing-boundaries.md:'Operational Notes' <-> 'Known Limitations'",
+        # 05_agent_12_01_memory-overview-and-modes.md
+        "05_agent_12_01_memory-overview-and-modes.md:'Memory Layer — Overview and Modes (Part 1)' <-> 'Memory Layer — Overview and Modes (Part 2)'",
+        # 05_agent_12_02_memory-gate-data-model-search.md
+        "05_agent_12_02_memory-gate-data-model-search.md:'Memory Layer — Activation Gate, Data Model, and Search (Part 1)' <-> 'Memory Layer — Module Reference'",
+        # 05_agent_13_reference-api.md
+        "05_agent_13_reference-api.md:'Design Intent' <-> 'Design Intent'",
+        "05_agent_13_reference-api.md:'Key Constraints' <-> 'Key Constraints'",
+        "05_agent_13_reference-api.md:'Operational Notes' <-> 'Operational Notes'",
+        "05_agent_13_reference-api.md:'Related Docs' <-> 'Related Docs'",
+        "05_agent_13_reference-api.md:'Responsibility Boundary' <-> 'Responsibility Boundary'",
+        # 06_eventbus_03_persistence_schema_and_replay.md
+        "06_eventbus_03_persistence_schema_and_replay.md:'Declared Role: Replica' <-> 'Declared Role: Replica'",
+        "06_eventbus_03_persistence_schema_and_replay.md:'Idempotency Contract' <-> 'Idempotency Contract'",
+        # 06_eventbus_04_dlq_offsets_and_delivery_semantics.md
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'ACK Error Responses' <-> 'ACK Error Responses'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'ACK Postconditions' <-> 'ACK Postconditions'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'ACK Preconditions' <-> 'ACK Preconditions'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'ACK Preconditions' <-> 'NACK Preconditions'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'ACK followed by NACK' <-> 'ACK followed by NACK'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Background Loop Promotion' <-> 'Background Loop Promotion'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Cleanup Procedure' <-> 'Cleanup Procedure'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Consumer Identity' <-> 'Consumer Identity'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Consumer Offset Precedence' <-> 'Consumer Offset Precedence'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Duplicate NACK Behavior' <-> 'Duplicate NACK Behavior'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Explicit Ack-only Offset' <-> 'Monotonicity Guarantee'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Inline Promotion Path' <-> 'Inline Promotion Path'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Inline Promotion Path' <-> 'Promotion Path'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'JSONL Archive Retention' <-> 'JSONL Archive Retention'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Last-Event-ID Precedence' <-> 'Last-Event-ID Precedence'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Monotonicity Guarantee' <-> 'Explicit Ack-only Offset'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Monotonicity Guarantee' <-> 'Monotonicity Guarantee'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'NACK Error Responses' <-> 'NACK Error Responses'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'NACK Postconditions' <-> 'NACK Postconditions'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'NACK Preconditions' <-> 'ACK Preconditions'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'NACK Preconditions' <-> 'NACK Preconditions'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'NACK followed by ACK' <-> 'NACK followed by ACK'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Per-Topic Ordering' <-> 'Per-Topic Ordering'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Promotion Path' <-> 'Inline Promotion Path'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Queue Overflow Behavior' <-> 'Queue Overflow Behavior'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Requeue Semantics' <-> 'Requeue Semantics'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Resume Behavior' <-> 'Resume Behavior'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Seq-Based Ordering' <-> 'Seq-Based Ordering'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'Slow Consumer Detection' <-> 'Slow Consumer Detection'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'TTL Policy' <-> 'TTL Policy'",
+        "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'since_seq Precedence' <-> 'since_seq Precedence'",
+        # adr/ADR-001-workflow-engine-mandatory.md
+        "adr/ADR-001-workflow-engine-mandatory.md:'3. 第3の採用理由 — Operability' <-> 'Description'",
+        "adr/ADR-001-workflow-engine-mandatory.md:'Problem' <-> '3. 第3の採用理由 — Operability'",
+        "adr/ADR-001-workflow-engine-mandatory.md:'Problem' <-> 'Description'",
+        # adr/ADR-002-config-isolation.md
+        "adr/ADR-002-config-isolation.md:'1. 最重要の採用理由 — Security' <-> 'Disadvantages'",
+        "adr/ADR-002-config-isolation.md:'1. 最重要の採用理由 — Security' <-> 'Reconsideration Conditions'",
+        "adr/ADR-002-config-isolation.md:'Constraints' <-> '1. 最重要の採用理由 — Security'",
+        "adr/ADR-002-config-isolation.md:'Constraints' <-> 'Disadvantages'",
+        "adr/ADR-002-config-isolation.md:'Constraints' <-> 'Reconsideration Conditions'",
+        "adr/ADR-002-config-isolation.md:'Disadvantages' <-> 'Disadvantages'",
+        "adr/ADR-002-config-isolation.md:'Disadvantages' <-> 'Reconsideration Conditions'",
+        "adr/ADR-002-config-isolation.md:'Problem' <-> 'Implementation References'",
+        "adr/ADR-002-config-isolation.md:'Reconsideration Conditions' <-> 'Disadvantages'",
+        # adr/ADR-003-runtime-tool-registry-routing-authority.md
+        "adr/ADR-003-runtime-tool-registry-routing-authority.md:'3. 第3の採用理由 — Operability' <-> 'Startup Validation'",
+        "adr/ADR-003-runtime-tool-registry-routing-authority.md:'Advantages' <-> 'Description'",
+        "adr/ADR-003-runtime-tool-registry-routing-authority.md:'Advantages' <-> 'Reconsideration Conditions'",
+        "adr/ADR-003-runtime-tool-registry-routing-authority.md:'Description' <-> 'Advantages'",
+        "adr/ADR-003-runtime-tool-registry-routing-authority.md:'Description' <-> 'Description'",
+        "adr/ADR-003-runtime-tool-registry-routing-authority.md:'Description' <-> 'Reconsideration Conditions'",
+        "adr/ADR-003-runtime-tool-registry-routing-authority.md:'Reconsideration Conditions' <-> 'Description'",
+        "adr/ADR-003-runtime-tool-registry-routing-authority.md:'Reconsideration Conditions' <-> 'Reconsideration Conditions'",
+        # adr/ADR-004-environment-failure-handling-policy.md
+        "adr/ADR-004-environment-failure-handling-policy.md:'Description' <-> 'Reason for Rejection'",
+        "adr/ADR-004-environment-failure-handling-policy.md:'Problem' <-> '3. 第3の採用理由 — Predictability'",
+        "adr/ADR-004-environment-failure-handling-policy.md:'Reconsideration Conditions' <-> 'Reason for Rejection'",
+        # adr/ADR-005-rag-source-derived-index-relationships.md
+        "adr/ADR-005-rag-source-derived-index-relationships.md:'Negative Consequences' <-> 'Fail-Fast Conditions'",
+        "adr/ADR-005-rag-source-derived-index-relationships.md:'Reason for Rejection' <-> 'Reason for Rejection'",
+        # adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md
+        "adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md:'Advantages' <-> 'Reconsideration Conditions'",
+        # adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md
+        "adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md:'Advantages' <-> 'Operational Consequences'",
+        "adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md:'Description' <-> 'Reconsideration Conditions'",
+        # adr/ADR-008-sqlite-4db-separation.md
+        "adr/ADR-008-sqlite-4db-separation.md:'Advantages' <-> 'Reconsideration Conditions'",
+        "adr/ADR-008-sqlite-4db-separation.md:'Description' <-> 'Advantages'",
+        "adr/ADR-008-sqlite-4db-separation.md:'Description' <-> 'Description'",
+        "adr/ADR-008-sqlite-4db-separation.md:'Description' <-> 'Operational Consequences'",
+        "adr/ADR-008-sqlite-4db-separation.md:'Description' <-> 'Reconsideration Conditions'",
+        "adr/ADR-008-sqlite-4db-separation.md:'Reconsideration Conditions' <-> 'Description'",
+        "adr/ADR-008-sqlite-4db-separation.md:'Reconsideration Conditions' <-> 'Operational Consequences'",
+        # adr/ADR-009-rag-ft5-text-separation.md
+        "adr/ADR-009-rag-ft5-text-separation.md:'2. 第2の採用理由 — LLM Usability' <-> 'Disadvantages'",
+        "adr/ADR-009-rag-ft5-text-separation.md:'2. 第2の採用理由 — LLM Usability' <-> 'Reconsideration Conditions'",
+        "adr/ADR-009-rag-ft5-text-separation.md:'Description' <-> 'Description'",
+        "adr/ADR-009-rag-ft5-text-separation.md:'Description' <-> 'Negative Consequences'",
+        "adr/ADR-009-rag-ft5-text-separation.md:'Disadvantages' <-> 'Reconsideration Conditions'",
+        # adr/ADR-010-rag-fallback.md
+        "adr/ADR-010-rag-fallback.md:'1. 最重要の採用理由 — Availability' <-> 'Description'",
+        "adr/ADR-010-rag-fallback.md:'1. 最重要の採用理由 — Availability' <-> 'Fail-Fast Conditions'",
+        "adr/ADR-010-rag-fallback.md:'1. 最重要の採用理由 — Availability' <-> 'Positive Consequences'",
+        "adr/ADR-010-rag-fallback.md:'Description' <-> 'Description'",
+        "adr/ADR-010-rag-fallback.md:'Description' <-> 'Fail-Fast Conditions'",
+        "adr/ADR-010-rag-fallback.md:'Description' <-> 'Positive Consequences'",
+        "adr/ADR-010-rag-fallback.md:'Positive Consequences' <-> 'Fail-Fast Conditions'",
+        "adr/ADR-010-rag-fallback.md:'Problem' <-> '1. 最重要の採用理由 — Availability'",
+        "adr/ADR-010-rag-fallback.md:'Problem' <-> 'Description'",
+        "adr/ADR-010-rag-fallback.md:'Problem' <-> 'Fail-Fast Conditions'",
+        "adr/ADR-010-rag-fallback.md:'Problem' <-> 'Positive Consequences'",
+        "adr/ADR-010-rag-fallback.md:'Reason for Rejection' <-> 'Reason for Rejection'",
+        # adr/ADR-014-agent-control-plane-responsibility-boundaries.md
+        "adr/ADR-014-agent-control-plane-responsibility-boundaries.md:'1. 最重要の採用理由 — Maintainability' <-> 'Negative Consequences'",
+        "adr/ADR-014-agent-control-plane-responsibility-boundaries.md:'Disadvantages' <-> 'Startup Validation'",
+        # databases/active_databases.md
+        "databases/active_databases.md:'rag.sqlite' <-> 'session.sqlite'",
+        # eventbus/ack-nack-endpoints.md
+        "eventbus/ack-nack-endpoints.md:'Bad Request Responses' <-> 'Bad Request Responses'",
+        "eventbus/ack-nack-endpoints.md:'Forbidden Response' <-> 'Forbidden Response'",
+        "eventbus/ack-nack-endpoints.md:'Not Found Response' <-> 'Not Found Response'",
+        "eventbus/ack-nack-endpoints.md:'Success Response' <-> 'Success Response'",
+        # eventbus/dlq-endpoint.md
+        "eventbus/dlq-endpoint.md:'Success Response' <-> 'Success Response'",
+    ]
+)
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+_ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+_DOCS_DIR = _ROOT_DIR / "docs"
+_KNOWN_DEFECT_PATH = (
+    _DOCS_DIR / "90_shared_02_02_types_and_protocols-tool-and-execution-dto.md"
 )
 
 # ---------------------------------------------------------------------------
@@ -286,13 +531,25 @@ class TestRegressionFullDocsTree:
         )
         output = result.stdout + result.stderr
 
-        within_file_count = output.count(
-            "Content similarity detected between sections '"
-        )
-        assert within_file_count == 205, (
-            f"Expected 205 within-file content-similarity findings (baseline updated "
-            f"2026-09-20 after docs content policy cleanup reduced duplicate content "
-            f"across RAG/MCP/Agent/EventBus/Shared docs), got {within_file_count}"
+        current_pairs: set[str] = set()
+        for line in output.split("\n"):
+            m = re.search(
+                r"\[WARNING\] ([^:]+):\d+ — Content similarity detected between "
+                r"sections '([^']+)' and '([^']+)'",
+                line,
+            )
+            if m:
+                file_path = m.group(1)
+                section_a = m.group(2)
+                section_b = m.group(3)
+                current_pairs.add(
+                    f"{file_path}:{repr(section_a)} <-> {repr(section_b)}"
+                )
+
+        assert current_pairs == EXPECTED_WITHIN_FILE_PAIRS, (
+            f"Within-file content-similarity pairs changed:\n"
+            f"Added: {current_pairs - EXPECTED_WITHIN_FILE_PAIRS}\n"
+            f"Removed: {EXPECTED_WITHIN_FILE_PAIRS - current_pairs}"
         )
 
         assert (
