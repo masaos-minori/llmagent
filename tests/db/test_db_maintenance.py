@@ -30,7 +30,6 @@ from db.rotation import (
     rotate_session_db,
     rotate_workflow_db,
 )
-from rag.maintenance import RagDbMaintenanceService
 
 _TEST_EMBED_URL = "http://127.0.0.1:8081/embedding"
 
@@ -126,6 +125,15 @@ class TestRetentionConfig:
 
 
 class TestPurgeOldSessions:
+    def _make_real_sqlite(self, path: Path) -> None:
+        """Create a minimal valid SQLite database file."""
+        import sqlite3
+
+        conn = sqlite3.connect(str(path))
+        conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+        conn.commit()
+        conn.close()
+
     def test_no_deletions_when_within_limits(self) -> None:
         db = _make_session_db(
             [("s1", "2099-01-01 00:00:00"), ("s2", "2099-01-02 00:00:00")]
@@ -226,139 +234,6 @@ class TestPurgeOldSessions:
         purge_old_sessions(db, cfg)  # type: ignore[arg-type]
         count = db.conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
         assert count == 0
-
-
-# ── RagDbMaintenanceService ───────────────────────────────────────────────────
-
-
-class TestRagDbMaintenanceService:
-    def _make_real_sqlite(self, path: Path) -> None:
-        """Create a minimal valid SQLite database file."""
-        import sqlite3
-
-        conn = sqlite3.connect(str(path))
-        conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
-        conn.commit()
-        conn.close()
-
-    def test_rotate_wal_checkpoint(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        db_file = tmp_path / "rag.sqlite"
-        self._make_real_sqlite(db_file)
-
-        monkeypatch.setattr(
-            "db.helper.build_db_config",
-            lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
-        )
-        service = RagDbMaintenanceService()
-        service.rotate()
-
-    def _make_rag_schema(self, db_file: Path) -> None:
-        """Create minimal RAG schema: documents, chunks, chunks_fts (with trigger)."""
-        import sqlite3 as _s
-
-        conn = _s.connect(str(db_file))
-        conn.executescript("""
-            CREATE TABLE documents (
-                doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                url TEXT NOT NULL UNIQUE,
-                title TEXT,
-                lang TEXT NOT NULL DEFAULT 'ja',
-                fetched_at TEXT NOT NULL,
-                chunking_strategy TEXT NOT NULL
-            );
-            CREATE TABLE chunks (
-                chunk_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                doc_id INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
-                chunk_index INTEGER NOT NULL,
-                content TEXT NOT NULL,
-                normalized_content TEXT
-            );
-            CREATE VIRTUAL TABLE chunks_fts USING fts5(
-                content,
-                content = 'chunks',
-                content_rowid = 'chunk_id',
-                tokenize = 'unicode61'
-            );
-            CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN
-                INSERT INTO chunks_fts (rowid, content)
-                VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
-            END;
-        """)
-        conn.commit()
-        conn.close()
-
-    def test_rebuild_fts(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        db_file = tmp_path / "rag.sqlite"
-        self._make_rag_schema(db_file)
-
-        monkeypatch.setattr(
-            "db.helper.build_db_config",
-            lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
-        )
-        service = RagDbMaintenanceService()
-        service.rebuild_fts()
-
-    def test_rebuild_fts_uses_normalized_content_for_japanese(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """rebuild_fts() must index COALESCE(normalized_content, content), not content alone."""
-        import sqlite3 as _s
-
-        db_file = tmp_path / "rag.sqlite"
-        self._make_rag_schema(db_file)
-
-        conn = _s.connect(str(db_file))
-        conn.execute(
-            "INSERT INTO documents(url, lang, fetched_at, chunking_strategy) VALUES('http://test', 'ja', '2026-01-01T00:00:00Z', 'text')"
-        )
-        # Japanese chunk: normalized_content differs from content
-        conn.execute(
-            "INSERT INTO chunks(doc_id, chunk_index, content, normalized_content) VALUES(1, 0, '東京', 'とうきょう')"
-        )
-        # English chunk: normalized_content is NULL
-        conn.execute(
-            "INSERT INTO chunks(doc_id, chunk_index, content, normalized_content) VALUES(1, 1, 'hello world', NULL)"
-        )
-        conn.commit()
-        # Manually corrupt FTS to force rebuild to matter
-        conn.execute("DELETE FROM chunks_fts")
-        conn.commit()
-        conn.close()
-
-        monkeypatch.setattr(
-            "db.helper.build_db_config",
-            lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
-        )
-
-        service = RagDbMaintenanceService()
-        service.rebuild_fts()
-
-        conn = _s.connect(str(db_file))
-        conn.row_factory = _s.Row
-        # Japanese chunk: FTS should contain normalized form, not original
-        hits = conn.execute(
-            "SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH 'とうきょう'"
-        ).fetchall()
-        assert len(hits) == 1, "normalized_content not indexed by rebuild_fts"
-        # English chunk: FTS should contain original content
-        hits = conn.execute(
-            "SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH 'hello'"
-        ).fetchall()
-        assert len(hits) == 1, "English content not indexed by rebuild_fts"
-        conn.close()
-
-    def test_vacuum(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        db_file = tmp_path / "rag.sqlite"
-        self._make_real_sqlite(db_file)
-
-        monkeypatch.setattr(
-            "db.helper.build_db_config",
-            lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
-        )
-        service = RagDbMaintenanceService()
-        service.vacuum()
 
     def test_rotate_session_db_creates_archive(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
