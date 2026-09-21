@@ -72,10 +72,10 @@ This module provides the following public methods. See source code for details.
 | `min_chunk` | 40 | Minimum number of characters per chunk. Chunks smaller than this are discarded as noise. |
 | `max_chunk` | 500 | Maximum number of characters per chunk. Text exceeding this limit will be split. |
 | `chunk_overlap` | 50 | Sliding window chunk overlap (in characters). Adds this many characters from the end of the previous chunk to the beginning of the next; 0 disables it. |
-| `en_stopwords` | — | English stopwords to exclude from chunking (defined in `config/chunk_splitter.toml`. Corrected from old docs mentioning `rag_pipeline.toml` which does not exist). |
+| `en_stopwords` | — | English stopwords to exclude from chunking (defined in `config/chunk_splitter.toml`. Corrected from old docs referencing a now-deleted single-file config). |
 | `ja_stop_pos` | — | Sudachi part-of-speech categories treated as stopwords in Japanese. Default value: `["Particle", "Auxiliary", "Symbol", "Whitespace", "Interjection", "Conjunction"]` (defined in `config/chunk_splitter.toml`). |
 
-> Evidence: Explicit in code — `scripts/rag/ingestion/chunk_splitter.py::__init__` uses `ConfigLoader().load("chunk_splitter.toml")`, and `en_stopwords`/`ja_stop_pos` are defined in `config/chunk_splitter.toml`. The file `config/rag_pipeline.toml` does not exist in this repository.
+> Evidence: Explicit in code — `scripts/rag/ingestion/chunk_splitter.py::__init__` uses `ConfigLoader().load("chunk_splitter.toml")`, and `en_stopwords`/`ja_stop_pos` are defined in `config/chunk_splitter.toml`. The former single-file config does not exist in this repository.
 
 ## Related Documents
 

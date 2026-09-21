@@ -70,7 +70,7 @@ environment; there is no profile value that relaxes it.
 | Max shell output | 4096 KB (config) | shell-mcp |
 | Max shell memory | 512 MB (`RLIMIT_AS`) | shell-mcp |
 | Max shell timeout | 300 seconds (config) | shell-mcp |
-| `git_show` max chars | 8000 characters | git-mcp |
+| `git_show` max chars | 8,000 characters | git-mcp |
 | cicd log limit | 256 KB / 5 jobs | cicd-mcp |
 | Max file read | 1 MB (config) | file-read-mcp |
 | Max file write | 1 MB (config) | file-write-mcp |

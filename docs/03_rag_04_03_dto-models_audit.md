@@ -1,5 +1,5 @@
 ---
-title: "6.4 models_audit.py (`scripts/rag/models_audit.py`)"
+title: "6.4 models_audit.py (deleted RAG DTO module)"
 area: rag
 tags:
   - rag
@@ -13,11 +13,11 @@ source:
 ---
 
 
-# 6.4 models_audit.py (`scripts/rag/models_audit.py`)
+# 6.4 models_audit.py (deleted RAG DTO module)
 
 **Status**: deleted — Both `AuditLogRecord` and `ApprovalDecision` classes have been removed as dead code.
 
-- `scripts/rag/models_audit.py` was deleted on 2026-07-29 after verifying zero external callers.
+- The RAG DTO audit module was deleted on 2026-07-29 after verifying zero external callers.
 - Similarly named `ApprovalDecisionEvent` (`scripts/agent/shared/models.py`) and `ApprovalDecisionType` (`scripts/agent/tool_enums.py`) are independent implementations in the agent layer and are unrelated to the classes in this file.
 
 ## Related Documents

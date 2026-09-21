@@ -71,9 +71,6 @@ Provides guidance on determining which chapters to open as the entry point for t
 
 ## Canonical Source Rules
 
-- `06_ref-mcp.md` was the canonical source for `ToolExecutor`, `HttpTransport`, and routing. Its content is now in `04_mcp_03`.
-- `04_spec_mcp.md` was the canonical source for system overview, server list, and McpServerConfig. Its content is now in `04_mcp_01`, `04_mcp_03`, and `04_mcp_06`.
-- `04_mcp-protocol.md` was the canonical source for watchdog, startup modes, and new server addition procedures. Its content is now in `04_mcp_03`.
 - The per-server `04_mcp-*.md` files are the canonical sources for server-specific specifications. Their content is now in `04_mcp_04`.
 - If there is a discrepancy between old and new files, trust the newly restructured files.
 
@@ -143,13 +140,13 @@ Mapping of initial "MCP Integrated Plugin System" proposals (Gateway-style funct
 
 **Policy: Deletion.** Since full content is preserved in Git history, archiving is unnecessary.
 
-Old MCP source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`) were kept during the documentation restructuring phase (plan 71-76), but were deleted as of 2026-06-26. If restoration is needed, use `git log --all -- docs/<filename>`.
+Old MCP source files were kept during the documentation restructuring phase (plan 71-76), but were deleted as of 2026-06-26. If restoration is needed, use `git log --all -- docs/<filename>`.
 
 ---
 
 ## Known Limitations
 
-- The known issues from `04_spec_mcp.md` section 13 have all been transferred to `04_mcp_90`.
+- The known issues from the former section 13 have all been transferred to `04_mcp_90`.
 
 ## Unconfirmed Items
 

@@ -45,7 +45,7 @@ Any `RuntimeError` is not caught by the caller's `except` block and propagates f
 
 When `WorkflowEngine(require_approval=True)` is used, the engine pauses after the `execute` stage completes and before the `verify` stage begins:
 
-**Production Operations Policy (Decided):** Whether `WorkflowDef.require_approval` is required is defined per operation category. Any production deployment whose default workflow can reach a category marked "Required" in the table below MUST explicitly set `require_approval: true` in the deployment's `config/workflows/*.json`. The bundled `config/workflows/default.json` ships with `require_approval: false` for local development; enabling it for production is done via an environment-specific override file (e.g. `config/workflows/production.json`).
+**Production Operations Policy (Decided):** Whether `WorkflowDef.require_approval` is required is defined per operation category. Any production deployment whose default workflow can reach a category marked "Required" in the table below MUST explicitly set `require_approval: true` in the deployment's `config/workflows/*.json`. The bundled `config/workflows/default.json` ships with `require_approval: false` for local development; enabling it for production is done via an environment-specific override file.
 
 | Operation Category | Approval Required in Production |
 |---|---|
@@ -175,7 +175,7 @@ In default production settings, approval gates are not triggered. Enabling appro
 | `ctx.conv.history` | Each LLM/tool round (addition) | Yes — saved to SQLite per message | Also subject to compression by HistoryManager |
 | `ctx.turn.current_turn_id` | At TurnStart (UUID4) / TurnEnd (None) | No — in-memory only | Used for correlation within a turn |
 | `ctx.turn.pending_approval_id` | When workflow approval gate is paused | No — in-memory only; approval is persisted in `workflow.sqlite` | Reset to `None` on the next turn |
-| `ctx.stats.stat_turns` | After each user message addition | No — in-memory (`reported via /stats`) | Resets on session restart |
+| `ctx.stats.stat_turns` | After each user message addition | No — in-memory (reported via stats command) | Resets on session restart |
 | `ctx.stats.stat_partial_completions` | On LLM stream interruption | No — in-memory; partial content is stored in `session_diagnostics` | Resets on session restart |
 | `session.title` | First turn (asynchronous background task) | Yes — SQLite `sessions.title` | Non-blocking; falls back to truncating first input if LLM fails |
 

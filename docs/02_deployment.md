@@ -217,14 +217,14 @@ superseded by this procedure.
 ### 3.0 Platform DB Overview
 
 The agent uses four SQLite databases. Three have explicit path keys in
-`agent.toml`; `workflow_db_path` has no literal entry there and falls back to
-`DbConfig`'s Python-level default (`scripts/db/config.py`).
+`agent.toml`; the fourth falls back to `DbConfig`'s Python-level default
+(`scripts/db/config.py`).
 
 | DB | Default path | Config key | Purpose |
 |---|---|---|---|
 | `rag.sqlite` | `/opt/llm/db/rag.sqlite` | `rag_db_path` | RAG documents, chunks, embeddings |
 | `session.sqlite` | `/opt/llm/db/session.sqlite` | `session_db_path` | Agent sessions, messages |
-| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` (code default; no `agent.toml` entry) | Task tracking, event processing |
+| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | **No** (Python-level default only, `scripts/db/config.py`) | Task tracking, event processing |
 | `eventbus.sqlite` | `/opt/llm/db/eventbus.sqlite` | `eventbus_db_path` | Event Bus records |
 
 Schema details: `90_shared_04_01_db_architecture_and_schema-overview-and-config.md`
@@ -274,7 +274,7 @@ Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit 
 | `eventbus.sqlite` | `/opt/llm/db/eventbus.sqlite` | `eventbus_db_path` | Yes |
 | `rag.sqlite` | `/opt/llm/db/rag.sqlite` | `rag_db_path` | Yes |
 | `session.sqlite` | `/opt/llm/db/session.sqlite` | `session_db_path` | Yes |
-| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | No (Python-level default in `scripts/db/config.py`) |
+| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | **No** (Python-level default only, `scripts/db/config.py`) |
 <!-- END AUTO-GENERATED -->
 
 ## Related Documents

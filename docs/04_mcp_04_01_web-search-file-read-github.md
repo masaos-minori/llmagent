@@ -68,7 +68,7 @@ Specifications for 10 MCP servers per server: purpose, port, tools, I/O, configu
 | `browser_timeout_sec` | `15` | Timeout for fetch requests |
 | `browser_auth_token` | `""` | Bearer token for `browser_fetch` calls only (independent of `search_web`) |
 
-**Implementation Details (browser_fetch, migrated from `04_mcp_04_06_browser.md`):**
+**Implementation Details (browser_fetch):**
 
 - If the hostname is an IP literal, it is checked using `ipaddress.ip_address()`; if it falls under loopback / link-local / private / reserved / multicast, a `BrowserAuthorizationError` (HTTP 403) is raised regardless of `allowed_domains` content. This is a defense-in-depth mechanism independent of domain allowlists. (Explicit in code, `search_provider.py::_check_domain`)
 - Only `http`/`https` schemes are allowed for `url`; others or missing hostnames trigger a `BrowserValidationError` (HTTP 422). (Explicit in code)

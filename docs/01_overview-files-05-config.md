@@ -32,13 +32,13 @@ See `config/` for the current file layout.
 
 **`config/mcp_<name>.toml`** — Per-MCP-server configuration files (one per server); each contains the server's transport URL, timeout, and retry settings. These port numbers are illustrative examples of the current deployment configuration, not claims about deployed configuration.
 
-**`config/embedding.toml`** — Embedding service configuration including model path and endpoint URLs. Owned by the embedding service; consumed by the embed-LLM process.
+**Embedding service config** — Embedding service configuration including model path and endpoint URLs. Owned by the embedding service; consumed by the embed-LLM process.
 
-**`config/tool_registry.json`** — Tool registry mapping tool names to their implementations. Owned by the tool routing layer; consumed by all MCP servers requiring tool discovery.
+**Tool registry** — Tool registry mapping tool names to their implementations. Owned by the tool routing layer; consumed by all MCP servers requiring tool discovery.
 
 ### Per-Process Config Isolation Policy
 
-Each process reads only its own config file — no cross-process config sharing. This prevents configuration drift between processes and ensures that changes to one process's config do not affect others. The MCP servers read their respective `mcp_<name>.toml` files; the agent reads `agent.toml`; the embedding service reads `embedding.toml`.
+Each process reads only its own config file — no cross-process config sharing. This prevents configuration drift between processes and ensures that changes to one process's config do not affect others. The MCP servers read their respective `mcp_<name>.toml` files; the agent reads `agent.toml`; the embedding service reads its own config.
 
 ### MCP Server Configuration Responsibilities
 
