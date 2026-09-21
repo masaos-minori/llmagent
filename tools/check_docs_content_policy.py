@@ -99,6 +99,7 @@ _CLI_ARG_HEADING_RE = re.compile(
 _ERROR_HEADING_RE = re.compile(
     r"^#{1,6}\s+(?:[\d.]+\s+)?(?:Error|Exception|Error\s+Handling)\b", re.IGNORECASE
 )
+_SECTION_BOUNDARY_HEADING_RE = re.compile(r"^#{1,6}\s+")
 _ERROR_ACTION_TABLE_HEADER_RE = re.compile(
     r"^\s*\|\s*(?:Case|Scenario)\s*\|(?:.*\|)?\s*Action\s*\|", re.IGNORECASE
 )
@@ -420,9 +421,11 @@ def check_config_file_inventory_table(files: list[DocFile]) -> list[Issue]:
             if not _CONFIG_BULLET_RE.match(line):
                 continue
             has_config_heading = False
-            for j in range(max(0, i - _HEADINGS_WINDOW), i):
+            for j in range(i - 1, max(0, i - _HEADINGS_WINDOW) - 1, -1):
                 if _CONFIG_HEADING_RE.search(doc.lines[j]):
                     has_config_heading = True
+                    break
+                if _SECTION_BOUNDARY_HEADING_RE.search(doc.lines[j]):
                     break
             if not has_config_heading:
                 continue
@@ -703,9 +706,11 @@ def check_error_handling_table(files: list[DocFile]) -> list[Issue]:
             if idx + 1 >= n or not _TABLE_SEPARATOR_ROW_RE.match(doc.lines[idx + 1]):
                 continue
             has_error_heading = False
-            for j in range(max(0, i - _HEADINGS_WINDOW), idx):
+            for j in range(idx - 1, max(0, i - _HEADINGS_WINDOW) - 1, -1):
                 if _ERROR_HEADING_RE.search(doc.lines[j]):
                     has_error_heading = True
+                    break
+                if _SECTION_BOUNDARY_HEADING_RE.search(doc.lines[j]):
                     break
             if not has_error_heading:
                 continue

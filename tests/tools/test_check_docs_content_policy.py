@@ -203,6 +203,18 @@ def test_config_file_inventory_table_not_flagged_without_heading() -> None:
     assert issues == []
 
 
+def test_config_file_inventory_cross_section_false_positive() -> None:
+    doc = _doc(
+        "### Configuration Fields\n"
+        "\n"
+        "### Notes\n"
+        "\n"
+        "- `port` — an example field name mentioned in passing\n"
+    )
+    issues = check_config_file_inventory_table([doc])
+    assert issues == []
+
+
 def test_cli_command_enumeration_detected() -> None:
     doc = _doc(
         "## CLI Commands\n"
@@ -333,6 +345,33 @@ def test_error_handling_table_detected_by_heading() -> None:
         "| Case | Action |\n"
         "|---|---|\n"
         "| Tokenization error | Raises TokenizationError |\n"
+    )
+    issues = check_error_handling_table([doc])
+    assert len(issues) == 1
+    assert "error-handling table" in issues[0].message
+
+
+def test_error_handling_cross_section_false_positive() -> None:
+    doc = _doc(
+        "### Error Type Design\n"
+        "\n"
+        "### Runtime Parameter Generation\n"
+        "\n"
+        "| Field | Description |\n"
+        "|---|---|\n"
+        "| temperature | Sampling temperature |\n"
+    )
+    issues = check_error_handling_table([doc])
+    assert issues == []
+
+
+def test_error_handling_table_still_detected_within_same_section() -> None:
+    doc = _doc(
+        "### Error Handling\n"
+        "\n"
+        "| Field | Description |\n"
+        "|---|---|\n"
+        "| error_code | Numeric error code |\n"
     )
     issues = check_error_handling_table([doc])
     assert len(issues) == 1
