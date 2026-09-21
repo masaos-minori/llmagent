@@ -200,9 +200,9 @@ Trivially revertable: removing the new regex constant and the two added
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_SECTION_BOUNDARY_HEADING_RE` and modify both loops | Pending | — | — | |
-| 2 | Run `ruff check` / `mypy` on this file | Pending | — | — | |
-| 3 | Run `tests/tools/test_check_docs_content_policy.py` and full `docs/` tree re-scan (after Row 2's tests also land) | Pending | — | — | |
+| 1 | Add `_SECTION_BOUNDARY_HEADING_RE` and modify both loops | Completed | — | 20260921-194455 |  |
+| 2 | Run `ruff check` / `mypy` on this file | Completed | — | 20260921-194455 |  |
+| 3 | Run `tests/tools/test_check_docs_content_policy.py` and full `docs/` tree re-scan (after Row 2's tests also land) | Completed | — | 20260921-194455 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

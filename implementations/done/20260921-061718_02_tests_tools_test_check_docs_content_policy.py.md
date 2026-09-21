@@ -188,9 +188,9 @@ test in this file unaffected.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_error_handling_cross_section_false_positive` and `test_error_handling_table_still_detected_within_same_section` | Pending | — | — | |
-| 2 | Add `test_config_file_inventory_cross_section_false_positive` | Pending | — | — | |
-| 3 | Run `uv run pytest tests/tools/test_check_docs_content_policy.py -v` (after Row 1 lands) and lint/type checks | Pending | — | — | |
+| 1 | Add `test_error_handling_cross_section_false_positive` and `test_error_handling_table_still_detected_within_same_section` | Completed | — | 20260921-194455 |  |
+| 2 | Add `test_config_file_inventory_cross_section_false_positive` | Completed | — | 20260921-194455 |  |
+| 3 | Run `uv run pytest tests/tools/test_check_docs_content_policy.py -v` (after Row 1 lands) and lint/type checks | Completed | — | 20260921-194455 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -62,6 +62,71 @@ _TARGET_FILE_SECTION_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Non-symbol allowlist: tokens that look like code but are actually tool vocabulary
+_NON_SYMBOL_ALLOWLIST = frozenset(
+    {
+        # Repository workflow tool vocabulary
+        "Edit",
+        "Write",
+        "Read",
+        "Bash",
+        "old_string",
+        "new_string",
+        "replace_all",
+        # Common CLI tool names
+        "ruff",
+        "mypy",
+        "pytest",
+        "pyright",
+        "bandit",
+        # Common Markdown front-matter keys
+        "title",
+        "area",
+        "tags",
+        "related",
+        "source",
+        # Workflow status values
+        "Pending",
+        "In Progress",
+        "Blocked",
+        "Completed",
+    }
+)
+
+# A backtick-quoted relative .py/.md path other than a leading-slash absolute one
+# (see _TARGET_FILE_RE above), used to scope a nearby symbol/line citation.
+_SCOPED_PATH_RE = re.compile(r"`([\w./-]+\.(?:py|md))`")
+
+
+def _find_scoped_path(proc_text: str, pos: int, target_file: str) -> str | None:
+    """Return the nearest preceding backtick-quoted .py/.md path (other than
+    target_file) in the same paragraph as the citation at `pos`, or None."""
+    para_start = proc_text.rfind("\n\n", 0, pos)
+    para_start = 0 if para_start == -1 else para_start + 2
+    paragraph_before = proc_text[para_start:pos]
+    paths = _SCOPED_PATH_RE.findall(paragraph_before)
+    for path in reversed(paths):
+        if path != target_file:
+            return str(path)
+    return None
+
+
+def _load_scoped_source(
+    source_dir: Path,
+    path: str,
+    cache: dict[str, str | None],
+) -> str | None:
+    """Read `path` relative to source_dir once, memoizing hits and misses."""
+    if path in cache:
+        return cache[path]
+    candidate = source_dir / path.lstrip("/")
+    if not candidate.exists():
+        cache[path] = None
+        return None
+    content = candidate.read_text(encoding="utf-8")
+    cache[path] = content
+    return content
+
 
 @dataclass
 class StaleResult:
@@ -212,12 +277,17 @@ class StaleResult:
 
         source_content = source_path.read_text(encoding="utf-8")
         source_lines = source_content.split("\n")
+        file_cache: dict[str, str | None] = {}
 
         # Check line number references
-        _check_line_refs(result, text, source_lines)
+        _check_line_refs(
+            result, text, source_lines, source_dir, result.target_file, file_cache
+        )
 
         # Check symbol references
-        _check_symbol_refs(result, text, source_content)
+        _check_symbol_refs(
+            result, text, source_content, source_dir, result.target_file, file_cache
+        )
 
         # Check import references
         _check_import_refs(result, text, source_content)
@@ -232,33 +302,43 @@ def _check_line_refs(
     result: StaleResult,
     proc_text: str,
     source_lines: list[str],
+    source_dir: Path,
+    target_file: str,
+    file_cache: dict[str, str | None],
 ) -> None:
     """Check whether cited line ranges still exist in the source file.
 
     For each "Line N" or "Lines N-M" reference, verify the line numbers
     are within the source file bounds. Out-of-bounds references indicate
-    the procedure may be stale.
+    the procedure may be stale. When a scoped path is resolved via
+    _find_scoped_path(), validate against that file's line count instead
+    of the target file's.
     """
     for match in _LINE_REF_RE.finditer(proc_text):
         start = int(match.group(1))  # Keep 1-indexed for comparison
         end_str = match.group(2)
-        if end_str:
-            end = int(end_str)
-        else:
-            end = start
+        end = int(end_str) if end_str else start
 
-        # Check if the line range exceeds the source file length
-        if start > len(source_lines):
+        lines_to_check = source_lines
+        label = "source file"
+        scoped_path = _find_scoped_path(proc_text, match.start(), target_file)
+        if scoped_path is not None:
+            scoped_content = _load_scoped_source(source_dir, scoped_path, file_cache)
+            if scoped_content is not None:
+                lines_to_check = scoped_content.split("\n")
+                label = scoped_path
+
+        if start > len(lines_to_check):
             result.add_mismatch(
                 "line_out_of_bounds",
-                f"Line {start} exceeds source file length ({len(source_lines)})"
+                f"Line {start} exceeds {label} length ({len(lines_to_check)})"
                 if not end_str
-                else f"Lines {start}-{end} exceed source file length ({len(source_lines)})",
+                else f"Lines {start}-{end} exceed {label} length ({len(lines_to_check)})",
             )
-        elif end > len(source_lines):
+        elif end > len(lines_to_check):
             result.add_mismatch(
                 "line_out_of_bounds",
-                f"Line {end} exceeds source file length ({len(source_lines)})",
+                f"Line {end} exceeds {label} length ({len(lines_to_check)})",
             )
 
     return None
@@ -268,29 +348,39 @@ def _check_symbol_refs(
     result: StaleResult,
     proc_text: str,
     source_content: str,
+    source_dir: Path,
+    target_file: str,
+    file_cache: dict[str, str | None],
 ) -> None:
-    """Check whether cited symbol names still exist in the current source."""
-    # Extract symbols from the procedure document
-    symbols = set(_SYMBOL_RE.findall(proc_text))
+    """Check whether cited symbol names still exist in the current source.
 
-    # Filter out common non-code tokens (backtick-quoted text that isn't a code symbol)
-    code_symbols = set()
-    for sym in symbols:
-        # Skip common non-code patterns
+    Symbols matching _NON_SYMBOL_ALLOWLIST are skipped. When a scoped path
+    is resolved via _find_scoped_path(), validate the symbol against that
+    file's content instead of the target file's. Each occurrence is checked
+    independently (no de-duplication).
+    """
+    for match in _SYMBOL_RE.finditer(proc_text):
+        sym = match.group(1)
+        if sym in _NON_SYMBOL_ALLOWLIST:
+            continue
         if sym.startswith("http"):
             continue
         if sym.startswith("/") and "/" in sym[1:]:
             continue
         if sym.startswith(".") or sym.startswith("~"):
             continue
-        # Keep only plausible code symbols (alphanumeric + underscores)
-        if re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", sym):
-            code_symbols.add(sym)
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", sym):
+            continue
 
-    for sym in code_symbols:
-        # Use word boundary matching to avoid false positives
+        content_to_check = source_content
+        scoped_path = _find_scoped_path(proc_text, match.start(), target_file)
+        if scoped_path is not None:
+            scoped_content = _load_scoped_source(source_dir, scoped_path, file_cache)
+            if scoped_content is not None:
+                content_to_check = scoped_content
+
         pattern = rf"\b{re.escape(sym)}\b"
-        if not re.search(pattern, source_content):
+        if not re.search(pattern, content_to_check):
             result.add_mismatch(
                 "symbol_missing",
                 f"Symbol '{sym}' not found in source",

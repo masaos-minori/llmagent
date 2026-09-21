@@ -6,6 +6,8 @@ StaleResult dataclass and detection functions.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from agent.stale_detector import (
     StaleResult,
     _check_before_blocks,
@@ -128,14 +130,18 @@ class TestCheckLineRefs:
         result = StaleResult.clean()
         proc_text = "See Line 10"
         source_lines = [""] * 20
-        _check_line_refs(result, proc_text, source_lines)
+        _check_line_refs(
+            result, proc_text, source_lines, Path("."), "dummy_target.py", {}
+        )
         assert result.is_stale is False
 
     def test_out_of_bounds_line_returns_stale(self) -> None:
         result = StaleResult.clean()
         proc_text = "See Line 9999"
         source_lines = [""] * 100
-        _check_line_refs(result, proc_text, source_lines)
+        _check_line_refs(
+            result, proc_text, source_lines, Path("."), "dummy_target.py", {}
+        )
         assert result.is_stale is True
         assert any(m["type"] == "line_out_of_bounds" for m in result.mismatches)
 
@@ -143,7 +149,9 @@ class TestCheckLineRefs:
         result = StaleResult.clean()
         proc_text = "See Lines 10-20"
         source_lines = [""] * 15
-        _check_line_refs(result, proc_text, source_lines)
+        _check_line_refs(
+            result, proc_text, source_lines, Path("."), "dummy_target.py", {}
+        )
         assert result.is_stale is True
 
 
@@ -155,14 +163,18 @@ class TestCheckSymbolRefs:
         result = StaleResult.clean()
         proc_text = "Use `LLMTurnRunner` here"
         source_content = "from agent.llm_turn_runner import LLMTurnRunner"
-        _check_symbol_refs(result, proc_text, source_content)
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
         assert result.is_stale is False
 
     def test_missing_symbol_returns_stale(self) -> None:
         result = StaleResult.clean()
         proc_text = "Use `_missing_symbol` here"
         source_content = "# no such symbol exists"
-        _check_symbol_refs(result, proc_text, source_content)
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
         assert result.is_stale is True
         assert any(m["type"] == "symbol_missing" for m in result.mismatches)
 
@@ -170,14 +182,18 @@ class TestCheckSymbolRefs:
         result = StaleResult.clean()
         proc_text = "See `http://example.com`"
         source_content = ""
-        _check_symbol_refs(result, proc_text, source_content)
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
         assert result.is_stale is False
 
     def test_paths_filtered_out(self) -> None:
         result = StaleResult.clean()
         proc_text = "See `/some/path`"
         source_content = ""
-        _check_symbol_refs(result, proc_text, source_content)
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
         assert result.is_stale is False
 
 
@@ -219,3 +235,52 @@ class TestCheckBeforeBlocks:
         _check_before_blocks(result, proc_text, source_content)
         assert result.is_stale is True
         assert any(m["type"] == "before_block_missing" for m in result.mismatches)
+
+
+class TestCheckSymbolRefsAllowlistAndScoping:
+    def test_allowlisted_tool_vocabulary_term_not_flagged(self) -> None:
+        result = StaleResult.clean()
+        proc_text = "Use `Edit`, `mypy`, and front-matter key `related` here"
+        source_content = "# unrelated source"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_symbol_from_reference_file_not_flagged_when_absent_from_target(
+        self,
+    ) -> None:
+        result = StaleResult.clean()
+        proc_text = "`scripts/agent/llm_turn_runner.py` defines `LLMTurnRunner` here."
+        source_content = "# target file does not define this class"
+        _check_symbol_refs(
+            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+
+class TestCheckLineRefsScoping:
+    def test_line_citation_for_reference_file_not_flagged_against_target_length(
+        self,
+    ) -> None:
+        result = StaleResult.clean()
+        proc_text = (
+            "See `scripts/agent/llm_turn_runner.py` (lines 149-163) for details."
+        )
+        source_lines = [""] * 10
+        _check_line_refs(
+            result, proc_text, source_lines, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_line_citation_for_target_file_still_flagged_out_of_bounds(self) -> None:
+        result = StaleResult.clean()
+        proc_text = (
+            "See `scripts/agent/does_not_exist.py` in passing. See Line 9999 here."
+        )
+        source_lines = [""] * 100
+        _check_line_refs(
+            result, proc_text, source_lines, Path("."), "dummy_target.py", {}
+        )
+        assert result.is_stale is True
+        assert any(m["type"] == "line_out_of_bounds" for m in result.mismatches)
