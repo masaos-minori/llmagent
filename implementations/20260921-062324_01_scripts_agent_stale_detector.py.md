@@ -385,9 +385,9 @@ restores the exact prior window-only, Target-file-only behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_NON_SYMBOL_ALLOWLIST`, `_SCOPED_PATH_RE`, `_find_scoped_path()`, `_load_scoped_source()` | Pending | — | — | |
-| 2 | Update `_check_line_refs()` and `_check_symbol_refs()` signatures/bodies and their `from_procedure()` call sites | Pending | — | — | |
-| 3 | Run `ruff check` / `mypy`, then `tests/agent/test_stale_detector.py` and the archived-procedure spot-check (after Row 2's tests also land) | Pending | — | — | |
+| 1 | Add `_NON_SYMBOL_ALLOWLIST`, `_SCOPED_PATH_RE`, `_find_scoped_path()`, `_load_scoped_source()` | Completed | — | 20260921-192353 |  |
+| 2 | Update `_check_line_refs()` and `_check_symbol_refs()` signatures/bodies and their `from_procedure()` call sites | Completed | — | 20260921-192353 |  |
+| 3 | Run `ruff check` / `mypy`, then `tests/agent/test_stale_detector.py` and the archived-procedure spot-check (after Row 2's tests also land) | Completed | — | 20260921-192353 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
