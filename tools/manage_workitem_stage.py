@@ -189,7 +189,9 @@ def _find_remote_conflict(repo: git.Repo, destination_abs: Path) -> str | None:
     )
 
 
-def _auto_commit(repo: git.Repo, source_abs: Path, kind: str) -> str | None:
+def _auto_commit(
+    repo: git.Repo, source_abs: Path, kind: str, exc_class: type[Exception]
+) -> str | None:
     """Stage and commit `source_abs` so the subsequent move never runs against an
     uncommitted file. Returns an error string on failure, or `None` on success.
 
@@ -201,7 +203,7 @@ def _auto_commit(repo: git.Repo, source_abs: Path, kind: str) -> str | None:
     try:
         _run_with_lock_retry(lambda: repo.git.add(str(source_abs)))
         _run_with_lock_retry(lambda: repo.git.commit("-m", message))
-    except git.exc.GitCommandError as e:
+    except exc_class as e:
         return f"auto-commit failed: {e}"
     return None
 
@@ -258,7 +260,7 @@ def move_to_done(source: Path, *, kind: str = "workitem") -> MoveResult:
         return MoveResult(success=False, error=f"git status failed: {e}")
 
     if status.strip():
-        commit_error = _auto_commit(repo, source_abs, kind)
+        commit_error = _auto_commit(repo, source_abs, kind, git.exc.GitCommandError)
         if commit_error:
             return MoveResult(success=False, error=commit_error)
 
@@ -676,7 +678,7 @@ def build_parser() -> argparse.ArgumentParser:
     set_status_parser.add_argument(
         "status",
         type=_valid_status_type,
-        help="New status value for all rows (e.g. 'In Progress', 'InProgress', 'in_progress')"
+        help="New status value for all rows (e.g. 'In Progress', 'InProgress', 'in_progress')",
     )
     set_status_parser.add_argument(
         "--notes",
@@ -721,7 +723,7 @@ def build_parser() -> argparse.ArgumentParser:
     set_step_parser.add_argument(
         "status",
         type=_valid_status_type,
-        help="New status value for the matched row (e.g. 'In Progress', 'InProgress', 'in_progress')"
+        help="New status value for the matched row (e.g. 'In Progress', 'InProgress', 'in_progress')",
     )
     set_step_parser.add_argument(
         "--notes",
