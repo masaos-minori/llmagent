@@ -9,6 +9,9 @@ related:
 ---
 # Agent Runtime Architecture (Part 1)
 
+## Related Documents
+<placeholder>
+
 - System Overview $\rightarrow$ [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose

@@ -13,6 +13,9 @@ related:
 ---
 # Memory Layer — Overview and Modes (Part 1)
 
+## Keywords
+<placeholder>
+
 - Operations and Observability $\rightarrow$ [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
 - Configuration $\rightarrow$ [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)
 

@@ -8,7 +8,7 @@ tags:
 decision_scope:
   - rag
 related:
-  - ADR-002
+  - adr/ADR-002-git-mcp-server-side-write-enforcement.md
 supersedes: []
 superseded_by: null
 ---
