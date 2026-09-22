@@ -192,6 +192,6 @@ If inconsistencies are detected, follow this controlled restart procedure:
 
 6. Re-run Steps 1–4 to confirm consistency.
 - `06_eventbus_00_document-guide.md`
-- `06_eventbus_01_system-overview.md`
-- `06_eventbus_02_operations.md`
-- `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
+- `../06_eventbus_01_system-overview.md`
+- `../06_eventbus_02_operations.md`
+- `../06_eventbus_04_dlq_offsets_and_delivery_semantics.md`

@@ -521,23 +521,26 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [DB Architecture and Schema](90_shared_04_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
-- [DB API and Operations — Recovery and Reference](90_shared_05_04_db_api_and_operations-recovery-and-reference.md) — リカバリAPIとOperations参照
+- [DB Architecture and Schema](../90_shared_04_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
+- [DB API and Operations — Recovery and Reference](../90_shared_05_04_db_api_and_operations-recovery-and-reference.md) — リカバリAPIとOperations参照
 - [RAG Persistence](03_rag_04_02_rag-persistence.md) — RAG永続化
 - [RAG Recovery](03_rag_04_03_rag-recovery.md) — RAG復旧
 - [Agent Session Persistence](05_agent_04_01_agent-session-persistence.md) — セッション永続化
-- [EventBus Persistence Schema and Replay](06_eventbus_03_persistence_schema_and_replay.md) — EventBus永続化スキーマ
-- [DLQ Offsets and Delivery Semantics](06_eventbus_04_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
+- [EventBus Persistence Schema and Replay](../06_eventbus_03_persistence_schema_and_replay.md) — EventBus永続化スキーマ
+- [DLQ Offsets and Delivery Semantics](../06_eventbus_04_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
 
 ### Operations
 
-- [Operations and Observability](05_agent_10_01_operations-and-observability-startup-and-health.md) — 運用と観測
-- [Manual Recovery: workflow.sqlite / eventbus.sqlite](05_agent_10_01_operations-and-observability-startup-and-health.md#manual-recovery-workflowsqlite-eventbussqlite) — workflow.sqlite / eventbus.sqliteの手動復旧手順
+- [Operations and Observability](../05_agent_10_01_operations-and-observability-startup-and-health.md) — 運用と観測
+- [Manual Recovery: workflow.sqlite / eventbus.sqlite](../05_agent_10_01_operations-and-observability-startup-and-health.md#manual-recovery-workflowsqlite-eventbussqlite) — workflow.sqlite / eventbus.sqliteの手動復旧手順
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — SHARED-003（workflow/eventbus復旧手続きの実務Runbook整備済み、resolved）、CI-002（本ADRの現行内容と対応しない旧記述の疑い）
+<!-- TODO: Document '03_rag_04_02_rag-persistence.md' was deleted -->
+<!-- TODO: Document '03_rag_04_03_rag-recovery.md' was deleted -->
+<!-- TODO: Document '05_agent_04_01_agent-session-persistence.md' was deleted -->
+- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
+- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — SHARED-003（workflow/eventbus復旧手続きの実務Runbook整備済み、resolved）、CI-002（本ADRの現行内容と対応しない旧記述の疑い）
 
 ### Implementation References
 

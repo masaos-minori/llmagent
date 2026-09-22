@@ -398,24 +398,24 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [MCP System Overview](04_mcp_01_system_overview.md) — MCPアーキテクチャ概要
-- [Endpoints and Transport](04_mcp_02_01_endpoints-and-transport.md) — エンドポイントとTransport
-- [Startup Modes and Health](04_mcp_02_02_startup-modes-and-health.md) — 起動モードとヘルス
-- [Dispatch and Routing](04_mcp_03_01_dispatch-and-routing.md) — ディスパッチとルーティング
-- [Transport and Health](04_mcp_03_03_transport-and-health.md) — Transportとヘルス
-- [Tool Call Tracing and Watchdog](04_mcp_03_04_tool-call-tracing-and-watchdog.md) — ツール呼び出し追跡とウォッチドッグ
-- [Lifecycle and New Server](04_mcp_03_05_lifecycle-and-new-server.md) — ライフサイクル
-- [Configuration File Inventory](04_mcp_06_02_configuration-file-inventory.md) — 設定ファイル一覧
-- [Long-running HTTP Operation Startup Mode/Subprocess](04_mcp_06_05_long-running-http-operation-startup_modesubprocess.md) — HTTP操作起動モード
-- [New MCP Server Addition Checklist](04_mcp_06_15_new-mcp-server-addition-checklist.md) — MCPサーバー追加チェックリスト
+- [MCP System Overview](../04_mcp_01_system_overview.md) — MCPアーキテクチャ概要
+- [Endpoints and Transport](../04_mcp_02_01_endpoints-and-transport.md) — エンドポイントとTransport
+- [Startup Modes and Health](../04_mcp_02_02_startup-modes-and-health.md) — 起動モードとヘルス
+- [Dispatch and Routing](../04_mcp_03_01_dispatch-and-routing.md) — ディスパッチとルーティング
+- [Transport and Health](../04_mcp_03_03_transport-and-health.md) — Transportとヘルス
+- [Tool Call Tracing and Watchdog](../04_mcp_03_04_tool-call-tracing-and-watchdog.md) — ツール呼び出し追跡とウォッチドッグ
+- [Lifecycle and New Server](../04_mcp_03_05_lifecycle-and-new-server.md) — ライフサイクル
+- [Configuration File Inventory](../04_mcp_06_02_configuration-file-inventory.md) — 設定ファイル一覧
+- [Long-running HTTP Operation Startup Mode/Subprocess](../04_mcp_06_05_long-running-http-operation-startup_modesubprocess.md) — HTTP操作起動モード
+- [New MCP Server Addition Checklist](../04_mcp_06_15_new-mcp-server-addition-checklist.md) — MCPサーバー追加チェックリスト
 
 ### Operations
 
-- [MCP Operations](04_mcp_05_7-mcp-operations.md) — MCP運用手順
+<!-- TODO: Document '04_mcp_05_7-mcp-operations.md' was deleted -->
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — MCP既知の問題
+- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — MCP既知の問題
 
 ### Implementation References
 

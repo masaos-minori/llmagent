@@ -92,9 +92,9 @@ result = await dispatch_tool(dispatch_table, name, args)
 ## Related Documents
 
 - `04_mcp_00_document-guide.md`
-- `04_mcp_02_01_endpoints-and-transport.md`
-- `04_mcp_02_02_startup-modes-and-health.md`
-- `00_security_01_architecture-and-trust-boundaries.md` — System architecture / trust boundaries / threat modeling / authentication & authorization / auditing / local vs production / Fail-open/Fail-closed / prompt injection responsibility boundaries
+- `../04_mcp_02_01_endpoints-and-transport.md`
+- `../04_mcp_02_02_startup-modes-and-health.md`
+- `../00_security_01_architecture-and-trust-boundaries.md` — System architecture / trust boundaries / threat modeling / authentication & authorization / auditing / local vs production / Fail-open/Fail-closed / prompt injection responsibility boundaries
 
 ## Keywords
 

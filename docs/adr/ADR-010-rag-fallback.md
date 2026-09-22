@@ -392,14 +392,16 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - [RAG Query Pipeline](03_rag_05_9-rag-query-pipeline.md) — クエリパイプライン
 - [RAG Augment Stage](03_rag_05_10_augment-stage.md) — Augmentステージ
-- [RAG Error Handling Reference](03_rag_05_4-error-handling-reference.md) — エラーハンドリング
-- [Configuration Reference](03_rag_05_1-configuration-reference.md) — 設定参照
-- [RAG Design Notes](03_rag_91_design_notes.md) — DESIGN-1ノート
-- [DB Schema Reference](90_shared_04_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
+- [RAG Error Handling Reference](../03_rag_05_4-error-handling-reference.md) — エラーハンドリング
+- [Configuration Reference](../03_rag_05_1-configuration-reference.md) — 設定参照
+- [RAG Design Notes](../03_rag_91_design_notes.md) — DESIGN-1ノート
+- [DB Schema Reference](../90_shared_04_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
 
 ### Operations
 
-- [RAG Operations](03_rag_05_6-rag-operations.md) — RAG運用手順
+<!-- TODO: Document '03_rag_05_9-rag-query-pipeline.md' was deleted -->
+<!-- TODO: Document '03_rag_05_10_augment-stage.md' was deleted -->
+<!-- TODO: Document '03_rag_05_6-rag-operations.md' was deleted -->
 
 ### Known Issues
 

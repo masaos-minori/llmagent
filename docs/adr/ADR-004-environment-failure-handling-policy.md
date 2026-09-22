@@ -582,13 +582,13 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [Turn Processing Flow](05_agent_03_03_turn-processing-flow-workflow-engine.md) — ワークフロー実行の詳細
-- [Deployment Guide](02_deployment.md) — デプロイメント時のワークフロー検証
+- [Deployment Guide](../02_deployment.md) — デプロイメント時のワークフロー検証
 - [MCP Configuration / Approval / Observability](../05_agent_08_04_configuration-mcp-approval-obs.md#component-criticality-classification) — MCPサーバーの必須／非必須分類記録(Decision Group 3)
+<!-- TODO: Document '05_agent_03_03_turn-processing-flow-workflow-engine.md' was deleted -->
 
 ### Operations
 
-- [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — 障害対応手順
+- [Workflow Deployment Runbook](../05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — 障害対応手順
 
 ### Known Issues
 

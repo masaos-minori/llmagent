@@ -420,12 +420,12 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 
 ### Specifications
 
-- [Configuration Loading](05_agent_08_01_configuration-loading-agent-config.md) — Agent設定読み込みの詳細
-- [MCP Configuration File Inventory](04_mcp_06_02_configuration-file-inventory.md) — MCP設定ファイル一覧
+- [Configuration Loading](../05_agent_08_01_configuration-loading-agent-config.md) — Agent設定読み込みの詳細
+- [MCP Configuration File Inventory](../04_mcp_06_02_configuration-file-inventory.md) — MCP設定ファイル一覧
 
 ### Operations
 
-- [Runtime and Execution - Config and Logging](90_shared_03_01_runtime_and_execution-config-and-logging.md) — ランタイム設定とロギング
+- [Runtime and Execution - Config and Logging](../90_shared_03_01_runtime_and_execution-config-and-logging.md) — ランタイム設定とロギング
 
 ### Known Issues
 

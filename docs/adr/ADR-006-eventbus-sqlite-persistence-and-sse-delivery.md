@@ -493,20 +493,20 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [EventBus System Overview](06_eventbus_01_system-overview.md) — EventBusアーキテクチャ概要
-- [Event Bus Operations](06_eventbus_02_operations.md) — Publish/Replay/Subscribe/ACK/NACK/Health/DLQプロトコル
-- [Persistence Schema and Replay](06_eventbus_03_persistence_schema_and_replay.md) — 永続化スキーマとReplay
-- [DLQ Offsets and Delivery Semantics](06_eventbus_04_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
-- [Configuration and Operations](06_eventbus_05_configuration-and-operations.md) — 設定・バインドアドレス・ヘルスエンドポイント・Consumer ID・配信・DLQ運用
-- [Reference API](06_eventbus_06_reference-api.md) — コアモジュール・ルートハンドラ・Broker/Offsets
+- [EventBus System Overview](../06_eventbus_01_system-overview.md) — EventBusアーキテクチャ概要
+- [Event Bus Operations](../06_eventbus_02_operations.md) — Publish/Replay/Subscribe/ACK/NACK/Health/DLQプロトコル
+- [Persistence Schema and Replay](../06_eventbus_03_persistence_schema_and_replay.md) — 永続化スキーマとReplay
+- [DLQ Offsets and Delivery Semantics](../06_eventbus_04_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
+- [Configuration and Operations](../06_eventbus_05_configuration-and-operations.md) — 設定・バインドアドレス・ヘルスエンドポイント・Consumer ID・配信・DLQ運用
+- [Reference API](../06_eventbus_06_reference-api.md) — コアモジュール・ルートハンドラ・Broker/Offsets
 
 ### Operations
 
-- [EventBus Operations](06_eventbus_05_7-eventbus-operations.md) — EventBus運用手順
+<!-- TODO: Document '06_eventbus_05_7-eventbus-operations.md' was deleted -->
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
+- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
 
 ### Implementation References
 

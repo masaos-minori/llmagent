@@ -454,11 +454,11 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md) — MCP Discovery and Routing
-- [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — Tool Registry Reference
-- [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Availability Metadata
-- [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md) — Agent Tool Execution
-- [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime
+- [04_mcp_03_01_dispatch-and-routing.md](../04_mcp_03_01_dispatch-and-routing.md) — MCP Discovery and Routing
+- [04_mcp_03_02_tool-registry.md](../04_mcp_03_02_tool-registry.md) — Tool Registry Reference
+- [04_mcp_03_06_tool-runtime-availability-metadata.md](../04_mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Availability Metadata
+- [05_agent_06_01_tool-execution-and-approval-execution.md](../05_agent_06_01_tool-execution-and-approval-execution.md) — Agent Tool Execution
+- [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](../90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime
 
 ### Operations
 
@@ -466,7 +466,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — CI-003（Reload実行フロー全体の検証未了）、CI-015（Tool所有権重複検出のテスト未整備）
+- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — CI-003（Reload実行フロー全体の検証未了）、CI-015（Tool所有権重複検出のテスト未整備）
 
 ### Implementation References
 
