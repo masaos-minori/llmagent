@@ -15,6 +15,9 @@ superseded_by: null
 
 # ADR-007: HTTP MCP採用とstdio非サポート
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

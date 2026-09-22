@@ -15,6 +15,9 @@ superseded_by: null
 
 # ADR-010: RAGの外部実行失敗時のインプロセスフォールバック
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

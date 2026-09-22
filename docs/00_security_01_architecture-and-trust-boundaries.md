@@ -23,10 +23,6 @@ related:
   - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - 03_rag_04_02_dto-models_result.md
   - 03_rag_05_2-execution-guide.md
-source:
-  - 00_security_01_architecture-and-trust-boundaries.md
-  - shared/mcp_health.py
-  - agent/startup.py
 ---
 
 # System Security Architecture and Trust Boundaries

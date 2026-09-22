@@ -60,7 +60,7 @@ runtime
 architecture
 lifecycle
 
-# Agent Runtime Architecture (Part 2)
+## Agent Runtime Architecture (Part 2)
 
 - System Overview $\rightarrow$ [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 

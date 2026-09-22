@@ -15,6 +15,9 @@ superseded_by: null
 
 # ADR-002: プロセス単位の設定所有権とConfig Isolation
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

@@ -9,11 +9,12 @@ tags:
 related:
   - 04_mcp_00_document-guide.md
   - 04_mcp_04_01_web-search-file-read-github.md
-source:
-  - scripts/shared/tool_constants.py
 ---
 
 # MCP Tool Ownership Matrix
+
+## Related Documents
+<placeholder>
 
 ## Tool-to-MCP Server Mapping
 

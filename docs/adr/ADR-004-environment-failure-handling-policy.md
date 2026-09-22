@@ -16,6 +16,9 @@ related:
 
 # ADR-004: 環境における障害処理方針
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

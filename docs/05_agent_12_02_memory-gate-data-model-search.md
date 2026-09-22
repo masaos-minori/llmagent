@@ -55,7 +55,7 @@ The memory layer is controlled by three independent gates: complete bypass via a
 - `05_agent_12_02_memory-gate-data-model-search.md`
 
 
-# Memory Layer — Module Reference
+## Memory Layer — Module Reference
 
 - Operations and Observability $\rightarrow$ [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
 - Configuration $\rightarrow$ [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)

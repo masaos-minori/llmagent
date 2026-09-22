@@ -15,6 +15,9 @@ superseded_by: null
 
 # ADR-006: EventBusのSQLite永続化とSSE配信方式
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

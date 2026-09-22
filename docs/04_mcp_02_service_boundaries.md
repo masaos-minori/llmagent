@@ -8,8 +8,6 @@ tags:
 related:
   - 04_mcp_00_document-guide.md
   - 04_mcp_01_tool_ownership_matrix.md
-source:
-  - scripts/shared/tool_constants.py
 ---
 
 # MCP Service Boundaries

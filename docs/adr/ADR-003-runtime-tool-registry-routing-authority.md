@@ -14,6 +14,9 @@ related:
 
 # ADR-003: RuntimeToolRegistryを唯一のルーティング権威とする
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

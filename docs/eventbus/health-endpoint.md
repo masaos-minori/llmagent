@@ -2,6 +2,8 @@
 title: Health Endpoint
 description: GET /health endpoint contract for EventBus service health monitoring
 tags: [api-reference, health, monitoring]
+area: eventbus
+related: []
 created: 20260916
 ---
 

@@ -2,6 +2,8 @@
 title: DLQ Endpoint
 description: DLQ list and requeue endpoint contracts for dead-letter queue management
 tags: [api-reference, dlq, dead-letter]
+area: eventbus
+related: []
 created: 20260916
 ---
 

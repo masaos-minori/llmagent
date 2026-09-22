@@ -13,6 +13,9 @@ related:
 
 # ADR-001: Workflow Engine必須化
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

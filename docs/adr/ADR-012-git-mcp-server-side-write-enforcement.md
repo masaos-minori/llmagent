@@ -12,6 +12,9 @@ related: []
 
 # ADR-012: Git MCP Server-Side Write Enforcement
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

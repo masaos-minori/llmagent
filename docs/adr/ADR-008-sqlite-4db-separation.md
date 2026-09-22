@@ -13,6 +13,9 @@ related:
 
 # ADR-008: SQLiteを4DBへ分離する
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

@@ -14,10 +14,13 @@ related:
   - 06_eventbus_02_operations.md
   - 06_eventbus_05_configuration-and-operations.md
 source:
-  - index.md
+  - 00_index.md
 ---
 
 # Event Bus: System Overview
+
+## Keywords
+<placeholder>
 
 ## Purpose
 

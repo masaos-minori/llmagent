@@ -58,7 +58,7 @@ None
 - `05_agent_12_01_memory-overview-and-modes.md`
 
 
-# Memory Layer — Overview and Modes (Part 2)
+## Memory Layer — Overview and Modes (Part 2)
 
 - Operations and Observability $\rightarrow$ [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
 - Configuration $\rightarrow$ [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)

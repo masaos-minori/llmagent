@@ -131,7 +131,7 @@ Full details: [04_mcp_03_01_dispatch-and-routing.md Reliable source of routing i
 
 ---
 
-# Agent Reference API — Part 2
+## Agent Reference API — Part 2
 
 ## Purpose
 

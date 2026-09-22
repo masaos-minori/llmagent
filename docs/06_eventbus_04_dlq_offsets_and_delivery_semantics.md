@@ -15,10 +15,13 @@ related:
   - 06_eventbus_02_operations.md
   - 06_eventbus_03_persistence_schema_and_replay.md
 source:
-  - index.md
+  - 00_index.md
 ---
 
 # Event Bus: DLQ, Offsets, and Delivery Semantics
+
+## Keywords
+<placeholder>
 
 ## Consumer Identity
 

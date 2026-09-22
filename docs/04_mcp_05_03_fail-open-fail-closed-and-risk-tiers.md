@@ -15,6 +15,11 @@ related:
   - 00_security_02_high-risk-tool-common-policy.md
 ---
 
+# MCP Security and Safety Model: Fail-Open vs Fail-Closed Summary, Dry-Run, Risk Tiers and AI Notes
+
+## Keywords
+<placeholder>
+
 ## Fail-Open vs Fail-Closed Summary
 
 | Control | Policy | Behavior if Empty/Not Set |

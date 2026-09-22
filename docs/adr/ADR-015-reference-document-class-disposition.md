@@ -11,6 +11,9 @@ related:
 
 # ADR-015: Reference Document Class Disposition
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

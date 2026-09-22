@@ -12,7 +12,7 @@ tags:
 related:
   - 01_overview-arch-01-process.md
   - 01_overview-arch-02-pipelines.md
-  - [01_overview.md](01_overview.md)
+  - 01_overview.md
 ---
 
 # Overview & Architecture

@@ -15,10 +15,16 @@ related:
   - 06_eventbus_02_operations.md
   - 06_eventbus_04_dlq_offsets_and_delivery_semantics.md
 source:
-  - index.md
+  - 00_index.md
 ---
 
 # Event Bus: Persistence, Schema, and Replay
+
+## Keywords
+<placeholder>
+
+## Related Documents
+<placeholder>
 
 ## SQLite Database
 

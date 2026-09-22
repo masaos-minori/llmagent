@@ -14,6 +14,9 @@ related:
 
 # ADR-013: EventBus Authentication and Authorization
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

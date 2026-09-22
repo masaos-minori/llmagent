@@ -15,6 +15,9 @@ superseded_by: null
 
 # ADR-009: RAGのFTS5検索用テキストとLLM提示用テキスト分離
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

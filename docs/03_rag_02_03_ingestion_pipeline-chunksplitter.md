@@ -22,7 +22,7 @@ source:
 ---
 
 
-# RAG Ingestion Pipeline
+## RAG Ingestion Pipeline
 
 - System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
 - Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)

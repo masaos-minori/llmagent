@@ -15,6 +15,9 @@ superseded_by: null
 
 # ADR-005: RAGの正本と派生インデックスの関係
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted

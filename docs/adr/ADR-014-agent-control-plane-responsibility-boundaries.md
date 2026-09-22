@@ -13,6 +13,9 @@ related:
 
 # ADR-014: Agent制御プレーンの責任境界
 
+## Keywords
+<placeholder>
+
 ## Status
 
 Accepted
