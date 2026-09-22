@@ -10,6 +10,12 @@ related:
 ---
 # Agent Reference API — Part 1
 
+## Keywords
+<placeholder>
+
+## Related Documents
+<placeholder>
+
 ## Purpose
 
 A concise per-module API reference including roles, primary public APIs, callers, callees, relevant configurations, and failure behavior. For full method signatures, refer to the respective chapters linked below.

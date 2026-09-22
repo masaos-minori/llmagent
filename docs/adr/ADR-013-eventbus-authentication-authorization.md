@@ -8,8 +8,8 @@ tags:
 decision_scope:
   - eventbus/api
 related:
-  - ADR-002
-  - ADR-006
+  - ADR-002-config-isolation.md
+  - ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md
 ---
 
 # ADR-013: EventBus Authentication and Authorization

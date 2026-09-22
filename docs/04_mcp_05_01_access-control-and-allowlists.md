@@ -12,8 +12,13 @@ related:
   - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - 04_mcp_05_04_mdq-rag-boundary.md
   - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
-  - 00_security_02_high-risk-tool-common-policy.md — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
+  - 00_security_02_high-risk-tool-common-policy.md
 ---
+
+# MCP Security and Safety Model: Access Control, Paths, Repos and Allowlists
+
+## Keywords
+<placeholder>
 
 ## config/github_mcp_server.toml
 

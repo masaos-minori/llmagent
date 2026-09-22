@@ -8,7 +8,7 @@ tags:
 decision_scope:
   - system
 related:
-  - ADR-002
+  - ADR-002-config-isolation.md
 ---
 
 # ADR-008: SQLiteを4DBへ分離する

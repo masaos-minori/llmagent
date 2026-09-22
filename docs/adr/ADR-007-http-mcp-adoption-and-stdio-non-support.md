@@ -8,7 +8,7 @@ tags:
 decision_scope:
   - mcp
 related:
-  - ADR-002
+  - ADR-002-config-isolation.md
 supersedes: []
 superseded_by: null
 ---
