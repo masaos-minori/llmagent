@@ -8,8 +8,8 @@ tags:
 decision_scope:
   - system
 related:
-  - ADR-001
-  - ADR-002
+  - ADR-001-workflow-engine-mandatory.md
+  - ADR-002-config-isolation.md
 ---
 
 # ADR-003: RuntimeToolRegistryを唯一のルーティング権威とする

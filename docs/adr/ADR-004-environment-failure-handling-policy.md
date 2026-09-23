@@ -8,10 +8,10 @@ tags:
 decision_scope:
   - system
 related:
-  - ADR-001
-  - ADR-002
-  - ADR-003
-  - ADR-010
+  - ADR-001-workflow-engine-mandatory.md
+  - ADR-002-config-isolation.md
+  - ADR-003-runtime-tool-registry-routing-authority.md
+  - ADR-010-rag-fallback.md
 ---
 
 # ADR-004: 環境における障害処理方針

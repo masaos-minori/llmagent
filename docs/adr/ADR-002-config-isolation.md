@@ -8,7 +8,7 @@ tags:
 decision_scope:
   - system
 related:
-  - ADR-001
+  - ADR-001-workflow-engine-mandatory.md
 supersedes: []
 superseded_by: null
 ---
