@@ -4,6 +4,7 @@ HTTP augment for RAG pipeline."""
 
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
@@ -15,15 +16,18 @@ if TYPE_CHECKING:
 from rag.models_result import HttpResultKind
 from rag.stage import PipelineContext, StageResult
 
+logger = logging.getLogger(__name__)
+
 _HTTP_RESULT_KIND_MAP: dict[str, HttpResultKind] = {
     "remote_nonempty": HttpResultKind.SUCCESS,
     "remote_empty": HttpResultKind.EMPTY,
     "in_process_fallback": HttpResultKind.ERROR,
+    "auth_error": HttpResultKind.AUTH_ERROR,
 }
 
 
 def _map_http_result_kind(
-    kind: Literal["remote_nonempty", "remote_empty", "in_process_fallback"]
+    kind: Literal["remote_nonempty", "remote_empty", "in_process_fallback", "auth_error"]
     | str
     | None,
 ) -> HttpResultKind:
@@ -41,7 +45,7 @@ class HttpAugmentResult:
         status_code: int | None,
         latency_ms: float,
         http_result_kind: Literal[
-            "remote_nonempty", "remote_empty", "in_process_fallback"
+            "remote_nonempty", "remote_empty", "in_process_fallback", "auth_error"
         ],
     ) -> None:
         """Initialize with result content, HTTP status, latency, and kind classification."""
@@ -124,7 +128,7 @@ class HttpAugment:
             fallback_reason=(http_fallback_reason if result is None else None),
         )
         self._http_result_kind: Literal[
-            "remote_nonempty", "remote_empty", "in_process_fallback"
+            "remote_nonempty", "remote_empty", "in_process_fallback", "auth_error"
         ] = (
             "remote_nonempty"
             if result and len(result) > 0
@@ -133,7 +137,13 @@ class HttpAugment:
             else "in_process_fallback"
         )
         if result is None:
-            self._set_fallback_reason(http_fallback_reason)
+            if status_code in (401, 403):
+                logger.warning(
+                    "RAG service authentication error (%s), NOT falling back to in-process",
+                    self._rag_url,
+                )
+            else:
+                self._set_fallback_reason(http_fallback_reason)
         return HttpAugmentResult(
             result=result,
             status_code=status_code,
@@ -149,6 +159,6 @@ class HttpAugment:
     @property
     def http_result_kind(
         self,
-    ) -> Literal["remote_nonempty", "remote_empty", "in_process_fallback"] | None:
+    ) -> Literal["remote_nonempty", "remote_empty", "in_process_fallback", "auth_error"] | None:
         """Return the HTTP result kind."""
         return getattr(self, "_http_result_kind", None)

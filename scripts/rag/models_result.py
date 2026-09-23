@@ -33,6 +33,7 @@ class HttpResultKind(StrEnum):
     EMPTY = "empty"
     ERROR = "error"
     NOT_USED = "not_used"
+    AUTH_ERROR = "auth_error"
 
 
 @dataclass(frozen=True)

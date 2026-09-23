@@ -149,6 +149,16 @@ async def call_rag_service(
                 _set_fetch_result(set_fetch_result, selected_hits)
             return result_raw, status_code, elapsed_ms
         except httpx.HTTPStatusError as e:
+            if e.response.status_code in (401, 403):
+                logger.warning(
+                    "RAG service authentication error (%s) %s, NOT falling back to in-process",
+                    rag_url,
+                    e,
+                )
+                _set_fallback_reason(
+                    set_fallback_reason, f"http_auth_error: {e.response.status_code}"
+                )
+                return None, e.response.status_code, 0.0
             if e.response.status_code < 500:
                 logger.warning(
                     "RAG service client error (%s) %s, falling back to in-process",

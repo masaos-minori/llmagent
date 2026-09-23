@@ -272,3 +272,74 @@ class TestReturnedStatusCode:
                 set_fetch_result=_noop_fetch,
             )
         assert status == 400
+
+
+# ── 401/403 authentication error handling ──────────────────────────────────────
+
+
+class TestAuthErrorHandling:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_401_no_fallback(self) -> None:
+        reasons: list[str] = []
+        route = respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(401, content=b'{"error": "unauthorized"}')
+        )
+        async with httpx.AsyncClient() as client:
+            result, status, _ = await call_rag_service(
+                client,
+                RAG_URL,
+                "q",
+                "",
+                set_fetch_result=_noop_fetch,
+                set_fallback_reason=reasons.append,
+            )
+        assert result is None
+        assert status == 401
+        assert route.call_count == 1
+        assert len(reasons) == 1
+        assert reasons[0].startswith("http_auth_error:")
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_403_no_fallback(self) -> None:
+        reasons: list[str] = []
+        route = respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(403, content=b'{"error": "forbidden"}')
+        )
+        async with httpx.AsyncClient() as client:
+            result, status, _ = await call_rag_service(
+                client,
+                RAG_URL,
+                "q",
+                "",
+                set_fetch_result=_noop_fetch,
+                set_fallback_reason=reasons.append,
+            )
+        assert result is None
+        assert status == 403
+        assert route.call_count == 1
+        assert len(reasons) == 1
+        assert reasons[0].startswith("http_auth_error:")
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_400_still_triggers_fallback(self) -> None:
+        reasons: list[str] = []
+        route = respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(400, content=b'{"error": "bad request"}')
+        )
+        async with httpx.AsyncClient() as client:
+            result, status, _ = await call_rag_service(
+                client,
+                RAG_URL,
+                "q",
+                "",
+                set_fetch_result=_noop_fetch,
+                set_fallback_reason=reasons.append,
+            )
+        assert result is None
+        assert status == 400
+        assert route.call_count == 1
+        assert len(reasons) == 1
+        assert reasons[0].startswith("http_client_error:")
