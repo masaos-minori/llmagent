@@ -139,6 +139,7 @@ EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
         # 05_agent_13_reference-api.md
         "05_agent_13_reference-api.md:'Design Intent' <-> 'Design Intent'",
         "05_agent_13_reference-api.md:'Key Constraints' <-> 'Key Constraints'",
+        "05_agent_13_reference-api.md:'Keywords' <-> 'Related Documents'",
         "05_agent_13_reference-api.md:'Operational Notes' <-> 'Operational Notes'",
         "05_agent_13_reference-api.md:'Related Docs' <-> 'Related Docs'",
         "05_agent_13_reference-api.md:'Responsibility Boundary' <-> 'Responsibility Boundary'",
