@@ -246,3 +246,9 @@ Returned when `event_id` or `consumer_id` is missing.
 curl -X POST -H "Authorization: Bearer ${CONSUMER_TOKEN}" \
   "http://localhost:8080/nack?event_id=evt-abc&consumer_id=worker-1"
 ```
+
+## Related Documents
+<placeholder>
+
+## Keywords
+<placeholder>

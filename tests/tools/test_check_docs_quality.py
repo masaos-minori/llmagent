@@ -251,9 +251,15 @@ EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
         "eventbus/ack-nack-endpoints.md:'Bad Request Responses' <-> 'Bad Request Responses'",
         "eventbus/ack-nack-endpoints.md:'Forbidden Response' <-> 'Forbidden Response'",
         "eventbus/ack-nack-endpoints.md:'Not Found Response' <-> 'Not Found Response'",
+        "eventbus/ack-nack-endpoints.md:'Related Documents' <-> 'Keywords'",
         "eventbus/ack-nack-endpoints.md:'Success Response' <-> 'Success Response'",
         # eventbus/dlq-endpoint.md
+        "eventbus/dlq-endpoint.md:'Related Documents' <-> 'Keywords'",
         "eventbus/dlq-endpoint.md:'Success Response' <-> 'Success Response'",
+        # eventbus/health-endpoint.md
+        "eventbus/health-endpoint.md:'Related Documents' <-> 'Keywords'",
+        # eventbus/replay-endpoint.md
+        "eventbus/replay-endpoint.md:'Related Documents' <-> 'Keywords'",
     ]
 )
 

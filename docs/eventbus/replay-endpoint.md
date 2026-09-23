@@ -119,3 +119,9 @@ Response:
   ]
 }
 ```
+
+## Related Documents
+<placeholder>
+
+## Keywords
+<placeholder>
