@@ -122,10 +122,10 @@ Run `uv run python tools/check_docs_structure.py "docs/**/*.md"` — expect zero
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260923-125248 | 20260923-125248 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260923-125248 | 20260923-125248 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260923-125248 | 20260923-125248 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260923-125248 | 20260923-125248 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
