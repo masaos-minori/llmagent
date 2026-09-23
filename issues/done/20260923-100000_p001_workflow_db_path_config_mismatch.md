@@ -18,18 +18,18 @@ High
 ## Implementation Intent
 1. `docs/02_deployment.md` の本文（227行目付近）で、`workflow_db_path` が `agent.toml` に存在しない理由を明記する
 2. 自動生成テーブル（277行目付近）の表示を改善し、「No (Python-level default)」から「No — falls back to DbConfig default」など、より明確な表現に変更する
-3. 自動生成スクリプト `tools/gen_deployment_reference.py` の出力ロジックを確認し、Python-level default のケースでも明確に表示されるようにする
+3. 自動生成スクリプト `tools/generate_reference_table.py --type deployment` の出力ロジックを確認し、Python-level default のケースでも明確に表示されるようにする
 
 ## Target Files or Areas
 - `docs/02_deployment.md`
 - `scripts/db/config.py`
 - `config/agent.toml`
-- `tools/gen_deployment_reference.py`
+- `tools/generate_reference_table.py --type deployment`
 
 ## Required Changes
 - `docs/02_deployment.md:227` で `workflow_db_path` が `agent.toml` に存在しない旨を明記
 - `docs/02_deployment.md:277` の自動生成テーブルの表示を改善
-- 必要に応じて `tools/gen_deployment_reference.py` の出力ロジックを修正
+- 必要に応じて `tools/generate_reference_table.py --type deployment` の出力ロジックを修正
 
 ## Constraints
 - Pythonレベルのデフォルト値の動作を変更してはならない
@@ -61,7 +61,7 @@ High
 ## AI Implementation Instruction
 - `docs/02_deployment.md` の本文と自動生成テーブルの両方を修正する
 - Pythonレベルのデフォルト値の動作を変更しない
-- 自動生成テーブルの表示を改善するには `tools/gen_deployment_reference.py` のロジック変更が必要な場合がある
+- 自動生成テーブルの表示を改善するには `tools/generate_reference_table.py --type deployment` のロジック変更が必要な場合がある
 
 ## Traceability
 - **Workflow phase**: issue-creator
@@ -70,4 +70,4 @@ High
 - **Source plan**: N/A: not filed from a Plan
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20260923-100000
-- **Related target files**: docs/02_deployment.md, scripts/db/config.py, config/agent.toml, tools/gen_deployment_reference.py
+- **Related target files**: docs/02_deployment.md, scripts/db/config.py, config/agent.toml, tools/generate_reference_table.py --type deployment

@@ -266,8 +266,8 @@ Regarding why these deployment requirements are mandatory (design decisions for 
 
 ### DB Path Reference (auto-generated)
 
-<!-- AUTO-GENERATED: gen_deployment_reference.py db-path-reference -->
-Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit between the guard comments; run `python tools/gen_deployment_reference.py` to refresh.
+<!-- AUTO-GENERATED: generate_reference_table.py db-path-reference -->
+Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type deployment` to refresh.
 
 | DB | Default path | Config key | Set in `agent.toml`? |
 |---|---|---|---|

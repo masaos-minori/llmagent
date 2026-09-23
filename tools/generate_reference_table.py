@@ -52,7 +52,7 @@ CONFIG_PATHS = [
 GUARD_START_MCP = "<!-- AUTO-GENERATED: gen_mcp_reference.py port-tool-reference -->"
 GUARD_END = "<!-- END AUTO-GENERATED -->"
 GUARD_START_DEPLOYMENT = (
-    "<!-- AUTO-GENERATED: gen_deployment_reference.py db-path-reference -->"
+    "<!-- AUTO-GENERATED: generate_reference_table.py db-path-reference -->"
 )
 GUARD_START_AGENT = (
     "<!-- AUTO-GENERATED: gen_agent_reference.py class-function-reference -->"
