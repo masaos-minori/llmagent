@@ -104,15 +104,6 @@ them, are preserved here rather than lost:
 
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
-#### RAG-003
-
-RAG-003 ("Unresolved usage status of `RegisteredDocument` DTO") was resolved and removed from this active inventory 2026-09-14. Confirmed by direct code inspection while drafting `issues/done/20260914-105211_ragsvc02_unused-dto-and-config-dataclasses.md`: `grep -n "^class " scripts/rag/models_data.py` lists `EmbeddingResponse`, `ChunkDocument`, `CrawlDocument`, `ChunkRecord`, `PreparedChunk`, `TwoStageFetchResult` — no `RegisteredDocument` class exists anywhere in this file, and a repository-wide `grep -rn "class RegisteredDocument" scripts/` finds no definition anywhere. The class this entry's "unresolved usage status" question was about no longer exists — the entry's underlying question (required future component vs. removable dead code) is moot, since removal has already happened by some other change. Its absence from the active list is the correct, policy-compliant state — do not create a `#### RAG-003` heading.
-
-#### RAG-004
-
-RAG-004 ("Unresolved usage status of `models_config.py` configuration dataclasses") was resolved and removed from this active inventory 2026-09-14. Confirmed by direct code inspection while drafting `issues/done/20260914-105211_ragsvc02_unused-dto-and-config-dataclasses.md`: `grep -n "^class " scripts/rag/models_config.py` lists only `RagConfigImpl` — none of `MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, or `PipelineConfig` exist anywhere in this file, and a repository-wide `grep -rn "class {Name}" scripts/` for each of the seven finds no definition anywhere. The classes this entry's "unresolved usage status" question was about no longer exist — the entry's underlying question is moot, since removal has already happened by some other change. Its absence from the active list is the correct, policy-compliant state — do not create a `#### RAG-004` heading.
-
-**RAG-005**: Resolved. sqlite-vec lacks FK constraints — `chunks_vec` has no foreign key pointing to `chunks`; mitigation enforced via deletion ordering (`chunks_vec` deleted before `documents`) confirmed in `scripts/rag/ingestion/document_manager.py::delete_document_chain()` (confirmed: lines 19-35). This limitation is documented in `docs/adr/ADR-005-rag-source-derived-index-relationships.md`'s Known Deviations section (lines 342-350). Its absence from the active list is the correct, policy-compliant state — do not create a `#### RAG-005` heading.
 
 #### RAG-006
 
@@ -136,7 +127,6 @@ RAG-004 ("Unresolved usage status of `models_config.py` configuration dataclasse
 
 **Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
 
-DESIGN-1 ("External RAG and local RAG corpus difference not documented") was resolved and removed from this active inventory 2026-09-14. Both documentation updates required by the source Issue (`issues/20260914-112416_ragsvc04_execution-mode-shared-corpus-doc.md`) are complete: (1) a shared-corpus note was added to `docs/03_rag_01_system_overview.md` stating that external/local RAG modes share one corpus by configuration convention (not an enforced invariant), citing both `config/agent.toml` and `config/rag_pipeline_mcp_server.toml`; (2) `docs/adr/ADR-010-rag-fallback.md`'s "Data Ownership and Persistence" `System of Record` line was reworded to describe one shared `rag.sqlite` file accessed via two execution paths, not two independent systems of record. Its absence from the active list is the correct, policy-compliant state — do not create a `#### DESIGN-1` heading.
 
 #### DESIGN-2
 
@@ -158,9 +148,7 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Recommended Action**: Add a lint rule or test that scans for direct `chunks_fts` references outside the FTS wrapper, or add integration tests that verify all FTS operations go through the wrapper.
 - **Resolution Target**: Next RAG architecture review
 
-**EVENTBUS-001**: Resolved. Collision detection via `ValueError` on duplicate offsets was implemented in `scripts/eventbus/db.py::migrate_legacy_offsets()` (confirmed: lines 578-656). Legacy migration only — the live ACK path is unaffected. Its absence from the active list is the correct, policy-compliant state — do not create a `#### EVENTBUS-001` heading.
 
-**EVENTBUS-002**: Resolved. Resolution confirmed by `docs/eventbus/03_replay_operations.md` (JSON response schema `{total, limit, offset, items}` confirmed: lines 44-66). Its absence from the active list is the correct, policy-compliant state — do not create a `#### EVENTBUS-002` heading.
 
 #### EVENTBUS-005
 
@@ -222,48 +210,12 @@ DESIGN-1 ("External RAG and local RAG corpus difference not documented") was res
 - **Recommended Action**: Implement Agent topic management when this integration is prioritized.
 - **Resolution Target**: Next EventBus architecture review
 
-#### EVENTBUS-008
 
-EVENTBUS-008 ("No Production Authentication Model for Event Bus HTTP API") was resolved 2026-09-14 and removed from this active inventory. Confirmed by direct code inspection: `scripts/eventbus/app.py` calls `attach_auth_middleware(app)`, and every route requires `Depends(require_role(...))`; the ACK/NACK/subscribe endpoints additionally require `Depends(require_consumer_identity)`, which validates the caller's bearer token and, when configured, a `consumer_id` allowlist. The entry's original claim ("no authentication middleware is implemented") no longer matches the code. Its absence from the active list is the correct, policy-compliant state — do not create a `#### EVENTBUS-008` heading. A narrower residual gap found during this same review — a token with no configured `consumer_id` allowlist entry has consumer-identity validation skipped (fail-open) — is tracked separately in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`, not under this entry.
-
-#### SHARED-001
-
-SHARED-001 was fully resolved this cycle; its content was transferred to SHARED-002 and SHARED-003, both since independently resolved and removed from this active inventory in turn. Its absence from the active list is the correct, policy-compliant state — do not create a `#### SHARED-001` heading.
-
-#### CI-001
-
-CI-001 ("EventBus process reads configuration directly instead of using ConfigLoader") was resolved and removed from this active inventory 2026-09-15. Confirmed by code inspection: `scripts/eventbus/config.py` now uses `ConfigLoader.load()` instead of direct `tomllib.load()`, preserving all EventBus-specific validation logic in `__post_init__` and `load_config()`. The migration was verified by tests confirming all existing validation error cases produce equivalent errors through the ConfigLoader path. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-001` heading.
-
-**CI-003**: Resolved. Resolution confirmed by `tests/agent/services/test_config_reload.py::test_apply_config_dict_exercises_real_registry_and_no_discovery_call` (confirmed: line 480). Re-evaluate if `mcpagent04` support is added. With the introduction of `llm_visibility_base` as an immutable discovery-time visibility field (REQ-001), the config reload path must also respect this field — a new Known Issue has been filed under REQ-001 to track this discrepancy. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-003` heading.
-
-CI-002 ("former-ADR-011 INV-01/INV-02 production/local recovery distinction — stale reference") was resolved and removed from this active inventory 2026-09-09. Confirmed by direct code inspection while drafting issues/done/20260909-192919_ci002_remove_placeholder.md: investigated against all three tracked ADR-011 revisions and current ADR-008 text, and the cited INV-01/INV-02 pair was found to have never existed; recover_corruption()'s lack of a production/local distinction was confirmed as correct, intended behavior, not a gap; removed 2026-09-09 with no further action required. Its absence from the active list is the correct, policy-compliant state — do not create a #### CI-002 heading.
-
-#### CI-004
-
-CI-004 ("ADR-010 INV-02 — in-process fallback potentially triggered on non-transport errors") was resolved and removed from this active inventory 2026-09-14. This entry's own premise did not match `ADR-010`'s actual text: confirmed by direct reading of `docs/adr/ADR-010-rag-fallback.md`, no invariant states fallback should occur "ONLY on transport errors" — `ADR-010`'s actual INV-02 is "HTTP呼び出しは`timeout=10.0`で各試行を制御する" (unrelated to fallback-trigger classification). The governing Decision Details are #4 ("HTTPエラー（401, 403, 4xx, 5xx）と空結果（""）を区別する") and #6 ("技術的失敗（タイムアウト、接続エラー、HTTPエラー）のみをフォールバック条件とする"), restated as INV-04 — both explicitly classify HTTP errors (4xx included) as a technical failure that *should* trigger fallback, not an exception to it. `scripts/rag/pipeline_service.py::call_rag_service()`'s 4xx-triggers-fallback behavior is exactly this intended design, and is locked in by existing tests (`tests/rag/test_rag_pipeline_service.py::test_4xx_returns_none_no_retry`, `::test_4xx_calls_set_fallback_reason`) that assert 4xx-triggers-fallback as the correct outcome, not a bug. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-004` heading.
 
 A narrower, genuine discrepancy was found during this same re-verification and is *not* covered by the above: `ADR-010` Decision #9 ("解析エラーはログに記録し、空結果として扱う" — a parse error should be logged and treated as an empty result, i.e. `""`, not a fallback trigger) does not match `call_rag_service()`'s actual `ValueError` handling, which returns `None` (triggering fallback) rather than `""` — also locked in by an existing test (`tests/rag/test_rag_pipeline_service.py::test_json_parse_error_calls_set_fallback_reason`). Whether this reflects an intentional, undocumented refinement of Decision #9, or an actual deviation from it, was not resolved during this correction pass and is out of scope for closing CI-004 — file a new, narrowly-scoped Known Issue or Needs Confirmation entry for this specific Decision #9 vs. `ValueError`-handling question if it is to be tracked.
 
-#### CI-005
-
-CI-005 ("ADR-004 INV-03 — fail-closed for missing config not implemented") was resolved and removed from this active inventory 2026-09-14. Confirmed by direct code inspection: this entry's `Source` field cited a non-existent `scripts/shared/config_loader.py::load_config()` — the actual `load_config()` (`scripts/agent/config_builders.py`) calls `ConfigLoader().load_all()`, whose `strict` parameter already defaults to `True` (`scripts/shared/config_loader.py`), and `_REQUIRED_CONFIG_FILES` includes `agent.toml`. `ConfigMissingError` is a `ValueError` subclass, so it is caught by `load_config()`'s own exception handler and re-raised as `ConfigLoadError` — a missing required config file already fails closed. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-005` heading. `ConfigLoader.load_all()`'s docstring previously contradicted its actual `strict: bool = True` default ("If False (default), missing files are skipped") — corrected 2026-09-14.
-
 **EventBus-specific verification (REQ-006)**: Verified by configuration test confirming `ConfigMissingError` is raised when a required config file is missing. The EventBus `load_config()` function (`scripts/eventbus/config.py`) validates required keys via `_REQUIRED_CONFIG_KEYS` and raises `ValueError` for missing keys — consistent with the fail-closed behavior described in CI-005.
 
-#### CI-006
-
-CI-006 ("ADR-004 Decision Details #4 — local safety-related fail-closed behavior not verified") was resolved and removed from this active inventory 2026-09-14 — not by verifying the local-mode behavior it asked about, but because the premise no longer applies: `docs/adr/ADR-004-environment-failure-handling-policy.md`'s own 2026-09-04 revision record states `SecurityProfile.LOCAL` was fully abolished and production-grade validation made unconditional for every normal startup. Confirmed by direct code inspection: `scripts/shared/mcp_config.py`'s `SecurityProfile` enum now defines only `PRODUCTION`, and `security_profile: SecurityProfile = SecurityProfile.PRODUCTION` is the sole default in `scripts/agent/config_dataclasses.py` — there is no local/production branch left in which safety checks could fail open. Its absence from the active list is the correct, policy-compliant state — do not create a `#### CI-006` heading.
-
-CI-007 ("ADR-009 INV-09 — FTS5 rebuild rules not verified") was resolved 2026-09-20.
-INV-07's trigger-vs-manual-rebuild text selection confirmed identical by direct code
-reading (both apply `COALESCE(normalized_content, content)`). The previously-named
-INV-07 test was non-functional and has been rewritten to exercise the real
-`RagMaintenanceService.rebuild_fts()`
-(`tests/rag/test_fts_sync.py::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`).
-INV-09's behavior documented in ADR-009. DESIGN-2 now has a static-analysis guard
-(`tests/rag/test_fts_sync.py::test_no_unsanctioned_direct_chunks_fts_write`). Resolved
-per `plans/done/20260920-203952_plan.md`. Its absence from the active list is the
-correct, policy-compliant state — do not create a `#### CI-007` heading.
 - **Resolution Target**: Next RAG architecture review
 
 #### CI-008
@@ -488,25 +440,7 @@ Note on CI-008 through CI-016 batching: These nine structurally identical "ADR i
 - **Recommended Action**: Decide whether to unify `RagRerankError`/`RagPipelineError`/`RagExpansionError` under `RagLayerError` in a dedicated cross-cutting refactor, or document the split as an accepted permanent exception via ADR.
 - **Resolution Target**: Next RAG exception-hierarchy refactor or ADR decision
 
-REQ-001 ("Immutable discovery-time visibility field (`llm_visibility_base`) not
-enforced during config reload") was resolved 2026-09-20. Enforcement was implemented
-in commit `520c9b39f9` (2026-09-17), three days before this entry was filed.
-Regression coverage added by
-`tests/shared/test_runtime_tool_registry.py::test_apply_policy_keeps_hidden_tool_disabled_when_allowed`
-and `::test_apply_policy_logs_warning_when_hidden_tool_would_otherwise_be_enabled`; a
-diagnostic warning log added to
-`scripts/shared/runtime_tool_registry.py::apply_policy()`. Resolved per
-`plans/done/20260920-203022_plan.md`. Its absence from the active list is the correct,
-policy-compliant state — do not create a `#### REQ-001` heading.
 
-REQ-002 ("Atomic registry swap invariant not verified during config reload") was
-resolved 2026-09-20. The build-then-swap structure providing rollback-on-failure and
-atomic-swap-to-concurrent-readers was already implemented in commit `520c9b39f9`
-(2026-09-17). Regression coverage added by
-`tests/shared/test_runtime_tool_registry.py::test_apply_policy_leaves_tools_unchanged_when_build_raises`
-and `::test_apply_policy_swap_never_exposes_mixed_state_to_concurrent_reader`.
-Resolved per `plans/done/20260920-203342_plan.md`. Its absence from the active list is
-the correct, policy-compliant state — do not create a `#### REQ-002` heading.
 
 #### REQ-003
 
@@ -575,10 +509,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Related NC**: None
 - **Resolution Target**: Confirm whether `_classify_error()` should be extended to produce `INVALID_FORMAT` cases, or whether the enum value and its dispatch branch should be removed as dead code.
 - **Blocking**: No
-
-#### NC-022
-
-NC-022 ("Are `RAG → EventBus`, `MCP → EventBus`, and `Agent → EventBus` unimplemented design intent, or a documentation error?") was resolved by owner review 2026-09-14: confirmed as intended future integrations (design intent), not a documentation error — the edges are retained in `docs/00_governance_01_documentation-policy.md`'s Software Runtime Dependency Graph under a new "Planned (design intent, not yet implemented)" category rather than "Needs Confirmation." Removed from this active inventory. Its absence from the active list is the correct, policy-compliant state — do not create a `#### NC-022` heading.
 
 #### NC-023
 
@@ -704,10 +634,6 @@ NC-022 ("Are `RAG → EventBus`, `MCP → EventBus`, and `Agent → EventBus` un
 - **Resolution Target**: Next language-detection logic review
 - **Blocking**: No
 
-#### NC-030
-
-NC-030 ("Should `adr` and `security` be permanent `area` enum values, or folded into an existing area?") was resolved by owner review 2026-09-14: folded into `governance` rather than kept as independent values. All 12 `docs/adr/*.md` files and both `docs/00_security_*.md` files had their `area:` front matter migrated from `adr`/`security` to `governance`; `00_governance_02_documentation-metadata.md`'s `area` enum was updated to the original 8 values accordingly. Removed from this active inventory. Its absence from the active list is the correct, policy-compliant state — do not create a `#### NC-030` heading.
-
 #### NC-031
 
 - **Source File**: `00_governance_02_documentation-metadata.md`
@@ -816,23 +742,6 @@ NC-030 ("Should `adr` and `security` be permanent `area` enum values, or folded 
 - **Priority**: Low
 - **Related NC**: None
 - **Resolution Target**: Next Agent/MCP health-check design review
-- **Blocking**: No
-
-#### NC-038
-
-- **Source File**: `docs/adr/ADR-015-reference-document-class-disposition.md`
-- **Section**: Implementation Notes (Memory Reference-class migration candidates)
-- **Line Number**: ~113 (pre-reclassification; now a cross-reference to this entry)
-- **Question**: Which of the 6 candidate `docs/05_agent_12_*.md` chapter files (or how many) is/are the correct target for Memory-layer Reference-class migration under Option B?
-- **Evidence**: `plans/done/20260919-105034_plan.md`'s own Unknowns table (`UNK-01`) and Execution Status (Step 4, still `In Progress`) confirm this is genuinely unresolved — `generate_memory_reference_table()` has not yet been added.
-- **Impact**: The Memory Reference-class migration (Steps 2/3 of that Plan already completed for Agent/EventBus) cannot proceed until the target document(s) are confirmed.
-- **Required Action**: Confirm target document(s) for `generate_memory_reference_table()`, per `plans/done/20260919-105034_plan.md` Step 4.
-- **Status**: resolved
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-20
-- **Priority**: Medium
-- **Related NC**: None
-- **Resolution Target**: Completion of `plans/done/20260919-105034_plan.md` Step 4
 - **Blocking**: No
 
 #### NC-039
