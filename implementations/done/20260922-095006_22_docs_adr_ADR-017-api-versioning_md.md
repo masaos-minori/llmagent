@@ -108,10 +108,10 @@ Run `uv run python tools/check_docs_structure.py "docs/**/*.md"` — expect zero
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Blocked | 20260922-182018 | 20260922-182018 | Target file docs/adr/20260922-095006_22ADR-017-api-versioning.md does not exist |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260923-115213 | 20260923-115213 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260923-115213 | 20260923-115213 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260923-115213 | 20260923-115213 | Target file docs/adr/20260922-095006_22ADR-017-api-versioning.md does not exist |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260923-115213 | 20260923-115213 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

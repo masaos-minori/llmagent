@@ -108,10 +108,10 @@ Run `uv run python tools/check_docs_structure.py "docs/**/*.md"` — expect zero
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Blocked | 20260922-181612 | 20260922-181612 | Target file docs/adr/ADR-011-mcp-server-lifecycle.md does not exist (merged into ADR-008) |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260923-112853 | 20260923-112853 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260923-112853 | 20260923-112853 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260923-112847 | 20260923-112847 | Target file docs/adr/ADR-011-mcp-server-lifecycle.md does not exist (merged into ADR-008) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260923-112853 | 20260923-112853 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
