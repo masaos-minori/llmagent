@@ -34,7 +34,9 @@ class TestGovernanceMetaDocsCurrency:
         repo_root = Path(__file__).resolve().parent.parent.parent
         docs_dir = repo_root / "docs"
         missing = [
-            name for name in _GOVERNANCE_META_DOCS if not (docs_dir / name).is_file()
+            name
+            for name in _GOVERNANCE_META_DOCS
+            if not (docs_dir / "00_governance" / name).is_file()
         ]
         assert missing == [], (
             f"_GOVERNANCE_META_DOCS names non-existent files: {missing}"
@@ -43,7 +45,9 @@ class TestGovernanceMetaDocsCurrency:
     def test_current_governance_filenames_are_covered(self) -> None:
         repo_root = Path(__file__).resolve().parent.parent.parent
         docs_dir = repo_root / "docs"
-        real_governance_docs = {p.name for p in docs_dir.glob("00_governance_*.md")}
+        real_governance_docs = {
+            p.name for p in (docs_dir / "00_governance").glob("00_governance_*.md")
+        }
         assert real_governance_docs <= _GOVERNANCE_META_DOCS, (
             "A real docs/00_governance_*.md file is missing from "
             "_GOVERNANCE_META_DOCS: "

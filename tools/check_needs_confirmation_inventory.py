@@ -41,7 +41,9 @@ from tools._docs_consistency_lib import (
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
-INVENTORY_DOC_NAME = "00_governance_03_issue-and-uncertainty-management.md"
+INVENTORY_DOC_NAME = (
+    "00_governance/00_governance_03_issue-and-uncertainty-management.md"
+)
 
 # Meta/governance docs that discuss the "Needs confirmation" label itself
 # (defining it, cross-referencing it) rather than flagging an actual
@@ -148,7 +150,7 @@ def check_stale_resolved_markers(
     docs_dir: Path, files: list[DocFile], entries: list[NcEntry]
 ) -> list[Issue]:
     """Flag a 'resolved' NC entry whose Source File still carries the marker."""
-    by_name = {f.name: f for f in docs_dir.glob("*.md")}
+    by_name = {f.name: f for f in docs_dir.rglob("*.md")}
     issues: list[Issue] = []
     for entry in entries:
         if entry.status not in ("resolved", "fixed") or not entry.source_file:
@@ -181,7 +183,7 @@ def check_untracked_inline_markers(
     tracked_files = {e.source_file for e in entries if e.source_file}
     issues: list[Issue] = []
     for doc in files:
-        if doc.rel_path in _GOVERNANCE_META_DOCS:
+        if Path(doc.rel_path).name in _GOVERNANCE_META_DOCS:
             continue
         for line_no, line in enumerate(doc.lines, start=1):
             if _INLINE_MARKER_RE.search(line) and doc.rel_path not in tracked_files:

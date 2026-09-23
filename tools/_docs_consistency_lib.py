@@ -50,9 +50,10 @@ class Issue:
 
 
 def discover_md_files(docs_dir: Path, *, prefix: str) -> list[DocFile]:
-    """Return all *prefix*-matching .md files under *docs_dir*, sorted for determinism."""
+    """Return all *prefix*-matching .md files under *docs_dir* (recursive),
+    sorted for determinism."""
     result: list[DocFile] = []
-    for p in sorted(docs_dir.glob(f"{prefix}*.md")):
+    for p in sorted(docs_dir.rglob(f"{prefix}*.md")):
         rel = str(p.relative_to(docs_dir))
         content = p.read_text(encoding="utf-8")
         lines = content.splitlines()
@@ -100,7 +101,7 @@ def is_historical_line(line: str) -> bool:
 def check_broken_internal_links(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
     """Flag [text](path.md) / [text](path.md#anchor) links that don't resolve."""
     issues: list[Issue] = []
-    existing_files = {f.name for f in docs_dir.glob("*.md")}
+    existing_files = {f.name for f in docs_dir.rglob("*.md")}
 
     for doc in files:
         for line_no, line in enumerate(doc.lines, start=1):
@@ -135,7 +136,7 @@ def check_removed_file_references(docs_dir: Path, files: list[DocFile]) -> list[
     convention for intentionally naming a removed file as migration context.
     """
     issues: list[Issue] = []
-    existing_files = {f.name for f in docs_dir.glob("*.md")}
+    existing_files = {f.name for f in docs_dir.rglob("*.md")}
 
     for doc in files:
         for line_no, line in enumerate(doc.lines, start=1):

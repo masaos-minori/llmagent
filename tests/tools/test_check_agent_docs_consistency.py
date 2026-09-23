@@ -22,6 +22,7 @@ from tools._docs_consistency_lib import (
     check_broken_internal_links,
     check_command_drift,
     check_removed_file_references,
+    discover_md_files,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -64,6 +65,17 @@ class TestCheckBrokenInternalLinks:
         issues = check_broken_internal_links(tmp_path, [doc])
         assert issues == []
 
+    def test_link_to_file_in_subdirectory_no_issue(self, tmp_path: Path) -> None:
+        """docsreorg02 REQ-002: the 'existing files' universe is built via a
+        recursive glob, so a bare-filename link still resolves once the
+        target file lives in a different `docs/` subfolder than the
+        referencing doc."""
+        (tmp_path / "22_mcp" / "04_mcp_01_a.md").parent.mkdir(parents=True)
+        (tmp_path / "22_mcp" / "04_mcp_01_a.md").write_text("target")
+        doc = _mk_file("23_agent/05_agent_00_b.md", ["see [a](04_mcp_01_a.md)"])
+        issues = check_broken_internal_links(tmp_path, [doc])
+        assert issues == []
+
 
 # ── check_removed_file_references ────────────────────────────────────────────
 
@@ -88,6 +100,37 @@ class TestCheckRemovedFileReferences:
         )
         issues = check_removed_file_references(tmp_path, [doc])
         assert issues == []
+
+    def test_reference_to_file_in_subdirectory_no_issue(self, tmp_path: Path) -> None:
+        """docsreorg02 REQ-002: same cross-subdirectory guarantee as
+        check_broken_internal_links, for the bare-filename-mention check."""
+        (tmp_path / "22_mcp" / "04_mcp_01_a.md").parent.mkdir(parents=True)
+        (tmp_path / "22_mcp" / "04_mcp_01_a.md").write_text("target")
+        doc = _mk_file("23_agent/05_agent_00_b.md", ["see `04_mcp_01_a.md`"])
+        issues = check_removed_file_references(tmp_path, [doc])
+        assert issues == []
+
+
+# ── discover_md_files ─────────────────────────────────────────────────────────
+
+
+class TestDiscoverMdFilesRecursive:
+    def test_finds_prefix_matching_file_in_subdirectory(self, tmp_path: Path) -> None:
+        """docsreorg02 REQ-001: discover_md_files finds a prefix-matching
+        file regardless of which docs/ subfolder it lives in, since the
+        physical folder reorganization moves files without renaming them."""
+        (tmp_path / "23_agent" / "05_agent_00_b.md").parent.mkdir(parents=True)
+        (tmp_path / "23_agent" / "05_agent_00_b.md").write_text("content")
+        files = discover_md_files(tmp_path, prefix="05_agent_")
+        assert [f.rel_path for f in files] == ["23_agent/05_agent_00_b.md"]
+
+    def test_non_matching_prefix_in_subdirectory_not_found(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / "22_mcp" / "04_mcp_01_a.md").parent.mkdir(parents=True)
+        (tmp_path / "22_mcp" / "04_mcp_01_a.md").write_text("content")
+        files = discover_md_files(tmp_path, prefix="05_agent_")
+        assert files == []
 
 
 # ── check_command_drift ───────────────────────────────────────────────────────

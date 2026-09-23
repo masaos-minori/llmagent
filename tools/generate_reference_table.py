@@ -64,12 +64,21 @@ GUARD_START_MEMORY = (
     "<!-- AUTO-GENERATED: gen_memory_reference.py class-function-reference -->"
 )
 
-REFERENCE_DOC_MCP = REPO_ROOT / "docs" / "04_mcp_01_tool_ownership_matrix.md"
-REFERENCE_DOC_DEPLOYMENT = REPO_ROOT / "docs" / "02_deployment-part2.md"
-REFERENCE_DOC_AGENT = REPO_ROOT / "docs" / "05_agent_14_reference-api-generated.md"
-REFERENCE_DOC_EVENTBUS = REPO_ROOT / "docs" / "06_eventbus_06_reference-api.md"
+REFERENCE_DOC_MCP = REPO_ROOT / "docs" / "22_mcp" / "04_mcp_01_tool_ownership_matrix.md"
+REFERENCE_DOC_DEPLOYMENT = (
+    REPO_ROOT / "docs" / "90_deployment" / "02_deployment-part2.md"
+)
+REFERENCE_DOC_AGENT = (
+    REPO_ROOT / "docs" / "23_agent" / "05_agent_14_reference-api-generated.md"
+)
+REFERENCE_DOC_EVENTBUS = (
+    REPO_ROOT / "docs" / "24_eventbus" / "06_eventbus_06_reference-api.md"
+)
 REFERENCE_DOC_MEMORY = (
-    REPO_ROOT / "docs" / "05_agent_12_07_memory-module-reference-generated.md"
+    REPO_ROOT
+    / "docs"
+    / "23_agent"
+    / "05_agent_12_07_memory-module-reference-generated.md"
 )
 
 # ---------------------------------------------------------------------------

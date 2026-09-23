@@ -26,7 +26,7 @@ from tools.check_dependency_graph_cycles import (
 
 
 def _write(dir_path: Path, filename: str, content: str) -> None:
-    dir_path.mkdir(parents=True, exist_ok=True)
+    (dir_path / filename).parent.mkdir(parents=True, exist_ok=True)
     (dir_path / filename).write_text(content, encoding="utf-8")
 
 

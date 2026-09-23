@@ -58,7 +58,9 @@ ADR_DIR = DOCS_DIR / "adr"
 # document is the current, real canonical source and is always included
 # explicitly, independent of the suffix.
 _CANONICAL_SUFFIX = "_90_inconsistencies_and_known_issues.md"
-_GOVERNANCE_KNOWN_ISSUES_DOC = "00_governance_03_issue-and-uncertainty-management.md"
+_GOVERNANCE_KNOWN_ISSUES_DOC = (
+    "00_governance/00_governance_03_issue-and-uncertainty-management.md"
+)
 
 # Matches both the legacy per-area heading ("### MCP-004: Some title") and the
 # consolidated governance document's heading ("#### RAG-003", no title on the

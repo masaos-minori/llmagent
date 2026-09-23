@@ -466,7 +466,7 @@ _DB_COUNT_CLAIM_RE = re.compile(
 _TABLE_ROW_SQLITE_RE = re.compile(r"`([a-z]+\.sqlite)`")
 _AGENT_TOML = REPO_ROOT / "config" / "agent.toml"
 _DEPLOY_DIR = REPO_ROOT / "deploy"
-_CONF_D_DOC = "01_overview-files-06-misc.md"
+_CONF_D_DOC = "01_overview/01_overview-files-06-misc.md"
 _TREE_BRANCH_RE = re.compile(r"[├└]─\s*([A-Za-z0-9_.-]+)")
 
 
