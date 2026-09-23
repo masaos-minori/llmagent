@@ -1,28 +1,43 @@
 ## Goal
 
-Add missing `## Related Documents` section and fix invalid `related` reference in `docs/04_mcp_02_03_audit-logging-and-errors.md` per REQ-002, REQ-004.
+Truncate the malformed `related` entry in `docs/04_mcp_02_03_audit-logging-and-errors.md`
+per REQ-002. The `## Related Documents` section already exists (confirmed present at
+line 92 of the current file) and is out of scope for this document.
 
 ## Scope
 
-Modify only `docs/04_mcp_02_03_audit-logging-and-errors.md` to add a missing structural section and fix an invalid cross-reference in its YAML Front Matter.
+Modify only `docs/04_mcp_02_03_audit-logging-and-errors.md`'s YAML Front Matter to
+truncate one malformed `related` list entry — remove the trailing description text,
+keep the filename.
 
 ## Assumptions
 
-- The file exists and has Front Matter with an invalid `related` field (confirmed by `check_docs_structure.py`)
-- The file is missing the required `## Related Documents` section (confirmed by `check_docs_structure.py`)
-- Both changes are needed: adding the section and fixing the reference
+- The file's `related` field's last entry is
+  `00_security_01_architecture-and-trust-boundaries.md — System architecture / trust
+  boundaries / threat modeling / authentication & authorization / auditing / local vs
+  production / Fail-open/Fail-closed / prompt injection responsibility boundaries`
+  (confirmed via Read) — a real, existing filename with a long description string
+  incorrectly appended after it
+- Every other `related` entry in this and every other document in the repository is a
+  bare filename with no trailing text, confirming this is a malformed reference, not
+  an intentional description field
+- The fix is a truncation only — remove everything from ` — ` onward, keep the
+  filename `00_security_01_architecture-and-trust-boundaries.md` unchanged
 
 ## Design decisions
 
-- Add `## Related Documents\n<placeholder>` section as minimal valid content per Plan's Approach
-- Fix the invalid `related` reference using git history to find the correct filename
-- Keep the same YAML structure — only modify values, not keys
+- Truncate the entry at the filename boundary (remove everything from ` — ` onward)
+  rather than looking up a "corrected" filename via git history — the filename itself
+  is already correct; only the appended description text is the defect
+- Keep the same YAML structure — only modify this one list entry's value
 
 ## Alternatives considered
 
-- Adding specific references to `## Related Documents`: too speculative without knowing which documents are relevant
-- Removing the invalid `related` reference entirely: rejected because the Plan states to use git history to find renamed files and update references accordingly
-- Keeping the old reference: rejected because it violates REQ-002
+- Removing the entry entirely: rejected — the filename itself is valid and the
+  reference should be preserved, only the malformed suffix removed
+- Treating this as a renamed-file lookup (git history search): rejected — the
+  filename `00_security_01_architecture-and-trust-boundaries.md` already exists in
+  the repository; this is not a stale short-name reference like the 6 ADR files
 
 ## Implementation
 
@@ -33,86 +48,82 @@ Modify only `docs/04_mcp_02_03_audit-logging-and-errors.md` to add a missing str
 ### Procedure
 
 1. Read the current Front Matter of `docs/04_mcp_02_03_audit-logging-and-errors.md`
-2. Identify the invalid `related` reference
-3. Fix the invalid `related` reference using git history
-4. Locate where the `## Related Documents` section should be inserted
-5. Insert `## Related Documents\n<placeholder>` before the first `## Status` heading (or after the last `## ` heading if none exists)
-6. Verify Markdown structure is not broken
+2. Locate the last `related` list entry containing
+   ` — System architecture / trust boundaries / ...`
+3. Truncate the entry at the filename boundary, keeping only
+   `00_security_01_architecture-and-trust-boundaries.md`
+4. Verify YAML syntax is correct after modification
 
 ### Method
 
-String replacement within the YAML Front Matter block for the reference fix; insert a new section between the H1 heading and the first `## Status` heading.
+String replacement within the YAML Front Matter block: truncate one `related` list
+entry's value at ` — `. No other section of the file is touched.
 
 ### Details
 
-Current state (approximate):
+Current state (confirmed via Read):
 ```yaml
 ---
-title: "Audit Logging and Errors"
+title: "MCP Audit Log Format and Common Error Handling"
 area: mcp
-tags: []
+tags:
+  - mcp
+  - audit
+  - logging
+  - errors
 related:
-  - <invalid-reference>
-status: draft
+  - 04_mcp_00_document-guide.md
+  - 04_mcp_02_01_endpoints-and-transport.md
+  - 04_mcp_02_02_startup-modes-and-health.md
+  - 00_security_01_architecture-and-trust-boundaries.md — System architecture / trust boundaries / threat modeling / authentication & authorization / auditing / local vs production / Fail-open/Fail-closed / prompt injection responsibility boundaries
 ---
-
-# Audit Logging and Errors
-
-...document content...
 ```
 
 After modification:
 ```yaml
 ---
-title: "Audit Logging and Errors"
+title: "MCP Audit Log Format and Common Error Handling"
 area: mcp
-tags: []
+tags:
+  - mcp
+  - audit
+  - logging
+  - errors
 related:
-  - <corrected-filename>
-status: draft
+  - 04_mcp_00_document-guide.md
+  - 04_mcp_02_01_endpoints-and-transport.md
+  - 04_mcp_02_02_startup-modes-and-health.md
+  - 00_security_01_architecture-and-trust-boundaries.md
 ---
-
-# Audit Logging and Errors
-
-...document content...
-
-## Related Documents
-<placeholder>
 ```
 
 Steps:
-1. Run `git log --all --diff-filter=D -- "**/<invalid-reference>"` to find the actual filename
-2. Replace the invalid reference in the Front Matter with the actual filename
-3. Scan the document body for the appropriate insertion point for `## Related Documents`
-4. Insert `## Related Documents\n<placeholder>` after the last `## ` heading (or after the H1 if no headings exist)
-5. Verify the YAML indentation and Markdown structure remain valid
+1. Replace the malformed last `related` entry with the bare filename
+   `00_security_01_architecture-and-trust-boundaries.md`
+2. Verify the YAML indentation and Markdown structure remain valid
 
 ## Compatibility considerations
 
-- Changing a cross-reference does not alter document content
-- Adding a `## Related Documents` section does not alter any existing content
-- The new filename resolves to an existing file in the repository
-- This aligns with Plan's Approach: "add placeholder content for missing sections"
+- Truncating the cross-reference does not alter document content
+- The filename portion already resolves to an existing file in the repository
 
 ## Security considerations
 
-No security impact — updating cross-references and adding documentation sections does not affect access control or authentication.
+No security impact — truncating a cross-reference string does not affect access control or authentication.
 
 ## Rollback considerations
 
-1. Revert the string replacement to restore original reference
-2. Remove the inserted `## Related Documents\n<placeholder>` section to restore original structure
-3. No data loss risk — changes are purely additive
+1. Revert the string replacement to restore the original (malformed) reference; no
+   other content was touched
 
 ## Validation plan
 
-Run `uv run python tools/check_docs_structure.py "docs/**/*.md"` — expect zero errors for this file regarding invalid cross-references and missing sections.
+Run `uv run python tools/check_docs_structure.py "docs/04_mcp_02_03_audit-logging-and-errors.md" --schema schemas/doc_front_matter.json` — expect zero findings for this file.
 
 ## Completion criteria
 
-- `related` entry contains corrected filename instead of the invalid reference
-- `## Related Documents` section present after the last `## ` heading
-- `<placeholder>` content present under the section
+- `related`'s last entry is the bare filename `00_security_01_architecture-and-trust-boundaries.md`
+  with no trailing text
 - YAML syntax remains valid
 - Cross-reference resolves to an existing file in the repository
 - Markdown structure not broken
@@ -120,7 +131,7 @@ Run `uv run python tools/check_docs_structure.py "docs/**/*.md"` — expect zero
 ## Out of scope
 
 - Modifying any other file
-- Determining whether additional references should be added to `## Related Documents`
+- The `## Related Documents` section (already present)
 
 ## Execution Status
 
@@ -144,8 +155,8 @@ Run `uv run python tools/check_docs_structure.py "docs/**/*.md"` — expect zero
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-002, REQ-004
-- **Source issue**: issues/20260922-064743_doc002_fix-front-matter-inconsistencies-in-docs.md
+- **Requirement ID**: REQ-002
+- **Source issue**: issues/done/20260922-064743_doc002_fix-front-matter-inconsistencies-in-docs.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20260923-014359_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
