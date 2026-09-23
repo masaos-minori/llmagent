@@ -1,0 +1,113 @@
+# Implementation Procedure: Update INV-024 section in ADR-014
+
+## Goal
+
+Update INV-024 Known Deviation section in ADR-014 from "Violated" to "Resolved", reflecting that the specific violation (unused `self._llm_runner` instance) has been resolved through refactoring.
+
+## Scope
+
+- **In-Scope**: Updating INV-024 section in ADR-014 from "Violated" to "Resolved"
+- **Out-of-Scope**: Modifying source code, changing Orchestrator/LlmTurnExecutor architecture, adding new tests
+
+## Assumptions
+
+- The refactoring that renamed `_llm_runner` to `_llm_executor` was intentional and correct
+- No external system depends on the old `_llm_runner` attribute name
+- The INV-024 violation was specifically about the unused `_llm_runner` instance, not about Orchestrator owning any LlmTurnExecutor instance
+
+## Design decisions
+
+- The INV-024 violation was specifically about a DUPLICATE instance (`_llm_runner`) being unused while another instance (`_llm_executor` inside LlmTurnExecutor) was alive
+- Current source shows only ONE `LlmTurnExecutor` instance exists per `Orchestrator` lifetime (`_llm_executor`)
+- `_llm_runner` no longer exists anywhere in the codebase
+- `_llm_executor` is actively used by production code and tests
+
+## Alternatives considered
+
+- Leave the INV-024 status as "Violated" until a broader architectural review
+- Create a new ADR amendment instead of updating the existing one
+
+## Implementation
+
+### Target file
+
+`docs/adr/ADR-014-agent-control-plane-responsibility-boundaries.md`
+
+### Procedure
+
+Update the INV-024 Known Deviation section in ADR-014 from "Violated" to "Resolved".
+
+### Method
+
+Replace the INV-024 section content in ADR-014 to reflect that the violation has been resolved.
+
+### Details
+
+1. Verify current INV-024 section state (REQ-004; docs/adr/ADR-014-agent-control-plane-responsibility-boundaries.md)
+   - Confirm INV-024 section exists with "Violated" status
+2. Update INV-024 section from "Violated" to "Resolved" (REQ-004; docs/adr/ADR-014-agent-control-plane-responsibility-boundaries.md)
+   - Replace the INV-024 section content to indicate resolution
+   - Include evidence: `_llm_runner` absent, `_llm_executor` actively used
+3. Validate result with check_docs_structure.py (REQ-004; docs/adr/ADR-014-agent-control-plane-responsibility-boundaries.md)
+   - Run `uv run python tools/check_docs_structure.py "docs/**/*.md"` to confirm zero errors
+
+## Compatibility considerations
+
+- Updating INV-024 status does not affect compatibility with existing documentation or tooling
+- The file is referenced by `check_docs_structure.py` as part of the documentation inventory
+
+## Security considerations
+
+- No security impact — the file is documentation-only and contains no sensitive information
+
+## Rollback considerations
+
+- Revert the edit to restore the original INV-024 status if needed
+
+## Validation plan
+
+| Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
+|---|---|---|---|
+| docs/adr/ADR-014-agent-control-plane-responsibility-boundaries.md | Structural validation | uv run python tools/check_docs_structure.py "docs/**/*.md" | Zero errors |
+
+## Completion criteria
+
+- INV-024 section status changed from "Violated" to "Resolved" (REQ-004 / AC-2)
+- Verification evidence documented: `_llm_runner` absent, `_llm_executor` actively used
+
+## Out of scope
+
+- Modifying source code
+- Changing Orchestrator/LlmTurnExecutor architecture
+- Adding new tests
+
+## execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Update INV-024 status from "Violated" to "Resolved" |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | N/A — no test changes required |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Structural validation via check_docs_structure.py |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | N/A — no additional documentation updates needed |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: REQ-004
+- **Source issue**: issues/20260923-100004_p005_inv024_explicit_violation.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20260923-162903_plan.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20260923-163909
+- **Related target files**: docs/adr/ADR-014-agent-control-plane-responsibility-boundaries.md

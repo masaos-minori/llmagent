@@ -57,8 +57,8 @@ Whether `self._llm_runner` was left over from a prior refactor (per `llm_turn_ru
 
 ## AI Implementation Instruction
 Remove only the dead assignment (and import, if it becomes unused) described in Required Changes. Do not touch `LlmTurnExecutor`'s construction of its own `LLMTurnRunner`, and do not refactor `Orchestrator`'s other extracted-concern composition beyond this single removal.
-
 ## Traceability
+
 - **Workflow phase**: issue-creator
 - **Source issue**: N/A: this document is the issue
 - **Source requirement**: N/A: no standalone requirement document is generated
@@ -66,3 +66,7 @@ Remove only the dead assignment (and import, if it becomes unused) described in 
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20260914-121616
 - **Related target files**: scripts/agent/orchestrator.py
+
+## Status
+
+**Closed** — INV-024 violation scope fully addressed. `Orchestrator.__init__` no longer constructs `_llm_runner`; `_llm_executor = LlmTurnExecutor(...)` at line 139 is actively used. adr-index.md and ADR-014 INV-024 rows updated to Resolved.
