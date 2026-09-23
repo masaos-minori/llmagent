@@ -77,6 +77,16 @@ ADR_INDEX = DOCS_DIR / "10_adr" / "adr-index.md"
   found" (with the new path in the message), which is expected, not a
   failure of this document's own change.
 
+**Correction found during git-commit-and-sync (2026-09-23)**: the "expected,
+not a failure of this document's own change" framing above understated the
+actual impact — an `exit 1` from `adr-reference-scoped` is a pre-commit hook
+failure, which blocks every commit outright, not merely a degraded-but-
+harmless report like sibling tools' silent "no issues found" behavior. This
+made the `git-commit-and-sync` commit for this Plan's changes fail. Per user
+decision, `ADR_INDEX` (and the message f-string) were reverted back to
+`DOCS_DIR / "adr-index.md"` / `"docs/adr-index.md not found"` in the same
+commit, and will be re-applied together with `docsreorg11`'s physical move.
+
 ## Security considerations
 
 No security impact.
@@ -118,6 +128,7 @@ failure of this document's own change).
 | 2 | Add or update tests per Validation plan | Completed | 20260923-161956 | 20260923-161956 | No test change needed; test_check_adr_reference.py confirmed hermetic, 7 passed. |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260923-161956 | 20260923-161956 | ruff/mypy/bandit pass. pytest: 7 passed. uv run pre-commit run adr-reference-scoped --all-files: exit 1 (expected pre-move state), now correctly reports the real checked path /home/masaos/llmagent/docs/10_adr/adr-index.md instead of the stale hardcoded text. |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260923-161956 | 20260923-161956 | N/A: no docs/00_index.md task-scope mapping for tools/check_adr_reference.py. |
+| — | Correction: `ADR_INDEX`/message update reverted at commit time | Reverted | 20260923-161956 | 2026-09-23 (commit 2d15f9cb8) | See Compatibility considerations' "Correction found during git-commit-and-sync" note. Reverted to `DOCS_DIR / "adr-index.md"`; will be re-applied together with `docsreorg11`. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

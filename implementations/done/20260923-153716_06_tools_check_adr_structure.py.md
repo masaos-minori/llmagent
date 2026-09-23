@@ -67,6 +67,16 @@ ADR_DIR = REPO_ROOT / "docs" / "10_adr"
   will report "no files found" against the still-flat `docs/adr/` location,
   same coordinated-landing-order note as sibling documents in this Plan.
 
+**Correction found during git-commit-and-sync (2026-09-23)**: at commit time,
+sibling documents seq 07/seq 08's `ADR_INDEX` update (a single-file existence
+check, unlike this tool's directory listing) turned out to make the
+`adr-invariant-matrix`/`adr-reference-scoped` pre-commit hooks fail outright
+against the still-flat pre-move tree — an actual blocking regression, not a
+silent "no files found" degradation. To keep all three ADR tools' rollout
+coordinated, this document's own `ADR_DIR` update was reverted back to
+`REPO_ROOT / "docs" / "adr"` in the same commit and will be re-applied
+together with `docsreorg11`'s physical move, alongside seq 07/seq 08.
+
 ## Security considerations
 
 No security impact.
@@ -109,6 +119,7 @@ failure of this document's own change).
 | 2 | Add or update tests per Validation plan | Completed | 20260923-161337 | 20260923-161337 | No test change needed; test_check_adr_structure.py confirmed hermetic, 5 passed. |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260923-161337 | 20260923-161337 | ruff/mypy/bandit pass. pytest: 5 passed. uv run pre-commit run adr-structure --all-files: Passed (0 ADR files found against the still-flat pre-move tree, no Python exception -- expected). |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260923-161337 | 20260923-161337 | N/A: no docs/00_index.md task-scope mapping for tools/check_adr_structure.py. |
+| — | Correction: `ADR_DIR` update reverted at commit time | Reverted | 20260923-161337 | 2026-09-23 (commit 2d15f9cb8) | See Compatibility considerations' "Correction found during git-commit-and-sync" note. `ADR_DIR` restored to `REPO_ROOT / "docs" / "adr"`; will be re-applied together with `docsreorg11`. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

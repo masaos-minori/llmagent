@@ -74,6 +74,14 @@ ADR_INDEX = DOCS_DIR / "10_adr" / "adr-index.md"
   `ADR_INDEX` not found against the pre-move tree, expected, not a failure
   of this document's own change.
 
+**Correction found during git-commit-and-sync (2026-09-23)**: same
+understatement as seq 07 — an `exit 1` from `adr-invariant-matrix` is a
+pre-commit hook failure that blocks every commit outright, not a
+harmless degraded report. Per user decision, `ADR_INDEX` (and the message
+f-string) were reverted back to `DOCS_DIR / "adr-index.md"` /
+`"docs/adr-index.md not found"` in the same commit as seq 06/seq 07, and
+will be re-applied together with `docsreorg11`'s physical move.
+
 ## Security considerations
 
 No security impact.
@@ -113,6 +121,7 @@ current (pre-move) tree to confirm the hook still invokes correctly.
 | 2 | Add or update tests per Validation plan | Completed | 20260923-162116 | 20260923-162116 | No test change needed; test_check_adr_invariant_matrix.py confirmed hermetic, 6 passed. |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260923-162116 | 20260923-162116 | ruff/mypy/bandit pass. pytest: 6 passed. uv run pre-commit run adr-invariant-matrix --all-files: exit 1 (expected pre-move state), correctly reports real checked path /home/masaos/llmagent/docs/10_adr/adr-index.md. |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260923-162116 | 20260923-162116 | N/A: no docs/00_index.md task-scope mapping for tools/check_adr_invariant_matrix.py. |
+| — | Correction: `ADR_INDEX`/message update reverted at commit time | Reverted | 20260923-162116 | 2026-09-23 (commit 2d15f9cb8) | See Compatibility considerations' "Correction found during git-commit-and-sync" note. Reverted to `DOCS_DIR / "adr-index.md"`; will be re-applied together with `docsreorg11`. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
