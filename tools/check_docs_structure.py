@@ -36,6 +36,26 @@ MAX_SIZE = 24576
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+\.md)(?:#[^)]*)?\)")
 
 
+def _build_basename_index(docs_dir: Path) -> dict[str, Path]:
+    """Map every `docs/**/*.md` file's basename to its path.
+
+    Cross-reference resolution (`check_related_links`, `check_links`) uses this
+    index to resolve a bare filename regardless of which directory it lives in,
+    so `docs/` subfolders don't break existing bare-filename references. Raises
+    if two files share a basename — this uniqueness is load-bearing for that
+    resolution to stay unambiguous.
+    """
+    index: dict[str, Path] = {}
+    for path in docs_dir.rglob("*.md"):
+        if path.name in index:
+            raise ValueError(
+                f"duplicate basename '{path.name}' found at both "
+                f"{index[path.name]} and {path}"
+            )
+        index[path.name] = path
+    return index
+
+
 def strip_fenced_code(content: str) -> str:
     lines = content.split("\n")
     kept = []
@@ -140,14 +160,17 @@ def check_tail_sections(path: Path, content: str) -> list[str]:
     return issues
 
 
-def check_links(path: Path, content: str) -> list[str]:
+def check_links(path: Path, content: str, basename_index: dict[str, Path]) -> list[str]:
     issues = []
     body = strip_fenced_code(content)
     for _text, target in LINK_RE.findall(body):
         if target.startswith(("http://", "https://")):
             continue
-        resolved = (path.parent / target).resolve()
-        if not resolved.is_file():
+        if "/" in target:
+            found = (path.parent / target).resolve().is_file()
+        else:
+            found = target in basename_index
+        if not found:
             issues.append(f"{path.name}: broken link -> '{target}'")
     return issues
 
@@ -173,7 +196,9 @@ def check_unique_adr_ids(files: list[Path]) -> list[str]:
     return issues
 
 
-def check_related_links(path: Path, content: str) -> list[str]:
+def check_related_links(
+    path: Path, content: str, basename_index: dict[str, Path]
+) -> list[str]:
     if not content.startswith("---"):
         return []
     end = content.find("\n---", 3)
@@ -186,8 +211,11 @@ def check_related_links(path: Path, content: str) -> list[str]:
     issues = []
     for field in ("related", "source"):
         for entry in data.get(field) or []:
-            resolved = (path.parent / entry).resolve()
-            if not resolved.is_file():
+            if "/" in entry:
+                found = (path.parent / entry).resolve().is_file()
+            else:
+                found = entry in basename_index
+            if not found:
                 issues.append(
                     f"{path.name}: front matter references missing file '{entry}' (field: {field})"
                 )
@@ -198,6 +226,8 @@ def validate_file(
     path: Path,
     expected_area: str | None,
     schema: FrontMatterSchema | None = None,
+    *,
+    basename_index: dict[str, Path],
 ) -> list[str]:
     content = path.read_text(encoding="utf-8")
     size = len(content.encode("utf-8"))
@@ -209,8 +239,8 @@ def validate_file(
     if schema is not None:
         issues.extend(check_schema_compliance(path, content, schema))
     issues.extend(check_tail_sections(path, content))
-    issues.extend(check_links(path, content))
-    issues.extend(check_related_links(path, content))
+    issues.extend(check_links(path, content, basename_index))
+    issues.extend(check_related_links(path, content, basename_index))
     return issues
 
 
@@ -221,7 +251,7 @@ def main() -> int:
     parser.add_argument(
         "globs",
         nargs="*",
-        help="Glob patterns relative to repo root (default: docs/*.md)",
+        help="Glob patterns relative to repo root (default: docs/**/*.md)",
     )
     parser.add_argument("--area", default=None, help="Expected Front Matter area value")
     parser.add_argument(
@@ -238,10 +268,16 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    patterns = args.globs or ["docs/*.md"]
+    patterns = args.globs or ["docs/**/*.md"]
     files: set[Path] = set()
     for pattern in patterns:
         files.update(ROOT_DIR.glob(pattern))
+
+    try:
+        basename_index = _build_basename_index(DOCS_DIR)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
     schema: FrontMatterSchema | None = None
     if args.schema is not None:
@@ -250,7 +286,7 @@ def main() -> int:
 
     total_issues = 0
     for path in sorted(files):
-        issues = validate_file(path, args.area, schema)
+        issues = validate_file(path, args.area, schema, basename_index=basename_index)
         if issues:
             total_issues += len(issues)
             for issue in issues:

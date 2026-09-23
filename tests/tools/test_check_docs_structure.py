@@ -12,9 +12,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from tools._front_matter_schema import load_front_matter_schema
 from tools.check_docs_structure import (
     MAX_SIZE,
+    _build_basename_index,
+    check_links,
+    check_related_links,
     check_schema_compliance,
     check_size,
     check_unique_adr_ids,
@@ -23,6 +28,7 @@ from tools.check_docs_structure import (
 
 
 def _write(path: Path, content: str) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return path
 
@@ -167,7 +173,7 @@ class TestValidateFileSchemaOptIn:
         self, tmp_path: Path
     ) -> None:
         doc = _write(tmp_path / "example.md", _COMPLIANT_DOC)
-        assert validate_file(doc, expected_area=None) == []
+        assert validate_file(doc, expected_area=None, basename_index={}) == []
 
     def test_schema_argument_adds_findings_without_schema_file(
         self, tmp_path: Path
@@ -176,7 +182,10 @@ class TestValidateFileSchemaOptIn:
         schema = load_front_matter_schema(tmp_path / "absent.json")
         # Built-in default schema matches the tool's own existing required
         # fields exactly, so passing it adds no new findings for a compliant doc.
-        assert validate_file(doc, expected_area=None, schema=schema) == []
+        assert (
+            validate_file(doc, expected_area=None, schema=schema, basename_index={})
+            == []
+        )
 
 
 class TestCheckUniqueAdrIds:
@@ -206,3 +215,65 @@ class TestCheckUniqueAdrIds:
         other = _write(tmp_path / "other.md", "# Other\n")
         issues = check_unique_adr_ids([adr, other])
         assert issues == []
+
+
+class TestBasenameIndexResolution:
+    def test_cross_directory_bare_filename_resolves(self, tmp_path: Path) -> None:
+        _write(tmp_path / "sub" / "target.md", "# Target\n")
+        content = (
+            '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
+            "related:\n  - target.md\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        index = _build_basename_index(tmp_path)
+        assert check_related_links(doc, doc.read_text(), index) == []
+
+    def test_missing_basename_is_still_flagged(self, tmp_path: Path) -> None:
+        content = (
+            '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
+            "related:\n  - does-not-exist.md\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        index = _build_basename_index(tmp_path)
+        issues = check_related_links(doc, doc.read_text(), index)
+        assert any("does-not-exist.md" in i for i in issues)
+
+    def test_directory_qualified_reference_still_resolves(self, tmp_path: Path) -> None:
+        _write(tmp_path / "sub" / "target.md", "# Target\n")
+        content = (
+            '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
+            "related:\n  - sub/target.md\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        assert check_related_links(doc, doc.read_text(), {}) == []
+
+    def test_body_link_cross_directory_resolves(self, tmp_path: Path) -> None:
+        _write(tmp_path / "sub" / "target.md", "# Target\n")
+        doc = _write(tmp_path / "example.md", "# Example\n\nSee [target](target.md).\n")
+        index = _build_basename_index(tmp_path)
+        assert check_links(doc, doc.read_text(), index) == []
+
+    def test_body_link_missing_target_is_flagged(self, tmp_path: Path) -> None:
+        doc = _write(
+            tmp_path / "example.md",
+            "# Example\n\nSee [target](does-not-exist.md).\n",
+        )
+        index = _build_basename_index(tmp_path)
+        issues = check_links(doc, doc.read_text(), index)
+        assert any("does-not-exist.md" in i for i in issues)
+
+
+class TestDuplicateBasenameDetection:
+    def test_duplicate_basename_raises(self, tmp_path: Path) -> None:
+        _write(tmp_path / "a" / "dup.md", "# A\n")
+        _write(tmp_path / "b" / "dup.md", "# B\n")
+        with pytest.raises(ValueError, match="dup.md"):
+            _build_basename_index(tmp_path)
+
+
+class TestDefaultGlobIsRecursive:
+    def test_recursive_glob_finds_subdirectory_file(self, tmp_path: Path) -> None:
+        _write(tmp_path / "top.md", "# Top\n")
+        _write(tmp_path / "sub" / "nested.md", "# Nested\n")
+        found = set(tmp_path.glob("**/*.md"))
+        assert len(found) == 2
