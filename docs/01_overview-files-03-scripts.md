@@ -8,9 +8,6 @@ tags:
   - file-structure
 related:
   - 01_overview-files-03-scripts.md
-  - 01_overview-files-03-scripts.md
-  - 01_overview-files-03-scripts.md
-  - 01_overview-files-03-scripts.md
   - 01_overview.md
 ---
 

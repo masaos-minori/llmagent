@@ -18,7 +18,6 @@ related:
   - 04_mcp_04_02_file-write-file-delete-shell.md
   - 04_mcp_04_04_mdq.md
   - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
-  - 05_agent_06_01_tool-execution-and-approval-execution.md
   - 05_agent_06_02_tool-execution-and-approval-approval.md
   - 04_mcp_06_16_pre-production-fail-open-checklist.md
   - 04_mcp_02_03_audit-logging-and-errors.md
