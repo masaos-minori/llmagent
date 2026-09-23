@@ -16,8 +16,12 @@ from tools.check_docs_quality import (
     check_duplicate_heading_numbers,
 )
 
-# Baseline snapshot of within-file content-similarity pairs (post-2026-09-20-batch).
-# Regenerate by running: uv run python tools/check_docs_quality.py --only content_similarity
+# Baseline snapshot of within-file content-similarity pairs (updated 2026-09-23 after
+# a large fast-forwarded batch of docs/ADR reconciliation edits shifted the set —
+# this drift is expected per issues/done/20260920-175221_docqtest01's own design: a
+# set-based snapshot tolerates the count changing while making exactly which
+# file:section pairs changed explicit and diffable).
+# Regenerate by running: uv run python -m tools.check_docs_quality
 #   | grep 'between sections' > /tmp/pairs.txt
 # Then extract pairs from /tmp/pairs.txt and update this constant.
 EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
@@ -95,9 +99,9 @@ EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
         # 04_mcp_06_13_watchdog-health-reasons-scheduling.md
         "04_mcp_06_13_watchdog-health-reasons-scheduling.md:'Keywords' <-> 'Keywords'",
         # 05_agent_02_runtime-architecture.md
-        "05_agent_02_runtime-architecture.md:'Agent Runtime Architecture (Part 1)' <-> 'Agent Runtime Architecture (Part 2)'",
         "05_agent_02_runtime-architecture.md:'Keywords' <-> 'Keywords'",
         "05_agent_02_runtime-architecture.md:'Known Limitations' <-> 'Known Limitations'",
+        "05_agent_02_runtime-architecture.md:'Related Documents' <-> 'Agent Runtime Architecture (Part 2)'",
         # 05_agent_07_02_cli-and-commands-cliview.md
         "05_agent_07_02_cli-and-commands-cliview.md:'Operational Notes' <-> 'Known Limitations'",
         # 05_agent_07_03_cli-and-commands-command-registry.md
@@ -129,7 +133,7 @@ EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
         # 05_agent_09_03_data-layer-indexing-boundaries.md
         "05_agent_09_03_data-layer-indexing-boundaries.md:'Operational Notes' <-> 'Known Limitations'",
         # 05_agent_12_01_memory-overview-and-modes.md
-        "05_agent_12_01_memory-overview-and-modes.md:'Memory Layer — Overview and Modes (Part 1)' <-> 'Memory Layer — Overview and Modes (Part 2)'",
+        "05_agent_12_01_memory-overview-and-modes.md:'Keywords' <-> 'Memory Layer — Overview and Modes (Part 2)'",
         # 05_agent_12_02_memory-gate-data-model-search.md
         "05_agent_12_02_memory-gate-data-model-search.md:'Memory Layer — Activation Gate, Data Model, and Search (Part 1)' <-> 'Memory Layer — Module Reference'",
         # 05_agent_13_reference-api.md
@@ -141,6 +145,7 @@ EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
         # 06_eventbus_03_persistence_schema_and_replay.md
         "06_eventbus_03_persistence_schema_and_replay.md:'Declared Role: Replica' <-> 'Declared Role: Replica'",
         "06_eventbus_03_persistence_schema_and_replay.md:'Idempotency Contract' <-> 'Idempotency Contract'",
+        "06_eventbus_03_persistence_schema_and_replay.md:'Keywords' <-> 'Related Documents'",
         # 06_eventbus_04_dlq_offsets_and_delivery_semantics.md
         "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'ACK Error Responses' <-> 'ACK Error Responses'",
         "06_eventbus_04_dlq_offsets_and_delivery_semantics.md:'ACK Postconditions' <-> 'ACK Postconditions'",
@@ -239,6 +244,7 @@ EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
         "adr/ADR-014-agent-control-plane-responsibility-boundaries.md:'1. 最重要の採用理由 — Maintainability' <-> 'Negative Consequences'",
         "adr/ADR-014-agent-control-plane-responsibility-boundaries.md:'Disadvantages' <-> 'Startup Validation'",
         # databases/active_databases.md
+        "databases/active_databases.md:'Keywords' <-> 'Related Documents'",
         "databases/active_databases.md:'rag.sqlite' <-> 'session.sqlite'",
         # eventbus/ack-nack-endpoints.md
         "eventbus/ack-nack-endpoints.md:'Bad Request Responses' <-> 'Bad Request Responses'",
@@ -346,7 +352,7 @@ class TestAlphabeticSuffixDuplicateHeading:
         """Two headings with same base number and same level → expect Issue."""
         content = "# Title\n\n## 7a. First section\n\nSome text.\n\n## 7b. Second section\n\nMore text."
         doc = _make_doc_file(content)
-        issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])  # type: ignore[arg-type]  # — FakeDocFile duck-types DocFile (same lines/path/rel_path attrs) without importing it directly
+        issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])
         assert len(issues) == 1
         assert "7a" in str(issues[0].message) or "7b" in str(issues[0].message)
 
@@ -356,7 +362,7 @@ class TestAlphabeticSuffixDuplicateHeading:
             pytest.skip(f"Test file not found: {_KNOWN_DEFECT_PATH}")
         content = _KNOWN_DEFECT_PATH.read_text(encoding="utf-8")
         doc = _make_doc_file(content, path=_KNOWN_DEFECT_PATH)
-        issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])  # type: ignore[arg-type]  # — FakeDocFile duck-types DocFile (same lines/path/rel_path attrs) without importing it directly
+        issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])
         assert len(issues) >= 1
         assert any("7c" in str(issue.message) for issue in issues)
 
@@ -364,21 +370,21 @@ class TestAlphabeticSuffixDuplicateHeading:
         """Different base numbers at same level → no Issue."""
         content = "# Title\n\n## 7a. First section\n\nText A.\n\n## 8b. Second section\n\nText B."
         doc = _make_doc_file(content)
-        issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])  # type: ignore[arg-type]  # — FakeDocFile duck-types DocFile (same lines/path/rel_path attrs) without importing it directly
+        issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])
         assert len(issues) == 0
 
     def test_false_positive_numeric_subsections(self):
         """Numeric subsections like 2.1, 2.2 → no Issue."""
         content = "# Title\n\n## 2.1 First subsection\n\nText A.\n\n## 2.2 Second subsection\n\nText B."
         doc = _make_doc_file(content)
-        issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])  # type: ignore[arg-type]  # — FakeDocFile duck-types DocFile (same lines/path/rel_path attrs) without importing it directly
+        issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])
         assert len(issues) == 0
 
     def test_false_positive_different_levels(self):
         """Same heading number at different levels → no Issue."""
         content = "# Title\n\n## 7a. Level 2 section\n\nText A.\n\n####### 7a. Level 7 section\n\nText B."
         doc = _make_doc_file(content)
-        issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])  # type: ignore[arg-type]  # — FakeDocFile duck-types DocFile (same lines/path/rel_path attrs) without importing it directly
+        issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])
         assert len(issues) == 0
 
 
@@ -396,7 +402,7 @@ class TestContentSimilarity:
         )
         content = f"# Title\n\n## Section One\n\n{common_text}\n\n## Section Two\n\n{common_text}"
         doc = _make_doc_file(content)
-        issues = check_content_similarity(_DOCS_DIR, [doc])  # type: ignore[arg-type]  # — FakeDocFile duck-types DocFile (same lines/path/rel_path attrs) without importing it directly
+        issues = check_content_similarity(_DOCS_DIR, [doc])
         assert len(issues) >= 1
         assert any("similarity" in issue.message.lower() for issue in issues)
 
@@ -408,14 +414,14 @@ class TestContentSimilarity:
         verification_b = "Verification: This item has been validated against the latest documentation updates."
         content = f"# Title\n\n## Verification A\n\n{verification_a}\n\n## Verification B\n\n{verification_b}"
         doc = _make_doc_file(content)
-        issues = check_content_similarity(_DOCS_DIR, [doc])  # type: ignore[arg-type]  # — FakeDocFile duck-types DocFile (same lines/path/rel_path attrs) without importing it directly
+        issues = check_content_similarity(_DOCS_DIR, [doc])
         assert len(issues) == 0
 
     def test_false_positive_short_unique_sections(self):
         """Short sections with minimal overlap → no Issue."""
         content = "# Title\n\n## Short A\n\nA.\n\n## Short B\n\nB."
         doc = _make_doc_file(content)
-        issues = check_content_similarity(_DOCS_DIR, [doc])  # type: ignore[arg-type]  # — FakeDocFile duck-types DocFile (same lines/path/rel_path attrs) without importing it directly
+        issues = check_content_similarity(_DOCS_DIR, [doc])
         assert len(issues) == 0
 
     def test_content_similarity_across_multiple_sections(self):
@@ -423,7 +429,7 @@ class TestContentSimilarity:
         shared = "Shared content between sections one and three."
         content = f"# Title\n\n## Section One\n\n{shared}\n\n## Section Two\n\nUnique content here.\n\n## Section Three\n\n{shared}"
         doc = _make_doc_file(content)
-        issues = check_content_similarity(_DOCS_DIR, [doc])  # type: ignore[arg-type]  # — FakeDocFile duck-types DocFile (same lines/path/rel_path attrs) without importing it directly
+        issues = check_content_similarity(_DOCS_DIR, [doc])
         assert len(issues) >= 1
 
 

@@ -205,9 +205,9 @@ def test_config_file_inventory_table_not_flagged_without_heading() -> None:
 
 def test_config_file_inventory_cross_section_false_positive() -> None:
     doc = _doc(
-        "### Notes\n"
-        "\n"
         "### Configuration Fields\n"
+        "\n"
+        "### Notes\n"
         "\n"
         "- `port` — an example field name mentioned in passing\n"
     )
