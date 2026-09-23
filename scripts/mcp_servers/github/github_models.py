@@ -4,7 +4,7 @@
 Re-export stub for github-mcp server models.
 
 Split layout (single-responsibility modules):
-  models_config.py        — GitHubConfig dataclass, domain exceptions, DEFAULT_PER_PAGE
+  github_models_config.py — GitHubConfig dataclass, domain exceptions, DEFAULT_PER_PAGE
   models_base.py          — Shared IssueInfo (used by issues + pull_requests)
   models_repository.py    — Repository search, code search, branches, commits
   models_file.py          — File operations (get/create/update/push/delete)

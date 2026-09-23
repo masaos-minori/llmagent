@@ -160,7 +160,7 @@ The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server 
 
 **Configuration Fields:** `max_per_page` (100), `allowed_repos`, `protected_branches` (fnmatch pattern), `path_denylist` (fnmatch pattern), `max_file_size_kb` (1024 KB), `allow_force_push` (false), `require_pr_review` (true), `audit_log_path`
 
-**Note (2026-07-13):** The `default_per_page` field was removed from `config/github_mcp_server.toml`. `GitHubConfig.default_per_page` is assigned to `self._default_per_page` in `service_security.py` but is not used thereafter; actual default count for listing endpoints is module constant `DEFAULT_PER_PAGE = 10` (`models_config.py`) which each request model references directly (not configurable). `max_per_page` is used as `self._max_per_page` for clamping `per_page` values and is a valid configuration.
+**Note (2026-07-13):** The `default_per_page` field was removed from `config/github_mcp_server.toml`. `GitHubConfig.default_per_page` is assigned to `self._default_per_page` in `service_security.py` but is not used thereafter; actual default count for listing endpoints is module constant `DEFAULT_PER_PAGE = 10` (`github_models_config.py`) which each request model references directly (not configurable). `max_per_page` is used as `self._max_per_page` for clamping `per_page` values and is a valid configuration.
 
 **Security Control:**
 - `allowed_repos` (fail-closed; empty list = all denied)
@@ -170,7 +170,7 @@ The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server 
 - `allow_force_push` (default `false`; set to `true` to allow force-push and rebase merges)
 - `require_pr_review` (default `true`; set to `false` to allow merging without review)
 
-**Domain Exceptions** (defined in `scripts/mcp_servers/github/models_config.py`, re-exported in `github_models.py`): `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403), `GitHubConflictError` (409), `GitHubValidationError` (400), `GitHubUpstreamError` (502), `GitHubAuditError` (500)
+**Domain Exceptions** (defined in `scripts/mcp_servers/github/github_models_config.py`, re-exported in `github_models.py`): `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403), `GitHubConflictError` (409), `GitHubValidationError` (400), `GitHubUpstreamError` (502), `GitHubAuditError` (500)
 
 **Health:** Token configured: `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; Unset: `{"status":"degraded","ready":false,"dependencies":{"github_token":"not_set"}}` — HTTP 200 when ready, HTTP 503 when degraded.
 **Logs:** `/opt/llm/logs/github-mcp.log`
