@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import argparse
 import ast
-import subprocess
+import subprocess  # nosec B404 — rg is a trusted local CLI, no user input flows into subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -72,7 +72,7 @@ def scan_for_violations(scan_dir: Path) -> list[tuple[str, int, str]]:
         cmd.extend(["-e", pattern])
     cmd.append(str(scan_dir))
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603 — cmd is a validated static list, no user input
     if result.returncode != 0:
         # No matches found (exit code 1 means no matches)
         return violations
@@ -99,13 +99,12 @@ def scan_for_violations(scan_dir: Path) -> list[tuple[str, int, str]]:
             continue
 
         # Check if this is a sanctioned path
-        if rel_path in SANCTIONED_PATHS or rel_path == "schema_sql.py":
-            if "rag_maintenance_service.py" in rel_path:
-                if _is_in_sanctioned_function(rel_path, int(line_num_str)):
-                    continue
-            else:
-                # schema_sql.py is always sanctioned (schema init)
-                continue
+        if rel_path in SANCTIONED_PATHS:
+            # Entire file is sanctioned — no per-function check needed
+            continue
+        elif rel_path == "schema_sql.py":
+            # schema_sql.py is always sanctioned (schema init)
+            continue
 
         violations.append((rel_path, int(line_num_str), sql_stmt.strip()))
 

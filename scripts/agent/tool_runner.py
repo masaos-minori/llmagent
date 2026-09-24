@@ -26,8 +26,14 @@ from shared.tool_spec import ToolSpec
 from shared.types import LLMMessage
 
 from agent.tool_audit import audit_tool_exec, write_round_exec
+from agent.tool_enums import OperationType
 from agent.tool_exceptions import ToolExecutorUnavailableError
 from agent.tool_output import emit_tool_call, emit_tool_result
+from agent.tool_policy import (
+    PolicyViolationError,
+    check_preflight,
+    classify_operation_type,
+)
 from agent.tool_preparation import PreparedToolCall, prepare_tool_calls
 from agent.tool_result_formatter import (
     mask_args,
@@ -124,6 +130,14 @@ async def execute_one_tool_call(
         # access while allowing the system to handle edge cases gracefully.
         # NOTE: In production, factory.py:652 creates RepositoryGateway unconditionally
         # during AppServices construction, so this branch should never execute.
+        # Preflight check when gateway is None for non-READ operations
+        op = classify_operation_type(name, ctx.services_required.runtime_tools)
+        if op != OperationType.READ:
+            try:
+                check_preflight(ctx.cfg, name, args)
+            except PolicyViolationError as exc:
+                logger.warning("tool_runner.policy_denied tool=%r reason=%s", name, exc)
+                raise  # Re-raise to prevent unauthorized execution
         result = await ctx.services_required.tools.execute(name, args)
     text, is_error, x_request_id = result.output, result.is_error, result.request_id
     audit_tool_exec(

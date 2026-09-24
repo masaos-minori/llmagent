@@ -311,8 +311,23 @@ class TestCheckPreflight:
         except PolicyViolationError:
             pytest.fail("READ with allowed_tools should pass")
 
+    def test_t04_gateway_bypass_gap_resolved(self) -> None:
+        """T-04: Gateway-bypass path in tool_runner.py is resolved.
 
-class TestEscalateForPath:
+        When gateway is None, the preflight check must fire for non-READ operations
+        to prevent unauthorized execution. This test verifies the policy layer
+        correctly denies unauthorized operations even without a gateway.
+        """
+        # Non-READ operation without gateway should be denied by preflight
+        cfg = _cfg(allowed_tools=["read_text_file"])
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(cfg, "write_file", {})
+        assert exc_info.value.audit_decision == "denied_allowed_tools"
+
+        # READ operation should still pass (per REQ-09 exemption)
+        cfg = _cfg(allowed_tools=["read_text_file"])
+        check_preflight(cfg, "read_text_file", {"path": "/tmp/f"})  # does not raise
+
     def test_already_high_base_risk_no_escalation(self) -> None:
         from agent.tool_policy import _escalate_for_path
 

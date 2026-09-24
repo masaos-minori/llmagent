@@ -334,7 +334,7 @@ class TestExecuteWithDag:
     @pytest.mark.asyncio
     async def test_two_scope_groups_all_execute(self) -> None:
         """Two tools with different resource scopes both execute within the same round."""
-        cfg = _cfg()
+        cfg = _cfg(approval_github_allowed_repos=["org/repo"])
         ctx = _make_ctx(cfg)
         write_pc = _pc(
             "write_file",

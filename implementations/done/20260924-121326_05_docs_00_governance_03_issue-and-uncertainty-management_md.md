@@ -135,10 +135,10 @@ Replace the above block with:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260924-161245 | 20260924-161358 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260924-161358 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260924-161358 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

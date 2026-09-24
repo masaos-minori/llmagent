@@ -51,6 +51,45 @@ Describes the primary runtime components, their dependencies, and responsibility
 
 - Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) for details.)
 
+## Preflight Gate Coverage
+
+`check_preflight()` の呼び出しサイトとそのテストカバレッジを文書化する。
+未テストの実行経路はゲートを迂回する可能性があるため、すべての経路にテストまたは正当化が必要。
+
+### Enumerated Call Sites
+
+| # | Location | Caller Chain | Gate Status | Test Coverage | Exemption |
+|---|---|---|---|---|---|
+| 1 | `scripts/agent/repository_gateway.py:114` | `RepositoryGateway._gate_write()` → `RepositoryGateway.execute()` | Enforced | Partial (mocked in tests) | None |
+| 2 | `scripts/agent/commands/cmd_mdq.py:67` | `_MdqMixin._execute_mdq()` → `/mdq <subcommand>` | Enforced | None | None |
+| 3 | `scripts/agent/commands/cmd_context.py:206` | `_ContextMixin._cmd_diff()` → `/diff` | Enforced | None | None |
+| 4 | `scripts/agent/tool_approval.py:148` | `check_approval()` → `run_approval_checks()` | Enforced | Partial (existing tests) | None |
+
+### Exempt Paths
+
+| Path | Justification |
+|---|---|
+| `repository_gateway.py:execute()` line 85-86 (`if op == OperationType.READ`) | READ operations are intentionally preflight-exempt per design (direct passthrough for read-only tools). No separate `read_execute()` method exists. |
+| `tool_approval.py:check_approval()` via `ApprovalDecisionType.DRY_RUN` | dry_run execution is preflight-exempt (read-only operation). No separate `build_preview()` method exists; handled via `DryRun` decision type. |
+| `tool_runner.py:run_tool_call()` line 116-119 (`else` branch) | Gateway not yet configured; requires separate resolution. This path bypasses both the gateway and the preflight gate. |
+
+### Gateway-Bypass Gap Analysis
+
+Three distinct patterns exist where `tools.execute()` is called directly without going through the gateway:
+
+**Pattern 1: Preflight gate present, gateway bypass** (cmd_mdq.py, cmd_context.py)
+- These paths have `check_preflight()` gates but bypass the gateway.
+- They are partially covered but inconsistent with the gateway-centric enforcement model.
+
+**Pattern 2: No preflight gate, no gateway** (tool_runner.py)
+- Critical gap: neither preflight nor gateway protection.
+- Priority 1: Resolve by adding preflight check in the `else` branch.
+- Priority 2: Standardize all write/delete/API-write operations through the gateway.
+
+### Ongoing Maintenance
+
+Coverage map accuracy must be maintained over time. Future changes to gate placement must update this map as part of the acceptance criteria (REQ-07 / AC-07). Any new `check_preflight()` addition requires a corresponding test or documented exception.
+
 ## Related Docs
 
 - `05_agent_00_document-guide.md`

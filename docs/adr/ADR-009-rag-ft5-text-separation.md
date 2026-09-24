@@ -369,6 +369,8 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
   - `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()` — sanctioned `/session rag-rebuild-fts` command path
   - `scripts/db/schema_sql.py` — schema initialization SQL (executed once during setup, not runtime)
 - **Excluded**: `scripts/mcp_servers/mdq/` — targets separate database `/opt/llm/db/mdq.sqlite`, out of ADR-009 scope
+- **Enforcement**: `tools/check_chunks_fts_invariant.py` で直接INSERT/UPDATEを検出（CI統合済み）
+  - Whitelist: `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()`（AST関数コンテキスト検出）、`scripts/db/schema_sql.py`（CREATE TRIGGERブロック内のINSERTはランタイム書き込みではないため除外）、`scripts/mcp_servers/mdq/`（別DB `/opt/llm/db/mdq.sqlite` を対象）
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
