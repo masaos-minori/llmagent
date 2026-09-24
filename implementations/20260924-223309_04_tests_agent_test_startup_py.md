@@ -83,10 +83,10 @@ Read-only verification — run existing tests and confirm they pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read-only: verify tests still pass | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Read-only: verify tests still pass | Completed | — | 20260925-065252 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260925-065252 | N/A |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260925-065252 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260925-065252 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
