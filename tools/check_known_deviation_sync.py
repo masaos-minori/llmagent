@@ -42,7 +42,7 @@ from tools._docs_consistency_lib import (
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
-ADR_DIR = DOCS_DIR / "adr"
+ADR_DIR = DOCS_DIR / "10_adr"
 
 # Canonical documents are discovered by suffix, not a hardcoded three-document
 # list -- EVENTBUS-008 is cited by ADR-006/ADR-008 but only resolves against
@@ -58,8 +58,9 @@ ADR_DIR = DOCS_DIR / "adr"
 # document is the current, real canonical source and is always included
 # explicitly, independent of the suffix.
 _CANONICAL_SUFFIX = "_90_inconsistencies_and_known_issues.md"
-_GOVERNANCE_KNOWN_ISSUES_DOC = (
-    "00_governance/00_governance_03_issue-and-uncertainty-management.md"
+_GOVERNANCE_KNOWN_ISSUES_DOC = "00_governance_03_issue-and-uncertainty-management.md"
+_GOVERNANCE_KNOWN_ISSUES_PATH = (
+    DOCS_DIR / "00_governance" / _GOVERNANCE_KNOWN_ISSUES_DOC
 )
 
 # Matches both the legacy per-area heading ("### MCP-004: Some title") and the
@@ -136,13 +137,29 @@ def discover_canonical_docs() -> list[DocFile]:
     consolidated `docs/00_governance_03_issue-and-uncertainty-management.md`
     (the current real canonical source — see the module-level comment above
     `_CANONICAL_SUFFIX`)."""
-    all_files = discover_md_files(DOCS_DIR, prefix="")
-    return [
-        f
-        for f in all_files
-        if f.rel_path.endswith(_CANONICAL_SUFFIX)
-        or f.rel_path == _GOVERNANCE_KNOWN_ISSUES_DOC
-    ]
+    result: list[DocFile] = []
+    # Search subfolders for per-area inconsistency docs (post-reorg).
+    for subdir in DOCS_DIR.iterdir():
+        if subdir.is_dir():
+            result.extend(discover_md_files(subdir, prefix=""))
+    # Also check root level for legacy files during transition.
+    for p in sorted(DOCS_DIR.glob("*.md")):
+        if p.name.endswith(_CANONICAL_SUFFIX):
+            content = p.read_text(encoding="utf-8")
+            result.append(DocFile(path=p, rel_path=p.name, lines=content.splitlines()))
+    # Add the governance document explicitly.
+    try:
+        content = _GOVERNANCE_KNOWN_ISSUES_PATH.read_text(encoding="utf-8")
+        result.append(
+            DocFile(
+                path=_GOVERNANCE_KNOWN_ISSUES_PATH,
+                rel_path=_GOVERNANCE_KNOWN_ISSUES_DOC,
+                lines=content.splitlines(),
+            )
+        )
+    except OSError:
+        pass
+    return result
 
 
 def discover_adr_docs() -> list[DocFile]:

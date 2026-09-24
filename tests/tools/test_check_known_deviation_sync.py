@@ -41,7 +41,7 @@ class TestStatusMatch:
             "04_mcp_90_inconsistencies_and_known_issues.md",
             "### ID-001: Some tracked deviation\n\n- **Status**: open\n",
         )
-        adr_dir = tmp_path / "adr"
+        adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
             "ADR-001-example.md",
@@ -72,7 +72,7 @@ class TestStatusMismatch:
             "04_mcp_90_inconsistencies_and_known_issues.md",
             "### ID-002: Another tracked deviation\n\n- **Status**: resolved\n",
         )
-        adr_dir = tmp_path / "adr"
+        adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
             "ADR-002-example.md",
@@ -108,7 +108,7 @@ class TestDanglingReference:
             "05_agent_90_inconsistencies_and_known_issues.md",
             "### ID-999: Unrelated tracked deviation\n\n- **Status**: open\n",
         )
-        adr_dir = tmp_path / "adr"
+        adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
             "ADR-003-example.md",
@@ -145,7 +145,7 @@ class TestFalsePositiveAvoidance:
             "### ID-004: Tracked deviation with a slug-shaped citation\n\n"
             "- **Status**: open\n",
         )
-        adr_dir = tmp_path / "adr"
+        adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
             "ADR-004-example.md",
@@ -182,7 +182,7 @@ class TestConsolidatedGovernanceFormat:
             "- **ID**: RAG-999\n"
             "- **Status**: open\n",
         )
-        adr_dir = tmp_path / "adr"
+        adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
             "ADR-006-example.md",
@@ -237,7 +237,7 @@ class TestNoIdHeadings:
             "# Event Bus: Inconsistencies and Known Issues\n\n"
             "This document currently has no tracked entries.\n",
         )
-        adr_dir = tmp_path / "adr"
+        adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
             "ADR-005-example.md",

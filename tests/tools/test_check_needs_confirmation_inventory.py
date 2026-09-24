@@ -13,6 +13,7 @@ from pathlib import Path
 from tools._docs_consistency_lib import discover_md_files
 from tools.check_needs_confirmation_inventory import (
     _GOVERNANCE_META_DOCS,
+    INVENTORY_DOC_PATH,
     check_untracked_inline_markers,
 )
 
@@ -31,13 +32,14 @@ class TestGovernanceMetaDocsCurrency:
     content instead of being exempted."""
 
     def test_named_docs_exist_on_disk(self) -> None:
-        repo_root = Path(__file__).resolve().parent.parent.parent
-        docs_dir = repo_root / "docs"
-        missing = [
-            name
-            for name in _GOVERNANCE_META_DOCS
-            if not (docs_dir / "00_governance" / name).is_file()
-        ]
+        docs_dir = INVENTORY_DOC_PATH.parent.parent
+        missing = []
+        for name in _GOVERNANCE_META_DOCS:
+            # Check both root level (legacy) and the target subfolder (post-reorg).
+            if not (docs_dir / name).is_file():
+                sub = name.split("_")[0] + "_" + name.split("_")[1]
+                if not (docs_dir / sub / name).is_file():
+                    missing.append(name)
         assert missing == [], (
             f"_GOVERNANCE_META_DOCS names non-existent files: {missing}"
         )
@@ -45,9 +47,14 @@ class TestGovernanceMetaDocsCurrency:
     def test_current_governance_filenames_are_covered(self) -> None:
         repo_root = Path(__file__).resolve().parent.parent.parent
         docs_dir = repo_root / "docs"
-        real_governance_docs = {
-            p.name for p in (docs_dir / "00_governance").glob("00_governance_*.md")
-        }
+        real_governance_docs: set[str] = set()
+        # Check root level (legacy) and the target subfolder (post-reorg).
+        for p in docs_dir.glob("00_governance_*.md"):
+            real_governance_docs.add(p.name)
+        gov_subdir = docs_dir / "00_governance"
+        if gov_subdir.is_dir():
+            for p in gov_subdir.glob("00_governance_*.md"):
+                real_governance_docs.add(p.name)
         assert real_governance_docs <= _GOVERNANCE_META_DOCS, (
             "A real docs/00_governance_*.md file is missing from "
             "_GOVERNANCE_META_DOCS: "

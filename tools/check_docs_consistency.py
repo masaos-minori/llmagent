@@ -62,6 +62,16 @@ DOMAIN_PREFIXES: dict[str, str] = {
     "overview": "01_overview",
 }
 
+# After docs reorganization (issue docsreorg02), domain files live in subfolders.
+# This maps domain names to the subfolder path relative to docs/.
+DOMAIN_SUBFOLDERS: dict[str, str] = {
+    "agent": "23_agent",
+    "mcp": "22_mcp",
+    "rag": "21_rag",
+    "deployment": "90_deployment",
+    "overview": "01_overview",
+}
+
 # Which generic checks each domain runs (generic = shared across domains).
 DOMAIN_GENERIC_CHECKS: dict[str, frozenset[str]] = {
     "agent": frozenset({"links", "removedfiles", "commanddrift"}),
@@ -162,8 +172,8 @@ def check_schema_drift(docs_dir: Path, repo_root: Path) -> list[Issue]:
 
     issues: list[Issue] = []
     target_files = discover_md_files(
-        docs_dir, prefix="90_shared_04_"
-    ) + discover_md_files(docs_dir, prefix="05_agent_09_")
+        docs_dir / "40_shared", prefix="90_shared_04_"
+    ) + discover_md_files(docs_dir / "23_agent", prefix="05_agent_09_")
     for doc in target_files:
         for line_no, line in enumerate(doc.lines, start=1):
             for match in _DOC_TABLE_MENTION_RE.finditer(line):
@@ -466,7 +476,8 @@ _DB_COUNT_CLAIM_RE = re.compile(
 _TABLE_ROW_SQLITE_RE = re.compile(r"`([a-z]+\.sqlite)`")
 _AGENT_TOML = REPO_ROOT / "config" / "agent.toml"
 _DEPLOY_DIR = REPO_ROOT / "deploy"
-_CONF_D_DOC = "01_overview/01_overview-files-06-misc.md"
+_CONF_D_DOC = "01_overview-files-06-misc.md"
+_CONF_D_DOC_PATH = REPO_ROOT / "docs" / "01_overview" / _CONF_D_DOC
 _TREE_BRANCH_RE = re.compile(r"[├└]─\s*([A-Za-z0-9_.-]+)")
 
 
@@ -640,8 +651,13 @@ def check_port_range_claim(
 
 
 def check_conf_d_listing(docs_dir: Path, repo_root: Path) -> list[Issue]:
-    files = discover_md_files(docs_dir, prefix=_CONF_D_DOC.split("_", 1)[0])
-    doc = next((f for f in files if f.rel_path == _CONF_D_DOC), None)
+    doc = None
+    for f in _CONF_D_DOC_PATH.parent.glob("*.md"):
+        if f.name == _CONF_D_DOC:
+            content = f.read_text(encoding="utf-8")
+            lines = content.splitlines()
+            doc = DocFile(path=f, rel_path=_CONF_D_DOC, lines=lines)
+            break
     if doc is None:
         return []
 
@@ -699,11 +715,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: docs directory not found: {docs_dir}", file=sys.stderr)
         return 1
 
-    prefix = DOMAIN_PREFIXES[args.domain]
+    subfolder = DOMAIN_SUBFOLDERS[args.domain]
     skip = set(args.skip or [])
-    files = discover_md_files(docs_dir, prefix=prefix)
+    files = discover_md_files(docs_dir / subfolder, prefix="")
     if not files:
-        print(f"No {prefix}*.md files found in docs/.", file=sys.stderr)
+        print(f"No *.md files found in docs/{subfolder}/.", file=sys.stderr)
         return 0
 
     all_issues: list[Issue] = []

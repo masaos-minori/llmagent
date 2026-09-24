@@ -40,7 +40,7 @@ from tools._docs_consistency_lib import Issue, report_and_exit
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
-ADR_INDEX = DOCS_DIR / "adr-index.md"
+ADR_INDEX = DOCS_DIR / "10_adr" / "adr-index.md"
 
 _MATRIX_HEADING = "## ADR Invariant Verification Matrix"
 _SECTION_HEADING_RE = re.compile(r"^#{1,2} ")
@@ -113,7 +113,7 @@ def collect_issues() -> list[Issue]:
                 file="adr-index.md",
                 line_no=0,
                 severity="ERROR",
-                message="docs/adr-index.md not found",
+                message="docs/10_adr/adr-index.md not found",
             )
         ]
     return check_invariant_matrix_test_paths(_read_lines(ADR_INDEX))

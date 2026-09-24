@@ -40,7 +40,7 @@ from tools._docs_consistency_lib import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-ADR_DIR = REPO_ROOT / "docs" / "adr"
+ADR_DIR = REPO_ROOT / "docs" / "10_adr"
 
 _KNOWN_DEVIATIONS_RE = re.compile(r"^## Known Deviations\s*$")
 _IMPLEMENTATION_NOTES_RE = re.compile(r"^## Implementation Notes\s*$")

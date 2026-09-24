@@ -28,11 +28,15 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tools._docs_consistency_lib import discover_md_files
+from tools._docs_consistency_lib import (
+    DocFile,
+    discover_md_files,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
-GRAPH_DOC_NAME = "00_governance/00_governance_01_documentation-policy.md"
+GRAPH_DOC_NAME = "00_governance_01_documentation-policy.md"
+GRAPH_DOC_PATH = DOCS_DIR / "00_governance" / GRAPH_DOC_NAME
 TARGET_SECTION = "Software Runtime Dependency Graph"
 IN_SCOPE_NODES = frozenset({"Agent", "MCP", "RAG", "EventBus", "Shared/DB"})
 
@@ -101,8 +105,28 @@ def find_cycle(nodes: frozenset[str], edges: list[tuple[str, str]]) -> list[str]
 
 
 def main() -> int:
-    files = discover_md_files(DOCS_DIR, prefix="")
-    graph_doc = next((f for f in files if f.rel_path == GRAPH_DOC_NAME), None)
+    # Post-reorg: search subfolders for the target document.
+    candidates: list[DocFile] = []
+    for subdir in DOCS_DIR.iterdir():
+        if subdir.is_dir():
+            candidates.extend(discover_md_files(subdir, prefix=""))
+        elif subdir.suffix == ".md":
+            content = subdir.read_text(encoding="utf-8")
+            candidates.append(
+                DocFile(path=subdir, rel_path=subdir.name, lines=content.splitlines())
+            )
+    # Also check root level for legacy files during transition.
+    for p in sorted(DOCS_DIR.glob("*.md")):
+        if p.name == GRAPH_DOC_NAME:
+            content = p.read_text(encoding="utf-8")
+            candidates.append(
+                DocFile(path=p, rel_path=p.name, lines=content.splitlines())
+            )
+    graph_doc = None
+    for c in candidates:
+        if c.path.name == GRAPH_DOC_NAME:
+            graph_doc = c
+            break
     if graph_doc is None:
         print(f"ERROR: {GRAPH_DOC_NAME} not found under docs/.", file=sys.stderr)
         return 1

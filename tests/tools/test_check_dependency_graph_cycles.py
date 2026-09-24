@@ -17,6 +17,7 @@ from pathlib import Path
 import tools.check_dependency_graph_cycles as cdgc
 from tools.check_dependency_graph_cycles import (
     GRAPH_DOC_NAME,
+    GRAPH_DOC_PATH,
     IN_SCOPE_NODES,
     TARGET_SECTION,
     extract_section,
@@ -174,8 +175,7 @@ class TestRealGraphIntegration:
     """
 
     def test_real_repo_graph_has_no_cycle(self) -> None:
-        repo_root = Path(__file__).resolve().parent.parent.parent
-        doc_path = repo_root / "docs" / GRAPH_DOC_NAME
+        doc_path = GRAPH_DOC_PATH
         assert doc_path.is_file(), f"{doc_path} not found"
         lines = doc_path.read_text(encoding="utf-8").splitlines()
         section = extract_section(lines, TARGET_SECTION)

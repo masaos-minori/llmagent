@@ -41,9 +41,8 @@ from tools._docs_consistency_lib import (
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
-INVENTORY_DOC_NAME = (
-    "00_governance/00_governance_03_issue-and-uncertainty-management.md"
-)
+INVENTORY_DOC_NAME = "00_governance_03_issue-and-uncertainty-management.md"
+INVENTORY_DOC_PATH = DOCS_DIR / "00_governance" / INVENTORY_DOC_NAME
 
 # Meta/governance docs that discuss the "Needs confirmation" label itself
 # (defining it, cross-referencing it) rather than flagging an actual
@@ -150,7 +149,7 @@ def check_stale_resolved_markers(
     docs_dir: Path, files: list[DocFile], entries: list[NcEntry]
 ) -> list[Issue]:
     """Flag a 'resolved' NC entry whose Source File still carries the marker."""
-    by_name = {f.name: f for f in docs_dir.rglob("*.md")}
+    by_name = {f.name: f for f in docs_dir.glob("*.md")}
     issues: list[Issue] = []
     for entry in entries:
         if entry.status not in ("resolved", "fixed") or not entry.source_file:
@@ -183,7 +182,7 @@ def check_untracked_inline_markers(
     tracked_files = {e.source_file for e in entries if e.source_file}
     issues: list[Issue] = []
     for doc in files:
-        if Path(doc.rel_path).name in _GOVERNANCE_META_DOCS:
+        if doc.rel_path in _GOVERNANCE_META_DOCS:
             continue
         for line_no, line in enumerate(doc.lines, start=1):
             if _INLINE_MARKER_RE.search(line) and doc.rel_path not in tracked_files:
@@ -232,18 +231,38 @@ def check_declared_field_count(docs_dir: Path, files: list[DocFile]) -> list[Iss
 
 
 def main() -> int:
-    files = discover_md_files(DOCS_DIR, prefix="")
-    inventory = next((f for f in files if f.rel_path == INVENTORY_DOC_NAME), None)
+    inventory = None
+    try:
+        content = INVENTORY_DOC_PATH.read_text(encoding="utf-8")
+        lines = content.splitlines()
+        inventory = DocFile(
+            path=INVENTORY_DOC_PATH, rel_path=INVENTORY_DOC_NAME, lines=lines
+        )
+    except OSError:
+        pass
     if inventory is None:
         print(f"ERROR: {INVENTORY_DOC_NAME} not found under docs/.", file=sys.stderr)
         return 1
 
     entries = _parse_inventory_entries(inventory)
 
+    # Discover all .md files under docs/ including subfolders (post-reorg).
+    all_files: list[DocFile] = []
+    for subdir in DOCS_DIR.iterdir():
+        if subdir.is_dir():
+            all_files.extend(discover_md_files(subdir, prefix=""))
+        elif subdir.suffix == ".md":
+            content = subdir.read_text(encoding="utf-8")
+            all_files.append(
+                DocFile(path=subdir, rel_path=subdir.name, lines=content.splitlines())
+            )
+
     all_issues: list[Issue] = []
-    all_issues += check_stale_resolved_markers(DOCS_DIR, files, entries)
-    all_issues += check_untracked_inline_markers(DOCS_DIR, files, entries)
-    all_issues += check_declared_field_count(DOCS_DIR, files)
+    all_issues += check_stale_resolved_markers(
+        DOCS_DIR / "00_governance", all_files, entries
+    )
+    all_issues += check_untracked_inline_markers(DOCS_DIR, all_files, entries)
+    all_issues += check_declared_field_count(DOCS_DIR, all_files)
 
     return report_and_exit(all_issues)
 
