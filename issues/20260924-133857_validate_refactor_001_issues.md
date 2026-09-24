@@ -1,15 +1,15 @@
-# Issue: Validate and fix inconsistencies in refactor_001_refactor-mcp-tool-discovery-service.md
+# Issue: Adversarial validation of refactor_001_refactor-mcp-tool-discovery-service.md — updated findings
 
 ## Priority
 High
 
 ## Summary
 
-Adversarial validation of `issues/20260924-105819_refactor_001_refactor-mcp-tool-discovery-service.md` revealed multiple contradictions between its claims and actual source code, unrealistic acceptance criteria, and unresolved design decisions. This issue tracks the fixes needed before the original issue can be safely implemented.
+Updated adversarial validation of `issues/20260924-105819_refactor_001_refactor-mcp-tool-discovery-service.md`. This document supersedes the previous validation (issues/20260924-133233_validate_refactor_001_issues.md). New findings F8–F10 address private attribute access, severity method identity, and test message comparison gaps discovered on second pass.
 
 ## Background
 
-The original issue proposes refactoring `scripts/agent/services/mcp_tool_discovery.py` by extracting bounded contexts into separate classes. The validation examined both the source files (`mcp_tool_discovery.py`, `runtime_tool_registry.py`) and the test suite (`test_mcp_tool_discovery.py`).
+The original issue proposes refactoring `scripts/agent/services/mcp_tool_discovery.py` by extracting bounded contexts into separate classes. The validation examined both the source files (`mcp_tool_discovery.py`, `runtime_tool_registry.py`) and the test suite (`test_mcp_tool_discovery.py`, `test_startup_severity_classification.py`).
 
 ## Findings
 
@@ -105,17 +105,66 @@ Even if every block were extracted to a single-line call, the minimum achievable
 
 **Severity**: Low
 
-**Description**: The issue claims "severity classification logic is scattered across 4+ methods". Actual analysis shows the `is_fatal = strict` pattern appears in exactly 3 locations:
+**Description**: The issue claims "severity classification logic is scattered across 4+ methods". Actual analysis shows the `is_fatal = strict` pattern appears in exactly 5 locations:
 
 1. `_fetch_server_tools()` line 265-271 (required server escalation)
 2. `discover_all()` line 132-149 (unreachable server escalation)
 3. `_build_drift_findings()` line 430-434 (drift findings)
+4. `_check_tool_definitions_finding()` line 456-458 (tool definitions)
+5. `_check_tool_definitions_finding()` line 468-472 (exception handler)
 
-Additionally, `_check_tool_definitions_finding()` line 456-458 and line 468-472 contain similar patterns. So the actual count is 5, not 4+, making the claim technically correct but imprecise.
+So the actual count is 5, not 4+. The claim is technically correct but imprecise.
 
 **Current state verification**: Verified against `mcp_tool_discovery.py` lines 265, 132, 430, 456, 468.
 
 **Required action**: Update the claim to "scattered across 5 methods" for precision.
+
+---
+
+### F8: Private attribute access — `registry._tools` breaks encapsulation
+
+**Severity**: Medium
+
+**Description**: Two places in `discover_all()` directly access `registry._tools`:
+
+- Line 160: `if tool_name not in registry._tools:` — required tools check
+- Line 178: `tools=dict(registry._tools)` — filtered registry creation
+
+During refactoring, if `_dedupe_and_build()` returns a different object type or structure, these accesses could silently break. The issue does not mention this risk.
+
+**Current state verification**: Verified against `mcp_tool_discovery.py` lines 160 and 178.
+
+**Required action**: After refactoring, replace `registry._tools` access with public API calls (e.g., `registry.all_tools()` or a dedicated `has_tool(name)` method). Document the migration plan.
+
+---
+
+### F9: `_is_strict()` and `_is_fatal_severity()` are identical — consolidation trivializes
+
+**Severity**: Low
+
+**Description**: The issue proposes consolidating severity classification into a single source of truth. However, `_is_strict()` (line 404-406) and `_is_fatal_severity()` (line 408-414) are functionally identical — both return `self._is_strict()`. Consolidation here is trivially achieved by removing one method and replacing all callers. The issue overstates the complexity of this particular concern.
+
+**Current state verification**: Verified against `mcp_tool_discovery.py` lines 404-414.
+
+**Required action**: Acknowledge that severity consolidation is simpler than implied. The real consolidation work lies in unifying the `StartupCheckStatus.FATAL / WARNING` branching patterns across the 5 locations identified in F7.
+
+---
+
+### F10: `server_key` used twice in capabilities error message (bug)
+
+**Severity**: Low
+
+**Description**: In `_validate_and_normalize_entry()` line 344, the error message uses `server_key!r` twice:
+
+```python
+f"{server_key}: tool {name!r} on server {server_key!r}: "
+```
+
+This should likely reference `server_url` instead of `server_key` a second time. While this is a pre-existing bug (not introduced by the refactor), it means the issue's constraint "Keep all `StartupCheckOutcome` messages identical" is ambiguous — should the refactored version preserve the buggy message or fix it?
+
+**Current state verification**: Verified against `mcp_tool_discovery.py` line 344.
+
+**Required action**: Decide whether to fix this bug during refactoring (recommended) or document it as a known deviation. If fixing, update Constraint 3 ("Keep all `StartupCheckOutcome` messages identical") to allow bug fixes.
 
 ---
 
@@ -130,6 +179,9 @@ Additionally, `_check_tool_definitions_finding()` line 456-458 and line 468-472 
 | F5: Unresolved design decisions | Medium | Medium |
 | F6: Message comparison gap | Medium | Medium |
 | F7: Imprecise severity claim | Low | N/A |
+| F8: Private attribute access risk | Medium | Medium |
+| F9: Trivialized severity consolidation | Low | N/A |
+| F10: Pre-existing bug in error message | Low | N/A |
 
 ## Required Changes to Original Issue
 
@@ -142,6 +194,9 @@ Before implementing the original refactor, the following updates must be made to
 5. **F5**: Record answers to all three unresolved questions.
 6. **F6**: Add strict message comparison assertions to tests, or revise acceptance criterion.
 7. **F7**: Update "4+ methods" to "5 methods" in Problem section.
+8. **F8**: Replace `registry._tools` access with public API calls after refactoring; document migration plan.
+9. **F9**: Acknowledge that severity consolidation is simpler than implied; focus effort on unifying branching patterns.
+10. **F10**: Fix the pre-existing bug in line 344 or document it as a known deviation; update Constraint 3 if fixing.
 
 ## Dependencies
 
@@ -151,3 +206,4 @@ Before implementing the original refactor, the following updates must be made to
 
 - After fixing the above issues, should the original issue be re-filed as a new document, or amended in place?
 - Should the duplicate-FATAL exception be aligned with the `is_fatal = strict` scheme (removing it), or preserved as a documented exception?
+- Should the `registry._tools` private attribute access be replaced with public API calls, or kept for performance reasons?
