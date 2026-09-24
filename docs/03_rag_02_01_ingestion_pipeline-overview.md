@@ -68,12 +68,16 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 ### File Lifecycle
 
-| Path | Created By | Content |
-|---|---|---|
-| `{rag_src_dir}/{timestamp}-{slug}.json` | crawler.py | URL, Title, Language, Content, Code Blocks |
-| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy |
-| `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | Chunk → Registered |
+| Path | Created By | Content | Deletion Policy |
+|---|---|---|---|
+| `{rag_src_dir}/{timestamp}-{slug}.json` | crawler.py | URL, Title, Language, Content, Code Blocks | Deleted after successful chunking (no audit trail required) |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy | Deleted after successful ingestion (no audit trail required) |
+| `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | Chunk → Registered | Configurable retention via `config/ingester.toml`; default 30 days; cleanup mechanism design out of scope — requires separate design decision |
 
+> **Retention configuration:** The retention period for `rag-src/registered/` files is configurable via `config/ingester.toml`. The default retention period is 30 days. Operations teams should review and adjust this value periodically based on their specific operational requirements (audit trail vs. disk space). If compliance requirements mandate indefinite retention, update this value accordingly.
+>
+> **Cleanup mechanism:** Automated cleanup of `rag-src/registered/` files requires a separate design decision. Options include operator intervention (manual cleanup), periodic task integrated into existing scheduling (if/when cron infrastructure is added), or on-ingestion cleanup triggered by `RagIngester` itself. This is explicitly out of scope for this issue.
+>
 > **JSON verification:** Parse crawl/chunk artifacts with `orjson.loads()` (the ingestion pipeline uses `orjson.dumps()` for writing and `orjson.loads()` for reading). Example — verify a crawl artifact:
 >
 > ```bash

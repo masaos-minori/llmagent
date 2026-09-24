@@ -120,10 +120,10 @@ Adding a separate section titled "Deletion Policy" instead of modifying the exis
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-09-24 | 2026-09-24 | Added Deletion column to File Lifecycle table and retention/cleanup notes |
+| 2 | Add or update tests per Validation plan | Done | 2026-09-24 | 2026-09-24 | Manual review confirmed — documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-09-24 | 2026-09-24 | No lint/type errors in markdown content |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-09-24 | 2026-09-24 | Already completed as part of Step 1 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

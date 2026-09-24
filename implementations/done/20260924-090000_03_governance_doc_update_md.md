@@ -27,7 +27,7 @@ Update RAG-006 status in the issue-and-uncertainty management document to reflec
 
 ### Target file
 
-`docs/00_governance_03_issue-and-uncertainty-management.md`
+`docs/00_governance/00_governance_03_issue-and-uncertainty-management.md`
 
 ### Procedure
 
@@ -142,10 +142,10 @@ Creating a new issue entry for the retention policy instead of updating the exis
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
+| 2 | Add or update tests per Validation plan | Pending | — | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260924-151230 | 20260924-151230 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260924-151325 | 20260924-151325 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

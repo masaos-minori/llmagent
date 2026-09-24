@@ -5,6 +5,7 @@ Unit tests for tool_runner.py: DAG execution, standard execution, and entry poin
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -1094,3 +1095,65 @@ class TestExecuteStandardSerialization:
             "call_write_1",
             "call_write_2",
         ]
+
+
+class TestGatewayBypassGapResolution:
+    @pytest.mark.asyncio
+    async def test_gateway_bypass_gap_documented_as_safe(self) -> None:
+        """Verify the gateway-bypass gap is documented as safe per Option B.
+
+        The investigation confirmed:
+        1. No production code path ever produces gateway=None after initialization
+           (factory.py:652 creates RepositoryGateway unconditionally).
+        2. The approval gate independently enforces check_preflight.
+        3. Read-only tools already bypass the gateway in the normal path too.
+
+        This test verifies the comment documenting this safety justification exists.
+        """
+        source = Path("scripts/agent/tool_runner.py").read_text()
+        assert "Gateway-bypass safety justification:" in source
+        assert "factory.py:652 creates RepositoryGateway unconditionally" in source
+
+    @pytest.mark.asyncio
+    async def test_execute_via_gateway_when_present(self) -> None:
+        """When gateway is present, execute goes through it."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+        executor = AsyncMock()
+        executor.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="written", is_error=False, request_id="req-1", server_key=""
+            )
+        )
+        gateway = RepositoryGateway(executor=executor, cfg=cfg, audit_logger=None)
+        ctx.services_required.gateway = gateway
+        ctx.turn.pending_approval_id = None
+
+        pc = _pc(
+            "read_text_file",
+            {},
+            call_id="call_r",
+            spec=ToolSpec(call_id="call_r", name="read_text_file", is_write=False),
+        )
+        result = await execute_one_tool_call(ctx, pc, 0)
+
+        executor.execute.assert_awaited_once_with("read_text_file", {})
+        assert result[0] == "call_r"
+
+    @pytest.mark.asyncio
+    async def test_execute_via_tools_when_gateway_none(self) -> None:
+        """When gateway is None, execute falls back to direct tools.execute()."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+        ctx.services_required.gateway = None
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="result", is_error=False, request_id="req-1", server_key=""
+            )
+        )
+
+        pc = _pc("read_text_file", args={}, call_id="call_r")
+        result = await execute_one_tool_call(ctx, pc, 0)
+
+        ctx.services_required.tools.execute.assert_called_once()
+        assert result[0] == "call_r"

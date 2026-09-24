@@ -202,6 +202,35 @@ Service checks accumulate results in `StartupValidationResult`, and startup is a
 - `handle_turn()` executes the plan/execute/verify stages via the workflow engine.
   While `ctx.workflow.approval_pending` is `True`, and while background tasks are paused, new turns are rejected. (See [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) for details.)
 
+## Preflight Gate Coverage Map
+
+This section documents the coverage of all `check_preflight()` call sites across the Agent subsystem. Each entry includes the call site location, caller chain, gate status, test coverage, and exemption justification.
+
+### Enumerated Call Sites
+
+| # | Location | Caller Chain | Gate Status | Test Coverage | Exemption |
+|---|---|---|---|---|---|
+| 1 | `scripts/agent/repository_gateway.py:114` | `RepositoryGateway._gate_write()` → `RepositoryGateway.execute()` | Enforced | Partial (mocked in tests) | None |
+| 2 | `scripts/agent/commands/cmd_mdq.py:67` | `_MdqMixin._execute_mdq()` → `/mdq <subcommand>` | Enforced | None | None |
+| 3 | `scripts/agent/commands/cmd_context.py:206` | `_ContextMixin._cmd_diff()` → `/diff` | Enforced | None | None |
+| 4 | `scripts/agent/tool_approval.py:148` | `check_approval()` → `run_approval_checks()` | Enforced | Partial (existing tests) | None |
+
+### Exempt Paths
+
+| Path | Justification |
+|---|---|
+| `repository_gateway.py::read_execute()` | READ operations are intentionally preflight-exempt per design (direct passthrough for read-only tools) |
+| `tool_approval.py::build_preview()` | dry_run execution is preflight-exempt (read-only operation) |
+| `tool_runner.py::run_tool_call()` when `gateway is None` | Gateway not yet configured; requires separate resolution |
+
+### Future Gate Additions
+
+When adding new `check_preflight()` calls, you MUST:
+
+1. Add an entry to the coverage map above.
+2. Ensure the new path has either a passing test or a documented justification for exclusion.
+3. Update this section's acceptance criteria if the exemption rationale changes.
+
 ## Known Limitations
 
 - Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) for details.)

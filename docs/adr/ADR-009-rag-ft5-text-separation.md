@@ -364,6 +364,11 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Summary**: `chunks_fts`の直接操作禁止を保証するテストが存在しない
 - **Impact**: 意図せぬ`chunks_fts`の更新が発生する可能性がある
 - **Resolution Target**: テストで直接操作を検出する
+- **Status**: Resolved — `tools/check_chunks_fts_invariant.py` enforces the invariant via CI pipeline (`lint-chunks-ft` tox environment)
+- **Whitelist**: 
+  - `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()` — sanctioned `/session rag-rebuild-fts` command path
+  - `scripts/db/schema_sql.py` — schema initialization SQL (executed once during setup, not runtime)
+- **Excluded**: `scripts/mcp_servers/mdq/` — targets separate database `/opt/llm/db/mdq.sqlite`, out of ADR-009 scope
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 

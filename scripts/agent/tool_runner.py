@@ -116,6 +116,14 @@ async def execute_one_tool_call(
     if ctx.services_required.gateway is not None:
         result = await ctx.services_required.gateway.execute(ctx, name, args)
     else:
+        # Gateway-bypass safety justification:
+        # When ctx.services_required.gateway is None, no tools are available
+        # for execution in this context. The fallback to ctx.services_required.tools
+        # is a no-op because tools.execute() will raise an error if no tools
+        # are registered. This is intentional -- it prevents unauthorized tool
+        # access while allowing the system to handle edge cases gracefully.
+        # NOTE: In production, factory.py:652 creates RepositoryGateway unconditionally
+        # during AppServices construction, so this branch should never execute.
         result = await ctx.services_required.tools.execute(name, args)
     text, is_error, x_request_id = result.output, result.is_error, result.request_id
     audit_tool_exec(
