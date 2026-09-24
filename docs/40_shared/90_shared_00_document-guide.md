@@ -91,4 +91,4 @@ Cross-cutting documentation rules and policies:
 
 ## Related ADRs
 
-- [ADR-008](adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
+- [ADR-008](../adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する

@@ -56,10 +56,10 @@ Revert via `git mv docs/40_shared/90_shared_03_01_runtime_and_execution-config-a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: no test code applies to a pure rename |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row's own file move IS the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260924-165232 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260924-165232 | N/A: no test code applies to a pure rename |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260924-165232 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260924-165233 | N/A: this row's own file move IS the documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -19,7 +19,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 - [MCP](22_mcp/04_mcp_00_document-guide.md) — Model Context Protocol servers
 - [Agent](23_agent/05_agent_00_document-guide.md) — Agent REPL system and operation
 - [Event Bus](24_eventbus/06_eventbus_00_document-guide.md) — Event Bus infrastructure
-- [Shared/DB](40_shared/90_shared_00_document-guide.md) — Shared infrastructure and database layer
+- [Shared/DB](../40_shared/90_shared_00_document-guide.md) — Shared infrastructure and database layer
 - [Documentation Policy](00_governance_01_documentation-policy.md) — Canonical source precedence (including decision target → canonical source mapping), conflict resolution, ADR conventions
 - [Documentation Metadata](00_governance_02_documentation-metadata.md) — Metadata conventions, terminology glossary, link rules
 - [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — Known Issues templates, Needs Confirmation inventory
@@ -36,7 +36,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
    - [MCP Servers](22_mcp/04_mcp_00_document-guide.md)
    - [Agent System](23_agent/05_agent_00_document-guide.md)
    - [Event Bus](24_eventbus/06_eventbus_00_document-guide.md)
-   - [Shared Infrastructure](40_shared/90_shared_00_document-guide.md)
+   - [Shared Infrastructure](../40_shared/90_shared_00_document-guide.md)
 4. Check for known issues in your area of interest
 
 ## Known Issues

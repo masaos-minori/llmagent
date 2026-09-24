@@ -270,7 +270,7 @@ EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
 _ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 _DOCS_DIR = _ROOT_DIR / "docs"
 _KNOWN_DEFECT_PATH = (
-    _DOCS_DIR / "90_shared_02_02_types_and_protocols-tool-and-execution-dto.md"
+    _DOCS_DIR / "40_shared" / "90_shared_02_02_types_and_protocols-tool-and-execution-dto.md"
 )
 
 # ---------------------------------------------------------------------------
@@ -280,7 +280,7 @@ _KNOWN_DEFECT_PATH = (
 _ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 _DOCS_DIR = _ROOT_DIR / "docs"
 _KNOWN_DEFECT_PATH = (
-    _DOCS_DIR / "90_shared_02_02_types_and_protocols-tool-and-execution-dto.md"
+    _DOCS_DIR / "40_shared" / "90_shared_02_02_types_and_protocols-tool-and-execution-dto.md"
 )
 
 
