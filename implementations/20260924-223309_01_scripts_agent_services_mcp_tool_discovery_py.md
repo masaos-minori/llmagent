@@ -216,10 +216,10 @@ Extract bounded-context classes and refactor existing methods within `mcp_tool_d
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260925-000011 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260925-000012 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260925-000012 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260925-000012 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
