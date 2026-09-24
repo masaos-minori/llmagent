@@ -3,12 +3,12 @@ name: RAG Docs Consistency
 on:
   push:
     paths:
-      - "docs/03_rag_*.md"
+      - "docs/21_rag/03_rag_*.md"
       - "config/crawler.toml"
       - "tools/check_rag_docs_consistency.py"
   pull_request:
     paths:
-      - "docs/03_rag_*.md"
+      - "docs/21_rag/03_rag_*.md"
       - "config/crawler.toml"
       - "tools/check_rag_docs_consistency.py"
 

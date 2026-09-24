@@ -3,12 +3,12 @@ name: RAG Docs Quality
 on:
   push:
     paths:
-      - "docs/03_rag_*.md"
+      - "docs/21_rag/03_rag_*.md"
       - "tools/check_doc_quality.py"
       - "config/doc_quality_rules.json"
   pull_request:
     paths:
-      - "docs/03_rag_*.md"
+      - "docs/21_rag/03_rag_*.md"
       - "tools/check_doc_quality.py"
       - "config/doc_quality_rules.json"
 

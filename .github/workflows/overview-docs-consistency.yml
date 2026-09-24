@@ -3,12 +3,12 @@ name: Overview Docs Consistency
 on:
   push:
     paths:
-      - "docs/01_overview*.md"
+      - "docs/01_overview/01_overview*.md"
       - "conf.d/**"
       - "tools/check_overview_docs_consistency.py"
   pull_request:
     paths:
-      - "docs/01_overview*.md"
+      - "docs/01_overview/01_overview*.md"
       - "conf.d/**"
       - "tools/check_overview_docs_consistency.py"
 

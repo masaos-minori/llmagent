@@ -3,13 +3,13 @@ name: Agent Docs Consistency
 on:
   push:
     paths:
-      - "docs/05_agent_*.md"
-      - "docs/90_shared_04_*.md"
+      - "docs/23_agent/05_agent_*.md"
+      - "docs/41_db/90_shared_04_*.md"
       - "tools/check_docs_consistency.py"
   pull_request:
     paths:
-      - "docs/05_agent_*.md"
-      - "docs/90_shared_04_*.md"
+      - "docs/23_agent/05_agent_*.md"
+      - "docs/41_db/90_shared_04_*.md"
       - "tools/check_docs_consistency.py"
 
 # Cancel in-progress runs for the same workflow + branch
