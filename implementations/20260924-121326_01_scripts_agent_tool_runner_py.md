@@ -123,11 +123,11 @@ If any are missing, add them alongside existing imports from `agent.tool_policy`
 
 ## Completion criteria
 
-- [ ] `tool_runner.py` contains a preflight check in the `else` branch (line 118-119 area)
-- [ ] The preflight check uses `check_preflight()` and `classify_operation_type()` from `tool_policy.py`
-- [ ] READ operations remain exempt (no preflight check for `OperationType.READ`)
-- [ ] Existing tests pass after the change
-- [ ] New test confirms the gateway-bypass gap is resolved (T-04)
+- [x] `tool_runner.py` contains a preflight check in the `else` branch (line 118-119 area)
+- [x] The preflight check uses `check_preflight()` and `classify_operation_type()` from `tool_policy.py`
+- [x] READ operations remain exempt (no preflight check for `OperationType.READ`)
+- [x] Existing tests pass after the change
+- [ ] New test confirms the gateway-bypass gap is resolved (T-04) — requires separate implementation
 
 ## Out of scope
 
@@ -142,10 +142,10 @@ If any are missing, add them alongside existing imports from `agent.tool_policy`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Preflight check added to else branch |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | Existing tests pass; new T-04 test requires separate document |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260924-152730 | 20260924-153427 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No docs changes needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
