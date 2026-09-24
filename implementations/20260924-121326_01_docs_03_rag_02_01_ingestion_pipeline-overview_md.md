@@ -12,7 +12,11 @@ Add a Deletion column to the File Lifecycle table in `docs/03_rag_02_01_ingestio
 
 ## Assumptions
 
-- The File Lifecycle table exists at lines 71-76 with "Path", "Created By", and "Content" columns
+- The File Lifecycle table exists at lines 71-75 with "Path", "Created By", and "Content" columns
+- The table currently has 3 data rows (not 2 as originally stated):
+  - Row 1: `{rag_src_dir}/{timestamp}-{slug}.json` | crawler.py | URL, Title, Language, Content, Code Blocks
+  - Row 2: `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy
+  - Row 3: `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | Chunk → Registered
 - The retention policy is: files are retained indefinitely for audit/debug purposes (per design rationale in the plan)
 - The cleanup mechanism is out of scope for this phase (requires separate design decision)
 
@@ -36,22 +40,23 @@ Add a Deletion column to the File Lifecycle table in `docs/03_rag_02_01_ingestio
 
 ### Procedure
 
-1. Read the current File Lifecycle table at lines 71-76
+1. Read the current File Lifecycle table at lines 69-75
 2. Add a Deletion column to the header row
-3. Add deletion information to each row
+3. Add deletion information to each existing row
 
 ### Method
 
 **Step 1: Locate the File Lifecycle table**
 
-Current content at lines 69-76:
+Current content at lines 69-75:
 ```markdown
 ### File Lifecycle
 
 | Path | Created By | Content |
 |---|---|---|
 | `{rag_src_dir}/{timestamp}-{slug}.json` | crawler.py | URL, Title, Language, Content, Code Blocks |
-| `{rag_src_dir}/chunks/{timestamp}-{slug}-[0-N].json` | chunk_splitter.py | Chunk text, metadata |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy |
+| `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | Chunk → Registered |
 ```
 
 **Step 2: Replace with updated table**
@@ -63,8 +68,8 @@ Replace the above block with:
 | Path | Created By | Content | Deletion |
 |---|---|---|---|
 | `{rag_src_dir}/{timestamp}-{slug}.json` | crawler.py | URL, Title, Language, Content, Code Blocks | Operator intervention or periodic task (design pending) |
-| `{rag_src_dir}/chunks/{timestamp}-{slug}-[0-N].json` | chunk_splitter.py | Chunk text, metadata | Deleted by RagIngester after successful registration |
-| `rag-src/registered/{timestamp}-{slug}-[0-N].json` | file_routing.py (shutil.move) | Processed chunk data | Indefinite (audit trail); configurable retention planned |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy | Deleted by RagIngester after successful registration |
+| `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | Chunk → Registered | Indefinite (audit trail); configurable retention planned |
 ```
 
 ### Details
@@ -94,9 +99,9 @@ Replace the above block with:
 
 ## Completion criteria
 
-- [ ] `docs/03_rag_02_01_ingestion_pipeline-overview.md` contains a Deletion column in the File Lifecycle table
-- [ ] All three rows have deletion information populated
-- [ ] Existing columns (Path, Created By, Content) remain unchanged
+- [x] `docs/03_rag_02_01_ingestion_pipeline-overview.md` contains a Deletion column in the File Lifecycle table
+- [x] All three rows have deletion information populated
+- [x] Existing columns (Path, Created By, Content) remain unchanged
 
 ## Out of scope
 
@@ -111,10 +116,10 @@ Replace the above block with:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Deletion column added to File Lifecycle table |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | Documentation-only change, no tests needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Skipped | — | — | Documentation-only change, no lint/typecheck required |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Change is the documentation itself |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
