@@ -1,0 +1,94 @@
+## Goal
+Relocate `docs/01_overview-files-04-shared.md` to
+`docs/01_overview/01_overview-files-04-shared.md` via `git mv`, with no filename or
+content change, implementing `REQ-001`.
+
+## Scope
+In scope: the single `git mv` of this file. Out of scope: any content edit; any other
+file's move.
+
+## Assumptions
+- `git mv` preserves `git log --follow` history continuity for this same-content move.
+- Destination directory `docs/01_overview/` already exists by the time this row runs.
+- This file has zero outbound relative links to any directory-qualified target —
+  confirmed via the Plan's Design dependency-graphing search.
+
+## Design decisions
+None beyond the mechanical move itself.
+
+## Alternatives considered
+- Plain filesystem `mv` + `git add`/`git rm`: rejected — the Plan's Constraints require
+  `git mv` only.
+
+## Implementation
+### Target file
+`docs/01_overview-files-04-shared.md`
+
+### Procedure
+1. Confirm the destination directory `docs/01_overview/` exists.
+2. Run `git mv docs/01_overview-files-04-shared.md docs/01_overview/01_overview-files-04-shared.md`.
+3. Confirm the destination file exists, the source path no longer exists, and `git
+   status` shows the change staged as a rename.
+
+### Method
+Single Git CLI invocation; no code change, no content diff expected between source and
+destination blob.
+
+### Details
+Do not pass any other flag to `git mv` beyond the two paths.
+
+## Compatibility considerations
+Bare-filename cross-references to this file continue to resolve after the move via the
+basename index.
+
+## Security considerations
+N/A: a file relocation with no content change carries no security-relevant surface.
+
+## Rollback considerations
+Revert with `git mv docs/01_overview/01_overview-files-04-shared.md
+docs/01_overview-files-04-shared.md`, or `git revert` the commit containing this move
+if already committed.
+
+## Validation plan
+- `git log --follow -- docs/01_overview/01_overview-files-04-shared.md` shows
+  continuous history through the move (Plan `AC-1`).
+- Deferred to Phase 3: `uv run python tools/check_docs_structure.py "docs/**/*.md"
+  --schema schemas/doc_front_matter.json` (Plan `AC-3`).
+
+## Completion criteria
+`docs/01_overview/01_overview-files-04-shared.md` exists;
+`docs/01_overview-files-04-shared.md` no longer exists at the flat path; the move is
+recorded as a Git rename.
+
+## Out of scope
+Any content edit to this file; any other file's move.
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | `git mv docs/01_overview-files-04-shared.md docs/01_overview/01_overview-files-04-shared.md` | Completed | 20260924-133001 | 20260924-133001 | git mv succeeded as staged rename. |
+| 2 | N/A: no test to add for a content-identical move | Completed | 20260924-133001 | 20260924-133001 | N/A: content-identical move, no test to add. |
+| 3 | Confirm `git log --follow` continuity and staged rename status | Completed | 20260924-133001 | 20260924-133001 | git status confirms staged rename. Full git log --follow history continuity verification deferred until this change is committed. |
+| 4 | N/A: no documentation update beyond the move itself | Completed | 20260924-133001 | 20260924-133001 | N/A: no documentation update beyond the move itself; full-tree validation deferred until this batch plus the remaining seq10-13 rows are all complete. |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: `REQ-001` (git mv the 10 overview files into `docs/01_overview/`)
+- **Source issue**: issues/20260923-141038_docsreorg06_move-overview-docs-into-new-overview-folder.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20260924-130409_plan.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20260924-131808
+- **Related target files**: docs/01_overview-files-04-shared.md

@@ -351,7 +351,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [Deployment Guide](../02_deployment.md) — デプロイメント時のワークフロー検証
+- [Deployment Guide](../90_deployment/02_deployment.md) — デプロイメント時のワークフロー検証
 <!-- TODO: Document '05_agent_03_03_turn-processing-flow-workflow-engine.md' was deleted -->
 
 ### Operations

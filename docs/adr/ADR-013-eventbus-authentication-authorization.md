@@ -310,7 +310,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - [EventBus System Overview](../06_eventbus_01_system-overview.md)
 - [EventBus Persistence Schema and Replay](../06_eventbus_03_persistence_schema_and_replay.md)
 - [EventBus DLQ Offsets and Delivery Semantics](../06_eventbus_04_dlq_offsets_and_delivery_semantics.md)
-- [Architecture and Trust Boundaries](../00_security_01_architecture-and-trust-boundaries.md)
+- [Architecture and Trust Boundaries](../91_security/00_security_01_architecture-and-trust-boundaries.md)
 
 ### Known Issues
 

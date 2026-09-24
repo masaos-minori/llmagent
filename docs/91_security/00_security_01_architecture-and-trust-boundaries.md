@@ -271,7 +271,7 @@ The EventBus API enforces authentication and authorization as a fail-closed secu
 All EventBus routes require Bearer-token authentication. Requests without a valid
 `Authorization: Bearer <token>` header receive HTTP 401 Unauthorized.
 
-See [ADR-013-eventbus-authentication-authorization](adr/ADR-013-eventbus-authentication-authorization.md)
+See [ADR-013-eventbus-authentication-authorization](../adr/ADR-013-eventbus-authentication-authorization.md)
 for the authentication mechanism decision and configuration details.
 
 ### Authorization
@@ -291,7 +291,7 @@ a caller cannot act as another consumer or access unauthorized topics.
 DLQ administration (`/dlq`, `/dlq/{event_id}/requeue`) and privileged replay
 (`/replay`) require operator permission.
 
-See [ADR-013-eventbus-authentication-authorization](adr/ADR-013-eventbus-authentication-authorization.md)
+See [ADR-013-eventbus-authentication-authorization](../adr/ADR-013-eventbus-authentication-authorization.md)
 for the authorization model decision and role definitions.
 
 ### Loopback-only Binding

@@ -62,7 +62,7 @@ Messages with flags are removed during the system prompt synchronization process
 
 **Workflows are Always Required (No Mode Setting)**
 
-See [ADR-001](adr/ADR-001-workflow-engine-mandatory.md) for rationale and invariants.
+See [ADR-001](../adr/ADR-001-workflow-engine-mandatory.md) for rationale and invariants.
 
 **Enabling Post-Execution Approval Gates:**
 In the workflow definition file (`config/workflows/*.json`), the `require_approval` field (defaults to `false`) can enable a post-execution approval gate between the `execute` and `verify` stages. Since the pending approval state is persisted in `workflow.sqlite`, pending approvals are restored even after a restart. (Sources: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
@@ -83,7 +83,7 @@ Currently, `config/agent.toml` explicitly specifies `startup_mode = "subprocess"
 
 ### Implementation Note: Behavior on Server Startup Failure
 
-See [ADR-004](adr/ADR-004-environment-failure-handling-policy.md) for rationale, tradeoffs, and invariants.
+See [ADR-004](../adr/ADR-004-environment-failure-handling-policy.md) for rationale, tradeoffs, and invariants.
 
 ## Related Documents
 

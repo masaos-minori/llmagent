@@ -236,7 +236,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 - [MCP Server Catalog: git-mcp](../04_mcp_04_05_git.md)
-- [High-Risk MCP Tool Common Policy](../00_security_02_high-risk-tool-common-policy.md)
+- [High-Risk MCP Tool Common Policy](../91_security/00_security_02_high-risk-tool-common-policy.md)
 - [Fail-Open/Fail-Closed and Risk Tiers](../04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)
 
 ### Known Issues

@@ -13,8 +13,8 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 
 ## Categories
 
-- [Overview](01_overview/01_overview.md) — System-wide architecture and file structure
-- [Deployment](90_deployment/02_deployment.md) — Environment setup and deployment procedures
+- [Overview](../01_overview/01_overview.md) — System-wide architecture and file structure
+- [Deployment](../90_deployment/02_deployment.md) — Environment setup and deployment procedures
 - [RAG](21_rag/03_rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
 - [MCP](22_mcp/04_mcp_00_document-guide.md) — Model Context Protocol servers
 - [Agent](23_agent/05_agent_00_document-guide.md) — Agent REPL system and operation
@@ -29,8 +29,8 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 
 ## Recommended Reading Order
 
-1. [System Overview](01_overview/01_overview.md) — Start here to understand the overall system picture
-2. [Deployment Guide](90_deployment/02_deployment.md) — Set up your environment
+1. [System Overview](../01_overview/01_overview.md) — Start here to understand the overall system picture
+2. [Deployment Guide](../90_deployment/02_deployment.md) — Set up your environment
 3. Select an area of interest:
    - [RAG Pipeline](21_rag/03_rag_00_document-guide.md)
    - [MCP Servers](22_mcp/04_mcp_00_document-guide.md)
