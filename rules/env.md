@@ -16,7 +16,7 @@ export PATH="$HOME/.local/bin:$PATH"   # uv, fd, ast-grep を使うために追�
 
 ## Service endpoints and ports
 
-MCP サーバ 8 種のポート一覧・役割: `docs/04_mcp_01_system_overview.md`（表）
+MCP サーバ 8 種のポート一覧・役割: `docs/22_mcp/04_mcp_01_system_overview.md`（表）
 
 上記に含まれないポート:
 
@@ -53,14 +53,14 @@ eventbus → 他の全レイヤーから完全に独立（shared にすら依存
 
 | ディレクトリ | エントリポイント docs |
 |---|---|
-| `scripts/agent/` | `docs/05_agent_00_document-guide.md` |
-| `scripts/db/` | `docs/90_shared_00_document-guide.md` |
-| `scripts/eventbus/` | `docs/06_eventbus_00_document-guide.md` |
-| `scripts/mcp_servers/` | `docs/04_mcp_00_document-guide.md` |
-| `scripts/rag/` | `docs/03_rag_00_document-guide.md` |
-| `scripts/shared/` | `docs/90_shared_00_document-guide.md` |
+| `scripts/agent/` | `docs/23_agent/05_agent_00_document-guide.md` |
+| `scripts/db/` | `docs/40_shared/90_shared_00_document-guide.md` |
+| `scripts/eventbus/` | `docs/24_eventbus/06_eventbus_00_document-guide.md` |
+| `scripts/mcp_servers/` | `docs/22_mcp/04_mcp_00_document-guide.md` |
+| `scripts/rag/` | `docs/21_rag/03_rag_00_document-guide.md` |
+| `scripts/shared/` | `docs/40_shared/90_shared_00_document-guide.md` |
 
-ファイル単位の詳細一覧: `docs/01_overview.md`（→ `01_overview-files-*.md`）
+ファイル単位の詳細一覧: `docs/01_overview/01_overview.md`（→ `01_overview-files-*.md`）
 
 Config directory resolution: `scripts/shared/config_loader.py` の `Path(__file__).resolve().parent.parent.parent / "config"`。本番: `/opt/llm/scripts/shared/config_loader.py` → `/opt/llm/config/`。
 
@@ -77,13 +77,13 @@ DB は rag.sqlite / session.sqlite / workflow.sqlite / eventbus.sqlite の 4 フ
 | `rag.sqlite` | `docs/90_shared_04_02_db_architecture_and_schema-schema-reference-part1.md` §5 |
 | `session.sqlite` | `docs/90_shared_04_02_db_architecture_and_schema-schema-reference-part2.md` §6 |
 | `workflow.sqlite` | `docs/90_shared_04_02_db_architecture_and_schema-schema-reference-part2.md` §7 |
-| `eventbus.sqlite` | `docs/06_eventbus_03_persistence_schema_and_replay.md` |
+| `eventbus.sqlite` | `docs/24_eventbus/06_eventbus_03_persistence_schema_and_replay.md` |
 
-DB 構成・接続管理の全体像: `docs/90_shared_04_01_db_architecture_and_schema-overview-and-config.md`。マイグレーション/スケーリング: `docs/90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md`。
+DB 構成・接続管理の全体像: `docs/41_db/90_shared_04_01_db_architecture_and_schema-overview-and-config.md`。マイグレーション/スケーリング: `docs/41_db/90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md`。
 
 ## Config files
 
-各 MCP サーバは自分専用の `*_mcp_server.toml` のみを読み込み、`agent.toml` は読まない（プロセス分離方針。`MCPServer.run_http()` が `ConfigLoader.restrict_to()` で強制）。MCP サーバ↔config ファイルの対応表、API キー env files (`conf.d/`): `docs/04_mcp_06_02_configuration-file-inventory.md`
+各 MCP サーバは自分専用の `*_mcp_server.toml` のみを読み込み、`agent.toml` は読まない（プロセス分離方針。`MCPServer.run_http()` が `ConfigLoader.restrict_to()` で強制）。MCP サーバ↔config ファイルの対応表、API キー env files (`conf.d/`): `docs/22_mcp/04_mcp_06_02_configuration-file-inventory.md`
 
 上記ドキュメントに含まれない config ファイル:
 
@@ -102,14 +102,14 @@ agent.toml の全設定項目・ホットリロード可否・分類: `docs/05_a
 
 | File | Content |
 |---|---|
-| `docs/00_index.md` | ドキュメント全体索引 |
-| `docs/01_overview.md` | システム全体のアーキテクチャ・ファイル構成索引 |
+| `docs/00_governance/00_index.md` | ドキュメント全体索引 |
+| `docs/01_overview/01_overview.md` | システム全体のアーキテクチャ・ファイル構成索引 |
 | `docs/02_deployment-part1.md` / `-part2.md` | 導入手順・デプロイ |
-| `docs/03_rag_00_document-guide.md` | RAG ドキュメントセット入口 |
-| `docs/04_mcp_00_document-guide.md` | MCP ドキュメントセット入口 |
-| `docs/05_agent_00_document-guide.md` | Agent ドキュメントセット入口 |
-| `docs/06_eventbus_00_document-guide.md` | Event Bus ドキュメントセット入口 |
-| `docs/90_shared_00_document-guide.md` | shared/DB ドキュメントセット入口 |
+| `docs/21_rag/03_rag_00_document-guide.md` | RAG ドキュメントセット入口 |
+| `docs/22_mcp/04_mcp_00_document-guide.md` | MCP ドキュメントセット入口 |
+| `docs/23_agent/05_agent_00_document-guide.md` | Agent ドキュメントセット入口 |
+| `docs/24_eventbus/06_eventbus_00_document-guide.md` | Event Bus ドキュメントセット入口 |
+| `docs/40_shared/90_shared_00_document-guide.md` | shared/DB ドキュメントセット入口 |
 | `routing.md` | タスク種別 → ロードすべき skill/docs のルーティング表 |
 
 各ドキュメントセットの詳細な章立ては `routing.md` の「Docs → task mapping」を参照。
@@ -128,4 +128,4 @@ bash deploy/start_agent.sh
 
 ## Ingestion pipeline
 
-コマンド例・引数・`--force` の挙動・RAG 整合性チェック: `docs/03_rag_05_2-execution-guide.md`
+コマンド例・引数・`--force` の挙動・RAG 整合性チェック: `docs/21_rag/03_rag_05_2-execution-guide.md`

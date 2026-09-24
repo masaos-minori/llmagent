@@ -20,8 +20,8 @@ Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `
 | Plan -> implementation procedure | plan, approved plan, implementation procedure, file-level steps | `skills/plan-to-implementation-procedure/SKILL.md` + `skills/plan-to-implementation-procedure/workflow.md` |
 | Implementation procedure -> code | implementation procedure, execute procedure, implement from procedure | `skills/code-implementation/SKILL.md` + `skills/code-implementation/workflow.md` |
 | Architecture / module design | architecture, module, interface, data model, component | `skills/python-design/SKILL.md` + `skills/python-design/workflow.md` |
-| MCP server / new server | mcp server, new server, install server | `skills/mcp-server-add/SKILL.md` + `skills/mcp-server-add/workflow.md` + `rules/env.md` + `docs/04_mcp_03_01_dispatch-and-routing.md` + `docs/04_mcp_06_02_configuration-file-inventory.md` |
-| Deploy / production | deploy, /opt/llm, service restart, init.d | `skills/deploy/SKILL.md` + `skills/deploy/workflow.md` + `rules/env.md` + `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` |
+| MCP server / new server | mcp server, new server, install server | `skills/mcp-server-add/SKILL.md` + `skills/mcp-server-add/workflow.md` + `rules/env.md` + `docs/22_mcp/04_mcp_03_01_dispatch-and-routing.md` + `docs/22_mcp/04_mcp_06_02_configuration-file-inventory.md` |
+| Deploy / production | deploy, /opt/llm, service restart, init.d | `skills/deploy/SKILL.md` + `skills/deploy/workflow.md` + `rules/env.md` + `docs/23_agent/05_agent_10_01_operations-and-observability-startup-and-health.md` |
 | Event Bus implementation / debug | eventbus, event bus, dlq, sse subscribe, replay | `skills/python-implementation/SKILL.md` + `skills/python-implementation/workflow.md` + `rules/env.md` (add `skills/python-debug-root-cause/SKILL.md` + `workflow.md` for debug/investigation tasks) |
 | Documentation / docs — also matches whenever a file under `docs/` or `skills/` will be created or edited, even with no documentation keyword in the request | document, doc, write docs, readme, changelog, editing `docs/*` or `skills/*` | `skills/python-documentation/SKILL.md` + `skills/python-documentation/workflow.md` |
 | Issue creation / GitHub issue | issue, github issue, create issue, convert findings to issue | `skills/issue-creator/SKILL.md` + `skills/issue-creator/workflow.md` |
@@ -83,7 +83,7 @@ descriptions) are invisible from reading the changed file alone.
 | Any `docs/*.md` file was added or edited | `uv run python tools/check_docs_structure.py [glob ...]` | File size, H1 count, Front Matter, Related Documents/Keywords sections, internal link reachability |
 | Any `docs/*.md` file was added or edited | `uv run python tools/check_docs_content_policy.py` | Report-only (Warning) detection of implementation-detail content that should point to a canonical source instead — see `skills/DESIGN.md` Docs content policy — remove |
 | Docs touched a specific domain (`agent`\|`mcp`\|`rag`\|`deployment`\|`overview`) | `uv run python tools/check_docs_consistency.py --domain <domain>` | Cross-checks doc claims (ports, config keys, symbol references) against `config/agent.toml` and `scripts/` |
-| A "Needs confirmation" marker was added, resolved, or removed anywhere under `docs/` | `uv run python tools/check_needs_confirmation_inventory.py` | Register new markers in `docs/00_governance_03_issue-and-uncertainty-management.md`; remove the inline marker from the source doc once an entry is marked resolved |
+| A "Needs confirmation" marker was added, resolved, or removed anywhere under `docs/` | `uv run python tools/check_needs_confirmation_inventory.py` | Register new markers in `docs/00_governance/00_governance_03_issue-and-uncertainty-management.md`; remove the inline marker from the source doc once an entry is marked resolved |
 | A file was added to or removed from `tools/` | `uv run python tools/check_tool_descriptions_sync.py` | Update `tools/TOOL_DESCRIPTIONS.md` in the same change — do not leave a tool undocumented or a description referring to a deleted file |
 | A `skills/*.md`, `rules/*.md`, or `prompts/*.md` file was added, edited, renamed, or removed | `uv run python tools/check_skills_references.py` | Verifies every backtick-quoted `rules/`/`skills/`/`templates/` (or `AGENTS.md`/`routing.md`) file reference still resolves to a file that exists — catches a dangling reference left behind by a rename, split, or deletion |
 | A `plans/*.md`, `issues/*.md`, or `implementations/*.md` document is about to be read as a workflow's input, or was just generated as its output (`issue-to-plan`, `plan-to-implementation-procedure`, `code-implementation`) | `uv run python tools/check_workitem_structure.py --file <path>` | Verifies every `## ` section required by the matching canonical template (`templates/issue.md`/`templates/plan.md`/`templates/implementation-procedure.md`) is present — catches a structurally incomplete document (e.g. a missing `Implementation Target Files` or `Traceability` section) before a workflow proceeds on it |
@@ -145,7 +145,7 @@ The full pipeline runs across three top-level directories, in order:
 
 Load only the docs relevant to the specific task. Do NOT load all `docs/*.md`.
 
-Full task-scope → doc mapping (Domain specs, System overview, Agent, MCP, RAG, DB/Shared, Event Bus): see `docs/00_index.md` "Document References by Task".
+Full task-scope → doc mapping (Domain specs, System overview, Agent, MCP, RAG, DB/Shared, Event Bus): see `docs/00_governance/00_index.md` "Document References by Task".
 
 ## Always load alongside the skill
 
