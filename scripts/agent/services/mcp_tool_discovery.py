@@ -130,52 +130,23 @@ class McpToolDiscoveryService:
                 key, cfg
             )
             if is_unreachable:
-                is_required = cfg.required
-                new_findings = []
-                for o in server_findings:
-                    new_status = (
-                        StartupCheckStatus.FATAL
-                        if is_required
-                        else StartupCheckStatus.WARNING
-                    )
-                    new_findings.append(
-                        StartupCheckOutcome(
-                            source=o.source,
-                            status=new_status,
-                            message=o.message,
-                            remediation=o.remediation,
-                        )
-                    )
-                server_findings = new_findings
-
-            findings.extend(server_findings)
-            if is_unreachable:
+                findings = self._escalate_unreachable_findings(
+                    findings, server_findings, cfg.required, key
+                )
                 unreachable.append(key)
+            else:
+                findings.extend(server_findings)
             entries.extend(fetched)
         registry, dedup_findings = self._dedupe_and_build(entries)
         findings.extend(dedup_findings)
-        for srv_key, srv_cfg in self._ctx.cfg.mcp.mcp_servers.items():
-            if srv_cfg.required and srv_cfg.tool_names:
-                for tool_name in srv_cfg.tool_names:
-                    if tool_name not in registry._tools:
-                        findings.append(
-                            StartupCheckOutcome(
-                                source=_SOURCE,
-                                status=StartupCheckStatus.FATAL,
-                                message=(
-                                    f"{srv_key}: required tool {tool_name!r} not found in discovery results"
-                                ),
-                                remediation="Verify the server's /v1/tools response includes this tool.",
-                            )
-                        )
-        drift_findings = self._build_drift_findings(entries)
-        findings.extend(drift_findings)
+        findings = self._check_required_tools(findings, registry)
+        findings.extend(self._build_drift_findings(entries))
         tool_defs_finding = await self._check_tool_definitions_finding()
         if tool_defs_finding is not None:
             findings.append(tool_defs_finding)
         unavailable_keys = frozenset(unreachable)
         filtered_registry = RuntimeToolRegistry(
-            tools=dict(registry._tools),
+            tools={t.name: t for t in registry.all_tools()},
             unavailable_servers=unavailable_keys,
         )
         return DiscoveryResult(
@@ -471,3 +442,51 @@ class McpToolDiscoveryService:
                 else StartupCheckStatus.WARNING
             )
             return StartupCheckOutcome(source=_SOURCE, status=status, message=str(exc))
+
+    def _escalate_unreachable_findings(
+        self,
+        current_findings: list[StartupCheckOutcome],
+        server_findings: list[StartupCheckOutcome],
+        is_required: bool,
+        key: str,
+    ) -> list[StartupCheckOutcome]:
+        """Escalate unreachable server findings to FATAL when required."""
+        new_findings = []
+        for o in server_findings:
+            new_status = (
+                StartupCheckStatus.FATAL
+                if is_required
+                else StartupCheckStatus.WARNING
+            )
+            new_findings.append(
+                StartupCheckOutcome(
+                    source=o.source,
+                    status=new_status,
+                    message=o.message,
+                    remediation=o.remediation,
+                )
+            )
+        current_findings.extend(new_findings)
+        return current_findings
+
+    def _check_required_tools(
+        self,
+        findings: list[StartupCheckOutcome],
+        registry: RuntimeToolRegistry,
+    ) -> list[StartupCheckOutcome]:
+        """Check that all required tools are present in the discovery results."""
+        for srv_key, srv_cfg in self._ctx.cfg.mcp.mcp_servers.items():
+            if srv_cfg.required and srv_cfg.tool_names:
+                for tool_name in srv_cfg.tool_names:
+                    if tool_name not in {t.name for t in registry.all_tools()}:
+                        findings.append(
+                            StartupCheckOutcome(
+                                source=_SOURCE,
+                                status=StartupCheckStatus.FATAL,
+                                message=(
+                                    f"{srv_key}: required tool {tool_name!r} not found in discovery results"
+                                ),
+                                remediation="Verify the server's /v1/tools response includes this tool.",
+                            )
+                        )
+        return findings
