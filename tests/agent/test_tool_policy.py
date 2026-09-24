@@ -287,6 +287,30 @@ class TestCheckPreflight:
             )
         assert exc_info.value.audit_decision == "denied_repo_allowlist"
 
+    def test_dry_run_operations_require_allowed_tools(self) -> None:
+        """dry_run must still pass allowed_tools check."""
+        cfg = _cfg(
+            allowed_tools=["dry_run"],
+            allowed_root="/tmp",
+            approval_github_allowed_repos=["github.com/example/repo"],
+        )
+        try:
+            check_preflight(cfg, "dry_run", {})
+        except PolicyViolationError:
+            pytest.fail("dry_run with allowed_tools should pass")
+
+    def test_read_operations_require_allowed_tools(self) -> None:
+        """READ must still pass allowed_tools check."""
+        cfg = _cfg(
+            allowed_tools=["read"],
+            allowed_root="/tmp",
+            approval_github_allowed_repos=["github.com/example/repo"],
+        )
+        try:
+            check_preflight(cfg, "read", {})
+        except PolicyViolationError:
+            pytest.fail("READ with allowed_tools should pass")
+
 
 class TestEscalateForPath:
     def test_already_high_base_risk_no_escalation(self) -> None:
@@ -1181,7 +1205,9 @@ class TestMetacharacterRejection:
     def test_semicolon_metacharacter_rejected(self) -> None:
         """REQ-005: ';' must cause HIGH regardless of prefix match."""
         cfg = _cfg(approval_shell_safe_prefixes=["cat"])
-        result = classify_risk(cfg, "shell_run", {"command": "cat /etc/hosts; rm -rf /"})
+        result = classify_risk(
+            cfg, "shell_run", {"command": "cat /etc/hosts; rm -rf /"}
+        )
         assert result == "high"
 
     def test_ampersand_metacharacter_rejected(self) -> None:

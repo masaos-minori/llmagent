@@ -44,7 +44,7 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 ## System Architecture
 
 - **Component Responsibilities**: Admin/Operator initiates crawling via `crawler.py`; `WebCrawler` performs BFS crawl of same-origin URLs producing `{yyyymmddhhmmss}-{slug}.json` artifacts; `ChunkSplitter` splits crawled content using language-aware strategies (JA: Sudachi / EN: sentence / code: blank-line); `RagIngester` generates embeddings via embed-llm and upserts into SQLite; processed chunks are moved to `rag-src/registered/`.
-- **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns post-ingestion staging area (retention TBD).
+- **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns post-ingestion staging area (Retention period is configurable via `config/ingester.toml`; default 30 days. Cleanup mechanism design is out of scope — requires separate design decision.).
 - **Allowed Dependency Direction**: Admin → crawler.py → chunk_splitter.py → ingester.py → rag-src/registered/. No circular dependencies among pipeline stages.
 - **Reason for Process Separation**: Each pipeline stage runs as a separate script because failure isolation prevents one stage's crash from affecting others; independent scaling allows write-heavy domains (file-write-mcp) to require different resource allocation than read-only domains (web-search-mcp); deployment independence allows individual scripts to be updated or restarted without affecting the entire system.
 - **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
@@ -86,10 +86,9 @@ state transitions require coordinated testing when any component's contract chan
 (Design Boundaries Requiring Joint Review). This means modifications to one component's
 owned state must consider downstream impact on dependent components.
 
-#### Known exception
+#### Known issue
 
-The `rag-src/registered/` directory's retention policy is unresolved — "(retention TBD)"
-as stated inline. See Known Issue `RAG-006` in `docs/00_governance_03_issue-and-uncertainty-management.md`.
+The `rag-src/registered/` directory's retention policy is configurable via `config/ingester.toml` with a default of 30 days. Automated cleanup of `rag-src/registered/` files requires a separate design decision. See Known Issue `RAG-006` in `docs/00_governance_03_issue-and-uncertainty-management.md`.
 
 ---
 
