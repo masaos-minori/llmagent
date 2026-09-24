@@ -59,6 +59,9 @@ PART2_STATUS_VALUES = {"open", "investigating", "deferred"}
 # ── Document structure constants ─────────────────────────────────────────────────
 
 GOVERNANCE_DOC_NAME = "00_governance_03_issue-and-uncertainty-management.md"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+DOCS_DIR = REPO_ROOT / "docs"
+GOVERNANCE_DOC_PATH = DOCS_DIR / "00_governance" / GOVERNANCE_DOC_NAME
 REMOVAL_PLACEHOLDER_RE = re.compile(r"do not create a `#### ([A-Z]+-\d+)` heading")
 FIELD_BULLET_RE = re.compile(r"- \*\*([^*]+)\*\*: ")
 HEADING_RE = re.compile(r"^#### (.+)$")
@@ -446,11 +449,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    doc_path = (
-        Path(args.doc_path)
-        if args.doc_path
-        else Path(__file__).parent.parent / "docs" / GOVERNANCE_DOC_NAME
-    )
+    doc_path = Path(args.doc_path) if args.doc_path else GOVERNANCE_DOC_PATH
 
     # Parse the document
     content = doc_path.read_text(encoding="utf-8")

@@ -314,7 +314,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — EVENTBUS-008 (No Production Authentication Model) and CI-001 (ConfigLoader migration) addressed by this ADR.
+- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — EVENTBUS-008 (No Production Authentication Model) and CI-001 (ConfigLoader migration) addressed by this ADR.
 
 ### Implementation References
 

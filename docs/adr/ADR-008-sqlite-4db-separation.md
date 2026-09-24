@@ -542,8 +542,8 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 <!-- TODO: Document '03_rag_04_02_rag-persistence.md' was deleted -->
 <!-- TODO: Document '03_rag_04_03_rag-recovery.md' was deleted -->
 <!-- TODO: Document '05_agent_04_01_agent-session-persistence.md' was deleted -->
-- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
-- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — SHARED-003（workflow/eventbus復旧手続きの実務Runbook整備済み、resolved）、CI-002（本ADRの現行内容と対応しない旧記述の疑い）
+- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
+- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — SHARED-003（workflow/eventbus復旧手続きの実務Runbook整備済み、resolved）、CI-002（本ADRの現行内容と対応しない旧記述の疑い）
 
 ### Implementation References
 

@@ -240,7 +240,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - [Fail-Open/Fail-Closed and Risk Tiers](../04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)
 
 ### Known Issues
-- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — no active entries related to this ADR; the protected-branch/Force-Push guard, approval risk-tier mapping, and audit repository-identity gaps this ADR addressed are all resolved.
+- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — no active entries related to this ADR; the protected-branch/Force-Push guard, approval risk-tier mapping, and audit repository-identity gaps this ADR addressed are all resolved.
 
 ### Implementation References
 - `scripts/mcp_servers/git/repository_state.py` — `RepositoryState`, `RepositoryState.snapshot()`, `WriteProtectionPipeline`, `WriteProtectionPipeline.run()`

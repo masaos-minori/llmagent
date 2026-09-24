@@ -17,6 +17,7 @@ import pytest
 from tools._docs_consistency_lib import DocFile
 from tools.check_issue_inventory_conformance import (
     GOVERNANCE_DOC_NAME,
+    GOVERNANCE_DOC_PATH,
     check_closing_summary,
     check_orphaned_bullets,
     check_referential_integrity,
@@ -561,3 +562,15 @@ class TestReferentialIntegrity:
         assert not any("None" in i.message for i in issues), (
             "Related: None should not be flagged as a dangling reference"
         )
+
+
+class TestGovernanceDocPathIntegration:
+    """Exercises GOVERNANCE_DOC_PATH against the actual repository tree. Depends on
+    docsreorg05's plans/done/20260924-115855_plan.md seq 01/03 (the governance docs move)
+    and seq 07 (this tool's GOVERNANCE_DOC_PATH constant) having already been
+    applied; if run before those land, this test fails with a clear assertion
+    message rather than silently skipping.
+    """
+
+    def test_governance_doc_path_resolves_on_disk(self) -> None:
+        assert GOVERNANCE_DOC_PATH.is_file(), f"{GOVERNANCE_DOC_PATH} not found"

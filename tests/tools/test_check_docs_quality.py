@@ -26,20 +26,20 @@ from tools.check_docs_quality import (
 # Then extract pairs from /tmp/pairs.txt and update this constant.
 EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
     [
-        # 00_governance_01_documentation-policy.md
-        "00_governance_01_documentation-policy.md:'Agent' <-> 'EventBus'",
-        "00_governance_01_documentation-policy.md:'Agent' <-> 'Shared/DB'",
-        "00_governance_01_documentation-policy.md:'EventBus' <-> 'Shared/DB'",
-        "00_governance_01_documentation-policy.md:'MCP' <-> 'Agent'",
-        "00_governance_01_documentation-policy.md:'MCP' <-> 'EventBus'",
-        "00_governance_01_documentation-policy.md:'MCP' <-> 'Shared/DB'",
-        "00_governance_01_documentation-policy.md:'RAG' <-> 'Agent'",
-        "00_governance_01_documentation-policy.md:'RAG' <-> 'EventBus'",
-        "00_governance_01_documentation-policy.md:'RAG' <-> 'MCP'",
-        "00_governance_01_documentation-policy.md:'RAG' <-> 'Shared/DB'",
-        # 00_governance_03_issue-and-uncertainty-management.md
-        "00_governance_03_issue-and-uncertainty-management.md:'CI-009' <-> 'CI-012'",
-        "00_governance_03_issue-and-uncertainty-management.md:'Lifecycle' <-> 'Lifecycle'",
+        # 00_governance/00_governance_01_documentation-policy.md
+        "00_governance/00_governance_01_documentation-policy.md:'Agent' <-> 'EventBus'",
+        "00_governance/00_governance_01_documentation-policy.md:'Agent' <-> 'Shared/DB'",
+        "00_governance/00_governance_01_documentation-policy.md:'EventBus' <-> 'Shared/DB'",
+        "00_governance/00_governance_01_documentation-policy.md:'MCP' <-> 'Agent'",
+        "00_governance/00_governance_01_documentation-policy.md:'MCP' <-> 'EventBus'",
+        "00_governance/00_governance_01_documentation-policy.md:'MCP' <-> 'Shared/DB'",
+        "00_governance/00_governance_01_documentation-policy.md:'RAG' <-> 'Agent'",
+        "00_governance/00_governance_01_documentation-policy.md:'RAG' <-> 'EventBus'",
+        "00_governance/00_governance_01_documentation-policy.md:'RAG' <-> 'MCP'",
+        "00_governance/00_governance_01_documentation-policy.md:'RAG' <-> 'Shared/DB'",
+        # 00_governance/00_governance_03_issue-and-uncertainty-management.md
+        "00_governance/00_governance_03_issue-and-uncertainty-management.md:'CI-009' <-> 'CI-012'",
+        "00_governance/00_governance_03_issue-and-uncertainty-management.md:'Lifecycle' <-> 'Lifecycle'",
         # 03_rag_02_01_ingestion_pipeline-overview.md
         "03_rag_02_01_ingestion_pipeline-overview.md:'Batch split unprocessed files' <-> 'Regenerate existing chunks'",
         "03_rag_02_01_ingestion_pipeline-overview.md:'Embed and save to DB' <-> 'Force re-registration'",

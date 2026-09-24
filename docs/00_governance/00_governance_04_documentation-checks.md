@@ -278,7 +278,7 @@ When referencing other documents:
 **Link format examples:**
 - Same area: `[Agent Guide](05_agent_01_system-overview.md)`
 - Cross area: `[RAG Specification](03_rag_01_system_overview.md)`
-- ADR: `[ADR-001](adr/ADR-001-workflow-engine-mandatory.md)`
+- ADR: `[ADR-001](../adr/ADR-001-workflow-engine-mandatory.md)`
 - Internal anchor: `[Section](05_agent_01_system-overview.md#workflow-engine)`
 
 ## Governance Verification Matrix

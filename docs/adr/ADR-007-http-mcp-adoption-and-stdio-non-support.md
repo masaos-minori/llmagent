@@ -418,7 +418,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance_03_issue-and-uncertainty-management.md) — MCP既知の問題
+- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — MCP既知の問題
 
 ### Implementation References
 
