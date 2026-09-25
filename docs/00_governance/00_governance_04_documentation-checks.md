@@ -4,7 +4,7 @@ area: governance
 tags:
   - governance
 related:
-  - 00_index.md
+  - ../00_index.md
   - 01_overview.md
 ---
 
