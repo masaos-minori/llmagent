@@ -86,7 +86,7 @@ Cross-cutting documentation rules and policies:
 3. `ArtifactEvent` is data-only and has no event bus.
 4. `LLMMessage` has 7 fields (including `importance`/`pinned`; not 5 as in old `90_shared.md`).
 5. Do NOT perform manual INSERTs because DB triggers automatically synchronize `chunks_fts`.
-6. `SQLiteHelper("workflow")` is enabled (see `90_shared_04_01`).
+6. `SQLiteHelper("workflow")` is enabled (see `41_db_01`).
 7. For details on `LLMClient`, see `05_agent_05_llm-and-streaming.md` (not covered by this document set).
 
 ## Related ADRs
