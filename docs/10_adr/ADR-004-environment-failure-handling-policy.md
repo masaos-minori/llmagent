@@ -486,8 +486,8 @@ NC-037を参照。
 
 - **Known Issue**: ADR-004-D2-production-config-validator-severity-downgrade
 - **Type**: Design Deviation (Resolved)
-- **Summary**: `scripts/shared/production_config_validator.py`の`is_production`条件によるstrictモード違反の警告への格下げ（`docs/adr-index.md` INV-010で指摘された、D1とは別個の逸脱）。
-- **Conflicting Source**: `docs/adr-index.md` INV-010
+- **Summary**: `scripts/shared/production_config_validator.py`の`is_production`条件によるstrictモード違反の警告への格下げ（`docs/10_adr/adr-index.md` INV-010で指摘された、D1とは別個の逸脱）。
+- **Conflicting Source**: `docs/10_adr/adr-index.md` INV-010
 - **Expected Design**: Production-grade検証はすべての環境で無条件に適用されるべきである。
 - **Observed Implementation**: 修正前は`is_production`条件によりstrictモード違反が警告へ格下げされていた。
 - **Impact**: Production-grade検証の一貫性に影響していた。
