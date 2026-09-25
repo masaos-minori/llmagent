@@ -843,9 +843,9 @@ Topics explicitly excluded from this document:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md)
-- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md)
-- [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md)
+- [Documentation Policy](governance_01_documentation-policy.md)
+- [Documentation Metadata](governance_02_documentation-metadata.md)
+- [Documentation Checks](governance_04_documentation-checks.md)
 
 ## Keywords
 

@@ -275,7 +275,7 @@ When referencing other documents:
 **Link format examples:**
 - Same area: `[Agent Guide](agent_01_system-overview_00_document-guide.md)`
 - Cross area: `[RAG Specification](rag_01_system_overview_00_document-guide.md)`
-- ADR: `[ADR-001](/home/sugimoto/llmagent/docs/10_adr/ADR-001-workflow-engine-mandatory.md)`
+- ADR: `[ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md)`
 - Internal anchor: `[Section](agent_01_system-overview_00_document-guide.md#workflow-engine)`
 
 ## Governance Verification Matrix
@@ -392,9 +392,9 @@ This document does not cover:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md)
-- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md)
+- [Documentation Policy](governance_01_documentation-policy.md)
+- [Documentation Metadata](governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
 
 ## Keywords
 

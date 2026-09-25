@@ -34,7 +34,7 @@ These documents describe the documentation policies, metadata conventions, issue
 
 ## Canonical Source Rule
 
-See [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md) for all cross-cutting documentation rules.
+See [Documentation Policy](governance_01_documentation-policy.md) for all cross-cutting documentation rules.
 
 ## Known Issues / Deferred Items
 
@@ -46,7 +46,7 @@ No reference APIs exist in this directory. All files are policy/convention docum
 
 ## Related ADRs
 
-- [ADR-015](/home/sugimoto/llmagent/docs/10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
+- [ADR-015](../10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
 
 ## Related Documents
 

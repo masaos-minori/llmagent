@@ -19,7 +19,7 @@ This document consolidates metadata conventions for AI agents to select relevant
 The following four metadata fields are required in every document's front matter:
 
 - **title** — Document title
-- **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/adr/`) and security documents (`docs/00_security_*.md`) use `area: governance` — resolved 2026-09-14 (`NC-030`) rather than carrying their own top-level values, since both are cross-cutting governance/policy content rather than a distinct runtime area.
+- **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/adr/`) and security documents (`docs/00_security_*.md`) use `area: governance`, since both are cross-cutting governance/policy content rather than a distinct runtime area.
 - **tags** — Keywords describing the document content
 - **related** — Links to related documents
 - **category** — Not a valid front-matter key. Do not use this field.
@@ -136,7 +136,7 @@ When referencing other documents:
 
 Same area: `[Agent Guide](agent_01_system-overview_00_document-guide.md)`
 Cross area: `[RAG Specification](rag_01_system_overview_00_document-guide.md)`
-ADR: `[ADR-001](/home/sugimoto/llmagent/docs/10_adr/ADR-001-workflow-engine-mandatory.md)`
+ADR: `[ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md)`
 Internal anchor: `[Section](agent_01_system-overview_00_document-guide.md#workflow-engine)`
 
 ## Markdown Syntax Rules
@@ -211,9 +211,9 @@ execution (a test failing, a config load erroring), not by review.
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md)
-- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md)
+- [Documentation Policy](governance_01_documentation-policy.md)
+- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](governance_04_documentation-checks.md)
 
 ## Keywords
 

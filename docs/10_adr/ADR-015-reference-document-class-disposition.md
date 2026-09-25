@@ -114,9 +114,6 @@ Run the corresponding `tools/generate_reference_table.py --type <domain>` genera
 Agent (`docs/agent_13_reference-api.md`) and EventBus (`docs/eventbus_10_reference_api.md`)
 have both been migrated to generated Reference-class status under Option B.
 
-Memory migration target document(s) remain unresolved — see
-`docs/governance_03_issue-and-uncertainty-management.md` NC-038.
-
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
 ## Known Deviations

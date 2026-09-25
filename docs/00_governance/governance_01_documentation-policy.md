@@ -456,11 +456,10 @@ Confirmed edges (direct source evidence —
 - Agent → Shared/DB
 - EventBus → Shared/DB
 
-Planned (design intent, not yet implemented; confirmed 2026-09-14 — no longer
-tracked as Needs Confirmation, since owner review closed `NC-022` by confirming
-these are intended future integrations rather than a documentation error; no
-corresponding import or HTTP-publish call exists in current source, and none
-is expected until each integration is implemented):
+Planned (design intent, not yet implemented; confirmed 2026-09-14 — these are
+intended future integrations rather than a documentation error; no corresponding
+import or HTTP-publish call exists in current source, and none is expected until
+each integration is implemented):
 - RAG → EventBus
 - MCP → EventBus
 - Agent → EventBus
@@ -539,9 +538,9 @@ This document does not cover:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](00_governance_04_documentation-checks.md)
+- [Documentation Metadata](governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](governance_04_documentation-checks.md)
 - [ADR Index](../10_adr/adr-index.md)
 
 ## Keywords
