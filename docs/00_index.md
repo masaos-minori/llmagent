@@ -9,11 +9,11 @@ related:
 ---
 # Documentation Overview
 
-Project documentation top-level navigation hub. It lists all top-level categories and links to their entry files. `01_overview/01_overview.md` continues to exist as the system-wide architecture overview and is not replaced by this file.
+Project documentation top-level navigation hub. It lists all top-level categories and links to their entry files. `overview/overview.md` continues to exist as the system-wide architecture overview and is not replaced by this file.
 
 ## Categories
 
-- [Overview](../01_overview/01_overview.md) — System-wide architecture and file structure
+- [Overview](../overview/overview.md) — System-wide architecture and file structure
 - [Deployment](../90_deployment/02_deployment.md) — Environment setup and deployment procedures
 - [RAG](21_rag/03_rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
 - [MCP](22_mcp/04_mcp_00_document-guide.md) — Model Context Protocol servers
@@ -29,7 +29,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 
 ## Recommended Reading Order
 
-1. [System Overview](../01_overview/01_overview.md) — Start here to understand the overall system picture
+1. [System Overview](../overview/overview.md) — Start here to understand the overall system picture
 2. [Deployment Guide](../90_deployment/02_deployment.md) — Set up your environment
 3. Select an area of interest:
    - [RAG Pipeline](21_rag/03_rag_00_document-guide.md)
@@ -59,7 +59,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | RAG pipeline spec (overview, design, known issues) | `21_rag/03_rag_00_document-guide.md` + `21_rag/03_rag_01_system_overview.md` |
 | MDQ vs RAG boundary | `22_mcp/04_mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
 | DB layer spec (schema, ops, known issues) | `41_db/41_db_01_db_architecture_and_schema-overview-and-config.md` + `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
-| Shared infra spec (config, logging, types, constants) | `40_shared/90_shared_00_document-guide.md` + `40_shared/90_shared_01_overview.md` |
+| Shared infra spec (config, logging, types, constants) | `40_shared/90_shared_00_document-guide.md` + `40_shared/90_shared_overview.md` |
 
 ### Implementation reference
 
@@ -67,9 +67,9 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| System-wide architecture overview | `01_overview/01_overview.md` (indexes `01_overview-arch-*.md`) |
-| File / module layout | `01_overview/01_overview.md` (indexes `01_overview-files-*.md`) |
-| `tools/` scripts overview (CI checks, doc formatting, historical doc migration) | `tools/01_overview.md` |
+| System-wide architecture overview | `overview/overview.md` (indexes `overview-arch-*.md`) |
+| File / module layout | `overview/overview.md` (indexes `overview-files-*.md`) |
+| `tools/` scripts overview (CI checks, doc formatting, historical doc migration) | `tools/overview.md` |
 | Documentation set index / navigation | `00_governance/00_index.md` |
 | Deployment / env setup | `90_deployment/02_deployment.md` + `rules/env.md` |
 
@@ -144,7 +144,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 ## Related Documents
 
-- `01_overview/01_overview.md`
+- `overview/overview.md`
 - `90_deployment/02_deployment.md`
 - `21_rag/03_rag_00_document-guide.md`
 - `22_mcp/04_mcp_00_document-guide.md`

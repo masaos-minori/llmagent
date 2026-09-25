@@ -5,7 +5,7 @@ tags:
   - governance
 related:
   - ../00_index.md
-  - 01_overview.md
+  - overview.md
 ---
 
 # Issue and Uncertainty Management

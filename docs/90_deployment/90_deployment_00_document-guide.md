@@ -6,7 +6,7 @@ tags:
   - document-guide
 related:
   - ../00_index.md
-  - 01_overview.md
+  - overview.md
 ---
 # Deployment: Document Guide
 

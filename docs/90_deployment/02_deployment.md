@@ -12,7 +12,7 @@ tags:
   - sqlite-vec
   - db-initialization
 related:
-  - 01_overview.md
+  - overview.md
   - 05_agent_03_03_turn-processing-flow-workflow-engine.md
   - 41_db_01_db_architecture_and_schema-overview-and-config.md
 ---
@@ -57,7 +57,7 @@ cmake --build build --config Release -j$(nproc)
 
 Place model files in `/opt/llm/models/`. File names must match the names used in each service configuration (e.g., `model-path`).
 
-> **Canonical source** — This table is the canonical source for model filenames. `docs/01_overview-files-01-build.md` and `docs/03_rag_05_1-configuration-reference.md` refer to this.
+> **Canonical source** — This table is the canonical source for model filenames. `docs/overview-files-01-build.md` and `docs/03_rag_05_1-configuration-reference.md` refer to this.
 
 | Model | Filename |
 |---|---|
@@ -279,7 +279,7 @@ Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit 
 
 ## Related Documents
 
-- `01_overview.md`
+- `overview.md`
 - `05_agent_03_03_turn-processing-flow-workflow-engine.md`
 - `41_db_01_db_architecture_and_schema-overview-and-config.md`
 

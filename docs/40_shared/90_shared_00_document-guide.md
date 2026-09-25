@@ -39,7 +39,7 @@ Documents the `shared/` layer (common types, configuration, logging, OTel, tool 
 
 | Question | Reference Target |
 |---|---|
-| Usage/import rules for `shared/` | `01_overview` |
+| Usage/import rules for `shared/` | `overview` |
 | Type definitions, tool constants | `02_core-types` / `02_reference` |
 | ConfigLoader, Logging | `03_config-and-logging` |
 | ToolExecutor, LLMClient | `03_tool-executor` / `03_llm-and-mcp-clients` |
@@ -66,7 +66,7 @@ Refer to [governance_03_issue-and-uncertainty-management.md](governance_03_issue
 
 ## File Index
 
-Read the `shared/` documentation group in order: `01_overview` → `02_types` → `03_runtime`. Read the `db/` documentation group in order: `04_schema` → `05_operations`. (Explicit in code)
+Read the `shared/` documentation group in order: `overview` → `02_types` → `03_runtime`. Read the `db/` documentation group in order: `04_schema` → `05_operations`. (Explicit in code)
 
 ---
 
