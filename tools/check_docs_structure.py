@@ -177,9 +177,12 @@ def check_tail_sections(path: Path, content: str) -> list[str]:
     return issues
 
 
-def check_links(path: Path, content: str, basename_index: dict[str, Path]) -> list[str]:
+def check_links(
+    path: Path, content: str, basename_index: dict[str, Path], check_duplicates: bool = False
+) -> list[str]:
     issues = []
     body = strip_fenced_code(content)
+    seen: dict[str, int] = {}
     for _text, target in LINK_RE.findall(body):
         if target.startswith(("http://", "https://")):
             continue
@@ -195,9 +198,23 @@ def check_links(path: Path, content: str, basename_index: dict[str, Path]) -> li
                 resolved_target = (path.parent / target).resolve()
             else:
                 # For bare basenames, resolve via basename_index to get the actual path
-                resolved_target = basename_index.get(target, path.parent / target).resolve()
+                resolved_target = basename_index.get(
+                    target, path.parent / target
+                ).resolve()
             if resolved_target == path.resolve():
                 issues.append(f"{path.name}: self-reference detected -> '{target}'")
+    if check_duplicates:
+        for _text, target in LINK_RE.findall(body):
+            if target.startswith(("http://", "https://")):
+                continue
+            if "/" in target:
+                resolved = str((path.parent / target).resolve())
+            else:
+                resolved = target
+            seen[resolved] = seen.get(resolved, 0) + 1
+        for resolved, count in seen.items():
+            if count > 1:
+                issues.append(f"{path.name}: duplicate link -> '{resolved}' (appears {count} times)")
     return issues
 
 
@@ -223,7 +240,7 @@ def check_unique_adr_ids(files: list[Path]) -> list[str]:
 
 
 def check_related_links(
-    path: Path, content: str, basename_index: dict[str, Path]
+    path: Path, content: str, basename_index: dict[str, Path], check_duplicates: bool = False
 ) -> list[str]:
     if not content.startswith("---"):
         return []
@@ -235,6 +252,7 @@ def check_related_links(
     except yaml.YAMLError:
         return []  # already reported by check_front_matter(); avoid double-reporting
     issues = []
+    seen: dict[str, int] = {}
     for field in ("related", "source"):
         for entry in data.get(field) or []:
             if "/" in entry:
@@ -250,11 +268,22 @@ def check_related_links(
                 if "/" in entry:
                     resolved_entry = (path.parent / entry).resolve()
                 else:
-                    resolved_entry = basename_index.get(entry, path.parent / entry).resolve()
+                    resolved_entry = basename_index.get(
+                        entry, path.parent / entry
+                    ).resolve()
                 if resolved_entry == path.resolve():
-                    issues.append(
-                        f"{path.name}: self-reference detected -> '{entry}'"
-                    )
+                    issues.append(f"{path.name}: self-reference detected -> '{entry}'")
+    if check_duplicates:
+        for field in ("related", "source"):
+            for entry in data.get(field) or []:
+                if "/" in entry:
+                    resolved = str((path.parent / entry).resolve())
+                else:
+                    resolved = entry
+                seen[resolved] = seen.get(resolved, 0) + 1
+        for resolved, count in seen.items():
+            if count > 1:
+                issues.append(f"{path.name}: duplicate related link -> '{resolved}' (appears {count} times)")
     return issues
 
 
@@ -264,6 +293,7 @@ def validate_file(
     schema: FrontMatterSchema | None = None,
     *,
     basename_index: dict[str, Path],
+    check_duplicates: bool = False,
 ) -> list[str]:
     content = path.read_text(encoding="utf-8")
     size = len(content.encode("utf-8"))
@@ -285,8 +315,8 @@ def validate_file(
     if schema is not None:
         issues.extend(check_schema_compliance(path, content, schema))
     issues.extend(check_tail_sections(path, content))
-    issues.extend(check_links(path, content, basename_index))
-    issues.extend(check_related_links(path, content, basename_index))
+    issues.extend(check_links(path, content, basename_index, check_duplicates))
+    issues.extend(check_related_links(path, content, basename_index, check_duplicates))
     return issues
 
 
@@ -312,6 +342,9 @@ def main() -> int:
             "skip schema validation (default — existing behavior unchanged)."
         ),
     )
+    parser.add_argument(
+        "--check-duplicates", action="store_true", help="Check for duplicate links"
+    )
     args = parser.parse_args()
 
     patterns = args.globs or ["docs/**/*.md"]
@@ -335,7 +368,13 @@ def main() -> int:
 
     total_issues = 0
     for path in sorted(files):
-        issues = validate_file(path, args.area, schema, basename_index=basename_index)
+        issues = validate_file(
+            path,
+            args.area,
+            schema,
+            basename_index=basename_index,
+            check_duplicates=args.check_duplicates,
+        )
         if issues:
             total_issues += len(issues)
             for issue in issues:

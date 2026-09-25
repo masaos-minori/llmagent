@@ -154,7 +154,7 @@ class TestCheckStatusValue:
     def test_status_stable_passes(self, tmp_path: Path) -> None:
         """REQ-003: Documents with 'status: stable' pass validation."""
         content = (
-            '---\n'
+            "---\n"
             'title: "Example"\n'
             "area: agent\n"
             "tags:\n"
@@ -174,7 +174,7 @@ class TestCheckStatusValue:
     def test_status_draft_passes(self, tmp_path: Path) -> None:
         """REQ-003: Documents with 'status: draft' pass validation."""
         content = (
-            '---\n'
+            "---\n"
             'title: "Example"\n'
             "area: agent\n"
             "tags:\n"
@@ -195,7 +195,7 @@ class TestCheckStatusValue:
         """REQ-004: Documents with invalid 'status' values report an error."""
         for invalid_value in ("deprecated", "superseded", "stabel"):
             content = (
-                '---\n'
+                "---\n"
                 'title: "Example"\n'
                 "area: agent\n"
                 "tags:\n"
@@ -359,7 +359,9 @@ class TestSelfReferenceCheck:
 
     def test_self_reference_in_body_link_is_flagged(self, tmp_path: Path) -> None:
         """REQ-008: A document linking to itself in body text is flagged."""
-        doc = _write(tmp_path / "example.md", "# Example\n\nSee [example](example.md).\n")
+        doc = _write(
+            tmp_path / "example.md", "# Example\n\nSee [example](example.md).\n"
+        )
         index = _build_basename_index(tmp_path)
         issues = check_links(doc, doc.read_text(), index)
         assert any("self-reference detected" in i for i in issues)
@@ -375,7 +377,9 @@ class TestSelfReferenceCheck:
         issues = check_related_links(doc, doc.read_text(), index)
         assert any("self-reference detected" in i for i in issues)
 
-    def test_cross_directory_self_reference_with_path_is_flagged(self, tmp_path: Path) -> None:
+    def test_cross_directory_self_reference_with_path_is_flagged(
+        self, tmp_path: Path
+    ) -> None:
         """REQ-004: Self-reference with relative path across directories is detected."""
         _write(tmp_path / "sub" / "example.md", "# Example\n")
         content = (
@@ -410,11 +414,13 @@ class TestSelfReferenceCheck:
 class TestValidateFileStatusIntegration:
     """REQ-008: Integration test confirming the check runs in `validate_file()` flow."""
 
-    def test_validate_file_reports_invalid_status_without_schema_arg(self, tmp_path: Path) -> None:
+    def test_validate_file_reports_invalid_status_without_schema_arg(
+        self, tmp_path: Path
+    ) -> None:
         """Invalid status value is reported even when --schema is not passed explicitly,
         because check_status_value() is called unconditionally in validate_file()."""
         content = (
-            '---\n'
+            "---\n"
             'title: "Example"\n'
             "area: agent\n"
             "tags:\n"
@@ -436,7 +442,7 @@ class TestValidateFileStatusIntegration:
         """Valid status values are accepted in validate_file() flow."""
         for status_val in ("stable", "draft"):
             content = (
-                '---\n'
+                "---\n"
                 'title: "Example"\n'
                 f"area: agent\n"
                 "tags:\n"
@@ -451,4 +457,78 @@ class TestValidateFileStatusIntegration:
             )
             doc = _write(tmp_path / "example.md", content)
             issues = validate_file(doc, expected_area=None, basename_index={})
-            assert not any("status" in i for i in issues), f"Unexpected status issue for '{status_val}': {issues}"
+            assert not any("status" in i for i in issues), (
+                f"Unexpected status issue for '{status_val}': {issues}"
+            )
+
+
+class TestDuplicateLinkDetection:
+    """GV-007: Duplicate link prohibition check."""
+
+    def test_duplicate_related_links_are_flagged(self, tmp_path: Path) -> None:
+        """REQ-001: Duplicate entries in 'related' field are detected."""
+        content = (
+            '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
+            "related:\n  - example.md\n  - example.md\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        index = _build_basename_index(tmp_path)
+        issues = check_related_links(doc, doc.read_text(), index, check_duplicates=True)
+        assert any("duplicate related link" in i for i in issues)
+
+    def test_duplicate_source_links_are_flagged(self, tmp_path: Path) -> None:
+        """REQ-002: Duplicate entries in 'source' field are detected."""
+        content = (
+            '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
+            "source:\n  - other.md\n  - other.md\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        _write(tmp_path / "other.md", "# Other\n")
+        index = _build_basename_index(tmp_path)
+        issues = check_related_links(doc, doc.read_text(), index, check_duplicates=True)
+        assert any("duplicate related link" in i for i in issues)
+
+    def test_duplicate_body_links_are_flagged(self, tmp_path: Path) -> None:
+        """REQ-003: Duplicate Markdown links to the same target are detected."""
+        doc = _write(
+            tmp_path / "example.md",
+            "# Example\n\nSee [example](example.md).\nSee [again](example.md).\n",
+        )
+        index = _build_basename_index(tmp_path)
+        issues = check_links(doc, doc.read_text(), index, check_duplicates=True)
+        assert any("duplicate link" in i for i in issues)
+
+    def test_unique_links_pass_validation(self, tmp_path: Path) -> None:
+        """No false positives when all links are unique."""
+        _write(tmp_path / "other.md", "# Other\n")
+        content = (
+            '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
+            "related:\n  - other.md\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        index = _build_basename_index(tmp_path)
+        issues = check_related_links(doc, doc.read_text(), index, check_duplicates=True)
+        assert not any("duplicate" in i for i in issues)
+
+    def test_mixed_path_formats_detected_as_duplicates(self, tmp_path: Path) -> None:
+        """Bare filename and full path to the same file are treated as duplicates."""
+        _write(tmp_path / "sub" / "target.md", "# Target\n")
+        content = (
+            '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
+            "related:\n  - sub/target.md\n  - ./sub/target.md\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        index = _build_basename_index(tmp_path)
+        issues = check_related_links(doc, doc.read_text(), index, check_duplicates=True)
+        assert any("duplicate related link" in i for i in issues)
+
+    def test_no_false_positives_without_flag(self, tmp_path: Path) -> None:
+        """Without --check-duplicates, duplicate detection is skipped entirely."""
+        content = (
+            '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
+            "related:\n  - example.md\n  - example.md\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        index = _build_basename_index(tmp_path)
+        issues = check_related_links(doc, doc.read_text(), index, check_duplicates=False)
+        assert not any("duplicate" in i for i in issues)
