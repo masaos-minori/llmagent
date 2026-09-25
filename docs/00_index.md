@@ -16,7 +16,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 - [Overview](../overview/overview_00_document-guide.md) — System-wide architecture and file structure
 - [Deployment](../90_deployment/02_deployment.md) — Environment setup and deployment procedures
 - [RAG](21_rag/rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
-- [MCP](22_mcp/04_mcp_00_document-guide.md) — Model Context Protocol servers
+- [MCP](22_mcp/mcp_00_document-guide.md) — Model Context Protocol servers
 - [Agent](23_agent/05_agent_00_document-guide.md) — Agent REPL system and operation
 - [Event Bus](24_eventbus/24_eventbus_00_document-guide.md) — Event Bus infrastructure
 - [Shared/DB](../40_shared/90_shared_00_document-guide.md) — Shared infrastructure and database layer
@@ -33,7 +33,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 2. [Deployment Guide](../90_deployment/02_deployment.md) — Set up your environment
 3. Select an area of interest:
    - [RAG Pipeline](21_rag/rag_00_document-guide.md)
-   - [MCP Servers](22_mcp/04_mcp_00_document-guide.md)
+   - [MCP Servers](22_mcp/mcp_00_document-guide.md)
    - [Agent System](23_agent/05_agent_00_document-guide.md)
    - [Event Bus](24_eventbus/24_eventbus_00_document-guide.md)
    - [Shared Infrastructure](../40_shared/90_shared_00_document-guide.md)
@@ -55,9 +55,9 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 |---|---|
 | Agent spec (overview, design, known issues) | `23_agent/05_agent_00_document-guide.md` + `23_agent/05_agent_01_system-overview_00_document-guide.md` |
 | Agent known issues / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent) |
-| MCP server spec (overview, design, known issues) | `22_mcp/04_mcp_00_document-guide.md` + `22_mcp/04_mcp_01_system_overview_00_document-guide.md` |
+| MCP server spec (overview, design, known issues) | `22_mcp/mcp_00_document-guide.md` + `22_mcp/mcp_01_system_overview_00_document-guide.md` |
 | RAG pipeline spec (overview, design, known issues) | `21_rag/rag_00_document-guide.md` + `21_rag/rag_01_system_overview_00_document-guide.md` |
-| MDQ vs RAG boundary | `22_mcp/04_mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
+| MDQ vs RAG boundary | `22_mcp/mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
 | DB layer spec (schema, ops, known issues) | `41_db/41_db_01_db_architecture_and_schema-overview-and-config.md` + `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
 | Shared infra spec (config, logging, types, constants) | `40_shared/90_shared_00_document-guide.md` + `40_shared/90_shared_overview_00_document-guide.md` |
 
@@ -94,19 +94,19 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| MCP server implementation | `22_mcp/04_mcp_02_01_endpoints-and-transport.md` + `22_mcp/04_mcp_03_01_dispatch-and-routing.md` |
-| MCP transport / startup_mode / lifecycle | `22_mcp/04_mcp_03_01_dispatch-and-routing.md` + `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
-| ToolRouteResolver / route_resolver.py | `22_mcp/04_mcp_03_01_dispatch-and-routing.md` + `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
-| ServerLifecycleManager / lifecycle.py | `22_mcp/04_mcp_03_01_dispatch-and-routing.md` + `23_agent/05_agent_02_runtime-architecture.md` |
+| MCP server implementation | `22_mcp/mcp_02_01_endpoints-and-transport.md` + `22_mcp/mcp_03_01_dispatch-and-routing.md` |
+| MCP transport / startup_mode / lifecycle | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
+| ToolRouteResolver / route_resolver.py | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
+| ServerLifecycleManager / lifecycle.py | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/05_agent_02_runtime-architecture.md` |
 | ToolSpec / tool_spec.py (execution metadata DAG) | `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
 | tool_cache.py (_CacheEntry LRU cache) | `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
-| TransportType / StartupMode / HealthcheckMode enums (mcp_config.py) | `22_mcp/04_mcp_03_01_dispatch-and-routing.md` + `22_mcp/04_mcp_06_02_configuration-file-inventory.md` |
-| MCP security model (allowlist / denylist / fail-closed) | `22_mcp/04_mcp_05_01_access-control-and-allowlists.md` |
+| TransportType / StartupMode / HealthcheckMode enums (mcp_config.py) | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `22_mcp/mcp_06_02_configuration-file-inventory.md` |
+| MCP security model (allowlist / denylist / fail-closed) | `22_mcp/mcp_05_01_access-control-and-allowlists.md` |
 |---|---|
 | System security architecture / trust boundaries / threat model | `91_security/00_security_01_architecture-and-trust-boundaries.md` |
 | High-risk MCP tool policy (path/repo allowlists, traversal prevention, approval-to-risk-tier mapping) | `91_security/00_security_02_high-risk-tool-common-policy.md` |
-| Any MCP server (catalog only) | `22_mcp/04_mcp_04_01_web-search-file-read-github.md` |
-| mdq-mcp specifics | `22_mcp/04_mcp_04_04_mdq.md` + `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
+| Any MCP server (catalog only) | `22_mcp/mcp_04_01_web-search-file-read-github.md` |
+| mdq-mcp specifics | `22_mcp/mcp_04_04_mdq.md` + `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
 | MCP known bugs / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
 
 #### RAG
@@ -147,7 +147,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 - `overview/overview_00_document-guide.md`
 - `90_deployment/02_deployment.md`
 - `21_rag/rag_00_document-guide.md`
-- `22_mcp/04_mcp_00_document-guide.md`
+- `22_mcp/mcp_00_document-guide.md`
 - `23_agent/05_agent_00_document-guide.md`
 - `24_eventbus/24_eventbus_00_document-guide.md`
 - `40_shared/90_shared_00_document-guide.md`

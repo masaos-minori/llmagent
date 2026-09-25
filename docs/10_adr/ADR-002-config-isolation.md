@@ -424,7 +424,7 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 ### Specifications
 
 - [Configuration Loading](../05_agent_08_01_configuration-loading-agent-config.md) — Agent設定読み込みの詳細
-- [MCP Configuration File Inventory](../04_mcp_06_02_configuration-file-inventory.md) — MCP設定ファイル一覧
+- [MCP Configuration File Inventory](../mcp_06_02_configuration-file-inventory.md) — MCP設定ファイル一覧
 
 ### Operations
 

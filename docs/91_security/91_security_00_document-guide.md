@@ -27,12 +27,12 @@ This directory contains security-related documentation including system security
 |---|---|
 | Security architecture & trust boundaries | `00_security_01` |
 | High-risk tool policy | `00_security_02` |
-| Access control & allowlists | `04_mcp_05_01_access-control-and-allowlists.md` |
-| Fail-open/fail-closed risk tiers | `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` |
-| Auth profiles & sandboxing | `04_mcp_05_02_auth-profiles-and-sandboxing.md` |
-| MDQ enforcement & lockdown | `04_mcp_05_05_mdq-enforcement-and-lockdown.md` |
-| Local-to-production auth migration | `04_mcp_06_17_local-to-production-auth-migration.md` |
-| Pre-production fail-open checklist | `04_mcp_06_16_pre-production-fail-open-checklist.md` |
+| Access control & allowlists | `mcp_05_01_access-control-and-allowlists.md` |
+| Fail-open/fail-closed risk tiers | `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` |
+| Auth profiles & sandboxing | `mcp_05_02_auth-profiles-and-sandboxing.md` |
+| MDQ enforcement & lockdown | `mcp_05_05_mdq-enforcement-and-lockdown.md` |
+| Local-to-production auth migration | `mcp_06_17_local-to-production-auth-migration.md` |
+| Pre-production fail-open checklist | `mcp_06_16_pre-production-fail-open-checklist.md` |
 
 ## Canonical Source Rule
 

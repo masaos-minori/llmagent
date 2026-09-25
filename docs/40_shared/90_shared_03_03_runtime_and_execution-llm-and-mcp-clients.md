@@ -29,7 +29,7 @@ related:
 
 **Side-Effect Detection:** `build_execution_groups()` reads each call's `is_write` from `PreparedToolCall.spec` (resolved once during `agent/tool_preparation.py::prepare_tool_calls()`, sourced from `RuntimeToolRegistry.tool_spec_for_call()`) — an unregistered tool is rejected fail-closed during preparation and never reaches scheduling, so no conservative "assume True" fallback remains. `_SIDE_EFFECT_TOOLS`/`is_side_effect()` (`tool_executor_helpers.py`) is deprecated (no longer used after TTL cache removal). See [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md) for the scheduler's grouping rules.
 
-**Routing (Explicit in code):** `shared/runtime_tool_registry.py`'s `RuntimeToolRegistry` is the sole routing authority. `ToolRouteResolver.resolve()` (`shared/route_resolver.py`) refers only to `RuntimeToolRegistry.resolve()`, and unknown tools result in an immediate `ValueError`. `shared/tool_registry.py`'s `ToolRegistry` is no longer used for routing decisions; it has been downgraded to seed data for startup drift validation (`shared/tool_routing_validation.py`). Configuration file `tool_names` is metadata for drift validation only and is not used for runtime routing decisions. The old "two-stage cascade" method (live discovery $\rightarrow$ registry resolution) no longer exists in the current codebase. For detailed routing info, see [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md).
+**Routing (Explicit in code):** `shared/runtime_tool_registry.py`'s `RuntimeToolRegistry` is the sole routing authority. `ToolRouteResolver.resolve()` (`shared/route_resolver.py`) refers only to `RuntimeToolRegistry.resolve()`, and unknown tools result in an immediate `ValueError`. `shared/tool_registry.py`'s `ToolRegistry` is no longer used for routing decisions; it has been downgraded to seed data for startup drift validation (`shared/tool_routing_validation.py`). Configuration file `tool_names` is metadata for drift validation only and is not used for runtime routing decisions. The old "two-stage cascade" method (live discovery $\rightarrow$ registry resolution) no longer exists in the current codebase. For detailed routing info, see [mcp_03_01_dispatch-and-routing.md](mcp_03_01_dispatch-and-routing.md).
 
 ---
 
@@ -53,7 +53,7 @@ related:
 
 ## 11. `McpServerConfig` / `McpServerHealthRegistry`
 
-Both are defined in `shared/mcp_config.py`. For a full field reference, see [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) and [05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md).
+Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md) and [05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md).
 
 **Overview:** Per-server transport config (transport, url, cmd, startup_mode, tool_names, auth_token, env) validated by `__post_init__` (URL scheme, timeout range, `tool_names` uniqueness, env type). Key field set from TOML section name, excluded from `==` comparison. `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE`. `McpServerHealthRegistry` tracks consecutive failures; `UNAVAILABLE` blocks dispatch; `record_degraded(key, reason)` / `get_degraded_reason(key)` track "reachable but degraded" servers without incrementing the failure count.
 
@@ -75,4 +75,4 @@ Both are defined in `shared/mcp_config.py`. For a full field reference, see [04_
 
 - `shared/` must NOT import from `agent/`, `mcp_servers/`, `rag/`, or `db/`.
 - For details on `LLMClient`, see this document (section 10) and [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md).
-- For details on `ToolExecutor`, see this document (section 9), [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md), and [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md).
+- For details on `ToolExecutor`, see this document (section 9), [mcp_03_01_dispatch-and-routing.md](mcp_03_01_dispatch-and-routing.md), and [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md).

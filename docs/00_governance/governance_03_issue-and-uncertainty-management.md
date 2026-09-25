@@ -68,7 +68,7 @@ Part 1 entries are reviewed quarterly, consistent with the cadence documented fo
 ### Consolidation Note
 
 The area-specific `rag_90_inconsistencies_and_known_issues.md`,
-`04_mcp_90_inconsistencies_and_known_issues.md`,
+`mcp_90_inconsistencies_and_known_issues.md`,
 `05_agent_90_inconsistencies_and_known_issues.md`,
 `06_eventbus_90_inconsistencies_and_known_issues.md`, and
 `90_shared_90_inconsistencies_and_known_issues.md` files were consolidated into this

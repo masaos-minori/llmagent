@@ -206,7 +206,7 @@ document's recorded finding.
 `localcleanup`, `plans/done/20260903-092746_plan.md`) have all landed, making this
 the current, canonical migration procedure. For authentication-specific
 troubleshooting after following the steps above, see
-[`04_mcp_06_17_local-to-production-auth-migration.md`](04_mcp_06_17_local-to-production-auth-migration.md)'s
+[`mcp_06_17_local-to-production-auth-migration.md`](mcp_06_17_local-to-production-auth-migration.md)'s
 Troubleshooting section — that document's own Migration Steps are historical and
 superseded by this procedure.
 

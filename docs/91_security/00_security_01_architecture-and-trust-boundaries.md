@@ -11,14 +11,14 @@ tags:
 related:
   - 00_security_02_high-risk-tool-common-policy.md
   - governance_01_documentation-policy.md
-  - 04_mcp_05_01_access-control-and-allowlists.md
-  - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - mcp_05_01_access-control-and-allowlists.md
+  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - 05_agent_06_01_tool-execution-and-approval-execution.md
   - rag_03_05_query_pipeline-augment-stages.md
-  - 04_mcp_06_16_pre-production-fail-open-checklist.md
-  - 04_mcp_06_17_local-to-production-auth-migration.md
-  - 04_mcp_02_03_audit-logging-and-errors.md
-  - 04_mcp_06_07_reading-audit-logs.md
+  - mcp_06_16_pre-production-fail-open-checklist.md
+  - mcp_06_17_local-to-production-auth-migration.md
+  - mcp_02_03_audit-logging-and-errors.md
+  - mcp_06_07_reading-audit-logs.md
   - 05_agent_10_02_operations-and-observability-audit-and-otel.md
   - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - rag_04_02_dto-models_result.md
@@ -82,7 +82,7 @@ The threat model covers the following threat vectors:
 | mdq | HTTP | Bearer token (optional) | `allowed_dirs` equivalent | Path traversal prevention via `Path.resolve()` |
 | rag-pipeline | HTTP | Bearer token (optional) | Query/ingest separation | Ingestion requires separate config; query is read-only |
 
-*Source: `04_mcp_05_01_access-control-and-allowlists.md`, `04_mcp_05_02_auth-profiles-and-sandboxing.md`*
+*Source: `mcp_05_01_access-control-and-allowlists.md`, `mcp_05_02_auth-profiles-and-sandboxing.md`*
 
 ## Secret lifecycle
 
@@ -90,20 +90,20 @@ Secret lifecycle management covers:
 
 - **Provisioning**: Secrets provisioned via config files (`config/agent.toml`, `config/*_mcp_server.toml`) and environment variables; no hardcoded secrets in code
 - **Storage**: Secrets stored in config files with filesystem permissions (0600); no secrets in git history
-- **Rotation**: Operator replaces secret value in config and restarts affected services; no hot-reload for secrets (per `04_mcp_06_17_local-to-production-auth-migration.md`)
+- **Rotation**: Operator replaces secret value in config and restarts affected services; no hot-reload for secrets (per `mcp_06_17_local-to-production-auth-migration.md`)
 - **Revocation**: Removing secret from config and restarting services invalidates it immediately; no separate revocation list
 
-*Source: `04_mcp_06_17_local-to-production-auth-migration.md`*
+*Source: `mcp_06_17_local-to-production-auth-migration.md`*
 
 ## Log redaction rules
 
 Audit log redaction follows these rules:
 
 - **Redacted fields**: `artifacts`, `rag_stage_outcomes` (list contents replaced with `{_redacted: true, count: N}`)
-- **Pattern-based redaction**: API keys, secrets, tokens, passwords, bearer tokens detected via regex in `04_mcp_02_03_audit-logging-and-errors.md` and redacted
+- **Pattern-based redaction**: API keys, secrets, tokens, passwords, bearer tokens detected via regex in `mcp_02_03_audit-logging-and-errors.md` and redacted
 - **Preserved**: Non-sensitive fields, error messages without secrets, operational metadata
 
-*Source: `04_mcp_02_03_audit-logging-and-errors.md`*
+*Source: `mcp_02_03_audit-logging-and-errors.md`*
 
 ## Audit retention
 
@@ -114,7 +114,7 @@ Audit retention policy:
 - **Disabled purge**: `retention_days <= 0` disables automatic purge
 - **Audit log files**: JSON-lines files at `audit_log_file` path rotated by external logrotate; no application-level rotation
 
-*Source: `04_mcp_06_07_reading-audit-logs.md`, `05_agent_10_02_operations-and-observability-audit-and-otel.md`*
+*Source: `mcp_06_07_reading-audit-logs.md`, `05_agent_10_02_operations-and-observability-audit-and-otel.md`*
 
 ## Local-vs-production behavior
 
@@ -139,7 +139,7 @@ pre-2026-09-04):
 | Audit log redaction | Enabled | Enforced |
 | Approval dry-run | Enabled for configured tools | Enforced per `approval_dry_run_tools` |
 
-*Source: `04_mcp_06_16_pre-production-fail-open-checklist.md`, `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Audit during startup*
+*Source: `mcp_06_16_pre-production-fail-open-checklist.md`, `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Audit during startup*
 
 ## Fail-open-vs-fail-closed behavior
 
@@ -155,7 +155,7 @@ Fail-open vs fail-closed behavior by component:
 | MCP tool approval | `medium` default | Per `approval_risk_rules` | Configurable per tool |
 | Shell command allowlist | Empty = none allowed | Configured explicitly | Fail-closed by default |
 
-*Source: `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Summary of Fail-Open vs Fail-Closed*
+*Source: `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Summary of Fail-Open vs Fail-Closed*
 
 ## Prompt-injection responsibility boundaries
 
@@ -305,14 +305,14 @@ and remains in effect as defense-in-depth.
 
 - `00_security_02_high-risk-tool-common-policy.md`
 - `governance_01_documentation-policy.md`
-- `04_mcp_05_01_access-control-and-allowlists.md`
-- `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
+- `mcp_05_01_access-control-and-allowlists.md`
+- `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `05_agent_06_01_tool-execution-and-approval-execution.md`
 - `rag_03_05_query_pipeline-augment-stages.md`
-- `04_mcp_06_16_pre-production-fail-open-checklist.md`
-- `04_mcp_06_17_local-to-production-auth-migration.md`
-- `04_mcp_02_03_audit-logging-and-errors.md`
-- `04_mcp_06_07_reading-audit-logs.md`
+- `mcp_06_16_pre-production-fail-open-checklist.md`
+- `mcp_06_17_local-to-production-auth-migration.md`
+- `mcp_02_03_audit-logging-and-errors.md`
+- `mcp_06_07_reading-audit-logs.md`
 - `05_agent_10_02_operations-and-observability-audit-and-otel.md`
 - `05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
 - `rag_04_02_dto-models_result.md`

@@ -68,7 +68,7 @@ A group of commands for displaying and monitoring configuration files. `/reload`
 - `05_agent_07_06_cli-and-commands-hot-reload.md`
 - `05_agent_07_07_cli-and-commands-migration-notes.md`
 - `05_agent_07_09_cli-and-commands-slash-commands-context-db.md`
-- `04_mcp_06_12_watchdog-configuration-monitoring.md`
+- `mcp_06_12_watchdog-configuration-monitoring.md`
 - `05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`
 - `05_agent_07_11_cli-and-commands-slash-commands-memory-other.md`
 

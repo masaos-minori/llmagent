@@ -235,9 +235,9 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 ## Related Documents
 
 ### Specifications
-- [MCP Server Catalog: git-mcp](../04_mcp_04_05_git.md)
+- [MCP Server Catalog: git-mcp](../mcp_04_05_git.md)
 - [High-Risk MCP Tool Common Policy](../91_security/00_security_02_high-risk-tool-common-policy.md)
-- [Fail-Open/Fail-Closed and Risk Tiers](../04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)
+- [Fail-Open/Fail-Closed and Risk Tiers](../mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)
 
 ### Known Issues
 - [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — no active entries related to this ADR; the protected-branch/Force-Push guard, approval risk-tier mapping, and audit repository-identity gaps this ADR addressed are all resolved.

@@ -12,15 +12,15 @@ tags:
 related:
   - 00_security_01_architecture-and-trust-boundaries.md
   - governance_01_documentation-policy.md
-  - 04_mcp_05_01_access-control-and-allowlists.md
-  - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - mcp_05_01_access-control-and-allowlists.md
+  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - 05_agent_06_01_tool-execution-and-approval-execution.md
-  - 04_mcp_04_02_file-write-file-delete-shell.md
-  - 04_mcp_04_04_mdq.md
-  - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
+  - mcp_04_02_file-write-file-delete-shell.md
+  - mcp_04_04_mdq.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
   - 05_agent_06_02_tool-execution-and-approval-approval.md
-  - 04_mcp_06_16_pre-production-fail-open-checklist.md
-  - 04_mcp_02_03_audit-logging-and-errors.md
+  - mcp_06_16_pre-production-fail-open-checklist.md
+  - mcp_02_03_audit-logging-and-errors.md
 source:
   - 00_security_02_high-risk-tool-common-policy.md
 ---
@@ -69,17 +69,17 @@ All high-risk tools that access filesystem or remote resources use a fail-closed
 
 **Common shape**: All allowlists are lists of absolute paths or repository identifiers. An empty list means "deny all" (fail-closed). Paths must be absolute and are normalized via `Path.resolve()` before comparison.
 
-*Source: `04_mcp_05_01_access-control-and-allowlists.md`*
+*Source: `mcp_05_01_access-control-and-allowlists.md`*
 
 ## Command allowlists
 
 Tools that execute commands (shell, git, github CLI) enforce command allowlists:
 
 - **Shell MCP**: `command_allowlist` in `config/shell_mcp_server.toml` — only listed command prefixes allowed (e.g., `ls`, `cat`, `grep`, `git log`, `git status`)
-- **Git MCP**: no subcommand allowlist exists. The tool surface is a fixed, named dispatch table (`git_status`, `git_checkout`, `git_pull`, `git_push`, etc.) rather than a free-form command string, but individual tool arguments (`branch`, `remote`) are not validated against a safe-value allowlist — see `04_mcp_04_05_git.md` Command-specific guard status for the current gap. Approval is an Agent-side (client) concern, not something the Git MCP server itself checks (see Layered protection model below).
+- **Git MCP**: no subcommand allowlist exists. The tool surface is a fixed, named dispatch table (`git_status`, `git_checkout`, `git_pull`, `git_push`, etc.) rather than a free-form command string, but individual tool arguments (`branch`, `remote`) are not validated against a safe-value allowlist — see `mcp_04_05_git.md` Command-specific guard status for the current gap. Approval is an Agent-side (client) concern, not something the Git MCP server itself checks (see Layered protection model below).
 - **GitHub MCP**: Uses GitHub API directly; no shell command execution
 
-*Source: `04_mcp_05_01_access-control-and-allowlists.md` Command Allowlist*
+*Source: `mcp_05_01_access-control-and-allowlists.md` Command Allowlist*
 
 ## Argument validation
 
@@ -103,9 +103,9 @@ This normalizes:
 
 The resolved absolute path is then checked against the allowlist using prefix matching. If the resolved path is not under any allowlisted root, access is denied.
 
-This generalizes the path-traversal prevention language currently found only in `04_mcp_04_04_mdq.md` / `04_mcp_05_05_mdq-enforcement-and-lockdown.md` to all filesystem-touching high-risk tools (file-write, file-delete, shell, git).
+This generalizes the path-traversal prevention language currently found only in `mcp_04_04_mdq.md` / `mcp_05_05_mdq-enforcement-and-lockdown.md` to all filesystem-touching high-risk tools (file-write, file-delete, shell, git).
 
-*Source: `04_mcp_04_04_mdq.md`, `04_mcp_05_05_mdq-enforcement-and-lockdown.md`; implemented in `scripts/mcp_servers/file/write_service.py`, `delete_service.py`, `common.py`, `read_security.py`*
+*Source: `mcp_04_04_mdq.md`, `mcp_05_05_mdq-enforcement-and-lockdown.md`; implemented in `scripts/mcp_servers/file/write_service.py`, `delete_service.py`, `common.py`, `read_security.py`*
 
 ## Symlink-traversal prevention
 
@@ -117,7 +117,7 @@ This generalizes the symlink-traversal prevention language from the mdq docs to 
 
 ## Approval requirements mapped explicitly to risk tiers
 
-The following table reproduces the authoritative approval-to-risk-tier mapping from `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification:
+The following table reproduces the authoritative approval-to-risk-tier mapping from `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification:
 
 | Risk Tier | Description | Approval Required | Example Tools |
 |---|---|---|---|
@@ -128,7 +128,7 @@ The following table reproduces the authoritative approval-to-risk-tier mapping f
 
 **Cross-linked with approval-execution flow**: `05_agent_06_01_tool-execution-and-approval-execution.md` and `05_agent_06_02_tool-execution-and-approval-approval.md` define how approval is requested, granted, and audited.
 
-*Source: `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification*
+*Source: `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification*
 
 ## Audit fields
 
@@ -146,7 +146,7 @@ All high-risk tool executions emit audit log entries with the following fields:
 | `session_id` | Agent session ID |
 | `tool_args` | Redacted tool arguments (per redaction rules) |
 
-*Source: `04_mcp_02_03_audit-logging-and-errors.md`*
+*Source: `mcp_02_03_audit-logging-and-errors.md`*
 
 ## Production restrictions
 
@@ -164,7 +164,7 @@ restrictions below apply unconditionally in every environment, not only when a
 | MCP server bind address | Loopback (`127.0.0.1`/`::1`) only, unconditionally — `allow_public_bind` was removed entirely (`plans/done/20260903-091921_plan.md`); any other host raises `ValueError` at startup |
 | Bearer token (`auth_token`) | Required and non-empty for every HTTP MCP server — an empty token raises `ValueError` at startup (`plans/done/20260903-092407_plan.md`) |
 
-*Source: `04_mcp_06_16_pre-production-fail-open-checklist.md`*
+*Source: `mcp_06_16_pre-production-fail-open-checklist.md`*
 
 ## Failure behavior
 
@@ -185,9 +185,9 @@ The fail-closed posture applies to:
 
 This policy defines the common baseline. Tool-specific deviations are documented in each tool's own documentation with clear references back to this policy. Examples:
 
-- **GitHub MCP**: `protected_branches` and `path_denylist` are fail-open by design (documented in `04_mcp_05_01_access-control-and-allowlists.md`); `protected_branches` itself only exists for GitHub MCP, not Git MCP.
+- **GitHub MCP**: `protected_branches` and `path_denylist` are fail-open by design (documented in `mcp_05_01_access-control-and-allowlists.md`); `protected_branches` itself only exists for GitHub MCP, not Git MCP.
 - **Git MCP**: `GitConfig.protected_branches` and `GitService._check_protected_branch()` (called via `_validate_protected()`) enforce a protected-branch policy (tests: `test_git_security_compliance.py::test_check_protected_branch`, `test_git_checkout_protected_branch`, `test_git_push_protected_branch`, `test_is_safe_ref`; `TestLiveCallToolAuthorization`: `test_checkout_protected_branch_denied`, `test_pull_protected_branch_denied`, `test_push_protected_branch_denied`, `test_checkout_non_protected_branch_allowed`, `test_pull_non_protected_branch_allowed`, `test_push_non_protected_branch_allowed`, `test_checkout_implicit_target_denied`, `test_pull_implicit_target_denied`, `test_push_implicit_target_denied`). The Force-Push block is not applicable because `git_push` exposes no `force` parameter. Dirty-Worktree/Detached-HEAD guards and postcondition verification are implemented (`TestDryRunAndDetachedHeadLivePath`: `test_dry_run_checkout_skips_dirty_and_detached_precondition`, `test_dry_run_checkout_protected_branch_still_denied`, `test_non_dry_run_detached_head_denied_then_allowed`, `test_dry_run_pull_and_push_skip_dirty_precondition`; `TestPostConditionBypassPrevention`: `test_checkout_postcondition_cannot_be_bypassed`, `test_pull_postcondition_cannot_be_bypassed`, `test_push_postcondition_cannot_be_bypassed`) (see `governance_03_issue-and-uncertainty-management.md`).
-- **Shell MCP**: `approval_shell_safe_prefixes` allows auto-approval for safe prefixes (documented in `04_mcp_04_02_file-write-file-delete-shell.md`)
+- **Shell MCP**: `approval_shell_safe_prefixes` allows auto-approval for safe prefixes (documented in `mcp_04_02_file-write-file-delete-shell.md`)
 
 Tool-specific docs must include a "See also: `00_security_02_high-risk-tool-common-policy.md`" reference.
 
@@ -195,13 +195,13 @@ Tool-specific docs must include a "See also: `00_security_02_high-risk-tool-comm
 
 - `00_security_01_architecture-and-trust-boundaries.md`
 - `governance_01_documentation-policy.md`
-- `04_mcp_05_01_access-control-and-allowlists.md`
-- `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
+- `mcp_05_01_access-control-and-allowlists.md`
+- `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `05_agent_06_01_tool-execution-and-approval-execution.md`
-- `04_mcp_04_02_file-write-file-delete-shell.md`
-- `04_mcp_04_04_mdq.md`
-- `04_mcp_05_05_mdq-enforcement-and-lockdown.md`
+- `mcp_04_02_file-write-file-delete-shell.md`
+- `mcp_04_04_mdq.md`
+- `mcp_05_05_mdq-enforcement-and-lockdown.md`
 - `05_agent_06_01_tool-execution-and-approval-execution.md`
 - `05_agent_06_02_tool-execution-and-approval-approval.md`
-- `04_mcp_06_16_pre-production-fail-open-checklist.md`
-- `04_mcp_02_03_audit-logging-and-errors.md`
+- `mcp_06_16_pre-production-fail-open-checklist.md`
+- `mcp_02_03_audit-logging-and-errors.md`
