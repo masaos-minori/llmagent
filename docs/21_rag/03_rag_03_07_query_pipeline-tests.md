@@ -6,8 +6,8 @@ tags:
   - quality-regression
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview.md
-  - 03_rag_03_01_query_pipeline-overview.md
+  - 03_rag_01_system_overview_00_document-guide.md
+  - 03_rag_03_01_query_pipeline-overview_00_document-guide.md
   - 03_rag_03_03_query_pipeline-context-and-diagnostics.md
   - 03_rag_03_04_query_pipeline-search-stages.md
   - 03_rag_03_05_query_pipeline-augment-stages.md
@@ -15,13 +15,13 @@ related:
   - 03_rag_04_05_dto-types.md
   - 03_rag_05_1-configuration-reference.md
 source:
-  - 03_rag_03_01_query_pipeline-overview.md
+  - 03_rag_03_01_query_pipeline-overview_00_document-guide.md
 ---
 
 
 # RAG Query Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- System Overview → [03_rag_01_system_overview_00_document-guide.md](03_rag_01_system_overview_00_document-guide.md)
 - Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 - Type Definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
@@ -65,8 +65,8 @@ These tests cover individual stages (`MqeStage`/`SearchStage`/`FusionStage`/`Rer
 ## Related Documents
 
 - `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_03_01_query_pipeline-overview.md`
+- `03_rag_01_system_overview_00_document-guide.md`
+- `03_rag_03_01_query_pipeline-overview_00_document-guide.md`
 - `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
 - `03_rag_03_04_query_pipeline-search-stages.md`
 - `03_rag_03_05_query_pipeline-augment-stages.md`

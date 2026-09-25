@@ -99,7 +99,7 @@ Partial lines in JSONL (from interrupted writes) are naturally excluded by line-
 - [DLQ Operations Reference](24_eventbus_03_dlq_operations.md)
 - [DLQ Requeue API Reference](24_eventbus_05_dlq_endpoint.md)
 - [Replay Operations Reference](24_eventbus_16_replay_operations.md)
-- [Event Bus Overview](24_eventbus_01_system-overview.md)
+- [Event Bus Overview](24_eventbus_01_system-overview_00_document-guide.md)
 - [Event Bus DLQ/Offsets/Delivery Semantics](24_eventbus_06_dlq_offsets_and_delivery_semantics.md)
 
 ## Keywords

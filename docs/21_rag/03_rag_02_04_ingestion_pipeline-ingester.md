@@ -9,8 +9,8 @@ tags:
   - rag
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview.md
-  - 03_rag_02_01_ingestion_pipeline-overview.md
+  - 03_rag_01_system_overview_00_document-guide.md
+  - 03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md
   - 03_rag_02_02_ingestion_pipeline-crawler.md
   - 03_rag_02_03_ingestion_pipeline-chunksplitter.md
   - 03_rag_02_07_ingestion_pipeline-utils.md
@@ -25,7 +25,7 @@ source:
 
 # RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- System Overview → [03_rag_01_system_overview_00_document-guide.md](03_rag_01_system_overview_00_document-guide.md)
 - Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
@@ -79,8 +79,8 @@ chunks_vec (explicitly deleted) → documents (deleting documents triggers casca
 ## Related Documents
 
 - `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
+- `03_rag_01_system_overview_00_document-guide.md`
+- `03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md`
 - `03_rag_02_02_ingestion_pipeline-crawler.md`
 - `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
 - `03_rag_02_07_ingestion_pipeline-utils.md`
@@ -98,7 +98,7 @@ rag
 
 ## RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- System Overview → [03_rag_01_system_overview_00_document-guide.md](03_rag_01_system_overview_00_document-guide.md)
 - Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
@@ -188,8 +188,8 @@ Configuration details $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-
 ## Related Documents
 
 - `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
+- `03_rag_01_system_overview_00_document-guide.md`
+- `03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md`
 - `03_rag_02_02_ingestion_pipeline-crawler.md`
 - `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
 - `03_rag_02_07_ingestion_pipeline-utils.md`
@@ -207,7 +207,7 @@ rag
 
 ## RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- System Overview → [03_rag_01_system_overview_00_document-guide.md](03_rag_01_system_overview_00_document-guide.md)
 - Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---

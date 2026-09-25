@@ -8,7 +8,7 @@ tags:
 related:
   - 05_agent_00_document-guide.md
   - 05_agent_02_runtime-architecture.md
-  - 05_agent_03_01_turn-processing-flow-overview.md
+  - 05_agent_03_01_turn-processing-flow-overview_00_document-guide.md
   - 05_agent_07_01_cli-and-commands-cli-reference.md
 ---
 
@@ -101,7 +101,7 @@ N/A — no known limitations documented beyond those tracked in `governance_03_i
 
 - [05_agent_00_document-guide.md](05_agent_00_document-guide.md)
 - [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
-- [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+- [05_agent_03_01_turn-processing-flow-overview_00_document-guide.md](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md)
 - [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
 - [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md)
 - [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md)

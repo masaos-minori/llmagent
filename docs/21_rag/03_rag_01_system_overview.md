@@ -9,10 +9,10 @@ tags:
   - pipeline
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_02_01_ingestion_pipeline-overview.md
-  - 03_rag_03_01_query_pipeline-overview.md
+  - 03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md
+  - 03_rag_03_01_query_pipeline-overview_00_document-guide.md
 source:
-  - 03_rag_01_system_overview.md
+  - 03_rag_01_system_overview_00_document-guide.md
 ---
 
 
@@ -247,14 +247,14 @@ The interaction flow is: MCP client → `rag_pipeline_server.py` (HTTP routing) 
 
 Note: External (HTTP-delegated) and local (in-process) RAG execution modes currently read the same corpus database (`rag_db_path`). Both `config/agent.toml` (line 7: `rag_db_path = "/opt/llm/db/rag.sqlite"`) and `config/rag_pipeline_mcp_server.toml` (line 13: `rag_db_path = "/opt/llm/db/rag.sqlite"`) are configured identically. This is a configuration convention, not an enforced invariant — a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` would silently diverge, undetected by any current automated check.
 
-For details on responsibilities of these components, please refer to `docs/03_rag_03_01_query_pipeline-overview.md`.
+For details on responsibilities of these components, please refer to `docs/03_rag_03_01_query_pipeline-overview_00_document-guide.md`.
 
 ## Related Chapters
 
 | Topic | File |
 |---|---|
-| Ingestion Scripts (API, CLI, Config) | [03_rag_02_01_ingestion_pipeline-overview.md](03_rag_02_01_ingestion_pipeline-overview.md) |
-| Query Pipeline (API, Stage Details) | [03_rag_03_01_query_pipeline-overview.md](03_rag_03_01_query_pipeline-overview.md) |
+| Ingestion Scripts (API, CLI, Config) | [03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md](03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md) |
+| Query Pipeline (API, Stage Details) | [03_rag_03_01_query_pipeline-overview_00_document-guide.md](03_rag_03_01_query_pipeline-overview_00_document-guide.md) |
 | DB Schema, Type Definitions | [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md) |
 | Config, Execution Commands, Logs | [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md) |
 | Known Bugs and Inconsistencies | [governance_03_issue-and-uncertainty-management.md](governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG) |
@@ -262,9 +262,9 @@ For details on responsibilities of these components, please refer to `docs/03_ra
 ## Related Documents
 
 - `03_rag_00_document-guide.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
-- `03_rag_03_01_query_pipeline-overview.md`
-- `03_rag_01_system_overview.md`
+- `03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md`
+- `03_rag_03_01_query_pipeline-overview_00_document-guide.md`
+- `03_rag_01_system_overview_00_document-guide.md`
 
 ## Keywords
 

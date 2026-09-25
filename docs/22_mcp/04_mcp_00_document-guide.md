@@ -8,7 +8,7 @@ tags:
   - routing
   - file-index
 related:
-  - 04_mcp_01_system_overview.md
+  - 04_mcp_01_system_overview_00_document-guide.md
   - 04_mcp_02_01_endpoints-and-transport.md
   - 04_mcp_03_01_dispatch-and-routing.md
   - 04_mcp_04_01_web-search-file-read-github.md
@@ -81,7 +81,7 @@ Provides guidance on determining which chapters to open as the entry point for t
 | File | Description |
 |---|---|
 | [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | Entry Point |
-| [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md) | System Overview |
+| [04_mcp_01_system_overview_00_document-guide.md](04_mcp_01_system_overview_00_document-guide.md) | System Overview |
 | [04_mcp_01_tool_ownership_matrix.md](04_mcp_01_tool_ownership_matrix.md) | Tool Ownership Matrix |
 | [04_mcp_02_service_boundaries.md](04_mcp_02_service_boundaries.md) | Service Boundary Definitions |
 | [04_mcp_02_01](04_mcp_02_01_endpoints-and-transport.md) 〜 [_02](04_mcp_02_02_startup-modes-and-health.md)/[_03](04_mcp_02_03_audit-logging-and-errors.md) | Protocol and Transport (3 parts) |
@@ -165,7 +165,7 @@ Old MCP source files were kept during the documentation restructuring phase (pla
 
 ## Related Documents
 
-- `04_mcp_01_system_overview.md`
+- `04_mcp_01_system_overview_00_document-guide.md`
 - `04_mcp_02_01_endpoints-and-transport.md`
 - `04_mcp_03_01_dispatch-and-routing.md`
 - `04_mcp_04_01_web-search-file-read-github.md`

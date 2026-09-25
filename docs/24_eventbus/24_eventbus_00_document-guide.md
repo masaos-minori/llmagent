@@ -16,7 +16,7 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 
 | Category | File |
 |---|---|
-| Overview & Architecture | `24_eventbus_01_system-overview.md` |
+| Overview & Architecture | `24_eventbus_01_system-overview_00_document-guide.md` |
 | Primary Operations (publish/replay/subscribe/ack/nack/DLQ) | `24_eventbus_03_*`, `24_eventbus_04_*`, `24_eventbus_05_*` |
 | Persistence & Schema | `24_eventbus_07_persistence_schema_and_replay.md` |
 | Delivery Semantics & Consumer Responsibilities | `24_eventbus_06_dlq_offsets_and_delivery_semantics.md` |
@@ -65,7 +65,7 @@ Cross-cutting documentation rules and policies:
 
 ## Related Documents
 
-- `24_eventbus_01_system-overview.md`
+- `24_eventbus_01_system-overview_00_document-guide.md`
 - `24_eventbus_07_persistence_schema_and_replay.md`
 - `24_eventbus_06_dlq_offsets_and_delivery_semantics.md`
 - `24_eventbus_09_configuration-and-operations.md`

@@ -18,7 +18,7 @@ source:
 
 # DB Architecture and Schema
 
-- Overview → [90_shared_overview.md](90_shared_overview.md)
+- Overview → [90_shared_overview_00_document-guide.md](90_shared_overview_00_document-guide.md)
 - DB API → [41_db_04_db_api_and_operations-module-boundaries-and-helper.md](41_db_04_db_api_and_operations-module-boundaries-and-helper.md)
 
 ## 8. Schema Generation and Migration Policy

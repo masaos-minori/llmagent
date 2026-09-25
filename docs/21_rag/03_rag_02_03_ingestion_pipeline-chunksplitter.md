@@ -10,8 +10,8 @@ tags:
   - rag
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview.md
-  - 03_rag_02_01_ingestion_pipeline-overview.md
+  - 03_rag_01_system_overview_00_document-guide.md
+  - 03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md
   - 03_rag_02_02_ingestion_pipeline-crawler.md
   - 03_rag_02_04_ingestion_pipeline-ingester.md
   - 03_rag_02_07_ingestion_pipeline-utils.md
@@ -24,7 +24,7 @@ source:
 
 ## RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- System Overview → [03_rag_01_system_overview_00_document-guide.md](03_rag_01_system_overview_00_document-guide.md)
 - Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
@@ -80,8 +80,8 @@ This module provides the following public methods. See source code for details.
 ## Related Documents
 
 - `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
+- `03_rag_01_system_overview_00_document-guide.md`
+- `03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md`
 - `03_rag_02_02_ingestion_pipeline-crawler.md`
 - `03_rag_02_04_ingestion_pipeline-ingester.md`
 - `03_rag_02_07_ingestion_pipeline-utils.md`
@@ -99,7 +99,7 @@ rag
 
 # RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- System Overview → [03_rag_01_system_overview_00_document-guide.md](03_rag_01_system_overview_00_document-guide.md)
 - Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
@@ -278,8 +278,8 @@ See [03_rag_05_1-configuration-reference.md section 1.1](03_rag_05_1-configurati
 ## Related Documents
 
 - `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
+- `03_rag_01_system_overview_00_document-guide.md`
+- `03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md`
 - `03_rag_02_02_ingestion_pipeline-crawler.md`
 - `03_rag_02_04_ingestion_pipeline-ingester.md`
 - `03_rag_02_07_ingestion_pipeline-utils.md`

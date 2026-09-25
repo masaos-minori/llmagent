@@ -33,7 +33,7 @@ tags:
   - sweep
 related:
   - 24_eventbus_00_document-guide.md
-  - 24_eventbus_01_system-overview.md
+  - 24_eventbus_01_system-overview_00_document-guide.md
   - 24_eventbus_03_dlq_operations.md
   - 24_eventbus_07_persistence_schema_and_replay.md
   - 24_eventbus_08_validation_status.md
@@ -223,7 +223,7 @@ Sweep results are recorded in the logs but are not exposed via the health endpoi
 ## Related Documents
 
 - `24_eventbus_00_document-guide.md`
-- `24_eventbus_01_system-overview.md`
+- `24_eventbus_01_system-overview_00_document-guide.md`
 - `24_eventbus_03_dlq_operations.md`
 - `24_eventbus_07_persistence_schema_and_replay.md`
 - `24_eventbus_06_dlq_offsets_and_delivery_semantics.md`

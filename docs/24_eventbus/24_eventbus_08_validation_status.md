@@ -10,7 +10,7 @@ tags:
   - verification
 related:
   - 24_eventbus_00_document-guide.md
-  - 24_eventbus_01_system-overview.md
+  - 24_eventbus_01_system-overview_00_document-guide.md
   - 24_eventbus_09_configuration-and-operations.md
 source:
   - 24_eventbus_09_configuration-and-operations.md

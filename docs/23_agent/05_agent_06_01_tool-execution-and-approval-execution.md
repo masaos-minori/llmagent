@@ -12,7 +12,7 @@ source:
 
 # Agent Tool Execution and Approval
 
-- Turn Flow → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+- Turn Flow → [05_agent_03_01_turn-processing-flow-overview_00_document-guide.md](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md)
 - MCP Routing → [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md)
 - GitHub Change Approval/GitOps Control → [05_agent_06_02_tool-execution-and-approval-approval.md](05_agent_06_02_tool-execution-and-approval-approval.md)
 

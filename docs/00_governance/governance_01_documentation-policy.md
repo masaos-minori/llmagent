@@ -5,7 +5,7 @@ tags:
   - governance
 related:
   - ../00_index.md
-  - overview.md
+  - overview_00_document-guide.md
 ---
 
 # Documentation Policy

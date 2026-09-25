@@ -9,11 +9,11 @@ related:
 ---
 # Documentation Overview
 
-Project documentation top-level navigation hub. It lists all top-level categories and links to their entry files. `overview/overview.md` continues to exist as the system-wide architecture overview and is not replaced by this file.
+Project documentation top-level navigation hub. It lists all top-level categories and links to their entry files. `overview/overview_00_document-guide.md` continues to exist as the system-wide architecture overview and is not replaced by this file.
 
 ## Categories
 
-- [Overview](../overview/overview.md) — System-wide architecture and file structure
+- [Overview](../overview/overview_00_document-guide.md) — System-wide architecture and file structure
 - [Deployment](../90_deployment/02_deployment.md) — Environment setup and deployment procedures
 - [RAG](21_rag/03_rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
 - [MCP](22_mcp/04_mcp_00_document-guide.md) — Model Context Protocol servers
@@ -29,7 +29,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 
 ## Recommended Reading Order
 
-1. [System Overview](../overview/overview.md) — Start here to understand the overall system picture
+1. [System Overview](../overview/overview_00_document-guide.md) — Start here to understand the overall system picture
 2. [Deployment Guide](../90_deployment/02_deployment.md) — Set up your environment
 3. Select an area of interest:
    - [RAG Pipeline](21_rag/03_rag_00_document-guide.md)
@@ -53,13 +53,13 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| Agent spec (overview, design, known issues) | `23_agent/05_agent_00_document-guide.md` + `23_agent/05_agent_01_system-overview.md` |
+| Agent spec (overview, design, known issues) | `23_agent/05_agent_00_document-guide.md` + `23_agent/05_agent_01_system-overview_00_document-guide.md` |
 | Agent known issues / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent) |
-| MCP server spec (overview, design, known issues) | `22_mcp/04_mcp_00_document-guide.md` + `22_mcp/04_mcp_01_system_overview.md` |
-| RAG pipeline spec (overview, design, known issues) | `21_rag/03_rag_00_document-guide.md` + `21_rag/03_rag_01_system_overview.md` |
+| MCP server spec (overview, design, known issues) | `22_mcp/04_mcp_00_document-guide.md` + `22_mcp/04_mcp_01_system_overview_00_document-guide.md` |
+| RAG pipeline spec (overview, design, known issues) | `21_rag/03_rag_00_document-guide.md` + `21_rag/03_rag_01_system_overview_00_document-guide.md` |
 | MDQ vs RAG boundary | `22_mcp/04_mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
 | DB layer spec (schema, ops, known issues) | `41_db/41_db_01_db_architecture_and_schema-overview-and-config.md` + `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
-| Shared infra spec (config, logging, types, constants) | `40_shared/90_shared_00_document-guide.md` + `40_shared/90_shared_overview.md` |
+| Shared infra spec (config, logging, types, constants) | `40_shared/90_shared_00_document-guide.md` + `40_shared/90_shared_overview_00_document-guide.md` |
 
 ### Implementation reference
 
@@ -67,9 +67,9 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| System-wide architecture overview | `overview/overview.md` (indexes `overview-arch-*.md`) |
-| File / module layout | `overview/overview.md` (indexes `overview-files-*.md`) |
-| `tools/` scripts overview (CI checks, doc formatting, historical doc migration) | `tools/overview.md` |
+| System-wide architecture overview | `overview/overview_00_document-guide.md` (indexes `overview-arch-*.md`) |
+| File / module layout | `overview/overview_00_document-guide.md` (indexes `overview-files-*.md`) |
+| `tools/` scripts overview (CI checks, doc formatting, historical doc migration) | `tools/overview_00_document-guide.md` |
 | Documentation set index / navigation | `00_governance/00_index.md` |
 | Deployment / env setup | `90_deployment/02_deployment.md` + `rules/env.md` |
 
@@ -81,9 +81,9 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | OTel observability (otel_tracer.py) | `23_agent/05_agent_10_01_operations-and-observability-startup-and-health.md` + `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
 | Agent REPL slash commands (`CommandRegistry`) | `23_agent/05_agent_07_01_cli-and-commands-cli-reference.md` |
 | Agent startup / verification / troubleshooting | `23_agent/05_agent_10_01_operations-and-observability-startup-and-health.md` |
-| Agent features / slash commands / tool calling | `23_agent/05_agent_01_system-overview.md` + `23_agent/05_agent_07_01_cli-and-commands-cli-reference.md` |
+| Agent features / slash commands / tool calling | `23_agent/05_agent_01_system-overview_00_document-guide.md` + `23_agent/05_agent_07_01_cli-and-commands-cli-reference.md` |
 | AgentREPL class structure | `23_agent/05_agent_02_runtime-architecture.md` + `23_agent/05_agent_13_reference-api.md` |
-| Agent REPL flow / tool execution | `23_agent/05_agent_03_01_turn-processing-flow-overview.md` + `23_agent/05_agent_06_01_tool-execution-and-approval-execution.md` |
+| Agent REPL flow / tool execution | `23_agent/05_agent_03_01_turn-processing-flow-overview_00_document-guide.md` + `23_agent/05_agent_06_01_tool-execution-and-approval-execution.md` |
 | AgentContext / DI hub | `23_agent/05_agent_02_runtime-architecture.md` + `23_agent/05_agent_04_01_state-and-persistence-state-model.md` |
 | AgentConfig / config constants | `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
 | Session / DB persistence | `23_agent/05_agent_09_01_data-layer-session-db.md` + `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
@@ -113,9 +113,9 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| RAG pipeline modification | `21_rag/03_rag_03_01_query_pipeline-overview.md` + `21_rag/03_rag_04_05_dto-types.md` + `40_shared/90_shared_02_01_types_and_protocols-core-types.md` |
+| RAG pipeline modification | `21_rag/03_rag_03_01_query_pipeline-overview_00_document-guide.md` + `21_rag/03_rag_04_05_dto-types.md` + `40_shared/90_shared_02_01_types_and_protocols-core-types.md` |
 | RAG types / repository / LLM utils | `21_rag/03_rag_04_05_dto-types.md` + `40_shared/90_shared_02_01_types_and_protocols-core-types.md` |
-| Ingestion pipeline run (execute commands, file lifecycle) | `21_rag/03_rag_02_01_ingestion_pipeline-overview.md` + `21_rag/03_rag_05_1-configuration-reference.md` |
+| Ingestion pipeline run (execute commands, file lifecycle) | `21_rag/03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md` + `21_rag/03_rag_05_1-configuration-reference.md` |
 | crawler.py changes / API reference | `21_rag/03_rag_02_02_ingestion_pipeline-crawler.md` |
 | chunk_splitter.py changes / API reference | `21_rag/03_rag_02_03_ingestion_pipeline-chunksplitter.md` |
 | ingester.py changes / API reference | `21_rag/03_rag_02_04_ingestion_pipeline-ingester.md` |
@@ -134,7 +134,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| Event Bus (overview) | `24_eventbus/24_eventbus_01_system-overview.md` |
+| Event Bus (overview) | `24_eventbus/24_eventbus_01_system-overview_00_document-guide.md` |
 | Event Bus (HTTP API) | `24_eventbus/24_eventbus_02_api-reference-index.md` |
 | Event Bus (persistence) | `24_eventbus/24_eventbus_07_persistence_schema_and_replay.md` |
 | Event Bus (DLQ/offsets) | `24_eventbus/24_eventbus_06_dlq_offsets_and_delivery_semantics.md` |
@@ -144,7 +144,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 ## Related Documents
 
-- `overview/overview.md`
+- `overview/overview_00_document-guide.md`
 - `90_deployment/02_deployment.md`
 - `21_rag/03_rag_00_document-guide.md`
 - `22_mcp/04_mcp_00_document-guide.md`

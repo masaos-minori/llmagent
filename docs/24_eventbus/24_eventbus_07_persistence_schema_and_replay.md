@@ -11,7 +11,7 @@ tags:
   - consumer-offset
 related:
   - 24_eventbus_00_document-guide.md
-  - 24_eventbus_01_system-overview.md
+  - 24_eventbus_01_system-overview_00_document-guide.md
   - 24_eventbus_03_dlq_operations.md
   - 24_eventbus_06_dlq_offsets_and_delivery_semantics.md
 source:
@@ -198,6 +198,6 @@ If inconsistencies are detected, follow this controlled restart procedure:
 
 6. Re-run Steps 1–4 to confirm consistency.
 - `24_eventbus_00_document-guide.md`
-- `24_eventbus_01_system-overview.md`
+- `24_eventbus_01_system-overview_00_document-guide.md`
 - `24_eventbus_03_dlq_operations.md`
 - `24_eventbus_06_dlq_offsets_and_delivery_semantics.md`

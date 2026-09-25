@@ -11,7 +11,7 @@ related:
 ---
 # Shared Types and Protocols - Reference
 
-- Overview → [90_shared_overview.md](90_shared_overview.md)
+- Overview → [90_shared_overview_00_document-guide.md](90_shared_overview_00_document-guide.md)
 
 ## 9a. `DbConfig` (`db/config.py`)
 

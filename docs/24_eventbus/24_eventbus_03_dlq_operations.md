@@ -27,7 +27,7 @@ tags:
   - pagination
 related:
   - 24_eventbus_00_document-guide.md
-  - 24_eventbus_01_system-overview.md
+  - 24_eventbus_01_system-overview_00_document-guide.md
   - 24_eventbus_06_dlq_offsets_and_delivery_semantics.md
   - 24_eventbus_09_configuration-and-operations.md
 ---
@@ -212,7 +212,7 @@ Using optimistic locking, it only targets events where `dlq_at IS NULL` to preve
 ## Related Documents
 
 - `24_eventbus_00_document-guide.md`
-- `24_eventbus_01_system-overview.md`
+- `24_eventbus_01_system-overview_00_document-guide.md`
 - `24_eventbus_06_dlq_offsets_and_delivery_semantics.md`
 - `24_eventbus_09_configuration-and-operations.md`
 - `24_eventbus_10_reference_api.md`

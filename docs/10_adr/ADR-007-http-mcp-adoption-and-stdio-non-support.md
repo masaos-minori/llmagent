@@ -401,7 +401,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [MCP System Overview](../04_mcp_01_system_overview.md) — MCPアーキテクチャ概要
+- [MCP System Overview](../04_mcp_01_system_overview_00_document-guide.md) — MCPアーキテクチャ概要
 - [Endpoints and Transport](../04_mcp_02_01_endpoints-and-transport.md) — エンドポイントとTransport
 - [Startup Modes and Health](../04_mcp_02_02_startup-modes-and-health.md) — 起動モードとヘルス
 - [Dispatch and Routing](../04_mcp_03_01_dispatch-and-routing.md) — ディスパッチとルーティング

@@ -13,7 +13,7 @@ source:
 
 # Agent CLI and Commands
 
-- System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview → [05_agent_01_system-overview_00_document-guide.md](05_agent_01_system-overview_00_document-guide.md)
 
 ## Purpose
 

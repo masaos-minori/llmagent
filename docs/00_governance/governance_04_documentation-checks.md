@@ -5,7 +5,7 @@ tags:
   - governance
 related:
   - ../00_index.md
-  - overview.md
+  - overview_00_document-guide.md
 ---
 
 # Documentation Checks
@@ -273,10 +273,10 @@ When referencing other documents:
 - For ADR references, use the ADR number format (ADR-001) rather than the filename
 
 **Link format examples:**
-- Same area: `[Agent Guide](05_agent_01_system-overview.md)`
-- Cross area: `[RAG Specification](03_rag_01_system_overview.md)`
+- Same area: `[Agent Guide](05_agent_01_system-overview_00_document-guide.md)`
+- Cross area: `[RAG Specification](03_rag_01_system_overview_00_document-guide.md)`
 - ADR: `[ADR-001](../adr/ADR-001-workflow-engine-mandatory.md)`
-- Internal anchor: `[Section](05_agent_01_system-overview.md#workflow-engine)`
+- Internal anchor: `[Section](05_agent_01_system-overview_00_document-guide.md#workflow-engine)`
 
 ## Governance Verification Matrix
 

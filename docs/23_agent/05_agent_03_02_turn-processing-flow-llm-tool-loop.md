@@ -6,7 +6,7 @@ tags:
   - turn-processing
   - llm-tool-loop
 related:
-  - 05_agent_03_01_turn-processing-flow-overview.md
+  - 05_agent_03_01_turn-processing-flow-overview_00_document-guide.md
   - 05_agent_03_03_turn-processing-flow-workflow-engine.md
 ---
 # Agent Turn Processing Flow - LLM and Tool Loop
@@ -120,7 +120,7 @@ Messages constructed by the LLM client's streaming aggregation logic consist onl
 ## Related Docs
 
 - `05_agent_00_document-guide.md`
-- `05_agent_03_01_turn-processing-flow-overview.md`
+- `05_agent_03_01_turn-processing-flow-overview_00_document-guide.md`
 - `05_agent_03_03_turn-processing-flow-workflow-engine.md`
 - `05_agent_04_01_state-and-persistence-state-model.md`
 

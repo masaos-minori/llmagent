@@ -15,7 +15,7 @@ related:
 
 # MCP Tool Call Dispatch Flow and Routing Resolution
 
-- System Overview → [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md)
+- System Overview → [04_mcp_01_system_overview_00_document-guide.md](04_mcp_01_system_overview_00_document-guide.md)
 
 ## Purpose
 

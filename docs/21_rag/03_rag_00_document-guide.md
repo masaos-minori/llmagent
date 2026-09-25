@@ -8,9 +8,9 @@ tags:
   - routing
   - file-index
 related:
-  - 03_rag_01_system_overview.md
-  - 03_rag_02_01_ingestion_pipeline-overview.md
-  - 03_rag_03_01_query_pipeline-overview.md
+  - 03_rag_01_system_overview_00_document-guide.md
+  - 03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md
+  - 03_rag_03_01_query_pipeline-overview_00_document-guide.md
   - 03_rag_04_05_dto-types.md
   - 03_rag_05_1-configuration-reference.md
   - governance_03_issue-and-uncertainty-management.md
@@ -58,9 +58,9 @@ Only the restructured documents listed in the following file index are valid sou
 
 | Domain | Canonical Source |
 |---|---|
-| System purpose, ingestion/query pipeline overview | `03_rag_01_system_overview.md` |
-| File formats (JSON structure, field names) | `03_rag_02_01_ingestion_pipeline-overview.md`, `03_rag_04_01_dto-models_data.md` |
-| Query pipeline behavior (stages, RRF, reranking, HTTP mode) | `03_rag_03_01_query_pipeline-overview.md` |
+| System purpose, ingestion/query pipeline overview | `03_rag_01_system_overview_00_document-guide.md` |
+| File formats (JSON structure, field names) | `03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md`, `03_rag_04_01_dto-models_data.md` |
+| Query pipeline behavior (stages, RRF, reranking, HTTP mode) | `03_rag_03_01_query_pipeline-overview_00_document-guide.md` |
 | Configuration parameters and operational commands | `03_rag_05_1-configuration-reference.md` |
 | Known bugs, specification contradictions, unresolved issues | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
 | Established design invariants and regression test gaps | `03_rag_91_design_notes.md`, `03_rag_91_design_notes.md` |
@@ -74,8 +74,8 @@ Only the restructured documents listed in the following file index are valid sou
 | File | Description |
 |---|---|
 | [03_rag_00_document-guide.md](03_rag_00_document-guide.md) | Entry point and routing guide |
-| [03_rag_01_system_overview.md](03_rag_01_system_overview.md) | System overview, architecture, prerequisites |
-| [03_rag_02_01_ingestion_pipeline-overview.md](03_rag_02_01_ingestion_pipeline-overview.md) | Ingestion execution guide |
+| [03_rag_01_system_overview_00_document-guide.md](03_rag_01_system_overview_00_document-guide.md) | System overview, architecture, prerequisites |
+| [03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md](03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md) | Ingestion execution guide |
 | [crawler-part1](03_rag_02_02_ingestion_pipeline-crawler.md) / [-part2](03_rag_02_02_ingestion_pipeline-crawler.md) | WebCrawler details |
 | [chunksplitter-part1](03_rag_02_03_ingestion_pipeline-chunksplitter.md) / [-part2](03_rag_02_03_ingestion_pipeline-chunksplitter.md) | ChunkSplitter details |
 | [ingester-part1](03_rag_02_04_ingestion_pipeline-ingester.md) / [-part2](03_rag_02_04_ingestion_pipeline-ingester.md) | RagIngester details |
@@ -84,7 +84,7 @@ Only the restructured documents listed in the following file index are valid sou
 | [03_rag_02_07_ingestion_pipeline-utils.md](03_rag_02_07_ingestion_pipeline-utils.md) | Utility functions |
 | [03_rag_02_08_ingestion_pipeline-shared.md](03_rag_02_08_ingestion_pipeline-shared.md) | Shared utilities |
 | [03_rag_02_09_ingestion_pipeline-shared-utilities.md](03_rag_02_09_ingestion_pipeline-shared-utilities.md) | rag.utils details |
-| [03_rag_03_01_query_pipeline-overview.md](03_rag_03_01_query_pipeline-overview.md) | Query pipeline overview |
+| [03_rag_03_01_query_pipeline-overview_00_document-guide.md](03_rag_03_01_query_pipeline-overview_00_document-guide.md) | Query pipeline overview |
 | [rag-pipeline-class-part1](03_rag_03_02_query_pipeline-rag-pipeline-class.md) / [-part2](03_rag_03_02_query_pipeline-rag-pipeline-class.md) | RagPipeline class |
 | [03_rag_03_03_query_pipeline-context-and-diagnostics.md](03_rag_03_03_query_pipeline-context-and-diagnostics.md) | Context + Diagnostics |
 | [03_rag_03_04_query_pipeline-search-stages.md](03_rag_03_04_query_pipeline-search-stages.md) | Search stages |
@@ -121,9 +121,9 @@ Cross-cutting documentation rules and policies:
 
 ## Related Documents
 
-- `03_rag_01_system_overview.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
-- `03_rag_03_01_query_pipeline-overview.md`
+- `03_rag_01_system_overview_00_document-guide.md`
+- `03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md`
+- `03_rag_03_01_query_pipeline-overview_00_document-guide.md`
 - `03_rag_04_05_dto-types.md`
 - `03_rag_05_1-configuration-reference.md`
 - `03_rag_91_design_notes.md`

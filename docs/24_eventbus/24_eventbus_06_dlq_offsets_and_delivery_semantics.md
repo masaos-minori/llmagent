@@ -11,7 +11,7 @@ tags:
   - idempotent
 related:
   - 24_eventbus_00_document-guide.md
-  - 24_eventbus_01_system-overview.md
+  - 24_eventbus_01_system-overview_00_document-guide.md
   - 24_eventbus_03_dlq_operations.md
   - 24_eventbus_07_persistence_schema_and_replay.md
 source:
@@ -454,6 +454,6 @@ JSONL archive files are appended to `{storage_dir}/events.jsonl` as a secondary 
 ## Related Documents
 
 - `24_eventbus_00_document-guide.md`
-- `24_eventbus_01_system-overview.md`
+- `24_eventbus_01_system-overview_00_document-guide.md`
 - `24_eventbus_03_dlq_operations.md`
 - `24_eventbus_07_persistence_schema_and_replay.md`

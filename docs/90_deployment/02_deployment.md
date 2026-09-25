@@ -12,7 +12,7 @@ tags:
   - sqlite-vec
   - db-initialization
 related:
-  - overview.md
+  - overview_00_document-guide.md
   - 05_agent_03_03_turn-processing-flow-workflow-engine.md
   - 41_db_01_db_architecture_and_schema-overview-and-config.md
 ---
@@ -279,7 +279,7 @@ Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit 
 
 ## Related Documents
 
-- `overview.md`
+- `overview_00_document-guide.md`
 - `05_agent_03_03_turn-processing-flow-workflow-engine.md`
 - `41_db_01_db_architecture_and_schema-overview-and-config.md`
 
