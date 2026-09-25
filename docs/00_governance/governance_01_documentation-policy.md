@@ -542,7 +542,7 @@ Cross-cutting documentation rules and policies:
 - [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md)
 - [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md)
 - [Documentation Checks](00_governance_04_documentation-checks.md)
-- [ADR Index](/home/sugimoto/llmagent/docs/10_adr/adr-index.md)
+- [ADR Index](../10_adr/adr-index.md)
 
 ## Keywords
 

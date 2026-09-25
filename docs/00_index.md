@@ -24,7 +24,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 - [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md) — Metadata conventions, terminology glossary, link rules
 - [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — Known Issues templates, Needs Confirmation inventory
 - [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md) — Automated and manual validation checks, governance verification matrix
-- [ADR Index](/home/sugimoto/llmagent/docs/10_adr/adr-index.md) — ADR list, dependency graph, invariant verification matrix
+- [ADR Index](10_adr/adr-index.md) — ADR list, dependency graph, invariant verification matrix
 - [Known Issues](#known-issues) — Known inconsistencies per category
 
 ## Recommended Reading Order
