@@ -105,28 +105,6 @@ them, are preserved here rather than lost:
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
 
-#### RAG-006
-
-- **ID**: RAG-006
-- **Title**: Missing operational guidance for rag-src/registered/ file lifecycle
-- **Status**: resolved
-- **Severity**: Low
-- **Area**: RAG
-- **Type**: operational-gap
-- **Source**: `scripts/rag/ingestion/file_routing.py`, `scripts/rag/ingestion/ingester.py`
-- **Owner**: Team
-- **First Found**: 2026-09-13
-- **Target**: `docs/03_rag_02_01_ingestion_pipeline-overview.md`, `docs/03_rag_02_04_ingestion_pipeline-ingester.md`
-- **Related**: NC-026 — unresolved; no corresponding `#### NC-026` heading exists in Part 2 and no removal-placeholder paragraph naming NC-026 was found during this Plan's systematic scan.
-- **Summary**: What is the retention/deletion policy for chunk files moved to `rag-src/registered/` after successful ingestion? Who deletes them, when, and under what trigger?
-- **Current Description**: Retention policy defined via `plans/20260924-080000_plan.md`. Retention period is configurable via `config/ingester.toml`; default 30 days. Cleanup mechanism design is out of scope — requires separate design decision. File Lifecycle table updated with Deletion column in `docs/03_rag_02_01_ingestion_pipeline-overview.md`. `(retention TBD)` placeholder replaced in `docs/03_rag_01_system_overview.md`.
-- **Observed Implementation**: `FileRouter.__init__` creates `self._registered_dir = registered_dir / path.name`; `FileRouter.route()` writes successful chunks to `dest = self._registered_dir / path.name`. No corresponding cleanup or deletion call anywhere in either file.
-- **Impact**: Reduced — retention policy documented; operations teams can configure retention via `config/ingester.toml`. Remaining risk: cleanup mechanism implementation later may conflict with documented policy.
-- **Recommended Action**: Monitor retention configuration during operations; adjust retention period periodically based on operational requirements (audit trail vs. disk space). Include retention policy update procedure in acceptance criteria for future `rag-src/registered/` changes.
-- **Resolution Target**: Next RAG architecture review
-- **Resolved At**: 2026-09-24
-- **Resolution Evidence**: `plans/20260924-080000_plan.md`, `docs/03_rag_02_01_ingestion_pipeline-overview.md`, `docs/03_rag_01_system_overview.md`
-
 **Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
 
 
@@ -214,11 +192,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 
 
-A narrower, genuine discrepancy was found during this same re-verification and is *not* covered by the above: `ADR-010` Decision #9 ("解析エラーはログに記録し、空結果として扱う" — a parse error should be logged and treated as an empty result, i.e. `""`, not a fallback trigger) does not match `call_rag_service()`'s actual `ValueError` handling, which returns `None` (triggering fallback) rather than `""` — also locked in by an existing test (`tests/rag/test_rag_pipeline_service.py::test_json_parse_error_calls_set_fallback_reason`). Whether this reflects an intentional, undocumented refinement of Decision #9, or an actual deviation from it, was not resolved during this correction pass and is out of scope for closing CI-004 — file a new, narrowly-scoped Known Issue or Needs Confirmation entry for this specific Decision #9 vs. `ValueError`-handling question if it is to be tracked.
-
 **EventBus-specific verification (REQ-006)**: Verified by configuration test confirming `ConfigMissingError` is raised when a required config file is missing. The EventBus `load_config()` function (`scripts/eventbus/config.py`) validates required keys via `_REQUIRED_CONFIG_KEYS` and raises `ValueError` for missing keys — consistent with the fail-closed behavior described in CI-005.
-
-- **Resolution Target**: Next RAG architecture review
 
 #### CI-008
 
@@ -443,28 +417,6 @@ Note on CI-008 through CI-016 batching: These nine structurally identical "ADR i
 - **Resolution Target**: Next RAG exception-hierarchy refactor or ADR decision
 
 
-
-#### REQ-003
-
-- **ID**: REQ-003
-- **Title**: Preflight gate coverage not validated across all execution paths
-- **Status**: resolved
-- **Severity**: Medium
-- **Area**: Agent
-- **Type**: operational-gap
-- **Source**: `scripts/agent/`
-- **Owner**: Team
-- **First Found**: 2026-08-22
-- **Target**: `tests/` directory
-- **Related**: ADR-002, ADR-008
-- **Summary**: Preflight gates have been added to multiple locations in the Agent subsystem, but there is no documentation or test coverage verifying that all execution paths are properly gated. Untested execution paths could bypass the gate, allowing unauthorized tool access.
-- **Current Description**: Coverage mapping completed via `plans/20260924-070936_plan.md`. All 4 `check_preflight()` call sites enumerated and mapped to caller chains. Tests added for uncovered paths in `tests/agent/test_tool_policy.py` and `tests/agent/test_tool_approval_preflight.py`. Gateway-bypass gap resolved (see `tools/check_chunks_fts_invariant.py` for enforcement pattern). Agent architecture documentation updated with coverage map.
-- **Observed Implementation**: Four `check_preflight()` call sites identified: `repository_gateway.py:114`, `cmd_mdq.py:67`, `cmd_context.py:206`, `tool_approval.py:148`. All paths now have either passing tests or documented exemptions.
-- **Impact**: Reduced — coverage mapping and testing verified all execution paths. Remaining risk: future `check_preflight()` additions without corresponding tests.
-- **Recommended Action**: Monitor coverage map during CI runs; adjust whitelist if false positives occur. Include coverage map update procedure in acceptance criteria for future `check_preflight()` additions.
-- **Resolution Target**: Next RAG architecture review
-- **Resolved At**: 2026-09-24
-- **Resolution Evidence**: `plans/20260924-070936_plan.md`, `tests/agent/test_tool_policy.py`, `tests/agent/test_tool_approval_preflight.py`, `docs/05_agent_02_runtime-architecture.md`
 
 ## Part 2: Needs Confirmation Inventory
 

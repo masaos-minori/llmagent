@@ -542,7 +542,7 @@ Cross-cutting documentation rules and policies:
 - [Documentation Metadata](00_governance_02_documentation-metadata.md)
 - [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
 - [Documentation Checks](00_governance_04_documentation-checks.md)
-- [ADR Index](adr-index.md)
+- [ADR Index](../adr-index.md)
 
 ## Keywords
 

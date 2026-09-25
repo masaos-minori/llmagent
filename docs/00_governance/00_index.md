@@ -24,7 +24,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 - [Documentation Metadata](00_governance_02_documentation-metadata.md) — Metadata conventions, terminology glossary, link rules
 - [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — Known Issues templates, Needs Confirmation inventory
 - [Documentation Checks](00_governance_04_documentation-checks.md) — Automated and manual validation checks, governance verification matrix
-- [ADR Index](10_adr/adr-index.md) — ADR list, dependency graph, invariant verification matrix
+- [ADR Index](../adr-index.md) — ADR list, dependency graph, invariant verification matrix
 - [Known Issues](#known-issues) — Known inconsistencies per category
 
 ## Recommended Reading Order
