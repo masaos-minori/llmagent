@@ -56,10 +56,10 @@ No reference fix applies to this specific file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260924-235144 | 20260924-235144 | |
-| 2 | Add or update tests per Validation plan | Completed | 20260924-235144 | 20260924-235144 | N/A: no test code applies to a pure rename |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260924-235144 | 20260924-235144 | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260924-235144 | 20260924-235144 | N/A: this row's own file move IS the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260924-165235 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260924-165235 | N/A: no test code applies to a pure rename |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260924-165235 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260924-165235 | N/A: this row's own file move IS the documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
