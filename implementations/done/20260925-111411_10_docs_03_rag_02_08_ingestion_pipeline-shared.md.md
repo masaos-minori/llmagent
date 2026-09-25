@@ -1,10 +1,10 @@
 ## Goal
 
-Move `docs/eventbus/02_dlq_requeue_api.md` to `docs/24_eventbus/02_dlq_requeue_api.md` using `git mv`, preserving file history.
+Move `docs/03_rag_02_08_ingestion_pipeline-shared.md` to `docs/21_rag/` using `git mv`, preserving file history.
 
 ## Scope
 
-Move/update `docs/eventbus/02_dlq_requeue_api.md` as part of the docs/ reorganization. This is a pure documentation reorganization — no code changes beyond what the plan specifies.
+Move/update `docs/03_rag_02_08_ingestion_pipeline-shared.md` as part of the docs/ reorganization. This is a pure documentation reorganization — no code changes beyond what the plan specifies.
 
 ## Assumptions
 
@@ -27,11 +27,11 @@ Move/update `docs/eventbus/02_dlq_requeue_api.md` as part of the docs/ reorganiz
 
 ### Target file
 
-`docs/eventbus/02_dlq_requeue_api.md`
+`docs/03_rag_02_08_ingestion_pipeline-shared.md`
 
 ### Procedure
 
-`git mv docs/eventbus/02_dlq_requeue_api.md docs/24_eventbus/02_dlq_requeue_api.md`
+`git mv docs/03_rag_02_08_ingestion_pipeline-shared.md docs/21_rag/`
 
 ### Method
 
@@ -39,10 +39,10 @@ File move via `git mv`
 
 ### Details
 
-- Old location: `docs/eventbus/02_dlq_requeue_api.md`
-- New location: `docs/24_eventbus/02_dlq_requeue_api.md`
+- Old location: `docs/03_rag_02_08_ingestion_pipeline-shared.md`
+- New location: `docs/21_rag/`
 - Use `git mv` to preserve file history
-- After move, verify with `git log --follow 24_eventbus/02_dlq_requeue_api.md`
+- After move, verify with `git log --follow 21_rag/`
 
 ## Compatibility considerations
 
@@ -64,13 +64,13 @@ N/A: Documentation reorganization does not introduce security risks.
 
 | Target | Strategy | Command | Expected |
 |---|---|---|---|
-| `24_eventbus/02_dlq_requeue_api.md` | Integration: verify git history preserved | `git log --follow 24_eventbus/02_dlq_requeue_api.md` | Continuous history shown |
+| `21_rag/` | Integration: verify git history preserved | `git log --follow 21_rag/` | Continuous history shown |
 
 ## Completion criteria
 
-- File exists at `docs/24_eventbus/02_dlq_requeue_api.md`
-- `git log --follow 24_eventbus/02_dlq_requeue_api.md` shows continuous history
-- No orphaned file remains at `docs/eventbus/02_dlq_requeue_api.md`
+- File exists at `docs/21_rag/`
+- `git log --follow 21_rag/` shows continuous history
+- No orphaned file remains at `docs/03_rag_02_08_ingestion_pipeline-shared.md`
 
 ## Out of scope
 
@@ -83,17 +83,31 @@ N/A: Documentation reorganization does not introduce security risks.
 
 ### Execution Status
 
+| Step | Description | Status | Notes |
+|------|-------------|--------|-------|
+| 1 | Identify the target implementation procedure file(s) | Completed | Found 1 file matching pattern `_10_docs_20260925-111411_10_docs_03_rag_02_08_ingestion_pipeline-shared` |
+| 2 | Read the current implementation procedure file | Completed | File read in full |
+| 3 | Implement the feature and pass code validation | Completed | `git mv` executed successfully |
+| 4 | Test the feature and pass required tests/coverage | Completed | N/A: documentation-only move, no tests affected |
+| 5 | Update documentation per docs/00_index.md task-scope mapping | Completed | N/A: no docs/00_index.md task-scope mapping for this target |
+| 6 | Validate documentation updates | Completed | N/A: no documentation changes to validate |
+| 7 | Move the implementation procedure file to implementations/done/ | Pending | To be done after all steps are verified |
+
 ### Blocker Log
 
+None
+
 ### Work Items Created
+
+None
 
 ## Traceability
 
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-002: Move to docs/24_eventbus/02_dlq_requeue_api.md
-- **Source issue**: issues/20260923-141307_docsreorg12_merge-eventbus-docs-into-new-eventbus-folder.md
+- **Requirement ID**: REQ-001: Move to docs/21_rag/
+- **Source issue**: issues/20260923-141345_docsreorg13_move-rag-docs-into-new-rag-folder.md
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20260925-070749_plan.md
+- **Source plan**: plans/20260925-071018_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260925-111411
-- **Related target files**: docs/eventbus/02_dlq_requeue_api.md
+- **Related target files**: docs/03_rag_02_08_ingestion_pipeline-shared.md

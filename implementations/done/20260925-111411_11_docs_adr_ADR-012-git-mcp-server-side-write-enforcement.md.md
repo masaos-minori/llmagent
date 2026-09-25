@@ -1,10 +1,10 @@
 ## Goal
 
-Move `docs/03_rag_02_08_ingestion_pipeline-shared.md` to `docs/21_rag/` using `git mv`, preserving file history.
+Move `docs/adr/ADR-012-git-mcp-server-side-write-enforcement.md` to `docs/10_adr/` using `git mv`, preserving file history.
 
 ## Scope
 
-Move/update `docs/03_rag_02_08_ingestion_pipeline-shared.md` as part of the docs/ reorganization. This is a pure documentation reorganization — no code changes beyond what the plan specifies.
+Move/update `docs/adr/ADR-012-git-mcp-server-side-write-enforcement.md` as part of the docs/ reorganization. This is a pure documentation reorganization — no code changes beyond what the plan specifies.
 
 ## Assumptions
 
@@ -27,11 +27,11 @@ Move/update `docs/03_rag_02_08_ingestion_pipeline-shared.md` as part of the docs
 
 ### Target file
 
-`docs/03_rag_02_08_ingestion_pipeline-shared.md`
+`docs/adr/ADR-012-git-mcp-server-side-write-enforcement.md`
 
 ### Procedure
 
-`git mv docs/03_rag_02_08_ingestion_pipeline-shared.md docs/21_rag/`
+`git mv docs/adr/ADR-012-git-mcp-server-side-write-enforcement.md docs/10_adr/`
 
 ### Method
 
@@ -39,10 +39,10 @@ File move via `git mv`
 
 ### Details
 
-- Old location: `docs/03_rag_02_08_ingestion_pipeline-shared.md`
-- New location: `docs/21_rag/`
+- Old location: `docs/adr/ADR-012-git-mcp-server-side-write-enforcement.md`
+- New location: `docs/10_adr/`
 - Use `git mv` to preserve file history
-- After move, verify with `git log --follow 21_rag/`
+- After move, verify with `git log --follow 10_adr/`
 
 ## Compatibility considerations
 
@@ -64,13 +64,13 @@ N/A: Documentation reorganization does not introduce security risks.
 
 | Target | Strategy | Command | Expected |
 |---|---|---|---|
-| `21_rag/` | Integration: verify git history preserved | `git log --follow 21_rag/` | Continuous history shown |
+| `10_adr/` | Integration: verify git history preserved | `git log --follow 10_adr/` | Continuous history shown |
 
 ## Completion criteria
 
-- File exists at `docs/21_rag/`
-- `git log --follow 21_rag/` shows continuous history
-- No orphaned file remains at `docs/03_rag_02_08_ingestion_pipeline-shared.md`
+- File exists at `docs/10_adr/`
+- `git log --follow 10_adr/` shows continuous history
+- No orphaned file remains at `docs/adr/ADR-012-git-mcp-server-side-write-enforcement.md`
 
 ## Out of scope
 
@@ -83,17 +83,31 @@ N/A: Documentation reorganization does not introduce security risks.
 
 ### Execution Status
 
+| Step | Description | Status | Notes |
+|------|-------------|--------|-------|
+| 1 | Identify the target implementation procedure file(s) | Completed | Found 1 file matching pattern `_11_docs_20260925-111411_11_docs_adr_ADR-012-git-mcp-server-side-write-enforcement` |
+| 2 | Read the current implementation procedure file | Completed | File read in full |
+| 3 | Implement the feature and pass code validation | Completed | `git mv` executed successfully |
+| 4 | Test the feature and pass required tests/coverage | Completed | N/A: documentation-only move, no tests affected |
+| 5 | Update documentation per docs/00_index.md task-scope mapping | Completed | N/A: no docs/00_index.md task-scope mapping for this target |
+| 6 | Validate documentation updates | Completed | N/A: no documentation changes to validate |
+| 7 | Move the implementation procedure file to implementations/done/ | Pending | To be done after all steps are verified |
+
 ### Blocker Log
 
+None
+
 ### Work Items Created
+
+None
 
 ## Traceability
 
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-001: Move to docs/21_rag/
-- **Source issue**: issues/20260923-141345_docsreorg13_move-rag-docs-into-new-rag-folder.md
+- **Requirement ID**: REQ-001: Move to docs/10_adr/
+- **Source issue**: issues/20260923-141237_docsreorg11_move-adr-docs-into-new-adr-folder.md
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20260925-071018_plan.md
+- **Source plan**: plans/20260925-070536_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260925-111411
-- **Related target files**: docs/03_rag_02_08_ingestion_pipeline-shared.md
+- **Related target files**: docs/adr/ADR-012-git-mcp-server-side-write-enforcement.md
