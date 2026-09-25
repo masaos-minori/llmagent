@@ -1,6 +1,6 @@
 ## Goal
 
-Add a three-layer retry landscape description to `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md`, explicitly mapping each layer's retry mechanism, its config field, and its scope boundary — resolving REQ-002.
+Add a three-layer retry landscape description to `docs/agent_03_02_turn-processing-flow-llm-tool-loop.md`, explicitly mapping each layer's retry mechanism, its config field, and its scope boundary — resolving REQ-002.
 
 ## Scope
 
@@ -17,17 +17,17 @@ Add a three-layer retry landscape description to `docs/05_agent_03_02_turn-proce
 ## Design decisions
 
 - Add the three-layer retry landscape as a new subsection under "Role and Design of ToolLoopGuard".
-- Use a table format consistent with the existing "ToolLoopGuard Design Decisions" table in the related document `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`.
+- Use a table format consistent with the existing "ToolLoopGuard Design Decisions" table in the related document `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md`.
 - Do not change any behavior — this is documentation-only.
 
 ## Alternatives considered
 
-- Adding the three-layer description to `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md` instead — rejected because the Plan's intent is to extend the ToolLoopGuard section specifically in this document where the retry guard is first introduced.
+- Adding the three-layer description to `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md` instead — rejected because the Plan's intent is to extend the ToolLoopGuard section specifically in this document where the retry guard is first introduced.
 
 ## Implementation
 ### Target file
 
-`docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
+`docs/agent_03_02_turn-processing-flow-llm-tool-loop.md`
 
 ### Procedure
 
@@ -80,14 +80,14 @@ The new subsection should be placed after L32 (the last line of the ToolLoopGuar
 
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_03_02_*.md` | Documentation quality | `uv run python tools/check_docs_quality.py docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` | Clean |
-| `docs/05_agent_03_02_*.md` | Documentation structure | `uv run python tools/check_docs_structure.py docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` | Clean |
+| `docs/05_agent_03_02_*.md` | Documentation quality | `uv run python tools/check_docs_quality.py docs/agent_03_02_turn-processing-flow-llm-tool-loop.md` | Clean |
+| `docs/05_agent_03_02_*.md` | Documentation structure | `uv run python tools/check_docs_structure.py docs/agent_03_02_turn-processing-flow-llm-tool-loop.md` | Clean |
 
 ## Completion criteria
 
 - `docs/05_agent_03_02_...md`'s ToolLoopGuard section includes the three-layer retry landscape table.
-- `uv run python tools/check_docs_quality.py docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` passes clean.
-- `uv run python tools/check_docs_structure.py docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` passes clean.
+- `uv run python tools/check_docs_quality.py docs/agent_03_02_turn-processing-flow-llm-tool-loop.md` passes clean.
+- `uv run python tools/check_docs_structure.py docs/agent_03_02_turn-processing-flow-llm-tool-loop.md` passes clean.
 
 ## Out of scope
 
@@ -123,4 +123,4 @@ The new subsection should be placed after L32 (the last line of the ToolLoopGuar
 - **Source plan**: plans/20260916-140718_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260916-140718
-- **Related target files**: docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md
+- **Related target files**: docs/agent_03_02_turn-processing-flow-llm-tool-loop.md

@@ -57,7 +57,7 @@ Replace detailed field-by-field tables with responsibility-oriented groupings.
 
 ### Details
 
-For `05_agent_08_01_configuration-loading-agent-config-part1.md`, replace the detailed configuration tables with:
+For `agent_08_01_configuration-loading-agent-config-part1.md`, replace the detailed configuration tables with:
 
 ```markdown
 # エージェント設定

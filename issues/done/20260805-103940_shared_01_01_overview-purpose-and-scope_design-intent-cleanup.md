@@ -7,7 +7,7 @@ Medium
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to `docs/90_shared_01_01_overview-purpose-and-scope.md`: keep the shared/db purpose, scope, and out-of-scope boundary; remove exhaustive module-name listings.
 
 ## Reason for Change
-This chapter is the canonical source for shared/db's overall scope (per `memo-doc-shared-review.md` §「章間の正本ルール」: 全体像・対象範囲 = `90_shared_01_01_overview-purpose-and-scope`), but currently carries full module-name enumerations for `shared/` and `db/` that duplicate what a directory listing already shows.
+This chapter is the canonical source for shared/db's overall scope (per `memo-doc-shared-review.md` §「章間の正本ルール」: 全体像・対象範囲 = `shared_01_01_overview-purpose-and-scope`), but currently carries full module-name enumerations for `shared/` and `db/` that duplicate what a directory listing already shows.
 
 ## Implementation Intent
 Keep this chapter focused on why shared/ and db/ exist, their high-level roles (common foundation vs. persistence foundation), the upper/lower layer boundary, and what is explicitly out of scope (MCP, RAG pipeline, Agent REPL, external LLM/embedding servers).

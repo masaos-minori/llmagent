@@ -2,13 +2,13 @@
 
 ## Goal
 
-Add explicit turn-state mutation table to `05_agent_03` and persistence timing column to `05_agent_04`.
+Add explicit turn-state mutation table to `agent_03` and persistence timing column to `agent_04`.
 
 ## Scope
 
 **In:**
-- `docs/05_agent_03_turn_and_state_management.md` — add turn-state mutation table
-- `docs/05_agent_04_session_and_persistence.md` — add persistence timing column
+- `docs/agent_03_turn_and_state_management.md` — add turn-state mutation table
+- `docs/agent_04_session_and_persistence.md` — add persistence timing column
 
 **Out:** No code changes.
 
@@ -22,7 +22,7 @@ Add explicit turn-state mutation table to `05_agent_03` and persistence timing c
 
 ### Target file
 
-`docs/05_agent_03_turn_and_state_management.md`, `docs/05_agent_04_session_and_persistence.md`
+`docs/agent_03_turn_and_state_management.md`, `docs/agent_04_session_and_persistence.md`
 
 ### Procedure
 
@@ -31,9 +31,9 @@ Add explicit turn-state mutation table to `05_agent_03` and persistence timing c
    grep -rn "class ConvState\|@dataclass" agent/ --include="*.py" | head -10
    grep -rn "is_processing\|tool_results\|current_turn" agent/ --include="*.py" | head -10
    ```
-2. Read `docs/05_agent_03_turn_and_state_management.md` to find insertion point.
+2. Read `docs/agent_03_turn_and_state_management.md` to find insertion point.
 3. Add turn-state mutation table.
-4. Read `docs/05_agent_04_session_and_persistence.md` to find persistence section.
+4. Read `docs/agent_04_session_and_persistence.md` to find persistence section.
 5. Add persistence timing column.
 
 ### Method
@@ -42,7 +42,7 @@ Bash grep → Read docs → Edit patches.
 
 ### Details
 
-**Mutation table for `05_agent_03`:**
+**Mutation table for `agent_03`:**
 
 ```markdown
 ## Turn-State Mutation Reference
@@ -58,7 +58,7 @@ Bash grep → Read docs → Edit patches.
 | `session.last_active_at` | After each turn | Yes (SQLite) | Updated by session manager |
 ```
 
-**Persistence timing column for `05_agent_04`:**
+**Persistence timing column for `agent_04`:**
 
 Extend the existing state table (if present) with a "When persisted" column showing the timing (e.g., "immediately", "end of turn", "async").
 
@@ -66,6 +66,6 @@ Extend the existing state table (if present) with a "When persisted" column show
 
 | Check | Command | Expected |
 |---|---|---|
-| Mutation table present | `grep -n "Mutated When\|is_processing.*in-memory" docs/05_agent_03_turn_and_state_management.md` | found |
-| Persistence column | `grep -n "When persisted\|persistence.*timing" docs/05_agent_04_session_and_persistence.md` | found |
+| Mutation table present | `grep -n "Mutated When\|is_processing.*in-memory" docs/agent_03_turn_and_state_management.md` | found |
+| Persistence column | `grep -n "When persisted\|persistence.*timing" docs/agent_04_session_and_persistence.md` | found |
 | No code changes | `git diff agent/` | empty |

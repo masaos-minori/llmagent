@@ -1,10 +1,10 @@
 ## Goal
 
-Verify that the fact recorded in archived NC-017 about SQLiteSessionStore callers is already present in `05_agent_09_01_data-layer-session-db.md`, and add it if missing.
+Verify that the fact recorded in archived NC-017 about SQLiteSessionStore callers is already present in `agent_09_01_data-layer-session-db.md`, and add it if missing.
 
 ## Scope
 
-Check `05_agent_09_01_data-layer-session-db.md` for the presence of the fact that there are zero production callers via full-repo grep; sole caller is tests/test_db_store_impl.py. Add a concise statement if not already present.
+Check `agent_09_01_data-layer-session-db.md` for the presence of the fact that there are zero production callers via full-repo grep; sole caller is tests/test_db_store_impl.py. Add a concise statement if not already present.
 
 ## Assumptions
 
@@ -27,11 +27,11 @@ Check `05_agent_09_01_data-layer-session-db.md` for the presence of the fact tha
 
 ### Target file
 
-`05_agent_09_01_data-layer-session-db.md`
+`agent_09_01_data-layer-session-db.md`
 
 ### Procedure
 
-1. Read `05_agent_09_01_data-layer-session-db.md` to identify existing SQLiteSessionStore documentation
+1. Read `agent_09_01_data-layer-session-db.md` to identify existing SQLiteSessionStore documentation
 2. Check whether the following fact is already present:
    - Zero production callers via full-repo grep; sole caller is tests/test_db_store_impl.py
 3. If the fact is missing, add a concise statement of the current fact
@@ -68,7 +68,7 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 
 | Target | Strategy | Command | Expected Outcome |
 |---|---|---|---|
-| `05_agent_09_01_data-layer-session-db.md` | Manual comparison of archived NC-017 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
+| `agent_09_01_data-layer-session-db.md` | Manual comparison of archived NC-017 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
 
 ## Completion criteria
 
@@ -112,4 +112,4 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 - **Source plan**: plans/20260831-223610_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 2026-09-01T00:00:00Z
-- **Related target files**: 05_agent_09_01_data-layer-session-db.md
+- **Related target files**: agent_09_01_data-layer-session-db.md

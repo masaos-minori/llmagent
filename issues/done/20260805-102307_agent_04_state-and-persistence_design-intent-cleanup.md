@@ -10,13 +10,13 @@ Apply the design-doc reduction policy from `memo-doc-agent-review.md` to the sta
 This chapter is the canonical source for state-and-persistence boundaries, but currently also carries `AgentContext`/`ConversationState`/`TurnState`/`RuntimeStats` full field lists, CRUD method lists, and table-column enumerations that are mechanically derivable from the schema/dataclass source and add drift risk without decision value.
 
 ## Implementation Intent
-Keep this chapter as the canonical source for state/persistence boundaries (per `memo-doc-agent-review.md` §「章間の正本ルール」: 状態と永続化 = `05_agent_04_state-and-persistence`).
+Keep this chapter as the canonical source for state/persistence boundaries (per `memo-doc-agent-review.md` §「章間の正本ルール」: 状態と永続化 = `agent_04_state-and-persistence`).
 
 ## Target Files or Areas
 - `docs/05_agent_04_01_state-and-persistence-state-model-part1.md`
 - `docs/05_agent_04_01_state-and-persistence-state-model-part2.md`
-- `docs/05_agent_04_02_state-and-persistence-history-compression.md`
-- `docs/05_agent_04_03_state-and-persistence-platform-databases.md`
+- `docs/agent_04_02_state-and-persistence-history-compression.md`
+- `docs/agent_04_03_state-and-persistence-platform-databases.md`
 
 ## Required Changes
 - Keep: session-scope / turn-scope / persistent-scope distinction, the relationship between `ctx.conv.history` and `session.sqlite`, why `session_diagnostics` is separated from `messages`, why `workflow.sqlite` is the source of truth for workflow state, the RAG-DB vs. memory-DB responsibility boundary, `/undo` caveats after compression, the policy against crossing DB boundaries with direct operations.
@@ -39,7 +39,7 @@ This issue is itself a documentation-only cleanup task.
 - Code changes.
 
 ## AI Implementation Instruction
-Follow `memo-doc-agent-review.md` §「05_agent_04_state-and-persistence」. Where content would duplicate `05_agent_09_data-layer`, prefer a pointer over re-explaining. Mark unclear rationale as `Needs Confirmation`.
+Follow `memo-doc-agent-review.md` §「05_agent_04_state-and-persistence」. Where content would duplicate `agent_09_data-layer`, prefer a pointer over re-explaining. Mark unclear rationale as `Needs Confirmation`.
 
 ## Traceability
 - Workflow phase: issue-creation

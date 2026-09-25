@@ -27,7 +27,7 @@ Expand `mcp_watchdog_interval` guidance with operational impact analysis and ens
    - Recommended values for production vs local
    - Operational impact of setting too high/low
    - How to verify with `/mcp status`
-2. In `05_agent_10_operations-and-observability.md`: ensure `/mcp status` watchdog display is documented accurately based on `mcp_status.py` verification.
+2. In `agent_10_operations-and-observability.md`: ensure `/mcp status` watchdog display is documented accurately based on `mcp_status.py` verification.
 
 ### Details
 

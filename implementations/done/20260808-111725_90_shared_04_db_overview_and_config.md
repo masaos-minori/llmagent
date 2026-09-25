@@ -66,7 +66,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_04_01_db_architecture_and_schema-overview-and-config.md`**
+**File: `shared_04_01_db_architecture_and_schema-overview-and-config.md`**
 - db/ directory structure: Replace tree diagram with prose summary noting rag/session/workflow/eventbus boundary separation
 - DbConfig: Replace full field definition with prose summary referencing `scripts/db/config.py`
 - SQLiteHelper constructor: Replace constructor details with prose summary referencing `scripts/db/helper.py`

@@ -71,7 +71,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_03_01_runtime_and_execution-config-and-logging.md`**
+**File: `shared_03_01_runtime_and_execution-config-and-logging.md`**
 - ConfigLoader full method signatures: Replace with prose summary referencing `scripts/shared/config_loader.py`
 - Configuration file enumeration tables: Replace with prose summary
 - Per-process restrict_to() caller site tables: Replace with prose summary

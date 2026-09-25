@@ -19,7 +19,7 @@ Fix three documentation gaps in `docs/90_shared_03_02_runtime_and_execution-plug
 - `90_99.md` — confirmed non-existent in this plan's Out-of-Scope; not created or touched
 - Any other section of this doc file (sections 5+, e.g. `token_counter`)
 - Any Python source file — `plugin_registry.py`, `plugin_auto_discover.py`, `plugin_tool_invoker.py` are not modified; their existing behavior is already correct and is only being documented more precisely
-- `docs/90_shared_03_runtime_and_execution_md.md`-equivalent implementation docs already in `implementations/done/` (a different, older pre-split doc file — not this target)
+- `docs/shared_03_runtime_and_execution_md.md`-equivalent implementation docs already in `implementations/done/` (a different, older pre-split doc file — not this target)
 
 ## Assumptions
 

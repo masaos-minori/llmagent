@@ -11,7 +11,7 @@ Detect `tool_safety_tiers` keys that are not real registered tool names, warn in
 - `scripts/agent/repl_health.py`: wire into `audit_security_defaults()`
 - `config/agent.toml`: replace `mdq` with 9 individual tool entries
 - `tests/test_production_config_validator.py`: add tests
-- `docs/05_agent_08_configuration.md`, `docs/04_mcp_05_security_and_safety_model.md`: doc updates
+- `docs/agent_08_configuration.md`, `docs/04_mcp_05_security_and_safety_model.md`: doc updates
 
 ## Implementation
 

@@ -10,7 +10,7 @@
 - `docs/05_agent_11_extension-points.md` — update Loading section, add shadowing and type validation subsections
 
 **Out of scope:**
-- `docs/05_agent_08_configuration.md` (env-var override deferred per plan)
+- `docs/agent_08_configuration.md` (env-var override deferred per plan)
 
 ## Assumptions
 

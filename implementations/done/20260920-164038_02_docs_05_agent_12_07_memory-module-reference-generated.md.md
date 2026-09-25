@@ -1,10 +1,10 @@
 ## Goal
-Create `docs/05_agent_12_07_memory-module-reference-generated.md` as a new generated
+Create `docs/agent_12_07_memory-module-reference-generated.md` as a new generated
 companion document for the Memory domain (`REQ-002`), then run
 `tools/generate_reference_table.py --type memory` to populate its guarded block
 (`REQ-003`) — both per Plan `plans/20260920-161148_plan.md`, whose
 `Implementation Target Files` table assigns both Requirements to this one target-file
-row. Mirrors `docs/05_agent_14_reference-api-generated.md`'s shape.
+row. Mirrors `docs/agent_14_reference-api-generated.md`'s shape.
 
 ## Scope
 In scope: creating this one new file with front matter, an introduction paragraph, a
@@ -18,13 +18,13 @@ minimum have its `"memory"` `DOMAIN_*` wiring merged — before this row's `REQ-
 can run).
 
 ## Assumptions
-`docs/05_agent_12_07_memory-module-reference-generated.md` does not yet exist
-(re-confirmed during this document's creation). `docs/05_agent_14_reference-api-generated.md`
+`docs/agent_12_07_memory-module-reference-generated.md` does not yet exist
+(re-confirmed during this document's creation). `docs/agent_14_reference-api-generated.md`
 (re-read in full during this document's creation) is the correct structural template
 to mirror, per the Plan's Implementation intent.
 
 ## Design decisions
-Mirror `05_agent_14_reference-api-generated.md`'s exact structure: front matter
+Mirror `agent_14_reference-api-generated.md`'s exact structure: front matter
 (`title`/`area`/`tags`/`related`), a `## Purpose` section explaining this is a
 generated companion, `## Related Documents` linking back to the six hand-curated
 chapter files it complements, `## Keywords`, and a `## Module Class/Function
@@ -41,12 +41,12 @@ generator itself.
 - Name the file `docs/05_agent_memory_reference-generated.md` (a name pattern outside
   the `12_0N` chapter-numbering sequence): rejected — `REQ-001`'s
   `REFERENCE_DOC_MEMORY` constant (this same Plan's Row 1) already fixes the exact
-  path as `docs/05_agent_12_07_memory-module-reference-generated.md`; this row must
+  path as `docs/agent_12_07_memory-module-reference-generated.md`; this row must
   use that exact path for the two rows to be consistent.
 
 ## Implementation
 ### Target file
-`docs/05_agent_12_07_memory-module-reference-generated.md`
+`docs/agent_12_07_memory-module-reference-generated.md`
 
 ### Procedure
 1. Confirm `REQ-001` (Row 1 of this Plan, `tools/generate_reference_table.py`'s
@@ -68,7 +68,7 @@ generator itself.
      guard comments.
    - `## Related Documents`: links to all six chapter files plus
      `00_governance_01_documentation-policy.md` (ADR-015 Reference Document Class
-     Disposition), mirroring `05_agent_14`'s own reference to that ADR.
+     Disposition), mirroring `agent_14`'s own reference to that ADR.
    - `## Keywords`: `agent, memory, api-reference, generated`.
    - `## Module Class/Function Reference (auto-generated)` heading, followed by the
      guard-start comment `<!-- AUTO-GENERATED: gen_memory_reference.py
@@ -80,7 +80,7 @@ generator itself.
 4. Run `uv run python tools/generate_reference_table.py --type memory --dry-run` and
    review the printed output for plausibility (one row per public top-level
    class/function under `scripts/agent/memory/*.py`, matching the shape of
-   `05_agent_14`'s existing table).
+   `agent_14`'s existing table).
 5. Run `uv run python tools/generate_reference_table.py --type memory` (live) and
    confirm the guarded block in this file is populated with content identical to the
    step 4 dry-run output.
@@ -113,7 +113,7 @@ other file references it until `REQ-001`'s `REFERENCE_DOC_MEMORY` constant lands
 this row is independently revertable.
 
 ## Validation plan
-- `uv run python tools/check_docs_structure.py docs/05_agent_12_07_memory-module-reference-generated.md`
+- `uv run python tools/check_docs_structure.py docs/agent_12_07_memory-module-reference-generated.md`
   — confirm it passes (front matter complete, required sections present) (Plan `AC-2`).
 - `uv run python tools/check_docs_content_policy.py` — confirm the populated guarded
   block is recognized as guard-exempt, not flagged as a field/type table (Plan `AC-2`).
@@ -172,4 +172,4 @@ files is modified.
 - **Source plan**: plans/20260920-161148_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260920-164038
-- **Related target files**: docs/05_agent_12_07_memory-module-reference-generated.md
+- **Related target files**: docs/agent_12_07_memory-module-reference-generated.md

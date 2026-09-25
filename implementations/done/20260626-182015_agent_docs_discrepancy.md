@@ -15,9 +15,9 @@ Add "Current behavior" and "Known discrepancy" sections to five agent docs, mark
 **In-Scope**
 - `docs/05_agent_04_state-and-persistence.md`
 - `docs/05_agent_09_data-layer.md`
-- `docs/05_agent_08_configuration.md`
+- `docs/agent_08_configuration.md`
 - `docs/05_agent_10_operations-and-observability.md`
-- `docs/05_agent_12_memory.md`
+- `docs/agent_12_memory.md`
 
 **Out-of-Scope**
 - Runtime behavior changes
@@ -40,9 +40,9 @@ Add "Current behavior" and "Known discrepancy" sections to five agent docs, mark
 ### Target files (read all before editing)
 - `docs/05_agent_04_state-and-persistence.md`
 - `docs/05_agent_09_data-layer.md`
-- `docs/05_agent_08_configuration.md`
+- `docs/agent_08_configuration.md`
 - `docs/05_agent_10_operations-and-observability.md`
-- `docs/05_agent_12_memory.md`
+- `docs/agent_12_memory.md`
 
 ### Procedure
 1. Read each file.
@@ -51,22 +51,22 @@ Add "Current behavior" and "Known discrepancy" sections to five agent docs, mark
 
 ### Details
 
-**`05_agent_04_state-and-persistence.md`** additions:
+**`agent_04_state-and-persistence.md`** additions:
 ```markdown
 > **Current behavior:** Compressed history lives in memory only. The `messages` table retains all original messages. On `/session load`, the full uncompressed message set is restored.
 > **Known discrepancy:** In-memory compressed history diverges from DB state after compression fires.
 > **Needs confirmation:** Canonical persistence model for compressed history (pending implementation plan 20260626-180401).
 ```
 
-**`05_agent_09_data-layer.md`** corrections:
+**`agent_09_data-layer.md`** corrections:
 - Remove or annotate any `role="diagnostic"` language in `messages` table description.
 - Add: "Diagnostic records (transport errors, partial completions, loop guard hints, serialization events) are stored in `session_diagnostics`, not in `messages`. Session restore excludes diagnostics."
 
-**`05_agent_08_configuration.md`** corrections:
+**`agent_08_configuration.md`** corrections:
 - Replace `memory_jsonl_path` → `memory_jsonl_dir` throughout.
 - Add note: "Production default `workflow_mode = required` means the agent fails at startup if `config/workflows/default.json` is absent. Local/test default is `auto`. Ensure the workflow definition is deployed before starting in production."
 
-**`05_agent_10_operations-and-observability.md`** additions:
+**`agent_10_operations-and-observability.md`** additions:
 ```markdown
 ## Startup validation checklist
 
@@ -76,7 +76,7 @@ When `workflow_mode = required`:
 3. If the file is missing, the agent will raise RuntimeError at startup with the expected file path.
 ```
 
-**`05_agent_12_memory.md`** additions:
+**`agent_12_memory.md`** additions:
 - Under `branch` field description: "The `branch` field is used as an active scoring boost (+0.15) during retrieval when the query context includes a branch. Global memories (empty `branch`) are not excluded — they receive no branch boost."
 - Under JSONL config: "Configured via `memory_jsonl_dir` (directory path). The runtime file path is `{memory_jsonl_dir}/memories.jsonl`."
 

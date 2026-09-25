@@ -55,7 +55,7 @@ document at all (a dangling reference, distinct from a Status mismatch).
 
 ## Required Changes
 - Implement the ID extraction and cross-reference described above for at least the `04_mcp_90`,
-  `05_agent_90`, and `90_shared_90` canonical documents plus every current `docs/adr/*.md` file.
+  `agent_90`, and `shared_90` canonical documents plus every current `docs/adr/*.md` file.
 - Reuse `_docs_consistency_lib.py`'s existing DocFile/Issue discovery helpers where applicable,
   consistent with how `check_docs_consistency.py` and
   `check_needs_confirmation_inventory.py` already share that library, rather than re-implementing
@@ -69,8 +69,8 @@ document at all (a dangling reference, distinct from a Status mismatch).
   Issues subsection) to avoid false positives from IDs mentioned only in passing narrative text.
 - Status comparison should tolerate the known variety of Status vocabularies already in use
   across canonical documents (e.g., `open`/`resolved`/`partially resolved` in
-  `90_shared_90_inconsistencies_and_known_issues.md` vs. the 5-tier scheme documented as an
-  intentional exception in `05_agent_90_inconsistencies_and_known_issues.md`) rather than
+  `shared_90_inconsistencies_and_known_issues.md` vs. the 5-tier scheme documented as an
+  intentional exception in `agent_90_inconsistencies_and_known_issues.md`) rather than
   assuming one fixed vocabulary.
 
 ## Acceptance Criteria
@@ -101,15 +101,15 @@ N/A: none — independently buildable, though it shares parsing infrastructure w
 `_docs_consistency_lib.py`.
 
 ## Unresolved Questions
-Whether the 5-tier classification scheme documents (like `05_agent_90`) should be compared using
+Whether the 5-tier classification scheme documents (like `agent_90`) should be compared using
 a mapped equivalence table against the more common `open`/`resolved`/`partially resolved`
 vocabulary, or treated as a separate comparison mode entirely — needs an owner decision on how
 strictly to unify the two schemes for comparison purposes, given
-`05_agent_90_inconsistencies_and_known_issues.md`'s own stated rationale for keeping its scheme
+`agent_90_inconsistencies_and_known_issues.md`'s own stated rationale for keeping its scheme
 distinct.
 
 ## AI Implementation Instruction
 Read `_docs_consistency_lib.py` in full before implementing new parsing logic, to reuse its
 existing DocFile/Issue discovery rather than duplicating it. Read at least one full canonical
-Known Issues document per area (`04_mcp_90`, `05_agent_90`, `90_shared_90`) to confirm the actual
+Known Issues document per area (`04_mcp_90`, `agent_90`, `shared_90`) to confirm the actual
 Status vocabulary and field layout in current use before hardcoding a comparison rule.

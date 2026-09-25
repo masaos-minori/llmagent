@@ -31,7 +31,7 @@ Generated from the documentation update addressing H-3 (database corruption reco
 - **Target behavior**: either (a) an explicit, implemented recovery path for these domains, or (b) an explicit, documented decision that they are unrecoverable by design, with a stated manual operator procedure — not silent absence.
 - **Affected symbols**: `db/recovery.py::recover_corruption()`, `db/rotation.py::rotate_all_dbs()`, `agent/startup.py::_recover_pending_approvals()`.
 - **Required tests**: once a policy is chosen, a test exercising that policy's success and failure paths for both `workflow.sqlite` and `eventbus.sqlite`.
-- **Acceptance criteria**: `recover_corruption()` rejects unsupported `target` values explicitly instead of silently mislabeling the display path; the chosen policy for `workflow`/`eventbus` is implemented and documented in `90_shared_05_04_db_api_and_operations-recovery-and-reference.md` §9.7.
+- **Acceptance criteria**: `recover_corruption()` rejects unsupported `target` values explicitly instead of silently mislabeling the display path; the chosen policy for `workflow`/`eventbus` is implemented and documented in `shared_05_04_db_api_and_operations-recovery-and-reference.md` §9.7.
 
 ### H-4: Validate `branch`/`remote` in Git MCP write tools; reject option-injection-shaped values
 

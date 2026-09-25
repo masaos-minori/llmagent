@@ -1,19 +1,19 @@
-# Reduce implementation-derived detail in docs/05_agent_00_document-guide.md
+# Reduce implementation-derived detail in docs/agent_00_document-guide.md
 
 ## Priority
 Medium
 
 ## Summary
-Apply the design-doc reduction policy from `memo-doc-agent-review.md` to `docs/05_agent_00_document-guide.md`: keep the document focused on navigation and governance, remove mechanical file/link inventories that duplicate what code search already shows.
+Apply the design-doc reduction policy from `memo-doc-agent-review.md` to `docs/agent_00_document-guide.md`: keep the document focused on navigation and governance, remove mechanical file/link inventories that duplicate what code search already shows.
 
 ## Reason for Change
-The current `05_agent_*.md` set mixes design/operational judgment with content that is mechanically derivable from code (exhaustive file indexes, keyword lists). This makes the doc set stale-prone and harder to use as a decision reference. `memo-doc-agent-review.md` was written specifically to identify what to keep vs. remove per chapter.
+The current `agent_*.md` set mixes design/operational judgment with content that is mechanically derivable from code (exhaustive file indexes, keyword lists). This makes the doc set stale-prone and harder to use as a decision reference. `memo-doc-agent-review.md` was written specifically to identify what to keep vs. remove per chapter.
 
 ## Implementation Intent
 Restructure this chapter to serve as the doc-guide entry point: overall purpose of the doc set, chapter structure, "which question maps to which chapter," the Canonical Source Rule, and how Known Issues / Deprecated Items / Needs Confirmation are handled. Do not turn this into a full API or file reference.
 
 ## Target Files or Areas
-`docs/05_agent_00_document-guide.md`
+`docs/agent_00_document-guide.md`
 
 ## Required Changes
 - Keep: overall purpose of the doc set, chapter structure, question-to-chapter navigation, Canonical Source Rule, handling of Known Issues / Deprecated Items / Needs Confirmation.

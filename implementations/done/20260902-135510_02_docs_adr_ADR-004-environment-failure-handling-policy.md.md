@@ -38,12 +38,12 @@ docs/adr/ADR-004-environment-failure-handling-policy.md
    ```
    ### Specifications
 
-   - [Turn Processing Flow](05_agent_03_03_turn-processing-flow-workflow-engine.md) — ワークフロー実行の詳細
+   - [Turn Processing Flow]()agent_03_03_turn-processing-flow-workflow-engine.md — ワークフロー実行の詳細
    - [Deployment Guide](02_deployment.md) — デプロイメント時のワークフロー検証
    ```
    Add a third bullet:
    ```
-   - [MCP Configuration / Approval / Observability](../05_agent_08_04_configuration-mcp-approval-obs.md#component-criticality-classification) — MCPサーバーの必須／非必須分類記録(Decision Group 3)
+   - [MCP Configuration / Approval / Observability](../agent_08_04_configuration-mcp-approval-obs.md#component-criticality-classification) — MCPサーバーの必須／非必須分類記録(Decision Group 3)
    ```
 2. Locate line 453's bullet (starts "**報告のみ（Known Issue未登録）**"). It currently
    ends with the clause:
@@ -53,7 +53,7 @@ docs/adr/ADR-004-environment-failure-handling-policy.md
    Replace that sentence with:
    ```
    コンポーネント単位の必須／非必須分類を記録するSpecificationは
-   `05_agent_08_04_configuration-mcp-approval-obs.md`の
+   `agent_08_04_configuration-mcp-approval-obs.md`の
    Component Criticality Classification節に整備済み（Decision #13が要求する
    分類記録の主体を充足）。
    ```
@@ -86,7 +86,7 @@ revert both rows together.
 
 ## Validation plan
 - `.venv/bin/python tools/check_docs_quality.py docs/adr/ADR-004-environment-failure-handling-policy.md` → no new issues.
-- `.venv/bin/python tools/check_docs_structure.py docs/adr/ADR-004-environment-failure-handling-policy.md` → the new relative link to `../05_agent_08_04_configuration-mcp-approval-obs.md#component-criticality-classification` resolves (file and anchor exist after seq 01 lands).
+- `.venv/bin/python tools/check_docs_structure.py docs/adr/ADR-004-environment-failure-handling-policy.md` → the new relative link to `../agent_08_04_configuration-mcp-approval-obs.md#component-criticality-classification` resolves (file and anchor exist after seq 01 lands).
 - Manual: confirm the line-453 bullet no longer claims the Specification is absent, and the line-535 Completion Checklist item no longer flags this as needing reconfirmation.
 
 ## Completion criteria
@@ -95,7 +95,7 @@ and the line-535 Completion Checklist item both reflect that the Specification n
 exists.
 
 ## Out of scope
-`docs/05_agent_08_04_configuration-mcp-approval-obs.md` — covered by its own
+`docs/agent_08_04_configuration-mcp-approval-obs.md` — covered by its own
 implementation procedure document (seq 01) for this same Plan, which must land first
 (this row's new link target depends on it).
 

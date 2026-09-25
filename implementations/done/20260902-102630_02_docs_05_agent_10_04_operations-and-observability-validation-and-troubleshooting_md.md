@@ -2,7 +2,7 @@
 
 ## Goal
 
-Verify that `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md` line 42 uses unified language consistent with ADR-004's single common failure-handling policy.
+Verify that `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md` line 42 uses unified language consistent with ADR-004's single common failure-handling policy.
 
 ## Scope
 
@@ -27,7 +27,7 @@ Verify that `docs/05_agent_10_04_operations-and-observability-validation-and-tro
 
 ### Target file
 
-`docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+`docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
 
 ### Procedure
 
@@ -62,7 +62,7 @@ Verification only — no modification needed.
 
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md` | Manual review — verify existing replacement against revised ADR-004 | Grep for "production or local mode"; read document | Zero matches for "production or local mode"; replacement uses unified language |
+| `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md` | Manual review — verify existing replacement against revised ADR-004 | Grep for "production or local mode"; read document | Zero matches for "production or local mode"; replacement uses unified language |
 
 ## Completion criteria
 
@@ -73,7 +73,7 @@ Verification only — no modification needed.
 
 - Modifying `scripts/agent/services/mcp_tool_discovery.py` (uses `is_prod`, not "local mode" — separate issue).
 - Adding automated tests for documentation consistency.
-- Updating `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` (separate row).
+- Updating `docs/agent_10_01_operations-and-observability-startup-and-health.md` (separate row).
 
 ## Execution Status
 
@@ -104,4 +104,4 @@ Verification only — no modification needed.
 - **Source plan**: plans/20260901-000841_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260902-102630
-- **Related target files**: docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+- **Related target files**: docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md

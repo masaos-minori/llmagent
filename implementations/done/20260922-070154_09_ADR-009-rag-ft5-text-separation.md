@@ -55,7 +55,7 @@ Broken links found in this file:
 1. `[03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md)` — Check if this document exists under a different name
 2. `[03_rag_05_7-rag-index-consistency-checks.md](03_rag_05_7-rag-index-consistency-checks.md)` — Check if this document exists under a different name
 3. `[03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md](03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md)` — Check if this document exists under a different name
-4. `[90_shared_04_02_db_architecture_and_schema-schema-reference.md](90_shared_04_02_db_architecture_and_schema-schema-reference.md)` — Check if this document exists under a different name
+4. `[90_shared_04_02_db_architecture_and_schema-schema-reference.md](shared_04_02_db_architecture_and_schema-schema-reference.md)` — Check if this document exists under a different name
 5. `[03_rag_02_01_ingestion_pipeline-overview.md](03_rag_02_01_ingestion_pipeline-overview.md)` — Check if this document exists under a different name
 6. `[03_rag_02_04_ingestion_pipeline-ingester.md](03_rag_02_04_ingestion_pipeline-ingester.md)` — Check if this document exists under a different name
 7. `[03_rag_02_02_ingestion_pipeline-crawler.md](03_rag_02_02_ingestion_pipeline-crawler.md)` — Check if this document exists under a different name

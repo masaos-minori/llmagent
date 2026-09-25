@@ -21,7 +21,7 @@ Same as seq 10-13: relative-path fix preferred over an absolute-from-docs-root l
 
 ### Procedure
 1. Locate the link with `rg -n '\]\([^)]*/90_shared_03_03_runtime_and_execution-llm-and-mcp-clients\.md(#[^)]*)?\)' docs/adr/ADR-003-runtime-tool-registry-routing-authority.md` — expect exactly 1 match (line 464).
-2. Edit line 464: `- [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](../90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime` → `- [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](../40_shared/90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime`.
+2. Edit line 464: `- [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](../shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime` → `- [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](../40_shared/shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime`.
 3. Re-run the same `rg` command to confirm the match now shows the `40_shared/` component.
 
 ### Method

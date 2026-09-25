@@ -7,7 +7,7 @@ implementing `REQ-002`.
 ## Scope
 In scope: the single relative-path string `adr/ADR-002-config-isolation.md` →
 `../adr/ADR-002-config-isolation.md`. Out of scope: any other content in this file
-(including the adjacent `90_shared_03_01_runtime_and_execution-config-and-logging.md`
+(including the adjacent `shared_03_01_runtime_and_execution-config-and-logging.md`
 link on the same line, a same-directory bare filename that needs no change); any other
 file (see seq 12/13 for the Plan's other 2 REQ-002 rows).
 
@@ -43,7 +43,7 @@ file is touched.
 ### Details
 Confirmed via `grep -n "adr/ADR-002-config-isolation.md"
 docs/01_overview-arch-01-process.md`: exactly one occurrence, on a line that also
-contains a second, same-directory link (`90_shared_03_01_runtime_and_execution-config-and-logging.md`)
+contains a second, same-directory link (`shared_03_01_runtime_and_execution-config-and-logging.md`)
 which must be left unchanged.
 
 ## Compatibility considerations

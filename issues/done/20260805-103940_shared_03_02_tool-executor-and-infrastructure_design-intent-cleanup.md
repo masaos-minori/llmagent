@@ -7,7 +7,7 @@ High
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to `docs/90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`: keep the `ToolExecutor`/`RuntimeToolRegistry`/`ToolRegistry` boundary as a routing source-of-truth judgment; remove constructor signatures and method-level tables.
 
 ## Reason for Change
-This chapter is the canonical source for the `ToolExecutor`/`RuntimeToolRegistry`/`ToolRegistry` boundary (per `memo-doc-shared-review.md` §「章間の正本ルール」: ToolExecutor / RuntimeToolRegistry / ToolRegistry境界 = `90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure`). Per the memo's explicit 注意: this boundary is important and must be kept, but expressed as "source of truth / boundary / operational meaning," not a method-name-centric description.
+This chapter is the canonical source for the `ToolExecutor`/`RuntimeToolRegistry`/`ToolRegistry` boundary (per `memo-doc-shared-review.md` §「章間の正本ルール」: ToolExecutor / RuntimeToolRegistry / ToolRegistry境界 = `shared_03_02_runtime_and_execution-tool-executor-and-infrastructure`). Per the memo's explicit 注意: this boundary is important and must be kept, but expressed as "source of truth / boundary / operational meaning," not a method-name-centric description.
 
 ## Implementation Intent
 Keep this chapter focused on why `RuntimeToolRegistry` is the sole runtime-routing source of truth, why `ToolRegistry` is drift-validation seed only, why cache holds only successful results, and why side-effecting tools require care.

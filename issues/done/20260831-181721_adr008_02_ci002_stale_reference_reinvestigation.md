@@ -4,7 +4,7 @@
 Medium
 
 ## Summary
-`docs/90_shared_90_inconsistencies_and_known_issues.md`'s CI-002 entry claims
+`docs/shared_90_inconsistencies_and_known_issues.md`'s CI-002 entry claims
 `recover_corruption()` violates "ADR-011 INV-01/INV-02" for a production-vs-local
 auto-recovery distinction. Neither the pre-deletion ADR-011 text nor the consolidated
 ADR-008 (which absorbed ADR-011 on 2026-08-31) contains any such invariant or any
@@ -40,7 +40,7 @@ deleted ADR-011. If it is not a current requirement, rewrite or close CI-002 to 
 such invariant currently exists.
 
 ## Target Files or Areas
-- `docs/90_shared_90_inconsistencies_and_known_issues.md` (CI-002)
+- `docs/shared_90_inconsistencies_and_known_issues.md` (CI-002)
 - `docs/adr/ADR-008-sqlite-4db-separation.md` (only if a real requirement is confirmed and added)
 
 ## Required Changes

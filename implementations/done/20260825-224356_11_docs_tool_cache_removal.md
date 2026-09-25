@@ -34,14 +34,14 @@ After `ToolExecutor` cache deletion lands, update or remove stale documentation 
 1. `docs/04_mcp_03_01_dispatch-and-routing.md`
 2. `docs/04_mcp_03_02_tool-registry.md`
 3. `docs/04_mcp_06_04_major-default-values.md`
-4. `docs/05_agent_01_system-overview.md`
-5. `docs/05_agent_08_01_configuration-loading-agent-config.md`
-6. `docs/05_agent_08_03_configuration-tools-memory.md`
-7. `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+4. `docs/agent_01_system-overview.md`
+5. `docs/agent_08_01_configuration-loading-agent-config.md`
+6. `docs/agent_08_03_configuration-tools-memory.md`
+7. `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
 8. `docs/90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md`
 9. `docs/90_shared_03_04_runtime_and_execution-caching-and-reference.md`
 10. `docs/01_overview-files-04-shared.md`
-11. `docs/05_agent_02_runtime-architecture.md`
+11. `docs/agent_02_runtime-architecture.md`
 12. `docs/90_shared_02_01_types_and_protocols-core-types.md`
 13. `docs/90_shared_02_02_types_and_protocols-tool-and-execution-dto.md`
 14. `docs/90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`
@@ -122,7 +122,7 @@ Action: Delete both rows. These configuration options no longer exist.
 
 ---
 
-**File 4: `docs/05_agent_01_system-overview.md`**
+**File 4: `docs/agent_01_system-overview.md`**
 
 Current text (line 47):
 ```
@@ -138,7 +138,7 @@ Action: Change line 47 to `| `ToolExecutor` | MCP routing |` (remove "TTL cache"
 
 ---
 
-**File 5: `docs/05_agent_08_01_configuration-loading-agent-config.md`**
+**File 5: `docs/agent_08_01_configuration-loading-agent-config.md`**
 
 Current text (line 48):
 ```
@@ -149,7 +149,7 @@ Action: Delete this line. `tool_cache_ttl` is no longer a configuration option f
 
 ---
 
-**File 6: `docs/05_agent_08_03_configuration-tools-memory.md`**
+**File 6: `docs/agent_08_03_configuration-tools-memory.md`**
 
 Current text (lines 47–48):
 ```
@@ -161,7 +161,7 @@ Action: Delete both lines. These configuration options no longer exist.
 
 ---
 
-**File 7: `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`**
+**File 7: `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`**
 
 Current text (line 167):
 ```
@@ -220,7 +220,7 @@ Action: Update line 126 to remove "TTL cache". Line 131 already notes `ToolResul
 
 ---
 
-**File 11: `docs/05_agent_02_runtime-architecture.md`**
+**File 11: `docs/agent_02_runtime-architecture.md`**
 
 Current text (line 20):
 ```

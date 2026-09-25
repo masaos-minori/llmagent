@@ -2,7 +2,7 @@ Source plan: `plans/20260719-093757_plan.md` ("Add `/diff` slash command to revi
 wrote/edited this session"), Implementation step 4 (Design step 3).
 
 No existing implementations doc (under `implementations/` or `implementations/done/`) targets this
-exact file. A broader grep for `05_agent_07_10` across both directories only matches unrelated docs
+exact file. A broader grep for `agent_07_10` across both directories only matches unrelated docs
 that merely *reference* this doc in passing (e.g. `implementations/done/20260714-213701_04_mcp_02_03_
 dead-rag-settings-and-unused-commands.md`, `implementations/done/20260715-130000_docs_update.md`,
 `implementations/done/20260712-164711_docs_front_matter_dead_reference_cleanup.md`,
@@ -13,7 +13,7 @@ not a genuine overlap.
 ## Goal
 
 Add a new `/diff` entry to
-`docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`, documenting the command's
+`docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`, documenting the command's
 behavior, its `ctx.conv.history`-only scope limitation (does not see activity from before a `/compact`
 or `/clear`), and the `config/git_mcp_server.toml` `allowed_repo_paths` prerequisite — matching the
 doc's existing 3-column table format and frontmatter/footer conventions.
@@ -30,7 +30,7 @@ doc's existing 3-column table format and frontmatter/footer conventions.
 
 **Out of scope**
 - The `related`/frontmatter list (lines 11-22) and "Related Documents" section (lines 77-89) — both
-  list *other numbered docs* (`05_agent_07_01` through `05_agent_07_11`), not command categories within
+  list *other numbered docs* (`agent_07_01` through `agent_07_11`), not command categories within
   this doc; the plan's own Affected areas note says to update these "if that doc's convention requires
   it" — direct inspection (below) confirms it does **not**: this doc's own frontmatter categories
   (Workflow, Debug/audit, Export) are not separately listed in `related`/"Related Documents" anywhere in
@@ -78,7 +78,7 @@ doc's existing 3-column table format and frontmatter/footer conventions.
 
 ### Target file
 
-`docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`.
+`docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`.
 
 ### Procedure
 
@@ -139,8 +139,8 @@ change. Matches the file's existing table/blockquote conventions exactly (Assump
 | Check | Command | Target |
 |---|---|---|
 | Doc consistency | `uv run python tools/check_agent_docs_consistency.py` | no new ERROR/WARNING once this doc and the paired `command_defs_list.py` doc have both landed |
-| New section present | `rg -n "Git/Diffカテゴリ" docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` | 1 match |
-| New command row present | `rg -n '\`/diff\`' docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` | at least 1 match, inside the new table |
-| Keywords updated | `rg -n "git/diff category" docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` | 1 match |
-| Table format matches existing convention | `rg -n '\| Command \| 副作用 \| 関連する状態 \|' docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` | 4 matches (3 existing + 1 new) |
+| New section present | `rg -n "Git/Diffカテゴリ" docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` | 1 match |
+| New command row present | `rg -n '\`/diff\`' docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` | at least 1 match, inside the new table |
+| Keywords updated | `rg -n "git/diff category" docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` | 1 match |
+| Table format matches existing convention | `rg -n '\| Command \| 副作用 \| 関連する状態 \|' docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` | 4 matches (3 existing + 1 new) |
 | No broken internal links introduced | `uv run python tools/check_agent_docs_consistency.py` (covers `check_broken_internal_links`/`check_removed_file_references`) | no new findings (this doc's edit adds no new links) |

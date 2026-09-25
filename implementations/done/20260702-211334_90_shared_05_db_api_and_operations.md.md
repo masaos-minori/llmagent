@@ -1,15 +1,15 @@
-# Implementation: Update `tool_call_id` in SessionStore Protocol section of `90_shared_05_db_api_and_operations.md`
+# Implementation: Update `tool_call_id` in SessionStore Protocol section of `shared_05_db_api_and_operations.md`
 
 ## Goal
 
-Update `docs/90_shared_05_db_api_and_operations.md` so that the `SessionStore` Protocol stub
+Update `docs/shared_05_db_api_and_operations.md` so that the `SessionStore` Protocol stub
 correctly reflects `tool_call_id` in both the `message_save` signature and the `message_list`
 return field list. Add a clarifying note about when `tool_call_id` is populated vs. NULL.
 
 ## Scope
 
 - **In scope**: Lines ~164–177 (SessionStore Protocol section) in
-  `docs/90_shared_05_db_api_and_operations.md`.
+  `docs/shared_05_db_api_and_operations.md`.
 - **Out of scope**: Source code files (`store_protocols.py`, `store_impl.py`,
   `session_message_repo.py`); other sections of the same doc file.
 
@@ -26,11 +26,11 @@ return field list. Add a clarifying note about when `tool_call_id` is populated 
 
 ### Target file
 
-`docs/90_shared_05_db_api_and_operations.md`
+`docs/shared_05_db_api_and_operations.md`
 
 ### Procedure
 
-1. Read the current content of `docs/90_shared_05_db_api_and_operations.md` around lines 164–177.
+1. Read the current content of `docs/shared_05_db_api_and_operations.md` around lines 164–177.
 2. Cross-check `scripts/db/store_protocols.py` lines 144–155 to confirm the real `message_save`
    and `message_list` signatures.
 3. In the `message_save` Protocol stub, add `tool_call_id: str | None = None` as a parameter.
@@ -85,8 +85,8 @@ If this note already exists verbatim, skip step 5.
 
 | Check | Command / Action | Expected result |
 |---|---|---|
-| `message_save` stub includes `tool_call_id` | `grep -n "message_save" docs/90_shared_05_db_api_and_operations.md` | Line contains `tool_call_id` parameter |
-| `message_list` return lists `tool_call_id` | `grep -n "message_list" docs/90_shared_05_db_api_and_operations.md` | Line contains `tool_call_id` |
-| Clarifying note present | `grep -n "tool_call_id" docs/90_shared_05_db_api_and_operations.md` | Note about "NULL for all other roles" is present |
+| `message_save` stub includes `tool_call_id` | `grep -n "message_save" docs/shared_05_db_api_and_operations.md` | Line contains `tool_call_id` parameter |
+| `message_list` return lists `tool_call_id` | `grep -n "message_list" docs/shared_05_db_api_and_operations.md` | Line contains `tool_call_id` |
+| Clarifying note present | `grep -n "tool_call_id" docs/shared_05_db_api_and_operations.md` | Note about "NULL for all other roles" is present |
 | Doc matches real protocol | `grep -n "message_save\|tool_call_id" scripts/db/store_protocols.py` | Parameters align with the doc stub |
-| No stale "unused" claim | `grep -in "tool_call_id.*unused\|unused.*tool_call_id" docs/90_shared_05_db_api_and_operations.md` | 0 results |
+| No stale "unused" claim | `grep -in "tool_call_id.*unused\|unused.*tool_call_id" docs/shared_05_db_api_and_operations.md` | 0 results |

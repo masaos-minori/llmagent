@@ -1,4 +1,4 @@
-# Implementation procedure: `docs/05_agent_12_03_memory-module-ref-core-and-store.md` (chunking-stage note)
+# Implementation procedure: `docs/agent_12_03_memory-module-ref-core-and-store.md` (chunking-stage note)
 
 Source plan: `plans/20260719-095637_plan.md` ("Enable the persistent memory layer by default and add the
 missing chunking step", requirement `requires/done/20260714_15_require.md`), Implementation step 4 /
@@ -26,7 +26,7 @@ cap, and that no data is discarded.
 
 **Out of scope**
 - The retrieval-fragmentation limitation note — that belongs in
-  `docs/05_agent_12_04_memory-module-ref-retrieval-and-injection.md` (separate implementation doc).
+  `docs/agent_12_04_memory-module-ref-retrieval-and-injection.md` (separate implementation doc).
 - The `08_01` config-default-table update — separate implementation doc.
 - Any other section of this file (barrel-export list, `types.py`/`enums.py`/`exceptions.py`/`models.py`/
   `store.py` tables) — untouched.
@@ -37,7 +37,7 @@ cap, and that no data is discarded.
    `enums.py`, `exceptions.py`, `models.py`, and `store.py` (confirmed by direct read — section headers
    at lines 24, 43, 54, 66, 80, 89 and the file's own `## Keywords` list at lines 130-135). It does
    **not** document `extract.py` in detail today — that lives in a **different** file,
-   `docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md` (confirmed by direct read: section
+   `docs/agent_12_05_memory-module-ref-extraction-and-facade.md` (confirmed by direct read: section
    10, `extract.py`, at `12_05` line 26-39, including the exact line "`max_content_chars` は assistant
    メッセージの切り詰め長" — "truncation length for assistant messages" — at `12_05` line 30, which will
    become **stale/inaccurate** once the chunking stage ships, since `max_content_chars` will no longer
@@ -64,7 +64,7 @@ cap, and that no data is discarded.
 
 ### Target file
 
-`docs/05_agent_12_03_memory-module-ref-core-and-store.md`
+`docs/agent_12_03_memory-module-ref-core-and-store.md`
 
 ### Procedure
 
@@ -81,9 +81,9 @@ cap, and that no data is discarded.
    - No content is discarded — the full source message is preserved across the resulting chunk rows.
    - Cross-reference: full `extract.py` method-level detail (the `_split_content` helper and its
      paragraph-boundary/hard-cut splitting strategy) is documented in
-     `05_agent_12_05_memory-module-ref-extraction-and-facade.md`.
+     `agent_12_05_memory-module-ref-extraction-and-facade.md`.
 3. Add a one-line pointer to the retrieval-fragmentation limitation, cross-referencing
-   `05_agent_12_04_memory-module-ref-retrieval-and-injection.md` (that file carries the full limitation
+   `agent_12_04_memory-module-ref-retrieval-and-injection.md` (that file carries the full limitation
    note per the paired implementation doc), so a reader of `12_03` is not left unaware that multiple
    chunks from one source may surface as independent search hits.
 4. No changes to the `## Related Documents` or `## Keywords` lists are required — both already list
@@ -109,6 +109,6 @@ shipped behavior exactly, per `rules/coding.md`'s guidance to avoid "Documentati
 | Check | Command | Target |
 |---|---|---|
 | Docs consistency | `uv run python tools/check_agent_docs_consistency.py` | no new ERROR/WARNING |
-| Cross-reference integrity | `rg -n "12_04|12_05" docs/05_agent_12_03_memory-module-ref-core-and-store.md` | both cross-references present after the edit |
-| No stale truncation wording introduced | `rg -n "切り詰め" docs/05_agent_12_03_memory-module-ref-core-and-store.md` | 0 matches (this doc should describe chunking, not reintroduce truncation language) |
+| Cross-reference integrity | `rg -n "12_04|12_05" docs/agent_12_03_memory-module-ref-core-and-store.md` | both cross-references present after the edit |
+| No stale truncation wording introduced | `rg -n "切り詰め" docs/agent_12_03_memory-module-ref-core-and-store.md` | 0 matches (this doc should describe chunking, not reintroduce truncation language) |
 | Manual review | Read the new subsection alongside the shipped `scripts/agent/memory/extract.py` | prose matches actual `_split_content`/`_try_extract_from_assistant`/`_try_extract_from_user` behavior exactly |

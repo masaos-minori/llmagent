@@ -1,11 +1,11 @@
 ## Goal
-Rewrite the CI-002 entry in `docs/90_shared_90_inconsistencies_and_known_issues.md`
+Rewrite the CI-002 entry in `docs/shared_90_inconsistencies_and_known_issues.md`
 (REQ-002) so it no longer cites a nonexistent ADR-011 INV-01/INV-02 invariant pair,
 and instead states the investigation outcome: no production/local auto-recovery
 distinction exists in any current or historical ADR-011/ADR-008 text.
 
 ## Scope
-Modify exactly the `### CI-002` section (docs/90_shared_90_inconsistencies_and_known_issues.md,
+Modify exactly the `### CI-002` section (docs/shared_90_inconsistencies_and_known_issues.md,
 currently at line 74). No other CI-xxx entry in this file is touched (Plan
 Out-of-Scope).
 
@@ -38,7 +38,7 @@ ever real; inventing one now would contradict the investigation's own conclusion
 
 ## Implementation
 ### Target file
-docs/90_shared_90_inconsistencies_and_known_issues.md
+docs/shared_90_inconsistencies_and_known_issues.md
 
 ### Procedure
 Replace the CI-002 section's body text to state the investigation's conclusion and
@@ -77,7 +77,7 @@ Trivially revertable via `git revert`/`git checkout` of this single file.
 
 ## Validation plan
 - `uv run python tools/check_docs_quality.py` (or `.venv/bin/python`/`UV_OFFLINE=1 uv run --offline python` fallback) — structural/formatting validation, per Plan Validation plan.
-- `uv run python tools/check_docs_structure.py docs/90_shared_90_inconsistencies_and_known_issues.md` — file structure validation, per Plan Validation plan.
+- `uv run python tools/check_docs_structure.py docs/shared_90_inconsistencies_and_known_issues.md` — file structure validation, per Plan Validation plan.
 
 ## Completion criteria
 CI-002 no longer cites a nonexistent ADR-011 invariant number as an open question; its
@@ -89,7 +89,7 @@ Any other CI-xxx entry in this file (Plan Out-of-Scope). Re-litigating ADR-008's
 already-decided recovery policy for rag/session/workflow/eventbus (Plan Out-of-Scope).
 
 ## Documentation
-`docs/90_shared_90_inconsistencies_and_known_issues.md` has a `docs/00_index.md`
+`docs/shared_90_inconsistencies_and_known_issues.md` has a `docs/00_index.md`
 Document References by Task mapping (Known Issues / governance area) — this row's
 change is itself the documentation update; no separate Step 5 target applies since
 this workflow phase (`plan-to-implementation-procedure`) does not edit `docs/*.md`
@@ -125,4 +125,4 @@ per this document's Validation plan above.
 - **Source plan**: plans/20260901-120040_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260902-183217
-- **Related target files**: docs/90_shared_90_inconsistencies_and_known_issues.md
+- **Related target files**: docs/shared_90_inconsistencies_and_known_issues.md

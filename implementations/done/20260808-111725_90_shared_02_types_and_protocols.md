@@ -74,20 +74,20 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_02_01_types_and_protocols-core-types.md`**
+**File: `shared_02_01_types_and_protocols-core-types.md`**
 - LLMMessage full field definition: Replace full field definition with prose summary referencing `scripts/shared/types.py`
 
-**File: `90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md`**
+**File: `shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md`**
 - ToolCallResult etc. DTO full field list: Replace field enumeration with prose summary
 - ActionResult/ToolSpec/CacheEntry signatures: Replace signature enumeration with prose summary
 
-**File: `90_shared_02_02_types_and_protocols-tool-and-execution-dto-part2.md`**
+**File: `shared_02_02_types_and_protocols-tool-and-execution-dto-part2.md`**
 - RawHit/MergedHit/RankedHit dataclass definitions: Replace dataclass definitions with prose summaries
 - ToolCallFunction-family TypedDict list: Replace TypedDict enumeration with prose summary
 - ShellPolicy full field list: Replace field enumeration with prose summary noting ShellPolicy separates policy value from shell MCP implementation
 - Tool frozenset column enumeration: Replace column enumeration with prose summary
 
-**File: `90_shared_02_03_types_and_protocols-reference.md`**
+**File: `shared_02_03_types_and_protocols-reference.md`**
 - Pydantic definitions: Replace Pydantic definitions with prose summary
 - Text-book style Protocol/TypedDict/dataclass comparison table: Replace table with prose summary
 

@@ -1,7 +1,7 @@
 ## Goal
 
 Remove the fabricated `AgentConfig.memory.memory_embed_dim` field reference in
-`docs/05_agent_12_03_memory-module-ref-core-and-store.md` (REQ-004), per
+`docs/agent_12_03_memory-module-ref-core-and-store.md` (REQ-004), per
 `plans/20260826-151220_plan.md`.
 
 ## Scope
@@ -24,7 +24,7 @@ Remove the fabricated `AgentConfig.memory.memory_embed_dim` field reference in
   without further investigation needed at implementation time.
 - **Additional finding (plan-to-implementation-procedure adversarial
   verification, 2026-08-27)**: the same fabricated `memory_embed_dim` name also
-  appears in `docs/05_agent_08_03_configuration-tools-memory.md` (line 98,
+  appears in `docs/agent_08_03_configuration-tools-memory.md` (line 98,
   listed alongside genuinely-real `memory_*` config keys) — a separate target
   file added to this Plan's REQ-004 scope, seq 15 in this same pass. Both
   occurrences must be corrected; this item covers only this file's occurrence.
@@ -46,7 +46,7 @@ Remove the fabricated `AgentConfig.memory.memory_embed_dim` field reference in
 
 ## Implementation
 ### Target file
-`docs/05_agent_12_03_memory-module-ref-core-and-store.md`
+`docs/agent_12_03_memory-module-ref-core-and-store.md`
 
 ### Procedure
 1. Re-confirm the current line number immediately before editing (verified at
@@ -85,15 +85,15 @@ Replace with:
 
 - Single-sentence text revert via `git diff`/`git checkout -- <path>`;
   independent of the other 14 target files in this Plan's pass, but should be
-  cross-checked against seq 15 (`05_agent_08_03`)'s parallel correction for
+  cross-checked against seq 15 (`agent_08_03`)'s parallel correction for
   consistency of wording.
 
 ## Validation plan
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_12_03_memory-module-ref-core-and-store.md` | Manual diff | `git diff <path>` | No fabricated `AgentConfig.memory.memory_embed_dim` field reference remains |
-| `docs/05_agent_12_03_memory-module-ref-core-and-store.md` | Doc consistency check | `.venv/bin/python3 tools/check_docs_consistency.py --domain agent` | No new warning/error beyond baseline |
+| `docs/agent_12_03_memory-module-ref-core-and-store.md` | Manual diff | `git diff <path>` | No fabricated `AgentConfig.memory.memory_embed_dim` field reference remains |
+| `docs/agent_12_03_memory-module-ref-core-and-store.md` | Doc consistency check | `.venv/bin/python3 tools/check_docs_consistency.py --domain agent` | No new warning/error beyond baseline |
 
 ## Completion criteria
 
@@ -131,4 +131,4 @@ Replace with:
 - **Source plan**: `plans/20260826-151220_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260827-112854
-- **Related target files**: `docs/05_agent_12_03_memory-module-ref-core-and-store.md`
+- **Related target files**: `docs/agent_12_03_memory-module-ref-core-and-store.md`

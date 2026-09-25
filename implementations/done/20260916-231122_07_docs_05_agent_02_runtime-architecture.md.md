@@ -1,10 +1,10 @@
 ## Goal
 
-Remove the stale numeric sub-config count ("7") from `docs/05_agent_02_runtime-architecture.md` line 110, per `skills/DESIGN.md` "No implementation counts" — replace with prose that does not drift when a sub-config is added or removed.
+Remove the stale numeric sub-config count ("7") from `docs/agent_02_runtime-architecture.md` line 110, per `skills/DESIGN.md` "No implementation counts" — replace with prose that does not drift when a sub-config is added or removed.
 
 ## Scope
 
-- Correct the table cell on line 110 in `docs/05_agent_02_runtime-architecture.md`
+- Correct the table cell on line 110 in `docs/agent_02_runtime-architecture.md`
 - No other files are modified in this row
 
 ## Assumptions
@@ -25,7 +25,7 @@ Remove the stale numeric sub-config count ("7") from `docs/05_agent_02_runtime-a
 
 ### Target file
 
-`docs/05_agent_02_runtime-architecture.md`
+`docs/agent_02_runtime-architecture.md`
 
 ### Procedure
 
@@ -33,7 +33,7 @@ Remove the stale numeric sub-config count from the AgentConfig table cell.
 
 ### Method
 
-1. Re-verify, immediately before editing, that each target row's cited line/content is unchanged since this Plan's evidence-gathering (per `rules/workflow-lifecycle.md` Revalidation): `docs/05_agent_02_runtime-architecture.md` line 110.
+1. Re-verify, immediately before editing, that each target row's cited line/content is unchanged since this Plan's evidence-gathering (per `rules/workflow-lifecycle.md` Revalidation): `docs/agent_02_runtime-architecture.md` line 110.
 2. Correct the table cell on line 110:
    - Change: `\| \`ctx.cfg\` \| Hot-reload \| \`AgentConfig\` (7 sub-configs) \|`
    - To: `\| \`ctx.cfg\` \| Hot-reload \| \`AgentConfig\` (composite sub-configs) \|`
@@ -83,7 +83,7 @@ Remove the stale numeric sub-config count from the AgentConfig table cell.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove stale numeric sub-config count from docs/05_agent_02_runtime-architecture.md | Completed | 20260917-202306 | 20260917-202306 |  |
+| 1 | Remove stale numeric sub-config count from docs/agent_02_runtime-architecture.md | Completed | 20260917-202306 | 20260917-202306 |  |
 | 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-202306 | 20260917-202306 |  |
 
 ### Blocker Log
@@ -104,4 +104,4 @@ Remove the stale numeric sub-config count from the AgentConfig table cell.
 - **Source plan**: plans/20260916-131528_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260916-231122
-- **Related target files**: docs/05_agent_02_runtime-architecture.md
+- **Related target files**: docs/agent_02_runtime-architecture.md

@@ -22,7 +22,7 @@ DOCMISS-01 を RESOLVED にする。
 ### `docs/05_agent_10_operations-and-observability.md`
 - DB verification セクションを 3 DB 分に拡張 (session.sqlite・workflow.sqlite の確認コマンド追加)
 
-### `docs/05_agent_90_inconsistencies_and_known_issues.md`
+### `docs/agent_90_inconsistencies_and_known_issues.md`
 - DOCMISS-01 エントリを新規追加 (RESOLVED、5 ドキュメントへの追記を記録)
 
 ### `docs/06_shared_90_inconsistencies_and_known_issues.md`

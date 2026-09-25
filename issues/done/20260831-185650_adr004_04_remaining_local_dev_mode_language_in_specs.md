@@ -13,16 +13,16 @@ current ADR-004 model.
 ## Background
 A prior follow-up issue (`issues/20260831-173019_adr004_03_related_docs_local_mode_language.md`)
 already covers the same "production or local mode" phrase in
-`docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`. During the
+`docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`. During the
 ADR-001/ADR-004/ADR-012 update work, the identical phrase was found in a second file
-(`05_agent_10_01`), plus two more files describing an actual behavioral difference (not just
+(`agent_10_01`), plus two more files describing an actual behavioral difference (not just
 wording) between production and local/development.
 
 ## Problem
 (Evidence: Explicit in code as documented, i.e. these are direct quotes from the current
 Specification text — not yet cross-checked against current source for behavioral accuracy)
 
-- `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`:
+- `docs/agent_10_01_operations-and-observability-startup-and-health.md`:
   - "In production mode, unreachable health probes are treated as startup failure (FATAL). In
     local mode, they only issue a warning and continue." — describes an actual production/local
     behavioral split, not just wording.
@@ -56,7 +56,7 @@ Specification wording to remove the stale local/dev distinction, consistent with
 `adr004_03` handles its target file.
 
 ## Target Files or Areas
-- `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
+- `docs/agent_10_01_operations-and-observability-startup-and-health.md`
 - `docs/04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `docs/90_shared_03_01_runtime_and_execution-config-and-logging.md`
 - `scripts/agent/startup.py`, `scripts/shared/production_config_validator.py` — read-only references to confirm current behavior before editing docs
@@ -81,7 +81,7 @@ Documentation-only change unless a code gap is confirmed, in which case follow t
 This issue is itself the documentation-accuracy fix (or the trigger for a follow-up implementation issue) for the three files listed above.
 
 ## Out of Scope
-- `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, already covered by `issues/20260831-173019_adr004_03_related_docs_local_mode_language.md`.
+- `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, already covered by `issues/20260831-173019_adr004_03_related_docs_local_mode_language.md`.
 - Any other document not listed above.
 - Implementing a code fix if a genuine production/local behavioral gap is confirmed (raise as a separate issue instead).
 
@@ -89,7 +89,7 @@ This issue is itself the documentation-accuracy fix (or the trigger for a follow
 Follows the ADR-004 Production-only revision and the ADR-001/ADR-004/ADR-012 update work (2026-08-31). Related to `issues/20260831-173019_adr004_03_related_docs_local_mode_language.md` (same class of finding, different files).
 
 ## Unresolved Questions
-Whether the two behavioral-difference claims (`05_agent_10_01`'s health-probe FATAL/WARNING split, and `production_config_validator.py`'s local/development downgrade-to-warning behavior) reflect real, still-present code branches, or stale documentation — needs source confirmation before deciding whether this is a doc fix or a code-conformance gap.
+Whether the two behavioral-difference claims (`agent_10_01`'s health-probe FATAL/WARNING split, and `production_config_validator.py`'s local/development downgrade-to-warning behavior) reflect real, still-present code branches, or stale documentation — needs source confirmation before deciding whether this is a doc fix or a code-conformance gap.
 
 ## AI Implementation Instruction
 Read the actual current implementation for each of the three claims before editing any document. Do not assume the Specification text is wrong without checking source — if the code genuinely still differentiates production from local/development for these checks, file that as a separate ADR-004 conformance issue instead of silently rewording the Specification to hide it.

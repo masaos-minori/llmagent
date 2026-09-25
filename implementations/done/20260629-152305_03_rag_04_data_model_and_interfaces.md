@@ -44,7 +44,7 @@ Insert the following paragraph after line 71 (`## 2. SQLite Schema (\`rag.sqlite
 - `chunks_fts` — FTS5 virtual table for full-text search
 - `chunks_vec` — sqlite-vec virtual table for vector search
 
-Agent session tables (`sessions`, `messages`, `tool_results`, `memories`, etc.) reside in a separate SQLite file (`session.sqlite`) and are owned exclusively by the Agent layer. See [05_agent_09_data-layer.md](05_agent_09_data-layer.md) for the Agent session schema.
+Agent session tables (`sessions`, `messages`, `tool_results`, `memories`, etc.) reside in a separate SQLite file (`session.sqlite`) and are owned exclusively by the Agent layer. See [05_agent_09_data-layer.md](agent_09_data-layer.md) for the Agent session schema.
 ```
 
 This replaces the current `### 2.0 テーブル一覧` header with a new structure:
@@ -59,7 +59,7 @@ Or alternatively, rename `### 2.0 テーブル一覧` to include the ownership s
 
 **RAG-owned tables:** `documents`, `chunks`, `chunks_fts`, `chunks_vec` — all in `rag.sqlite`.
 
-Agent session tables (`sessions`, `messages`, `tool_results`, `memories`, etc.) reside in a separate SQLite file (`session.sqlite`) and are owned exclusively by the Agent layer. See [05_agent_09_data-layer.md](05_agent_09_data-layer.md) for the Agent session schema.
+Agent session tables (`sessions`, `messages`, `tool_results`, `memories`, etc.) reside in a separate SQLite file (`session.sqlite`) and are owned exclusively by the Agent layer. See [05_agent_09_data-layer.md](agent_09_data-layer.md) for the Agent session schema.
 ```
 
 Then remove the existing inline Note at lines 84-87 if it becomes redundant after this change.

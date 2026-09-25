@@ -11,9 +11,9 @@ Resolve NC-013 by removing dead methods `DiagnosticStore.fetch_by_kind` and `Dia
 - Remove `test_fetch_by_kind_returns_empty_for_unknown_kind` and `test_fetch_by_kind_filters_by_kind` from `tests/test_diagnostic_store.py` (lines 306-334)
 - Rewrite `tests/test_regression_diagnostic_persist.py::test_null_session_id_entry_stored` (lines 114-125) to verify null-`session_id` persistence via direct query against `fake_db._conn` instead of `store.fetch_all()`
 - Update 4 documentation locations to remove "Needs confirmation" status and record resolution:
-  - `docs/05_agent_10_05_operations-and-observability-monitoring.md:93` — replace "Needs confirmation" callout with confirmed-dead-code determination
+  - `docs/agent_10_05_operations-and-observability-monitoring.md:93` — replace "Needs confirmation" callout with confirmed-dead-code determination
   - `docs/00_governance_07_needs-confirmation-inventory.md:216-227` — set NC-013 Status to resolved/closed
-  - `docs/05_agent_09_01_data-layer-session-db.md:92,96` — remove `fetch_by_kind`/`fetch_all` from documented read-side API list
+  - `docs/agent_09_01_data-layer-session-db.md:92,96` — remove `fetch_by_kind`/`fetch_all` from documented read-side API list
   - `docs/05_agent_04_01_state-and-persistence-state-model-part2.md:72` — remove `fetch_all` from listed DiagnosticStore methods
 
 **Out-of-Scope:**
@@ -36,7 +36,7 @@ Resolve NC-013 by removing dead methods `DiagnosticStore.fetch_by_kind` and `Dia
 | UNK-01 | Whether any current production code calls `fetch_by_kind` or `fetch_all` | Resolved — repo-wide grep returns zero matches outside `diagnostic_store.py` and `tests/` | False |
 | UNK-02 | Whether a concretely planned CLI/API caller exists anywhere in `plans/`, `requires/`, `issues/`, or `docs/` | Resolved — searched all directories; only forward-looking reference is `/stats` idea in `plans/done/20260625-094407_plan.md` (already completed, closed, never wired to `fetch_by_kind`) | False |
 | UNK-03 | Whether removing `fetch_all` would break `test_null_session_id_entry_stored` which uses `store.fetch_all()` as its sole verification step | Resolved — can rewrite test to use direct query against `fake_db._conn`; note `fetch(None)` cannot be used as replacement since `WHERE session_id = NULL` is always false in SQL | False |
-| UNK-04 | Whether removal requires touching more documentation than the two files named in the requirement | Resolved — grep found two additional files: `docs/05_agent_09_01_data-layer-session-db.md:92,96` and `docs/05_agent_04_01_state-and-persistence-state-model-part2.md:72` | False |
+| UNK-04 | Whether removal requires touching more documentation than the two files named in the requirement | Resolved — grep found two additional files: `docs/agent_09_01_data-layer-session-db.md:92,96` and `docs/05_agent_04_01_state-and-persistence-state-model-part2.md:72` | False |
 
 No blocking unknowns remain.
 
@@ -46,9 +46,9 @@ No blocking unknowns remain.
   - `scripts/agent/diagnostic_store.py` — remove `fetch_by_kind` (lines 227-236) and `fetch_all` (lines 238-247)
   - `tests/test_diagnostic_store.py` — remove `class TestDiagnosticStoreFetchAll` (lines 181-208); remove `test_fetch_by_kind_returns_empty_for_unknown_kind` and `test_fetch_by_kind_filters_by_kind` (lines 306-334); update module docstring (line 3)
   - `tests/test_regression_diagnostic_persist.py` — rewrite `test_null_session_id_entry_stored` (lines 114-125) to use direct SQLite query; update module docstring/comment (line 7)
-  - `docs/05_agent_10_05_operations-and-observability-monitoring.md` — replace "Needs confirmation" callout at line 93
+  - `docs/agent_10_05_operations-and-observability-monitoring.md` — replace "Needs confirmation" callout at line 93
   - `docs/00_governance_07_needs-confirmation-inventory.md` — resolve NC-013 entry at lines 216-227
-  - `docs/05_agent_09_01_data-layer-session-db.md` — remove `fetch_by_kind`/`fetch_all` from read-side API list at lines 92,96
+  - `docs/agent_09_01_data-layer-session-db.md` — remove `fetch_by_kind`/`fetch_all` from read-side API list at lines 92,96
   - `docs/05_agent_04_01_state-and-persistence-state-model-part2.md` — remove `fetch_all` from listed DiagnosticStore methods at line 72
 - **Blast Radius:** Low — both methods are read-only, additive convenience methods with zero production call sites confirmed via repo-wide grep. Removing them cannot change any runtime behavior of `scripts/agent/`. Only blast radius within `tests/` (2 files) and `docs/` (4 files).
 - **Risk Metrics:** `scripts/agent/diagnostic_store.py`: 4 commits touching these two methods since creation — low churn, low risk to remove.
@@ -67,9 +67,9 @@ No blocking unknowns remain.
    - [ ] Rewrite `tests/test_regression_diagnostic_persist.py::test_null_session_id_entry_stored` (lines 114-125): replace `results = store.fetch_all()` with a direct query like `rows = fake_db._conn.execute("SELECT * FROM session_diagnostics WHERE session_id IS NULL").fetchall()` and assert `len(rows) == 1` and `rows[0][1] is None` (assuming `session_id` is column index 1)
    - [ ] Update module docstring in `tests/test_diagnostic_store.py` (line 3) to remove `fetch_all()` and `fetch_by_kind()` from the listed covered methods
    - [ ] Update module docstring/comment in `tests/test_regression_diagnostic_persist.py` (line 7) to match the rewritten test
-   - [ ] Update `docs/05_agent_10_05_operations-and-observability-monitoring.md:93` — replace the "Needs confirmation" callout with the confirmed-dead-code determination
+   - [ ] Update `docs/agent_10_05_operations-and-observability-monitoring.md:93` — replace the "Needs confirmation" callout with the confirmed-dead-code determination
    - [ ] Update NC-013 in `docs/00_governance_07_needs-confirmation-inventory.md:216-227` — set Status to `resolved`, record resolution text: "`fetch_by_kind` and `fetch_all` methods removed, confirmed no production callers", set Last Reviewed to today's date
-   - [ ] Update `docs/05_agent_09_01_data-layer-session-db.md:92,96` — remove `fetch_by_kind`/`fetch_all` from the documented read-side API list
+   - [ ] Update `docs/agent_09_01_data-layer-session-db.md:92,96` — remove `fetch_by_kind`/`fetch_all` from the documented read-side API list
    - [ ] Update `docs/05_agent_04_01_state-and-persistence-state-model-part2.md:72` — remove `fetch_all` from the listed DiagnosticStore methods
 
 3. **Phase 3: Deployment & Verification**
@@ -92,5 +92,5 @@ No blocking unknowns remain.
 ## Risks
 
 - **Risk**: The follow-up removes `fetch_all` without first rewriting `test_null_session_id_entry_stored`'s verification, silently deleting real regression coverage for null-`session_id` persistence → **Mitigation**: This plan explicitly calls out the rewrite (direct query against `fake_db._conn`) as a required step before/alongside the method removal, not an optional cleanup; documented in UNK-03 and Implementation Steps Phase 2.
-- **Risk**: Documentation drift — `docs/05_agent_09_01_data-layer-session-db.md` and `docs/05_agent_04_01_state-and-persistence-state-model-part2.md` (found via UNK-04) are not in the requirement's originally named doc list, so a future implementer following only the requirement's two named docs would miss them, leaving stale API documentation after removal → **Mitigation**: Both files are explicitly listed in this plan's Affected Files and Implementation Steps Phase 2.
+- **Risk**: Documentation drift — `docs/agent_09_01_data-layer-session-db.md` and `docs/05_agent_04_01_state-and-persistence-state-model-part2.md` (found via UNK-04) are not in the requirement's originally named doc list, so a future implementer following only the requirement's two named docs would miss them, leaving stale API documentation after removal → **Mitigation**: Both files are explicitly listed in this plan's Affected Files and Implementation Steps Phase 2.
 - **Risk**: A hypothetical external consumer could call these methods directly via Python import, since they are public methods with no `_`-prefix → **Mitigation**: No exposed CLI/API/MCP surface calls them; this is an internal application module (`scripts/agent/`) not published as a library; residual risk accepted as consistent with sibling NC-012 precedent.

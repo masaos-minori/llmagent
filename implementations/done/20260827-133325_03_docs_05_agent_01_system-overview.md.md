@@ -1,7 +1,7 @@
 ## Goal
 
 Remove the stale "TTL cache" component description and "Tool result cache TTL"
-constraint row from `docs/05_agent_01_system-overview.md` (REQ-001, REQ-002), per
+constraint row from `docs/agent_01_system-overview.md` (REQ-001, REQ-002), per
 `plans/20260825-142943_plan.md`.
 
 ## Scope
@@ -31,7 +31,7 @@ constraint row from `docs/05_agent_01_system-overview.md` (REQ-001, REQ-002), pe
 
 ## Implementation
 ### Target file
-`docs/05_agent_01_system-overview.md`
+`docs/agent_01_system-overview.md`
 
 ### Procedure
 1. Re-confirm current line numbers immediately before editing (verified at lines
@@ -70,12 +70,12 @@ Delete line 63 entirely.
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_01_system-overview.md` | Manual diff | `git diff <path>` | `ToolExecutor` row says "MCP routing" only; cache TTL constraint row removed |
-| `docs/05_agent_01_system-overview.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | No new warning/error |
+| `docs/agent_01_system-overview.md` | Manual diff | `git diff <path>` | `ToolExecutor` row says "MCP routing" only; cache TTL constraint row removed |
+| `docs/agent_01_system-overview.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | No new warning/error |
 
 ## Completion criteria
 
-- `rg -n "TTL cache|tool_cache_ttl" docs/05_agent_01_system-overview.md` returns no
+- `rg -n "TTL cache|tool_cache_ttl" docs/agent_01_system-overview.md` returns no
   matches.
 
 ## Out of scope
@@ -110,4 +110,4 @@ Delete line 63 entirely.
 - **Source plan**: `plans/20260825-142943_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure; supersedes the corresponding portion of `implementations/20260825-224356_11_docs_tool_cache_removal.md` (left Blocked, never implemented)
 - **Generated at**: 20260827-133325
-- **Related target files**: `docs/05_agent_01_system-overview.md`
+- **Related target files**: `docs/agent_01_system-overview.md`

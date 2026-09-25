@@ -13,7 +13,7 @@ from `EmbeddingClientConfig(...)` construction sites. No production source file 
   `test_auto_reset_when_elapsed`).
 - Out of scope: `scripts/agent/memory/embedding_client.py` (read-only reference; must not gain an
   `embed_dim` field back); any other test in the file; the stale doc reference at
-  `docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md:67`; unrelated `embed_dim` usages
+  `docs/agent_12_05_memory-module-ref-extraction-and-facade.md:67`; unrelated `embed_dim` usages
   tied to `MemoryStore`/`AgentConfig.memory.memory_embed_dim`.
 
 ## Assumptions
@@ -128,7 +128,7 @@ N/A — test-file-only edit, no secrets, network calls, or trust-boundary code i
 ## Out of scope
 
 - Fixing the stale doc reference at
-  `docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md:67` (this workflow phase cannot
+  `docs/agent_12_05_memory-module-ref-extraction-and-facade.md:67` (this workflow phase cannot
   edit `docs/*.md`; a separate issue is expected to track it per the source plan).
 - Any change to `scripts/agent/memory/embedding_client.py`.
 - Any other `embed_dim` usage tied to `MemoryStore` / `AgentConfig.memory.memory_embed_dim`

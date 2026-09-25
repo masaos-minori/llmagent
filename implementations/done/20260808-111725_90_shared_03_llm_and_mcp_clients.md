@@ -70,7 +70,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md`**
+**File: `shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md`**
 - Full LLMClient constructor signatures: Replace with prose summary referencing `scripts/shared/llm_client.py`
 - Mechanical error type enumerations: Replace with prose summary
 - Complete list of statistics attributes: Replace with prose summary
@@ -79,7 +79,7 @@ For each target section:
 - Exhaustive enum value tables: Replace with prose summary
 - Execution flow pseudocode: Replace with prose summary
 
-**File: `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part2.md`**
+**File: `shared_03_03_runtime_and_execution-llm-and-mcp-clients-part2.md`**
 - Same compression targets as part1
 
 ## Compatibility Considerations

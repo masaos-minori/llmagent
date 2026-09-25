@@ -10,12 +10,12 @@ Apply the design-doc reduction policy from `memo-doc-agent-review.md` to the dat
 This chapter is the canonical source for DB responsibility boundaries, but currently also carries table lists, column enumerations, and SQL/DDL that duplicate `schema_sql.py` verbatim and will drift on any schema change.
 
 ## Implementation Intent
-Keep this chapter as the canonical source for DB responsibility boundaries (per `memo-doc-agent-review.md` §「章間の正本ルール」: DB責務境界 = `05_agent_09_data-layer`).
+Keep this chapter as the canonical source for DB responsibility boundaries (per `memo-doc-agent-review.md` §「章間の正本ルール」: DB責務境界 = `agent_09_data-layer`).
 
 ## Target Files or Areas
-- `docs/05_agent_09_01_data-layer-session-db.md`
-- `docs/05_agent_09_02_data-layer-access-patterns.md`
-- `docs/05_agent_09_03_data-layer-indexing-boundaries.md`
+- `docs/agent_09_01_data-layer-session-db.md`
+- `docs/agent_09_02_data-layer-access-patterns.md`
+- `docs/agent_09_03_data-layer-indexing-boundaries.md`
 
 ## Required Changes
 - Keep: the responsibility boundary between `session.sqlite`/`workflow.sqlite`/`rag.sqlite`/`eventbus.sqlite`, which DB is the source of truth for what, which DBs the Agent may/may not touch directly, operational judgment for DB recreation/migration/recovery, `session_diagnostics`'s role, why workflow state lives in `workflow.sqlite`.
@@ -33,11 +33,11 @@ Not required for behavior (documentation-only). Run `python tools/check_agent_do
 This issue is itself a documentation-only cleanup task.
 
 ## Out of Scope
-- Other `docs/05_agent_*.md` chapters, especially `05_agent_04_state-and-persistence` (separate issue — avoid re-duplicating DB boundary text there; use a pointer instead).
+- Other `docs/05_agent_*.md` chapters, especially `agent_04_state-and-persistence` (separate issue — avoid re-duplicating DB boundary text there; use a pointer instead).
 - `schema_sql.py` itself (code, not documentation).
 
 ## AI Implementation Instruction
-Follow `memo-doc-agent-review.md` §「05_agent_09_data-layer」. Check `05_agent_04_state-and-persistence` for overlapping content and replace duplication with a cross-reference per the canonical-source rule. Mark unclear rationale as `Needs Confirmation`.
+Follow `memo-doc-agent-review.md` §「05_agent_09_data-layer」. Check `agent_04_state-and-persistence` for overlapping content and replace duplication with a cross-reference per the canonical-source rule. Mark unclear rationale as `Needs Confirmation`.
 
 ## Traceability
 - Workflow phase: issue-creation

@@ -26,7 +26,7 @@ Clarify CLI command references in the document — distinguish between top-level
 
 ### Target file
 
-docs/05_agent_07_06_cli-and-commands-hot-reload.md
+docs/agent_07_06_cli-and-commands-hot-reload.md
 
 ### Procedure
 
@@ -70,8 +70,8 @@ Read the file, identify the exact line numbers containing the incorrect referenc
 
 | Target File | Testing Strategy | Expected Outcome |
 |---|---|---|
-| docs/05_agent_07_06_cli-and-commands-hot-reload.md | Manual review | CLI cmd refs clarified |
-| docs/05_agent_07_06_cli-and-commands-hot-reload.md | Automated check | uv run python tools/check_docs_consistency.py passes without WARNING-level findings for missing files |
+| docs/agent_07_06_cli-and-commands-hot-reload.md | Manual review | CLI cmd refs clarified |
+| docs/agent_07_06_cli-and-commands-hot-reload.md | Automated check | uv run python tools/check_docs_consistency.py passes without WARNING-level findings for missing files |
 
 ## Completion criteria
 
@@ -113,4 +113,4 @@ Read the file, identify the exact line numbers containing the incorrect referenc
 - **Source plan**: plans/20260921-201621_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260921-202505
-- **Related target files**: docs/05_agent_07_06_cli-and-commands-hot-reload.md
+- **Related target files**: docs/agent_07_06_cli-and-commands-hot-reload.md

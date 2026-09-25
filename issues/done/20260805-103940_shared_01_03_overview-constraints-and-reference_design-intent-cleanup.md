@@ -7,7 +7,7 @@ High
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to `docs/90_shared_01_03_overview-constraints-and-reference.md`: keep import-direction constraints and cross-cutting rules (JSON/httpx/logging-language/SQLite WAL, SecurityProfile/ProductionConfigValidator); remove overly fine constraint-value tables and DB-table enumerations.
 
 ## Reason for Change
-This chapter is the canonical source for import constraints and cross-cutting rules (per `memo-doc-shared-review.md` §「章間の正本ルール」: import制約・横断制約 = `90_shared_01_03_overview-constraints-and-reference`). The import-direction rule enforced by `lint-imports` is a hard architectural boundary and must remain explicit.
+This chapter is the canonical source for import constraints and cross-cutting rules (per `memo-doc-shared-review.md` §「章間の正本ルール」: import制約・横断制約 = `shared_01_03_overview-constraints-and-reference`). The import-direction rule enforced by `lint-imports` is a hard architectural boundary and must remain explicit.
 
 ## Implementation Intent
 Keep this chapter focused on import-direction constraints, that they are enforced by import-linter, shared/db-common critical constraints, and the operational meaning of `SecurityProfile`/`ProductionConfigValidator`.

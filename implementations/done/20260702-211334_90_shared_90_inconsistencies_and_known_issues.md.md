@@ -1,8 +1,8 @@
-# Implementation: Verify `tool_call_id` entries in `90_shared_90_inconsistencies_and_known_issues.md`
+# Implementation: Verify `tool_call_id` entries in `shared_90_inconsistencies_and_known_issues.md`
 
 ## Goal
 
-Confirm that `docs/90_shared_90_inconsistencies_and_known_issues.md` contains no open issue entry
+Confirm that `docs/shared_90_inconsistencies_and_known_issues.md` contains no open issue entry
 describing `tool_call_id` as "unused" or "not used". If such an entry exists, remove it or mark
 it as resolved. If no such entry exists, no change is needed.
 
@@ -11,9 +11,9 @@ across all docs and scripts.
 
 ## Scope
 
-- **In scope**: `docs/90_shared_90_inconsistencies_and_known_issues.md`; final project-wide
+- **In scope**: `docs/shared_90_inconsistencies_and_known_issues.md`; final project-wide
   grep validation across `docs/` and `scripts/`.
-- **Out of scope**: Changes to source code; changes to `90_shared_04` or `90_shared_05`.
+- **Out of scope**: Changes to source code; changes to `shared_04` or `shared_05`.
 
 ## Assumptions
 
@@ -26,13 +26,13 @@ across all docs and scripts.
 
 ### Target file
 
-`docs/90_shared_90_inconsistencies_and_known_issues.md`
+`docs/shared_90_inconsistencies_and_known_issues.md`
 
 ### Procedure
 
 1. Search the file for any `tool_call_id` reference:
    ```bash
-   grep -n "tool_call_id" docs/90_shared_90_inconsistencies_and_known_issues.md
+   grep -n "tool_call_id" docs/shared_90_inconsistencies_and_known_issues.md
    ```
 2. If **0 results**: no edit required. Proceed to validation.
 3. If results found: inspect each line for "unused", "UNUSED", "not used", or similar language.
@@ -62,6 +62,6 @@ unless stale content is identified.
 
 | Check | Command / Action | Expected result |
 |---|---|---|
-| No open issue for `tool_call_id` | `grep -n "tool_call_id" docs/90_shared_90_inconsistencies_and_known_issues.md` | 0 results, or only resolved entries |
+| No open issue for `tool_call_id` | `grep -n "tool_call_id" docs/shared_90_inconsistencies_and_known_issues.md` | 0 results, or only resolved entries |
 | No stale "UNUSED" in any doc or script | `grep -R "tool_call_id.*UNUSED\|UNUSED.*tool_call_id" docs scripts -n` | 0 results |
 | No "not used" claim | `grep -Rin "tool_call_id.*not used\|not used.*tool_call_id" docs/ -n` | 0 results |

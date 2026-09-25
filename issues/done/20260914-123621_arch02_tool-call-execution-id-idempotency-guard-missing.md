@@ -48,7 +48,7 @@ Do not change the existing per-HTTP-request `X-Request-Id`/`uuid.uuid4()` trace 
 Add unit tests for the duplicate-check logic (e.g. same key submitted twice → second call short-circuited or rejected) and an integration test exercising a retried side-effecting tool call end-to-end. Run `tests/mcp_servers/` and `tests/agent/` after the change.
 
 ## Documentation Impact
-Update `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md` (or the nearest equivalent operational doc) to describe the new idempotency key and its relationship to `mcp_request_id` and WorkflowEngine's `task_id`/`attempt_id`. Consider whether ADR-014 (Agent control-plane responsibility boundaries) should gain a Known Deviation or Review Trigger entry noting this was an identified gap at ADR-014's Accepted date.
+Update `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md` (or the nearest equivalent operational doc) to describe the new idempotency key and its relationship to `mcp_request_id` and WorkflowEngine's `task_id`/`attempt_id`. Consider whether ADR-014 (Agent control-plane responsibility boundaries) should gain a Known Deviation or Review Trigger entry noting this was an identified gap at ADR-014's Accepted date.
 
 ## Out of Scope
 - Stage-level idempotency (`begin_stage_if_new()`) — already implemented and now documented as ADR-001 INV-08/INV-026; not part of this issue.

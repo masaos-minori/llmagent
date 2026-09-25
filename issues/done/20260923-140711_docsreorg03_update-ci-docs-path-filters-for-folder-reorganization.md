@@ -24,7 +24,7 @@ pattern), scoped by filename prefix:
 - `rag-docs-quality.yml`: `"docs/03_rag_*.md"`
 
 Once the corresponding files move into `docs/23_agent/`, `docs/41_db/` (for the
-`90_shared_04_*` DB-architecture files), `docs/01_overview/`, `docs/90_deployment/`,
+`shared_04_*` DB-architecture files), `docs/01_overview/`, `docs/90_deployment/`,
 and `docs/21_rag/` respectively, none of these path patterns match anymore, and GitHub
 Actions will not raise an error — the workflow will simply stop triggering on future
 edits to those files. This is a silent-failure mode: no error, just a check that quietly
@@ -107,7 +107,7 @@ rule documentation affected.
 - Should land in close coordination with (immediately before or in the same PR as) the
   corresponding area-move issues: `docsreorg` agent-area move (blocks
   `agent-docs-consistency.yml`'s change being meaningful), db-area move (for the
-  `90_shared_04_*` half of the same workflow), overview-area move, deployment-area
+  `shared_04_*` half of the same workflow), overview-area move, deployment-area
   move, rag-area move.
 
 ## Unresolved Questions

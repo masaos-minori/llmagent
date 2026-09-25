@@ -4,7 +4,7 @@ Confirm that the "Single Turn Processing Flow" section (lines 28-76) is a contro
 
 ## Scope
 
-Review `docs/05_agent_03_01_turn-processing-flow-overview.md`: verify that the ASCII tree-drawing characters in lines 28-76 represent a control-flow diagram (not a file/directory listing), and confirm no modifications are needed.
+Review `docs/agent_03_01_turn-processing-flow-overview.md`: verify that the ASCII tree-drawing characters in lines 28-76 represent a control-flow diagram (not a file/directory listing), and confirm no modifications are needed.
 
 ## Assumptions
 
@@ -26,7 +26,7 @@ Review `docs/05_agent_03_01_turn-processing-flow-overview.md`: verify that the A
 
 ### Target file
 
-`docs/05_agent_03_01_turn-processing-flow-overview.md`
+`docs/agent_03_01_turn-processing-flow-overview.md`
 
 ### Procedure
 
@@ -61,7 +61,7 @@ This is a control-flow diagram documenting the exact sequence of operations in a
 ## Compatibility considerations
 
 - No changes made; compatibility is unaffected.
-- The existing cross-references to other documents (e.g., `[05_agent_03_03_turn-processing-flow-workflow-engine.md]`) remain valid.
+- The existing cross-references to other documents (e.g., `[agent_03_03_turn-processing-flow-workflow-engine.md]`) remain valid.
 
 ## Security considerations
 
@@ -75,7 +75,7 @@ This is a control-flow diagram documenting the exact sequence of operations in a
 
 | Target File | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_03_01_turn-processing-flow-overview.md` | Manual review confirming control-flow diagram | Manual verification | Flow diagram confirmed as false positive; no modifications made |
+| `docs/agent_03_01_turn-processing-flow-overview.md` | Manual review confirming control-flow diagram | Manual verification | Flow diagram confirmed as false positive; no modifications made |
 
 ## Completion criteria
 
@@ -86,7 +86,7 @@ This is a control-flow diagram documenting the exact sequence of operations in a
 ## Out of scope
 
 - Modifying any other section of this file beyond the classification decision.
-- Altering `05_agent_03_02_turn-processing-flow-llm-tool-loop.md` or `05_agent_03_03_turn-processing-flow-workflow-engine.md`.
+- Altering `agent_03_02_turn-processing-flow-llm-tool-loop.md` or `agent_03_03_turn-processing-flow-workflow-engine.md`.
 - Any file outside the Agent domain.
 
 ## execution status
@@ -110,10 +110,10 @@ This is a control-flow diagram documenting the exact sequence of operations in a
 ## Traceability
 
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-004: `05_agent_03_01_turn-processing-flow-overview.md`'s "Single Turn Processing Flow" diagram confirmed as a control-flow diagram and left intact
+- **Requirement ID**: REQ-004: `agent_03_01_turn-processing-flow-overview.md`'s "Single Turn Processing Flow" diagram confirmed as a control-flow diagram and left intact
 - **Source issue**: issues/20260905-153715_dcp004_agent_docs_content_policy_cleanup.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20260908-211530_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260910-000740
-- **Related target files**: docs/05_agent_03_01_turn-processing-flow-overview.md
+- **Related target files**: docs/agent_03_01_turn-processing-flow-overview.md

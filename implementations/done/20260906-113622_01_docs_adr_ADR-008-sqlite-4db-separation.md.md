@@ -146,14 +146,14 @@ existing prose with the appropriate new term (`REQ-001`, `REQ-002`, `REQ-003`,
   `workflow`/`eventbus` runbook gap) — leave that cross-reference as-is; this row
   does not touch `docs/00_governance_03_issue-and-uncertainty-management.md` (that
   file is a Reference File only for this Plan, verified only by the
-  `90_shared_05_04` row's procedure, not this one).
+  `shared_05_04` row's procedure, not this one).
 
 ## Compatibility considerations
 
 - Purely additive (new subsections) plus in-place prose term substitution — no
   heading is renamed, no existing subsection is removed, so no inbound anchor link
   from another document breaks as a direct result of this row's edit (unlike the
-  `90_shared_05_04` row, which does remove section 9.7's prose).
+  `shared_05_04` row, which does remove section 9.7's prose).
 - `docs/90_shared_05_04_db_api_and_operations-recovery-and-reference.md`'s own
   cross-reference to "ADR-008 Decision Details #20 for the canonical recovery
   policy" (see that document's section 9.7, to be rewritten by the sibling
@@ -203,7 +203,7 @@ existing prose with the appropriate new term (`REQ-001`, `REQ-002`, `REQ-003`,
   `docs/90_shared_00_document-guide.md` — each has its own implementation procedure
   document (rows 2 and 3 of the Plan's Implementation Target Files table).
 - Verifying/correcting `docs/00_governance_03_issue-and-uncertainty-management.md`'s
-  `SHARED-003` Target field — that verification belongs to the `90_shared_05_04`
+  `SHARED-003` Target field — that verification belongs to the `shared_05_04`
   row's procedure (Plan Phase 2 step 4), since it is conditional on that row's
   section 9.7 rewrite.
 - Any change to `scripts/db/recovery.py`, `scripts/db/maintenance.py`, or

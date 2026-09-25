@@ -7,7 +7,7 @@ Add an operator-focused runbook — one section per failure scenario with diagno
 ## Scope
 
 **In:**
-- `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`: add a new "Workflow Deployment Runbook" section, immediately after the existing "## Workflow Startup Validation" section (lines 25-50) and before "## MCP Server Reload and Restart Semantics" (line 53)
+- `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`: add a new "Workflow Deployment Runbook" section, immediately after the existing "## Workflow Startup Validation" section (lines 25-50) and before "## MCP Server Reload and Restart Semantics" (line 53)
 - `docs/02_deployment.md`: one cross-reference line pointing to the new runbook section
 
 **Out:**
@@ -17,17 +17,17 @@ Add an operator-focused runbook — one section per failure scenario with diagno
 ## Assumptions
 
 1. Depends on the same prerequisite implementation docs as `implementations/20260710-155615_docs_deployment_workflow_responsibility.md` (deploy.sh/init_db.sh/setup_services.sh checks, validator CLI, schema versioning) — copy-pasteable commands and message text must match those scripts' actual final wording once implemented.
-2. Target file is confirmed (via direct read) to be `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md` — the successor of the plan's originally-named `docs/05_agent_10_operations-and-observability-validation-and-troubleshooting.md`, after this session's concurrent doc-splitting. It already contains "## Workflow Startup Validation" (line 25) confirming `workflow_mode` is a rejected config key with no disable path, and "## MCP Server Reload and Restart Semantics" (line 53) directly after it.
+2. Target file is confirmed (via direct read) to be `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md` — the successor of the plan's originally-named `docs/05_agent_10_operations-and-observability-validation-and-troubleshooting.md`, after this session's concurrent doc-splitting. It already contains "## Workflow Startup Validation" (line 25) confirming `workflow_mode` is a rejected config key with no disable path, and "## MCP Server Reload and Restart Semantics" (line 53) directly after it.
 
 ## Implementation
 
 ### Target files
 
-`docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, `docs/02_deployment.md`
+`docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, `docs/02_deployment.md`
 
 ### Procedure
 
-1. In `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, immediately after line 50 (the "...restarting the agent." sentence ending the "Workflow Startup Validation" section) and its trailing `---` at line 51, before line 53's "## MCP Server Reload and Restart Semantics", insert:
+1. In `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, immediately after line 50 (the "...restarting the agent." sentence ending the "Workflow Startup Validation" section) and its trailing `---` at line 51, before line 53's "## MCP Server Reload and Restart Semantics", insert:
    ```markdown
    ## Workflow Deployment Runbook
 
@@ -108,7 +108,7 @@ Add an operator-focused runbook — one section per failure scenario with diagno
    (The trailing `---` matches the file's existing section-separator convention, keeping "## MCP Server Reload and Restart Semantics" visually separated as before.)
 2. In `docs/02_deployment.md`, add one cross-reference line (coordinate with `implementations/20260710-155615_docs_deployment_workflow_responsibility.md`'s edits to the same file so both land as a single combined change, not two independent edits): after the new §3.3 failure-mode table, add:
    ```markdown
-   For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
+   For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
    ```
 3. Run `python -m tools.check_docs_consistency` to confirm no broken links.
 
@@ -125,7 +125,7 @@ Direct section insertion at a confirmed line boundary (between two existing `##`
 
 ```bash
 python -m tools.check_docs_consistency
-grep -n "Workflow Deployment Runbook" docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+grep -n "Workflow Deployment Runbook" docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md
 grep -n "Workflow Deployment Runbook" docs/02_deployment.md
 ```
 

@@ -31,10 +31,10 @@ For each finding category:
 - `docs/03_rag_04_03_dto-models_audit.md` — non-existent module reference
 - `docs/02_deployment.md` — config key references
 - `docs/01_overview-files-05-config.md` — config file references
-- `docs/05_agent_03_03_turn-processing-flow-workflow-engine.md` — config file reference
-- `docs/05_agent_09_02_data-layer-access-patterns.md` — file path reference
-- `docs/05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md` — undefined functions
-- `docs/05_agent_14_reference-api-generated.md` — non-existent module reference
+- `docs/agent_03_03_turn-processing-flow-workflow-engine.md` — config file reference
+- `docs/agent_09_02_data-layer-access-patterns.md` — file path reference
+- `docs/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md` — undefined functions
+- `docs/agent_14_reference-api-generated.md` — non-existent module reference
 - `docs/04_mcp_04_01_web-search-file-read-github.md` — deleted file reference, file path reference
 - `docs/04_mcp_05_01_access-control-and-allowlists.md` — file path reference
 - All docs referencing unregistered CLI commands

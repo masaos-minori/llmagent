@@ -6,7 +6,7 @@ Clarify the boundary table in the canonical approval model documentation to expl
 
 ## Scope
 
-- `docs/05_agent_06_04_tool-execution-and-approval-canonical.md` only (lines 43, 45-48+)
+- `docs/agent_06_04_tool-execution-and-approval-canonical.md` only (lines 43, 45-48+)
 - Text clarification; no new content creation
 
 ## Assumptions
@@ -20,7 +20,7 @@ Clarify the boundary table in the canonical approval model documentation to expl
 
 ### Target file
 
-`docs/05_agent_06_04_tool-execution-and-approval-canonical.md`
+`docs/agent_06_04_tool-execution-and-approval-canonical.md`
 
 ### Procedure
 

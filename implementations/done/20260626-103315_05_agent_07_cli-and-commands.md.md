@@ -21,7 +21,7 @@ Update `docs/05_agent_07_cli-and-commands.md` to make it explicit that `/approve
 
 - The doc already has entries for `/approve` and `/reject`.
 - The current description may not distinguish workflow-level from tool-level approval.
-- A brief scope note and a cross-reference to `05_agent_06_tool-execution-and-approval.md` is sufficient.
+- A brief scope note and a cross-reference to `agent_06_tool-execution-and-approval.md` is sufficient.
 
 ---
 
@@ -67,4 +67,4 @@ Key message to convey:
 
 - Pre-commit: `pre-commit run --all-files` — markdown lint must pass.
 - Confirm: `grep -n "/approve\|/reject\|workflow-level" docs/05_agent_07_cli-and-commands.md` shows updated entries.
-- Cross-check: `05_agent_06_tool-execution-and-approval.md` and `05_agent_07_cli-and-commands.md` are mutually consistent.
+- Cross-check: `agent_06_tool-execution-and-approval.md` and `agent_07_cli-and-commands.md` are mutually consistent.

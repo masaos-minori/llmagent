@@ -14,11 +14,11 @@ Reduce `docs/05_agent_10_*_operations-and-observability*.md` documents to canoni
 - Rephrase operational concepts as judgments (why), not just mechanical descriptions.
 - Reformat using the template: Purpose / Design Intent / Responsibility Boundary / Key Constraints / Operational Notes / Known Limitations / Related Docs.
 - Mark unrecoverable design rationales as `Needs Confirmation`.
-- **CRITICAL**: Ensure `routing.md`'s reference to `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` (used for Deploy tasks) still resolves to usable runbook content after editing.
+- **CRITICAL**: Ensure `routing.md`'s reference to `docs/agent_10_01_operations-and-observability-startup-and-health.md` (used for Deploy tasks) still resolves to usable runbook content after editing.
 - **CRITICAL**: Manually verify the runbook remains actionable — an operator following it during an incident should still be able to determine next steps.
 
 **Out-of-Scope**:
-- Modifying other documents in the `05_agent_*.md` set.
+- Modifying other documents in the `agent_*.md` set.
 - Adding new content beyond what exists in the current documents.
 - Changing the doc set directory structure.
 
@@ -26,7 +26,7 @@ Reduce `docs/05_agent_10_*_operations-and-observability*.md` documents to canoni
 
 1. The `memo-doc-agent-review.md` referenced in acceptance criteria existed during the original review but may have been moved or deleted since then.
 2. `tools/check_agent_docs_consistency.py` is available and functional for post-edit verification.
-3. `routing.md` references `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` for Deploy tasks.
+3. `routing.md` references `docs/agent_10_01_operations-and-observability-startup-and-health.md` for Deploy tasks.
 4. All 7 target files form a coherent logical unit (startup/health + audit/OTel + workflow observability + validation/troubleshooting part1+part2 + monitoring + RAG diagnostics/memory).
 
 ## Design decisions
@@ -47,20 +47,20 @@ Reduce `docs/05_agent_10_*_operations-and-observability*.md` documents to canoni
 
 ### Target files
 
-- `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
-- `docs/05_agent_10_02_operations-and-observability-audit-and-otel.md`
-- `docs/05_agent_10_03_operations-and-observability-workflow-observability.md`
+- `docs/agent_10_01_operations-and-observability-startup-and-health.md`
+- `docs/agent_10_02_operations-and-observability-audit-and-otel.md`
+- `docs/agent_10_03_operations-and-observability-workflow-observability.md`
 - `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md`
 - `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part2.md`
-- `docs/05_agent_10_05_operations-and-observability-monitoring.md`
-- `docs/05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
+- `docs/agent_10_05_operations-and-observability-monitoring.md`
+- `docs/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
 
 ### Procedure
 
 #### Phase 1: Preparation
 
 1. Confirm `memo-doc-agent-review.md` existence and locate it (search repo root and subdirectories); if unavailable, proceed using require doc acceptance criteria.
-2. Verify `routing.md`'s reference to `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` for Deploy tasks.
+2. Verify `routing.md`'s reference to `docs/agent_10_01_operations-and-observability-startup-and-health.md` for Deploy tasks.
 3. Read all 7 files in `docs/05_agent_10_*_operations-and-observability*.md` in full.
 4. Verify the 7 files form a coherent logical unit (startup/health + audit/OTel + workflow observability + validation/troubleshooting part1+part2 + monitoring + RAG diagnostics/memory).
 5. Identify sections containing:
@@ -116,7 +116,7 @@ Reduce `docs/05_agent_10_*_operations-and-observability*.md` documents to canoni
 
 17. Run `python tools/check_agent_docs_consistency.py` to confirm no broken internal links or removed-file references.
 18. Manually verify the runbook remains actionable — an operator following it during an incident should still be able to determine next steps.
-19. Verify `routing.md`'s reference to `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` still resolves to usable runbook content.
+19. Verify `routing.md`'s reference to `docs/agent_10_01_operations-and-observability-startup-and-health.md` still resolves to usable runbook content.
 
 ### Method
 
@@ -153,12 +153,12 @@ Rollback is straightforward: restore the original files from git history if the 
 | Mechanical content removal | Manual review | No full command-output transcript or exhaustive metric-name table remains |
 | Startup fail/warn conditions | Manual review | OK/WARNING/FATAL/SKIPPED conditions remain explicit and actionable for an operator |
 | Runbook actionability | Manual review | An operator following the runbook during an incident can still determine next steps |
-| routing.md reference | Manual review | `routing.md`'s reference to `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` still resolves to usable runbook content |
+| routing.md reference | Manual review | `routing.md`'s reference to `docs/agent_10_01_operations-and-observability-startup-and-health.md` still resolves to usable runbook content |
 | Operational judgment preservation | Manual review against operational judgment checklist | All operational judgments retain their reasoning and operational caveats |
 
 ## Out of scope
 
-- Modifying other documents in the `05_agent_*.md` set.
+- Modifying other documents in the `agent_*.md` set.
 - Adding new content beyond what exists in the current documents.
 - Changing the doc set directory structure.
 - Auto-generating the operations documentation from code metadata.
@@ -171,4 +171,4 @@ Rollback is straightforward: restore the original files from git history if the 
 - Source plan: plans/20260807-104446_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260807-115402
-- Related target files: docs/05_agent_10_01_operations-and-observability-startup-and-health.md, docs/05_agent_10_02_operations-and-observability-audit-and-otel.md, docs/05_agent_10_03_operations-and-observability-workflow-observability.md, docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md, docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part2.md, docs/05_agent_10_05_operations-and-observability-monitoring.md, docs/05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md
+- Related target files: docs/agent_10_01_operations-and-observability-startup-and-health.md, docs/agent_10_02_operations-and-observability-audit-and-otel.md, docs/agent_10_03_operations-and-observability-workflow-observability.md, docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md, docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part2.md, docs/agent_10_05_operations-and-observability-monitoring.md, docs/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md

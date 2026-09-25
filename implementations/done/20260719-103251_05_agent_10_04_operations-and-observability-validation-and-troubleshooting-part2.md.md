@@ -39,7 +39,7 @@ required" classification, since the doc was accurate before and must track the c
    updated in lockstep — this is a same-day, same-plan "Documentation fix required" edit, not a new
    issue to file, since both the code change and the doc correction are part of this same plan's
    scope.
-3. No other line in this file (`05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part2.md`)
+3. No other line in this file (`agent_10_04_operations-and-observability-validation-and-troubleshooting-part2.md`)
    references `/db rag consistency` — confirmed by the investigation's targeted read of lines 88-97;
    the surrounding bullets (88-91, 97) describe unrelated stats fields (`Partial completions`, `HB
    timeouts`, `Cache hits`, `Approval pending`, `Latency (mean/max)`) and do not mention the RAG hint.

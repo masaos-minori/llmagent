@@ -1,13 +1,13 @@
 ## Goal
 Add a new section to
-`docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+`docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
 documenting the coverage, platform-capability requirements, and manual
 socket-check fallback of the new
 `tests/integration/test_production_security_regression.py` regression suite
 (`REQ-008`).
 
 ## Scope
-- **In-Scope**: `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+- **In-Scope**: `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
   only — adding a new section documenting the regression suite from this
   Plan's other target row (seq 01).
 - **Out-of-Scope**: writing or modifying the test file itself (owned by seq
@@ -47,7 +47,7 @@ socket-check fallback of the new
 
 ## Implementation
 ### Target file
-`docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+`docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
 
 ### Procedure
 1. Add a new `## Production Security Regression Suite` section (placement:
@@ -71,7 +71,7 @@ socket-check fallback of the new
    by Plan path, do not restate their content.
 
 ### Method
-Direct `Edit` to `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`,
+Direct `Edit` to `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`,
 inserting the new section between the existing `## MCP Server Reloading
 Semantics` and `` ## `/context` Interpretation `` sections.
 
@@ -140,4 +140,4 @@ itself (seq 01); any other documentation file; `localremoval`'s/
 - **Source plan**: plans/20260903-093012_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260903-171258
-- **Related target files**: docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+- **Related target files**: docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md

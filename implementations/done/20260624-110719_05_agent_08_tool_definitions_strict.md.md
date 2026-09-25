@@ -2,12 +2,12 @@
 
 ## Goal
 
-Update `05_agent_08` `tool_definitions_strict` entry with canonical behavior from MCP plan 16 and add a cross-reference to `04_mcp_06`.
+Update `agent_08` `tool_definitions_strict` entry with canonical behavior from MCP plan 16 and add a cross-reference to `04_mcp_06`.
 
 ## Scope
 
 **In:**
-- `docs/05_agent_08_configuration_and_settings.md` — update `tool_definitions_strict` description
+- `docs/agent_08_configuration_and_settings.md` — update `tool_definitions_strict` description
 
 **Out:** No code changes.
 
@@ -21,11 +21,11 @@ Update `05_agent_08` `tool_definitions_strict` entry with canonical behavior fro
 
 ### Target file
 
-`docs/05_agent_08_configuration_and_settings.md`
+`docs/agent_08_configuration_and_settings.md`
 
 ### Procedure
 
-1. Read `docs/05_agent_08_configuration_and_settings.md` to find the `tool_definitions_strict` entry.
+1. Read `docs/agent_08_configuration_and_settings.md` to find the `tool_definitions_strict` entry.
 2. Update the entry with canonical wording and cross-reference.
 
 ### Method
@@ -57,5 +57,5 @@ For full startup validation behavior (all 4 cases), see `04_mcp_06` §Startup Va
 
 | Check | Command | Expected |
 |---|---|---|
-| Cross-reference added | `grep -n "04_mcp_06\|strict_startup_validation" docs/05_agent_08_configuration_and_settings.md` | found |
+| Cross-reference added | `grep -n "04_mcp_06\|strict_startup_validation" docs/agent_08_configuration_and_settings.md` | found |
 | No code changes | `git diff agent/` | empty |

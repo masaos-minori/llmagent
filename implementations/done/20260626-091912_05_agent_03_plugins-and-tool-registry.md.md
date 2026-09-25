@@ -23,7 +23,7 @@ Document that `register_tool()` now enforces a strict tool contract and raises `
 `docs/05_agent_03_plugins-and-tool-registry.md`
 
 ### Procedure
-1. Find the plugin registration doc (may be `05_agent_03_*` or `04_mcp_*`).
+1. Find the plugin registration doc (may be `agent_03_*` or `04_mcp_*`).
 2. Add "Tool Contract Enforcement" section:
    ```
    ## Tool Contract Enforcement

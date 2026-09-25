@@ -8,9 +8,9 @@ Split oversized Agent documentation files at H2/H3 boundaries and apply normaliz
 
 ### In scope
 
-- Split `05_agent_03`, `05_agent_04`, `05_agent_06`, `05_agent_07`, `05_agent_08`, `05_agent_09`, `05_agent_10`, `05_agent_11`, `05_agent_12` at H2/H3 boundaries (Memory Module Reference requires functional group-based 3-4 splits)
-- Normalize `05_agent_00`, `05_agent_01`, `05_agent_02`, `05_agent_05`, `05_agent_13`, `05_agent_90` (add Front Matter, Keywords, Related Documents)
-- Update File Index/AI Query Routing Table/Recommended Reading Order in `05_agent_00_document-guide.md` to reflect new file structure
+- Split `agent_03`, `agent_04`, `agent_06`, `agent_07`, `agent_08`, `agent_09`, `agent_10`, `agent_11`, `agent_12` at H2/H3 boundaries (Memory Module Reference requires functional group-based 3-4 splits)
+- Normalize `agent_00`, `agent_01`, `agent_02`, `agent_05`, `agent_13`, `agent_90` (add Front Matter, Keywords, Related Documents)
+- Update File Index/AI Query Routing Table/Recommended Reading Order in `agent_00_document-guide.md` to reflect new file structure
 - Update `routing.md` Docs→task mapping to follow new file names
 
 ### Out of scope
@@ -34,21 +34,21 @@ Split oversized Agent documentation files at H2/H3 boundaries and apply normaliz
 
 | Original File | Action | Resulting Files |
 |---|---|---|
-| `05_agent_03_turn-processing-flow.md` (8KB+) | Split at H2/H3 | Multiple files based on turn processing stages |
-| `05_agent_04_state-and-persistence.md` (8KB+) | Split at H2/H3 | Multiple files based on state/persistence sections |
-| `05_agent_06_tool-execution-and-approval.md` (8KB+) | Split at H2/H3 | Multiple files based on tool execution stages |
-| `05_agent_07_cli-and-commands.md` (8KB+) | Split at H2/H3 | Multiple files based on CLI/command sections |
-| `05_agent_08_configuration.md` (8KB+) | Split at H2/H3 | Multiple files based on configuration topics |
-| `05_agent_09_data-layer.md` (8KB+) | Split at H2/H3 | Multiple files based on data layer sections |
-| `05_agent_10_operations-and-observability.md` (8KB+) | Split at H2/H3 | Multiple files based on operations topics |
-| `05_agent_11_extension-points.md` (8KB+) | Split at H2/H3 | Multiple files based on extension points |
-| `05_agent_12_memory.md` (8KB+, Memory Module Reference) | Functional group split (3-4 files) | Multiple files by memory module groups |
-| `05_agent_00_document-guide.md` | Normalize + update | Same filename (modified) |
-| `05_agent_01_system-overview.md` | Normalize only | Same filename (modified) |
-| `05_agent_02_runtime-architecture.md` | Normalize only | Same filename (modified) |
-| `05_agent_05_llm-and-streaming.md` | Normalize only | Same filename (modified) |
-| `05_agent_13_reference-api.md` | Normalize only | Same filename (modified) |
-| `05_agent_90_inconsistencies_and_known_issues.md` | Normalize only | Same filename (modified) |
+| `agent_03_turn-processing-flow.md` (8KB+) | Split at H2/H3 | Multiple files based on turn processing stages |
+| `agent_04_state-and-persistence.md` (8KB+) | Split at H2/H3 | Multiple files based on state/persistence sections |
+| `agent_06_tool-execution-and-approval.md` (8KB+) | Split at H2/H3 | Multiple files based on tool execution stages |
+| `agent_07_cli-and-commands.md` (8KB+) | Split at H2/H3 | Multiple files based on CLI/command sections |
+| `agent_08_configuration.md` (8KB+) | Split at H2/H3 | Multiple files based on configuration topics |
+| `agent_09_data-layer.md` (8KB+) | Split at H2/H3 | Multiple files based on data layer sections |
+| `agent_10_operations-and-observability.md` (8KB+) | Split at H2/H3 | Multiple files based on operations topics |
+| `agent_11_extension-points.md` (8KB+) | Split at H2/H3 | Multiple files based on extension points |
+| `agent_12_memory.md` (8KB+, Memory Module Reference) | Functional group split (3-4 files) | Multiple files by memory module groups |
+| `agent_00_document-guide.md` | Normalize + update | Same filename (modified) |
+| `agent_01_system-overview.md` | Normalize only | Same filename (modified) |
+| `agent_02_runtime-architecture.md` | Normalize only | Same filename (modified) |
+| `agent_05_llm-and-streaming.md` | Normalize only | Same filename (modified) |
+| `agent_13_reference-api.md` | Normalize only | Same filename (modified) |
+| `agent_90_inconsistencies_and_known_issues.md` | Normalize only | Same filename (modified) |
 
 ### Procedure
 
@@ -72,14 +72,14 @@ For each file that exceeds 8KB:
    - Add Related Documents and Keywords sections at the end
 6. Delete original files after verification
 
-**Special handling for `05_agent_12_memory.md`:**
+**Special handling for `agent_12_memory.md`:**
 - Memory Module Reference is large and requires functional group-based splitting
 - Split into 3-4 files by memory module categories (e.g., layer, store, retriever, extract, jsonl_store, embedding_client, ingestion, injection)
-- Name as `05_agent_12_memory-{layer,store,retriever,extract}.md` or similar functional groupings
+- Name as `agent_12_memory-{layer,store,retriever,extract}.md` or similar functional groupings
 
 #### Step 2: Normalize non-split Agent files
 
-For `05_agent_00_document-guide.md`, `05_agent_01_system-overview.md`, `05_agent_02_runtime-architecture.md`, `05_agent_05_llm-and-streaming.md`, `05_agent_13_reference-api.md`, and `05_agent_90_inconsistencies_and_known_issues.md`:
+For `agent_00_document-guide.md`, `agent_01_system-overview.md`, `agent_02_runtime-architecture.md`, `agent_05_llm-and-streaming.md`, `agent_13_reference-api.md`, and `agent_90_inconsistencies_and_known_issues.md`:
 
 1. Read the full content of each file
 2. Add YAML Front Matter at the beginning:
@@ -99,9 +99,9 @@ source:
 ```
 3. Add Related Documents and Keywords sections at the end if not present
 
-#### Step 3: Update `05_agent_00_document-guide.md`
+#### Step 3: Update `agent_00_document-guide.md`
 
-1. After all Agent files are split and renamed, read the updated `05_agent_00_document-guide.md`
+1. After all Agent files are split and renamed, read the updated `agent_00_document-guide.md`
 2. Update the File Index section to list all new filenames instead of old ones
 3. Update the AI Query Routing Table to reference correct file paths
 4. Update the Recommended Reading Order to reference correct file paths
@@ -133,7 +133,7 @@ tags:
   - agent
   - <5-20 search keywords specific to this file's content>
 related:
-  - 05_agent_00_document-guide.md
+  - agent_00_document-guide.md
   - <other-related-Agent-files>
 source:
   - <original filename if split>

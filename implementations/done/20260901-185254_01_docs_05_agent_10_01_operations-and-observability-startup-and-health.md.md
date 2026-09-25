@@ -2,11 +2,11 @@
 
 ## Goal
 
-Replace environment-specific failure handling descriptions ("production or local mode") in `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` with unified language consistent with ADR-004 Decision #1 and Decision #3. Requirements: REQ-001 (replace "production or local mode"), REQ-002 (review "local mode" reference at line 46).
+Replace environment-specific failure handling descriptions ("production or local mode") in `docs/agent_10_01_operations-and-observability-startup-and-health.md` with unified language consistent with ADR-004 Decision #1 and Decision #3. Requirements: REQ-001 (replace "production or local mode"), REQ-002 (review "local mode" reference at line 46).
 
 ## Scope
 
-Edit lines 46 and 64 of `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`; verify each replacement against revised ADR-004 (`docs/adr/ADR-004-environment-failure-handling-policy.md`) and current code (`scripts/agent/services/mcp_tool_discovery.py`).
+Edit lines 46 and 64 of `docs/agent_10_01_operations-and-observability-startup-and-health.md`; verify each replacement against revised ADR-004 (`docs/adr/ADR-004-environment-failure-handling-policy.md`) and current code (`scripts/agent/services/mcp_tool_discovery.py`).
 
 ## Assumptions
 
@@ -30,7 +30,7 @@ Edit lines 46 and 64 of `docs/05_agent_10_01_operations-and-observability-startu
 
 ### Target file
 
-`docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
+`docs/agent_10_01_operations-and-observability-startup-and-health.md`
 
 ### Procedure
 
@@ -82,7 +82,7 @@ N/A: documentation update only; no code changes.
 
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` | Manual review — check each replacement against revised ADR-004 | Grep for "production or local mode"; read both documents side-by-side | Zero matches for "production or local mode" in this file; all replacements use unified language |
+| `docs/agent_10_01_operations-and-observability-startup-and-health.md` | Manual review — check each replacement against revised ADR-004 | Grep for "production or local mode"; read both documents side-by-side | Zero matches for "production or local mode" in this file; all replacements use unified language |
 
 ## Completion criteria
 
@@ -93,7 +93,7 @@ N/A: documentation update only; no code changes.
 
 ## Out of scope
 
-- Modifying any other documents beyond `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`.
+- Modifying any other documents beyond `docs/agent_10_01_operations-and-observability-startup-and-health.md`.
 - Changing ADR-004 itself.
 - Adding new tests (covered by adr004_03).
 - Modifying source code files.
@@ -127,4 +127,4 @@ N/A: documentation update only; no code changes.
 - **Source plan**: plans/20260901-001337_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260901-185254
-- **Related target files**: docs/05_agent_10_01_operations-and-observability-startup-and-health.md
+- **Related target files**: docs/agent_10_01_operations-and-observability-startup-and-health.md

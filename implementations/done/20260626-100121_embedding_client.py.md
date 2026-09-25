@@ -16,7 +16,7 @@ Add `local_only: bool = False` to `EmbeddingClientConfig`, validate that `embed_
   - `scripts/agent/memory/embedding_client.py`: `EmbeddingClientConfig.local_only`, URL validation, `EmbeddingClientStatus.local_only`
   - `config/memory.toml`: `memory_local_only` field
   - `/memory status` handler: display `local_only` state
-  - docs: `05_agent_08_configuration.md`, `05_agent_10_operations-and-observability.md`, `05_agent_12_memory.md`
+  - docs: `agent_08_configuration.md`, `agent_10_operations-and-observability.md`, `agent_12_memory.md`
 - **Out of scope**: embedding model changes
 
 ---

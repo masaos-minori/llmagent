@@ -10,16 +10,16 @@ Apply the design-doc reduction policy from `memo-doc-agent-review.md` to the ope
 This chapter functions as the operational runbook (startup validation, MCP health, routing drift, where to look during an incident), which is safety/reliability-relevant and referenced directly by `routing.md`'s Deploy task mapping. It currently also carries full command-output transcripts and exhaustive metric-name tables that add maintenance burden without runbook value.
 
 ## Implementation Intent
-Keep this chapter as the canonical source for startup/monitoring/incident-response judgment (per `memo-doc-agent-review.md` §「章間の正本ルール」: 起動・監視・障害対応 = `05_agent_10_operations-and-observability`). This chapter is directly used during Deploy tasks per `routing.md`, so runbook usability must not regress.
+Keep this chapter as the canonical source for startup/monitoring/incident-response judgment (per `memo-doc-agent-review.md` §「章間の正本ルール」: 起動・監視・障害対応 = `agent_10_operations-and-observability`). This chapter is directly used during Deploy tasks per `routing.md`, so runbook usability must not regress.
 
 ## Target Files or Areas
-- `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
-- `docs/05_agent_10_02_operations-and-observability-audit-and-otel.md`
-- `docs/05_agent_10_03_operations-and-observability-workflow-observability.md`
+- `docs/agent_10_01_operations-and-observability-startup-and-health.md`
+- `docs/agent_10_02_operations-and-observability-audit-and-otel.md`
+- `docs/agent_10_03_operations-and-observability-workflow-observability.md`
 - `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md`
 - `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part2.md`
-- `docs/05_agent_10_05_operations-and-observability-monitoring.md`
-- `docs/05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
+- `docs/agent_10_05_operations-and-observability-monitoring.md`
+- `docs/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
 
 ## Required Changes
 - Keep: the purpose of startup validation, the meaning of OK/WARNING/FATAL/SKIPPED, conditions that should fail startup, operational judgment for MCP health / routing drift / tool-definition validation, the audit-log vs. `session_diagnostics` usage split, where to look during an incident, runbook-necessary procedures.
@@ -29,7 +29,7 @@ Keep this chapter as the canonical source for startup/monitoring/incident-respon
 - All seven files follow the standard template from `memo-doc-agent-review.md` §「修正後の章構成テンプレート」.
 - No full command-output transcript or exhaustive metric-name table remains.
 - Startup fail/warn conditions (OK/WARNING/FATAL/SKIPPED) remain explicit and actionable for an operator.
-- `routing.md`'s reference to `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` (used for Deploy tasks) still resolves to usable runbook content after editing.
+- `routing.md`'s reference to `docs/agent_10_01_operations-and-observability-startup-and-health.md` (used for Deploy tasks) still resolves to usable runbook content after editing.
 
 ## Testing Expectations
 Not required for behavior (documentation-only), but manually verify the runbook remains actionable — an operator following it during an incident should still be able to determine next steps. Run `python tools/check_agent_docs_consistency.py` after editing.
@@ -40,7 +40,7 @@ This issue is itself a documentation-only cleanup task, but is operationally sen
 ## Out of Scope
 - Other `docs/05_agent_*.md` chapters.
 - Actual startup-validation code changes.
-- `docs/05_agent_90_inconsistencies_and_known_issues.md` (separate issue).
+- `docs/agent_90_inconsistencies_and_known_issues.md` (separate issue).
 
 ## AI Implementation Instruction
 Follow `memo-doc-agent-review.md` §「05_agent_10_operations-and-observability」. Because this chapter is a live runbook referenced from `routing.md`, do not remove any FATAL/WARNING condition or "what to check during an incident" content — only trim command-output examples and metric-name tables. Mark unclear rationale as `Needs Confirmation`.

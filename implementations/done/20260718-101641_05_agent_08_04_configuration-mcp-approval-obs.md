@@ -2,14 +2,14 @@
 
 Implementation step 6 of `plans/20260717-180307_plan.md` (requirement 19): add a short
 cross-reference paragraph inside the existing `## MCPConfig (`cfg.mcp.*`)` section of
-`docs/05_agent_08_04_configuration-mcp-approval-obs.md`, pointing readers at the new
+`docs/agent_08_04_configuration-mcp-approval-obs.md`, pointing readers at the new
 `docs/04_mcp_03_06_tool-runtime-availability-metadata.md` file for the RuntimeToolRegistry
 consumption model — additive only, not duplicating the full spec on the agent side.
 
 ## Scope
 
 **In scope**: insert one short paragraph inside the `## MCPConfig` section of
-`docs/05_agent_08_04_configuration-mcp-approval-obs.md` (between its last existing paragraph and
+`docs/agent_08_04_configuration-mcp-approval-obs.md` (between its last existing paragraph and
 the section-closing `---`), cross-referencing `04_mcp_03_06`.
 
 **Out of scope**: rewriting or restructuring any existing content in this file; documenting the
@@ -30,7 +30,7 @@ full `enabled`/`disabled_reason`/RuntimeToolRegistry contract here (it stays sin
 
 ### Target file
 
-`docs/05_agent_08_04_configuration-mcp-approval-obs.md` (115 lines total, edit in place)
+`docs/agent_08_04_configuration-mcp-approval-obs.md` (115 lines total, edit in place)
 
 ### Procedure
 
@@ -74,10 +74,10 @@ inline paragraph):
 ```
 ## Related Documents
 
-- `05_agent_00_document-guide.md`
-- `05_agent_08_01_configuration-loading-agent-config-part1.md`
-- `05_agent_08_02_configuration-llm-rag.md`
-- `05_agent_08_03_configuration-tools-memory.md`
+- `agent_00_document-guide.md`
+- `agent_08_01_configuration-loading-agent-config-part1.md`
+- `agent_08_02_configuration-llm-rag.md`
+- `agent_08_03_configuration-tools-memory.md`
 ```
 If the inline-paragraph approach (Procedure step 2) is judged too disruptive to the section's
 prose flow, an equivalent alternative is to add a
@@ -88,7 +88,7 @@ directly next to the MCPConfig content it clarifies, rather than only in a gener
 
 ## Validation plan
 
-- `grep -n "04_mcp_03_06" docs/05_agent_08_04_configuration-mcp-approval-obs.md` → expect at
+- `grep -n "04_mcp_03_06" docs/agent_08_04_configuration-mcp-approval-obs.md` → expect at
   least 1 match after this step.
 - Manual read-through: confirm the new paragraph/bullet is inside or immediately adjacent to the
   `## MCPConfig` section (not accidentally placed inside `## ApprovalConfig` or
@@ -99,5 +99,5 @@ directly next to the MCPConfig content it clarifies, rather than only in a gener
   is outside `docs/04_mcp_*`, so most `04_mcp`-specific checks in
   `tools/check_mcp_docs_consistency.py` do not apply to it, but running the full check confirms
   no unintended side effect).
-- `git diff docs/05_agent_08_04_configuration-mcp-approval-obs.md` — confirm only the one
+- `git diff docs/agent_08_04_configuration-mcp-approval-obs.md` — confirm only the one
   intended addition, no other line changed.

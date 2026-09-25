@@ -40,7 +40,7 @@ REQ-005, REQ-006).
 - Canonical-doc Status extraction tries two patterns in order: bullet-list form
   `^- \*\*Status\*\*:\s*(\S+)` (confirmed format for `04_mcp_90`'s `MCP-004`
   entry: `- **Status**: resolved`), falling back to inline-prose form for
-  `90_shared_90`'s `SHARED-*` entries. An entry matching neither is skipped with
+  `shared_90`'s `SHARED-*` entries. An entry matching neither is skipped with
   a note, not silently ignored.
 - ADR-side ID extraction is restricted to exactly two locations: `## Known
   Deviations` bullets and `## Related Documents` → `### Known Issues`
@@ -64,7 +64,7 @@ REQ-005, REQ-006).
 
 ## Alternatives considered
 - Hardcoding the three canonical documents the source issue names explicitly
-  (`04_mcp_90`, `05_agent_90`, `90_shared_90`): rejected — confirmed to produce a
+  (`04_mcp_90`, `agent_90`, `shared_90`): rejected — confirmed to produce a
   false dangling-reference report for `EVENTBUS-008`, contradicting the issue's
   own constraint to avoid false positives.
 - Extending `tools/_docs_consistency_lib.py` with new shared parsing functions:

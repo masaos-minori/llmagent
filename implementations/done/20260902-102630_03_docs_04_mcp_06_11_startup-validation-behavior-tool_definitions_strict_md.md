@@ -88,7 +88,7 @@ Line-by-line replacement guided by ADR-004 Decision #1 and Decision #3.
 
 - Modifying `scripts/agent/services/mcp_tool_discovery.py` (uses `is_prod`, not "local mode" — separate issue).
 - Adding automated tests for documentation consistency.
-- Updating `docs/90_shared_90_inconsistencies_and_known_issues.md` (separate row).
+- Updating `docs/shared_90_inconsistencies_and_known_issues.md` (separate row).
 
 ## Execution Status
 

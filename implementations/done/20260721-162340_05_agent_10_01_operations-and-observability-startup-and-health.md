@@ -1,4 +1,4 @@
-# Implementation: docs/05_agent_10_01_operations-and-observability-startup-and-health.md — document production-fatal mcp_tool_discovery behavior
+# Implementation: docs/agent_10_01_operations-and-observability-startup-and-health.md — document production-fatal mcp_tool_discovery behavior
 
 Source plan: `plans/20260721-031357_plan.md` ("Make MCP tool-discovery failure visible/fatal
 (sole-authority routing follow-up)"), Implementation step 5 ("Recommended follow-up
@@ -24,7 +24,7 @@ stays the accurate one-stop reference the file's own preamble (lines 185-187) cl
 ## Scope
 
 **In scope:**
-- `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`, the "Startup
+- `docs/agent_10_01_operations-and-observability-startup-and-health.md`, the "Startup
   Validation Severity Mapping" table (lines 189-213) and its footnote list (lines 215-219).
 
 **Out of scope:**
@@ -59,7 +59,7 @@ stays the accurate one-stop reference the file's own preamble (lines 185-187) cl
 
 ### Target file
 
-`docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
+`docs/agent_10_01_operations-and-observability-startup-and-health.md`
 
 ### Procedure
 

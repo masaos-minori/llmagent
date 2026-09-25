@@ -10,7 +10,7 @@ Low
 The detailed enumeration is more appropriately owned by the tool-loop-guard implementation itself; keeping it here duplicates maintenance effort and distracts from the pipeline-overview narrative.
 
 ## Implementation Intent
-Compress the 4 anomaly types into a single summary sentence and link to `agent/tool_loop_guard.py` (or the relevant `05_agent_*` detailed doc) for the full specification.
+Compress the 4 anomaly types into a single summary sentence and link to `agent/tool_loop_guard.py` (or the relevant `agent_*` detailed doc) for the full specification.
 
 ## Target Files or Areas
 `docs/01_overview-arch-02-pipelines.md`
@@ -28,10 +28,10 @@ Not required (documentation-only).
 `docs/01_overview-arch-02-pipelines.md` shortened; detail remains accessible via the linked source/doc.
 
 ## Out of Scope
-Do not create a new `05_agent_*` detail document in this issue if one does not already cover this — link to the source file directly in that case.
+Do not create a new `agent_*` detail document in this issue if one does not already cover this — link to the source file directly in that case.
 
 ## AI Implementation Instruction
-Confirm whether an existing `05_agent_*` document already covers tool-loop-guard detail before deciding the link target; prefer linking to existing documentation over the raw source file if one exists.
+Confirm whether an existing `agent_*` document already covers tool-loop-guard detail before deciding the link target; prefer linking to existing documentation over the raw source file if one exists.
 
 ## Traceability
 - Workflow phase: issue-creation

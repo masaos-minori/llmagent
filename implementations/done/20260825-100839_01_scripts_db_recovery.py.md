@@ -182,7 +182,7 @@ values. See the revised Design decisions / Implementation / Validation plan belo
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-101500 | 20260825-102400 | Also fixed the ADR-011 bypass found during adversarial verification (see note above and doc's Design decisions) |
 | 2 | Add or update tests per Validation plan | Completed | 20260825-102400 | 20260825-103200 | Added 4 new cases to `tests/db/test_db_recovery.py`, 2 new cases to `tests/db/test_db_maintenance.py`; fixed 2 existing tests whose mocks needed a 3rd `_run_integrity_check`/`fetchone` result for the new post-restore check |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-103200 | 20260825-104500 | ruff/mypy/lint-imports/bandit clean; diff-cover 100% on `scripts/db/recovery.py`; targeted tests pass; full-suite run confirmed no new regressions (116 pre-existing failures + 12 pre-existing collection errors, all verified via `git stash` to predate this change) |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260825-104500 | 20260825-104800 | Updated SHARED-001/002/003 in `docs/90_shared_90_inconsistencies_and_known_issues.md` (routing.md-mapped); `docs/90_shared_05_04_db_api_and_operations-recovery-and-reference.md` also describes these gaps but has no routing.md mapping — recorded below, not edited |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260825-104500 | 20260825-104800 | Updated SHARED-001/002/003 in `docs/shared_90_inconsistencies_and_known_issues.md` (routing.md-mapped); `docs/90_shared_05_04_db_api_and_operations-recovery-and-reference.md` also describes these gaps but has no routing.md mapping — recorded below, not edited |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -195,7 +195,7 @@ values. See the revised Design decisions / Implementation / Validation plan belo
 | `scripts/db/recovery.py` change | 1 | Code Change | Completed | — | — |
 | `tests/db/test_db_recovery.py` cases | 2 | Test | Completed | — | — |
 | `tests/db/test_db_maintenance.py` cases | 2 | Test | Completed | — | — |
-| `docs/90_shared_90_inconsistencies_and_known_issues.md` update | 4 | Doc Change | Completed | — | — |
+| `docs/shared_90_inconsistencies_and_known_issues.md` update | 4 | Doc Change | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

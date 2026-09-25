@@ -84,7 +84,7 @@ vocabulary substitution to the rest of section 9 (`REQ-003`, `REQ-004`).
    invent new wording here — reuse row 1's glossary once it exists).
 3. After the section 9.7 rewrite, re-verify
    `docs/00_governance_03_issue-and-uncertainty-management.md`'s `SHARED-003`
-   `Target` field (`90_shared_05_04_db_api_and_operations-recovery-and-reference.md section 9.7 Persistence-domain policy`)
+   `Target` field (`shared_05_04_db_api_and_operations-recovery-and-reference.md section 9.7 Persistence-domain policy`)
    still resolves — the heading text/number is unchanged per Design decisions,
    so this is expected to pass; if it does not (e.g. the heading was
    inadvertently altered), this is a Plan-level discrepancy per

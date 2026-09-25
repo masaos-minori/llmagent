@@ -4,7 +4,7 @@ Remove the literal port number from the MDQ category description and replace wit
 
 ## Scope
 
-Modify `docs/05_agent_07_11_cli-and-commands-slash-commands-memory-other.md`: remove the literal port number "8013" at line 30 and confirm the surrounding sentence still reads coherently.
+Modify `docs/agent_07_11_cli-and-commands-slash-commands-memory-other.md`: remove the literal port number "8013" at line 30 and confirm the surrounding sentence still reads coherently.
 
 ## Assumptions
 
@@ -26,7 +26,7 @@ Modify `docs/05_agent_07_11_cli-and-commands-slash-commands-memory-other.md`: re
 
 ### Target file
 
-`docs/05_agent_07_11_cli-and-commands-slash-commands-memory-other.md`
+`docs/agent_07_11_cli-and-commands-slash-commands-memory-other.md`
 
 ### Procedure
 
@@ -76,7 +76,7 @@ The sentence remains grammatically coherent without the parenthetical port numbe
 
 | Target File | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_07_11_cli-and-commands-slash-commands-memory-other.md` | Manual review + checker | `uv run python tools/check_docs_content_policy.py` && `uv run python tools/check_docs_structure.py docs/05_agent_07_11_cli-and-commands-slash-commands-memory-other.md` | Zero literal-port-number findings; structure check passes |
+| `docs/agent_07_11_cli-and-commands-slash-commands-memory-other.md` | Manual review + checker | `uv run python tools/check_docs_content_policy.py` && `uv run python tools/check_docs_structure.py docs/agent_07_11_cli-and-commands-slash-commands-memory-other.md` | Zero literal-port-number findings; structure check passes |
 
 ## Completion criteria
 
@@ -118,4 +118,4 @@ The sentence remains grammatically coherent without the parenthetical port numbe
 - **Source plan**: plans/20260908-211530_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260910-000740
-- **Related target files**: docs/05_agent_07_11_cli-and-commands-slash-commands-memory-other.md
+- **Related target files**: docs/agent_07_11_cli-and-commands-slash-commands-memory-other.md

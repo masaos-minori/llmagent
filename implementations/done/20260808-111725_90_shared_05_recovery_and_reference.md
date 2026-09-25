@@ -53,7 +53,7 @@ Restructure shared design documentation chapter to remove overly detailed caller
 3. Preserve all design rationale paragraphs (recover_corruption target limited to rag/session, known limitation when workflow/eventbus passed, known issue of DatabaseError propagation during physical corruption, DB recreation doesn't migrate data, archive needed before recreation, schema initialization idempotent but doesn't convert existing data, verification plan as high-level quality gate)
 4. Verify all internal Markdown links remain valid after edits
 5. Confirm each design decision's "why" is explicitly stated
-6. Coordinate cleanup task SHARED-001 from `docs/90_shared_90_inconsistencies_and_known_issues.md`
+6. Coordinate cleanup task SHARED-001 from `docs/shared_90_inconsistencies_and_known_issues.md`
 
 ### Method
 
@@ -68,7 +68,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_05_04_db_api_and_operations-recovery-and-reference.md`**
+**File: `shared_05_04_db_api_and_operations-recovery-and-reference.md`**
 - recover_corruption caller site code examples: Replace with prose summary referencing `scripts/db/recovery.py`
 - RecoveryResult dataclass definitions: Replace with prose summary
 - Complete error behavior correspondence tables: Replace with prose summary
@@ -106,7 +106,7 @@ N/A — documentation restructuring only; no security-sensitive content involved
 | Internal links valid | Manual | All Markdown links resolve correctly |
 | Template compliance | Manual | Follows `memo-doc-shared-review.md` §「修正後の章構成テンプレート」 |
 | No full caller site examples/dataclass definitions remain | Manual | Scanning for remaining verbose definitions |
-| Coordination with SHARED-001 | Manual | Verified against `docs/90_shared_90_inconsistencies_and_known_issues.md` |
+| Coordination with SHARED-001 | Manual | Verified against `docs/shared_90_inconsistencies_and_known_issues.md` |
 
 ## Out of Scope
 

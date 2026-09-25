@@ -1,12 +1,12 @@
-# Implementation: docs — update 05_agent_08_configuration.md for unified layout
+# Implementation: docs — update agent_08_configuration.md for unified layout
 
 ## Goal
 
-Rewrite the "Configuration Loading" section in `05_agent_08_configuration.md` to describe the unified `agent.toml` layout and clarify config ownership.
+Rewrite the "Configuration Loading" section in `agent_08_configuration.md` to describe the unified `agent.toml` layout and clarify config ownership.
 
 ## Scope
 
-- `docs/05_agent_08_configuration.md`
+- `docs/agent_08_configuration.md`
 
 ## Assumptions
 
@@ -18,7 +18,7 @@ Rewrite the "Configuration Loading" section in `05_agent_08_configuration.md` to
 
 ### Target file
 
-`docs/05_agent_08_configuration.md`
+`docs/agent_08_configuration.md`
 
 ### Procedure
 
@@ -37,4 +37,4 @@ Rewrite the "Configuration Loading" section in `05_agent_08_configuration.md` to
 
 | Check | Tool / Command | Target |
 |---|---|---|
-| No split-file references | `rg "common\.toml\|llm\.toml\|tools\.toml" docs/05_agent_08_configuration.md` | 0 matches |
+| No split-file references | `rg "common\.toml\|llm\.toml\|tools\.toml" docs/agent_08_configuration.md` | 0 matches |

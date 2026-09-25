@@ -1,5 +1,5 @@
 ## Goal
-Replace `docs/05_agent_05_llm-and-streaming.md`'s "Partial Completion Persistence
+Replace `docs/agent_05_llm-and-streaming.md`'s "Partial Completion Persistence
 Rules" table (lines 52-56) and "Error Type Design" table (lines 62-70) with pointers to
 their canonical source, per `REQ-001`/`REQ-002` (Plan
 `plans/20260920-160327_plan.md`), so `tools/check_docs_content_policy.py` reports no
@@ -14,7 +14,7 @@ subsections above the flagged tables, `### Runtime Parameter Generation` below t
 `## Responsibility Boundary`, `## Key Constraints`, `## Operational Notes`, and `##
 Known Limitations` — none of these were flagged by `check_docs_content_policy.py`
 (re-confirmed 2026-09-20). Also out of scope, per the Plan: the three false-positive
-findings in `05_agent_06_02`/`05_agent_06_03`/`05_agent_10_05` (do not touch those
+findings in `agent_06_02`/`agent_06_03`/`agent_10_05` (do not touch those
 files) and the pre-existing missing `## Related Documents` section in this file.
 
 ## Assumptions
@@ -48,7 +48,7 @@ consumes `partial_text` downstream).
 
 ## Implementation
 ### Target file
-`docs/05_agent_05_llm-and-streaming.md`
+`docs/agent_05_llm-and-streaming.md`
 
 ### Procedure
 1. Read lines 46-71 to confirm current content matches the Plan's recorded evidence.
@@ -95,10 +95,10 @@ revertable from each other.
 
 ## Validation plan
 - `uv run python tools/check_docs_content_policy.py` — confirm zero findings for
-  `docs/05_agent_05_llm-and-streaming.md` (Plan `AC-1`, `AC-2`, `AC-3`).
+  `docs/agent_05_llm-and-streaming.md` (Plan `AC-1`, `AC-2`, `AC-3`).
 - `uv run python tools/check_docs_quality.py`, scoped to this file — confirm no new
   warning is introduced.
-- `uv run python tools/check_docs_structure.py docs/05_agent_05_llm-and-streaming.md`
+- `uv run python tools/check_docs_structure.py docs/agent_05_llm-and-streaming.md`
   — confirm the finding count does not exceed the one pre-existing missing `##
   Related Documents` finding already recorded in the Plan.
 - `uv run python tools/check_docs_consistency.py --domain agent` — confirm no new
@@ -113,9 +113,9 @@ specifically; `check_docs_content_policy.py` reports zero findings for this file
 ## Out of scope
 - Every other section of this file (see Scope) — not flagged, not part of
   `REQ-001`/`REQ-002`.
-- `docs/05_agent_06_02_tool-execution-and-approval-approval.md`,
-  `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`,
-  `docs/05_agent_10_05_operations-and-observability-monitoring.md` — confirmed false
+- `docs/agent_06_02_tool-execution-and-approval-approval.md`,
+  `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md`,
+  `docs/agent_10_05_operations-and-observability-monitoring.md` — confirmed false
   positives per the Plan; do not edit.
 - The pre-existing missing `## Related Documents` section in this file.
 - Extending `check_docs_content_policy.py`'s detection rules (tracked separately in
@@ -150,4 +150,4 @@ specifically; `check_docs_content_policy.py` reports zero findings for this file
 - **Source plan**: plans/20260920-160327_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260920-163055
-- **Related target files**: docs/05_agent_05_llm-and-streaming.md
+- **Related target files**: docs/agent_05_llm-and-streaming.md

@@ -1,7 +1,7 @@
 ## Goal
 
 Remove the stale "Caching" subsection (`tool_cache_ttl`/`tool_cache_max_size`)
-from `docs/05_agent_08_03_configuration-tools-memory.md` (REQ-002), per
+from `docs/agent_08_03_configuration-tools-memory.md` (REQ-002), per
 `plans/20260825-142943_plan.md`.
 
 ## Scope
@@ -36,7 +36,7 @@ from `docs/05_agent_08_03_configuration-tools-memory.md` (REQ-002), per
 
 ## Implementation
 ### Target file
-`docs/05_agent_08_03_configuration-tools-memory.md`
+`docs/agent_08_03_configuration-tools-memory.md`
 
 ### Procedure
 1. Re-confirm current line numbers immediately before editing (verified at lines
@@ -80,12 +80,12 @@ Bloat Prevention" (above) and "Parallel Execution" (below) unchanged.
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_08_03_configuration-tools-memory.md` | Manual diff | `git diff <path>` | "Caching" subsection removed; "Context Bloat Prevention"/"Parallel Execution" unchanged |
-| `docs/05_agent_08_03_configuration-tools-memory.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | No new warning/error |
+| `docs/agent_08_03_configuration-tools-memory.md` | Manual diff | `git diff <path>` | "Caching" subsection removed; "Context Bloat Prevention"/"Parallel Execution" unchanged |
+| `docs/agent_08_03_configuration-tools-memory.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | No new warning/error |
 
 ## Completion criteria
 
-- `rg -n "tool_cache_ttl|tool_cache_max_size" docs/05_agent_08_03_configuration-tools-memory.md`
+- `rg -n "tool_cache_ttl|tool_cache_max_size" docs/agent_08_03_configuration-tools-memory.md`
   returns no matches.
 
 ## Out of scope
@@ -121,4 +121,4 @@ Bloat Prevention" (above) and "Parallel Execution" (below) unchanged.
 - **Source plan**: `plans/20260825-142943_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure; supersedes the corresponding portion of `implementations/20260825-224356_11_docs_tool_cache_removal.md` (left Blocked, never implemented). Distinct from `implementations/20260827-112854_15_docs_05_agent_08_03_configuration-tools-memory.md.md`, which fixes an unrelated section of this same file.
 - **Generated at**: 20260827-133325
-- **Related target files**: `docs/05_agent_08_03_configuration-tools-memory.md`
+- **Related target files**: `docs/agent_08_03_configuration-tools-memory.md`

@@ -1,10 +1,10 @@
 ## Goal
 
-Fix H1 heading count and add `## Keywords` and `## Related Documents` sections in `docs/05_agent_12_02_memory-gate-data-model-search.md`: consolidate extra headings to meet exactly-one requirement per REQ-004, add missing sections per REQ-005.
+Fix H1 heading count and add `## Keywords` and `## Related Documents` sections in `docs/agent_12_02_memory-gate-data-model-search.md`: consolidate extra headings to meet exactly-one requirement per REQ-004, add missing sections per REQ-005.
 
 ## Scope
 
-Modify only `docs/05_agent_12_02_memory-gate-data-model-search.md` to:
+Modify only `docs/agent_12_02_memory-gate-data-model-search.md` to:
 1. Reduce H1 heading count from 2 to exactly 1
 2. Add `## Keywords\n<placeholder>` section
 3. Add `## Related Documents\n<placeholder>` section
@@ -30,7 +30,7 @@ Modify only `docs/05_agent_12_02_memory-gate-data-model-search.md` to:
 
 ### Target file
 
-`docs/05_agent_12_02_memory-gate-data-model-search.md`
+`docs/agent_12_02_memory-gate-data-model-search.md`
 
 ### Procedure
 
@@ -158,4 +158,4 @@ Run `uv run python tools/check_docs_structure.py "docs/**/*.md"` — expect zero
 - **Source plan**: plans/20260922-094335_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260922-095006
-- **Related target files**: docs/05_agent_12_02_memory-gate-data-model-search.md
+- **Related target files**: docs/agent_12_02_memory-gate-data-model-search.md

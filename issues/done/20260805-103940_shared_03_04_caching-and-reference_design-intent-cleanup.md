@@ -7,7 +7,7 @@ Medium
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to the caching-and-reference chapter (both parts): keep the retry/cache/health design judgments, including the note that `ToolResultCache` is currently unused by `ToolExecutor` itself; remove method lists and dataclass definitions.
 
 ## Reason for Change
-This chapter is the canonical source for cache/retry/health helper design (per `memo-doc-shared-review.md` §「章間の正本ルール」: キャッシュ・retry・health補助 = `90_shared_03_04_runtime_and_execution-caching-and-reference`). It also flags a known duplication/disorganization concern in the caching mechanism that should be preserved as a Known Issues/improvement candidate, not silently dropped.
+This chapter is the canonical source for cache/retry/health helper design (per `memo-doc-shared-review.md` §「章間の正本ルール」: キャッシュ・retry・health補助 = `shared_03_04_runtime_and_execution-caching-and-reference`). It also flags a known duplication/disorganization concern in the caching mechanism that should be preserved as a Known Issues/improvement candidate, not silently dropped.
 
 ## Implementation Intent
 Keep this chapter focused on the retry-limited-to-transient-failures decision, the `ToolResultCache`-currently-unused-by-ToolExecutor note, `ToolSpec`'s role as DAG-scheduling metadata, `HealthRegistry`'s circuit-breaker-like meaning, and hot-reloadable LLM config.
@@ -29,7 +29,7 @@ Keep this chapter focused on the retry-limited-to-transient-failures decision, t
 Not required for behavior (documentation-only), but review must confirm the caching-duplication concern was preserved as a Known Issues note, not deleted. No dedicated shared/db docs-consistency script exists; manually check internal links.
 
 ## Documentation Impact
-This issue is itself a documentation-only cleanup task. If the caching-duplication note is expanded, coordinate with `docs/90_shared_90_inconsistencies_and_known_issues.md`'s cleanup issue to avoid duplication.
+This issue is itself a documentation-only cleanup task. If the caching-duplication note is expanded, coordinate with `docs/shared_90_inconsistencies_and_known_issues.md`'s cleanup issue to avoid duplication.
 
 ## Out of Scope
 - Other `docs/90_shared_*.md` chapters.

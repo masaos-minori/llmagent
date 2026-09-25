@@ -16,7 +16,7 @@ Remove two breaking-but-approved backward-compatibility surfaces: the `use_tool_
 - `scripts/eventbus/app.py`: delete the `@app.post("/ack")` route handler (keep `@app.post("/events/{event_id}/ack")`)
 - `scripts/eventbus/ack_route.py`: check whether the legacy `ack()` handler function becomes unused after the route is removed; delete it if so, keep `ack_event()` (the canonical handler)
 - Update tests: `tests/test_agent_repl_tool_exec.py`, `tests/test_tool_runner.py`, `tests/test_config_builders.py`, `tests/test_production_config_validator.py`, `tests/test_repl_health.py`, `tests/test_plugin_ci_strict.py`, `tests/test_eventbus_ack_endpoint.py`, `tests/test_eventbus_crash_ack.py`, `tests/test_eventbus_concurrent.py`
-- Update docs: `docs/05_agent_08_configuration.md`, `docs/04_mcp_06_configuration_and_operations.md`, `docs/05_agent_06_tool-execution-and-approval.md`, `docs/90_shared_02_types_and_protocols.md`, `docs/90_shared_03_runtime_and_execution.md`, `docs/06_eventbus_02_http_api_and_runtime.md`, `docs/06_eventbus_06_reference_api.md`
+- Update docs: `docs/agent_08_configuration.md`, `docs/04_mcp_06_configuration_and_operations.md`, `docs/05_agent_06_tool-execution-and-approval.md`, `docs/shared_02_types_and_protocols.md`, `docs/shared_03_runtime_and_execution.md`, `docs/06_eventbus_02_http_api_and_runtime.md`, `docs/06_eventbus_06_reference_api.md`
 - Add a CHANGELOG / release-notes entry documenting removal of `use_tool_dag=false` and `POST /ack` as breaking changes
 
 **Out:**

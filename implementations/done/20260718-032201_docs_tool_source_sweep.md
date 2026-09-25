@@ -43,21 +43,21 @@ already drafted in `implementations/20260717-230029_tool_registry.py.md` and
    `04_mcp_06_14_new-tool-registration-procedure.md`,
    `04_mcp_06_15_new-mcp-server-addition-checklist.md`,
    `04_mcp_06_16_pre-production-fail-open-checklist.md`, `04_mcp_07_tool_schema_export_policy.md`,
-   `05_agent_02_runtime-architecture-part2.md`, `05_agent_03_02_turn-processing-flow-llm-tool-loop.md`,
-   `05_agent_05_llm-and-streaming-part1.md`,
-   `05_agent_06_01_tool-execution-and-approval-execution.md`,
-   `05_agent_06_02_tool-execution-and-approval-approval.md`,
-   `05_agent_08_03_configuration-tools-memory.md`,
-   `05_agent_10_01_operations-and-observability-startup-and-health.md`,
-   `05_agent_11_02_extension-points-tool-registration-part1.md`,
-   `05_agent_11_03_extension-points-registry-rules.md`, `05_agent_13_reference-api-part1.md`,
-   `90_shared_01_01_overview-purpose-and-scope.md`, `90_shared_01_02_overview-layer-responsibilities.md`,
-   `90_shared_02_01_types_and_protocols-core-types.md`,
-   `90_shared_02_02_types_and_protocols-tool-and-execution-dto-part2.md`,
-   `90_shared_02_03_types_and_protocols-reference.md`,
-   `90_shared_03_01_runtime_and_execution-config-and-logging.md`,
-   `90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md`,
-   `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md`,
+   `agent_02_runtime-architecture-part2.md`, `agent_03_02_turn-processing-flow-llm-tool-loop.md`,
+   `agent_05_llm-and-streaming-part1.md`,
+   `agent_06_01_tool-execution-and-approval-execution.md`,
+   `agent_06_02_tool-execution-and-approval-approval.md`,
+   `agent_08_03_configuration-tools-memory.md`,
+   `agent_10_01_operations-and-observability-startup-and-health.md`,
+   `agent_11_02_extension-points-tool-registration-part1.md`,
+   `agent_11_03_extension-points-registry-rules.md`, `agent_13_reference-api-part1.md`,
+   `shared_01_01_overview-purpose-and-scope.md`, `shared_01_02_overview-layer-responsibilities.md`,
+   `shared_02_01_types_and_protocols-core-types.md`,
+   `shared_02_02_types_and_protocols-tool-and-execution-dto-part2.md`,
+   `shared_02_03_types_and_protocols-reference.md`,
+   `shared_03_01_runtime_and_execution-config-and-logging.md`,
+   `shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md`,
+   `shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md`,
    `01_overview-files-04-shared-part2.md`, `99_documentation_sync_report.md`.
 2. Direct grep of the strongest-claim subset (performed for this investigation) found these
    high-priority, verbatim stale-authority statements (Japanese originals, paraphrased in brackets):
@@ -77,10 +77,10 @@ already drafted in `implementations/20260717-230029_tool_registry.py.md` and
      authority correction, but its step-list (lines 49-57) still frames `tool_constants.py` +
      `agent.toml`'s `tool_definitions` registration as the (only) procedure for adding a routable tool,
      which becomes incomplete once `RuntimeToolRegistry` (requirement 04) is the routing authority.
-   - `docs/05_agent_06_01_tool-execution-and-approval-execution.md:38`: cross-link comment
+   - `docs/agent_06_01_tool-execution-and-approval-execution.md:38`: cross-link comment
      `ToolRouteResolver.resolve() — tool_name → server_key (ルーティングの権威; 04_mcp_03 §Routing
      Source of Truth 参照)` [the routing authority] — a one-line cross-reference, low edit cost.
-   - By contrast, `docs/05_agent_06_02_tool-execution-and-approval-approval.md:62` already uses
+   - By contrast, `docs/agent_06_02_tool-execution-and-approval-approval.md:62` already uses
      "フォールバック" (fallback) wording for `tool_constants.py`-based risk classification — this file
      already matches the target end-state framing and likely needs no change (confirm at
      implementation time rather than assume).
@@ -111,10 +111,10 @@ No single file — cross-cutting documentation sweep across the 33 files listed 
    - **Needs update**: states or implies `ToolRegistry`/`tool_constants.py`/static `tool_definitions`
      is the current/normal runtime routing, schema, side-effect, or policy source.
    - **Already correct / no update needed**: already uses fallback/compatibility framing (e.g.
-     `05_agent_06_02_tool-execution-and-approval-approval.md`), or mentions these terms in an unrelated
+     `agent_06_02_tool-execution-and-approval-approval.md`), or mentions these terms in an unrelated
      context (e.g. a changelog entry, a historical note already marked as superseded).
    - **Cross-link only**: a one-line reference to another doc's routing-authority claim (e.g.
-     `05_agent_06_01`'s line 38) — update the referenced phrase, not the whole section.
+     `agent_06_01`'s line 38) — update the referenced phrase, not the whole section.
 4. For each "needs update" file, rewrite the specific claim to name `RuntimeToolRegistry`
    (`scripts/shared/runtime_tool_registry.py`) as the runtime-authoritative source, and reposition
    `ToolRegistry`/`tool_constants.py`/static `tool_definitions` as fallback/compatibility/seed-data,

@@ -1,11 +1,11 @@
 ## Goal
 Satisfy `REQ-001`/`REQ-003` (Plan `plans/20260901-070239_plan.md`): add an Operations
-runbook section to `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
+runbook section to `docs/agent_10_01_operations-and-observability-startup-and-health.md`
 describing the manual recovery procedure for `workflow.sqlite` and `eventbus.sqlite`.
 
 ## Scope
 Add exactly one new `### ` subsection under the existing `## Operational Notes` section
-of `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`. No other
+of `docs/agent_10_01_operations-and-observability-startup-and-health.md`. No other
 section of this file is touched. Does not modify `scripts/db/rotation.py`,
 `scripts/db/recovery.py`, or ADR-008 itself (Plan Out-of-Scope).
 
@@ -51,7 +51,7 @@ duplicate that grouping rather than extend it.
 
 ## Implementation
 ### Target file
-docs/05_agent_10_01_operations-and-observability-startup-and-health.md
+docs/agent_10_01_operations-and-observability-startup-and-health.md
 
 ### Procedure
 Add a new `### Manual Recovery: workflow.sqlite / eventbus.sqlite` subsection under
@@ -125,7 +125,7 @@ Trivially revertable via `git revert`/`git checkout` of this single file.
   this file (Plan Acceptance criteria).
 
 ## Completion criteria
-`docs/05_agent_10_01_operations-and-observability-startup-and-health.md` contains a
+`docs/agent_10_01_operations-and-observability-startup-and-health.md` contains a
 runbook subsection covering: locating backups, validating a candidate, applying the
 restore, post-restore verification, and the no-backup escalation path — matching
 REQ-001 (accurate backup coverage) and REQ-003 (all four scenarios covered) — without
@@ -166,4 +166,4 @@ Plan).
 - **Source plan**: `plans/20260901-070239_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260902-183238
-- **Related target files**: `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
+- **Related target files**: `docs/agent_10_01_operations-and-observability-startup-and-health.md`

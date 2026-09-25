@@ -7,9 +7,9 @@ Clarify that `workflow.sqlite` is owned by the orchestrator, not the session man
 ## Scope
 
 **In:**
-- `docs/05_agent_04_session_and_persistence.md` — fix ownership description
-- `docs/05_agent_09_observability_and_logging.md` — fix ownership reference
-- `docs/05_agent_10_operations_and_deployment.md` — fix operations guidance
+- `docs/agent_04_session_and_persistence.md` — fix ownership description
+- `docs/agent_09_observability_and_logging.md` — fix ownership reference
+- `docs/agent_10_operations_and_deployment.md` — fix operations guidance
 
 **Out:** No code changes.
 
@@ -23,7 +23,7 @@ Clarify that `workflow.sqlite` is owned by the orchestrator, not the session man
 
 ### Target file
 
-`docs/05_agent_04_session_and_persistence.md`, `docs/05_agent_09_observability_and_logging.md`, `docs/05_agent_10_operations_and_deployment.md`
+`docs/agent_04_session_and_persistence.md`, `docs/agent_09_observability_and_logging.md`, `docs/agent_10_operations_and_deployment.md`
 
 ### Procedure
 
@@ -31,10 +31,10 @@ Clarify that `workflow.sqlite` is owned by the orchestrator, not the session man
    ```bash
    grep -rn "workflow.sqlite\|workflow\.db" agent/ --include="*.py" | head -10
    ```
-2. Read ownership section in `05_agent_04`.
+2. Read ownership section in `agent_04`.
 3. Fix ownership attribution: "workflow.sqlite is owned by the orchestrator, not the session manager."
-4. Read `05_agent_09` log section for workflow.sqlite references and fix.
-5. Read `05_agent_10` operations section and fix backup/ops guidance.
+4. Read `agent_09` log section for workflow.sqlite references and fix.
+5. Read `agent_10` operations section and fix backup/ops guidance.
 
 ### Method
 
@@ -42,7 +42,7 @@ Bash grep to confirm → Read → Edit patches.
 
 ### Details
 
-**Ownership clarification table (for `05_agent_04` and others):**
+**Ownership clarification table (for `agent_04` and others):**
 
 ```markdown
 | File | Owner Module | Purpose |
@@ -61,5 +61,5 @@ Bash grep to confirm → Read → Edit patches.
 
 | Check | Command | Expected |
 |---|---|---|
-| Correct owner in 05_agent_04 | `grep -n "orchestrator.*workflow.sqlite\|workflow.sqlite.*orchestrator" docs/05_agent_04_session_and_persistence.md` | found |
+| Correct owner in 05_agent_04 | `grep -n "orchestrator.*workflow.sqlite\|workflow.sqlite.*orchestrator" docs/agent_04_session_and_persistence.md` | found |
 | No code changes | `git diff agent/` | empty |

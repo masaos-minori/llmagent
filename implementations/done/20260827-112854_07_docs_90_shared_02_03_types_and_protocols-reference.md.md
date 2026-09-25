@@ -21,7 +21,7 @@ Remove the fabricated `embedding_dims: int = 384` field from the reproduced
   stale value.
 - This is one of the two fabricated-field items this Plan specifically calls
   out (the other being `AgentConfig.memory.memory_embed_dim` in
-  `docs/05_agent_12_03_memory-module-ref-core-and-store.md`, a separate target
+  `docs/agent_12_03_memory-module-ref-core-and-store.md`, a separate target
   file in this same pass).
 
 ## Design decisions
@@ -31,7 +31,7 @@ Remove the fabricated `embedding_dims: int = 384` field from the reproduced
   all.
 - Remove `embedding_dims` from the `__post_init__` validation note (line 19) as
   well, matching seq 03's identical correction for the sibling doc
-  (`90_shared_04_01`).
+  (`shared_04_01`).
 
 ## Alternatives considered
 

@@ -5,7 +5,7 @@ Resolve the standing "Needs Confirmation / 未決事項" note on `WorkflowDef.re
 
 ## Scope
 - Target files: 
-  - `docs/05_agent_03_03_turn-processing-flow-workflow-engine.md`
+  - `docs/agent_03_03_turn-processing-flow-workflow-engine.md`
   - `docs/00_governance_07_needs-confirmation-inventory.md`
   - `docs/02_deployment.md`
   - `docs/01_overview-arch-02-pipelines.md`
@@ -17,7 +17,7 @@ Resolve the standing "Needs Confirmation / 未決事項" note on `WorkflowDef.re
   - `docs/00_governance_07_needs-confirmation-inventory.md`
 
 ## Assumptions
-- The "Needs Confirmation / 未決事項" note is still live in `docs/05_agent_03_03_turn-processing-flow-workflow-engine.md` (confirmed present verbatim, twice — the file appears to contain duplicated content blocks)
+- The "Needs Confirmation / 未決事項" note is still live in `docs/agent_03_03_turn-processing-flow-workflow-engine.md` (confirmed present verbatim, twice — the file appears to contain duplicated content blocks)
 - No documentation mentions `_APPROVAL_TTL_HOURS` / the 24-hour approval expiration window
 - `config/workflows/default.json`'s `require_approval` is currently `false`, with no per-environment override file/mechanism in `config/workflows/`
 - The approval gate (`WorkflowEngine._gate_approval`) currently never checks `expires_at` — this is a real gap, not just a doc gap
@@ -45,7 +45,7 @@ Resolve the standing "Needs Confirmation / 未決事項" note on `WorkflowDef.re
    - Re-run existing approve/reject/pending tests to confirm no regression
 
 2. **Phase 2 — Documentation**
-   - Replace both occurrences of the Needs-Confirmation note in `docs/05_agent_03_03_turn-processing-flow-workflow-engine.md` with the decided policy text, the 7-category table, local-dev exceptions, and the full lifecycle
+   - Replace both occurrences of the Needs-Confirmation note in `docs/agent_03_03_turn-processing-flow-workflow-engine.md` with the decided policy text, the 7-category table, local-dev exceptions, and the full lifecycle
    - Add cross-link lines in `docs/02_deployment.md` (~line 183) and `docs/01_overview-arch-02-pipelines.md` (~line 69)
    - Add `NC-018` to `docs/00_governance_07_needs-confirmation-inventory.md` with `status: resolved`, linking to the updated section
 
@@ -64,7 +64,7 @@ Resolve the standing "Needs Confirmation / 未決事項" note on `WorkflowDef.re
 ## Risks
 - Expanding `ApprovalRecord.status` to include `"expired"` could break callers assuming only `pending|approved|rejected` — mitigated by grepping all `.status ==` / `status=` usages on `ApprovalRecord` before merging
 - Documenting a "per-environment override file" convention without implementing an environment-selection loader leaves a documentation/capability gap — mitigated by wording the doc as a recommended operational convention layered on the existing `workflow_loader.py` API
-- The duplicated content blocks in `docs/05_agent_03_03_turn-processing-flow-workflow-engine.md` could leave a stale copy if only one occurrence is replaced — mitigated by grepping for the exact Needs-Confirmation sentence before and after editing
+- The duplicated content blocks in `docs/agent_03_03_turn-processing-flow-workflow-engine.md` could leave a stale copy if only one occurrence is replaced — mitigated by grepping for the exact Needs-Confirmation sentence before and after editing
 
 ## Traceability
 - Workflow phase: requirement-to-plan
@@ -73,4 +73,4 @@ Resolve the standing "Needs Confirmation / 未決事項" note on `WorkflowDef.re
 - Source plan: plans/20260819-180036_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260820-150733
-- Related target files: docs/05_agent_03_03_turn-processing-flow-workflow-engine.md, docs/00_governance_07_needs-confirmation-inventory.md, docs/02_deployment.md, docs/01_overview-arch-02-pipelines.md, config/workflows/default.json, scripts/agent/workflow/workflow_engine.py, scripts/agent/workflow/approval_ops.py, scripts/agent/workflow/models.py, tests/agent/workflow/test_workflow_engine.py, docs/05_agent_06_04_tool-execution-and-approval-canonical.md (referenced), docs/04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md (referenced)
+- Related target files: docs/agent_03_03_turn-processing-flow-workflow-engine.md, docs/00_governance_07_needs-confirmation-inventory.md, docs/02_deployment.md, docs/01_overview-arch-02-pipelines.md, config/workflows/default.json, scripts/agent/workflow/workflow_engine.py, scripts/agent/workflow/approval_ops.py, scripts/agent/workflow/models.py, tests/agent/workflow/test_workflow_engine.py, docs/agent_06_04_tool-execution-and-approval-canonical.md (referenced), docs/04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md (referenced)

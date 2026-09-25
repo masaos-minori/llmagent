@@ -7,7 +7,7 @@ Medium
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to the types-and-protocols chapter (core-types, tool-and-execution-dto parts 1-2, reference): keep why each type lives in shared/ and which boundary it protects; remove full field lists, DTO signatures, and Protocol/TypedDict/dataclass comparison tables.
 
 ## Reason for Change
-This chapter is the canonical source for the design intent behind shared types and Protocols (per `memo-doc-shared-review.md` §「章間の正本ルール」: 共通型とProtocolの設計意図 = `90_shared_02_types_and_protocols`). Per the memo's explicit 注意 for this chapter: what matters is not the shape of the type, but why it lives in shared/ and which boundary it protects.
+This chapter is the canonical source for the design intent behind shared types and Protocols (per `memo-doc-shared-review.md` §「章間の正本ルール」: 共通型とProtocolの設計意図 = `shared_02_types_and_protocols`). Per the memo's explicit 注意 for this chapter: what matters is not the shape of the type, but why it lives in shared/ and which boundary it protects.
 
 ## Implementation Intent
 Keep this chapter focused on: why common types live in shared/, why LLM DTOs are separated so they can be imported without `LLMClient`, the Protocol/TypedDict/dataclass usage policy, why `RagConfig` is a structural Protocol rather than `AgentConfig`, that `ArtifactEvent` is a data definition only (not an event bus), that `ShellPolicy` separates policy values from the shell MCP implementation, the design intent behind `RuntimeTool`/`RuntimeToolRegistry` heading toward being the canonical runtime metadata source, and the shared-is-leaf constraint (shared/ must not import agent's enums/config classes).

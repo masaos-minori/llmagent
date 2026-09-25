@@ -7,7 +7,7 @@ Source requirement: `requires/done/20260712_17_require.md`
 
 `docs/90_shared_00_document-guide.md` no longer names specific resolved known-issue codes
 (`DOCREF-01`, `CONFIG-01/02/03`, `GLOBAL-01`, `PLUGIN-01`, `IMPORT-01`, `DOCFIELD-01`) that
-were already removed from `docs/90_shared_90_inconsistencies_and_known_issues.md` (e.g.
+were already removed from `docs/shared_90_inconsistencies_and_known_issues.md` (e.g.
 `DOCREF-01` in commit `5d0699f8`), replacing them with wording matching the catalog's current
 (empty) state.
 
@@ -17,7 +17,7 @@ were already removed from `docs/90_shared_90_inconsistencies_and_known_issues.md
 1. The "Navigation to Major Known Issues" prose line (originally line 57)
 2. The "Inconsistencies" row of the File Index table (originally line 116)
 
-**Out of scope:** every other section of the file; `docs/90_shared_90_inconsistencies_and_known_issues.md`
+**Out of scope:** every other section of the file; `docs/shared_90_inconsistencies_and_known_issues.md`
 itself (not touched — stays as the empty-but-present catalog file).
 
 ## Assumptions
@@ -43,25 +43,25 @@ retroactively.)*
 
 1. **Prose line** — changed:
    ```
-   既知の不整合(DOCREF-01、DOCFIELD-01等)の全カタログは [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) を参照。`ArtifactEvent`にイベントバスがない点は対象外(データ定義のみ)。
+   既知の不整合(DOCREF-01、DOCFIELD-01等)の全カタログは [shared_90_inconsistencies_and_known_issues.md](shared_90_inconsistencies_and_known_issues.md) を参照。`ArtifactEvent`にイベントバスがない点は対象外(データ定義のみ)。
    ```
    to:
    ```
-   既知の不整合の全カタログは [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) を参照(現時点でオープンな項目はない)。`ArtifactEvent`にイベントバスがない点は対象外(データ定義のみ)。
+   既知の不整合の全カタログは [shared_90_inconsistencies_and_known_issues.md](shared_90_inconsistencies_and_known_issues.md) を参照(現時点でオープンな項目はない)。`ArtifactEvent`にイベントバスがない点は対象外(データ定義のみ)。
    ```
 2. **File Index table row** — changed:
    ```
-   | [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) | DOCREF-01, CONFIG-01/02/03, GLOBAL-01, PLUGIN-01, IMPORT-01, DOCFIELD-01、他 |
+   | [shared_90_inconsistencies_and_known_issues.md](shared_90_inconsistencies_and_known_issues.md) | DOCREF-01, CONFIG-01/02/03, GLOBAL-01, PLUGIN-01, IMPORT-01, DOCFIELD-01、他 |
    ```
    to:
    ```
-   | [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) | 既知の不整合カタログ(現時点でオープンな項目はない) |
+   | [shared_90_inconsistencies_and_known_issues.md](shared_90_inconsistencies_and_known_issues.md) | 既知の不整合カタログ(現時点でオープンな項目はない) |
    ```
 
 ### Method
 
 Direct Markdown text replacement at both locations. Both changes are wording-only — the link
-target (`90_shared_90_inconsistencies_and_known_issues.md`) and table structure are unchanged.
+target (`shared_90_inconsistencies_and_known_issues.md`) and table structure are unchanged.
 
 ### Details
 

@@ -9,15 +9,15 @@ Add clearly separated "Current behavior" and "Known discrepancy / Needs confirma
 - **In-Scope**:
   - `docs/05_agent_04_state-and-persistence.md` — compressed history persistence, diagnostics.jsonl location
   - `docs/05_agent_09_data-layer.md` — memory table storage ambiguity (session.sqlite vs separate), diagnostics role in messages table vs DiagnosticStore
-  - `docs/05_agent_08_configuration.md` — memory_jsonl_dir (canonical key), workflow_mode startup-blocking behavior
+  - `docs/agent_08_configuration.md` — memory_jsonl_dir (canonical key), workflow_mode startup-blocking behavior
   - `docs/05_agent_10_operations-and-observability.md` — diagnostics.jsonl path, session_diagnostics table, deprecation status
-  - `docs/05_agent_12_memory.md` — branch field in retrieval (active vs unused), memory_jsonl_path vs memory_jsonl_dir confusion
-  - `docs/05_agent_90_inconsistencies_and_known_issues.md` — add new entries for the above discrepancy items
+  - `docs/agent_12_memory.md` — branch field in retrieval (active vs unused), memory_jsonl_path vs memory_jsonl_dir confusion
+  - `docs/agent_90_inconsistencies_and_known_issues.md` — add new entries for the above discrepancy items
 
 - **Out-of-Scope**:
   - Runtime behavior changes
   - Repository-wide documentation renumbering
-  - Changes to `04_mcp_90`, `03_rag_90`, or `90_shared_90` inconsistency files
+  - Changes to `04_mcp_90`, `03_rag_90`, or `shared_90` inconsistency files
 
 ## Assumptions
 
@@ -81,7 +81,7 @@ Direct file edit — replace ambiguous text with explicit clarifications.
 **Under "Memory Tables (optional)":**
 - Replace "session.sqlite or separate" with: "session.sqlite (same DB as sessions/messages)" and verify by checking `factory.py` line 286 for the SQLiteHelper connection.
 
-### Target file: `docs/05_agent_08_configuration.md`
+### Target file: `docs/agent_08_configuration.md`
 
 #### Procedure
 Under MemoryConfig and workflow_mode sections, add Current behavior blocks.
@@ -123,7 +123,7 @@ Direct file edit — insert callout blocks.
 > **Needs confirmation:** Whether `diagnostics.jsonl` will be removed in a future release. No deprecation timeline has been decided.
 ```
 
-### Target file: `docs/05_agent_12_memory.md`
+### Target file: `docs/agent_12_memory.md`
 
 #### Procedure
 Fix `memory_jsonl_path` and document branch field usage.
@@ -143,7 +143,7 @@ Direct file edit — replace stale key name and add Current behavior blocks.
 > **Current behavior:** `branch`, `project`, and `repo` are passed to `HybridRetriever.search()` and affect result ranking (not filtering). Records without matching branch are still returned but ranked lower.
 ```
 
-### Target file: `docs/05_agent_90_inconsistencies_and_known_issues.md`
+### Target file: `docs/agent_90_inconsistencies_and_known_issues.md`
 
 #### Procedure
 Add new discrepancy entries for the above items.

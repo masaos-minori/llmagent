@@ -1,5 +1,5 @@
 ## Goal
-Fix `docs/40_shared/90_shared_01_overview.md`'s outbound Markdown link to `docs/adr/ADR-008-sqlite-4db-separation.md` — currently `adr/ADR-008-sqlite-4db-separation.md` — which breaks once this file moves one directory level deeper (seq 02), per Plan `plans/20260924-150508_plan.md` REQ-002.
+Fix `docs/40_shared/shared_01_overview.md`'s outbound Markdown link to `docs/adr/ADR-008-sqlite-4db-separation.md` — currently `adr/ADR-008-sqlite-4db-separation.md` — which breaks once this file moves one directory level deeper (seq 02), per Plan `plans/20260924-150508_plan.md` REQ-002.
 
 ## Scope
 - In scope: rewriting the single Markdown link `[ADR-008](adr/ADR-008-sqlite-4db-separation.md)` to `[ADR-008](../adr/ADR-008-sqlite-4db-separation.md)` at line 125 (pre-move line number, confirmed via `grep -n` during Plan creation).
@@ -17,11 +17,11 @@ Same as seq 10: relative-path fix preferred over an absolute-from-docs-root link
 
 ## Implementation
 ### Target file
-`docs/40_shared/90_shared_01_overview.md`
+`docs/40_shared/shared_01_overview.md`
 
 ### Procedure
-1. Confirm seq 02's move has completed (`ls docs/40_shared/90_shared_01_overview.md`).
-2. Locate the link with `rg -n '\]\([^)]*adr/ADR-008-sqlite-4db-separation\.md(#[^)]*)?\)' docs/40_shared/90_shared_01_overview.md`.
+1. Confirm seq 02's move has completed (`ls docs/40_shared/shared_01_overview.md`).
+2. Locate the link with `rg -n '\]\([^)]*adr/ADR-008-sqlite-4db-separation\.md(#[^)]*)?\)' docs/40_shared/shared_01_overview.md`.
 3. Edit the link target from `adr/ADR-008-sqlite-4db-separation.md` to `../adr/ADR-008-sqlite-4db-separation.md`, preserving the link text (`ADR-008`) exactly.
 4. Re-run the same `rg` command to confirm exactly one match remains, now with the `../` prefix.
 
@@ -29,7 +29,7 @@ Same as seq 10: relative-path fix preferred over an absolute-from-docs-root link
 Single-line text substitution via Edit.
 
 ### Details
-- Confirmed (pre-move) via `grep -n "adr/ADR-008-sqlite-4db-separation.md" docs/90_shared_01_overview.md`: exactly 1 match (line 125), the Markdown link `[ADR-008](adr/ADR-008-sqlite-4db-separation.md)`.
+- Confirmed (pre-move) via `grep -n "adr/ADR-008-sqlite-4db-separation.md" docs/shared_01_overview.md`: exactly 1 match (line 125), the Markdown link `[ADR-008](adr/ADR-008-sqlite-4db-separation.md)`.
 - Only the link's target path changes; the link text `ADR-008` is untouched.
 
 ## Compatibility considerations
@@ -43,10 +43,10 @@ Revert via Edit back to `adr/ADR-008-sqlite-4db-separation.md` if needed before 
 
 ## Validation plan
 - `uv run python tools/check_docs_structure.py "docs/**/*.md" --schema schemas/doc_front_matter.json` reports no broken-link finding for this file (AC-3).
-- `rg -n '\]\([^)]*adr/ADR-008-sqlite-4db-separation\.md(#[^)]*)?\)' docs/40_shared/90_shared_01_overview.md` shows the link now reads `../adr/ADR-008-sqlite-4db-separation.md`.
+- `rg -n '\]\([^)]*adr/ADR-008-sqlite-4db-separation\.md(#[^)]*)?\)' docs/40_shared/shared_01_overview.md` shows the link now reads `../adr/ADR-008-sqlite-4db-separation.md`.
 
 ## Completion criteria
-The Markdown link at the former line 125 resolves to `docs/adr/ADR-008-sqlite-4db-separation.md` from `docs/40_shared/90_shared_01_overview.md`'s new location, verified via `tools/check_docs_structure.py`.
+The Markdown link at the former line 125 resolves to `docs/adr/ADR-008-sqlite-4db-separation.md` from `docs/40_shared/shared_01_overview.md`'s new location, verified via `tools/check_docs_structure.py`.
 
 ## Out of scope
 Seq 02 (the file's own move, a prerequisite).
@@ -79,4 +79,4 @@ Seq 02 (the file's own move, a prerequisite).
 - **Source plan**: plans/20260924-150508_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260924-151506
-- **Related target files**: docs/40_shared/90_shared_01_overview.md
+- **Related target files**: docs/40_shared/shared_01_overview.md

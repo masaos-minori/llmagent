@@ -130,7 +130,7 @@ internal-structure change, not a behavior change.
   verification (see Acceptance Criteria).
 
 ## Documentation Impact
-None expected. `docs/05_agent_14_reference-api-generated.md` and
+None expected. `docs/agent_14_reference-api-generated.md` and
 `docs/01_overview-files-03-scripts.md` document `http_lifecycle.py` at the module/class
 level only, not at the level of internal private-attribute duplication; no known claim
 in either doc references `_stderr_log_paths` or `_read_stderr_for_cleanup`. Re-run
@@ -140,7 +140,7 @@ confirm no drift was introduced.
 ## Out of Scope
 - The two stale `http_lifecycle_process_snapshot.py` references left in
   `docs/01_overview-files-03-scripts.md:40` and
-  `docs/05_agent_14_reference-api-generated.md:77` after that file's deletion in
+  `docs/agent_14_reference-api-generated.md:77` after that file's deletion in
   `8020c683` — that is a separate documentation-cleanup task, not part of this
   refactor.
 - Any change to `http_lifecycle_command_validator.py`, `http_lifecycle_health_checker.py`,

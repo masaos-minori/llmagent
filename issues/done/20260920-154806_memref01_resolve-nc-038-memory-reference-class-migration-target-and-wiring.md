@@ -12,7 +12,7 @@ Confirm the target document(s) for the Memory-layer Reference-class migration
 ## Background
 `docs/adr/ADR-015-reference-document-class-disposition.md` (Accepted, 2026-09-19)
 adopted Option B: Reference-class documents are generated artifacts. Agent
-(`docs/05_agent_13_reference-api.md` + companion `05_agent_14_reference-api-generated.md`)
+(`docs/agent_13_reference-api.md` + companion `agent_14_reference-api-generated.md`)
 and EventBus (`docs/06_eventbus_06_reference-api.md`) have both completed this
 migration. Memory is the one domain ADR-015's own Implementation Notes leave
 unresolved, tracked as `NC-038` in
@@ -27,8 +27,8 @@ unresolved, tracked as `NC-038` in
   `DOMAIN_HEADING` have no `"memory"` entry — `--type memory` is not a usable CLI option.
 - No `docs/*.md` file has an `<!-- AUTO-GENERATED: ... memory ... -->` guarded block yet.
 - `UNK-01`'s open question is still unresolved: 6 candidate files carry a "Memory Layer"
-  title (`docs/05_agent_12_01_memory-overview-and-modes.md` through
-  `docs/05_agent_12_06_memory-module-ref-ops-and-scoring.md`, confirmed via each file's
+  title (`docs/agent_12_01_memory-overview-and-modes.md` through
+  `docs/agent_12_06_memory-module-ref-ops-and-scoring.md`, confirmed via each file's
   own front-matter `title` on 2026-09-20). Of these, 4 are titled "Module Reference"
   (`12_03`-`12_06`) and 2 are titled "Overview and Modes"/"Activation Gate, Data Model,
   and Search" (`12_01`, `12_02`) — the Plan's own wording leaves open whether the latter
@@ -58,11 +58,11 @@ existing hand-curated one. Decide `UNK-01` first (target document(s) and whether
 
 ## Target Files or Areas
 - `tools/generate_reference_table.py` (DOMAIN_* dictionaries)
-- `docs/05_agent_12_03_memory-module-ref-core-and-store.md` through
-  `docs/05_agent_12_06_memory-module-ref-ops-and-scoring.md` (primary migration
+- `docs/agent_12_03_memory-module-ref-core-and-store.md` through
+  `docs/agent_12_06_memory-module-ref-ops-and-scoring.md` (primary migration
   candidates)
-- `docs/05_agent_12_01_memory-overview-and-modes.md`,
-  `docs/05_agent_12_02_memory-gate-data-model-search.md` (in-scope status: Unknown —
+- `docs/agent_12_01_memory-overview-and-modes.md`,
+  `docs/agent_12_02_memory-gate-data-model-search.md` (in-scope status: Unknown —
   resolve as part of this issue)
 - Possibly a new `docs/05_agent_12_XX_memory-module-reference-generated.md` companion
   file, if the target-document decision follows the Agent precedent
@@ -137,13 +137,13 @@ governance tracking documents (`NC-038` entry, Plan Execution Status).
   `Accepted` (already satisfied).
 
 ## Unresolved Questions
-- Whether `docs/05_agent_12_01_memory-overview-and-modes.md` and
-  `docs/05_agent_12_02_memory-gate-data-model-search.md` are in scope for generated-artifact
+- Whether `docs/agent_12_01_memory-overview-and-modes.md` and
+  `docs/agent_12_02_memory-gate-data-model-search.md` are in scope for generated-artifact
   migration, or only the four "Module Reference"-titled files (`12_03`-`12_06`) — this is
   `UNK-01` itself and must be resolved as Required Changes Step 1, not assumed here.
 - Whether the target is one primary document with cross-references (the Agent pattern:
-  hand-curated `05_agent_13_reference-api.md` + generated companion
-  `05_agent_14_reference-api-generated.md`) or guarded blocks distributed across the
+  hand-curated `agent_13_reference-api.md` + generated companion
+  `agent_14_reference-api-generated.md`) or guarded blocks distributed across the
   existing 4-6 Memory chapter files — also part of `UNK-01`, to be decided during
   implementation per the Plan's own deferral ("Confirm during
   `plan-to-implementation-procedure`/`code-implementation`").

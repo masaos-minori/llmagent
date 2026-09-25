@@ -1,6 +1,6 @@
 ## Goal
 
-Include the preflight gate coverage map in Agent architecture documentation (`docs/05_agent_02_runtime-architecture.md`).
+Include the preflight gate coverage map in Agent architecture documentation (`docs/agent_02_runtime-architecture.md`).
 
 ## Scope
 
@@ -28,11 +28,11 @@ Include the preflight gate coverage map in Agent architecture documentation (`do
 
 ### Target file
 
-`docs/05_agent_02_runtime-architecture.md`
+`docs/agent_02_runtime-architecture.md`
 
 ### Procedure
 
-1. Scaffold the documentation modification skeleton with `uv run python tools/generate_workitem.py --kind implementation-procedure --source-plan plans/20260924-070936_plan.md --target-file-path docs/05_agent_02_runtime-architecture.md --seq 04`.
+1. Scaffold the documentation modification skeleton with `uv run python tools/generate_workitem.py --kind implementation-procedure --source-plan plans/20260924-070936_plan.md --target-file-path docs/agent_02_runtime-architecture.md --seq 04`.
 2. Verify the scaffolded file exists at `implementations/20260924-090000_04_agent_arch_doc_update_md.md` before proceeding.
 3. Implement the documentation updates per Method below.
 
@@ -40,7 +40,7 @@ Include the preflight gate coverage map in Agent architecture documentation (`do
 
 #### Current Agent architecture document structure (verified):
 
-The document exists at `docs/05_agent_02_runtime-architecture.md` and contains sections for Agent lifecycle, tool policy, and gateway configuration.
+The document exists at `docs/agent_02_runtime-architecture.md` and contains sections for Agent lifecycle, tool policy, and gateway configuration.
 
 #### Modification:
 
@@ -104,7 +104,7 @@ Adding the coverage map to the existing "Tool Policy" section instead of creatin
 
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_02_runtime-architecture.md` | Manual: documentation review | Read coverage map section | Coverage map present |
+| `docs/agent_02_runtime-architecture.md` | Manual: documentation review | Read coverage map section | Coverage map present |
 | `tests/agent/test_tool_policy.py` | Regression: existing tests pass | `uv run pytest tests/agent/test_tool_policy.py -v` | All tests pass |
 | `tests/agent/test_tool_approval_preflight.py` | Regression: existing tests pass | `uv run pytest tests/agent/test_tool_approval_preflight.py -v` | All tests pass |
 | New preflight gate tests | Unit: new tests pass | `uv run pytest tests/agent/ -k preflight -v` | All new tests pass |
@@ -150,4 +150,4 @@ Adding the coverage map to the existing "Tool Policy" section instead of creatin
 - **Source plan**: plans/20260924-070936_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260924-090000
-- **Related target files**: docs/05_agent_02_runtime-architecture.md
+- **Related target files**: docs/agent_02_runtime-architecture.md

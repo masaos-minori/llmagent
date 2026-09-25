@@ -1,9 +1,9 @@
 ## Goal
-- Restructure `docs/90_shared_90_inconsistencies_and_known_issues.md` to remove overly detailed metadata field templates while explicitly preserving meaning of each known issue, why it's a problem, operational notes, fix criteria. Explicitly preserve SHARED-001 (recover_corruption propagates exception on actual page corruption) and its unresolved status.
+- Restructure `docs/shared_90_inconsistencies_and_known_issues.md` to remove overly detailed metadata field templates while explicitly preserving meaning of each known issue, why it's a problem, operational notes, fix criteria. Explicitly preserve SHARED-001 (recover_corruption propagates exception on actual page corruption) and its unresolved status.
 
 ## Scope
 - **In-Scope**: 
-  - `docs/90_shared_90_inconsistencies_and_known_issues.md` — restructure to reduce implementation detail while preserving design-intent-critical facts
+  - `docs/shared_90_inconsistencies_and_known_issues.md` — restructure to reduce implementation detail while preserving design-intent-critical facts
 - **Out-of-Scope**: Other shared/DB chapters (`docs/90_shared_*.md`), source code changes, tests
 
 ## Assumptions
@@ -29,7 +29,7 @@
 
 ## Implementation
 ### Target files
-- `docs/90_shared_90_inconsistencies_and_known_issues.md`
+- `docs/shared_90_inconsistencies_and_known_issues.md`
 
 ### Procedure
 1. **Phase 1: Preparation**
@@ -100,4 +100,4 @@
 - Source plan: plans/20260807-213056_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260808-100000
-- Related target files: docs/90_shared_90_inconsistencies_and_known_issues.md
+- Related target files: docs/shared_90_inconsistencies_and_known_issues.md

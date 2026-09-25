@@ -69,7 +69,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md`**
+**File: `shared_04_03_db_architecture_and_schema-migration-and-scaling.md`**
 - Internal migration list names: Replace with prose summary referencing `scripts/db/helper.py`
 - ALTER TABLE details: Replace with prose summary
 - Duplicate column name error handling: Replace with prose summary

@@ -1,7 +1,7 @@
 ## Goal
 
 Update the `/db rebuild-fts` migration-notes row in
-`docs/05_agent_07_07_cli-and-commands-migration-notes.md` to point at the new `/session
+`docs/agent_07_07_cli-and-commands-migration-notes.md` to point at the new `/session
 rag-rebuild-fts` command (added in `implementations/20260719-103526_cmd_session.py.md`), since a
 successor now exists where the doc previously said none did.
 
@@ -32,7 +32,7 @@ either order without conflict.
 
 ## Assumptions
 
-1. Verified by direct grep/read of `docs/05_agent_07_07_cli-and-commands-migration-notes.md`
+1. Verified by direct grep/read of `docs/agent_07_07_cli-and-commands-migration-notes.md`
    (current file, no drift from the plan's citation of "line 58" — actual current line is 50):
    ```
    46:| 廃止された形式 | 現在の状態 |
@@ -69,7 +69,7 @@ either order without conflict.
 
 ### Target file
 
-`docs/05_agent_07_07_cli-and-commands-migration-notes.md`.
+`docs/agent_07_07_cli-and-commands-migration-notes.md`.
 
 ### Procedure
 
@@ -99,8 +99,8 @@ table itself, not just the runtime message).
 
 | Check | Command | Target |
 |---|---|---|
-| Row updated | `rg -n "db rebuild-fts" docs/05_agent_07_07_cli-and-commands-migration-notes.md` | shows `/session rag-rebuild-fts` as the paired cell, not `後継コマンドなし` |
-| No unintended row changes | `sed -n '46,57p' docs/05_agent_07_07_cli-and-commands-migration-notes.md` | only line 50 differs from the pre-edit content quoted in Assumption 1 (line 57 may also differ if the prior cycle's doc has landed — that is expected and out of this doc's scope) |
+| Row updated | `rg -n "db rebuild-fts" docs/agent_07_07_cli-and-commands-migration-notes.md` | shows `/session rag-rebuild-fts` as the paired cell, not `後継コマンドなし` |
+| No unintended row changes | `sed -n '46,57p' docs/agent_07_07_cli-and-commands-migration-notes.md` | only line 50 differs from the pre-edit content quoted in Assumption 1 (line 57 may also differ if the prior cycle's doc has landed — that is expected and out of this doc's scope) |
 | Docs consistency checker | `uv run python tools/check_agent_docs_consistency.py` | no new ERROR/WARNING introduced |
-| Cross-reference with code | `rg -n "rag-rebuild-fts" scripts/agent/commands/cmd_session.py docs/05_agent_07_07_cli-and-commands-migration-notes.md` | both files reference the same subcommand name |
-| No remaining stale row | `rg -n "rebuild-fts.*後継コマンドなし" docs/05_agent_07_07_cli-and-commands-migration-notes.md` | 0 matches |
+| Cross-reference with code | `rg -n "rag-rebuild-fts" scripts/agent/commands/cmd_session.py docs/agent_07_07_cli-and-commands-migration-notes.md` | both files reference the same subcommand name |
+| No remaining stale row | `rg -n "rebuild-fts.*後継コマンドなし" docs/agent_07_07_cli-and-commands-migration-notes.md` | 0 matches |

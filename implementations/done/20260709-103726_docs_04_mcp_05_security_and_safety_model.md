@@ -39,7 +39,7 @@ Add immediately after (before the `**Audit API isolation:**` paragraph):
 **Reload boundary:** `/reload` never re-runs this check and never applies
 `auth_token` changes to a running MCP server — token changes are always
 reported as restart-required (see
-[Configuration: Hot-reload eligibility](05_agent_08_configuration.md#config-file-ownership-and-hot-reload-eligibility)).
+[Configuration: Hot-reload eligibility](agent_08_configuration.md#config-file-ownership-and-hot-reload-eligibility)).
 Production auth validation only ever runs at startup; there is no runtime
 path that can weaken or bypass it.
 ```
@@ -53,5 +53,5 @@ path that can weaken or bypass it.
 | Check | Command | Expected |
 |---|---|---|
 | Note present | `grep -n "Reload boundary" docs/04_mcp_05_security_and_safety_model.md` | 1 match |
-| Anchor valid | confirm `#config-file-ownership-and-hot-reload-eligibility` matches the actual heading slug in `docs/05_agent_08_configuration.md` | matches |
+| Anchor valid | confirm `#config-file-ownership-and-hot-reload-eligibility` matches the actual heading slug in `docs/agent_08_configuration.md` | matches |
 | MCP docs consistency | `uv run check-mcp-docs` | pass |

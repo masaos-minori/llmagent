@@ -2,13 +2,13 @@
 
 ## Goal
 
-Document authoritative session title failure behavior in `05_agent_04` and add a SPEC entry in `05_agent_90`.
+Document authoritative session title failure behavior in `agent_04` and add a SPEC entry in `agent_90`.
 
 ## Scope
 
 **In:**
-- `docs/05_agent_04_session_and_persistence.md` — add failure-behavior section
-- `docs/05_agent_90_specifications_and_design_contracts.md` — add/update SPEC entry
+- `docs/agent_04_session_and_persistence.md` — add failure-behavior section
+- `docs/agent_90_specifications_and_design_contracts.md` — add/update SPEC entry
 
 **Out:** No code changes.
 
@@ -22,7 +22,7 @@ Document authoritative session title failure behavior in `05_agent_04` and add a
 
 ### Target file
 
-`docs/05_agent_04_session_and_persistence.md`, `docs/05_agent_90_specifications_and_design_contracts.md`
+`docs/agent_04_session_and_persistence.md`, `docs/agent_90_specifications_and_design_contracts.md`
 
 ### Procedure
 
@@ -31,9 +31,9 @@ Document authoritative session title failure behavior in `05_agent_04` and add a
    grep -rn "session.*title\|title.*generat\|generate_title" agent/ --include="*.py" | head -20
    ```
 2. Confirm fallback behavior from code.
-3. Read `docs/05_agent_04_session_and_persistence.md` session title section.
+3. Read `docs/agent_04_session_and_persistence.md` session title section.
 4. Add/update failure-behavior documentation.
-5. Read `docs/05_agent_90_specifications_and_design_contracts.md` to check for existing session title SPEC.
+5. Read `docs/agent_90_specifications_and_design_contracts.md` to check for existing session title SPEC.
 6. Add SPEC-SESSION-01 if not present.
 
 ### Method
@@ -42,7 +42,7 @@ Bash grep → Read docs → Edit patches.
 
 ### Details
 
-**Failure behavior section for `05_agent_04`:**
+**Failure behavior section for `agent_04`:**
 
 ```markdown
 ### Session Title Generation Failure Behavior
@@ -60,7 +60,7 @@ All failure cases are non-blocking. The session continues normally.
 Fallback title is persisted to session storage.
 ```
 
-**SPEC entry for `05_agent_90`:**
+**SPEC entry for `agent_90`:**
 
 ```markdown
 ### SPEC-SESSION-01: Session Title Generation
@@ -72,6 +72,6 @@ Session title is generated non-blocking on first turn. All failure modes use a d
 
 | Check | Command | Expected |
 |---|---|---|
-| Failure behavior documented | `grep -n "title.*fallback\|fallback.*title\|Untitled" docs/05_agent_04_session_and_persistence.md` | found |
-| SPEC entry present | `grep -n "SPEC-SESSION-01\|session.*title.*spec" docs/05_agent_90_specifications_and_design_contracts.md` | found |
+| Failure behavior documented | `grep -n "title.*fallback\|fallback.*title\|Untitled" docs/agent_04_session_and_persistence.md` | found |
+| SPEC entry present | `grep -n "SPEC-SESSION-01\|session.*title.*spec" docs/agent_90_specifications_and_design_contracts.md` | found |
 | No code changes | `git diff agent/` | empty |

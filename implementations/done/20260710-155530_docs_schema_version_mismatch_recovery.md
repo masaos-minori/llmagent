@@ -10,7 +10,7 @@ Document the new `workflow_schema_version` table and the recovery procedure for 
 - `docs/90_shared_04_02_db_architecture_and_schema-schema-reference.md`: add the `workflow_schema_version` table to section 7 (`workflow.sqlite` Schema), plus a "Schema version mismatch" recovery subsection
 
 **Out:**
-- No change to `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`'s existing "Workflow Startup Validation" section content — only a one-line cross-link is added there (see Details), since that section covers workflow-definition-file validation, not DB schema version
+- No change to `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`'s existing "Workflow Startup Validation" section content — only a one-line cross-link is added there (see Details), since that section covers workflow-definition-file validation, not DB schema version
 
 ## Assumptions
 
@@ -42,7 +42,7 @@ Document the new `workflow_schema_version` table and the recovery procedure for 
 
    **Recovery**: re-run `deploy/init_db.sh` (or call `create_workflow_schema()` directly) to bring the schema up to the expected version. `_WORKFLOW_MIGRATIONS` and the version-recording insert are both idempotent, so re-running is always safe.
    ```
-2. In `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, under its existing `## Workflow Startup Validation` heading, add one cross-link line: `See also: [workflow_schema_version and schema version mismatch recovery](90_shared_04_02_db_architecture_and_schema-schema-reference.md#7-workflowsqlite-schema).`
+2. In `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, under its existing `## Workflow Startup Validation` heading, add one cross-link line: `See also: [workflow_schema_version and schema version mismatch recovery](shared_04_02_db_architecture_and_schema-schema-reference.md#7-workflowsqlite-schema).`
 
 ### Method
 
@@ -57,7 +57,7 @@ Direct documentation insertion at a confirmed, already-read location — no rest
 ```bash
 uv run python -c "import check_docs_consistency" 2>/dev/null || true
 grep -n "workflow_schema_version" docs/90_shared_04_02_db_architecture_and_schema-schema-reference.md
-grep -n "Workflow Startup Validation" -A5 docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+grep -n "Workflow Startup Validation" -A5 docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md
 ```
 
 Expected outcome: `docs/90_shared_04_02_db_architecture_and_schema-schema-reference.md` now documents the `workflow_schema_version` table and its recovery procedure inside section 7, immediately alongside the other `workflow.sqlite` tables; the operations/troubleshooting doc cross-links to it without duplicating content.

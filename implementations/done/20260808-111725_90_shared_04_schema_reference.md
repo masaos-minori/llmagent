@@ -70,7 +70,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_04_02_db_architecture_and_schema-schema-reference-part1.md`**
+**File: `shared_04_02_db_architecture_and_schema-schema-reference-part1.md`**
 - Full DDL text: Replace with prose summary referencing `scripts/db/schema_sql.py`
 - Table-by-table column lists: Replace with prose summary
 - FTS5 virtual table definitions: Replace with prose summary
@@ -79,7 +79,7 @@ For each target section:
 - Workflow table column lists: Replace with prose summary
 - Schema version table column lists: Replace with prose summary
 
-**File: `90_shared_04_02_db_architecture_and_schema-schema-reference-part2.md`**
+**File: `shared_04_02_db_architecture_and_schema-schema-reference-part2.md`**
 - Same compression targets as part1
 
 ## Compatibility Considerations

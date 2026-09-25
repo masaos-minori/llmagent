@@ -1,10 +1,10 @@
 ## Goal
 
-Verify that the fact recorded in archived NC-001 about `PREMATURE_EOF` error classification is already present in `05_agent_05_llm-and-streaming.md`, and add it if missing.
+Verify that the fact recorded in archived NC-001 about `PREMATURE_EOF` error classification is already present in `agent_05_llm-and-streaming.md`, and add it if missing.
 
 ## Scope
 
-Check `05_agent_05_llm-and-streaming.md` for the presence of the fact that `PREMATURE_EOF` is raised when SSE stream ends before expected content-length, and `UTF8_PARTIAL_DECODE_ERROR` handles JSON decode errors separately. Add a concise statement if not already present.
+Check `agent_05_llm-and-streaming.md` for the presence of the fact that `PREMATURE_EOF` is raised when SSE stream ends before expected content-length, and `UTF8_PARTIAL_DECODE_ERROR` handles JSON decode errors separately. Add a concise statement if not already present.
 
 ## Assumptions
 
@@ -27,11 +27,11 @@ Check `05_agent_05_llm-and-streaming.md` for the presence of the fact that `PREM
 
 ### Target file
 
-`05_agent_05_llm-and-streaming.md`
+`agent_05_llm-and-streaming.md`
 
 ### Procedure
 
-1. Read `05_agent_05_llm-and-streaming.md` to identify existing error classification documentation
+1. Read `agent_05_llm-and-streaming.md` to identify existing error classification documentation
 2. Check whether the following facts are already present:
    - `PREMATURE_EOF` is raised when SSE stream ends before expected content-length
    - `UTF8_PARTIAL_DECODE_ERROR` handles JSON decode errors separately
@@ -71,7 +71,7 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 
 | Target | Strategy | Command | Expected Outcome |
 |---|---|---|---|
-| `05_agent_05_llm-and-streaming.md` | Manual comparison of archived NC-001 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
+| `agent_05_llm-and-streaming.md` | Manual comparison of archived NC-001 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
 
 ## Completion criteria
 
@@ -115,4 +115,4 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 - **Source plan**: plans/20260831-223610_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 2026-09-01T00:00:00Z
-- **Related target files**: 05_agent_05_llm-and-streaming.md
+- **Related target files**: agent_05_llm-and-streaming.md

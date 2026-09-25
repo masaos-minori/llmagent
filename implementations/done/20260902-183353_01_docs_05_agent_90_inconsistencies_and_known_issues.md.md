@@ -2,13 +2,13 @@
 
 Satisfy `REQ-001`, `REQ-002`, `REQ-003` (WF-001/WF-002/WF-003 re-investigation): correct or
 close WF-001, WF-002, and WF-003 in
-`docs/05_agent_90_inconsistencies_and_known_issues.md` so each entry's text matches current
+`docs/agent_90_inconsistencies_and_known_issues.md` so each entry's text matches current
 ADR-001 evidence, and make the document's "Operational Notes" claim ("There are currently no
 open items") consistent with the result.
 
 ## Scope
 
-Modify exactly `docs/05_agent_90_inconsistencies_and_known_issues.md`: the WF-001 entry
+Modify exactly `docs/agent_90_inconsistencies_and_known_issues.md`: the WF-001 entry
 (current lines 57-76), the WF-002 entry (current lines 79-98), the WF-003 entry (current
 lines 101-119), and the "Operational Notes" bullet (current line 49). No other section of
 this file, and no other file, is touched.
@@ -24,7 +24,7 @@ this file, and no other file, is touched.
 - **New finding during this cycle's adversarial verification** (not fully captured by the
   Plan's original Background, which has been corrected — see `plans/20260901-072521_plan.md`
   Background/Design, corrected 2026-09-02): WF-002's actual document text
-  (`docs/05_agent_90_inconsistencies_and_known_issues.md` lines 79-97) does not merely omit a
+  (`docs/agent_90_inconsistencies_and_known_issues.md` lines 79-97) does not merely omit a
   test for real INV-03. It misquotes INV-03 as "When the Workflow Engine reports successful
   execution, the corresponding document state must reflect that execution" (a RAG-ingestion
   document-state claim unrelated to the real INV-03 text above), and its "Observed
@@ -40,7 +40,7 @@ this file, and no other file, is touched.
   implemented") — the claim itself is a misreading of Decision Detail #5's real text, not a
   misquote of it (this part of the Plan's Background was accurate, no correction needed).
 - Re-verified (new, during this cycle): full-document grep of
-  `docs/05_agent_90_inconsistencies_and_known_issues.md` for `Status` found exactly 3 matches
+  `docs/agent_90_inconsistencies_and_known_issues.md` for `Status` found exactly 3 matches
   (lines 61, 83, 105 — WF-001/WF-002/WF-003, all `open`); the document is 123 lines total with
   no other discrepancy entries. This resolves the Plan's UNK-04 (see
   `plans/20260901-072521_plan.md`, corrected 2026-09-02): once WF-001/002/003 are closed, the
@@ -91,7 +91,7 @@ classification guidance.
 
 ### Target file
 
-docs/05_agent_90_inconsistencies_and_known_issues.md
+docs/agent_90_inconsistencies_and_known_issues.md
 
 ### Procedure
 
@@ -167,7 +167,7 @@ the three entries' current (stale) text and reopens `Status: open` for all three
 - Manual review: confirm each entry's rewritten `Summary`/`Current Description`/`Observed
   Implementation` matches the current, re-verified ADR-001/test evidence cited above.
 - `rg -n "WF-001|WF-002|WF-003" docs/` and `rg -n "05_agent_90_inconsistencies_and_known_issues" docs/ implementations/ plans/` — confirm no other document cross-references these entries in a way this change would orphan.
-- `uv run python tools/check_docs_quality.py` and `uv run python tools/check_docs_structure.py docs/05_agent_90_inconsistencies_and_known_issues.md` — structural checks for the edited file.
+- `uv run python tools/check_docs_quality.py` and `uv run python tools/check_docs_structure.py docs/agent_90_inconsistencies_and_known_issues.md` — structural checks for the edited file.
 - `uv run python tools/check_docs_consistency.py --domain agent` — this file falls under the `agent` domain per `docs/00_index.md`'s Document References by Task mapping.
 
 ## Completion criteria
@@ -180,7 +180,7 @@ given the (now all-closed) entries in the document.
 ## Out of scope
 
 Re-editing `docs/adr/ADR-001-workflow-engine-mandatory.md` itself (Plan Scope Out-of-Scope).
-Any entry in `docs/05_agent_90_inconsistencies_and_known_issues.md` other than WF-001/WF-002/
+Any entry in `docs/agent_90_inconsistencies_and_known_issues.md` other than WF-001/WF-002/
 WF-003 (none exist per this cycle's full-document scan — see Assumptions, UNK-04). Filing a
 new `issues/` ticket for WF-002 (not warranted — classified Obsolete and removable, not
 Implementation fix required, per Design decisions).
@@ -215,4 +215,4 @@ Implementation fix required, per Design decisions).
 - **Source plan**: plans/20260901-072521_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260902-183353
-- **Related target files**: docs/05_agent_90_inconsistencies_and_known_issues.md
+- **Related target files**: docs/agent_90_inconsistencies_and_known_issues.md

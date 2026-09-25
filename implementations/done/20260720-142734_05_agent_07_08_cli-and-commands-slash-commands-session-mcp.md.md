@@ -1,4 +1,4 @@
-# Implementation procedure: `docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` (verify `/mcp tools` description for stale fallback wording)
+# Implementation procedure: `docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` (verify `/mcp tools` description for stale fallback wording)
 
 Source plan: `plans/done/20260720-134821_plan.md`, Implementation step Phase 3 (item 6, resolving
 part of UNK-04).
@@ -15,7 +15,7 @@ only if stale two-tier wording is found.
 
 ## Scope
 
-**In scope**: `docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`, the `/mcp tools`
+**In scope**: `docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md`, the `/mcp tools`
 table row (line 66) and its accompanying explanatory sentence (line 71).
 
 **Out of scope**: The rest of the `/session`/`/mcp` command reference table — unaffected.
@@ -39,7 +39,7 @@ table row (line 66) and its accompanying explanatory sentence (line 71).
 
 ### Target file
 
-`docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
+`docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
 
 ### Procedure
 
@@ -65,5 +65,5 @@ something the grep excerpt did not show.
 
 | Check | Command | Expected |
 |---|---|---|
-| Full-line re-read | `grep -n -A1 "/mcp tools" docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | Full sentence at line 71 contains no `ToolRegistry`/fallback qualifier |
+| Full-line re-read | `grep -n -A1 "/mcp tools" docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | Full sentence at line 71 contains no `ToolRegistry`/fallback qualifier |
 | Docs consistency | `uv run check-mcp-docs` | Passes |

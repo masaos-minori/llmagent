@@ -108,7 +108,7 @@ for the detection tool tracked in this issue's companion issue (see Dependencies
   `docs/03_rag_02_07_ingestion_pipeline-utils.md`,
   `docs/03_rag_02_08_ingestion_pipeline-shared.md`, `docs/03_rag_01_system_overview.md`,
   `docs/03_rag_04_01_dto-models_data.md`,
-  `docs/05_agent_09_02_data-layer-access-patterns.md`, `docs/03_rag_00_document-guide.md`,
+  `docs/agent_09_02_data-layer-access-patterns.md`, `docs/03_rag_00_document-guide.md`,
   `docs/03_rag_02_06_ingestion_pipeline-supporting-components.md`,
   `docs/03_rag_02_05_ingestion_pipeline-document-manager.md`,
   `docs/adr/ADR-005-rag-source-derived-index-relationships.md`,

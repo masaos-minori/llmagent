@@ -1,4 +1,4 @@
-# Implementation: docs/90_shared_05_db_api_and_operations.md
+# Implementation: docs/shared_05_db_api_and_operations.md
 
 ## Goal
 
@@ -6,7 +6,7 @@ Update the `chunk_insert` API documentation to reflect the extended signature th
 
 ## Scope
 
-- Target: `docs/90_shared_05_db_api_and_operations.md`
+- Target: `docs/shared_05_db_api_and_operations.md`
 - Update the `chunk_insert` method signature shown around line 152
 - Update the description around line 160 to note the two new fields
 - No other sections changed
@@ -21,7 +21,7 @@ Update the `chunk_insert` API documentation to reflect the extended signature th
 
 ### Target file
 
-`docs/90_shared_05_db_api_and_operations.md`
+`docs/shared_05_db_api_and_operations.md`
 
 ### Procedure
 
@@ -69,5 +69,5 @@ def chunk_insert(
 
 | Check | Command | Target |
 |---|---|---|
-| File readable | `cat docs/90_shared_05_db_api_and_operations.md | grep chunk_insert` | Shows updated signature with `chunk_type` and `source_file` |
+| File readable | `cat docs/shared_05_db_api_and_operations.md | grep chunk_insert` | Shows updated signature with `chunk_type` and `source_file` |
 | No broken links | Manual review | No `[[broken]]` internal links introduced |

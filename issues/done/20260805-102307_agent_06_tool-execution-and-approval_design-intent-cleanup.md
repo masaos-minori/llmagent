@@ -10,13 +10,13 @@ Apply the design-doc reduction policy from `memo-doc-agent-review.md` to the too
 This chapter covers approval, fail-closed behavior, DAG scheduling, and side-effect serialization — all safety-relevant. `memo-doc-agent-review.md` explicitly warns (§「注意」 for this chapter) that safety-relevant judgment must never be dropped even while trimming code-level detail, so this cleanup carries higher risk than purely cosmetic chapters if done carelessly.
 
 ## Implementation Intent
-Keep this chapter as the canonical source for tool-execution/approval/safety design (per `memo-doc-agent-review.md` §「章間の正本ルール」: ツール実行・承認・安全制御 = `05_agent_06_tool-execution-and-approval`).
+Keep this chapter as the canonical source for tool-execution/approval/safety design (per `memo-doc-agent-review.md` §「章間の正本ルール」: ツール実行・承認・安全制御 = `agent_06_tool-execution-and-approval`).
 
 ## Target Files or Areas
-- `docs/05_agent_06_01_tool-execution-and-approval-execution.md`
-- `docs/05_agent_06_02_tool-execution-and-approval-approval.md`
-- `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
-- `docs/05_agent_06_04_tool-execution-and-approval-canonical.md`
+- `docs/agent_06_01_tool-execution-and-approval-execution.md`
+- `docs/agent_06_02_tool-execution-and-approval-approval.md`
+- `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md`
+- `docs/agent_06_04_tool-execution-and-approval-canonical.md`
 
 ## Required Changes
 - Keep: `ToolExecutor` responsibility boundary, `RuntimeToolRegistry` as routing source of truth (and that `tool_names`/`ToolRegistry` are not), why DAG scheduling is used, the meaning of `serial_tool_calls`, why side-effecting tools are serialized, the Tool-level vs. Workflow-level approval boundary, why `RepositoryGateway` is an enforced boundary, fail-closed design, plan-mode design intent, why caching is limited to successful results only, in-flight de-duplication intent.

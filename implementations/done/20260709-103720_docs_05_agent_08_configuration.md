@@ -1,4 +1,4 @@
-# Implementation: H-10/M-2/L-1 — docs/05_agent_08_configuration.md consolidated fixes
+# Implementation: H-10/M-2/L-1 — docs/agent_08_configuration.md consolidated fixes
 
 Source plans: `plans/20260709-100244_plan.md` (H-10, step 6),
 `plans/20260709-100635_plan.md` (M-2, step 4, items 1-5, expanded for L-1's
@@ -13,7 +13,7 @@ the `skipped` field's stale example.
 
 ## Scope
 
-**Target**: `docs/05_agent_08_configuration.md`, 5 distinct edits within
+**Target**: `docs/agent_08_configuration.md`, 5 distinct edits within
 lines 60-128 (the "Config file ownership and hot-reload eligibility"
 section and the `ConfigReloadOutcome` fields table).
 
@@ -24,7 +24,7 @@ conflicting diffs on the same lines.
 ## Assumptions
 
 1. All 5 edit points were located by reading
-   `docs/05_agent_08_configuration.md:40-134` in full while planning M-2 —
+   `docs/agent_08_configuration.md:40-134` in full while planning M-2 —
    no other section of this file mentions MCP hot-reload/deferred/
    `github_server_url` (confirmed by the grep sweep in L-1's plan).
 
@@ -32,7 +32,7 @@ conflicting diffs on the same lines.
 
 ### Target file
 
-`docs/05_agent_08_configuration.md`
+`docs/agent_08_configuration.md`
 
 ### Procedure
 
@@ -59,7 +59,7 @@ Current:
 ```
 Remove the `github_server_url` row entirely if a separate row for it exists
 elsewhere in this table (verify with
-`grep -n "github_server_url" docs/05_agent_08_configuration.md` — if the
+`grep -n "github_server_url" docs/agent_08_configuration.md` — if the
 match is this same table, fold the removal into this step).
 
 #### Step 3: Fix the classification definitions prose (lines 78-85)
@@ -106,7 +106,7 @@ Current:
 
 #### Step 6: Remove the `github_server_url` reference (H-10)
 
-Confirm via `grep -n "github_server_url" docs/05_agent_08_configuration.md`
+Confirm via `grep -n "github_server_url" docs/agent_08_configuration.md`
 whether the removal is already covered by Step 2 (if it was a value in the
 same table row) or is a separate row/mention elsewhere in the file; delete
 whichever remains. Confirm `mcp_servers.github.url` is named somewhere in
@@ -124,9 +124,9 @@ already present, e.g. under Step 2's row or as a footnote.
 
 | Check | Command | Expected |
 |---|---|---|
-| No stale hot-reload/deferred wording | `grep -n "hot-reloadable" docs/05_agent_08_configuration.md \| grep -i "mcp\|auth_token\|startup_mode"` | no matches |
-| No stale deferred wording | `grep -n "deferred" docs/05_agent_08_configuration.md \| grep -iE "auth_token\|startup_mode"` | no matches |
-| github_server_url removed | `grep -n "github_server_url" docs/05_agent_08_configuration.md` | no matches |
-| Canonical endpoint documented | `grep -n "mcp_servers.github.url" docs/05_agent_08_configuration.md` | ≥ 1 match |
-| Restart-required examples present | `grep -n "mcp/<server>\." docs/05_agent_08_configuration.md` | ≥ 5 matches |
+| No stale hot-reload/deferred wording | `grep -n "hot-reloadable" docs/agent_08_configuration.md \| grep -i "mcp\|auth_token\|startup_mode"` | no matches |
+| No stale deferred wording | `grep -n "deferred" docs/agent_08_configuration.md \| grep -iE "auth_token\|startup_mode"` | no matches |
+| github_server_url removed | `grep -n "github_server_url" docs/agent_08_configuration.md` | no matches |
+| Canonical endpoint documented | `grep -n "mcp_servers.github.url" docs/agent_08_configuration.md` | ≥ 1 match |
+| Restart-required examples present | `grep -n "mcp/<server>\." docs/agent_08_configuration.md` | ≥ 5 matches |
 | MCP docs consistency | `uv run check-mcp-docs` | pass |

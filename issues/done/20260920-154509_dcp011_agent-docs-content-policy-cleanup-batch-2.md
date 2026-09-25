@@ -6,10 +6,10 @@ Medium
 ## Summary
 Remove the two mechanically-derivable tables flagged by
 `tools/check_docs_content_policy.py` (`GV-021`) in
-`docs/05_agent_05_llm-and-streaming.md` — a partial-completion-persistence table and an
+`docs/agent_05_llm-and-streaming.md` — a partial-completion-persistence table and an
 `LLMTransportError` kind-classification table — per `skills/DESIGN.md` Docs content
 policy — remove/retain. Three other Agent findings from the same tool run
-(`05_agent_06_02.md:46`/`:117`, `05_agent_06_03.md:86`, `05_agent_10_05.md:114`) were
+(`agent_06_02.md:46`/`:117`, `agent_06_03.md:86`, `agent_10_05.md:114`) were
 investigated and excluded — see Out of Scope.
 
 ## Background
@@ -22,17 +22,17 @@ Problem.
 
 ## Problem
 `uv run python tools/check_docs_content_policy.py` (run 2026-09-20) reports:
-- `05_agent_05_llm-and-streaming.md:52` — error-handling table ("Partial Completion
+- `agent_05_llm-and-streaming.md:52` — error-handling table ("Partial Completion
   Persistence Rules": Case → Action for `partial_text` states and tool-execution failure)
-- `05_agent_05_llm-and-streaming.md:62` — error-handling table ("Error Type Design":
+- `agent_05_llm-and-streaming.md:62` — error-handling table ("Error Type Design":
   `LLMTransportError.kind` category → description)
 
 Three further findings from the same tool run were investigated and are **not** in
 scope of this issue — they are false positives against `skills/DESIGN.md` Docs content
 policy — retain's "security boundary" / fail-safe-default category, not mechanical
 restatement:
-- `05_agent_06_02_tool-execution-and-approval-approval.md:46` and `:117`
-- `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md:86`
+- `agent_06_02_tool-execution-and-approval-approval.md:46` and `:117`
+- `agent_06_03_tool-execution-and-approval-concurrency-safety.md:86`
 
 All three read "Fail-safe: Undefined tools in `tool_safety_tiers` default to
 `WRITE_DANGEROUS`" inside a `## Key Constraints` section — this is exactly the
@@ -42,7 +42,7 @@ policy — retain requires keeping, not a code-derivable value restatement. The 
 `_RATIONALE_MARKERS` allowlist does not include "fail-safe"/"fail-closed", producing a
 false positive — tracked as a tool-precision gap in a separate issue (see Dependencies).
 
-`05_agent_10_05_operations-and-observability-monitoring.md:114` ("`workflow_count`,
+`agent_10_05_operations-and-observability-monitoring.md:114` ("`workflow_count`,
 `task_count`, ... default to 0 or an empty list if querying the workflow DB fails") was
 also investigated: this states graceful-degradation behavior on a specific failure mode
 (operational note / known limitation), which Docs content policy — retain also protects.
@@ -66,7 +66,7 @@ directly attached to these two tables during investigation, so both are pure lis
 removals.
 
 ## Target Files or Areas
-- `docs/05_agent_05_llm-and-streaming.md`
+- `docs/agent_05_llm-and-streaming.md`
 
 ## Required Changes
 1. Replace the "Partial Completion Persistence Rules" table (lines ~48-56) with a short
@@ -82,21 +82,21 @@ removals.
 - Do not alter any other content in this file beyond the two flagged tables and their
   immediately surrounding prose (e.g. the `RobustSSEParser`/`LlmSseHelpers` sentence
   above them stays untouched).
-- Do not touch `05_agent_06_02.md`, `05_agent_06_03.md`, or `05_agent_10_05.md` — see Out
+- Do not touch `agent_06_02.md`, `agent_06_03.md`, or `agent_10_05.md` — see Out
   of Scope.
 
 ## Acceptance Criteria
 - `uv run python tools/check_docs_content_policy.py` reports zero findings for
-  `docs/05_agent_05_llm-and-streaming.md`.
+  `docs/agent_05_llm-and-streaming.md`.
 - The section still reads coherently and points to the owning source instead of
   restating the case/category list.
-- `uv run python tools/check_docs_structure.py docs/05_agent_05_llm-and-streaming.md`
+- `uv run python tools/check_docs_structure.py docs/agent_05_llm-and-streaming.md`
   passes.
 
 ## Testing Expectations
 Documentation-only change. Run `uv run python tools/check_docs_content_policy.py`,
 `uv run python tools/check_docs_quality.py`,
-`uv run python tools/check_docs_structure.py docs/05_agent_05_llm-and-streaming.md`, and
+`uv run python tools/check_docs_structure.py docs/agent_05_llm-and-streaming.md`, and
 `uv run python tools/check_docs_consistency.py --domain agent`. No `pytest`/`mypy`/`ruff`
 run required.
 
@@ -104,12 +104,12 @@ run required.
 Yes — this issue is itself a documentation cleanup, scoped to one file.
 
 ## Out of Scope
-- `05_agent_06_02_tool-execution-and-approval-approval.md` (`:46`, `:117`),
-  `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md` (`:86`) — investigated
+- `agent_06_02_tool-execution-and-approval-approval.md` (`:46`, `:117`),
+  `agent_06_03_tool-execution-and-approval-concurrency-safety.md` (`:86`) — investigated
   and excluded as Docs content policy — retain security-boundary content (see Problem);
   do not remove the "Fail-safe: Undefined tools ... default to `WRITE_DANGEROUS`"
   sentences in this issue or any follow-up to it.
-- `05_agent_10_05_operations-and-observability-monitoring.md:114` — investigated and
+- `agent_10_05_operations-and-observability-monitoring.md:114` — investigated and
   excluded as an operational/known-limitation note (see Problem).
 - Fixing `check_docs_content_policy.py`'s `_RATIONALE_MARKERS` false-positive gap itself
   — tracked as a separate tool-precision issue (see Dependencies), not implemented here.
@@ -126,7 +126,7 @@ N/A: none — both in-scope findings and all three exclusions were confirmed by 
 tool run and file read on 2026-09-20.
 
 ## AI Implementation Instruction
-Edit only `docs/05_agent_05_llm-and-streaming.md`. Replace the two flagged tables with
+Edit only `docs/agent_05_llm-and-streaming.md`. Replace the two flagged tables with
 canonical-source pointers per Required Changes; do not touch any other file, and do not
 remove the fail-safe/default-on-failure sentences in the three excluded files listed in
 Out of Scope — those are confirmed design-intent content, not findings to fix.

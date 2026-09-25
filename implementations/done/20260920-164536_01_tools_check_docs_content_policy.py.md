@@ -81,8 +81,8 @@ test-file row (`REQ-002`).
 
 ## Validation plan
 - `uv run python tools/check_docs_content_policy.py` — confirm zero findings at the
-  three false-positive locations (`docs/05_agent_06_02_tool-execution-and-approval-approval.md:46,117`,
-  `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md:86`) (Plan
+  three false-positive locations (`docs/agent_06_02_tool-execution-and-approval-approval.md:46,117`,
+  `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md:86`) (Plan
   `AC-1`).
 - Confirm the genuine finding at
   `docs/00_governance_03_issue-and-uncertainty-management.md:451` (and `:454`) is still
@@ -112,8 +112,8 @@ at `00_governance_03...md:451`/`:454` still reported.
 - Auditing the full corpus for other possible marker gaps beyond fail-safe/
   fail-closed/fail-open — per the Plan's own Out of Scope, file a separate issue if
   another gap is found.
-- `docs/05_agent_06_02_tool-execution-and-approval-approval.md`,
-  `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md` — these
+- `docs/agent_06_02_tool-execution-and-approval-approval.md`,
+  `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md` — these
   files require no edit; this row only stops the tool from flagging them.
 
 ## Execution Status

@@ -1,13 +1,13 @@
-# Implementation: docs/90_shared_03_runtime_and_execution.md — Clarify _cast_enums() as non-public API
+# Implementation: docs/shared_03_runtime_and_execution.md — Clarify _cast_enums() as non-public API
 
 **Plan source:** `plans/20260702-202849_plan.md` (Phase 2)
-**Target file:** `docs/90_shared_03_runtime_and_execution.md`
+**Target file:** `docs/shared_03_runtime_and_execution.md`
 
 ---
 
 ## Goal
 
-`docs/90_shared_03_runtime_and_execution.md` の §11 McpServerConfig セクションを読み込み、`_cast_enums()` が公開 API として記述されている場合に非公開旨の注記を追加する。文字列→enum 変換が public contract であるかのような記述を削除または明確化する。
+`docs/shared_03_runtime_and_execution.md` の §11 McpServerConfig セクションを読み込み、`_cast_enums()` が公開 API として記述されている場合に非公開旨の注記を追加する。文字列→enum 変換が public contract であるかのような記述を削除または明確化する。
 
 ---
 
@@ -36,11 +36,11 @@
 
 ### Target file
 
-`docs/90_shared_03_runtime_and_execution.md`
+`docs/shared_03_runtime_and_execution.md`
 
 ### Procedure
 
-1. `docs/90_shared_03_runtime_and_execution.md` を全文読み込み、§11 McpServerConfig セクションを特定する。
+1. `docs/shared_03_runtime_and_execution.md` を全文読み込み、§11 McpServerConfig セクションを特定する。
 2. `_cast_enums()` の記述を確認する。
    - 公開 API として記述されている場合 → 手順 3 を実施する。
    - 記述がない / 既に非公開として明示されている場合 → 変更不要。
@@ -65,7 +65,7 @@ Read ツールで全文確認後、Edit ツールで対象箇所を編集する�
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| Grep 確認 | `grep -n "_cast_enums" docs/90_shared_03_runtime_and_execution.md` | 0件 または注記付きのみ |
+| Grep 確認 | `grep -n "_cast_enums" docs/shared_03_runtime_and_execution.md` | 0件 または注記付きのみ |
 | Lint | `ruff check docs/` | 0 errors |
 | Type check | `mypy docs/` | no new errors |
 | Tests | `uv run pytest` | all pass |

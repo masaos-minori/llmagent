@@ -65,7 +65,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_00_document-guide.md`**
+**File: `shared_00_document-guide.md`**
 - Overly detailed File Index: Replace index with prose summary referencing `scripts/shared/` and `scripts/db/`
 - Overly fine-grained AI Query Routing Table: Replace table with prose summary
 - Keyword enumeration: Replace enumeration with prose summary

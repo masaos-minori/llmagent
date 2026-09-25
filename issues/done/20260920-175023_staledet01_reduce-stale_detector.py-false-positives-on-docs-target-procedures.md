@@ -42,7 +42,7 @@ implementation procedures, all `docs/*.md` targets):
 2. **`_check_line_refs()` does not scope a line reference to its own file.** A
    procedure legitimately cites line numbers in a Reference File different from the
    Target file (e.g. "`scripts/agent/llm_turn_runner.py` (lines 149-163)" while the
-   Target file is `docs/05_agent_05_llm-and-streaming.md`, which is only 148 lines
+   Target file is `docs/agent_05_llm-and-streaming.md`, which is only 148 lines
    long). `_check_line_refs()` (lines 231-264) compares every "Line N"/"Lines N-M"
    match in the whole document against `len(source_lines)` for the single Target file
    passed to the tool, regardless of which file the citation actually refers to,

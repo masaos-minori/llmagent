@@ -52,7 +52,7 @@ section (REQ-001), per `plans/20260825-142943_plan.md`.
 3. Remove the "Caching Behavior" sentence.
 4. Rewrite the "Tool Execution" summary sentence in section 12.
 5. Run `uv run python tools/check_docs_consistency.py --domain deployment` (or the
-   applicable domain per `docs/00_index.md`'s task mapping for `90_shared_*`
+   applicable domain per `docs/00_index.md`'s task mapping for `shared_*`
    files — verify before running).
 
 ### Method

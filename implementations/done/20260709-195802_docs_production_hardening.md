@@ -9,7 +9,7 @@ Update 5 documentation files for the comprehensive `ProductionConfigValidator` c
 - `docs/04_mcp_05_security_and_safety_model.md`
 - `docs/04_mcp_06_configuration_and_operations.md`
 - `docs/05_agent_06_tool-execution-and-approval.md`
-- `docs/05_agent_08_configuration.md`
+- `docs/agent_08_configuration.md`
 - `docs/05_agent_11_extension-points.md`
 
 ## Assumptions
@@ -24,7 +24,7 @@ Update 5 documentation files for the comprehensive `ProductionConfigValidator` c
 1. `docs/04_mcp_05_security_and_safety_model.md`
 2. `docs/04_mcp_06_configuration_and_operations.md`
 3. `docs/05_agent_06_tool-execution-and-approval.md`
-4. `docs/05_agent_08_configuration.md`
+4. `docs/agent_08_configuration.md`
 5. `docs/05_agent_11_extension-points.md`
 
 ### Procedure
@@ -32,7 +32,7 @@ Update 5 documentation files for the comprehensive `ProductionConfigValidator` c
 1. **`docs/04_mcp_05_security_and_safety_model.md`:** Add rows for `tool_safety_tiers` bidirectional validation; clarify `allowed_repos_mode="fail_open"` production prohibition.
 2. **`docs/04_mcp_06_configuration_and_operations.md`:** Add pre-production checklist items for `use_tool_dag`, `allowed_tools`, and `tool_safety_tiers`.
 3. **`docs/05_agent_06_tool-execution-and-approval.md`:** Document `allowed_tools=[]` behavior and `use_tool_dag=false` production impact.
-4. **`docs/05_agent_08_configuration.md`:** Add production-recommended-value column for strict keys and safety tiers.
+4. **`docs/agent_08_configuration.md`:** Add production-recommended-value column for strict keys and safety tiers.
 5. **`docs/05_agent_11_extension-points.md`:** Document production prohibition for missing safety tier entries.
 
 ### Details

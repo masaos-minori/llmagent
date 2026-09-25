@@ -171,7 +171,7 @@ an unset variable, and passes through non-matching values unchanged.
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260904 | 20260904 | Added `resolve_env_ref()`; `get_str()` now resolves `${ENV:VAR_NAME}` transparently — zero code changes needed in `git_models.py`/`cicd_models.py`/`web_search_models.py`, which already call `get_str()` for their own auth_token fields |
 | 2 | Add or update tests per Validation plan | Completed | 20260904 | 20260904 | Covered by row 11's `test_auth_token_env_ref_resolved()` (calls `_build_single_server()` directly, since `McpServerConfig`'s own constructor bypasses factory-level resolution) |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260904 | 20260904 | ruff/mypy clean |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | `docs/00_index.md`'s "Config / logger / formatters / rag_utils" row maps to `90_shared_03_01_runtime_and_execution-config-and-logging.md` — added an "Environment-variable secret references" note under `ConfigLoader` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260904 | 20260904 | `docs/00_index.md`'s "Config / logger / formatters / rag_utils" row maps to `shared_03_01_runtime_and_execution-config-and-logging.md` — added an "Environment-variable secret references" note under `ConfigLoader` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

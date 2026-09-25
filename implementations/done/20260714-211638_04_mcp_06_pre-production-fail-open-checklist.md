@@ -28,7 +28,7 @@ Update `04_mcp_06_pre-production-fail-open-checklist.md` to reflect actual fail-
 
 1. **Correct `tool_definitions_strict` checkbox**: Change from unchecked default to explicit production requirement.
 2. **Clarify `workflow_allowlist` fail-closed behavior**: Replace vague "explicitly set" language with specific fail-closed description.
-3. **Remove stale `allowed_repos_mode` reference**: Remove the reference in `05_agent_08_04_configuration-mcp-approval-obs.md`.
+3. **Remove stale `allowed_repos_mode` reference**: Remove the reference in `agent_08_04_configuration-mcp-approval-obs.md`.
 4. **Verify all checklist items match actual enforcement behavior**.
 
 ### Method
@@ -68,7 +68,7 @@ Change to:
 
 #### Step 3: Remove stale allowed_repos_mode reference
 
-In `docs/05_agent_08_04_configuration-mcp-approval-obs.md`, line 47:
+In `docs/agent_08_04_configuration-mcp-approval-obs.md`, line 47:
 ```
 - GitHub `allowed_repos` / `allowed_repos_mode`
 ```

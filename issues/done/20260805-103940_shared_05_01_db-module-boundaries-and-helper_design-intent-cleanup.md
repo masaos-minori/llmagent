@@ -7,7 +7,7 @@ Medium
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to `docs/90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md`: keep `db.store` as the public API boundary and the internal-vs-public split; remove full method tables and constructor signatures.
 
 ## Reason for Change
-This chapter is the canonical source for the DB API boundary (per `memo-doc-shared-review.md` §「章間の正本ルール」: DB API境界 = `90_shared_05_01_db_api_and_operations-module-boundaries-and-helper`), but currently carries `SQLiteHelper`'s full method table and constructor detail that duplicates the code.
+This chapter is the canonical source for the DB API boundary (per `memo-doc-shared-review.md` §「章間の正本ルール」: DB API境界 = `shared_05_01_db_api_and_operations-module-boundaries-and-helper`), but currently carries `SQLiteHelper`'s full method table and constructor detail that duplicates the code.
 
 ## Implementation Intent
 Keep this chapter focused on why `db.store` is the public surface, why `store_protocols`/`store_impl` are internal boundaries, and the responsibility split for extending DB store.

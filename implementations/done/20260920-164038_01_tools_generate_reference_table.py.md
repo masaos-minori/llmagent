@@ -25,7 +25,7 @@ dispatch dictionaries.
 
 ## Design decisions
 Mirror the `"agent"`/`"eventbus"` entries in each dictionary exactly:
-- `REFERENCE_DOC_MEMORY = REPO_ROOT / "docs" / "05_agent_12_07_memory-module-reference-generated.md"`,
+- `REFERENCE_DOC_MEMORY = REPO_ROOT / "docs" / "agent_12_07_memory-module-reference-generated.md"`,
   alongside the existing `REFERENCE_DOC_AGENT`/`REFERENCE_DOC_EVENTBUS` constants.
 - `GUARD_START_MEMORY = "<!-- AUTO-GENERATED: gen_memory_reference.py class-function-reference -->"`,
   following the `gen_<domain>_reference.py` naming convention already used by
@@ -48,7 +48,7 @@ Mirror the `"agent"`/`"eventbus"` entries in each dictionary exactly:
   same table shape).
 
 ## Alternatives considered
-- Point `REFERENCE_DOC_MEMORY` at one of the existing hand-curated `05_agent_12_0[1-6]`
+- Point `REFERENCE_DOC_MEMORY` at one of the existing hand-curated `agent_12_0[1-6]`
   chapter files instead of a new file: rejected — this Plan's own `REQ-002` creates a
   new file specifically to avoid inserting generated content into an existing
   hand-curated document (see that row's own Design decisions); this row's constant
@@ -72,7 +72,7 @@ Mirror the `"agent"`/`"eventbus"` entries in each dictionary exactly:
    `REFERENCE_DOC_MCP`), add `GUARD_START_MEMORY = "<!-- AUTO-GENERATED:
    gen_memory_reference.py class-function-reference -->"`.
 3. After `REFERENCE_DOC_EVENTBUS`'s definition, add `REFERENCE_DOC_MEMORY =
-   REPO_ROOT / "docs" / "05_agent_12_07_memory-module-reference-generated.md"`.
+   REPO_ROOT / "docs" / "agent_12_07_memory-module-reference-generated.md"`.
 4. In `DOMAIN_GENERATORS`, after the `"eventbus"` entry, add: `"memory": ("Memory
    module class/function reference table", generate_memory_reference_table),`.
 5. In `DOMAIN_DOCS`, after the `"eventbus"` entry, add: `"memory":
@@ -133,7 +133,7 @@ Design decisions; `REFERENCE_DOC_MEMORY` and `GUARD_START_MEMORY` are defined;
 - `generate_memory_reference_table()`'s own implementation — already correct, not
   modified.
 - Any existing domain's dictionary entries — unchanged.
-- Creating `docs/05_agent_12_07_memory-module-reference-generated.md` itself — that is
+- Creating `docs/agent_12_07_memory-module-reference-generated.md` itself — that is
   `REQ-002`'s own target-file row (a separate implementation procedure document);
   this row only points `REFERENCE_DOC_MEMORY` at that (not-yet-existing) path.
 - Running the generator live to populate the guarded block — that is `REQ-003`'s

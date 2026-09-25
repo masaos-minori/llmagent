@@ -1,6 +1,6 @@
 ## Goal
 
-Add a distinguishing note to `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`'s "ToolLoopGuard Design Decisions" table next to the existing `tool_error_retry_max` row, explicitly stating it is `ToolLoopGuard`'s own in-memory per-turn block distinct from `WorkflowEngine.retry_policy`'s persistent stage-level retry.
+Add a distinguishing note to `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md`'s "ToolLoopGuard Design Decisions" table next to the existing `tool_error_retry_max` row, explicitly stating it is `ToolLoopGuard`'s own in-memory per-turn block distinct from `WorkflowEngine.retry_policy`'s persistent stage-level retry.
 
 ## Scope
 
@@ -24,7 +24,7 @@ Add a distinguishing note to `docs/05_agent_06_03_tool-execution-and-approval-co
 ## Implementation
 ### Target file
 
-`docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
+`docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md`
 
 ### Procedure
 
@@ -55,7 +55,7 @@ The note should be placed after the table but before the "Concurrency Limits" su
 ## Compatibility considerations
 
 - This is a documentation-only change — no code compatibility impact.
-- The note references `WorkflowEngine.retry_policy` which is documented in `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` (REQ-002) — cross-referencing is intentional.
+- The note references `WorkflowEngine.retry_policy` which is documented in `docs/agent_03_02_turn-processing-flow-llm-tool-loop.md` (REQ-002) — cross-referencing is intentional.
 
 ## Security considerations
 
@@ -69,14 +69,14 @@ The note should be placed after the table but before the "Concurrency Limits" su
 
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_06_03_*.md` | Documentation quality | `uv run python tools/check_docs_quality.py docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md` | Clean |
-| `docs/05_agent_06_03_*.md` | Documentation structure | `uv run python tools/check_docs_structure.py docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md` | Clean |
+| `docs/05_agent_06_03_*.md` | Documentation quality | `uv run python tools/check_docs_quality.py docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md` | Clean |
+| `docs/05_agent_06_03_*.md` | Documentation structure | `uv run python tools/check_docs_structure.py docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md` | Clean |
 
 ## Completion criteria
 
 - `docs/05_agent_06_03_...md`'s `tool_error_retry_max` documentation explicitly distinguishes it from `WorkflowEngine.retry_policy`.
-- `uv run python tools/check_docs_quality.py docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md` passes clean.
-- `uv run python tools/check_docs_structure.py docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md` passes clean.
+- `uv run python tools/check_docs_quality.py docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md` passes clean.
+- `uv run python tools/check_docs_structure.py docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md` passes clean.
 
 ## Out of scope
 
@@ -112,4 +112,4 @@ The note should be placed after the table but before the "Concurrency Limits" su
 - **Source plan**: plans/20260916-140718_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260916-140718
-- **Related target files**: docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md
+- **Related target files**: docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md

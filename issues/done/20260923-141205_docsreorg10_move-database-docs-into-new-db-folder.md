@@ -4,14 +4,14 @@
 Medium
 
 ## Summary
-`git mv` the 8 DB-specific files — the `90_shared_04_*` (DB architecture/schema) and
-`90_shared_05_*` (DB API/operations) subsets of the current `90_shared_*` files, plus
+`git mv` the 8 DB-specific files — the `shared_04_*` (DB architecture/schema) and
+`shared_05_*` (DB API/operations) subsets of the current `shared_*` files, plus
 `docs/databases/active_databases.md` — into a new `docs/41_db/` subfolder. No filename
 or content change beyond required reference fixups.
 
 ## Background
 Same `docs/` reorganization effort as `docsreorg05`; see that issue's Background for
-full context. This issue covers the `41_db` area: the current `90_shared_*` files split
+full context. This issue covers the `41_db` area: the current `shared_*` files split
 into a general-shared subset (`docsreorg09`, → `40_shared`) and this DB-specific
 subset, plus the already-separate `docs/databases/` directory's single file, all of
 which cover the same cross-domain SQLite database topic.
@@ -57,7 +57,7 @@ holds only this one file).
   baseline update expected.
 - Confirm `docsreorg01` and `docsreorg02` have landed before merging this move.
 - `docsreorg02`'s fix to `agent-docs-consistency.yml`-adjacent tooling (per that issue's
-  Problem, `check_agent_docs_consistency.py` reads `90_shared_04_*` as part of its own
+  Problem, `check_agent_docs_consistency.py` reads `shared_04_*` as part of its own
   cross-domain check) must point at `docs/41_db/` after this move, not `docs/40_shared/`.
 - Note (factual, no action required by this issue): `agent-docs-consistency.yml`'s
   `paths:` filter currently lists `docs/90_shared_04_*.md` but not
@@ -68,7 +68,7 @@ holds only this one file).
 ## Constraints
 - `git mv` only — no filename change, no content rewriting beyond what `docsreorg04`
   already covers.
-- Do not move any general-shared (`90_shared_00/01/02/03_*`) file here (tracked by
+- Do not move any general-shared (`shared_00/01/02/03_*`) file here (tracked by
   `docsreorg09`).
 
 ## Acceptance Criteria
@@ -88,16 +88,16 @@ holds only this one file).
 This issue is itself the documentation-location change for the DB area.
 
 ## Out of Scope
-- Moving any general-shared (`90_shared_00/01/02/03_*`) file (tracked by `docsreorg09`).
+- Moving any general-shared (`shared_00/01/02/03_*`) file (tracked by `docsreorg09`).
 - Any filename change or prefix removal (including not renaming
   `active_databases.md` to add a numeric prefix — it keeps its current bare name).
 - Any content edit beyond what `docsreorg04` already covers.
 - Changing `agent-docs-consistency.yml`'s pre-existing asymmetric coverage of
-  `90_shared_04_*` vs `90_shared_05_*`.
+  `shared_04_*` vs `shared_05_*`.
 
 ## Dependencies
 - Depends on: `docsreorg01`, `docsreorg02`.
-- Coordinate with: `docsreorg03` (`agent-docs-consistency.yml`'s `90_shared_04_*` path
+- Coordinate with: `docsreorg03` (`agent-docs-consistency.yml`'s `shared_04_*` path
   filter), `docsreorg04` (canonical reference updates), `docsreorg09` (the
   general-shared subset, which must not be confused with this issue's scope).
 
@@ -106,7 +106,7 @@ N/A: none.
 
 ## AI Implementation Instruction
 Move only the 8 files listed, using `git mv`, into `docs/41_db/`. Do not include any
-general-shared (`90_shared_00/01/02/03_*`) file. Do not rename any file, including
+general-shared (`shared_00/01/02/03_*`) file. Do not rename any file, including
 `active_databases.md`. If `docsreorg01`/`docsreorg02` have not landed yet, stop and
 report `Blocked`.
 

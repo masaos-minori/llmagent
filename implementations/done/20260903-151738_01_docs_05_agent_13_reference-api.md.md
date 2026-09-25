@@ -1,12 +1,12 @@
 ## Goal
-Remove `docs/05_agent_13_reference-api.md`'s incorrect claim that
+Remove `docs/agent_13_reference-api.md`'s incorrect claim that
 `ToolRouteResolver`'s constructor "accepts `server_configs` for backward
 compatibility," replace it with the constructor's actual parameters, and reconcile
 the resulting text with the file's own existing correction note three lines later
 so the section no longer contradicts itself.
 
 ## Scope
-- **In-Scope**: `docs/05_agent_13_reference-api.md`'s `## ToolRouteResolver` section
+- **In-Scope**: `docs/agent_13_reference-api.md`'s `## ToolRouteResolver` section
   (the "Configuration" line and its relationship to the existing correction note).
 - **Out-of-Scope**: `docs/04_mcp_03_01_dispatch-and-routing.md` (seq 02 of this
   Plan), `docs/04_mcp_90_inconsistencies_and_known_issues.md` (REQ-006, now
@@ -25,7 +25,7 @@ so the section no longer contradicts itself.
 - `resolve()` raises `ValueError` immediately when no match is found in
   `RuntimeToolRegistry`, with no fallback to any other source — re-verified at
   `scripts/shared/route_resolver.py:93-106`.
-- Lines 114 and 117 of `docs/05_agent_13_reference-api.md` are unchanged from the
+- Lines 114 and 117 of `docs/agent_13_reference-api.md` are unchanged from the
   Plan's own citation — re-verified 2026-09-03 by direct `grep`, no drift.
 
 ## Design decisions
@@ -65,7 +65,7 @@ so the section no longer contradicts itself.
 
 ## Implementation
 ### Target file
-`docs/05_agent_13_reference-api.md`
+`docs/agent_13_reference-api.md`
 
 ### Procedure
 1. Re-read lines 105-120 in full immediately before editing to reconfirm no drift
@@ -132,12 +132,12 @@ Compatibility considerations).
 ## Validation plan
 | Target File/Module | Testing Strategy | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| docs/05_agent_13_reference-api.md | Automated doc quality check | `uv run python tools/check_docs_quality.py` | No new errors |
-| docs/05_agent_13_reference-api.md | Domain consistency check | `uv run python tools/check_docs_consistency.py --domain mcp` | No new port/tool/link drift findings |
-| docs/05_agent_13_reference-api.md | Manual self-consistency check | Re-read the section around lines 108-117 | Exactly one, correct description of `ToolRouteResolver`'s constructor remains; no `server_configs` claim anywhere in the file |
+| docs/agent_13_reference-api.md | Automated doc quality check | `uv run python tools/check_docs_quality.py` | No new errors |
+| docs/agent_13_reference-api.md | Domain consistency check | `uv run python tools/check_docs_consistency.py --domain mcp` | No new port/tool/link drift findings |
+| docs/agent_13_reference-api.md | Manual self-consistency check | Re-read the section around lines 108-117 | Exactly one, correct description of `ToolRouteResolver`'s constructor remains; no `server_configs` claim anywhere in the file |
 
 ## Completion criteria
-- No statement in `docs/05_agent_13_reference-api.md` claims `ToolRouteResolver`
+- No statement in `docs/agent_13_reference-api.md` claims `ToolRouteResolver`
   accepts `server_configs` (AC-1).
 - The Configuration line and the correction note state one consistent, current
   description of the constructor with no contradiction (AC-2, AC-4).
@@ -180,4 +180,4 @@ per this Plan's 2026-09-03 correction (file no longer exists).
 - **Source plan**: plans/20260903-090104_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260903-151738
-- **Related target files**: docs/05_agent_13_reference-api.md
+- **Related target files**: docs/agent_13_reference-api.md

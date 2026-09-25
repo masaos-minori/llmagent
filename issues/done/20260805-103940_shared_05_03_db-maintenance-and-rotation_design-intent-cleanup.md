@@ -7,7 +7,7 @@ High
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to `docs/90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md`: keep the STRICT/BEST_EFFORT operational judgment and WAL-checkpoint/VACUUM/purge/prune cautions; remove full function signatures and dataclass definitions.
 
 ## Reason for Change
-This chapter is the canonical source for maintenance/rotation/consistency operations (per `memo-doc-shared-review.md` §「章間の正本ルール」: maintenance / rotation / consistency = `90_shared_05_03_db_api_and_operations-maintenance-and-rotation`). The requirement to always check `result.success` under BEST_EFFORT is a correctness-critical operational rule that silent-failure risk depends on, and must not be diluted.
+This chapter is the canonical source for maintenance/rotation/consistency operations (per `memo-doc-shared-review.md` §「章間の正本ルール」: maintenance / rotation / consistency = `shared_05_03_db_api_and_operations-maintenance-and-rotation`). The requirement to always check `result.success` under BEST_EFFORT is a correctness-critical operational rule that silent-failure risk depends on, and must not be diluted.
 
 ## Implementation Intent
 Keep this chapter focused on the operational purpose of maintenance functions, the STRICT/BEST_EFFORT distinction, WAL-checkpoint/VACUUM/purge/prune cautions, and that RAG consistency check is read-only (does not repair).

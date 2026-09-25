@@ -1,19 +1,19 @@
-# Reduce diff-memo-style detail in docs/05_agent_90_inconsistencies_and_known_issues.md
+# Reduce diff-memo-style detail in docs/agent_90_inconsistencies_and_known_issues.md
 
 ## Priority
 Medium
 
 ## Summary
-Apply the design-doc reduction policy from `memo-doc-agent-review.md` to `docs/05_agent_90_inconsistencies_and_known_issues.md`: keep the operational meaning of each known issue and its fix-judgment criteria; remove bare code-diff memos and "confirmed at file:line" notes with no operational framing.
+Apply the design-doc reduction policy from `memo-doc-agent-review.md` to `docs/agent_90_inconsistencies_and_known_issues.md`: keep the operational meaning of each known issue and its fix-judgment criteria; remove bare code-diff memos and "confirmed at file:line" notes with no operational framing.
 
 ## Reason for Change
-This chapter is the canonical source for known issues and unresolved items (per `memo-doc-agent-review.md` §「章間の正本ルール」: 既知問題・未解決事項 = `05_agent_90_inconsistencies_and_known_issues`), but a Known Issues section that degrades into a plain bug list or diff memo loses its value as an operational/decision reference, per this same memo's explicit prohibition (§「禁止事項」: Known Issues を単なるバグ一覧にすること).
+This chapter is the canonical source for known issues and unresolved items (per `memo-doc-agent-review.md` §「章間の正本ルール」: 既知問題・未解決事項 = `agent_90_inconsistencies_and_known_issues`), but a Known Issues section that degrades into a plain bug list or diff memo loses its value as an operational/decision reference, per this same memo's explicit prohibition (§「禁止事項」: Known Issues を単なるバグ一覧にすること).
 
 ## Implementation Intent
 Restructure each entry to explain: what the issue means, why it is a problem, what operators should watch for, and the criteria for deciding whether/how to fix it — not just "diff observed at file X line Y."
 
 ## Target Files or Areas
-`docs/05_agent_90_inconsistencies_and_known_issues.md`
+`docs/agent_90_inconsistencies_and_known_issues.md`
 
 ## Required Changes
 - Keep: the meaning of each known issue, why it is a problem, operational cautions, fix-decision criteria, the classification of items as removed/migrated/needs-confirmation, and the reasoning behind each Needs Confirmation entry.

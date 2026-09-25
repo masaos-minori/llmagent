@@ -1,4 +1,4 @@
-# Implementation procedure: `docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` (browser_fetch merge references — verification, no edit)
+# Implementation procedure: `docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` (browser_fetch merge references — verification, no edit)
 
 Source plan: `plans/20260720-135137_plan.md`, Implementation step 11; Affected areas doc-files row
 (UNK-04).
@@ -13,7 +13,7 @@ removal, and record the finding.
 ## Scope
 
 **In scope**: full-file grep and read of
-`docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` (118 lines).
+`docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` (118 lines).
 **Out of scope**: no other file.
 
 ## Assumptions
@@ -26,7 +26,7 @@ removal, and record the finding.
 
 ### Target file
 
-`docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
+`docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
 
 ### Procedure
 
@@ -51,5 +51,5 @@ Verification only — no content change.
 
 | Check | Command | Target |
 |---|---|---|
-| Scoped grep | `grep -n -i "browser\|8016" docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | 0 matches (re-verify unchanged at implementation time) |
+| Scoped grep | `grep -n -i "browser\|8016" docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | 0 matches (re-verify unchanged at implementation time) |
 | MCP docs consistency | `uv run check-mcp-docs` | passes (this file requires no change to keep passing) |

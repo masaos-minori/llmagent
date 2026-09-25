@@ -7,7 +7,7 @@ Restructure shared/DB design documentation chapter to remove overly detailed met
 ## Scope
 
 **In-Scope:**
-- `docs/90_shared_90_inconsistencies_and_known_issues.md` — compress complete 17-field error template, unverified metadata fields (Owner / First Found / Target / Related), migration notes (where applicable), detailed implementation file/test names, mechanical documentation gap classification; preserve design rationales
+- `docs/shared_90_inconsistencies_and_known_issues.md` — compress complete 17-field error template, unverified metadata fields (Owner / First Found / Target / Related), migration notes (where applicable), detailed implementation file/test names, mechanical documentation gap classification; preserve design rationales
 
 **Out-of-Scope:**
 - Other shared/DB-related chapters (`docs/90_shared_*.md`)
@@ -45,7 +45,7 @@ Restructure shared/DB design documentation chapter to remove overly detailed met
 
 | File | Action |
 |------|--------|
-| `docs/90_shared_90_inconsistencies_and_known_issues.md` | Compress error templates, metadata fields, migration notes, file/test names, gap classifications; preserve design rationales |
+| `docs/shared_90_inconsistencies_and_known_issues.md` | Compress error templates, metadata fields, migration notes, file/test names, gap classifications; preserve design rationales |
 
 ### Procedure
 
@@ -68,7 +68,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_90_inconsistencies_and_known_issues.md`**
+**File: `shared_90_inconsistencies_and_known_issues.md`**
 - Complete 17-field error template: Replace full template with prose summary referencing `scripts/db/recovery.py`
 - Unverified metadata fields: Replace field enumeration with prose summary
 - Migration notes: Replace migration notes with prose summary (where applicable)
@@ -119,4 +119,4 @@ N/A — documentation restructuring only; no security-sensitive content involved
 - Source plan: plans/20260807-213056_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260808-111725
-- Related target files: docs/90_shared_90_inconsistencies_and_known_issues.md
+- Related target files: docs/shared_90_inconsistencies_and_known_issues.md

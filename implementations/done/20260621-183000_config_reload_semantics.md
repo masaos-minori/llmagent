@@ -10,7 +10,7 @@ Produce one authoritative reload behavior matrix for all config settings, add a 
 - Add `deferred: list[str]` to `ConfigReloadOutcome` for changes that are accepted but take effect only on the next connection/operation (e.g. `auth_token`, `startup_mode`)
 - Update `_apply_mcp_url_reload()` to move `auth_token`/`startup_mode` changes from `needs_restart` to `deferred`
 - Update `_cmd_reload` output: show deferred items separately from restart-required
-- Add startup-only fields to the config classification table in `docs/05_agent_08_configuration.md`: `use_memory_layer`, `plugin_strict`, any field not touched by `apply_config_dict()`
+- Add startup-only fields to the config classification table in `docs/agent_08_configuration.md`: `use_memory_layer`, `plugin_strict`, any field not touched by `apply_config_dict()`
 - Add "unchanged" note: items not in `applied`/`deferred`/`needs_restart`/`skipped` were not changed (no new output line needed — absence is implicit)
 - Clarify `common.toml` ownership: loaded by `/reload` same as other files; primary owner of `llm_url`, RAG defaults, observability defaults
 
@@ -40,7 +40,7 @@ Produce one authoritative reload behavior matrix for all config settings, add a 
 
 - `scripts/agent/services/config_reload.py` — add `deferred: list[str]` to `ConfigReloadOutcome`; update `_apply_mcp_url_reload()` to use `deferred` for auth/startup_mode items
 - `scripts/agent/commands/cmd_config.py` — update `_cmd_reload` to render `deferred` items
-- `docs/05_agent_08_configuration.md` — expand reload table with startup-only classification; add `deferred` to `ConfigReloadOutcome` field table; clarify `common.toml` ownership
+- `docs/agent_08_configuration.md` — expand reload table with startup-only classification; add `deferred` to `ConfigReloadOutcome` field table; clarify `common.toml` ownership
 - `tests/test_cmd_config.py` or `test_config_reload.py` — add test for `deferred` field rendering
 
 ### Procedure
@@ -64,7 +64,7 @@ if result.deferred:
         self._out.write(f"  [DEFER] - {item}")
 ```
 
-#### Step 4: Update `docs/05_agent_08_configuration.md`
+#### Step 4: Update `docs/agent_08_configuration.md`
 
 - Expand the config file table to have a 4-column classification: `Startup-only | Hot-reloadable | Deferred | Restart-required`
 - Add a row explaining startup-only fields (use_memory_layer, plugin_strict, etc.)

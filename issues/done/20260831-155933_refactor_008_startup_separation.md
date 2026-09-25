@@ -50,7 +50,7 @@ Extract the concerns above into separate modules/classes, following the construc
 - `scripts/agent/shared/health_models.py` — referenced by `StartupCheckStatus`, `StartupValidationResult`
 - `scripts/agent/workflow/approval_ops.py`, `workflow/state_store.py` — referenced dependencies, not modified
 - `tests/agent/test_startup.py`, `test_startup_routing_drift.py`, `test_startup_consistency.py`, `tests/agent/shared/test_startup_validation_pipeline.py` — to be reorganized alongside the split
-- Documentation: `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` is the likely candidate — confirm against `docs/00_index.md`'s task-scope mapping before editing
+- Documentation: `docs/agent_10_01_operations-and-observability-startup-and-health.md` is the likely candidate — confirm against `docs/00_index.md`'s task-scope mapping before editing
 
 ## Required Changes
 - Extract the six groupings listed under Implementation Intent into separate modules/classes.
@@ -83,7 +83,7 @@ Extract the concerns above into separate modules/classes, following the construc
 - Apply the standard validation sequence in `rules/toolchain.md` (format → lint → type → arch → security → test → coverage).
 
 ## Documentation Impact
-`docs/05_agent_10_01_operations-and-observability-startup-and-health.md` is the likely candidate for referencing `StartupOrchestrator`'s current structure or startup sequence — check `docs/00_index.md`'s "Document References by Task" table against whichever files this issue's implementation actually touches, and update only the matched row(s) without duplicating implementation detail (per `skills/DESIGN.md` Avoid implementation-reference duplication).
+`docs/agent_10_01_operations-and-observability-startup-and-health.md` is the likely candidate for referencing `StartupOrchestrator`'s current structure or startup sequence — check `docs/00_index.md`'s "Document References by Task" table against whichever files this issue's implementation actually touches, and update only the matched row(s) without duplicating implementation detail (per `skills/DESIGN.md` Avoid implementation-reference duplication).
 
 ## Out of Scope
 - Changing the startup sequence's order or any fatal-vs-warning classification behavior.

@@ -19,14 +19,14 @@ Fix `db/create_schema.py` module docstring to match actual behavior, and clarify
 ## Assumptions
 
 1. create_schema.py implementation changes are minimal (docstring/comments only). Minor refactoring (comment additions) is acceptable.
-2. If "DDL-only" description exists in docs/90_shared_04_db_architecture_and_schema.md, fix it.
+2. If "DDL-only" description exists in docs/shared_04_db_architecture_and_schema.md, fix it.
 
 ## Implementation
 
 ### Target files
 
 - scripts/db/create_schema.py: Fix module docstring, add comments to _migrate_* functions
-- docs/90_shared_04_db_architecture_and_schema.md: Fix if "DDL-only" misdescription exists
+- docs/shared_04_db_architecture_and_schema.md: Fix if "DDL-only" misdescription exists
 
 ### Procedure
 
@@ -48,7 +48,7 @@ Replace "Creates the latest schema only. No migration logic." with:
 
 #### Phase 4: Document fix
 
-- Fix misdescription in docs/90_shared_04_db_architecture_and_schema.md if any
+- Fix misdescription in docs/shared_04_db_architecture_and_schema.md if any
 
 ## Validation plan
 

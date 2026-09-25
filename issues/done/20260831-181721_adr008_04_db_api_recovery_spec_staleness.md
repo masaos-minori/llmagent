@@ -1,4 +1,4 @@
-# `90_shared_05_04` sections 9.3/9.4/9.7 describe pre-fix recovery behavior that no longer matches code or ADR-008
+# `shared_05_04` sections 9.3/9.4/9.7 describe pre-fix recovery behavior that no longer matches code or ADR-008
 
 ## Priority
 Medium

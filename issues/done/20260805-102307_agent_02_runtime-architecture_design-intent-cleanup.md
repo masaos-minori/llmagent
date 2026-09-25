@@ -10,7 +10,7 @@ Apply the design-doc reduction policy from `memo-doc-agent-review.md` to the run
 This chapter mixes genuine architectural boundary decisions (AgentREPL as a thin UI coordinator, StartupOrchestrator's separation rationale, shared/agent dependency direction, fail-fast/rollback policy) with implementation detail that changes on every refactor (private class names, mixin counts, MRO, per-method tables), causing frequent doc/code drift.
 
 ## Implementation Intent
-Keep this chapter as the canonical source for runtime responsibility boundaries (per `memo-doc-agent-review.md` §「章間の正本ルール」: ランタイム責務境界 = `05_agent_02_runtime-architecture`).
+Keep this chapter as the canonical source for runtime responsibility boundaries (per `memo-doc-agent-review.md` §「章間の正本ルール」: ランタイム責務境界 = `agent_02_runtime-architecture`).
 
 ## Target Files or Areas
 - `docs/05_agent_02_runtime-architecture-part1.md`
@@ -33,7 +33,7 @@ This issue is itself a documentation-only cleanup task.
 
 ## Out of Scope
 - Other `docs/05_agent_*.md` chapters.
-- Detailed startup runbook content (owned by `05_agent_10_*`, tracked separately).
+- Detailed startup runbook content (owned by `agent_10_*`, tracked separately).
 - Code changes.
 
 ## AI Implementation Instruction

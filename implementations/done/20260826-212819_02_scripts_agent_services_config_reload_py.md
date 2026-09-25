@@ -10,7 +10,7 @@ Give operators accurate visibility into `/reload`'s handling of `diagnostics.*` 
 - Add a detector method in `scripts/agent/services/config_reload.py`, analogous to `_detect_startup_only()`, for `diagnostics.encryption_key` / `diagnostics.retention_days` / `diagnostics.sensitive_fields`.
 - Update `_cmd_reload()` in `scripts/agent/commands/cmd_config.py` to render the new category with an accurate label, and to stop treating "only diagnostics changes present" as "no changes detected".
 - Add unit tests for the new detector and a characterization-test update for the new render line.
-- Fix two stale "Known Limitations" / "Key Constraints" notes: `docs/05_agent_09_01_data-layer-session-db.md` (fetch() decryption — code already fixed, doc was not) and `docs/05_agent_08_04_configuration-mcp-approval-obs.md` (`/reload cannot change cfg.diagnostics.*` — true today, but the wording must change once the new reporting category exists).
+- Fix two stale "Known Limitations" / "Key Constraints" notes: `docs/agent_09_01_data-layer-session-db.md` (fetch() decryption — code already fixed, doc was not) and `docs/agent_08_04_configuration-mcp-approval-obs.md` (`/reload cannot change cfg.diagnostics.*` — true today, but the wording must change once the new reporting category exists).
 
 ## Assumptions
 
@@ -71,7 +71,7 @@ N/A: This change does not affect security boundaries or authentication paths. It
 | `scripts/agent/commands/cmd_config.py` | Characterization | `uv run pytest tests/agent/commands/test_cmd_config_char.py -v` | New render-line assertions pass |
 | Full changed-file set | Static analysis | `uv run ruff check scripts/`, `uv run mypy scripts/`, `PYTHONPATH=scripts uv run lint-imports`, `uv run bandit -r scripts/ -c pyproject.toml` | All pass with no new findings vs. this Plan's baseline |
 | Full changed-file set | Coverage | `uv run coverage run -m pytest tests/ && uv run coverage xml && uv run diff-cover coverage.xml --compare-branch=master --fail-under=90` | ≥ 90% coverage on changed lines |
-| `docs/05_agent_09_01_data-layer-session-db.md`, `docs/05_agent_08_04_configuration-mcp-approval-obs.md` | Manual review | `git diff` on both files | Stale "Known Limitations"/"Key Constraints" lines replaced with current, verified behavior |
+| `docs/agent_09_01_data-layer-session-db.md`, `docs/agent_08_04_configuration-mcp-approval-obs.md` | Manual review | `git diff` on both files | Stale "Known Limitations"/"Key Constraints" lines replaced with current, verified behavior |
 
 ## Completion criteria
 

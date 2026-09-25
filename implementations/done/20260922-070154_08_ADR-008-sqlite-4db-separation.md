@@ -52,14 +52,14 @@ For each broken link in the file:
 
 Broken links found in this file:
 
-1. `[90_shared_04_02_db_architecture_and_schema-schema-reference.md](90_shared_04_02_db_architecture_and_schema-schema-reference.md)` — Check if this document exists under a different name
-2. `[90_shared_05_04_db_api_and_operations-recovery-and-reference.md](90_shared_05_04_db_api_and_operations-recovery-and-reference.md)` — Check if this document exists under a different name
+1. `[90_shared_04_02_db_architecture_and_schema-schema-reference.md](shared_04_02_db_architecture_and_schema-schema-reference.md)` — Check if this document exists under a different name
+2. `[90_shared_05_04_db_api_and_operations-recovery-and-reference.md](shared_05_04_db_api_and_operations-recovery-and-reference.md)` — Check if this document exists under a different name
 3. `[03_rag_04_02_rag-persistence.md](03_rag_04_02_rag-persistence.md)` — Check if this document exists under a different name
 4. `[03_rag_04_03_rag-recovery.md](03_rag_04_03_rag-recovery.md)` — Check if this document exists under a different name
-5. `[05_agent_04_01_agent-session-persistence.md](05_agent_04_01_agent-session-persistence.md)` — Check if this document exists under a different name
+5. `[05_agent_04_01_agent-session-persistence.md](agent_04_01_agent-session-persistence.md)` — Check if this document exists under a different name
 6. `[06_eventbus_03_persistence_schema_and_replay.md](06_eventbus_03_persistence_schema_and_replay.md)` — Check if this document exists under a different name
 7. `[06_eventbus_04_dlq_offsets_and_delivery_semantics.md](06_eventbus_04_dlq_offsets_and_delivery_semantics.md)` — Check if this document exists under a different name
-8. `[05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)` — Check if this document exists under a different name
+8. `[agent_10_01_operations-and-observability-startup-and-health.md]()agent_10_01_operations-and-observability-startup-and-health.md` — Check if this document exists under a different name
 9. `[00_governance_03_issue-and-uncertainty-management.md](00_governance_03_issue-and-uncertainty-management.md)` — Check if this document exists under a different name
 
 For each link:

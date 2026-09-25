@@ -218,7 +218,7 @@ Conflict Resolution Ruleからは、依存方向による正本判定（現行�
 - `docs/01_overview.md`
 - `docs/adr-index.md`
 - `docs/04_mcp_00_document-guide.md`
-- `docs/05_agent_00_document-guide.md`
+- `docs/agent_00_document-guide.md`
 - `docs/03_rag_00_document-guide.md`
 - `docs/06_eventbus_00_document-guide.md`
 - `docs/90_shared_00_document-guide.md`

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Read `agent/services/mcp_status.py` to verify that the watchdog display matches documentation in `04_mcp_06_configuration_and_operations.md` and `05_agent_10_operations-and-observability.md`.
+Read `agent/services/mcp_status.py` to verify that the watchdog display matches documentation in `04_mcp_06_configuration_and_operations.md` and `agent_10_operations-and-observability.md`.
 
 ## Scope
 

@@ -38,7 +38,7 @@ Improve readability and reduce ambiguity in major design documents by standardiz
 
 ### Target file
 
-9 major design documents: `docs/01_overview-arch-01-process.md`, `docs/01_overview-arch-02-pipelines.md`, `docs/01_overview-arch-03-features.md`, `docs/03_rag_01_system_overview-part1.md`, `docs/03_rag_03_01_query_pipeline-overview.md`, `docs/04_mcp_00_document-guide.md`, `docs/05_agent_00_document-guide.md`, `docs/06_eventbus_00_document-guide.md`, `docs/90_shared_00_document-guide.md`
+9 major design documents: `docs/01_overview-arch-01-process.md`, `docs/01_overview-arch-02-pipelines.md`, `docs/01_overview-arch-03-features.md`, `docs/03_rag_01_system_overview-part1.md`, `docs/03_rag_03_01_query_pipeline-overview.md`, `docs/04_mcp_00_document-guide.md`, `docs/agent_00_document-guide.md`, `docs/06_eventbus_00_document-guide.md`, `docs/90_shared_00_document-guide.md`
 
 ### Procedure
 

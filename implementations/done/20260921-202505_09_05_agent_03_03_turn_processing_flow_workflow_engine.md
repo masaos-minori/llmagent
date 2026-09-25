@@ -28,7 +28,7 @@ Update or remove reference to non-existent configuration file (`config/workflows
 
 ### Target file
 
-`docs/05_agent_03_03_turn-processing-flow-workflow-engine.md`
+`docs/agent_03_03_turn-processing-flow-workflow-engine.md`
 
 ### Procedure
 
@@ -78,8 +78,8 @@ Read the file, identify the exact line numbers containing the incorrect filename
 
 | Target File | Testing Strategy | Expected Outcome |
 |---|---|---|
-| docs/05_agent_03_03_turn-processing-flow-workflow-engine.md | Manual review | No reference to non-existent config file |
-| docs/05_agent_03_03_turn-processing-flow-workflow-engine.md | Automated check | `uv run python tools/check_docs_consistency.py --domain agent` passes without WARNING-level findings for missing files |
+| docs/agent_03_03_turn-processing-flow-workflow-engine.md | Manual review | No reference to non-existent config file |
+| docs/agent_03_03_turn-processing-flow-workflow-engine.md | Automated check | `uv run python tools/check_docs_consistency.py --domain agent` passes without WARNING-level findings for missing files |
 
 ## Completion criteria
 
@@ -122,4 +122,4 @@ Read the file, identify the exact line numbers containing the incorrect filename
 - **Source plan**: plans/20260921-201621_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260921-202505
-- **Related target files**: docs/05_agent_03_03_turn-processing-flow-workflow-engine.md
+- **Related target files**: docs/agent_03_03_turn-processing-flow-workflow-engine.md

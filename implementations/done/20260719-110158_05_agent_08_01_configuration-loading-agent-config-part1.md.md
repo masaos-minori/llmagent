@@ -5,7 +5,7 @@ missing chunking step", requirement `requires/done/20260714_15_require.md`), Imp
 Design step 6 (third of three target docs).
 
 No existing implementations doc under `implementations/` or `implementations/done/` matches this
-specific change. Several `05_agent_08_01`-named docs exist under `implementations/done/`
+specific change. Several `agent_08_01`-named docs exist under `implementations/done/`
 (e.g. `20260714-181038_...part2.md`, `20260714-181507_...workflow_definition_schema.md`,
 `20260708-174000_docs_05_agent_08_l5.md`) but predate this batch and cover unrelated sections (workflow
 schema, other config areas). None updates the memory-defaults text or the startup-only classification.

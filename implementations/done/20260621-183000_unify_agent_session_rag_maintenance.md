@@ -11,7 +11,7 @@ Document that `AgentSession` has zero RAG-layer dependency, all RAG maintenance 
 - Confirm `/db` RAG subcommands route through `RagMaintenanceService` (cmd_db.py)
 - Confirm `DbMaintenanceService` is session.sqlite-only after the 2bcb195 split
 - Document the session.sqlite corruption-recovery gap (`/db recover` targets rag.sqlite only)
-- Update `docs/05_agent_90_inconsistencies_and_known_issues.md` with OQ-01 resolution and session recovery gap
+- Update `docs/agent_90_inconsistencies_and_known_issues.md` with OQ-01 resolution and session recovery gap
 
 **Out:**
 - Redesigning the RAG retrieval pipeline itself
@@ -30,7 +30,7 @@ Document that `AgentSession` has zero RAG-layer dependency, all RAG maintenance 
 
 ### Target files
 
-- `docs/05_agent_90_inconsistencies_and_known_issues.md` — add OQ-01 resolution + session-recover gap notes (doc-only)
+- `docs/agent_90_inconsistencies_and_known_issues.md` — add OQ-01 resolution + session-recover gap notes (doc-only)
 - `scripts/agent/services/db_maintenance_service.py` — optionally add `recover_session()` method (low churn)
 - `scripts/agent/commands/cmd_db.py` — optionally expose `/db recover --target session` (low churn)
 
@@ -51,7 +51,7 @@ Document that `AgentSession` has zero RAG-layer dependency, all RAG maintenance 
 
 #### Step 2: Document the session.sqlite recovery gap
 
-Add to `docs/05_agent_90_inconsistencies_and_known_issues.md`:
+Add to `docs/agent_90_inconsistencies_and_known_issues.md`:
 
 ```markdown
 ### Session SQLite corruption recovery gap
@@ -63,7 +63,7 @@ Add to `docs/05_agent_90_inconsistencies_and_known_issues.md`:
 
 #### Step 3: Add OQ-01 resolution note to inconsistencies doc
 
-Add to `docs/05_agent_90_inconsistencies_and_known_issues.md`:
+Add to `docs/agent_90_inconsistencies_and_known_issues.md`:
 
 ```markdown
 ### OQ-01: AgentSession RAG-layer dependency

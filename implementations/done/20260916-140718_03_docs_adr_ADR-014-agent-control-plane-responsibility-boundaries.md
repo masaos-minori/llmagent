@@ -45,7 +45,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 Required update for the second bullet (replace L201):
 ```markdown
-- 「Workflow Engineが再試行を担う」という本ADRの定義自体はINV-023に反しないが、`ToolLoopGuard.check_retry()`（`scripts/agent/tool_loop_guard.py`）とLLM transport層（`llm_max_retries`等、`config/agent.toml`）にも別個の"retry"概念が存在し、WorkflowEngineの`retry_policy`との関係が未文書化。粒度が異なるため直ちにINV-023違反とは判定しないが、整理不足はドキュメント化issue（`issues/20260914-123659_arch03_retry_ownership_documentation_and_layering.md`）で追跡する。→ **RESOLVED**: 三層のリトライ範囲の説明は `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` に追加済み（REQ-002）。
+- 「Workflow Engineが再試行を担う」という本ADRの定義自体はINV-023に反しないが、`ToolLoopGuard.check_retry()`（`scripts/agent/tool_loop_guard.py`）とLLM transport層（`llm_max_retries`等、`config/agent.toml`）にも別個の"retry"概念が存在し、WorkflowEngineの`retry_policy`との関係が未文書化。粒度が異なるため直ちにINV-023違反とは判定しないが、整理不足はドキュメント化issue（`issues/20260914-123659_arch03_retry_ownership_documentation_and_layering.md`）で追跡する。→ **RESOLVED**: 三層のリトライ範囲の説明は `docs/agent_03_02_turn-processing-flow-llm-tool-loop.md` に追加済み（REQ-002）。
 ```
 
 ### Details

@@ -13,8 +13,8 @@ Replace any `memory_jsonl_path` references in docs with the correct `memory_json
 ## Scope
 
 **In-Scope**
-- `docs/05_agent_08_configuration.md`: replace `memory_jsonl_path` → `memory_jsonl_dir`; add path construction note
-- `docs/05_agent_12_memory.md`: same correction; document JSONL dir ownership
+- `docs/agent_08_configuration.md`: replace `memory_jsonl_path` → `memory_jsonl_dir`; add path construction note
+- `docs/agent_12_memory.md`: same correction; document JSONL dir ownership
 
 **Out-of-Scope**
 - Code changes (all code already uses `memory_jsonl_dir`)
@@ -33,12 +33,12 @@ Replace any `memory_jsonl_path` references in docs with the correct `memory_json
 ## Implementation
 
 ### Target files
-- `docs/05_agent_08_configuration.md`
-- `docs/05_agent_12_memory.md`
+- `docs/agent_08_configuration.md`
+- `docs/agent_12_memory.md`
 
 ### Procedure
 1. Read both docs.
-2. Run `grep -n "memory_jsonl" docs/05_agent_08_configuration.md docs/05_agent_12_memory.md` to find all occurrences.
+2. Run `grep -n "memory_jsonl" docs/agent_08_configuration.md docs/agent_12_memory.md` to find all occurrences.
 3. Replace `memory_jsonl_path` → `memory_jsonl_dir` throughout.
 4. Add documentation note about path construction.
 
@@ -50,11 +50,11 @@ Replace any `memory_jsonl_path` references in docs with the correct `memory_json
 >
 > Example: `memory_jsonl_dir = "/opt/llm/memory"` → runtime path `/opt/llm/memory/memories.jsonl`
 
-**In `05_agent_08_configuration.md`:**
+**In `agent_08_configuration.md`:**
 - Locate `memory_jsonl_path` (if present) and replace with `memory_jsonl_dir`.
 - Locate `memory_jsonl_dir` entry and append path construction note.
 
-**In `05_agent_12_memory.md`:**
+**In `agent_12_memory.md`:**
 - Locate any JSONL path description and ensure it says `memory_jsonl_dir`.
 - Add: "The directory is set via `memory_jsonl_dir`; do not configure a full file path — only the directory is accepted."
 

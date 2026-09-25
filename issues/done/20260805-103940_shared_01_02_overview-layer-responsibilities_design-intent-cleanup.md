@@ -7,7 +7,7 @@ High
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to `docs/90_shared_01_02_overview-layer-responsibilities.md`: keep the layer structure and shared/db-vs-agent/rag/mcp_servers responsibility boundary; remove per-module responsibility tables and per-file function/DTO descriptions.
 
 ## Reason for Change
-This chapter is the canonical source for layer responsibility boundaries (per `memo-doc-shared-review.md` §「章間の正本ルール」: レイヤー責務境界 = `90_shared_01_02_overview-layer-responsibilities`). What belongs in shared/ vs. db/ vs. agent/ is an architectural boundary enforced elsewhere (`lint-imports`) and must not be diluted while trimming file-level detail.
+This chapter is the canonical source for layer responsibility boundaries (per `memo-doc-shared-review.md` §「章間の正本ルール」: レイヤー責務境界 = `shared_01_02_overview-layer-responsibilities`). What belongs in shared/ vs. db/ vs. agent/ is an architectural boundary enforced elsewhere (`lint-imports`) and must not be diluted while trimming file-level detail.
 
 ## Implementation Intent
 Keep this chapter focused on "what belongs to which layer's responsibility," per the memo's explicit 注意: file-to-function mapping belongs in Reference, not here.

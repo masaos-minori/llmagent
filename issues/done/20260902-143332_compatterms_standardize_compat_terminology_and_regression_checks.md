@@ -40,7 +40,7 @@ time-limited.
 - `docs/00_governance_04_documentation-checks.md`
 - `docs/03_rag_00_document-guide.md`
 - `docs/03_rag_90_inconsistencies_and_known_issues.md`
-- `docs/05_agent_00_document-guide.md`
+- `docs/agent_00_document-guide.md`
 - `docs/90_shared_00_document-guide.md`
 - `tools/TOOL_DESCRIPTIONS.md`
 

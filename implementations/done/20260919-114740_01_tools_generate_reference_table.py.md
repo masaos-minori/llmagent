@@ -72,7 +72,7 @@ tools/generate_reference_table.py
 1. Add `GUARD_START_AGENT`, `GUARD_START_EVENTBUS` constants (after line 52's
    `GUARD_START_DEPLOYMENT`), matching the existing naming/format convention
    (`<!-- AUTO-GENERATED: gen_<domain>_reference.py <purpose> -->`).
-2. Add `REFERENCE_DOC_AGENT = REPO_ROOT / "docs" / "05_agent_13_reference-api.md"`
+2. Add `REFERENCE_DOC_AGENT = REPO_ROOT / "docs" / "agent_13_reference-api.md"`
    and `REFERENCE_DOC_EVENTBUS = REPO_ROOT / "docs" / "06_eventbus_06_reference-api.md"`
    (after line 55) — no `REFERENCE_DOC_MEMORY` constant yet, since `UNK-01` is
    unresolved (add it only once the target document is confirmed, per this row's

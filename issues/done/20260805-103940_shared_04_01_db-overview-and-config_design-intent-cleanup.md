@@ -7,7 +7,7 @@ Medium
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to `docs/90_shared_04_01_db_architecture_and_schema-overview-and-config.md`: keep the reasons DB files are split and per-DB responsibility boundaries; remove directory-structure listings and full config-field definitions.
 
 ## Reason for Change
-This chapter is the canonical source for the DB layer's overall structure (per `memo-doc-shared-review.md` §「章間の正本ルール」: DB全体構造とSQLiteHelper = `90_shared_04_01_db_architecture_and_schema-overview-and-config`), but currently carries directory trees, `DbConfig`'s full field definition, and PRAGMA enumerations that belong to code.
+This chapter is the canonical source for the DB layer's overall structure (per `memo-doc-shared-review.md` §「章間の正本ルール」: DB全体構造とSQLiteHelper = `shared_04_01_db_architecture_and_schema-overview-and-config`), but currently carries directory trees, `DbConfig`'s full field definition, and PRAGMA enumerations that belong to code.
 
 ## Implementation Intent
 Keep this chapter focused on why DB files are split (rag/session/workflow/eventbus), `SQLiteHelper`'s role, that sqlite-vec is used only for RAG, and the operational meaning of WAL/busy_timeout/foreign_keys.

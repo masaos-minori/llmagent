@@ -67,7 +67,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md`**
+**File: `shared_05_01_db_api_and_operations-module-boundaries-and-helper.md`**
 - SQLiteHelper full method table: Replace table with prose summary referencing `scripts/db/helper.py`
 - Mechanical explanations of execute/fetchall/commit/close: Replace with prose summary
 - Full constructor signatures: Replace with prose summary

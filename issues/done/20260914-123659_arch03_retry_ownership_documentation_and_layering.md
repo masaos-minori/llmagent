@@ -24,14 +24,14 @@ Document, in each of the three components' own explanatory text (`workflow.md`-e
 
 ## Target Files or Areas
 - `docs/adr/ADR-014-agent-control-plane-responsibility-boundaries.md`
-- `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
-- `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
+- `docs/agent_03_02_turn-processing-flow-llm-tool-loop.md`
+- `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md`
 - `scripts/agent/tool_loop_guard.py`
 
 ## Required Changes
 - Locate the actual code path enforcing `llm_max_retries`/`sse_reconnect_max`/`llm_retry_base_delay` (grep beyond `llm_turn_runner.py`/`llm_turn_executor.py` — check `scripts/shared/llm_sse_stream.py` and any lower-level LLM client/transport module) and record the finding.
 - Add a short cross-reference note to ADR-014 (as a Review Trigger or Known Deviation, per which applies once the above is resolved) clarifying that `ToolLoopGuard.check_retry()` is a distinct, in-memory, per-turn *block* on LLM-repeated tool calls — not a retry executor — and does not compete with WorkflowEngine's stage-retry ownership.
-- Add the same clarification to `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md` near its existing `tool_error_retry_max` documentation (line ~49 per this issue's investigation).
+- Add the same clarification to `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md` near its existing `tool_error_retry_max` documentation (line ~49 per this issue's investigation).
 - If the LLM transport-level retry is found to independently decide "give up" in a way that could compete with WorkflowEngine's stage-retry escalation (e.g. both independently deciding when to surface a terminal failure), flag that as a follow-up unresolved question rather than resolving it silently within this issue's scope.
 
 ## Constraints
@@ -40,7 +40,7 @@ Do not change `ToolLoopGuard`'s actual blocking behavior or `tool_error_retry_ma
 ## Acceptance Criteria
 - ADR-014 or its Related Documents section links to updated documentation describing the three-layer retry landscape and why each is distinct from WorkflowEngine's retry ownership.
 - The LLM transport-level retry/reconnect enforcement code path is located and cited by file path and function/class name.
-- `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`'s existing `tool_error_retry_max` documentation explicitly distinguishes it from `WorkflowEngine.retry_policy`.
+- `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md`'s existing `tool_error_retry_max` documentation explicitly distinguishes it from `WorkflowEngine.retry_policy`.
 
 ## Testing Expectations
 Not applicable for the documentation-only portion. If the LLM transport-level investigation surfaces a genuine behavioral conflict requiring a code change, that change (if any) would need its own test coverage — out of scope for this issue's initial documentation pass.
@@ -69,4 +69,4 @@ Locate the LLM transport-level retry code path first (this issue's primary open 
 - **Source plan**: N/A: not filed from a Plan
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20260914-123659
-- **Related target files**: docs/adr/ADR-014-agent-control-plane-responsibility-boundaries.md, docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md, docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md, scripts/agent/tool_loop_guard.py
+- **Related target files**: docs/adr/ADR-014-agent-control-plane-responsibility-boundaries.md, docs/agent_03_02_turn-processing-flow-llm-tool-loop.md, docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md, scripts/agent/tool_loop_guard.py

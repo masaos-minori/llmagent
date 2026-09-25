@@ -18,7 +18,7 @@ design documents.
 
 ## Problem
 `uv run python tools/check_docs_content_policy.py` (run 2026-09-20) reports:
-- `90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md:51`, `:63`, `:73`
+- `shared_04_03_db_architecture_and_schema-migration-and-scaling.md:51`, `:63`, `:73`
   — DDL/schema block restated in prose (`events`, `consumer_delivery`, and
   `consumer_offsets` `CREATE TABLE` statements, in a section explaining
   `eventbus.sqlite`'s incremental migration mechanism)
@@ -78,7 +78,7 @@ Documentation-only change. Run `uv run python tools/check_docs_content_policy.py
 Yes — this issue is itself a documentation cleanup, scoped to one file.
 
 ## Out of Scope
-- Any other section of `90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md`,
+- Any other section of `shared_04_03_db_architecture_and_schema-migration-and-scaling.md`,
   including the `db/schema_sql.py` migration description in section 8a (lines ~40-45),
   which was not flagged.
 - Any other Shared/DB document.

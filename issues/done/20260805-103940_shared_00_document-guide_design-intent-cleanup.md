@@ -25,7 +25,7 @@ Restructure this chapter to serve purely as navigation: doc-set purpose, high-le
 - This chapter is not used as a substitute for design content that belongs in other chapters.
 
 ## Testing Expectations
-Not required for behavior (documentation-only). No dedicated shared/db docs-consistency script currently exists (only `check_agent_docs_consistency.py` / `check_mcp_docs_consistency.py` / `check_rag_docs_consistency.py` / `check_deployment_docs_consistency.py` / `check_overview_docs_consistency.py`, none of which cover `90_shared_*.md`) — manually verify internal Markdown links after editing.
+Not required for behavior (documentation-only). No dedicated shared/db docs-consistency script currently exists (only `check_agent_docs_consistency.py` / `check_mcp_docs_consistency.py` / `check_rag_docs_consistency.py` / `check_deployment_docs_consistency.py` / `check_overview_docs_consistency.py`, none of which cover `shared_*.md`) — manually verify internal Markdown links after editing.
 
 ## Documentation Impact
 This issue is itself a documentation-only cleanup task.

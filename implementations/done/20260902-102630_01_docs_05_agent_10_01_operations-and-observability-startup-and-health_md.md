@@ -2,7 +2,7 @@
 
 ## Goal
 
-Review and update `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` lines 46 and 64 for consistency with ADR-004's single common failure-handling policy. Line 64 is already compliant; line 46 still contains environment-specific phrasing.
+Review and update `docs/agent_10_01_operations-and-observability-startup-and-health.md` lines 46 and 64 for consistency with ADR-004's single common failure-handling policy. Line 64 is already compliant; line 46 still contains environment-specific phrasing.
 
 ## Scope
 
@@ -30,7 +30,7 @@ Review and update `docs/05_agent_10_01_operations-and-observability-startup-and-
 
 ### Target file
 
-`docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
+`docs/agent_10_01_operations-and-observability-startup-and-health.md`
 
 ### Procedure
 
@@ -71,7 +71,7 @@ Line-by-line replacement guided by ADR-004 Decision #1 and Decision #3.
 
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` | Manual review — verify existing replacements against revised ADR-004 | Grep for "production"; read document after edits | Zero matches for "production or local mode"; "non-production environments" reviewed |
+| `docs/agent_10_01_operations-and-observability-startup-and-health.md` | Manual review — verify existing replacements against revised ADR-004 | Grep for "production"; read document after edits | Zero matches for "production or local mode"; "non-production environments" reviewed |
 
 ## Completion criteria
 
@@ -83,7 +83,7 @@ Line-by-line replacement guided by ADR-004 Decision #1 and Decision #3.
 
 - Modifying `scripts/agent/services/mcp_tool_discovery.py` (uses `is_prod`, not "local mode" — separate issue).
 - Adding automated tests for documentation consistency.
-- Updating `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md` (separate row).
+- Updating `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md` (separate row).
 
 ## Execution Status
 
@@ -114,4 +114,4 @@ Line-by-line replacement guided by ADR-004 Decision #1 and Decision #3.
 - **Source plan**: plans/20260901-000841_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260902-102630
-- **Related target files**: docs/05_agent_10_01_operations-and-observability-startup-and-health.md
+- **Related target files**: docs/agent_10_01_operations-and-observability-startup-and-health.md

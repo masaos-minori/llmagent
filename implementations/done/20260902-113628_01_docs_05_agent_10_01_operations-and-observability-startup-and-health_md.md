@@ -1,10 +1,10 @@
 ## Goal
 
-Remove production-vs-local behavioral distinction on line 46 of `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`, replacing it with language consistent with ADR-004 Decision #1 (single common failure-handling policy across all environments).
+Remove production-vs-local behavioral distinction on line 46 of `docs/agent_10_01_operations-and-observability-startup-and-health.md`, replacing it with language consistent with ADR-004 Decision #1 (single common failure-handling policy across all environments).
 
 ## Scope
 
-- Edit line 46 of `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` only.
+- Edit line 46 of `docs/agent_10_01_operations-and-observability-startup-and-health.md` only.
 - No test changes required (documentation-only change).
 
 ## Assumptions
@@ -26,7 +26,7 @@ Remove production-vs-local behavioral distinction on line 46 of `docs/05_agent_1
 
 ### Target file
 
-`docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
+`docs/agent_10_01_operations-and-observability-startup-and-health.md`
 
 ### Procedure
 
@@ -67,7 +67,7 @@ This removes the production-vs-local distinction and aligns with ADR-004 Decisio
 ## Validation plan
 
 1. Read the edited file and confirm line 46 contains the replacement text.
-2. Run `uv run python tools/check_docs_quality.py docs/05_agent_10_01_operations-and-observability-startup-and-health.md` to verify no new quality issues.
+2. Run `uv run python tools/check_docs_quality.py docs/agent_10_01_operations-and-observability-startup-and-health.md` to verify no new quality issues.
 3. Grep for remaining "production" or "non-production" references on line 46 — there should be none.
 
 ## Completion criteria
@@ -111,4 +111,4 @@ This removes the production-vs-local distinction and aligns with ADR-004 Decisio
 - **Source plan**: plans/20260901-082811_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 2026-09-02T11:36:28Z
-- **Related target files**: docs/05_agent_10_01_operations-and-observability-startup-and-health.md
+- **Related target files**: docs/agent_10_01_operations-and-observability-startup-and-health.md

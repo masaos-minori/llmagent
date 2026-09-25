@@ -7,9 +7,9 @@ Correct 4 documentation files that show `/approve [reason]`/`/reject [reason]` a
 ## Scope
 
 **In scope:**
-- `docs/05_agent_01_system-overview.md` (line ~115): fix `/approve [reason]`, `/reject [reason]` table entry.
-- `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` (line ~66): fix the startup-warning-format line.
-- `docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` (lines ~35-36, ~49, ~54, ~56): fix `/approve [reason]`/`/reject [reason]` occurrences; additionally fix the "DB検索にフォールバック" claim at lines ~35-36.
+- `docs/agent_01_system-overview.md` (line ~115): fix `/approve [reason]`, `/reject [reason]` table entry.
+- `docs/agent_10_01_operations-and-observability-startup-and-health.md` (line ~66): fix the startup-warning-format line.
+- `docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` (lines ~35-36, ~49, ~54, ~56): fix `/approve [reason]`/`/reject [reason]` occurrences; additionally fix the "DB検索にフォールバック" claim at lines ~35-36.
 - `docs/05_agent_03_03_turn-processing-flow-workflow-engine-part1.md` (lines ~95, ~97): fix `/approve [reason]`/`/reject [reason]` occurrences.
 
 **Out of scope:**
@@ -20,9 +20,9 @@ Correct 4 documentation files that show `/approve [reason]`/`/reject [reason]` a
 ## Assumptions
 
 - All occurrences below are confirmed present by direct read/grep:
-  - `docs/05_agent_01_system-overview.md:115`: `| ワークフロー | \`/approve [reason]\`, \`/reject [reason]\` |`
-  - `docs/05_agent_10_01_operations-and-observability-startup-and-health.md:66`: `... Use /approve [reason] or /reject [reason].\``
-  - `docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md:35-36`: table rows for `/approve [reason]` / `/reject [reason]` each citing `ctx.turn.pending_approval_id`(Noneの場合はDB検索にフォールバック); line ~49 repeats the startup warning text; lines ~54/56 reference `/approve`/`/reject` prose.
+  - `docs/agent_01_system-overview.md:115`: `| ワークフロー | \`/approve [reason]\`, \`/reject [reason]\` |`
+  - `docs/agent_10_01_operations-and-observability-startup-and-health.md:66`: `... Use /approve [reason] or /reject [reason].\``
+  - `docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md:35-36`: table rows for `/approve [reason]` / `/reject [reason]` each citing `ctx.turn.pending_approval_id`(Noneの場合はDB検索にフォールバック); line ~49 repeats the startup warning text; lines ~54/56 reference `/approve`/`/reject` prose.
   - `docs/05_agent_03_03_turn-processing-flow-workflow-engine-part1.md:95,97`: `[workflow] Approval required. Use /approve [reason] or /reject [reason].` and a prose sentence `/approve [reason]`または`/reject [reason]`を実行すると...
 - `cmd_workflow.py::_cmd_approve`/`_cmd_reject` (confirmed by direct read) treat a missing/unparseable `approval_id` argument as an immediate validation error (`"Approval ID required. Use: /approve <approval_id> [reason]"`), with no DB-search fallback of any kind — this is the ground truth the workflow-debug doc must be corrected to match.
 
@@ -30,13 +30,13 @@ Correct 4 documentation files that show `/approve [reason]`/`/reject [reason]` a
 
 ### Target file
 
-`docs/05_agent_01_system-overview.md`, `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`, `docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`, `docs/05_agent_03_03_turn-processing-flow-workflow-engine-part1.md`
+`docs/agent_01_system-overview.md`, `docs/agent_10_01_operations-and-observability-startup-and-health.md`, `docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`, `docs/05_agent_03_03_turn-processing-flow-workflow-engine-part1.md`
 
 ### Procedure
 
-1. In `docs/05_agent_01_system-overview.md:115`, replace `\`/approve [reason]\`, \`/reject [reason]\`` with `` `/approve <approval_id> [reason]`, `/reject <approval_id> [reason]` ``.
-2. In `docs/05_agent_10_01_operations-and-observability-startup-and-health.md:66`, replace `Use /approve [reason] or /reject [reason].` with `Use /approve <approval_id> [reason] or /reject <approval_id> [reason].` (matching the corrected runtime message format from the `startup.py` fix).
-3. In `docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`:
+1. In `docs/agent_01_system-overview.md:115`, replace `\`/approve [reason]\`, \`/reject [reason]\`` with `` `/approve <approval_id> [reason]`, `/reject <approval_id> [reason]` ``.
+2. In `docs/agent_10_01_operations-and-observability-startup-and-health.md:66`, replace `Use /approve [reason] or /reject [reason].` with `Use /approve <approval_id> [reason] or /reject <approval_id> [reason].` (matching the corrected runtime message format from the `startup.py` fix).
+3. In `docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`:
    - Lines ~35-36: replace `/approve [reason]` / `/reject [reason]` with `/approve <approval_id> [reason]` / `/reject <approval_id> [reason]` in the table's left column.
    - Same lines, right column: replace `` `ctx.turn.pending_approval_id`(Noneの場合はDB検索にフォールバック) `` with `` `approval_id` は必須引数 — 省略時は検証エラー（DB検索フォールバックは存在しない） ``.
    - Line ~49 (startup warning example text): apply the same `<approval_id>` fix as step 2.
@@ -61,6 +61,6 @@ Filtered from the plan's Validation plan table to checks relevant to these 4 doc
 
 | Check | Tool | Target |
 |---|---|---|
-| Manual grep | `grep -rn "/approve \[reason\]\|/reject \[reason\]" docs/05_agent_01_system-overview.md docs/05_agent_10_01_operations-and-observability-startup-and-health.md docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md docs/05_agent_03_03_turn-processing-flow-workflow-engine-part1.md` | No matches remain |
-| Manual grep (DB-fallback claim) | `grep -n "DB検索にフォールバック" docs/05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` | No matches remain |
+| Manual grep | `grep -rn "/approve \[reason\]\|/reject \[reason\]" docs/agent_01_system-overview.md docs/agent_10_01_operations-and-observability-startup-and-health.md docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md docs/05_agent_03_03_turn-processing-flow-workflow-engine-part1.md` | No matches remain |
+| Manual grep (DB-fallback claim) | `grep -n "DB検索にフォールバック" docs/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` | No matches remain |
 | Docs | `uv run python tools/check_docs_consistency.py` | Passes |

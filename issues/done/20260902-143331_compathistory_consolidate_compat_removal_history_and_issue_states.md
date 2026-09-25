@@ -39,9 +39,9 @@ decisions only; resolved and duplicate entries are archived or consolidated.
 - `docs/03_rag_90_inconsistencies_and_known_issues.md`
 - `docs/04_mcp_03_01_dispatch-and-routing.md`
 - `docs/04_mcp_90_inconsistencies_and_known_issues.md`
-- `docs/05_agent_13_reference-api.md`
-- `docs/05_agent_90_inconsistencies_and_known_issues.md`
-- `docs/90_shared_90_inconsistencies_and_known_issues.md`
+- `docs/agent_13_reference-api.md`
+- `docs/agent_90_inconsistencies_and_known_issues.md`
+- `docs/shared_90_inconsistencies_and_known_issues.md`
 - `docs/adr/ADR-003-runtime-tool-registry-routing-authority.md`
 
 ## Required Changes

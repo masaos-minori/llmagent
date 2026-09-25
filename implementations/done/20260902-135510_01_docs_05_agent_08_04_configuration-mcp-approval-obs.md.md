@@ -1,7 +1,7 @@
 ## Goal
 Satisfy `REQ-001` (record each currently configured MCP server's ADR-004 required/
 non-required classification and rationale) by adding a Component Criticality
-Classification subsection to `docs/05_agent_08_04_configuration-mcp-approval-obs.md`.
+Classification subsection to `docs/agent_08_04_configuration-mcp-approval-obs.md`.
 
 ## Scope
 Add exactly one new subsection under `## Design Intent` → `### MCP Configuration`,
@@ -32,7 +32,7 @@ per-tool concept, not ADR-004's component-level classification.
 
 ## Implementation
 ### Target file
-docs/05_agent_08_04_configuration-mcp-approval-obs.md
+docs/agent_08_04_configuration-mcp-approval-obs.md
 
 ### Procedure
 Insert a new `#### Component Criticality Classification` subsection between the
@@ -89,8 +89,8 @@ N/A: documenting existing default classification values, no new capability grant
 Trivially revertable via `git revert`/`git checkout` of this single file.
 
 ## Validation plan
-- `.venv/bin/python tools/check_docs_quality.py docs/05_agent_08_04_configuration-mcp-approval-obs.md` → no new issues.
-- `.venv/bin/python tools/check_docs_structure.py docs/05_agent_08_04_configuration-mcp-approval-obs.md` → passes (Front Matter, headings, link reachability unaffected — no new links added).
+- `.venv/bin/python tools/check_docs_quality.py docs/agent_08_04_configuration-mcp-approval-obs.md` → no new issues.
+- `.venv/bin/python tools/check_docs_structure.py docs/agent_08_04_configuration-mcp-approval-obs.md` → passes (Front Matter, headings, link reachability unaffected — no new links added).
 - `.venv/bin/python tools/check_docs_consistency.py --domain agent` → no new drift reported (server list matches `config/agent.toml`'s `[mcp_servers.*]` keys).
 
 ## Completion criteria
@@ -133,4 +133,4 @@ task-scope mapping applies (this is an existing document, not a new one).
 - **Source plan**: `plans/20260901-103154_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260902-135510
-- **Related target files**: `docs/05_agent_08_04_configuration-mcp-approval-obs.md`
+- **Related target files**: `docs/agent_08_04_configuration-mcp-approval-obs.md`

@@ -1,7 +1,7 @@
 ## Goal
 
 Update the `/db consistency` migration-notes row in
-`docs/05_agent_07_07_cli-and-commands-migration-notes.md` to point at the new `/session
+`docs/agent_07_07_cli-and-commands-migration-notes.md` to point at the new `/session
 rag-consistency` command (added in `implementations/20260719-102923_cmd_session.py.md`), since a
 successor now exists where the doc previously said none did.
 
@@ -9,7 +9,7 @@ successor now exists where the doc previously said none did.
 
 **In scope**
 - Change the `/db consistency` row's "現在の状態" (current state) cell in
-  `docs/05_agent_07_07_cli-and-commands-migration-notes.md` from `後継コマンドなし` (no successor
+  `docs/agent_07_07_cli-and-commands-migration-notes.md` from `後継コマンドなし` (no successor
   command) to `` `/session rag-consistency` `` (matching the format of the other rows in the same
   table that do have a successor, e.g. `/db recover` → `` `/session recover [backup-path]` ``).
 
@@ -55,7 +55,7 @@ successor now exists where the doc previously said none did.
 
 ### Target file
 
-`docs/05_agent_07_07_cli-and-commands-migration-notes.md`.
+`docs/agent_07_07_cli-and-commands-migration-notes.md`.
 
 ### Procedure
 
@@ -81,7 +81,7 @@ No code changes. Purely a documentation-cell update to match the newly-added suc
 
 | Check | Command | Target |
 |---|---|---|
-| Row updated | `rg -n "db consistency" docs/05_agent_07_07_cli-and-commands-migration-notes.md` | shows `/session rag-consistency` as the paired cell, not `後継コマンドなし` |
-| No unintended row changes | `sed -n '46,57p' docs/05_agent_07_07_cli-and-commands-migration-notes.md` | only line 57 differs from the pre-edit content quoted in Assumption 1; lines 46-56 unchanged |
+| Row updated | `rg -n "db consistency" docs/agent_07_07_cli-and-commands-migration-notes.md` | shows `/session rag-consistency` as the paired cell, not `後継コマンドなし` |
+| No unintended row changes | `sed -n '46,57p' docs/agent_07_07_cli-and-commands-migration-notes.md` | only line 57 differs from the pre-edit content quoted in Assumption 1; lines 46-56 unchanged |
 | Docs consistency checker | `uv run python tools/check_agent_docs_consistency.py` | no new ERROR/WARNING introduced (this check includes a `commanddrift` check per the plan's Risks section) |
-| Cross-reference with code | `rg -n "rag-consistency" scripts/agent/commands/cmd_session.py docs/05_agent_07_07_cli-and-commands-migration-notes.md` | both files reference the same subcommand name |
+| Cross-reference with code | `rg -n "rag-consistency" scripts/agent/commands/cmd_session.py docs/agent_07_07_cli-and-commands-migration-notes.md` | both files reference the same subcommand name |

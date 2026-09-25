@@ -19,7 +19,7 @@ in the plan's Design section.
 
 **Out of scope**: registering the new file in `docs/04_mcp_00_document-guide.md` (Implementation
 step 4, separate procedure doc); editing the 4 catalog docs (step 5, separate doc); editing
-`docs/05_agent_08_04_configuration-mcp-approval-obs.md` (step 6, separate doc); editing
+`docs/agent_08_04_configuration-mcp-approval-obs.md` (step 6, separate doc); editing
 `docs/04_mcp_90_inconsistencies_and_known_issues.md` (step 7, separate doc); any change to
 `scripts/`, `tests/`, or `config/` — none of the described behavior is implemented by this step.
 
@@ -81,7 +81,7 @@ step 4, separate procedure doc); editing the 4 catalog docs (step 5, separate do
    (title/category/tags/related), with `related` listing:
    `04_mcp_00_document-guide.md`, `04_mcp_03_02_tool-registry.md`, `04_mcp_04_01_web-search-file-read-github.md`,
    `04_mcp_04_02_file-write-file-delete-shell.md`, `04_mcp_04_03_rag-pipeline-and-cicd.md`,
-   `04_mcp_04_05_git.md`, `05_agent_08_04_configuration-mcp-approval-obs.md`,
+   `04_mcp_04_05_git.md`, `agent_08_04_configuration-mcp-approval-obs.md`,
    `04_mcp_90_inconsistencies_and_known_issues.md`.
 2. Write an "Implementation status" callout box at the very top of the body (per Design item 7),
    stating explicitly this contract is target design, not yet live, with a pointer to the 4
@@ -117,7 +117,7 @@ related:
   - 04_mcp_04_02_file-write-file-delete-shell.md
   - 04_mcp_04_03_rag-pipeline-and-cicd.md
   - 04_mcp_04_05_git.md
-  - 05_agent_08_04_configuration-mcp-approval-obs.md
+  - agent_08_04_configuration-mcp-approval-obs.md
   - 04_mcp_90_inconsistencies_and_known_issues.md
 ---
 ```
@@ -204,7 +204,7 @@ Body — 7 sections, in order:
   (not buried at the bottom).
 - Manual check: frontmatter `related:` list resolves to files that all actually exist (all 8
   listed files already exist in `docs/` as of this writing, or are created earlier in the same
-  plan's step sequence — `04_mcp_00`, `04_mcp_03_02`, the 4 catalog docs, `05_agent_08_04`,
+  plan's step sequence — `04_mcp_00`, `04_mcp_03_02`, the 4 catalog docs, `agent_08_04`,
   `04_mcp_90` all pre-exist; only `04_mcp_03_06` itself is new).
 - Downstream (Implementation step 4's own doc): confirm the new file is registered in
   `docs/04_mcp_00_document-guide.md`'s File Index or `tests`/`check-mcp-docs` consistency

@@ -7,7 +7,7 @@ High
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to `docs/90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md`: keep migration-vs-recreation judgment criteria and single-node-SQLite scaling limits; remove migration internals and unverified numeric thresholds stated as fact.
 
 ## Reason for Change
-This chapter is the canonical source for migration/scaling/schema-change policy (per `memo-doc-shared-review.md` §「章間の正本ルール」: migration / scaling / schema change方針 = `90_shared_04_03_db_architecture_and_schema-migration-and-scaling`). Whether a schema change requires migration or DB recreation is a decision with data-loss consequences and must remain clear and not overstated as precise fact where it is actually an estimate.
+This chapter is the canonical source for migration/scaling/schema-change policy (per `memo-doc-shared-review.md` §「章間の正本ルール」: migration / scaling / schema change方針 = `shared_04_03_db_architecture_and_schema-migration-and-scaling`). Whether a schema change requires migration or DB recreation is a decision with data-loss consequences and must remain clear and not overstated as precise fact where it is actually an estimate.
 
 ## Implementation Intent
 Keep this chapter focused on schema init/migration policy, that rag/session/eventbus have no compatibility migration (recreate instead), that only `workflow.sqlite` has incremental migration, that `mdq.sqlite` has a separate legacy-schema auto-detection approach, and single-node scaling limits.

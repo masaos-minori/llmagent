@@ -15,10 +15,10 @@ Verified via `grep -rl "stat_cache_hits\|Cache hits\|tool_cache_ttl\|tool_cache_
 - `docs/04_mcp_03_01_dispatch-and-routing.md`
 - `docs/04_mcp_03_02_tool-registry.md` (Cache Behavior, stampede, side-effect detection)
 - `docs/04_mcp_06_04_major-default-values.md` (tool cache TTL / max size defaults)
-- `docs/05_agent_01_system-overview.md` (Key Constraints: tool cache TTL)
-- `docs/05_agent_08_03_configuration-tools-memory.md` (ToolConfig caching section)
-- `docs/05_agent_08_01_configuration-loading-agent-config.md`
-- `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+- `docs/agent_01_system-overview.md` (Key Constraints: tool cache TTL)
+- `docs/agent_08_03_configuration-tools-memory.md` (ToolConfig caching section)
+- `docs/agent_08_01_configuration-loading-agent-config.md`
+- `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
 - `docs/90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md`
 
 ## Reason for Change

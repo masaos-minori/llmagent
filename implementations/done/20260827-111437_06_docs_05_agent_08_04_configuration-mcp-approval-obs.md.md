@@ -1,7 +1,7 @@
 ## Goal
 
 Correct the stale `/reload`-diagnostics "Known Limitations"/"Key Constraints" notes
-in `docs/05_agent_08_04_configuration-mcp-approval-obs.md` (REQ-007), cross-referencing
+in `docs/agent_08_04_configuration-mcp-approval-obs.md` (REQ-007), cross-referencing
 the new "LIVE" category, per `plans/20260826-120102_plan.md`.
 
 ## Scope
@@ -43,7 +43,7 @@ the new "LIVE" category, per `plans/20260826-120102_plan.md`.
 
 ## Implementation
 ### Target file
-`docs/05_agent_08_04_configuration-mcp-approval-obs.md`
+`docs/agent_08_04_configuration-mcp-approval-obs.md`
 
 ### Procedure
 1. Rewrite line 102 (Key Constraints section) per Method/Details.
@@ -67,7 +67,7 @@ prose style): "`diagnostics.*` fields (`encryption_key`, `retention_days`,
 them directly from `agent.toml` on every `save()`/`fetch()` call, independent of
 `ctx.cfg` — no restart or `/reload` action is needed for a change to take effect.
 `/reload`'s report lists any changed `diagnostics.*` fields under a distinct 'Live
-via config file' category (see `05_agent_08_XX...` or the config_reload
+via config file' category (see `agent_08_XX...` or the config_reload
 documentation, whichever this repository's cross-reference convention points to —
 confirm the correct target doc reference at implementation time)."
 
@@ -90,7 +90,7 @@ confirm the correct target doc reference at implementation time)."
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_08_04_configuration-mcp-approval-obs.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | Passes; no new findings |
+| `docs/agent_08_04_configuration-mcp-approval-obs.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | Passes; no new findings |
 
 ## Completion criteria
 
@@ -130,4 +130,4 @@ confirm the correct target doc reference at implementation time)."
 - **Source plan**: `plans/20260826-120102_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260827-111437
-- **Related target files**: `docs/05_agent_08_04_configuration-mcp-approval-obs.md`
+- **Related target files**: `docs/agent_08_04_configuration-mcp-approval-obs.md`

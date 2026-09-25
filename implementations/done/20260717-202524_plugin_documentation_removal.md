@@ -39,16 +39,16 @@ docs/03_rag_03_02_query_pipeline-rag-pipeline-class-part1.md
 docs/03_rag_03_05_query_pipeline-augment-stages.md
 docs/04_mcp_03_01_dispatch-and-routing.md
 docs/04_mcp_06_16_pre-production-fail-open-checklist.md
-docs/05_agent_00_document-guide.md
-docs/05_agent_01_system-overview.md
+docs/agent_00_document-guide.md
+docs/agent_01_system-overview.md
 docs/05_agent_02_runtime-architecture-part2.md
-docs/05_agent_06_01_tool-execution-and-approval-execution.md
-docs/05_agent_07_01_cli-and-commands-cli-reference.md
-docs/05_agent_07_03_cli-and-commands-command-registry.md
-docs/05_agent_07_11_cli-and-commands-slash-commands-memory-other.md
+docs/agent_06_01_tool-execution-and-approval-execution.md
+docs/agent_07_01_cli-and-commands-cli-reference.md
+docs/agent_07_03_cli-and-commands-command-registry.md
+docs/agent_07_11_cli-and-commands-slash-commands-memory-other.md
 docs/05_agent_08_01_configuration-loading-agent-config-part1.md
-docs/05_agent_08_03_configuration-tools-memory.md
-docs/05_agent_10_02_operations-and-observability-audit-and-otel.md
+docs/agent_08_03_configuration-tools-memory.md
+docs/agent_10_02_operations-and-observability-audit-and-otel.md
 docs/90_shared_00_document-guide.md
 docs/90_shared_01_01_overview-purpose-and-scope.md
 docs/90_shared_01_02_overview-layer-responsibilities.md
@@ -130,14 +130,14 @@ is touched; this is a documents-only step within a documents-only step (the sour
 
 ### Details
 
-- The 5 dedicated docs live in two doc series: `05_agent_11_*` (agent extension-points series, 4
+- The 5 dedicated docs live in two doc series: `agent_11_*` (agent extension-points series, 4
   files: `_01_...plugin-command`, `_02_...tool-registration-part{1,2}`, `_03_...registry-rules`) and
-  `90_shared_03_02_...plugin-and-tool-runtime` (shared runtime series, 1 file). Their numbering
-  (`11_01`, `11_02`, `11_03`) suggests they form a self-contained sub-section of the `05_agent_*` doc
-  tree — check `docs/05_agent_00_document-guide.md` (itself in the incidental list) for a table of
+  `shared_03_02_...plugin-and-tool-runtime` (shared runtime series, 1 file). Their numbering
+  (`11_01`, `11_02`, `11_03`) suggests they form a self-contained sub-section of the `agent_*` doc
+  tree — check `docs/agent_00_document-guide.md` (itself in the incidental list) for a table of
   contents / index entry pointing at `11_*` that would also need updating once those files are gone.
-- `docs/90_shared_00_document-guide.md` is analogous for the `90_shared_*` series and should be checked
-  for an index entry pointing at `90_shared_03_02_...`.
+- `docs/90_shared_00_document-guide.md` is analogous for the `shared_*` series and should be checked
+  for an index entry pointing at `shared_03_02_...`.
 
 ## Validation plan
 

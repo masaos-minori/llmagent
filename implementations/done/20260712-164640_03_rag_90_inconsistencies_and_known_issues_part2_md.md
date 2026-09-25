@@ -28,7 +28,7 @@ Leave OPEN-01 untouched.
    with a direct read immediately before editing, since no code changes are expected between
    planning and implementation.
 2. The resolved-note must be wrapped in **fullwidth** parentheses `（`/`）` (not ASCII `(`/`)`),
-   matching the `UNDOC-02` precedent in `docs/05_agent_90_inconsistencies_and_known_issues.md`
+   matching the `UNDOC-02` precedent in `docs/agent_90_inconsistencies_and_known_issues.md`
    lines 40-47 exactly. This was a defect caught during plan review — verify it is honored.
 
 ## Implementation

@@ -52,12 +52,12 @@ For each broken link in the file:
 
 Broken links found in this file:
 
-1. `[05_agent_01_system-overview.md](05_agent_01_system-overview.md)` — Check if this document exists under a different name
+1. `[agent_01_system-overview.md]()agent_01_system-overview.md` — Check if this document exists under a different name
 
 For each link:
-- Run `git log --all --diff-filter=D -- "**/05_agent_01_system-overview.md"` to check if it was moved/deleted
+- Run `git log --all --diff-filter=D -- "**/agent_01_system-overview.md"` to check if it was moved/deleted
 - If found under a new name, update the link: `[anchor text](new/path/to/file.md)`
-- If deleted, remove the link entirely and add: `<!-- TODO: Document '05_agent_01_system-overview.md' was deleted -->`
+- If deleted, remove the link entirely and add: `<!-- TODO: Document 'agent_01_system-overview.md' was deleted -->`
 
 ## Compatibility considerations
 

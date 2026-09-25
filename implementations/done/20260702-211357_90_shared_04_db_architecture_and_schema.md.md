@@ -1,16 +1,16 @@
-# Implementation: 90_shared_04_db_architecture_and_schema.md
+# Implementation: shared_04_db_architecture_and_schema.md
 
 ## Goal
 
 Remove all references to automatic schema migration, `ALTER TABLE`, and backward-compatible
-column additions from `docs/90_shared_04_db_architecture_and_schema.md`. Replace with an
+column additions from `docs/shared_04_db_architecture_and_schema.md`. Replace with an
 explicit DB recreation policy. Align the `documents` table description and §8 with the
 no-migration stance adopted in the corresponding code changes to `schema_sql.py` and
 `create_schema.py`.
 
 ## Scope
 
-**Target file:** `docs/90_shared_04_db_architecture_and_schema.md`
+**Target file:** `docs/shared_04_db_architecture_and_schema.md`
 
 **In scope:**
 - §5 `documents` table: remove `(added via migrate_schema())` annotation from `chunking_strategy` row.
@@ -36,7 +36,7 @@ no-migration stance adopted in the corresponding code changes to `schema_sql.py`
 
 ### Target file
 
-`docs/90_shared_04_db_architecture_and_schema.md`
+`docs/shared_04_db_architecture_and_schema.md`
 
 ### Procedure
 
@@ -104,7 +104,7 @@ create_schema()
 2. Delete the DB files at the configured paths.
 3. Run `create_schema()` to initialize empty DBs from the latest DDL.
 
-See [90_shared_05 §10](90_shared_05_db_api_and_operations.md#10-db-recreation-procedure)
+See [90_shared_05 §10](shared_05_db_api_and_operations.md#10-db-recreation-procedure)
 for the full step-by-step command sequence.
 ```
 
@@ -124,7 +124,7 @@ Replace with:
 
 | Check | Command | Expected outcome |
 |---|---|---|
-| No stale migration wording | `grep -n "migration\|ALTER TABLE\|backward.compatible\|duplicate column\|migrate_schema\|added via migrate" docs/90_shared_04_db_architecture_and_schema.md` | Zero matches |
-| `chunk_type` and `source_file` present in §5 | `grep -n "chunk_type\|source_file" docs/90_shared_04_db_architecture_and_schema.md` | Two matches in `chunks` table section |
+| No stale migration wording | `grep -n "migration\|ALTER TABLE\|backward.compatible\|duplicate column\|migrate_schema\|added via migrate" docs/shared_04_db_architecture_and_schema.md` | Zero matches |
+| `chunk_type` and `source_file` present in §5 | `grep -n "chunk_type\|source_file" docs/shared_04_db_architecture_and_schema.md` | Two matches in `chunks` table section |
 | Docs render correctly | Manual review of §5, §8, §9a sections | Prose is coherent; no broken table formatting |
-| Cross-reference to §10 is valid | Check that `90_shared_05_db_api_and_operations.md` §10 exists | Section heading present in that file |
+| Cross-reference to §10 is valid | Check that `shared_05_db_api_and_operations.md` §10 exists | Section heading present in that file |

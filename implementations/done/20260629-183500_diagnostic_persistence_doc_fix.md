@@ -7,9 +7,9 @@ Resolve the doc/code inconsistency around diagnostic persistence by removing the
 ## Scope
 
 - **In-Scope**:
-  - Fix `05_agent_09_data-layer.md`: remove `diagnostic` from `messages.role` enum; remove stale "excluded from fetch_messages" sentence; add `session_diagnostics` table reference
-  - Fix `05_agent_04_state-and-persistence.md`: clarify `fetch_messages()` never sees diagnostic data (because it is in a separate table), remove the contradictory sentence at L131
-  - Fix `05_agent_03_turn-processing-flow.md`: align Partial-Completion Model table to canonical model (already partially correct; minor clarification needed)
+  - Fix `agent_09_data-layer.md`: remove `diagnostic` from `messages.role` enum; remove stale "excluded from fetch_messages" sentence; add `session_diagnostics` table reference
+  - Fix `agent_04_state-and-persistence.md`: clarify `fetch_messages()` never sees diagnostic data (because it is in a separate table), remove the contradictory sentence at L131
+  - Fix `agent_03_turn-processing-flow.md`: align Partial-Completion Model table to canonical model (already partially correct; minor clarification needed)
   - Add tests that verify: (1) `save_diagnostic()` writes to `session_diagnostics`, NOT to `messages`; (2) `fetch_messages()` returns only messages-table rows (no diagnostic bleed-through); (3) session restore (`restore_session`) never includes diagnostic data
   - Update `agent/session.py` docstring for `save_diagnostic()` to reference canonical store
 - **Out-of-Scope**:
@@ -21,7 +21,7 @@ Resolve the doc/code inconsistency around diagnostic persistence by removing the
 ## Assumptions
 
 - The canonical persistence model is `DiagnosticStore` → `session_diagnostics` table (confirmed by code in `diagnostic_store.py`, `session.py`, `schema_sql.py`)
-- The `messages` table has never had a `role="diagnostic"` row written in the current codebase; the column enum listing in `05_agent_09_data-layer.md` L39 is a doc artifact from an older design
+- The `messages` table has never had a `role="diagnostic"` row written in the current codebase; the column enum listing in `agent_09_data-layer.md` L39 is a doc artifact from an older design
 - `fetch_messages()` (`session_message_repo.py`) issues no `WHERE role != 'diagnostic'` filter because there are no diagnostic rows in `messages` — the filter is unnecessary, not an oversight
 - The `diagnostics.jsonl` sidecar written by `repl._persist_session_diagnostics()` is supplementary and does not need to be the primary documented path
 
@@ -30,7 +30,7 @@ Resolve the doc/code inconsistency around diagnostic persistence by removing the
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? |
 |---|---|---|---|---|
 | UNK-01 | Were diagnostic rows ever written to `messages` in any migration path or legacy code path? | No migration script checked; no git blame on schema | Run `git log --all -p -- scripts/db/schema_sql.py` and grep for `diagnostic` in old SQL | No |
-| UNK-02 | Does `_persist_session_diagnostics` in `repl.py` need to be documented as a supplementary/deprecated path? | Doc `05_agent_04` mentions it as "may be deprecated" (L129) | Confirm intent with operator; for now doc as "supplementary, may be deprecated" | No |
+| UNK-02 | Does `_persist_session_diagnostics` in `repl.py` need to be documented as a supplementary/deprecated path? | Doc `agent_04` mentions it as "may be deprecated" (L129) | Confirm intent with operator; for now doc as "supplementary, may be deprecated" | No |
 | UNK-03 | Is `AgentSession.save_diagnostic()` still called anywhere besides `orchestrator.py`? | Not verified exhaustively | `rg 'save_diagnostic' scripts/` to confirm call sites | No |
 
 ## Verification Results
@@ -356,6 +356,6 @@ def test_fetch_messages_returns_all_message_roles(self, db) -> None:
 
 ## Risks & Mitigations
 
-- **Risk**: Removing `diagnostic` from messages.role enum in docs could confuse readers who recall legacy behavior → **Mitigation**: Add an explicit note in `05_agent_09_data-layer.md` that the `messages` table never holds diagnostic rows; all diagnostics go to `session_diagnostics`.
+- **Risk**: Removing `diagnostic` from messages.role enum in docs could confuse readers who recall legacy behavior → **Mitigation**: Add an explicit note in `agent_09_data-layer.md` that the `messages` table never holds diagnostic rows; all diagnostics go to `session_diagnostics`.
 - **Risk**: Tests added to `test_agent_session.py` may need to mock both `SQLiteHelper("session")` for messages and `SQLiteHelper("session")` for session_diagnostics simultaneously → **Mitigation**: Use the same pattern as `test_diagnostic_store.py` with a `_FakeSQLiteHelper` that supports both tables in one in-memory connection.
-- **Risk**: `05_agent_04_state-and-persistence.md` L131 removal may leave references to `diagnostics.jsonl` unexplained → **Mitigation**: Keep the `diagnostics.jsonl` mention and mark it as "supplementary/may be deprecated" per existing doc language.
+- **Risk**: `agent_04_state-and-persistence.md` L131 removal may leave references to `diagnostics.jsonl` unexplained → **Mitigation**: Keep the `diagnostics.jsonl` mention and mark it as "supplementary/may be deprecated" per existing doc language.

@@ -105,7 +105,7 @@
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-144000 | 20260825-144500 | UNK-02 sign-off obtained: remove. Landed together with `scripts/shared/runtime_tool_registry.py` and `scripts/agent/startup.py` in one pass (same cycle as doc 14) |
 | 2 | Add or update tests per Validation plan | Completed | 20260825-144500 | 20260825-145500 | Removed 2 `requires_approval` assertions in `test_runtime_tool.py`; removed the standalone `requires_approval=...` construction kwarg from 6 other test files across the repo (`test_runtime_tool_routing_integration.py`, `test_cmd_mcp.py`, `test_route_resolver.py`, `test_rag_tools_consistency.py`, `test_tool_executor_routing.py`, `test_tool_executor.py`) — all found via a repo-wide grep before finalizing the field removal |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-145500 | 20260825-150000 | mypy clean across `runtime_tool.py`/`runtime_tool_registry.py`; 216 tests pass across all affected files |
-| 4 | Update documentation | Completed | 20260825-150000 | 20260825-150300 | Updated CI-003 in `docs/90_shared_90_inconsistencies_and_known_issues.md` (see doc 14 for the routing.md mapping rationale — same doc, same cycle) |
+| 4 | Update documentation | Completed | 20260825-150000 | 20260825-150300 | Updated CI-003 in `docs/shared_90_inconsistencies_and_known_issues.md` (see doc 14 for the routing.md mapping rationale — same doc, same cycle) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

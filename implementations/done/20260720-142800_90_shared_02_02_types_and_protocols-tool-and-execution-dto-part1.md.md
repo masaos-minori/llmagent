@@ -71,4 +71,4 @@ code-signature block.
 |---|---|---|
 | Scoped grep | `grep -n "フォールバック" docs/90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md` | No output |
 | Docs consistency | `uv run check-mcp-docs` | Passes |
-| Cross-doc consistency | manual diff against edited `90_shared_03_02` doc | No contradictory routing-authority claims |
+| Cross-doc consistency | manual diff against edited `shared_03_02` doc | No contradictory routing-authority claims |

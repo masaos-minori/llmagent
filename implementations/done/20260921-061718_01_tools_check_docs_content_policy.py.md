@@ -11,7 +11,7 @@ In scope: add `_SECTION_BOUNDARY_HEADING_RE`; modify the backward-scan loops ins
 REQ-002, REQ-003 of `plans/20260920-205406_plan.md`).
 Out of scope: any other detection function in this file (`check_full_json_example`,
 `check_literal_port_number`, etc.); the two already-applied doc workarounds
-(`docs/05_agent_05_llm-and-streaming.md`, `docs/06_eventbus_05_configuration-and-operations.md`).
+(`docs/agent_05_llm-and-streaming.md`, `docs/06_eventbus_05_configuration-and-operations.md`).
 
 ## Assumptions
 - Markdown headings follow `^#{1,6}\s+` (CommonMark ATX-heading syntax) — the same
@@ -173,7 +173,7 @@ Trivially revertable: removing the new regex constant and the two added
   this Plan's Row 2) adds the two new regression tests this change is written to
   satisfy — run once after both rows land, per the Plan's own Tests section.
 - Re-run `uv run python tools/check_docs_content_policy.py` against the full `docs/`
-  tree and confirm no new finding appears for `docs/05_agent_05_llm-and-streaming.md`
+  tree and confirm no new finding appears for `docs/agent_05_llm-and-streaming.md`
   or `docs/06_eventbus_05_configuration-and-operations.md` beyond what is already
   pre-existing/intentional (REQ-006, AC-6).
 

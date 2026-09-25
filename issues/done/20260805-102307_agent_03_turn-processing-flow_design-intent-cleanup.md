@@ -10,11 +10,11 @@ Apply the design-doc reduction policy from `memo-doc-agent-review.md` to the tur
 This chapter is a primary source for correlation-ID, approval-wait, partial-completion, and workflow-state concepts that matter for operations and audit — but currently also carries step-by-step function-call sequences, private method names, and dataclass field lists that are better left to code.
 
 ## Implementation Intent
-Keep this chapter as the canonical source for turn-processing design intent (per `memo-doc-agent-review.md` §「章間の正本ルール」: ターン処理の設計意図 = `05_agent_03_turn-processing-flow`). Explicitly preserve correlation-ID / approval-wait / partial-completion / workflow-state concepts as operational and audit-relevant, described by intent rather than field enumeration.
+Keep this chapter as the canonical source for turn-processing design intent (per `memo-doc-agent-review.md` §「章間の正本ルール」: ターン処理の設計意図 = `agent_03_turn-processing-flow`). Explicitly preserve correlation-ID / approval-wait / partial-completion / workflow-state concepts as operational and audit-relevant, described by intent rather than field enumeration.
 
 ## Target Files or Areas
-- `docs/05_agent_03_01_turn-processing-flow-overview.md`
-- `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
+- `docs/agent_03_01_turn-processing-flow-overview.md`
+- `docs/agent_03_02_turn-processing-flow-llm-tool-loop.md`
 - `docs/05_agent_03_03_turn-processing-flow-workflow-engine-part1.md`
 - `docs/05_agent_03_03_turn-processing-flow-workflow-engine-part2.md`
 

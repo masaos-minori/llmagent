@@ -55,13 +55,13 @@ related:
   - 00_governance_02_canonical-source-rule.md
   - 04_mcp_05_01_access-control-and-allowlists.md
   - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
-  - 05_agent_06_01_tool-execution-and-approval-execution.md
+  - agent_06_01_tool-execution-and-approval-execution.md
   - 03_rag_03_05_query_pipeline-augment-stages.md
   - 04_mcp_06_16_pre-production-fail-open-checklist.md
   - 04_mcp_06_17_local-to-production-auth-migration.md
   - 04_mcp_02_03_audit-logging-and-errors.md
   - 04_mcp_06_07_reading-audit-logs.md
-  - 05_agent_10_02_operations-and-observability-audit-and-otel.md
+  - agent_10_02_operations-and-observability-audit-and-otel.md
   - 03_rag_03_05_query_pipeline-augment-stages.md
   - 03_rag_04_02_dto-models_result.md
   - 05_failure_modes_and_operational_readiness.md
@@ -91,7 +91,7 @@ With explanation of two boundary crossings: Agent→MCP and ingestion→vector s
 
 7. **Log redaction rules** — Sourced from `04_mcp_02_03_audit-logging-and-errors.md`.
 
-8. **Audit retention** — Sourced from `04_mcp_06_07_reading-audit-logs.md` and `05_agent_10_02_operations-and-observability-audit-and-otel.md`.
+8. **Audit retention** — Sourced from `04_mcp_06_07_reading-audit-logs.md` and `agent_10_02_operations-and-observability-audit-and-otel.md`.
 
 9. **Local-vs-production behavior** — Sourced from `04_mcp_06_16_pre-production-fail-open-checklist.md` and `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` §起動時のAudit.
 

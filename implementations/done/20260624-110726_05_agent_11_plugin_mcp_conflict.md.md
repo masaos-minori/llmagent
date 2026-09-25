@@ -2,13 +2,13 @@
 
 ## Goal
 
-Document the behavior when a plugin registers a tool that conflicts with a built-in MCP tool. Add conflict rejection section to `05_agent_11` and SPEC entry to `05_agent_90`.
+Document the behavior when a plugin registers a tool that conflicts with a built-in MCP tool. Add conflict rejection section to `agent_11` and SPEC entry to `agent_90`.
 
 ## Scope
 
 **In:**
-- `docs/05_agent_11_plugin_and_extension_system.md` — add conflict rejection section
-- `docs/05_agent_90_specifications_and_design_contracts.md` — add SPEC-PLUGIN-01
+- `docs/agent_11_plugin_and_extension_system.md` — add conflict rejection section
+- `docs/agent_90_specifications_and_design_contracts.md` — add SPEC-PLUGIN-01
 
 **Out:** No code changes.
 
@@ -22,7 +22,7 @@ Document the behavior when a plugin registers a tool that conflicts with a built
 
 ### Target file
 
-`docs/05_agent_11_plugin_and_extension_system.md`, `docs/05_agent_90_specifications_and_design_contracts.md`
+`docs/agent_11_plugin_and_extension_system.md`, `docs/agent_90_specifications_and_design_contracts.md`
 
 ### Procedure
 
@@ -30,9 +30,9 @@ Document the behavior when a plugin registers a tool that conflicts with a built
    ```bash
    grep -rn "conflict\|duplicate.*tool\|tool.*already.*registered" agent/ --include="*.py" | head -10
    ```
-2. Read `docs/05_agent_11_plugin_and_extension_system.md` plugin registration section.
+2. Read `docs/agent_11_plugin_and_extension_system.md` plugin registration section.
 3. Add conflict rejection section.
-4. Read `docs/05_agent_90_specifications_and_design_contracts.md` and add SPEC entry.
+4. Read `docs/agent_90_specifications_and_design_contracts.md` and add SPEC entry.
 
 ### Method
 
@@ -40,7 +40,7 @@ Bash grep → Read docs → Edit patches.
 
 ### Details
 
-**Conflict rejection section for `05_agent_11`:**
+**Conflict rejection section for `agent_11`:**
 
 ```markdown
 ## Plugin/MCP Tool Conflict Rejection
@@ -62,7 +62,7 @@ Built-in MCP tool takes precedence. Plugin tool registration is silently skipped
 > **Best practice:** Use unique namespaced tool names for plugins (e.g., `my_plugin__search` instead of `search`).
 ```
 
-**SPEC-PLUGIN-01 for `05_agent_90`:**
+**SPEC-PLUGIN-01 for `agent_90`:**
 
 ```markdown
 ### SPEC-PLUGIN-01: Plugin/MCP Tool Name Conflict Policy
@@ -76,6 +76,6 @@ With `strict_startup_validation = false`: WARNING, built-in tool takes precedenc
 
 | Check | Command | Expected |
 |---|---|---|
-| Conflict rejection section | `grep -n "Conflict Rejection\|PluginConflictError" docs/05_agent_11_plugin_and_extension_system.md` | found |
-| SPEC entry | `grep -n "SPEC-PLUGIN-01" docs/05_agent_90_specifications_and_design_contracts.md` | found |
+| Conflict rejection section | `grep -n "Conflict Rejection\|PluginConflictError" docs/agent_11_plugin_and_extension_system.md` | found |
+| SPEC entry | `grep -n "SPEC-PLUGIN-01" docs/agent_90_specifications_and_design_contracts.md` | found |
 | No code changes | `git diff agent/` | empty |

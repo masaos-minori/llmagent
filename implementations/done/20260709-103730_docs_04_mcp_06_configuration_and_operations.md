@@ -48,7 +48,7 @@ and require a full agent restart to take effect. The watchdog
 (`mcp_watchdog_interval`, `mcp_watchdog_max_restarts` above) restarts a
 *failed* subprocess using its existing startup config; it does not read or
 apply any pending `/reload` config change. See
-[Agent Operations: MCP restart requirement](05_agent_10_operations-and-observability.md)
+[Agent Operations: MCP restart requirement](agent_10_operations-and-observability.md)
 for the full explanation.
 ```
 

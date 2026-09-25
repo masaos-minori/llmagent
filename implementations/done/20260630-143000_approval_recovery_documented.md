@@ -4,7 +4,7 @@
 ## Findings
 - `startup.py` L184-207: `_recover_pending_approvals()` already emits warning with task_id and approval_id ✓
 - `tests/test_startup.py`: Both required tests exist and pass (9 passed) ✓
-- Docs: Missing "Workflow Pending Approval Recovery" section in `05_agent_10_operations-and-observability.md`
+- Docs: Missing "Workflow Pending Approval Recovery" section in `agent_10_operations-and-observability.md`
 
 ## Changes Made
 - Added "Workflow Pending Approval Recovery" subsection to `docs/05_agent_10_operations-and-observability.md:L42-L53`:

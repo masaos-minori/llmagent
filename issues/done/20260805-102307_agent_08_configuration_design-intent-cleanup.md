@@ -10,14 +10,14 @@ Apply the design-doc reduction policy from `memo-doc-agent-review.md` to the con
 This chapter is the canonical source for config ownership and reload-boundary judgment, but currently also carries exhaustive field/default-value tables that duplicate `config/agent.toml` and its dataclass definitions, adding drift risk without operational value.
 
 ## Implementation Intent
-Keep this chapter as the canonical source for configuration ownership and reload boundaries (per `memo-doc-agent-review.md` §「章間の正本ルール」: 設定所有権とreload境界 = `05_agent_08_configuration`).
+Keep this chapter as the canonical source for configuration ownership and reload boundaries (per `memo-doc-agent-review.md` §「章間の正本ルール」: 設定所有権とreload境界 = `agent_08_configuration`).
 
 ## Target Files or Areas
 - `docs/05_agent_08_01_configuration-loading-agent-config-part1.md`
 - `docs/05_agent_08_01_configuration-loading-agent-config-part2.md`
-- `docs/05_agent_08_02_configuration-llm-rag.md`
-- `docs/05_agent_08_03_configuration-tools-memory.md`
-- `docs/05_agent_08_04_configuration-mcp-approval-obs.md`
+- `docs/agent_08_02_configuration-llm-rag.md`
+- `docs/agent_08_03_configuration-tools-memory.md`
+- `docs/agent_08_04_configuration-mcp-approval-obs.md`
 
 ## Required Changes
 - Keep: which files own which settings, the Hot-reloadable / Restart-required / Startup-only judgment criteria, strict-mode settings required in production, the danger of an empty `allowed_tools` list, the operational meaning of `tool_safety_tiers`, the config-drift detection approach, and what operators must do after a config change.

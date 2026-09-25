@@ -26,7 +26,7 @@ mechanically-derivable tables/lists across 22 `docs/*.md` files
 (`implementations/done/20260920-16*.md`), two of which triggered this side effect.
 
 ## Problem
-1. **`docs/05_agent_05_llm-and-streaming.md`** (implementation procedure
+1. **`docs/agent_05_llm-and-streaming.md`** (implementation procedure
    `implementations/done/20260920-163055_01_docs_05_agent_05_llm-and-streaming.md.md`):
    removing the "Partial Completion Persistence Rules" and "Error Type Design" tables
    left the retained `### Error Type Design` heading directly above an unrelated
@@ -131,7 +131,7 @@ N/A: this is an internal tooling accuracy fix with no `docs/00_index.md` task-sc
 mapping.
 
 ## Out of Scope
-- The two already-applied workarounds in `docs/05_agent_05_llm-and-streaming.md` and
+- The two already-applied workarounds in `docs/agent_05_llm-and-streaming.md` and
   `docs/06_eventbus_05_configuration-and-operations.md` — both are functioning,
   content-preserving fixes already landed; this issue is about preventing the
   underlying tool behavior from requiring such workarounds in future edits, not about
@@ -158,7 +158,7 @@ Read `check_error_handling_table()` and `check_config_file_inventory_table()` in
 including their shared use of `_HEADINGS_WINDOW`, before changing either. Implement
 section-scoping per Implementation Intent, verify against the two concrete cases in
 Problem (the pre-fix content is visible via `git log -p` on
-`docs/05_agent_05_llm-and-streaming.md` and
+`docs/agent_05_llm-and-streaming.md` and
 `docs/06_eventbus_05_configuration-and-operations.md` around 2026-09-20), and confirm
 the full existing test suite for this file still passes before considering the fix
 complete.

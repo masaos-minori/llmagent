@@ -1,4 +1,4 @@
-# Implementation Procedure: 05_agent_07_07_cli-and-commands-migration-notes.md
+# Implementation Procedure: agent_07_07_cli-and-commands-migration-notes.md
 
 ## Goal
 
@@ -59,7 +59,7 @@ surrounding prose accordingly.
 
 ### Target file
 
-`docs/05_agent_07_07_cli-and-commands-migration-notes.md`
+`docs/agent_07_07_cli-and-commands-migration-notes.md`
 
 ### Procedure
 
@@ -107,8 +107,8 @@ surrounding prose accordingly.
 ### Method
 
 Targeted prose + table rewrite reflecting a scope change (partial-alias-removal →
-full-command-removal), coordinated with `05_agent_07_08_...md` (which gains the
-`/session` DB-op rows) and `05_agent_07_09_...md` (which loses its DB category
+full-command-removal), coordinated with `agent_07_08_...md` (which gains the
+`/session` DB-op rows) and `agent_07_09_...md` (which loses its DB category
 section entirely).
 
 ### Details
@@ -119,7 +119,7 @@ section entirely).
   valid replacement forms, when in fact only `/session <subcmd>` survives and only
   for the former session-scoped operations).
 - Cross-check the "Related Documents" list (lines 61-73) still correctly points at
-  `05_agent_07_08_...md` and `05_agent_07_09_...md` — no link changes needed, only
+  `agent_07_08_...md` and `agent_07_09_...md` — no link changes needed, only
   their target content changes.
 
 ## Validation plan
@@ -133,5 +133,5 @@ section entirely).
   in `cmd_session.py` (see that file's own implementation doc) — no typos or
   mismatched flag names (e.g. `--max-sessions`/`--max-age-days` must match
   `DbSessionOps.purge`'s actual flag names verbatim).
-- Cross-check `05_agent_07_08_...md` and `05_agent_07_09_...md` for consistency — no
+- Cross-check `agent_07_08_...md` and `agent_07_09_...md` for consistency — no
   contradictory claims about where `/db session`'s functionality now lives.

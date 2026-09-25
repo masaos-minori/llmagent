@@ -4,7 +4,7 @@ Remove ASCII tree diagram showing component dependencies and replace with design
 
 ## Scope
 
-Modify `docs/05_agent_02_runtime-architecture.md`: remove the ASCII tree diagram (lines 24-35) and replace with prose organized around the five retain categories defined in `skills/DESIGN.md` Docs content policy.
+Modify `docs/agent_02_runtime-architecture.md`: remove the ASCII tree diagram (lines 24-35) and replace with prose organized around the five retain categories defined in `skills/DESIGN.md` Docs content policy.
 
 ## Assumptions
 
@@ -26,7 +26,7 @@ Modify `docs/05_agent_02_runtime-architecture.md`: remove the ASCII tree diagram
 
 ### Target file
 
-`docs/05_agent_02_runtime-architecture.md`
+`docs/agent_02_runtime-architecture.md`
 
 ### Procedure
 
@@ -55,7 +55,7 @@ Replace the entire ASCII tree block with prose organized into:
 ## Compatibility considerations
 
 - The replacement prose must maintain the same information coverage as the original ASCII tree. All components listed in the tree must appear in the prose.
-- Cross-references to other documents (e.g., `[05_agent_03_01_turn-processing-flow-overview.md]`) must be preserved.
+- Cross-references to other documents (e.g., `[agent_03_01_turn-processing-flow-overview.md]`) must be preserved.
 
 ## Security considerations
 
@@ -70,7 +70,7 @@ Replace the entire ASCII tree block with prose organized into:
 
 | Target File | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_02_runtime-architecture.md` | Manual review + checker | `uv run python tools/check_docs_content_policy.py` && `uv run python tools/check_docs_structure.py docs/05_agent_02_runtime-architecture.md` | Zero ASCII tree findings; structure check passes |
+| `docs/agent_02_runtime-architecture.md` | Manual review + checker | `uv run python tools/check_docs_content_policy.py` && `uv run python tools/check_docs_structure.py docs/agent_02_runtime-architecture.md` | Zero ASCII tree findings; structure check passes |
 
 ## Completion criteria
 
@@ -82,7 +82,7 @@ Replace the entire ASCII tree block with prose organized into:
 ## Out of scope
 
 - Modifying the Part 2 section starting at line 70 (no ASCII tree findings there).
-- Altering `05_agent_03_01_turn-processing-flow-overview.md` or `05_agent_03_02_turn-processing-flow-llm-tool-loop.md` or `05_agent_03_03_turn-processing-flow-workflow-engine.md`.
+- Altering `agent_03_01_turn-processing-flow-overview.md` or `agent_03_02_turn-processing-flow-llm-tool-loop.md` or `agent_03_03_turn-processing-flow-workflow-engine.md`.
 - Any file outside the Agent domain.
 
 ## Execution status
@@ -113,4 +113,4 @@ Replace the entire ASCII tree block with prose organized into:
 - **Source plan**: plans/20260908-211530_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260910-000740
-- **Related target files**: docs/05_agent_02_runtime-architecture.md
+- **Related target files**: docs/agent_02_runtime-architecture.md

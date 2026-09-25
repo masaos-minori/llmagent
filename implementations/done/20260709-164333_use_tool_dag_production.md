@@ -20,7 +20,7 @@ Add `"use_tool_dag"` to `ProductionConfigValidator._REQUIRED_STRICT_KEYS` and pa
 2. `scripts/agent/repl_health.py`
 3. `tests/test_production_config_validator.py`
 4. `tests/test_repl_health.py`
-5. `docs/05_agent_08_configuration.md`
+5. `docs/agent_08_configuration.md`
 6. `docs/04_mcp_06_configuration_and_operations.md`
 
 ### Procedure

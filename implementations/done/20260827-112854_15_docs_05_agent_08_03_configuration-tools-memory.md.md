@@ -1,7 +1,7 @@
 ## Goal
 
 Remove the fabricated `memory_embed_dim` config-key reference in
-`docs/05_agent_08_03_configuration-tools-memory.md` (REQ-004 — added by this
+`docs/agent_08_03_configuration-tools-memory.md` (REQ-004 — added by this
 plan-to-implementation-procedure's own adversarial verification, 2026-08-27),
 per `plans/20260826-151220_plan.md`.
 
@@ -50,14 +50,14 @@ per `plans/20260826-151220_plan.md`.
 
 ## Implementation
 ### Target file
-`docs/05_agent_08_03_configuration-tools-memory.md`
+`docs/agent_08_03_configuration-tools-memory.md`
 
 ### Procedure
 1. Re-confirm the current line number immediately before editing (verified at
    line 98 as of 2026-08-27).
 2. Remove the `memory_embed_dim` bullet.
 3. Add a brief replacement note per Method/Details.
-4. Cross-check wording against seq 13's (`05_agent_12_03`) parallel correction
+4. Cross-check wording against seq 13's (`agent_12_03`) parallel correction
    for the same fabricated field, for consistency across the two docs.
 5. Run `.venv/bin/python3 tools/check_docs_consistency.py --domain agent` and
    confirm no new warning/error.
@@ -102,7 +102,7 @@ identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 ## Rollback considerations
 
 - Single-bullet-plus-note text revert via `git diff`/`git checkout -- <path>`;
-  should be cross-checked against seq 13 (`05_agent_12_03`)'s parallel
+  should be cross-checked against seq 13 (`agent_12_03`)'s parallel
   correction for consistency of wording, though each file is independently
   revertable.
 
@@ -110,8 +110,8 @@ identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_08_03_configuration-tools-memory.md` | Manual diff | `git diff <path>` | No `memory_embed_dim` bullet remains; the other three "Embedding Related" bullets unchanged |
-| `docs/05_agent_08_03_configuration-tools-memory.md` | Doc consistency check | `.venv/bin/python3 tools/check_docs_consistency.py --domain agent` | No new warning/error beyond baseline |
+| `docs/agent_08_03_configuration-tools-memory.md` | Manual diff | `git diff <path>` | No `memory_embed_dim` bullet remains; the other three "Embedding Related" bullets unchanged |
+| `docs/agent_08_03_configuration-tools-memory.md` | Doc consistency check | `.venv/bin/python3 tools/check_docs_consistency.py --domain agent` | No new warning/error beyond baseline |
 
 ## Completion criteria
 
@@ -153,4 +153,4 @@ identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 - **Source plan**: `plans/20260826-151220_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260827-112854
-- **Related target files**: `docs/05_agent_08_03_configuration-tools-memory.md`
+- **Related target files**: `docs/agent_08_03_configuration-tools-memory.md`

@@ -58,7 +58,7 @@ Replace with:
   related docs and tests.
 - **Statement A:** The current implementation applies MCP HTTP URL changes
   at runtime via `/reload` and stores `auth_token`/`startup_mode` changes as
-  "deferred," and `docs/05_agent_08_configuration.md` documents this as
+  "deferred," and `docs/agent_08_configuration.md` documents this as
   intentional.
 - **Statement B:** This is unsafe — `ToolExecutor` and `HttpTransport` build
   their state from MCP server config once at startup and never re-read it,

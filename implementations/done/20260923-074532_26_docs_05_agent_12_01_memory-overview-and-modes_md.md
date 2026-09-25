@@ -1,10 +1,10 @@
 ## Goal
 
-Reduce H1 heading count from 2 to exactly 1 in `docs/05_agent_12_01_memory-overview-and-modes.md`, add missing `## Keywords` section per REQ-003, REQ-004.
+Reduce H1 heading count from 2 to exactly 1 in `docs/agent_12_01_memory-overview-and-modes.md`, add missing `## Keywords` section per REQ-003, REQ-004.
 
 ## Scope
 
-Modify only `docs/05_agent_12_01_memory-overview-and-modes.md` to consolidate extra H1 headings and add a missing structural section.
+Modify only `docs/agent_12_01_memory-overview-and-modes.md` to consolidate extra H1 headings and add a missing structural section.
 
 ## Assumptions
 
@@ -26,7 +26,7 @@ Modify only `docs/05_agent_12_01_memory-overview-and-modes.md` to consolidate ex
 
 ### Target file
 
-`docs/05_agent_12_01_memory-overview-and-modes.md`
+`docs/agent_12_01_memory-overview-and-modes.md`
 
 ### Procedure
 
@@ -149,4 +149,4 @@ Run `uv run python tools/check_docs_structure.py "docs/**/*.md"` — expect zero
 - **Source plan**: plans/20260923-014359_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260923-074532
-- **Related target files**: docs/05_agent_12_01_memory-overview-and-modes.md
+- **Related target files**: docs/agent_12_01_memory-overview-and-modes.md

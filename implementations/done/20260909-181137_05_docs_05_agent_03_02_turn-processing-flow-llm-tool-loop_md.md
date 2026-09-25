@@ -6,7 +6,7 @@ Update the documentation for ToolLoopGuard to include the new fifth guard (empty
 
 ## Scope
 
-- Modify `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md`: add documentation for the new guard and hint.
+- Modify `docs/agent_03_02_turn-processing-flow-llm-tool-loop.md`: add documentation for the new guard and hint.
 - No other files modified in this document.
 
 ## Assumptions
@@ -31,7 +31,7 @@ Update the documentation for ToolLoopGuard to include the new fifth guard (empty
 ## Implementation
 
 ### Target file
-`docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
+`docs/agent_03_02_turn-processing-flow-llm-tool-loop.md`
 
 ### Procedure
 
@@ -146,4 +146,4 @@ Within the tool loop, an LLM may potentially call the same tool infinitely. To p
 - **Source plan**: plans/20260908-221112_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260909-181137
-- **Related target files**: docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md
+- **Related target files**: docs/agent_03_02_turn-processing-flow-llm-tool-loop.md

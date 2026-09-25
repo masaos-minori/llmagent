@@ -19,7 +19,7 @@ Document, in the agent tool-execution/approval doc set:
 
 **In scope**
 - Add a short subsection to the target file named in the plan,
-  `docs/05_agent_06_01_tool-execution-and-approval-execution.md`.
+  `docs/agent_06_01_tool-execution-and-approval-execution.md`.
 
 **Out of scope**
 - Rewriting existing sections of the doc set.
@@ -28,14 +28,14 @@ Document, in the agent tool-execution/approval doc set:
 **IMPORTANT — target-file discrepancy found; flagged, not silently
 resolved:**
 
-The plan names `docs/05_agent_06_01_tool-execution-and-approval-execution.md`
+The plan names `docs/agent_06_01_tool-execution-and-approval-execution.md`
 as the file to update. Reading that file shows its actual content is
 `ToolExecutor`, parallel/serial execution, and the DAG scheduler — it
 does not currently discuss `gitops_push_blocked`, GitHub tool
 classification, or dry-run previews at all. The content the plan
 describes (gitops flags, the 7-tool GitHub write list, dry-run preview
 behavior) already lives in the **sibling file**
-`docs/05_agent_06_02_tool-execution-and-approval-approval.md`, in its
+`docs/agent_06_02_tool-execution-and-approval-approval.md`, in its
 "gitops系フラグと承認フローの関係" (line 103) and "ドライラン プレビュー"
 (line 125) sections — confirmed by direct read of both files. Both
 files share the same `related:` front-matter cross-links (06_01 lists
@@ -44,14 +44,14 @@ set per `routing.md`'s "Agent REPL flow / tool execution" mapping
 (`docs/05_agent_03_01_...` + `docs/05_agent_06_01_...`).
 
 This document therefore describes the change as a **two-file update**:
-- **Primary edit**: `docs/05_agent_06_02_tool-execution-and-approval-approval.md`
+- **Primary edit**: `docs/agent_06_02_tool-execution-and-approval-approval.md`
   — update the existing "GitHub書き込みツール" table (lines 109-122) and
   "gitops系フラグと承認フローの関係" section (lines 103-108) to reflect the
   shared-constant-derived `_GITOPS_BLOCKABLE_TOOLS`, and add a new
   subsection after "ドライラン プレビュー" (after line 128) describing the
   dry-run-error-blocks-HIGH-risk behavior.
 - **Secondary edit** (to satisfy the plan's literal file path): add a
-  one-line cross-reference in `docs/05_agent_06_01_tool-execution-and-approval-execution.md`
+  one-line cross-reference in `docs/agent_06_01_tool-execution-and-approval-execution.md`
   pointing to the new 06_02 subsection, so a reader who lands on 06_01
   first (as the plan's author apparently did) is not left without a
   pointer.
@@ -66,7 +66,7 @@ to the plan's stated target.
 ## Assumptions
 
 1. Both `docs/05_agent_06_01_...` and `docs/05_agent_06_02_...` are part
-   of the same numbered document family (`05_agent_06_0N`) and are
+   of the same numbered document family (`agent_06_0N`) and are
    cross-linked via `related:` front matter — placing detailed content
    in whichever of the two already owns that topic, with a short
    pointer in the other, matches the existing convention seen elsewhere
@@ -89,14 +89,14 @@ to the plan's stated target.
 
 ### Target file
 
-- `docs/05_agent_06_01_tool-execution-and-approval-execution.md` (as
+- `docs/agent_06_01_tool-execution-and-approval-execution.md` (as
   literally named by the plan — cross-reference only, see below)
-- `docs/05_agent_06_02_tool-execution-and-approval-approval.md` (primary
+- `docs/agent_06_02_tool-execution-and-approval-approval.md` (primary
   content location — see discrepancy note above)
 
 ### Procedure
 
-1. In `docs/05_agent_06_02_tool-execution-and-approval-approval.md`:
+1. In `docs/agent_06_02_tool-execution-and-approval-approval.md`:
    - Update the "gitops系フラグと承認フローの関係" section (starting line
      103) to replace the description "`_GITHUB_WRITE_TOOLS`に対して即時拒否"
      with a description of the shared-derived
@@ -123,11 +123,11 @@ to the plan's stated target.
        `approval_dry_run_tools` by default, so this path is currently
        dormant for GitHub tools and only activates if an operator opts
        one in.
-2. In `docs/05_agent_06_01_tool-execution-and-approval-execution.md`: add
+2. In `docs/agent_06_01_tool-execution-and-approval-execution.md`: add
    one line near the top (in the existing bullet list at lines 19-20)
    cross-referencing the approval-flow doc:
    ```
-   - GitHub変更操作の承認/gitops制御 → [05_agent_06_02_tool-execution-and-approval-approval.md](05_agent_06_02_tool-execution-and-approval-approval.md)
+   - GitHub変更操作の承認/gitops制御 → [agent_06_02_tool-execution-and-approval-approval.md]()agent_06_02_tool-execution-and-approval-approval.md
    ```
 
 ### Method
@@ -174,7 +174,7 @@ Since this is a documentation-only change, standard code-quality gates
 ## Note on prior implementation documents
 
 No existing document under `implementations/` or `implementations/done/`
-targets `05_agent_06_01_tool-execution-and-approval-execution.md` or
-`05_agent_06_02_tool-execution-and-approval-approval.md` (confirmed via
+targets `agent_06_01_tool-execution-and-approval-execution.md` or
+`agent_06_02_tool-execution-and-approval-approval.md` (confirmed via
 `find implementations -iname "*05_agent_06_0*"` — no results). This is a
 new implementation item with no prior overlap to reconcile.

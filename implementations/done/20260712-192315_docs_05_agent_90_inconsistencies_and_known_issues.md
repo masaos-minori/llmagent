@@ -1,18 +1,18 @@
-# Implementation Procedure: docs/05_agent_90_inconsistencies_and_known_issues.md
+# Implementation Procedure: docs/agent_90_inconsistencies_and_known_issues.md
 
 Source plan: `plans/20260712-191629_plan.md`
 Source requirement: `requires/done/20260712_16_require.md`
 
 ## Goal
 
-`docs/05_agent_90_inconsistencies_and_known_issues.md` no longer carries a stale
+`docs/agent_90_inconsistencies_and_known_issues.md` no longer carries a stale
 "未解決の疑問点" entry for a session-recovery gap that `/db session recover`
 (commit `8c9f93c8`) already closed.
 
 ## Scope
 
 **In scope:** the `## 未解決の疑問点` section of
-`docs/05_agent_90_inconsistencies_and_known_issues.md`.
+`docs/agent_90_inconsistencies_and_known_issues.md`.
 
 **Out of scope:** every other section of the same file (前文, `## 未文書化領域`,
 Related Documents, Keywords); this file's original addition of the gap note
@@ -31,7 +31,7 @@ context only and is not modified.
 
 ### Target file
 
-`docs/05_agent_90_inconsistencies_and_known_issues.md`
+`docs/agent_90_inconsistencies_and_known_issues.md`
 
 ### Procedure
 
@@ -81,4 +81,4 @@ subtractive edit.
 | Dangling reference scan | `grep -rn "セッション SQLite 破損復旧" docs/*.md` | no output |
 | Docs consistency | `uv run python tools/check_docs_consistency.py` | All checks passed |
 | Docs structure | `uv run python tools/validate_docs_structure.py` | All checks passed |
-| Manual structure read | `cat docs/05_agent_90_inconsistencies_and_known_issues.md` | no empty `##` headings, no doubled `---` |
+| Manual structure read | `cat docs/agent_90_inconsistencies_and_known_issues.md` | no empty `##` headings, no doubled `---` |

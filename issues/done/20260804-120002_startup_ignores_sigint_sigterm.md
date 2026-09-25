@@ -56,7 +56,7 @@ self._cmds, self._orchestrator, _spawned_subprocesses = await startup.run()
 - 既存の起動成功シナリオのテストが壊れていないことを確認する。
 
 ## ドキュメントへの影響
-運用ドキュメント（起動・停止手順に関するもの、例えば `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` 系）に、起動中のシグナル応答性について記載がある場合は更新が必要か確認する。
+運用ドキュメント（起動・停止手順に関するもの、例えば `docs/agent_10_01_operations-and-observability-startup-and-health.md` 系）に、起動中のシグナル応答性について記載がある場合は更新が必要か確認する。
 
 ## 対象外
 REPLループ開始後（`_repl_loop()` 内）のシャットダウン処理は本Issueの対象外。既にシグナル応答の仕組みが存在するため変更不要。

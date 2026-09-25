@@ -35,7 +35,7 @@ Secondary, smaller improvement to consider in the same change: when a tool resul
 - `scripts/agent/tool_runner.py` — `execute_one_tool_call()`/`_collect_tool_result_msgs()`, to report results to the guard and (optionally) apply the empty-result placeholder
 - `scripts/agent/llm_turn_runner.py` — `LLMTurnRunner.run()`, wiring results into `guard.check_all()`'s per-turn state
 - `scripts/agent/config_dataclasses.py` — new `ToolConfig` field
-- `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` — existing design doc enumerating the 4 (5, including the unimplemented one) guards; needs a new entry
+- `docs/agent_03_02_turn-processing-flow-llm-tool-loop.md` — existing design doc enumerating the 4 (5, including the unimplemented one) guards; needs a new entry
 - `tests/integration/test_rag_llm_integration.py` — existing `test_c07_tool_loop_guard_fires_on_dedup`/`test_c08_tool_loop_guard_allows_different_args` establish the test pattern to follow for the new guard
 
 ## Required Changes
@@ -43,7 +43,7 @@ Secondary, smaller improvement to consider in the same change: when a tool resul
 - Add a corresponding `ToolConfig` field with the `0 = disabled` convention, distinct from `progress_stagnation_window`.
 - Wire tool execution results into the guard's per-turn state (a plumbing change, since `check_all()` currently only sees the outgoing tool-call request, not the result of the previous round).
 - Add a `HINT` constant and `_save_guard_hint(...)` call matching the existing 4 guards' pattern.
-- Update `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` to document the new guard.
+- Update `docs/agent_03_02_turn-processing-flow-llm-tool-loop.md` to document the new guard.
 - (Optional, smaller, same change) Replace an empty-string tool result with an explicit placeholder before it enters conversation history.
 
 ## Constraints
@@ -58,7 +58,7 @@ Secondary, smaller improvement to consider in the same change: when a tool resul
 - [ ] The new guard does not fire when a tool's results differ meaningfully between calls, even if some individual results happen to be empty
 - [ ] The new guard integrates with `check_all()`'s existing return-first-hit-or-None pattern and reuses `_finalize_after_guard()`'s existing fallback path (no new fallback mechanism)
 - [ ] All 4 existing guards' current tests continue to pass unchanged
-- [ ] `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` documents the new guard
+- [ ] `docs/agent_03_02_turn-processing-flow-llm-tool-loop.md` documents the new guard
 - [ ] `_check_progress_stagnation()` remains unimplemented and unchanged by this work (tracked separately — see Out of Scope)
 
 ## Testing Expectations
@@ -72,7 +72,7 @@ Secondary, smaller improvement to consider in the same change: when a tool resul
 - Type check: `uv run mypy scripts/agent/tool_loop_guard.py scripts/agent/tool_runner.py scripts/agent/llm_turn_runner.py scripts/agent/config_dataclasses.py`
 
 ## Documentation Impact
-`docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` currently documents the 4 working guards (and, per the earlier investigation, likely does not yet document `_check_progress_stagnation` as it's unimplemented). This Plan should add an entry for the new guard describing its trigger condition, configuration field, and fallback behavior — following the same level of detail as the existing 4 guards' entries.
+`docs/agent_03_02_turn-processing-flow-llm-tool-loop.md` currently documents the 4 working guards (and, per the earlier investigation, likely does not yet document `_check_progress_stagnation` as it's unimplemented). This Plan should add an entry for the new guard describing its trigger condition, configuration field, and fallback behavior — following the same level of detail as the existing 4 guards' entries.
 
 ## Out of Scope
 - Implementing `_check_progress_stagnation()`'s own tool-name-set-based stagnation logic — this is a separate, already-scaffolded feature with a different detection target (2+ distinct tools repeated across rounds, not single-tool empty results) and should be tracked as its own issue if pursued.

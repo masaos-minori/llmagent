@@ -1,4 +1,4 @@
-# Implementation procedure: `docs/05_agent_12_04_memory-module-ref-retrieval-and-injection.md` (fragmentation-limitation note)
+# Implementation procedure: `docs/agent_12_04_memory-module-ref-retrieval-and-injection.md` (fragmentation-limitation note)
 
 Source plan: `plans/20260719-095637_plan.md` ("Enable the persistent memory layer by default and add the
 missing chunking step", requirement `requires/done/20260714_15_require.md`), Implementation step 4 /
@@ -57,7 +57,7 @@ chunk rows carry no parent/grouping metadata.
 
 ### Target file
 
-`docs/05_agent_12_04_memory-module-ref-retrieval-and-injection.md`
+`docs/agent_12_04_memory-module-ref-retrieval-and-injection.md`
 
 ### Procedure
 
@@ -66,8 +66,8 @@ chunk rows carry no parent/grouping metadata.
    "### 8. `injection.py` — ライフサイクル注入サービス" (current line 107).
 2. State, in plain prose (no flagged-gap framing, per Assumption 2):
    - Long source messages that are split into multiple chunks at extraction time (see
-     `05_agent_12_03_memory-module-ref-core-and-store.md`'s chunking-stage note and
-     `05_agent_12_05_memory-module-ref-extraction-and-facade.md`'s `extract.py` detail) are stored as
+     `agent_12_03_memory-module-ref-core-and-store.md`'s chunking-stage note and
+     `agent_12_05_memory-module-ref-extraction-and-facade.md`'s `extract.py` detail) are stored as
      independent `memories` rows, each with its own `memory_id`.
    - `retriever.py`/`rrf.py` treat every row independently; there is no chunk-to-source grouping or
      parent/child linkage in the schema (per the paired `extract.py` doc — no DB schema change in this
@@ -100,7 +100,7 @@ increases, since chunking is new).
 | Check | Command | Target |
 |---|---|---|
 | Docs consistency | `uv run python tools/check_agent_docs_consistency.py` | no new ERROR/WARNING |
-| Cross-reference integrity | `rg -n "12_03|12_05" docs/05_agent_12_04_memory-module-ref-retrieval-and-injection.md` | both cross-references present after the edit |
-| No unlabeled "Current behavior" framing | `rg -n "Current behavior|現在の動作" docs/05_agent_12_04_memory-module-ref-retrieval-and-injection.md` | new note does not use this framing (per Assumption 2 — it is Accepted current specification, plain prose) |
-| Existing tables untouched | `git diff docs/05_agent_12_04_memory-module-ref-retrieval-and-injection.md` | diff shows only an added paragraph; no changes inside the `retriever.py`/`rrf.py` method tables |
+| Cross-reference integrity | `rg -n "12_03|12_05" docs/agent_12_04_memory-module-ref-retrieval-and-injection.md` | both cross-references present after the edit |
+| No unlabeled "Current behavior" framing | `rg -n "Current behavior|現在の動作" docs/agent_12_04_memory-module-ref-retrieval-and-injection.md` | new note does not use this framing (per Assumption 2 — it is Accepted current specification, plain prose) |
+| Existing tables untouched | `git diff docs/agent_12_04_memory-module-ref-retrieval-and-injection.md` | diff shows only an added paragraph; no changes inside the `retriever.py`/`rrf.py` method tables |
 | Manual review | Read the new note alongside the shipped `extract.py`/`ingestion.py`/`retriever.py` | prose accurately describes post-chunking retrieval behavior |

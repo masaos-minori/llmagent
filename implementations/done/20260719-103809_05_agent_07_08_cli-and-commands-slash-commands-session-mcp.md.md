@@ -2,7 +2,7 @@
 
 Document the new `/session rag-rebuild-fts` subcommand (added in
 `implementations/20260719-103526_cmd_session.py.md`) in the `/session` DB-operations subcommand
-table in `docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`, so the documented
+table in `docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md`, so the documented
 command surface stays in sync with code.
 
 **Builds on prior doc**: `implementations/20260719-103155_05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md.md`
@@ -25,7 +25,7 @@ directly after it — it does not repeat the `rag-consistency` row's insertion.
 
 ## Assumptions
 
-1. Verified by direct grep/read of `docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
+1. Verified by direct grep/read of `docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
    (current, pre-091140-landing baseline): the table header is at line 49, separator at line 50, and
    data rows at lines 51-56:
    ```
@@ -59,7 +59,7 @@ directly after it — it does not repeat the `rag-consistency` row's insertion.
 
 ### Target file
 
-`docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`.
+`docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md`.
 
 ### Procedure
 
@@ -87,8 +87,8 @@ existing rows' terse, operation-naming style (e.g. `/session vacuum`'s `VACUUM` 
 
 | Check | Command | Target |
 |---|---|---|
-| New row present | `rg -n "rag-rebuild-fts" docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | 1 match, inside the subcommand table |
-| Both new RAG rows present | `rg -n "rag-consistency\|rag-rebuild-fts" docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | 2 matches, adjacent rows |
-| Table structure intact | `sed -n '45,60p' docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | header + 8 data rows (6 original + rag-consistency + rag-rebuild-fts), consistent 3-column structure |
+| New row present | `rg -n "rag-rebuild-fts" docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | 1 match, inside the subcommand table |
+| Both new RAG rows present | `rg -n "rag-consistency\|rag-rebuild-fts" docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | 2 matches, adjacent rows |
+| Table structure intact | `sed -n '45,60p' docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | header + 8 data rows (6 original + rag-consistency + rag-rebuild-fts), consistent 3-column structure |
 | Docs consistency checker | `uv run python tools/check_agent_docs_consistency.py` | no new ERROR/WARNING introduced |
-| Cross-reference with code | `rg -n "rag-rebuild-fts" scripts/agent/commands/cmd_session.py docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | both files reference the same subcommand name (no naming mismatch) |
+| Cross-reference with code | `rg -n "rag-rebuild-fts" scripts/agent/commands/cmd_session.py docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | both files reference the same subcommand name (no naming mismatch) |

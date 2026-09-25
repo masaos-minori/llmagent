@@ -29,7 +29,7 @@ Add a docstring to `startup_only` symmetric in quality to the existing `skipped`
 
 ## Target Files or Areas
 - `scripts/agent/services/config_reload.py`
-- `docs/05_agent_07_06_cli-and-commands-hot-reload.md` — cross-reference if it documents `/reload` output fields
+- `docs/agent_07_06_cli-and-commands-hot-reload.md` — cross-reference if it documents `/reload` output fields
 
 ## Required Changes
 - Add a docstring to `ConfigReloadOutcome.startup_only` explaining: populated when a field was present in the reload payload, differs from the running value, but requires a restart to take effect (as opposed to `skipped`, which is for fields ignored for reasons other than restart-required, and `needs_restart`, which is for MCP server definition changes specifically).
@@ -46,7 +46,7 @@ Add a docstring to `startup_only` symmetric in quality to the existing `skipped`
 - Manual review of `/reload` output text is sufficient; this is a documentation/clarity change with no behavior change, so no new automated test is required.
 
 ## Documentation Impact
-If `docs/05_agent_07_06_cli-and-commands-hot-reload.md` describes `/reload` output fields, ensure it matches the clarified in-code docstrings.
+If `docs/agent_07_06_cli-and-commands-hot-reload.md` describes `/reload` output fields, ensure it matches the clarified in-code docstrings.
 
 ## Out of Scope
 - Changing which fields fall into each category.

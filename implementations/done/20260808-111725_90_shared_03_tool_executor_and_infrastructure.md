@@ -70,7 +70,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`**
+**File: `shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`**
 - ToolExecutor constructor signatures: Replace with prose summary referencing `scripts/shared/tool_executor.py`
 - Sequential internal processing steps of execute(): Replace with prose summary
 - Helper function lists: Replace with prose summary

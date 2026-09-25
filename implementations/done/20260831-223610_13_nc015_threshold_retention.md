@@ -1,10 +1,10 @@
 ## Goal
 
-Verify that the fact recorded in archived NC-015 about Threshold/retention functions is already present in `05_agent_12_02_memory-gate-data-model-search.md`, and add it if missing.
+Verify that the fact recorded in archived NC-015 about Threshold/retention functions is already present in `agent_12_02_memory-gate-data-model-search.md`, and add it if missing.
 
 ## Scope
 
-Check `05_agent_12_02_memory-gate-data-model-search.md` for the presence of the fact that `DEDUP_THRESHOLDS` consumed by `_get_dedup_threshold()` and `RETENTION_DAYS` dead code. Add a concise statement if not already present.
+Check `agent_12_02_memory-gate-data-model-search.md` for the presence of the fact that `DEDUP_THRESHOLDS` consumed by `_get_dedup_threshold()` and `RETENTION_DAYS` dead code. Add a concise statement if not already present.
 
 ## Assumptions
 
@@ -27,11 +27,11 @@ Check `05_agent_12_02_memory-gate-data-model-search.md` for the presence of the 
 
 ### Target file
 
-`05_agent_12_02_memory-gate-data-model-search.md`
+`agent_12_02_memory-gate-data-model-search.md`
 
 ### Procedure
 
-1. Read `05_agent_12_02_memory-gate-data-model-search.md` to identify existing threshold/retention documentation
+1. Read `agent_12_02_memory-gate-data-model-search.md` to identify existing threshold/retention documentation
 2. Check whether the following facts are already present:
    - `DEDUP_THRESHOLDS` consumed by `_get_dedup_threshold()`
    - `RETENTION_DAYS` dead code
@@ -69,7 +69,7 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 
 | Target | Strategy | Command | Expected Outcome |
 |---|---|---|---|
-| `05_agent_12_02_memory-gate-data-model-search.md` | Manual comparison of archived NC-015 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
+| `agent_12_02_memory-gate-data-model-search.md` | Manual comparison of archived NC-015 vs current content | Read file, compare facts | Fact accounted for (already present or added) |
 
 ## Completion criteria
 
@@ -113,4 +113,4 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 - **Source plan**: plans/20260831-223610_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 2026-09-01T00:00:00Z
-- **Related target files**: 05_agent_12_02_memory-gate-data-model-search.md
+- **Related target files**: agent_12_02_memory-gate-data-model-search.md

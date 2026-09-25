@@ -1,20 +1,20 @@
-# Implementation: Add DB Recreation Procedure to `docs/90_shared_05_db_api_and_operations.md`
+# Implementation: Add DB Recreation Procedure to `docs/shared_05_db_api_and_operations.md`
 
 ## Goal
 
-Add a new "DB Recreation (Schema Update Procedure)" section to `docs/90_shared_05_db_api_and_operations.md`
+Add a new "DB Recreation (Schema Update Procedure)" section to `docs/shared_05_db_api_and_operations.md`
 so that operators have a documented, official workflow for applying schema changes by
 recreating DB files from the latest DDL.
 
 ## Scope
 
-- `docs/90_shared_05_db_api_and_operations.md` — add a new section after existing maintenance sections
+- `docs/shared_05_db_api_and_operations.md` — add a new section after existing maintenance sections
 - Document `rotate_all_dbs()` archive step, manual file deletion, `create_schema()` recreation
 - State explicitly that migration is unsupported and recreated DBs are empty
 - Reference `common.toml` config keys for DB paths (not hardcoded paths)
 
 Out of scope:
-- `docs/90_shared_04_db_architecture_and_schema.md` (handled separately)
+- `docs/shared_04_db_architecture_and_schema.md` (handled separately)
 - Any Python source file changes
 - `eventbus.sqlite` archival (not covered by `rotate_all_dbs()`)
 
@@ -38,7 +38,7 @@ Out of scope:
 
 ### Target file
 
-`docs/90_shared_05_db_api_and_operations.md`
+`docs/shared_05_db_api_and_operations.md`
 
 ### Procedure
 
@@ -116,7 +116,7 @@ After inserting the new section, update the subsequent section numbers:
 
 | Target | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| New section presence | Manual review | Read `docs/90_shared_05_db_api_and_operations.md` | Section `## 10. DB Recreation` is present with all three steps |
+| New section presence | Manual review | Read `docs/shared_05_db_api_and_operations.md` | Section `## 10. DB Recreation` is present with all three steps |
 | `rotate_all_dbs()` accuracy | Code cross-check | Read `scripts/db/maintenance.py` | Confirms rag + session + workflow are archived; eventbus is not |
 | `create_schema()` accuracy | Code cross-check | Read `scripts/db/create_schema.py` | Confirms all four DBs are created |
 | DB path references | Config cross-check | Read `config/common.toml` | Paths match documented defaults |

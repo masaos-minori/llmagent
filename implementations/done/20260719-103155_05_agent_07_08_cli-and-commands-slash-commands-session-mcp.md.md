@@ -8,7 +8,7 @@ table, so the documented command surface stays in sync with code.
 
 **In scope**
 - Add one new row to the `/session` subcommand table in
-  `docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` for `/session rag-consistency`.
+  `docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` for `/session rag-consistency`.
 
 **Out of scope**
 - Any change to the table's other rows, its column structure, or the surrounding section text
@@ -45,7 +45,7 @@ table, so the documented command surface stays in sync with code.
 
 ### Target file
 
-`docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`.
+`docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md`.
 
 ### Procedure
 
@@ -70,7 +70,7 @@ existing rows' terse, field-name-referencing style (e.g. `/session health`'s
 
 | Check | Command | Target |
 |---|---|---|
-| New row present | `rg -n "rag-consistency" docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | 1 match, inside the subcommand table |
-| Table structure intact | Manual visual check: `sed -n '49,58p' docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | header + 7 data rows, consistent 3-column structure |
+| New row present | `rg -n "rag-consistency" docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | 1 match, inside the subcommand table |
+| Table structure intact | Manual visual check: `sed -n '49,58p' docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | header + 7 data rows, consistent 3-column structure |
 | Docs consistency checker | `uv run python tools/check_agent_docs_consistency.py` | no new ERROR/WARNING introduced |
-| Cross-reference with code | `rg -n "rag-consistency" scripts/agent/commands/cmd_session.py docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | both files reference the same subcommand name (no naming mismatch) |
+| Cross-reference with code | `rg -n "rag-consistency" scripts/agent/commands/cmd_session.py docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` | both files reference the same subcommand name (no naming mismatch) |

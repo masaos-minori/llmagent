@@ -1,4 +1,4 @@
-# Implementation Procedure: 05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md
+# Implementation Procedure: agent_07_08_cli-and-commands-slash-commands-session-mcp.md
 
 ## Goal
 
@@ -11,7 +11,7 @@ Update the "Session" and "Config / stats" category tables so they document the n
 - In the "Session category" table (current lines 33-42): replace the
   `/export [md\|json] [file]` row (current line 42) with a
   `/session export markdown\|json [file]` row, and append a new subsection listing
-  the 6 moved DB-op rows (content moved from `05_agent_07_09_...md`'s current lines
+  the 6 moved DB-op rows (content moved from `agent_07_09_...md`'s current lines
   56-61, headers adjusted from "`/db session ...`" to "`/session ...`").
 - In the "Config / stats category" table (current lines 62-70): delete the
   `/set temperature <f>` row (current line 68) and `/set max_tokens <n>` row (current
@@ -37,14 +37,14 @@ Update the "Session" and "Config / stats" category tables so they document the n
   readability, even though `command_defs_list.py`'s single `CommandDef.help` string
   packs them together.
 - The exact wording for the 6 moved DB-op rows should mirror
-  `05_agent_07_09_...md`'s current `/db session` subsection (lines 55-61) verbatim
+  `agent_07_09_...md`'s current `/db session` subsection (lines 55-61) verbatim
   except for the command prefix (`/db session X` → `/session X`).
 
 ## Implementation
 
 ### Target file
 
-`docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
+`docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
 
 ### Procedure
 
@@ -58,7 +58,7 @@ Update the "Session" and "Config / stats" category tables so they document the n
    ```
 2. Immediately after the Session category table, add a new subsection (new
    `#### Session DB操作サブコマンド` heading or similar) with rows moved from
-   `05_agent_07_09_...md`'s current `/db session` table (lines 52-61), renamed:
+   `agent_07_09_...md`'s current `/db session` table (lines 52-61), renamed:
    ```
    | Command | 副作用 | Notes |
    |---|---|---|
@@ -75,19 +75,19 @@ Update the "Session" and "Config / stats" category tables so they document the n
    | `/set max_tokens <n>` | `ctx.cfg.llm.llm_max_tokens`を更新 | LLMに即座に反映 |
    ```
 4. Add a short cross-reference note near the new DB-op subsection pointing to
-   `05_agent_07_09_...md` for historical context (the DB category section there is
+   `agent_07_09_...md` for historical context (the DB category section there is
    being deleted, so state plainly that `/db session <subcmd>` has moved here, not
    just silently duplicate content).
 
 ### Method
 
 Table-row edit via targeted Markdown replacement; content moved (not duplicated)
-from `05_agent_07_09_...md`, which drops its own copy in the same change-set (see
+from `agent_07_09_...md`, which drops its own copy in the same change-set (see
 that file's own implementation doc).
 
 ### Details
 
-- Coordinate this edit with `05_agent_07_09_...md`'s DB-category-section deletion so
+- Coordinate this edit with `agent_07_09_...md`'s DB-category-section deletion so
   the content is moved exactly once, not duplicated or lost.
 - Update the "Keywords" section at the bottom of the file (if this doc's Keywords
   list mentions `/set` or lacks `/session export`/DB-op mentions) to stay consistent
@@ -100,7 +100,7 @@ that file's own implementation doc).
   in this file.
 - Cross-check against `command_defs_list.py`'s final `/session` `CommandDef.help`
   string — the documented subcommand list here should match it exactly.
-- Cross-check against `05_agent_07_09_...md` and `05_agent_07_07_...md` — no
+- Cross-check against `agent_07_09_...md` and `agent_07_07_...md` — no
   contradiction or duplicated authoritative table between the three files.
 - If the repo has a doc-lint tool (`uv run check-mcp-docs` is MCP-specific, not
   applicable here) — no automated check exists for this doc; rely on manual review

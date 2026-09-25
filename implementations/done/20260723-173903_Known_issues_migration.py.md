@@ -40,7 +40,7 @@ Normalize issue tracking format across all five major area Known Issues document
 
 ### Target file
 
-5 area Known Issues documents: `docs/05_agent_90_inconsistencies_and_known_issues.md`, `docs/04_mcp_90_inconsistencies_and_known_issues.md`, `docs/03_rag_90_inconsistencies_and_known_issues.md`, `docs/06_eventbus_90_inconsistencies_and_known_issues.md`, `docs/90_shared_90_inconsistencies_and_known_issues.md`
+5 area Known Issues documents: `docs/agent_90_inconsistencies_and_known_issues.md`, `docs/04_mcp_90_inconsistencies_and_known_issues.md`, `docs/03_rag_90_inconsistencies_and_known_issues.md`, `docs/06_eventbus_90_inconsistencies_and_known_issues.md`, `docs/shared_90_inconsistencies_and_known_issues.md`
 
 ### Procedure
 

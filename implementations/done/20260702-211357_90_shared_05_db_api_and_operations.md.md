@@ -1,8 +1,8 @@
-# Implementation: 90_shared_05_db_api_and_operations.md
+# Implementation: shared_05_db_api_and_operations.md
 
 ## Goal
 
-Scan `docs/90_shared_05_db_api_and_operations.md` for any remaining references to
+Scan `docs/shared_05_db_api_and_operations.md` for any remaining references to
 `ALTER TABLE`, `migrate_schema`, or backward-compatible migration language, and remove or
 rewrite them. Verify that §10 "DB Recreation Procedure" is accurate and consistent with the
 no-migration policy. The document currently contains a §10 section about DB recreation; this
@@ -10,7 +10,7 @@ pass confirms it is complete and adds any missing details.
 
 ## Scope
 
-**Target file:** `docs/90_shared_05_db_api_and_operations.md`
+**Target file:** `docs/shared_05_db_api_and_operations.md`
 
 **In scope:**
 - Scan entire document for migration-related language: `ALTER TABLE`, `migrate_schema`,
@@ -39,7 +39,7 @@ pass confirms it is complete and adds any missing details.
 
 ### Target file
 
-`docs/90_shared_05_db_api_and_operations.md`
+`docs/shared_05_db_api_and_operations.md`
 
 ### Procedure
 
@@ -67,7 +67,7 @@ are expected since the document is already largely aligned.
 
 ```bash
 grep -n "migration\|ALTER TABLE\|backward.compatible\|duplicate column\|migrate_schema\|_migrate_" \
-    docs/90_shared_05_db_api_and_operations.md
+    docs/shared_05_db_api_and_operations.md
 ```
 
 If no results: document is clean; proceed to §10 review only.
@@ -94,6 +94,6 @@ No change expected.
 
 | Check | Command | Expected outcome |
 |---|---|---|
-| No stale migration wording | `grep -n "migration\|ALTER TABLE\|backward.compatible\|duplicate column\|migrate_schema\|_migrate_" docs/90_shared_05_db_api_and_operations.md` | Zero matches (or only intentional "no migration" policy text) |
-| §10 recreation procedure present | `grep -n "rotate_all_dbs\|create_schema\|Step 1\|Step 2\|Step 3" docs/90_shared_05_db_api_and_operations.md` | All three steps visible |
-| Verification plan clean | `grep -n "_migrate_\|migrate_schema" docs/90_shared_05_db_api_and_operations.md` | Zero matches |
+| No stale migration wording | `grep -n "migration\|ALTER TABLE\|backward.compatible\|duplicate column\|migrate_schema\|_migrate_" docs/shared_05_db_api_and_operations.md` | Zero matches (or only intentional "no migration" policy text) |
+| §10 recreation procedure present | `grep -n "rotate_all_dbs\|create_schema\|Step 1\|Step 2\|Step 3" docs/shared_05_db_api_and_operations.md` | All three steps visible |
+| Verification plan clean | `grep -n "_migrate_\|migrate_schema" docs/shared_05_db_api_and_operations.md` | Zero matches |

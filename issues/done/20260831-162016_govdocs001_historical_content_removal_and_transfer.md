@@ -27,16 +27,16 @@ out of scope for that task and was not performed.
 - The removed Archived (Resolved) Items table's entries record verified facts about current
   code, some of which may not be reflected anywhere else. For example: NC-004 recorded that
   `knn_search`'s distance metric is confirmed L2/Euclidean via an explicit
-  `distance_metric=L2` DDL clause (source file cited: `05_agent_12_04_memory-module-ref-retrieval-and-injection.md`); NC-016 recorded the confirmed signature and invocation pattern of
-  an `on_usage` callback (source file cited: `90_shared_03_04_runtime_and_execution-caching-and-reference.md`). Whether these facts are already documented in
+  `distance_metric=L2` DDL clause (source file cited: `agent_12_04_memory-module-ref-retrieval-and-injection.md`); NC-016 recorded the confirmed signature and invocation pattern of
+  an `on_usage` callback (source file cited: `shared_03_04_runtime_and_execution-caching-and-reference.md`). Whether these facts are already documented in
   their cited source files, independent of the now-deleted NC record, is unconfirmed.
   (Evidence: Needs confirmation — requires reading each cited source file.)
 - The removed Known Issues Migration Plan described a still-unexecuted plan to migrate five
   area-specific Known Issues documents (`03_rag_90_inconsistencies_and_known_issues.md`,
   `04_mcp_90_inconsistencies_and_known_issues.md`,
-  `05_agent_90_inconsistencies_and_known_issues.md`,
+  `agent_90_inconsistencies_and_known_issues.md`,
   `06_eventbus_90_inconsistencies_and_known_issues.md`,
-  `90_shared_90_inconsistencies_and_known_issues.md`) to a common template. Deleting the plan
+  `shared_90_inconsistencies_and_known_issues.md`) to a common template. Deleting the plan
   does not resolve the underlying format inconsistency across those five documents — it only
   removes the record that the inconsistency was being tracked.
 - Whether a "Deprecated Items" document or section still exists anywhere in the repository
@@ -64,11 +64,11 @@ transfer step before removal is considered complete.
 
 ## Target Files or Areas
 - Recoverable via `git log`/`git show` on `docs/00_governance_03_issue-and-uncertainty-management.md` for the removed content
-- `05_agent_12_04_memory-module-ref-retrieval-and-injection.md` (NC-004)
-- `90_shared_03_04_runtime_and_execution-caching-and-reference.md` (NC-016)
+- `agent_12_04_memory-module-ref-retrieval-and-injection.md` (NC-004)
+- `shared_03_04_runtime_and_execution-caching-and-reference.md` (NC-016)
 - The other 16 archived NC entries' cited source files (see the removed table for the full
   list; recoverable from git history)
-- `03_rag_90_inconsistencies_and_known_issues.md`, `04_mcp_90_inconsistencies_and_known_issues.md`, `05_agent_90_inconsistencies_and_known_issues.md`, `06_eventbus_90_inconsistencies_and_known_issues.md`, `90_shared_90_inconsistencies_and_known_issues.md` — only if the format-unification decision is to proceed
+- `03_rag_90_inconsistencies_and_known_issues.md`, `04_mcp_90_inconsistencies_and_known_issues.md`, `agent_90_inconsistencies_and_known_issues.md`, `06_eventbus_90_inconsistencies_and_known_issues.md`, `shared_90_inconsistencies_and_known_issues.md` — only if the format-unification decision is to proceed
 - Unknown: whether a standalone Deprecated Items document exists
 
 ## Required Changes

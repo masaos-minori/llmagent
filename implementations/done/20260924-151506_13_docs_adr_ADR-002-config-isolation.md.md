@@ -21,7 +21,7 @@ Same as seq 10-12: relative-path fix preferred over an absolute-from-docs-root l
 
 ### Procedure
 1. Locate the link with `rg -n '\]\([^)]*/90_shared_03_01_runtime_and_execution-config-and-logging\.md(#[^)]*)?\)' docs/adr/ADR-002-config-isolation.md` — expect exactly 1 match (line 431).
-2. Edit line 431: `- [Runtime and Execution - Config and Logging](../90_shared_03_01_runtime_and_execution-config-and-logging.md) — ランタイム設定とロギング` → `- [Runtime and Execution - Config and Logging](../40_shared/90_shared_03_01_runtime_and_execution-config-and-logging.md) — ランタイム設定とロギング`.
+2. Edit line 431: `- [Runtime and Execution - Config and Logging](../shared_03_01_runtime_and_execution-config-and-logging.md) — ランタイム設定とロギング` → `- [Runtime and Execution - Config and Logging](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md) — ランタイム設定とロギング`.
 3. Re-run the same `rg` command to confirm the match now shows the `40_shared/` component.
 
 ### Method

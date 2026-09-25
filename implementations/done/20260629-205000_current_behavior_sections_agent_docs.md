@@ -9,10 +9,10 @@ Add clearly separated "Current behavior" and "Known discrepancy / Needs confirma
 - **In-Scope**:
   - `docs/05_agent_04_state-and-persistence.md` — compressed history persistence, diagnostics.jsonl location
   - `docs/05_agent_09_data-layer.md` — memory table storage ambiguity, diagnostics role in messages table vs DiagnosticStore
-  - `docs/05_agent_08_configuration.md` — memory_jsonl_dir canonical key, workflow_mode startup-blocking behavior
+  - `docs/agent_08_configuration.md` — memory_jsonl_dir canonical key, workflow_mode startup-blocking behavior
   - `docs/05_agent_10_operations-and-observability.md` — diagnostics.jsonl path, session_diagnostics table, deprecation status
-  - `docs/05_agent_12_memory.md` — branch field in retrieval, memory_jsonl_path vs memory_jsonl_dir confusion
-  - `docs/05_agent_90_inconsistencies_and_known_issues.md` — add DISC-01 through DISC-05 entries
+  - `docs/agent_12_memory.md` — branch field in retrieval, memory_jsonl_path vs memory_jsonl_dir confusion
+  - `docs/agent_90_inconsistencies_and_known_issues.md` — add DISC-01 through DISC-05 entries
 
 ## Implementation Steps
 
@@ -28,7 +28,7 @@ Add clearly separated "Current behavior" and "Known discrepancy / Needs confirma
 - Under "Memory Tables (optional)": clarify memories table lives in session.sqlite (same DB)
 - Add `> **Current behavior:**` block for diagnostics data ownership
 
-**05_agent_08_configuration.md**
+**agent_08_configuration.md**
 - Under MemoryConfig: add `> **Current behavior:**` confirming memory_jsonl_dir is canonical key (not memory_jsonl_path)
 - Under workflow_mode: add `> **Current behavior:**` clarifying RuntimeError raised at Orchestrator.__init__() when WorkflowLoader fails
 
@@ -37,12 +37,12 @@ Add clearly separated "Current behavior" and "Known discrepancy / Needs confirma
 - Clarify dual persistence: diagnostics.jsonl AND session_diagnostics table; add `> **Known discrepancy:**` note if stores diverge
 - Add `> **Needs confirmation:**` on whether diagnostics.jsonl will be removed
 
-**05_agent_12_memory.md**
+**agent_12_memory.md**
 - Fix memory_jsonl_path → memory_jsonl_dir wherever it appears incorrectly
 - Under "Data Model / MemoryEntry": add `> **Current behavior:**` noting branch field IS actively used in FtsRetriever._context_boost()
 - Clarify branch, project, repo passed to HybridRetriever.search() affect result ranking
 
-**05_agent_90_inconsistencies_and_known_issues.md**
+**agent_90_inconsistencies_and_known_issues.md**
 - Add DISC-01: diagnostics.jsonl vs session_diagnostics table dual persistence
 - Add DISC-02: memory_jsonl_path vs memory_jsonl_dir
 - Add DISC-03: branch field in memory retrieval

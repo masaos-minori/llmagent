@@ -56,12 +56,12 @@ related:
   - 00_governance_02_canonical-source-rule.md
   - 04_mcp_05_01_access-control-and-allowlists.md
   - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
-  - 05_agent_06_01_tool-execution-and-approval-execution.md
+  - agent_06_01_tool-execution-and-approval-execution.md
   - 04_mcp_04_02_file-write-file-delete-shell.md
   - 04_mcp_04_04_mdq.md
   - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
-  - 05_agent_06_01_tool-execution-and-approval-execution.md
-  - 05_agent_06_02_tool-execution-and-approval-approval.md
+  - agent_06_01_tool-execution-and-approval-execution.md
+  - agent_06_02_tool-execution-and-approval-approval.md
   - 04_mcp_06_16_pre-production-fail-open-checklist.md
   - 04_mcp_02_03_audit-logging-and-errors.md
 source:
@@ -77,13 +77,13 @@ source:
 
 3. **Command allowlists** — Sourced from `04_mcp_05_01` §コマンドAllowlist.
 
-4. **Argument validation** — Pointer to `agent/tool_arg_validator.py::validate_tool_arguments()` per `05_agent_06_01`.
+4. **Argument validation** — Pointer to `agent/tool_arg_validator.py::validate_tool_arguments()` per `agent_06_01`.
 
 5. **Path-traversal prevention** — Common statement: all filesystem-touching tools resolve paths via `Path.resolve()` before comparison against the allowlist root — generalizes language currently found only in `04_mcp_04_04_mdq.md` / `04_mcp_05_05_mdq-enforcement-and-lockdown.md`.
 
 6. **Symlink-traversal prevention** — Same generalization — `Path.resolve()` follows and normalizes symlinks before the allowlist check.
 
-7. **Approval requirements mapped explicitly to risk tiers** — Reproduces the `READ_ONLY` / `WRITE_SAFE` / `WRITE_DANGEROUS` / `ADMIN` table from `04_mcp_05_03` §リスクティア分類 as the authoritative approval-to-tier mapping, cross-linked with `05_agent_06_01`/`05_agent_06_02` for the approval-execution flow.
+7. **Approval requirements mapped explicitly to risk tiers** — Reproduces the `READ_ONLY` / `WRITE_SAFE` / `WRITE_DANGEROUS` / `ADMIN` table from `04_mcp_05_03` §リスクティア分類 as the authoritative approval-to-tier mapping, cross-linked with `agent_06_01`/`agent_06_02` for the approval-execution flow.
 
 8. **Audit fields** — Sourced from `04_mcp_02_03`.
 

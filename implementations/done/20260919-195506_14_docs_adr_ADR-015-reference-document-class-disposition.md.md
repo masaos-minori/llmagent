@@ -10,7 +10,7 @@ section. Out of scope: this file's other sections; any other file.
 ## Assumptions
 Confirmed 20260919 (`plan-to-implementation-procedure` Step 3a): this file's
 `## Implementation Notes` section contains one real content block — a 3-item candidate
-list for Reference-class migration under Option B (Agent: `docs/05_agent_13_reference-api.md`;
+list for Reference-class migration under Option B (Agent: `docs/agent_13_reference-api.md`;
 EventBus: `docs/06_eventbus_06_reference-api.md`; Memory: 6 candidate chapter files under
 `docs/05_agent_12_*.md`, exact target unresolved), explicitly sourced from
 `plans/done/20260919-105034_plan.md`'s target list rather than re-derived here. This is
@@ -24,7 +24,7 @@ migration *candidates*, not an architectural rationale). It most closely resembl
 document(s) unresolved — see that Plan's `UNK-01`" — an explicit, still-open unknown.
 The Agent/EventBus rows, by contrast, describe already-completed migrations (per
 `plans/done/20260919-105034_plan.md` and this session's own prior work on
-`docs/05_agent_14_reference-api-generated.md`/`docs/06_eventbus_06_reference-api.md`) —
+`docs/agent_14_reference-api-generated.md`/`docs/06_eventbus_06_reference-api.md`) —
 classify each of the 3 sub-items independently rather than the whole block as one unit:
 the Agent/EventBus items may now be `Delete`/`Compress` candidates (their migration is
 done, so a static candidate list restates history rather than live rationale), while the
@@ -45,7 +45,7 @@ docs/adr/ADR-015-reference-document-class-disposition.md
 
 ### Procedure
 1. Re-verify current status of each of the 3 sub-items against live repository state:
-   confirm `docs/05_agent_13_reference-api.md`'s companion `docs/05_agent_14_reference-api-generated.md`
+   confirm `docs/agent_13_reference-api.md`'s companion `docs/agent_14_reference-api-generated.md`
    and `docs/06_eventbus_06_reference-api.md` reflect completed migrations (per this
    session's own prior work, plans/done/20260919-105034_plan.md); confirm whether the
    Memory row's `UNK-01` has since been resolved by checking
@@ -107,7 +107,7 @@ design doc.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-220112 | 20260919-220112 | Classify 3 sub-items independently; expected split outcome Verified: docs/05_agent_14_reference-api-generated.md and docs/06_eventbus_06_reference-api.md's AUTO-GENERATED block both confirm Agent/EventBus migrations complete -> Delete/Compress applied (removed as static candidate bullets, replaced with a brief completed-status statement). Memory sub-item confirmed still In Progress in plans/done/20260919-105034_plan.md Step 4/UNK-01, no existing NC entry found -> Move to Needs Confirmation, reserved NC-038 (added by row 21). NOTE (out of scope, not edited): this file's own Known Deviations section still states no Reference-class doc has been migrated -- now stale vs Agent/EventBus completion; left unedited per this row's explicit Out of scope (other sections). |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260919-220112 | 20260919-220112 | Classify 3 sub-items independently; expected split outcome Verified: docs/agent_14_reference-api-generated.md and docs/06_eventbus_06_reference-api.md's AUTO-GENERATED block both confirm Agent/EventBus migrations complete -> Delete/Compress applied (removed as static candidate bullets, replaced with a brief completed-status statement). Memory sub-item confirmed still In Progress in plans/done/20260919-105034_plan.md Step 4/UNK-01, no existing NC entry found -> Move to Needs Confirmation, reserved NC-038 (added by row 21). NOTE (out of scope, not edited): this file's own Known Deviations section still states no Reference-class doc has been migrated -- now stale vs Agent/EventBus completion; left unedited per this row's explicit Out of scope (other sections). |
 | 2 | Add or update tests per Validation plan | Completed | 20260919-220112 | 20260919-220112 | N/A: documentation-only, no test to add N/A: documentation-only |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260919-220112 | 20260919-220112 | check_docs_quality.py, check_docs_structure.py, check_adr_structure.py, check_needs_confirmation_inventory.py (conditional) check_docs_quality.py: 0 error; check_docs_structure.py: 2 pre-existing findings (out of scope); check_adr_structure.py: No issues found; check_needs_confirmation_inventory.py: no new finding for this file |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260919-220112 | 20260919-220112 | N/A: this document's own Target file IS the documentation being updated Edited this file's own Implementation Notes only |

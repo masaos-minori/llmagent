@@ -21,7 +21,7 @@ reading each of their Goal lines directly.
 
 **In scope**: cross-file grep/consistency checks across the doc files this plan touches
 (`docs/04_mcp_03_06_tool-runtime-availability-metadata.md` [new],
-`docs/04_mcp_00_document-guide.md`, the 4 catalog docs, `docs/05_agent_08_04_configuration-mcp-approval-obs.md`,
+`docs/04_mcp_00_document-guide.md`, the 4 catalog docs, `docs/agent_08_04_configuration-mcp-approval-obs.md`,
 `docs/04_mcp_90_inconsistencies_and_known_issues.md`), plus confirming no `scripts/`/`tests/`/
 `config/` file was touched (this plan's Out-of-scope guarantee).
 
@@ -81,7 +81,7 @@ Implementation steps 3-7, each covered by its own procedure doc).
    functions themselves, not a check of this plan's specific doc edits.
 7. `git diff --stat docs/` — confirm only the intended files changed:
    `docs/04_mcp_03_06_tool-runtime-availability-metadata.md` (new),
-   `docs/04_mcp_00_document-guide.md`, the 4 catalog docs, `docs/05_agent_08_04_configuration-mcp-approval-obs.md`,
+   `docs/04_mcp_00_document-guide.md`, the 4 catalog docs, `docs/agent_08_04_configuration-mcp-approval-obs.md`,
    `docs/04_mcp_90_inconsistencies_and_known_issues.md`.
 8. `git diff --stat` (repo-wide, no path filter) → confirm zero changes outside `docs/` — no
    `scripts/`, `tests/`, or `config/` file touched, per this plan's Out-of-scope guarantee.

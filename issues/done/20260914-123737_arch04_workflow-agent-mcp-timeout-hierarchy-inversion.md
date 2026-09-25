@@ -46,7 +46,7 @@ Establish and enforce the invariant that each layer's maximum allowed duration i
 Add an integration test that starts a shell command with a duration between the (post-fix) MCP-layer max and the Workflow-layer stage timeout is no longer possible to construct if the fix eliminates the inversion — construct instead a test that intentionally exceeds the Workflow stage timeout with an in-flight shell subprocess and confirms the subprocess is actually terminated (not orphaned). Run `tests/agent/workflow/` and `tests/mcp_servers/shell/` after the change.
 
 ## Documentation Impact
-Document the intended timeout hierarchy (Workflow > Agent > MCP Server, with the specific invariant "inner max ≤ outer timeout with margin") in `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md` or the nearest equivalent operational doc, and cite the resolved values so future config changes can be checked against it.
+Document the intended timeout hierarchy (Workflow > Agent > MCP Server, with the specific invariant "inner max ≤ outer timeout with margin") in `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md` or the nearest equivalent operational doc, and cite the resolved values so future config changes can be checked against it.
 
 ## Out of Scope
 - Establishing an Agent/turn-level time budget distinct from `sse_heartbeat_timeout` — this issue only addresses the confirmed Workflow-vs-MCP inversion; whether an intermediate Agent-layer timeout is needed at all is a separate design question.

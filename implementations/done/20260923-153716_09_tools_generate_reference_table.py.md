@@ -12,11 +12,11 @@ Modify only `tools/generate_reference_table.py` to update:
    (directory component only — the pre-existing, unrelated bug where this
    filename does not exist under any name is NOT fixed here, see Out of
    scope).
-3. `REFERENCE_DOC_AGENT` → `docs/23_agent/05_agent_14_reference-api-generated.md`.
+3. `REFERENCE_DOC_AGENT` → `docs/23_agent/agent_14_reference-api-generated.md`.
 4. `REFERENCE_DOC_EVENTBUS` → `docs/24_eventbus/06_eventbus_06_reference-api.md`
    (this constant was omitted from the source Issue's Problem section —
    discovered during this Plan's drafting via Read).
-5. `REFERENCE_DOC_MEMORY` → `docs/23_agent/05_agent_12_07_memory-module-reference-generated.md`.
+5. `REFERENCE_DOC_MEMORY` → `docs/23_agent/agent_12_07_memory-module-reference-generated.md`.
 
 ## Assumptions
 
@@ -29,8 +29,8 @@ Modify only `tools/generate_reference_table.py` to update:
   (tests the generator functions directly, no real `docs/` path dependency)
   — no test change needed.
 - `REFERENCE_DOC_MEMORY`'s file moves to `docs/23_agent/` (not a separate
-  memory-specific folder) since `05_agent_12_07_memory-module-reference-generated.md`
-  is part of the `05_agent_*` prefix group per the folder classification —
+  memory-specific folder) since `agent_12_07_memory-module-reference-generated.md`
+  is part of the `agent_*` prefix group per the folder classification —
   confirmed consistent with the source Plan's directory-component mapping.
 
 ## Design decisions
@@ -73,10 +73,10 @@ Current (lines 67-73):
 ```python
 REFERENCE_DOC_MCP = REPO_ROOT / "docs" / "04_mcp_01_tool_ownership_matrix.md"
 REFERENCE_DOC_DEPLOYMENT = REPO_ROOT / "docs" / "02_deployment-part2.md"
-REFERENCE_DOC_AGENT = REPO_ROOT / "docs" / "05_agent_14_reference-api-generated.md"
+REFERENCE_DOC_AGENT = REPO_ROOT / "docs" / "agent_14_reference-api-generated.md"
 REFERENCE_DOC_EVENTBUS = REPO_ROOT / "docs" / "06_eventbus_06_reference-api.md"
 REFERENCE_DOC_MEMORY = (
-    REPO_ROOT / "docs" / "05_agent_12_07_memory-module-reference-generated.md"
+    REPO_ROOT / "docs" / "agent_12_07_memory-module-reference-generated.md"
 )
 ```
 
@@ -84,10 +84,10 @@ After modification:
 ```python
 REFERENCE_DOC_MCP = REPO_ROOT / "docs" / "22_mcp" / "04_mcp_01_tool_ownership_matrix.md"
 REFERENCE_DOC_DEPLOYMENT = REPO_ROOT / "docs" / "90_deployment" / "02_deployment-part2.md"
-REFERENCE_DOC_AGENT = REPO_ROOT / "docs" / "23_agent" / "05_agent_14_reference-api-generated.md"
+REFERENCE_DOC_AGENT = REPO_ROOT / "docs" / "23_agent" / "agent_14_reference-api-generated.md"
 REFERENCE_DOC_EVENTBUS = REPO_ROOT / "docs" / "24_eventbus" / "06_eventbus_06_reference-api.md"
 REFERENCE_DOC_MEMORY = (
-    REPO_ROOT / "docs" / "23_agent" / "05_agent_12_07_memory-module-reference-generated.md"
+    REPO_ROOT / "docs" / "23_agent" / "agent_12_07_memory-module-reference-generated.md"
 )
 ```
 

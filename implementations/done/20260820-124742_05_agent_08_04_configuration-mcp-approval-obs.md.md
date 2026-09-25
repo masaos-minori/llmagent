@@ -1,10 +1,10 @@
 # Implementation Procedure: Document sensitive_fields in DiagnosticsConfig design doc
 
 ## Goal
-Add a `sensitive_fields` bullet to the 診断設定 (DiagnosticsConfig) section of `docs/05_agent_08_04_configuration-mcp-approval-obs.md`, describing purpose (additive/union redaction field list) only — no concrete default value.
+Add a `sensitive_fields` bullet to the 診断設定 (DiagnosticsConfig) section of `docs/agent_08_04_configuration-mcp-approval-obs.md`, describing purpose (additive/union redaction field list) only — no concrete default value.
 
 ## Scope
-- Target file: `docs/05_agent_08_04_configuration-mcp-approval-obs.md`
+- Target file: `docs/agent_08_04_configuration-mcp-approval-obs.md`
 - Add one bullet under 診断設定 section
 
 ## Assumptions
@@ -18,7 +18,7 @@ Add a `sensitive_fields` bullet to the 診断設定 (DiagnosticsConfig) section 
 
 ## Implementation
 ### Target file
-`docs/05_agent_08_04_configuration-mcp-approval-obs.md`
+`docs/agent_08_04_configuration-mcp-approval-obs.md`
 
 ### Procedure
 1. Locate the 診断設定 section (lines 85-89)
@@ -69,4 +69,4 @@ Direct edit using exact line matching
 - Source plan: plans/20260819-162837_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260820-124742
-- Related target files: docs/05_agent_08_04_configuration-mcp-approval-obs.md
+- Related target files: docs/agent_08_04_configuration-mcp-approval-obs.md

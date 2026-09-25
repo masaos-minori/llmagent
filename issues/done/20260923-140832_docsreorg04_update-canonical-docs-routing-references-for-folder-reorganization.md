@@ -21,15 +21,15 @@ tables, not incidental mentions.
 
 ## Problem
 - `docs/00_index.md`'s "Document References by Task" section (lines 48-144) contains 50
-  distinct bare-filename mentions (backtick-quoted, e.g. `` `05_agent_00_document-guide.md` ``)
+  distinct bare-filename mentions (backtick-quoted, e.g. `` `agent_00_document-guide.md` ``)
   with no directory component. `docs/00_index.md` itself also moves (into
   `docs/00_governance/` per the folder classification), so both the file's own new
   location and every filename it lists inside need the correct new subfolder to remain
   a precise routing reference. Its earlier "Categories" and "Recommended Reading Order"
   sections (lines 14-41) also contain bare-filename Markdown links to `01_overview.md`,
   `02_deployment.md`, `03_rag_00_document-guide.md`, `04_mcp_00_document-guide.md`,
-  `05_agent_00_document-guide.md`, `06_eventbus_00_document-guide.md`,
-  `90_shared_00_document-guide.md`, `00_governance_01_documentation-policy.md`,
+  `agent_00_document-guide.md`, `06_eventbus_00_document-guide.md`,
+  `shared_00_document-guide.md`, `00_governance_01_documentation-policy.md`,
   `00_governance_02_documentation-metadata.md`,
   `00_governance_03_issue-and-uncertainty-management.md`,
   `00_governance_04_documentation-checks.md`, `adr-index.md` — these are real Markdown
@@ -39,7 +39,7 @@ tables, not incidental mentions.
   this is a separate concern from the automated checker).
 - `rules/env.md` contains ~15 specific `docs/*.md` path references that need their
   directory component updated (e.g. `docs/04_mcp_01_system_overview.md`,
-  `docs/05_agent_00_document-guide.md`, `docs/90_shared_04_01_db_architecture_and_schema-overview-and-config.md`).
+  `docs/agent_00_document-guide.md`, `docs/90_shared_04_01_db_architecture_and_schema-overview-and-config.md`).
   It also already contains several **pre-existing, unrelated broken references** to
   `-part1.md`/`-part2.md` file variants that do not exist in the repository under any
   name (e.g. `docs/02_deployment-part1.md`,
@@ -50,7 +50,7 @@ tables, not incidental mentions.
 - `routing.md` contains 4 specific `docs/*.md` path references needing an updated
   directory component: `docs/04_mcp_03_01_dispatch-and-routing.md`,
   `docs/04_mcp_06_02_configuration-file-inventory.md`,
-  `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`,
+  `docs/agent_10_01_operations-and-observability-startup-and-health.md`,
   `docs/00_governance_03_issue-and-uncertainty-management.md`, and the mention of
   `docs/00_index.md` itself. Its other `docs/` mentions (e.g. "Any `docs/*.md` file was
   added or edited") are generic scope descriptions, not specific file paths, and do not

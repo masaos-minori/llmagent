@@ -49,8 +49,8 @@ here.
   review step rather than pre-determining 43 files' final tag sets in this
   document (see Design decisions).
 - Three tool-inferred `title` values collide across different files (`"DB API
-  and Operations"` for 3 `90_shared_05_*` files; `"Shared Runtime and
-  Execution Infrastructure"` for 3 `90_shared_03_*` files) — flagged for
+  and Operations"` for 3 `shared_05_*` files; `"Shared Runtime and
+  Execution Infrastructure"` for 3 `shared_03_*` files) — flagged for
   manual review to differentiate (e.g. appending a distinguishing subtitle, matching
   this corpus's existing convention for multi-part documents, e.g. `"Memory
   Layer — Overview and Modes (Part 1)"`).
@@ -110,8 +110,8 @@ decision, not a real repository path.
    `related` as needed. Pay particular attention to:
    - `docs/06_eventbus_00_document-guide.md`: verify `area: eventbus` (REQ-004,
      AC-5) — expected to already be correct via the tool's own inference.
-   - The 3 `90_shared_05_*` files sharing the inferred title `"DB API and
-     Operations"`, and the 3 `90_shared_03_*` files sharing `"Shared Runtime
+   - The 3 `shared_05_*` files sharing the inferred title `"DB API and
+     Operations"`, and the 3 `shared_03_*` files sharing `"Shared Runtime
      and Execution Infrastructure"` — differentiate each with a distinguishing
      subtitle.
    - `docs/04_mcp_06_12_watchdog-configuration-monitoring.md`: the tool infers
@@ -152,19 +152,19 @@ table with zero drift):
 | 17 | `docs/04_mcp_06_12_watchdog-configuration-monitoring.md` | mcp |
 | 18 | `docs/04_mcp_07_tool_schema_export_policy.md` | mcp |
 | 19 | `docs/04_mcp_08_tool_capability_naming_convention.md` | mcp |
-| 20 | `docs/05_agent_02_runtime-architecture.md` | agent |
-| 21 | `docs/05_agent_03_01_turn-processing-flow-overview.md` | agent |
-| 22 | `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md` | agent |
-| 23 | `docs/05_agent_03_03_turn-processing-flow-workflow-engine.md` | agent |
-| 24 | `docs/05_agent_04_02_state-and-persistence-history-compression.md` | agent |
-| 25 | `docs/05_agent_05_llm-and-streaming.md` | agent |
-| 26 | `docs/05_agent_07_02_cli-and-commands-cliview.md` | agent |
-| 27 | `docs/05_agent_10_05_operations-and-observability-monitoring.md` | agent |
-| 28 | `docs/05_agent_12_01_memory-overview-and-modes.md` | agent |
-| 29 | `docs/05_agent_12_02_memory-gate-data-model-search.md` | agent |
-| 30 | `docs/05_agent_12_04_memory-module-ref-retrieval-and-injection.md` | agent |
-| 31 | `docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md` | agent |
-| 32 | `docs/05_agent_13_reference-api.md` | agent |
+| 20 | `docs/agent_02_runtime-architecture.md` | agent |
+| 21 | `docs/agent_03_01_turn-processing-flow-overview.md` | agent |
+| 22 | `docs/agent_03_02_turn-processing-flow-llm-tool-loop.md` | agent |
+| 23 | `docs/agent_03_03_turn-processing-flow-workflow-engine.md` | agent |
+| 24 | `docs/agent_04_02_state-and-persistence-history-compression.md` | agent |
+| 25 | `docs/agent_05_llm-and-streaming.md` | agent |
+| 26 | `docs/agent_07_02_cli-and-commands-cliview.md` | agent |
+| 27 | `docs/agent_10_05_operations-and-observability-monitoring.md` | agent |
+| 28 | `docs/agent_12_01_memory-overview-and-modes.md` | agent |
+| 29 | `docs/agent_12_02_memory-gate-data-model-search.md` | agent |
+| 30 | `docs/agent_12_04_memory-module-ref-retrieval-and-injection.md` | agent |
+| 31 | `docs/agent_12_05_memory-module-ref-extraction-and-facade.md` | agent |
+| 32 | `docs/agent_13_reference-api.md` | agent |
 | 33 | `docs/06_eventbus_00_document-guide.md` | eventbus |
 | 34 | `docs/90_shared_02_01_types_and_protocols-core-types.md` | shared |
 | 35 | `docs/90_shared_02_02_types_and_protocols-tool-and-execution-dto.md` | shared |

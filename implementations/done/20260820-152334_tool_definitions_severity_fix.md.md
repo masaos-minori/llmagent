@@ -1,14 +1,14 @@
 # Implementation Procedure: Resolve tool_definitions FATAL/WARNING severity contradiction between docs and implementation
 
 ## Goal
-Make the documented severity behavior of `tool_definitions` startup findings in `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` consistent with the actual behavior implemented in `scripts/agent/services/mcp_tool_discovery.py`, and lock that behavior down with tests across the full `(strict, security_profile)` matrix.
+Make the documented severity behavior of `tool_definitions` startup findings in `docs/agent_10_01_operations-and-observability-startup-and-health.md` consistent with the actual behavior implemented in `scripts/agent/services/mcp_tool_discovery.py`, and lock that behavior down with tests across the full `(strict, security_profile)` matrix.
 
 ## Goal
-Make the documented severity behavior of `tool_definitions` startup findings in `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` consistent with the actual behavior implemented in `scripts/agent/services/mcp_tool_discovery.py`, and lock that behavior down with tests across the full `(strict, security_profile)` matrix.
+Make the documented severity behavior of `tool_definitions` startup findings in `docs/agent_10_01_operations-and-observability-startup-and-health.md` consistent with the actual behavior implemented in `scripts/agent/services/mcp_tool_discovery.py`, and lock that behavior down with tests across the full `(strict, security_profile)` matrix.
 
 ## Scope
 - Target files:
-  - `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` - Update the `tool_definitions` bullet
+  - `docs/agent_10_01_operations-and-observability-startup-and-health.md` - Update the `tool_definitions` bullet
   - `tests/agent/services/test_mcp_tool_discovery.py` - Add parametrized tests
   - `scripts/agent/services/mcp_tool_discovery.py` - Verify docstring consistency (no code change needed)
 
@@ -26,7 +26,7 @@ Make the documented severity behavior of `tool_definitions` startup findings in 
 ## Implementation steps
 
 ### Phase 1 — Documentation correction
-1. In `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`, replace line-63 bullet:
+1. In `docs/agent_10_01_operations-and-observability-startup-and-health.md`, replace line-63 bullet:
    ```markdown
    - `tool_definitions` は strict モードでも FATAL にはならない — 常に WARNING にダウングレードされる。
    ```
@@ -62,4 +62,4 @@ Make the documented severity behavior of `tool_definitions` startup findings in 
 - Source plan: plans/20260819-184236_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260820-152334
-- Related target files: scripts/agent/services/mcp_tool_discovery.py, docs/05_agent_10_01_operations-and-observability-startup-and-health.md, tests/agent/services/test_mcp_tool_discovery.py, scripts/agent/startup.py
+- Related target files: scripts/agent/services/mcp_tool_discovery.py, docs/agent_10_01_operations-and-observability-startup-and-health.md, tests/agent/services/test_mcp_tool_discovery.py, scripts/agent/startup.py

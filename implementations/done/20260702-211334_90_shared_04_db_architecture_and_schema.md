@@ -1,15 +1,15 @@
-# Implementation: Verify `tool_call_id` documentation in `90_shared_04_db_architecture_and_schema.md`
+# Implementation: Verify `tool_call_id` documentation in `shared_04_db_architecture_and_schema.md`
 
 ## Goal
 
-Confirm that `docs/90_shared_04_db_architecture_and_schema.md` already correctly documents
+Confirm that `docs/shared_04_db_architecture_and_schema.md` already correctly documents
 `messages.tool_call_id` as an active column persisted and restored by `SessionMessageRepository`.
 Identify and remove any remaining stale or contradictory mentions if found.
 
 ## Scope
 
 - **In scope**: Read and verify line 173 and any other `tool_call_id` reference in
-  `docs/90_shared_04_db_architecture_and_schema.md`.
+  `docs/shared_04_db_architecture_and_schema.md`.
 - **Out of scope**: Editing source code, changing schema, or modifying other doc files.
 
 ## Assumptions
@@ -23,14 +23,14 @@ Identify and remove any remaining stale or contradictory mentions if found.
 
 ### Target file
 
-`docs/90_shared_04_db_architecture_and_schema.md`
+`docs/shared_04_db_architecture_and_schema.md`
 
 ### Procedure
 
-1. Open `docs/90_shared_04_db_architecture_and_schema.md`.
+1. Open `docs/shared_04_db_architecture_and_schema.md`.
 2. Search for all occurrences of `tool_call_id`:
    ```bash
-   grep -n "tool_call_id" docs/90_shared_04_db_architecture_and_schema.md
+   grep -n "tool_call_id" docs/shared_04_db_architecture_and_schema.md
    ```
 3. Verify line 173 contains:
    - Column name: `tool_call_id`
@@ -59,6 +59,6 @@ Manual review followed by targeted grep. No automated rewrite needed unless stal
 
 | Check | Command / Action | Expected result |
 |---|---|---|
-| Line 173 description is accurate | `grep -n "tool_call_id" docs/90_shared_04_db_architecture_and_schema.md` | Single result at line ~173 with "Persisted/restored by `SessionMessageRepository`" |
-| No stale "unused" claim | `grep -in "tool_call_id.*unused\|unused.*tool_call_id" docs/90_shared_04_db_architecture_and_schema.md` | 0 results |
-| No contradictory "not used" claim | `grep -in "tool_call_id.*not used\|not used.*tool_call_id" docs/90_shared_04_db_architecture_and_schema.md` | 0 results |
+| Line 173 description is accurate | `grep -n "tool_call_id" docs/shared_04_db_architecture_and_schema.md` | Single result at line ~173 with "Persisted/restored by `SessionMessageRepository`" |
+| No stale "unused" claim | `grep -in "tool_call_id.*unused\|unused.*tool_call_id" docs/shared_04_db_architecture_and_schema.md` | 0 results |
+| No contradictory "not used" claim | `grep -in "tool_call_id.*not used\|not used.*tool_call_id" docs/shared_04_db_architecture_and_schema.md` | 0 results |

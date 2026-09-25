@@ -7,7 +7,7 @@ Low
 `memo-doc-agent-review.md` recommends considering separating this chapter out of the design-doc body entirely and treating it, at most, as an "implementation reference index" — not part of the design narrative.
 
 ## Reason for Change
-API/type/method detail mixed into the design-doc body increases maintenance burden (it must track code exactly) without adding design or operational judgment. Other `05_agent_*.md` chapters should point here (or to an auto-generated reference) rather than re-explaining API detail inline.
+API/type/method detail mixed into the design-doc body increases maintenance burden (it must track code exactly) without adding design or operational judgment. Other `agent_*.md` chapters should point here (or to an auto-generated reference) rather than re-explaining API detail inline.
 
 ## Implementation Intent
 Per `memo-doc-agent-review.md` §「05_agent_13_reference-api」: do not place this content in the design-doc body by default. If retained at all, treat it strictly as an implementation-reference index. API/type/method detail should be delegated to code or an auto-generated reference; other chapters should say only "see Reference API for detail" rather than duplicating.
@@ -19,12 +19,12 @@ Per `memo-doc-agent-review.md` §「05_agent_13_reference-api」: do not place t
 
 ## Required Changes
 - Decide (with the doc owner) whether this content should: (a) remain as a clearly separate "implementation reference index" outside the main design-doc narrative, or (b) be replaced by an auto-generated reference.
-- Audit other `05_agent_*.md` chapters for inline API/type/method detail that duplicates this chapter's content, and replace with a pointer to this chapter (per the canonical-source rule: API詳細 = `05_agent_13_reference-api`).
+- Audit other `agent_*.md` chapters for inline API/type/method detail that duplicates this chapter's content, and replace with a pointer to this chapter (per the canonical-source rule: API詳細 = `agent_13_reference-api`).
 - Do not delete content without confirming it is not the sole documented source for a given API/type/method.
 
 ## Acceptance Criteria
 - A decision is recorded on whether this chapter stays as a reference index or is replaced by auto-generation.
-- No other `05_agent_*.md` chapter re-explains API/type/method detail that belongs here; each instead links to this chapter.
+- No other `agent_*.md` chapter re-explains API/type/method detail that belongs here; each instead links to this chapter.
 - If content is deleted, it is confirmed to be reconstructable from code (not the only record of a discontinued API's rationale).
 
 ## Testing Expectations

@@ -68,7 +68,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_04_01_db_architecture_and_schema-overview-and-config.md`**
+**File: `shared_04_01_db_architecture_and_schema-overview-and-config.md`**
 - db/ directory structure: Replace with prose summary referencing `scripts/db/`
 - Full DbConfig field definitions: Replace with prose summary referencing `scripts/db/config.py`
 - SQLiteHelper constructor details: Replace with prose summary referencing `scripts/db/helper.py`

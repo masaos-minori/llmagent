@@ -1,7 +1,7 @@
 ## Goal
 
 Rewrite the `blob_bytes ≠ 1536` troubleshooting row in
-`docs/05_agent_10_05_operations-and-observability-monitoring.md` (REQ-003) so it
+`docs/agent_10_05_operations-and-observability-monitoring.md` (REQ-003) so it
 no longer hardcodes a stale expected value, per `plans/20260826-151220_plan.md`.
 
 ## Scope
@@ -36,7 +36,7 @@ no longer hardcodes a stale expected value, per `plans/20260826-151220_plan.md`.
 
 ## Implementation
 ### Target file
-`docs/05_agent_10_05_operations-and-observability-monitoring.md`
+`docs/agent_10_05_operations-and-observability-monitoring.md`
 
 ### Procedure
 1. Re-confirm the current line number for the `blob_bytes` troubleshooting row
@@ -80,8 +80,8 @@ operator or code-formatted condition).
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_10_05_operations-and-observability-monitoring.md` | Manual diff | `git diff docs/05_agent_10_05_operations-and-observability-monitoring.md` | Troubleshooting row no longer hardcodes `1536`/`384` |
-| `docs/05_agent_10_05_operations-and-observability-monitoring.md` | Doc consistency check | `.venv/bin/python3 tools/check_docs_consistency.py --domain agent` (or `uv run` equivalent) | No new warning/error beyond the 23-warning baseline |
+| `docs/agent_10_05_operations-and-observability-monitoring.md` | Manual diff | `git diff docs/agent_10_05_operations-and-observability-monitoring.md` | Troubleshooting row no longer hardcodes `1536`/`384` |
+| `docs/agent_10_05_operations-and-observability-monitoring.md` | Doc consistency check | `.venv/bin/python3 tools/check_docs_consistency.py --domain agent` (or `uv run` equivalent) | No new warning/error beyond the 23-warning baseline |
 
 ## Completion criteria
 
@@ -120,4 +120,4 @@ operator or code-formatted condition).
 - **Source plan**: `plans/20260826-151220_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260827-112854
-- **Related target files**: `docs/05_agent_10_05_operations-and-observability-monitoring.md`
+- **Related target files**: `docs/agent_10_05_operations-and-observability-monitoring.md`

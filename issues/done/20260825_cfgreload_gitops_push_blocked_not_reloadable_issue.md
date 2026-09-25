@@ -40,7 +40,7 @@ Add `gitops_push_blocked` to the set of fields `_reload_approval_config()` updat
 - Regression: existing `_reload_approval_config()` tests for the other nine fields continue to pass unchanged.
 
 ## Documentation Impact
-If `docs/05_agent_07_06_cli-and-commands-hot-reload.md` (or the equivalent hot-reload scope doc) lists which `ApprovalConfig` fields are hot-reloadable, add `gitops_push_blocked` to that list.
+If `docs/agent_07_06_cli-and-commands-hot-reload.md` (or the equivalent hot-reload scope doc) lists which `ApprovalConfig` fields are hot-reloadable, add `gitops_push_blocked` to that list.
 
 ## Out of Scope
 - Changing GitHub write-gating semantics or default value.

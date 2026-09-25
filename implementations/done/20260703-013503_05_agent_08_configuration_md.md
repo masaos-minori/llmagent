@@ -1,13 +1,13 @@
-# Implementation: docs/05_agent_08_configuration.md — Fix deprecated agent.config references
+# Implementation: docs/agent_08_configuration.md — Fix deprecated agent.config references
 
 **Plan source:** `plans/20260702-202849_plan.md` (Phase 2)
-**Target file:** `docs/05_agent_08_configuration.md`
+**Target file:** `docs/agent_08_configuration.md`
 
 ---
 
 ## Goal
 
-`docs/05_agent_08_configuration.md` 内の `agent.config` シムへの参照をすべて正規の `agent.config_builders` / `agent.config_dataclasses` モジュール参照に置き換える。`build_agent_config()` のソース参照を `agent/config.py:627` から `agent/config_builders.py` に修正する。
+`docs/agent_08_configuration.md` 内の `agent.config` シムへの参照をすべて正規の `agent.config_builders` / `agent.config_dataclasses` モジュール参照に置き換える。`build_agent_config()` のソース参照を `agent/config.py:627` から `agent/config_builders.py` に修正する。
 
 ---
 
@@ -36,11 +36,11 @@
 
 ### Target file
 
-`docs/05_agent_08_configuration.md`
+`docs/agent_08_configuration.md`
 
 ### Procedure
 
-1. Phase 1 監査: `docs/05_agent_08_configuration.md` を全文読み込み、`agent.config` 参照箇所を特定する。
+1. Phase 1 監査: `docs/agent_08_configuration.md` を全文読み込み、`agent.config` 参照箇所を特定する。
 2. `build_agent_config() (agent/config.py:627)` の記述を `build_agent_config() (agent/config_builders.py)` に変更する（正しい行番号があれば付記）。
 3. `from agent.config import` 形式のインポート例をすべて `from agent.config_builders import` または `from agent.config_dataclasses import` に置換する。
 4. `_cast_enums()` が公開 API として記述されている場合、次の注記を追加する:
@@ -64,7 +64,7 @@ Edit tool で対象ファイルを直接編集する。変更前に Read ツー�
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| Grep 確認 | `grep -n "agent\.config\|agent/config\.py" docs/05_agent_08_configuration.md` | 0件 (シム参照なし) |
+| Grep 確認 | `grep -n "agent\.config\|agent/config\.py" docs/agent_08_configuration.md` | 0件 (シム参照なし) |
 | Lint | `ruff check docs/` | 0 errors |
 | Type check | `mypy docs/` | no new errors (対象外だが念のため) |
 | Tests | `uv run pytest` | all pass |

@@ -1,6 +1,6 @@
 ## Goal
 
-Remove the stale "TTL cache" mention from `docs/05_agent_02_runtime-architecture.md`'s
+Remove the stale "TTL cache" mention from `docs/agent_02_runtime-architecture.md`'s
 component-dependency diagram (REQ-001), per `plans/20260825-142943_plan.md`.
 
 ## Scope
@@ -18,7 +18,7 @@ component-dependency diagram (REQ-001), per `plans/20260825-142943_plan.md`.
 
 - Change the line's description from "MCP routing, TTL cache" to "MCP routing" —
   matching the identical edit already made to
-  `docs/05_agent_01_system-overview.md`'s Component Dependencies table row for
+  `docs/agent_01_system-overview.md`'s Component Dependencies table row for
   the same component.
 
 ## Alternatives considered
@@ -27,7 +27,7 @@ component-dependency diagram (REQ-001), per `plans/20260825-142943_plan.md`.
 
 ## Implementation
 ### Target file
-`docs/05_agent_02_runtime-architecture.md`
+`docs/agent_02_runtime-architecture.md`
 
 ### Procedure
 1. Re-confirm the current line number immediately before editing (verified at
@@ -71,12 +71,12 @@ spacing before the em-dash, so the diagram's column alignment with sibling lines
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_02_runtime-architecture.md` | Manual diff | `git diff <path>` | "TTL cache" removed; diagram alignment preserved |
-| `docs/05_agent_02_runtime-architecture.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py` (correct domain) | No new warning/error |
+| `docs/agent_02_runtime-architecture.md` | Manual diff | `git diff <path>` | "TTL cache" removed; diagram alignment preserved |
+| `docs/agent_02_runtime-architecture.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py` (correct domain) | No new warning/error |
 
 ## Completion criteria
 
-- `rg -n "TTL cache" docs/05_agent_02_runtime-architecture.md` returns no
+- `rg -n "TTL cache" docs/agent_02_runtime-architecture.md` returns no
   matches.
 - The diagram's column alignment is unchanged for all other lines.
 
@@ -111,4 +111,4 @@ spacing before the em-dash, so the diagram's column alignment with sibling lines
 - **Source plan**: `plans/20260825-142943_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure; supersedes the corresponding portion of `implementations/20260825-224356_11_docs_tool_cache_removal.md` (left Blocked, never implemented)
 - **Generated at**: 20260827-133325
-- **Related target files**: `docs/05_agent_02_runtime-architecture.md`
+- **Related target files**: `docs/agent_02_runtime-architecture.md`

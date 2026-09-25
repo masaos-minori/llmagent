@@ -67,7 +67,7 @@ question this cycle confirmed (REQ-001, REQ-002, REQ-003, REQ-004, REQ-007).
    post-restore re-verification returning `action="restore_verify_failed"` is
    `Verified by test` — name `test_recover_restore_verify_failed` explicitly.
 3. Rewrite `SHARED-003`'s `Current Description`/`Impact`/`Recommended Action` to state
-   the operator runbook already exists (`docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
+   the operator runbook already exists (`docs/agent_10_01_operations-and-observability-startup-and-health.md`
    lines 88-136, per Reference Files) and already uses `rotate_all_dbs()`'s backups;
    change `Status` from `deferred` to `resolved`.
 4. Rewrite `NC-021`'s `Evidence`/`Question`/`Resolution Target` to state: the

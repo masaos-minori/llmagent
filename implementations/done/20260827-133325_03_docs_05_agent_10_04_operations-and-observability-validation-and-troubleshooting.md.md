@@ -1,7 +1,7 @@
 ## Goal
 
 Remove the `Cache hits` statistic from `/stats` interpretation in
-`docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+`docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
 (REQ-003), per `plans/20260825-142943_plan.md`.
 
 ## Scope
@@ -36,7 +36,7 @@ Remove the `Cache hits` statistic from `/stats` interpretation in
 
 ## Implementation
 ### Target file
-`docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+`docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
 
 ### Procedure
 1. Re-confirm current line numbers immediately before editing (verified at lines
@@ -76,12 +76,12 @@ Delete line 174 entirely.
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md` | Manual diff | `git diff <path>` | `Cache hits` removed from example output and description |
-| `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | No new warning/error |
+| `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md` | Manual diff | `git diff <path>` | `Cache hits` removed from example output and description |
+| `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | No new warning/error |
 
 ## Completion criteria
 
-- `rg -n "Cache hits" docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+- `rg -n "Cache hits" docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
   returns no matches (excluding "Semantic cache hits", an unrelated statistic).
 
 ## Out of scope
@@ -117,4 +117,4 @@ Delete line 174 entirely.
 - **Source plan**: `plans/20260825-142943_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure; supersedes the corresponding portion of `implementations/20260825-224356_11_docs_tool_cache_removal.md` (left Blocked, never implemented)
 - **Generated at**: 20260827-133325
-- **Related target files**: `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+- **Related target files**: `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`

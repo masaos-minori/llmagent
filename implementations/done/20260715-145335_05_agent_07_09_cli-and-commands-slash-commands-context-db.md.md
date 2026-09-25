@@ -1,4 +1,4 @@
-# Implementation Procedure: 05_agent_07_09_cli-and-commands-slash-commands-context-db.md
+# Implementation Procedure: agent_07_09_cli-and-commands-slash-commands-context-db.md
 
 ## Goal
 
@@ -41,7 +41,7 @@ as a command at all — while keeping the file, its front matter, and the surviv
 
 ### Target file
 
-`docs/05_agent_07_09_cli-and-commands-slash-commands-context-db.md`
+`docs/agent_07_09_cli-and-commands-slash-commands-context-db.md`
 
 ### Procedure
 
@@ -89,10 +89,10 @@ followed by minor front-matter/keyword cleanup for accuracy.
 
 ### Details
 
-- Coordinate with `05_agent_07_08_...md`'s implementation step: the `/db session`
+- Coordinate with `agent_07_08_...md`'s implementation step: the `/db session`
   table content moved there (renamed to `/session ...`) must land in the same
   change-set as this deletion, so the information is relocated, not lost.
-- Coordinate with `05_agent_07_07_...md`'s implementation step: its migration-notes
+- Coordinate with `agent_07_07_...md`'s implementation step: its migration-notes
   table still references `/db rag recover`/`/db rag stats` as "replacement" targets
   for old flat aliases — once `/db` itself is gone, that framing must be reworded
   there (see that file's own implementation doc), not fixed here.
@@ -102,11 +102,11 @@ followed by minor front-matter/keyword cleanup for accuracy.
 - Manual read-through: confirm the file still renders as valid Markdown with no
   orphaned headings, and that "Contextカテゴリ"/"Planカテゴリ" content is
   byte-for-byte unchanged.
-- Confirm `05_agent_07_08_...md` now contains the `/session` DB-op table content
+- Confirm `agent_07_08_...md` now contains the `/session` DB-op table content
   that was here, so no information is lost.
-- Confirm `05_agent_07_07_...md`'s cross-reference to this file (if any survives)
+- Confirm `agent_07_07_...md`'s cross-reference to this file (if any survives)
   still resolves to real content in this file (not a dangling reference to deleted
   DB category content).
-- `grep -n "db rag\|db session\|/db " docs/05_agent_07_09_cli-and-commands-slash-commands-context-db.md`
+- `grep -n "db rag\|db session\|/db " docs/agent_07_09_cli-and-commands-slash-commands-context-db.md`
   returns no matches after the edit (aside from historical/prose mentions if
   intentionally retained for context — none expected here).

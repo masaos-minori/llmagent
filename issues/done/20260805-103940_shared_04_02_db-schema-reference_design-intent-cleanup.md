@@ -7,7 +7,7 @@ High
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to the schema-reference chapter (both parts): keep which DB is authoritative for what and schema-change caution points; remove full DDL, column lists, and FTS/vec table definitions.
 
 ## Reason for Change
-This chapter is the canonical source for DB source-of-truth and schema policy (per `memo-doc-shared-review.md` §「章間の正本ルール」: DB正本とスキーマ方針 = `90_shared_04_02_db_architecture_and_schema-schema-reference`). Per the memo's explicit 注意 for this chapter: focus on "which DB is authoritative for what" and "what to watch for on change," not column tables — but this is also correctness-critical (schema-version-mismatch handling, FTS sync rules) and must not be diluted.
+This chapter is the canonical source for DB source-of-truth and schema policy (per `memo-doc-shared-review.md` §「章間の正本ルール」: DB正本とスキーマ方針 = `shared_04_02_db_architecture_and_schema-schema-reference`). Per the memo's explicit 注意 for this chapter: focus on "which DB is authoritative for what" and "what to watch for on change," not column tables — but this is also correctness-critical (schema-version-mismatch handling, FTS sync rules) and must not be diluted.
 
 ## Implementation Intent
 Keep this chapter focused on `db/schema_sql.py` as the schema source of truth, the meaning of rag/session/workflow DBs, why `session_diagnostics` is separated from `messages`, `workflow_schema_version`-based version management, the FATAL-on-mismatch policy, and the manual-FTS-sync prohibition.

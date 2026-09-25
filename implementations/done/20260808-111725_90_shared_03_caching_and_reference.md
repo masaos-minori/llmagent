@@ -68,7 +68,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md`**
+**File: `shared_03_04_runtime_and_execution-caching-and-reference-part1.md`**
 - LlmRetryHandler signatures: Replace with prose summary referencing `scripts/shared/`
 - ToolResultCache method lists: Replace with prose summary
 - ToolSpec dataclass definitions: Replace with prose summary
@@ -76,7 +76,7 @@ For each target section:
 - LlmPayloadHandler/LlmHotConfigHandler method lists: Replace with prose summary
 - AI reference tables: Replace with prose summary
 
-**File: `90_shared_03_04_runtime_and_execution-caching-and-reference-part2.md`**
+**File: `shared_03_04_runtime_and_execution-caching-and-reference-part2.md`**
 - Same compression targets as part1
 
 ## Compatibility Considerations

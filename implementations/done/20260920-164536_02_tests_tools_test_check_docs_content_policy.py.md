@@ -22,7 +22,7 @@ patterns this new test mirrors — have not changed since the Plan was frozen
 Add `test_default_value_restatement_not_flagged_with_fail_safe_marker`, modeled
 directly on `test_default_value_restatement_not_flagged_with_rationale`'s shape:
 construct a `_doc(...)` fixture whose text matches the real confirmed false-positive
-wording (`docs/05_agent_06_02_tool-execution-and-approval-approval.md`'s "Fail-safe:
+wording (`docs/agent_06_02_tool-execution-and-approval-approval.md`'s "Fail-safe:
 Undefined tools in \`tool_safety_tiers\` default to \`WRITE_DANGEROUS\`"), run
 `check_default_value_restatement([doc])`, and assert `issues == []` — proving the
 `REQ-001` marker addition actually suppresses this exact real-world sentence, not just

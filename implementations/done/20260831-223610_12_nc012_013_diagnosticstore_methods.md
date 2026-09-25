@@ -1,10 +1,10 @@
 ## Goal
 
-Verify that the facts recorded in archived NC-012 and NC-013 about DiagnosticStore methods removal are already present in `05_agent_10_05_operations-and-observability-monitoring.md`, and add them if missing.
+Verify that the facts recorded in archived NC-012 and NC-013 about DiagnosticStore methods removal are already present in `agent_10_05_operations-and-observability-monitoring.md`, and add them if missing.
 
 ## Scope
 
-Check `05_agent_10_05_operations-and-observability-monitoring.md` for the presence of two facts:
+Check `agent_10_05_operations-and-observability-monitoring.md` for the presence of two facts:
 - NC-012: `loop_guard_hint` method removed — confirmed zero production callers
 - NC-013: `fetch_by_kind` and `fetch_all` methods removed — confirmed zero production callers
 
@@ -31,11 +31,11 @@ Add concise statements if either is not already present.
 
 ### Target file
 
-`05_agent_10_05_operations-and-observability-monitoring.md`
+`agent_10_05_operations-and-observability-monitoring.md`
 
 ### Procedure
 
-1. Read `05_agent_10_05_operations-and-observability-monitoring.md` to identify existing DiagnosticStore documentation
+1. Read `agent_10_05_operations-and-observability-monitoring.md` to identify existing DiagnosticStore documentation
 2. Check whether the following facts are already present:
    - NC-012: `loop_guard_hint` method removed — confirmed zero production callers
    - NC-013: `fetch_by_kind` and `fetch_all` methods removed — confirmed zero production callers
@@ -77,7 +77,7 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 
 | Target | Strategy | Command | Expected Outcome |
 |---|---|---|---|
-| `05_agent_10_05_operations-and-observability-monitoring.md` | Manual comparison of archived NC-012/NC-013 vs current content | Read file, compare facts | Both facts accounted for (already present or added) |
+| `agent_10_05_operations-and-observability-monitoring.md` | Manual comparison of archived NC-012/NC-013 vs current content | Read file, compare facts | Both facts accounted for (already present or added) |
 
 ## Completion criteria
 
@@ -122,4 +122,4 @@ N/A: This is a documentation verification task. No security-sensitive code chang
 - **Source plan**: plans/20260831-223610_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 2026-09-01T00:00:00Z
-- **Related target files**: 05_agent_10_05_operations-and-observability-monitoring.md
+- **Related target files**: agent_10_05_operations-and-observability-monitoring.md

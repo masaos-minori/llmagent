@@ -66,7 +66,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_05_02_db_api_and_operations-protocol-and-backend.md`**
+**File: `shared_05_02_db_api_and_operations-protocol-and-backend.md`**
 - Complete protocol method list: Replace full method list with prose summary referencing `scripts/db/store_protocols.py`
 - Embedding helper function list: Replace embedding helper enumeration with prose summary
 - SQLite backend class list: Replace backend class enumeration with prose summary

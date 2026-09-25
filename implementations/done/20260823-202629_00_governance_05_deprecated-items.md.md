@@ -81,7 +81,7 @@ the file's existing structure.
   `chunk_index` coercion.
 - Cross-reference the other three docs edited by this same plan
   (`04_mcp_02_01_endpoints-and-transport.md`, `04_mcp_06_14_new-tool-registration-procedure.md`,
-  `90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`) if useful
+  `shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`) if useful
   for a reader following a "removed field" link, matching the existing entries'
   practice of not necessarily cross-linking (neither current entry links elsewhere) —
   do not introduce cross-links unless the existing pattern already does so consistently.

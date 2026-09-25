@@ -104,4 +104,4 @@ blocks (parameter names/types/defaults) beyond the inline comment text itself.
 | Scoped grep | `grep -n "フォールバック\|最優先" docs/90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md` | No output in the "4a." section |
 | Docs consistency | `uv run check-mcp-docs` | Passes |
 | Pseudocode-vs-code diff | manual comparison of this doc's `ToolRouteResolver` pseudocode vs. `scripts/shared/route_resolver.py` post-edit | Matching parameter list and comment semantics |
-| Cross-doc consistency | manual diff against edited `90_shared_02_02` doc | No contradictory routing-authority claims |
+| Cross-doc consistency | manual diff against edited `shared_02_02` doc | No contradictory routing-authority claims |

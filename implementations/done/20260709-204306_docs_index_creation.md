@@ -53,10 +53,10 @@ Add a category listing section with links to each category's guide file:
 - [Deployment](02_deployment.md) — Environment setup and deployment
 - [RAG](03_rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
 - [MCP](04_mcp_00_document-guide.md) — Model Context Protocol servers
-- [Agent](05_agent_00_document-guide.md) — Agent system and behavior
+- [Agent]()agent_00_document-guide.md — Agent system and behavior
 - [Event Bus](06_eventbus_00_document-guide.md) — Event Bus infrastructure
-- [Shared/DB](90_shared_00_document-guide.md) — Shared infrastructure and database layer
-- [Known Issues](05_agent_90_inconsistencies_and_known_issues.md) — Known inconsistencies and issues
+- [Shared/DB](shared_00_document-guide.md) — Shared infrastructure and database layer
+- [Known Issues](agent_90_inconsistencies_and_known_issues.md) — Known inconsistencies and issues
 ```
 
 Note: Adjust category names and descriptions based on actual content after all splitting is complete.
@@ -73,10 +73,10 @@ Add a Recommended Reading Order section:
 3. Choose your area of interest:
    - [RAG Pipeline](03_rag_00_document-guide.md)
    - [MCP Servers](04_mcp_00_document-guide.md)
-   - [Agent System](05_agent_00_document-guide.md)
+   - [Agent System]()agent_00_document-guide.md
    - [Event Bus](06_eventbus_00_document-guide.md)
-   - [Shared Infrastructure](90_shared_00_document-guide.md)
-4. [Known Issues](05_agent_90_inconsistencies_and_known_issues.md) — Review known issues
+   - [Shared Infrastructure](shared_00_document-guide.md)
+4. [Known Issues](agent_90_inconsistencies_and_known_issues.md) — Review known issues
 ```
 
 #### Step 4: Add YAML Front Matter
@@ -98,7 +98,7 @@ related:
   - 02_deployment.md
   - 03_rag_00_document-guide.md
   - 04_mcp_00_document-guide.md
-  - 05_agent_00_document-guide.md
+  - agent_00_document-guide.md
   - 06_eventbus_00_document-guide.md
   - 90_shared_00_document-guide.md
 ---
@@ -115,9 +115,9 @@ Add Related Documents and Keywords sections at the end of the file:
 - `02_deployment.md`
 - `03_rag_00_document-guide.md`
 - `04_mcp_00_document-guide.md`
-- `05_agent_00_document-guide.md`
+- `agent_00_document-guide.md`
 - `06_eventbus_00_document-guide.md`
-- `90_shared_00_document-guide.md`
+- `shared_00_document-guide.md`
 
 ## Keywords
 

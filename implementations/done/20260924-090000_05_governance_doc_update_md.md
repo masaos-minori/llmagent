@@ -88,7 +88,7 @@ Update the following fields:
 - **Recommended Action**: Monitor coverage map during CI runs; adjust whitelist if false positives occur. Include coverage map update procedure in acceptance criteria for future `check_preflight()` additions.
 - **Resolution Target**: Next RAG architecture review
 - **Resolved At**: 2026-09-24
-- **Resolution Evidence**: `plans/20260924-070936_plan.md`, `tests/agent/test_tool_policy.py`, `tests/agent/test_tool_approval_preflight.py`, `docs/05_agent_02_runtime-architecture.md`
+- **Resolution Evidence**: `plans/20260924-070936_plan.md`, `tests/agent/test_tool_policy.py`, `tests/agent/test_tool_approval_preflight.py`, `docs/agent_02_runtime-architecture.md`
 ```
 
 #### Alternative approach considered:

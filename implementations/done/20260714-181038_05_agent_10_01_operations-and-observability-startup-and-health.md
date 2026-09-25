@@ -6,7 +6,7 @@ Simplify the `_get_workflow_status()` description to remove the "not loaded" cas
 
 ## Scope
 
-- `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` only
+- `docs/agent_10_01_operations-and-observability-startup-and-health.md` only
 - Simplifying existing content; no new content creation
 
 ## Assumptions
@@ -19,7 +19,7 @@ Simplify the `_get_workflow_status()` description to remove the "not loaded" cas
 
 ### Target file
 
-`docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
+`docs/agent_10_01_operations-and-observability-startup-and-health.md`
 
 ### Procedure
 

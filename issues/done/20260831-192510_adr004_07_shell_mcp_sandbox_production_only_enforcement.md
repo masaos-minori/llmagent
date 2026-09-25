@@ -15,7 +15,7 @@ contradicts the current ADR.
 Found while compiling the related-document impact analysis for the 2026-08-31 ADR-004 rewrite.
 This is a distinct file from the ones already covered by
 `issues/20260831-185650_adr004_04_remaining_local_dev_mode_language_in_specs.md` (which covers
-`05_agent_10_01`, `04_mcp_05_03`, and `90_shared_03_01`).
+`agent_10_01`, `04_mcp_05_03`, and `shared_03_01`).
 
 ## Problem
 (Evidence: Explicit in code as documented) `docs/04_mcp_04_02_file-write-file-delete-shell.md`:

@@ -7,7 +7,7 @@ High
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to `docs/90_shared_03_01_runtime_and_execution-config-and-logging.md`: keep the process-isolation config-loading policy and `restrict_to()` boundary enforcement; remove full method signatures and config-file listing tables.
 
 ## Reason for Change
-This chapter is the canonical source for config separation and logging (per `memo-doc-shared-review.md` §「章間の正本ルール」: 設定分離とロギング = `90_shared_03_01_runtime_and_execution-config-and-logging`). Config-ownership separation is a deliberate cross-process boundary decision (per §「制約」 in the memo: each process reads only its own config file) and must not be lost.
+This chapter is the canonical source for config separation and logging (per `memo-doc-shared-review.md` §「章間の正本ルール」: 設定分離とロギング = `shared_03_01_runtime_and_execution-config-and-logging`). Config-ownership separation is a deliberate cross-process boundary decision (per §「制約」 in the memo: each process reads only its own config file) and must not be lost.
 
 ## Implementation Intent
 Keep this chapter focused on why `ConfigLoader` enforces process isolation, why there is no shared config file, and why production strengthens strict/security validation.

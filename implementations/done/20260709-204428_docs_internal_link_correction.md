@@ -55,7 +55,7 @@ All markdown files under `docs/` directory plus `routing.md`:
 Example mapping for Agent set:
 ```
 05_agent_03_turn-processing-flow.md → 05_agent_03_turn-processing-flow-part1.md, 05_agent_03_turn-processing-flow-part2.md
-05_agent_12_memory.md → 05_agent_12_memory-layer.md, 05_agent_12_memory-store.md, 05_agent_12_memory-retriever.md, 05_agent_12_memory-extract.md
+agent_12_memory.md → 05_agent_12_memory-layer.md, 05_agent_12_memory-store.md, 05_agent_12_memory-retriever.md, 05_agent_12_memory-extract.md
 ```
 
 #### Step 2: Scan for internal links

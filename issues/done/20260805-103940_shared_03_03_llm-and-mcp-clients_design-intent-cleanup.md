@@ -7,7 +7,7 @@ Medium
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to the LLM/MCP-clients chapter (both parts): keep `LLMClient`'s responsibility boundary and retryable/fatal error judgment; remove full constructor signatures and mechanical error-kind enumeration.
 
 ## Reason for Change
-This chapter is the canonical source for the shared-layer LLM/MCP client boundary (per `memo-doc-shared-review.md` §「章間の正本ルール」: LLM/MCP共通クライアント境界 = `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients`), but currently also carries full signatures and enum tables better left to code.
+This chapter is the canonical source for the shared-layer LLM/MCP client boundary (per `memo-doc-shared-review.md` §「章間の正本ルール」: LLM/MCP共通クライアント境界 = `shared_03_03_runtime_and_execution-llm-and-mcp-clients`), but currently also carries full signatures and enum tables better left to code.
 
 ## Implementation Intent
 Keep this chapter focused on `LLMClient`'s HTTP/retry/SSE/error-classification responsibility, that detailed SSE design is delegated to the Agent design doc, `LLMTransportError`'s operational meaning, and the config-boundary fact that `load_all()` reads only `agent.toml`.

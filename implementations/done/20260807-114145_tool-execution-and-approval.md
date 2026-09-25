@@ -16,7 +16,7 @@ Reduce `docs/05_agent_06_*_tool-execution-and-approval*.md` documents to canonic
 - Mark unrecoverable design rationales as `Needs Confirmation`.
 
 **Out-of-Scope**:
-- Modifying other documents in the `05_agent_*.md` set.
+- Modifying other documents in the `agent_*.md` set.
 - Adding new content beyond what exists in the current documents.
 - Changing the doc set directory structure.
 
@@ -44,10 +44,10 @@ Reduce `docs/05_agent_06_*_tool-execution-and-approval*.md` documents to canonic
 
 ### Target files
 
-- `docs/05_agent_06_01_tool-execution-and-approval-execution.md`
-- `docs/05_agent_06_02_tool-execution-and-approval-approval.md`
-- `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
-- `docs/05_agent_06_04_tool-execution-and-approval-canonical.md`
+- `docs/agent_06_01_tool-execution-and-approval-execution.md`
+- `docs/agent_06_02_tool-execution-and-approval-approval.md`
+- `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md`
+- `docs/agent_06_04_tool-execution-and-approval-canonical.md`
 
 ### Procedure
 
@@ -158,7 +158,7 @@ Rollback is straightforward: restore the original files from git history if the 
 
 ## Out of scope
 
-- Modifying other documents in the `05_agent_*.md` set.
+- Modifying other documents in the `agent_*.md` set.
 - Adding new content beyond what exists in the current documents.
 - Changing the doc set directory structure.
 - Auto-generating the tool-execution flow from code metadata.
@@ -171,4 +171,4 @@ Rollback is straightforward: restore the original files from git history if the 
 - Source plan: plans/20260807-103207_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260807-114145
-- Related target files: docs/05_agent_06_01_tool-execution-and-approval-execution.md, docs/05_agent_06_02_tool-execution-and-approval-approval.md, docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md, docs/05_agent_06_04_tool-execution-and-approval-canonical.md
+- Related target files: docs/agent_06_01_tool-execution-and-approval-execution.md, docs/agent_06_02_tool-execution-and-approval-approval.md, docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md, docs/agent_06_04_tool-execution-and-approval-canonical.md

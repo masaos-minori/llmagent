@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add a cross-reference from the `TURN_LIMIT_HINT` section in `docs/05_agent_06_tool-execution-and-approval.md` to the `tool_results_turn_max_chars` field in `docs/05_agent_08_configuration.md`.
+Add a cross-reference from the `TURN_LIMIT_HINT` section in `docs/05_agent_06_tool-execution-and-approval.md` to the `tool_results_turn_max_chars` field in `docs/agent_08_configuration.md`.
 
 ## Scope
 
@@ -23,7 +23,7 @@ Add a cross-reference from the `TURN_LIMIT_HINT` section in `docs/05_agent_06_to
 
 1. Locate line 236 in `docs/05_agent_06_tool-execution-and-approval.md` (TURN_LIMIT_HINT section).
 2. Add a note:
-   "This hint is appended when `tool_results_turn_max_chars` (see 05_agent_08_configuration.md) is exceeded."
+   "This hint is appended when `tool_results_turn_max_chars` (see agent_08_configuration.md) is exceeded."
 
 ### Details
 

@@ -1,10 +1,10 @@
 ## Goal
 
-Move `docs/05_agent_07_05_cli-and-commands-repl-io.md` to `docs/23_agent/` using `git mv`, preserving file history.
+Move `docs/agent_07_05_cli-and-commands-repl-io.md` to `docs/23_agent/` using `git mv`, preserving file history.
 
 ## Scope
 
-Move/update `docs/05_agent_07_05_cli-and-commands-repl-io.md` as part of the docs/ reorganization. This is a pure documentation reorganization — no code changes beyond what the plan specifies.
+Move/update `docs/agent_07_05_cli-and-commands-repl-io.md` as part of the docs/ reorganization. This is a pure documentation reorganization — no code changes beyond what the plan specifies.
 
 ## Assumptions
 
@@ -27,11 +27,11 @@ Move/update `docs/05_agent_07_05_cli-and-commands-repl-io.md` as part of the doc
 
 ### Target file
 
-`docs/05_agent_07_05_cli-and-commands-repl-io.md`
+`docs/agent_07_05_cli-and-commands-repl-io.md`
 
 ### Procedure
 
-`git mv docs/05_agent_07_05_cli-and-commands-repl-io.md docs/23_agent/`
+`git mv docs/agent_07_05_cli-and-commands-repl-io.md docs/23_agent/`
 
 ### Method
 
@@ -39,7 +39,7 @@ File move via `git mv`
 
 ### Details
 
-- Old location: `docs/05_agent_07_05_cli-and-commands-repl-io.md`
+- Old location: `docs/agent_07_05_cli-and-commands-repl-io.md`
 - New location: `docs/23_agent/`
 - Use `git mv` to preserve file history
 - After move, verify with `git log --follow 23_agent/`
@@ -70,7 +70,7 @@ N/A: Documentation reorganization does not introduce security risks.
 
 - File exists at `docs/23_agent/`
 - `git log --follow 23_agent/` shows continuous history
-- No orphaned file remains at `docs/05_agent_07_05_cli-and-commands-repl-io.md`
+- No orphaned file remains at `docs/agent_07_05_cli-and-commands-repl-io.md`
 
 ## Out of scope
 
@@ -96,4 +96,4 @@ N/A: Documentation reorganization does not introduce security risks.
 - **Source plan**: plans/20260925-072151_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260925-111411
-- **Related target files**: docs/05_agent_07_05_cli-and-commands-repl-io.md
+- **Related target files**: docs/agent_07_05_cli-and-commands-repl-io.md

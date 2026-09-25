@@ -34,7 +34,7 @@ coverage first), the manual steps an operator should take to validate and apply 
 exists, and what to do if no backup exists (data-loss acknowledgment / escalation path).
 
 ## Target Files or Areas
-- `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` or a new Operations
+- `docs/agent_10_01_operations-and-observability-startup-and-health.md` or a new Operations
   document (exact placement needs confirmation)
 - `scripts/db/maintenance.py` (`rotate_all_dbs()`, to confirm current backup coverage before
   writing the runbook)

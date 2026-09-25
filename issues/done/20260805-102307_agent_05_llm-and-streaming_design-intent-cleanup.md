@@ -10,7 +10,7 @@ Apply the design-doc reduction policy from `memo-doc-agent-review.md` to the LLM
 The chapter mixes genuine operational judgment (when to reconnect, why partial responses are isolated to `session_diagnostics`, what retryable/fatal mean operationally) with code-derivable detail (full `LLMClient` constructor signature, DTO fields, `SSEParser` method list) that will drift on refactor.
 
 ## Implementation Intent
-Keep this chapter as the canonical source for LLM streaming and partial-completion design (per `memo-doc-agent-review.md` §「章間の正本ルール」: LLMストリーミングと部分完了 = `05_agent_05_llm-and-streaming`). Error kinds must be reframed as an operational classification, not a plain enumeration.
+Keep this chapter as the canonical source for LLM streaming and partial-completion design (per `memo-doc-agent-review.md` §「章間の正本ルール」: LLMストリーミングと部分完了 = `agent_05_llm-and-streaming`). Error kinds must be reframed as an operational classification, not a plain enumeration.
 
 ## Target Files or Areas
 - `docs/05_agent_05_llm-and-streaming-part1.md`

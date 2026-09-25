@@ -55,7 +55,7 @@ Add new inconsistency entries documenting the discrepancies found between docume
 ## SPEC-03: `allowed_repos_mode` がコードから削除されたがドキュメントに残っている
 
 - **Type:** `Document inconsistency` — **Resolved**(ドキュメントのクリーンアップが必要)
-- **Impact scope:** `docs/05_agent_08_04_configuration-mcp-approval-obs.md`
+- **Impact scope:** `docs/agent_08_04_configuration-mcp-approval-obs.md`
 - **Statement A:** ドキュメントに `GitHub allowed_repos / allowed_repos_mode` の記載が残っている
 - **Statement B:** コードでは `allowed_repos_mode` は完全に削除済み (previous cleanup: `implementations/done/20260710-122419_github_config_fail_open_removal.md`)
 - **Current safe interpretation:** `allowed_repos_mode` は存在しない。GitHub MCP は fail-closed-only で動作する (空の `allowed_repos` = deny all)。

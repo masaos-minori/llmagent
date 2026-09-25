@@ -52,15 +52,15 @@ Correct all documentation that describes diagnostics as stored in `messages` tab
 
 **Per-doc changes:**
 
-`05_agent_03_turn-processing-flow.md`:
+`agent_03_turn-processing-flow.md`:
 - Remove any sentence/paragraph referencing `role="diagnostic"` rows in `messages`.
 - Add note: "Diagnostic events recorded during turn processing are persisted to `session_diagnostics`, separate from conversation messages."
 
-`05_agent_04_state-and-persistence.md`:
+`agent_04_state-and-persistence.md`:
 - Add "Current behavior" callout: compressed history is in-memory only; DB retains original messages pending issue fix.
 - Add "Diagnostic persistence" section clearly distinguishing `session_diagnostics` from `messages`.
 
-`05_agent_09_data-layer.md`:
+`agent_09_data-layer.md`:
 - Confirm/update `session_diagnostics` table description.
 - Add: "Session restore (`/session load`) fetches from `messages` only. Diagnostic rows are not included."
 

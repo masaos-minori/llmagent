@@ -39,7 +39,7 @@ a separate implementation procedure document); any test for
   (a real file, confirmed 295 lines) as the cited Reference File, and a short
   fixed-length `source_lines`/`source_content` standing in for a much shorter Target
   file — this reproduces the Plan's own concrete historical case
-  (`docs/05_agent_05_llm-and-streaming.md`, 148 lines, citing lines 149-163 of the
+  (`docs/agent_05_llm-and-streaming.md`, 148 lines, citing lines 149-163 of the
   294-line-at-the-time `llm_turn_runner.py`) without depending on that specific doc
   file's current content.
 

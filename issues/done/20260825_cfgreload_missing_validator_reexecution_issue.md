@@ -46,7 +46,7 @@ Surface validation failures as a reload-specific error (e.g. `ConfigReloadValida
 - Unit test: reload a valid change continues to apply successfully (regression).
 
 ## Documentation Impact
-If `docs/05_agent_07_06_cli-and-commands-hot-reload.md` (or the equivalent hot-reload scope doc) states or implies that reload values are validated, no change needed; if it is silent on this point, add a short note that reload now enforces the same field-level invariants as startup.
+If `docs/agent_07_06_cli-and-commands-hot-reload.md` (or the equivalent hot-reload scope doc) states or implies that reload values are validated, no change needed; if it is silent on this point, add a short note that reload now enforces the same field-level invariants as startup.
 
 ## Out of Scope
 - Adding new validation rules beyond what already exists in `config_validators.py`.

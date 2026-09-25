@@ -53,7 +53,7 @@ filename-based inference blindly for ambiguous filenames.
   list observed during investigation includes `docs/00_index.md`,
   `docs/03_rag_90_inconsistencies_and_known_issues.md`, `docs/03_rag_91_design_notes.md`,
   `docs/04_mcp_02_02_startup-modes-and-health.md`, `docs/04_mcp_03_05_lifecycle-and-new-server.md`,
-  and others under the `04_mcp_06_*` series and `05_agent_*` series.
+  and others under the `04_mcp_06_*` series and `agent_*` series.
 - `tools/manage_frontmatter.py` (used, not modified, unless it needs the finalized `area`
   enum wired in — coordinate with `docmeta01`'s schema artifact)
 

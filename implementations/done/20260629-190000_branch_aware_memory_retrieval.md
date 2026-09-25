@@ -12,7 +12,7 @@ Add hard SQL branch filtering to memory retrieval so that memories tagged to a s
   - Fix `MemoryInjectionService.on_user_prompt()` to pass `branch=self._branch` to retriever.search() calls (currently omits this arg despite storing `self._branch`)
   - Add branch context resolution in `factory.py` via `shared.git_helper.get_repo_info()` at build time
   - Add cross-branch isolation tests in `tests/test_memory_retriever.py`
-  - Update `docs/05_agent_12_memory.md` to document the branch-awareness contract
+  - Update `docs/agent_12_memory.md` to document the branch-awareness contract
 
 - **Out-of-Scope**:
   - Full git integration redesign
@@ -687,7 +687,7 @@ class TestBranchIsolation:
         assert not any(e.memory_id == "feat-b-hybrid" for e in hits)
 ```
 
-### Phase 5: Documentation — update `docs/05_agent_12_memory.md`
+### Phase 5: Documentation — update `docs/agent_12_memory.md`
 
 #### 5.1 Add/update "Branch Awareness" section
 
@@ -728,4 +728,4 @@ Document the following points:
 - `scripts/agent/memory/injection.py` — pass `branch=self._branch` to retriever.search() calls in `on_user_prompt()`
 - `scripts/agent/factory.py` — add `get_repo_info()` call; pass branch to injection/ingestion builders
 - `tests/test_memory_retriever.py` — add `TestBranchIsolation` test class with 6 tests
-- `docs/05_agent_12_memory.md` — document branch-awareness contract
+- `docs/agent_12_memory.md` — document branch-awareness contract

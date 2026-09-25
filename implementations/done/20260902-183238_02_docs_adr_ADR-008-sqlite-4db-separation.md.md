@@ -12,7 +12,7 @@ sections (Plan Out-of-Scope: "change ADR-008's recovery policy itself").
 
 ## Assumptions
 - Re-verified 2026-09-02: `### Operations` (current lines 499-503) confirms the
-  existing bullet `[Operations and Observability](05_agent_10_01_operations-and-observability-startup-and-health.md) — 運用と観測`
+  existing bullet `[Operations and Observability]()agent_10_01_operations-and-observability-startup-and-health.md — 運用と観測`
   as a whole-document reference — matches the Plan's cited "lines 499-501" (2-line
   shift, content unchanged).
 - **Ordering dependency on seq 01**: this document's procedure names the exact
@@ -54,10 +54,10 @@ subsection's anchor, once seq 01 has actually written that subsection.
 1. **Precondition (verify before editing)**: confirm seq 01's implementation
    procedure (`implementations/20260902-183238_01_docs_05_agent_10_01_operations-and-observability-startup-and-health.md.md`,
    or its archived location under `implementations/done/` once processed) has been
-   executed — i.e. `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`
+   executed — i.e. `docs/agent_10_01_operations-and-observability-startup-and-health.md`
    actually contains a `### Manual Recovery: workflow.sqlite / eventbus.sqlite`
    heading. If it does not yet exist, this row is **not yet ready**: report `Blocked:
-   cross-file conflict with docs/05_agent_10_01_operations-and-observability-startup-and-health.md
+   cross-file conflict with docs/agent_10_01_operations-and-observability-startup-and-health.md
    — seq 01 not yet executed` per `skills/code-implementation/workflow.md` Step 3, and
    do not proceed with this row until seq 01 lands.
 2. Once the heading exists, read it verbatim and derive its actual Markdown anchor
@@ -68,14 +68,14 @@ subsection's anchor, once seq 01 has actually written that subsection.
    ```
    ### Operations
 
-   - [Operations and Observability](05_agent_10_01_operations-and-observability-startup-and-health.md) — 運用と観測
+   - [Operations and Observability]()agent_10_01_operations-and-observability-startup-and-health.md — 運用と観測
    ```
 4. Replace the bullet's link target with the document-plus-anchor form:
    ```
    ### Operations
 
-   - [Operations and Observability](05_agent_10_01_operations-and-observability-startup-and-health.md) — 運用と観測
-   - [Manual Recovery: workflow.sqlite / eventbus.sqlite](05_agent_10_01_operations-and-observability-startup-and-health.md#{actual-verified-anchor}) — workflow.sqlite / eventbus.sqliteの手動復旧手順
+   - [Operations and Observability]()agent_10_01_operations-and-observability-startup-and-health.md — 運用と観測
+   - [Manual Recovery: workflow.sqlite / eventbus.sqlite](agent_10_01_operations-and-observability-startup-and-health.md#{actual-verified-anchor}) — workflow.sqlite / eventbus.sqliteの手動復旧手順
    ```
    (Add as a second bullet rather than rewriting the first, since the existing
    whole-document reference remains valid and useful on its own — see Design

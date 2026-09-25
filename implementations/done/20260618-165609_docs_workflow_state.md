@@ -1,11 +1,11 @@
 ## Goal
 
-Update `docs/05_agent_02_runtime-architecture.md` and `docs/05_agent_04_state-and-persistence.md` to document `WorkflowState` as a session-scoped runtime state component of `AgentContext`.
+Update `docs/agent_02_runtime-architecture.md` and `docs/05_agent_04_state-and-persistence.md` to document `WorkflowState` as a session-scoped runtime state component of `AgentContext`.
 
 ## Scope
 
-- `05_agent_02_runtime-architecture.md`: add `WorkflowState` to the `AgentContext` component listing
-- `05_agent_04_state-and-persistence.md`: add `WorkflowState` table row, update user-facing description of workflow state
+- `agent_02_runtime-architecture.md`: add `WorkflowState` to the `AgentContext` component listing
+- `agent_04_state-and-persistence.md`: add `WorkflowState` table row, update user-facing description of workflow state
 - No code changes
 
 ## Assumptions
@@ -17,12 +17,12 @@ Update `docs/05_agent_02_runtime-architecture.md` and `docs/05_agent_04_state-an
 
 ### Target file
 
-`docs/05_agent_02_runtime-architecture.md` and `docs/05_agent_04_state-and-persistence.md`
+`docs/agent_02_runtime-architecture.md` and `docs/05_agent_04_state-and-persistence.md`
 
 ### Procedure
 
-1. In `05_agent_02_runtime-architecture.md`: locate the `AgentContext` component description and add `ctx.workflow` alongside `ctx.conv`, `ctx.turn`, `ctx.stats`
-2. In `05_agent_04_state-and-persistence.md`: add a `WorkflowState` entry to the state table
+1. In `agent_02_runtime-architecture.md`: locate the `AgentContext` component description and add `ctx.workflow` alongside `ctx.conv`, `ctx.turn`, `ctx.stats`
+2. In `agent_04_state-and-persistence.md`: add a `WorkflowState` entry to the state table
 
 ### Method
 
@@ -30,7 +30,7 @@ Direct edit of both doc files.
 
 ### Details
 
-**`05_agent_02_runtime-architecture.md`** — in the `AgentContext` section, add:
+**`agent_02_runtime-architecture.md`** — in the `AgentContext` section, add:
 
 ```
 | `ctx.workflow` | `WorkflowState` | Per-session workflow runtime state: active flag, current task ID, approval pending flag |
@@ -38,7 +38,7 @@ Direct edit of both doc files.
 
 (Add to the sub-structure table alongside the other `ctx.*` entries.)
 
-**`05_agent_04_state-and-persistence.md`** — add to the canonical state table:
+**`agent_04_state-and-persistence.md`** — add to the canonical state table:
 
 ```
 | `WorkflowState` | session | `ctx.workflow.*` | No (transient) | `active`, `current_task_id`, `current_workflow_version`, `approval_pending`, `last_session_id` |

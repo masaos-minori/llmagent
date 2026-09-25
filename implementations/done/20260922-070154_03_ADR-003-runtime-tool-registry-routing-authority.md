@@ -55,8 +55,8 @@ Broken links found in this file:
 1. `[04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md)` — Check if this document exists under a different name
 2. `[04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md)` — Check if this document exists under a different name
 3. `[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)` — Check if this document exists under a different name
-4. `[05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md)` — Check if this document exists under a different name
-5. `[90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md)` — Check if this document exists under a different name
+4. `[agent_06_01_tool-execution-and-approval-execution.md]()agent_06_01_tool-execution-and-approval-execution.md` — Check if this document exists under a different name
+5. `[90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](shared_03_03_runtime_and_execution-llm-and-mcp-clients.md)` — Check if this document exists under a different name
 6. `[00_governance_03_issue-and-uncertainty-management.md](00_governance_03_issue-and-uncertainty-management.md)` — Check if this document exists under a different name
 
 For each link:

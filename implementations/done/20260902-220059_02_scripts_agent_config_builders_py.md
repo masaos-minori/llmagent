@@ -78,7 +78,7 @@ Run `uv run pytest tests/agent/test_startup.py -v` after adding the regression t
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | No code change required; consequence of REQ-001 |
 | 2 | Add or update tests per Validation plan | Completed | — | — | Regression test added for REQ-002 |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | All checks pass; no new mypy regressions |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Updated docs/05_agent_08_01_configuration-loading-agent-config.md with REQ-001 fail-closed behavior |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Updated docs/agent_08_01_configuration-loading-agent-config.md with REQ-001 fail-closed behavior |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

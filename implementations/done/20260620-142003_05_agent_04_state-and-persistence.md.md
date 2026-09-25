@@ -2,7 +2,7 @@
 
 ## Goal
 
-Update `docs/05_agent_04_state-and-persistence.md` and `docs/05_agent_01_system-overview.md`
+Update `docs/05_agent_04_state-and-persistence.md` and `docs/agent_01_system-overview.md`
 to accurately reflect the responsibility boundary established by this refactor:
 - `AgentSession` → session.sqlite only
 - `RagMaintenanceService` → rag.sqlite maintenance
@@ -11,9 +11,9 @@ to accurately reflect the responsibility boundary established by this refactor:
 ## Scope
 
 **In:**
-- Add or update a "Responsibility Boundary" section in `05_agent_04_state-and-persistence.md`
+- Add or update a "Responsibility Boundary" section in `agent_04_state-and-persistence.md`
   that states which service owns which DB
-- Update `05_agent_01_system-overview.md` to clarify agent vs RAG layer separation
+- Update `agent_01_system-overview.md` to clarify agent vs RAG layer separation
   and call out that RAG DB operations go through `rag-pipeline-mcp` or `RagMaintenanceService`
 
 **Out:**
@@ -24,7 +24,7 @@ to accurately reflect the responsibility boundary established by this refactor:
 ## Assumptions
 
 - `docs/05_agent_04_state-and-persistence.md` exists and has a DB/persistence section
-- `docs/05_agent_01_system-overview.md` has an architecture or layers section
+- `docs/agent_01_system-overview.md` has an architecture or layers section
 - Both files are Markdown and follow the existing heading and table conventions
 
 ## Implementation
@@ -32,12 +32,12 @@ to accurately reflect the responsibility boundary established by this refactor:
 ### Target file
 
 `docs/05_agent_04_state-and-persistence.md`  
-`docs/05_agent_01_system-overview.md`
+`docs/agent_01_system-overview.md`
 
 ### Procedure
 
 1. Read both files to identify the exact sections to update
-2. In `05_agent_04_state-and-persistence.md`:
+2. In `agent_04_state-and-persistence.md`:
    - Locate the section describing `DbMaintenanceService` or DB maintenance
    - Add a "Service responsibility boundary" subsection or table:
      | Service | DB | Methods |
@@ -45,7 +45,7 @@ to accurately reflect the responsibility boundary established by this refactor:
      | DbMaintenanceService | session.sqlite | stats (sessions/messages), health, checkpoint, vacuum, purge |
      | RagMaintenanceService | rag.sqlite | stats_rag (docs/chunks), rebuild_fts, consistency, recover |
    - Add a note: "AgentSession accesses only session.sqlite via SQLiteHelper('session')"
-3. In `05_agent_01_system-overview.md`:
+3. In `agent_01_system-overview.md`:
    - Locate the layer boundary description
    - Clarify: RAG DB operations (index rebuild, consistency check, document delete)
      are not the agent layer's responsibility; they route through `rag-pipeline-mcp`
@@ -59,9 +59,9 @@ to accurately reflect the responsibility boundary established by this refactor:
 
 ### Details
 
-- If `05_agent_04_state-and-persistence.md` already has a "DB boundary" note,
+- If `agent_04_state-and-persistence.md` already has a "DB boundary" note,
   update it to include `RagMaintenanceService`; do not duplicate
-- If `05_agent_01_system-overview.md` refers to `DbMaintenanceService` handling RAG,
+- If `agent_01_system-overview.md` refers to `DbMaintenanceService` handling RAG,
   correct it to `RagMaintenanceService`
 - Both edits should be minimal (2-10 lines each); no wholesale rewrites
 
@@ -70,6 +70,6 @@ to accurately reflect the responsibility boundary established by this refactor:
 | Check | Command | Expected |
 |---|---|---|
 | Boundary table present | `grep -n "RagMaintenanceService" docs/05_agent_04_state-and-persistence.md` | >= 1 match |
-| No stale "DbMaintenanceService handles RAG" text | `grep -n "DbMaintenanceService.*rag\|DbMaintenance.*RAG" docs/05_agent_01_system-overview.md` | 0 matches |
-| Markdown syntax | `markdownlint docs/05_agent_04_state-and-persistence.md docs/05_agent_01_system-overview.md` | 0 errors (or run mdformat) |
+| No stale "DbMaintenanceService handles RAG" text | `grep -n "DbMaintenanceService.*rag\|DbMaintenance.*RAG" docs/agent_01_system-overview.md` | 0 matches |
+| Markdown syntax | `markdownlint docs/05_agent_04_state-and-persistence.md docs/agent_01_system-overview.md` | 0 errors (or run mdformat) |
 | Manual review | Read both updated sections | Accurate, consistent, minimal |

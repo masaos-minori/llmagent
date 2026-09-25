@@ -7,10 +7,10 @@ Remove dead code `gitops_force_push_blocked` and `gitops_protected_branches` fro
 ## Scope
 
 - `scripts/agent/config_dataclasses.py` — remove `gitops_force_push_blocked` and `gitops_protected_branches` fields
-- `docs/05_agent_06_02_tool-execution-and-approval-approval.md` — remove references
-- `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md` — remove references
+- `docs/agent_06_02_tool-execution-and-approval-approval.md` — remove references
+- `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md` — remove references
 - `docs/99_documentation_sync_report.md` — remove references
-- `docs/05_agent_08_04_configuration-mcp-approval-obs.md` — remove references
+- `docs/agent_08_04_configuration-mcp-approval-obs.md` — remove references
 
 ## Assumptions
 
@@ -34,10 +34,10 @@ Remove dead code `gitops_force_push_blocked` and `gitops_protected_branches` fro
 2. Delete both field definitions and their associated comments
 
 3. Update documentation files to remove references to these fields:
-   - `docs/05_agent_06_02_tool-execution-and-approval-approval.md` — update lines 106-107
-   - `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md` — update lines 33-36
+   - `docs/agent_06_02_tool-execution-and-approval-approval.md` — update lines 106-107
+   - `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md` — update lines 33-36
    - `docs/99_documentation_sync_report.md` — update lines 67, 101
-   - `docs/05_agent_08_04_configuration-mcp-approval-obs.md` — update lines 83-84
+   - `docs/agent_08_04_configuration-mcp-approval-obs.md` — update lines 83-84
 
 ### Method
 

@@ -4,7 +4,7 @@
 Medium
 
 ## Summary
-`docs/05_agent_90_inconsistencies_and_known_issues.md`'s WF-001 entry describes INV-01 and
+`docs/agent_90_inconsistencies_and_known_issues.md`'s WF-001 entry describes INV-01 and
 INV-05 as asserting "all execution paths must flow through the Workflow Engine" and "the
 Workflow Engine is the sole orchestrator of tool execution" respectively. The current
 `docs/adr/ADR-001-workflow-engine-mandatory.md` INV-01 and INV-05 say something different
@@ -15,14 +15,14 @@ content.
 ## Background
 Discovered while updating ADR-001 to Accepted status (2026-08-31) and cross-checking its own
 embedded Known Deviations (which already tracked and resolved a WF-001/WF-002/WF-003 set
-distinct from, but same-named as, the entries in `05_agent_90_inconsistencies_and_known_issues.md`).
+distinct from, but same-named as, the entries in `agent_90_inconsistencies_and_known_issues.md`).
 ADR-001's own Known Deviations WF-001 described a citation-format issue between two
 line-numbered ADR-001 references and was resolved by a docstring correction (confirmed
 current INV-01/INV-05 text is already distinct); it did not describe the same invariant
-content that `05_agent_90`'s WF-001 attributes to INV-01/INV-05.
+content that `agent_90`'s WF-001 attributes to INV-01/INV-05.
 
 ## Problem
-(Evidence: Needs confirmation) `05_agent_90_inconsistencies_and_known_issues.md`'s WF-001
+(Evidence: Needs confirmation) `agent_90_inconsistencies_and_known_issues.md`'s WF-001
 entry's "Summary" and "Current Description" fields quote INV-01/INV-05 wording that does not
 appear anywhere in the current `docs/adr/ADR-001-workflow-engine-mandatory.md`. It is unclear
 whether this entry describes an earlier draft of ADR-001 that was later rewritten, a
@@ -43,11 +43,11 @@ match current ADR-001 wording) or is itself obsolete/superseded (in which case r
 this repository's Current-Specification-Only Policy for resolved entries).
 
 ## Target Files or Areas
-- `docs/05_agent_90_inconsistencies_and_known_issues.md` (WF-001, and re-verify WF-002/WF-003)
+- `docs/agent_90_inconsistencies_and_known_issues.md` (WF-001, and re-verify WF-002/WF-003)
 - `docs/adr/ADR-001-workflow-engine-mandatory.md` — read-only reference for current INV text
 
 ## Required Changes
-- Compare `05_agent_90`'s WF-001/WF-002/WF-003 entries against the current ADR-001 text and the
+- Compare `agent_90`'s WF-001/WF-002/WF-003 entries against the current ADR-001 text and the
   test evidence already gathered during the 2026-08-31 ADR-001 update (see Dependencies).
 - Correct or remove each entry based on that comparison, following this document's own
   5-tier classification scheme (Design Decision / Implementation Bug / Documentation Gap /
@@ -75,7 +75,7 @@ this repository's Current-Specification-Only Policy for resolved entries).
 Documentation-only change; not required beyond re-reading the cited source/tests.
 
 ## Documentation Impact
-This issue is itself the documentation-accuracy fix for `05_agent_90_inconsistencies_and_known_issues.md`.
+This issue is itself the documentation-accuracy fix for `agent_90_inconsistencies_and_known_issues.md`.
 
 ## Out of Scope
 - Any entry in this document unrelated to WF-001/WF-002/WF-003.
@@ -87,13 +87,13 @@ Follows the 2026-08-31 ADR-001 update, during which:
   premise, as stated in ADR-001's own now-resolved Known Deviation, no longer holds).
 - `tests/agent/workflow/test_workflow_engine.py::test_execute_success_verify_failure_marks_task_failed`
   was found to directly verify INV-03 (execution success vs. verification success), suggesting
-  `05_agent_90`'s WF-002 ("no test verifies... INV-03") is stale.
+  `agent_90`'s WF-002 ("no test verifies... INV-03") is stale.
 - ADR-001 Decision Details #5 (the single-stage Q&A workflow statement) was replaced per an
-  explicit approved decision, suggesting `05_agent_90`'s WF-003 ("feature gap identified") is
+  explicit approved decision, suggesting `agent_90`'s WF-003 ("feature gap identified") is
   now moot rather than an open gap.
 
 ## Unresolved Questions
-Whether `05_agent_90`'s WF-001 ever matched an actual past version of ADR-001, or was
+Whether `agent_90`'s WF-001 ever matched an actual past version of ADR-001, or was
 miswritten from the start — needs investigation, not assumption.
 
 ## AI Implementation Instruction

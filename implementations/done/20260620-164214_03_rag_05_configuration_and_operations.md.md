@@ -12,7 +12,7 @@ Expand the `use_rrf` row in the configuration table at line 63 of
 ## Assumptions
 - Current line 63: `| \`use_rrf\` | Enable RRF merge (True) or simple dedup fallback (False) |`
   — lacks quality impact information
-- Note: the plan originally targets `docs/05_agent_08_configuration.md`, but `use_rrf` is
+- Note: the plan originally targets `docs/agent_08_configuration.md`, but `use_rrf` is
   actually in `docs/03_rag_05_configuration_and_operations.md` (confirmed by grep). Update
   the correct file.
 - Default value column may exist; preserve existing structure

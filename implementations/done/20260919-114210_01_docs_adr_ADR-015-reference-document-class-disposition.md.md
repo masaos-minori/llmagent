@@ -87,7 +87,7 @@ structural template for front matter and section order.
   and confirm the guarded block matches current source" (once implemented).
 - **Implementation Notes**: if Option B is adopted, name the specific
   Reference-class documents planned for migration — cite
-  `plans/20260919-105034_plan.md`'s target list (Agent: `docs/05_agent_13_reference-api.md`;
+  `plans/20260919-105034_plan.md`'s target list (Agent: `docs/agent_13_reference-api.md`;
   EventBus: `docs/06_eventbus_06_reference-api.md`; Memory: the 6-candidate list
   recorded in that Plan's REQ-003/UNK-01) rather than re-deriving it here.
 - **Known Deviations**: "対象外" if none identified.

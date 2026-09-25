@@ -7,9 +7,9 @@ Correct all remaining "JSONL source of truth" descriptions to "JSONL archive" in
 ## Scope
 
 - **In-Scope**:
-  - `docs/05_agent_12_memory.md`: replace "JSONL source of truth" with "JSONL archive" (3 occurrences: L55, L124, L413)
-  - `docs/05_agent_12_memory.md`: fix method name `rebuild_from_jsonl` → `import_from_jsonl` (L336) and clarify it does not replay deletes/pin state
-  - `docs/05_agent_12_memory.md`: clarify that SQLite is the authoritative state, JSONL is the append-only archive
+  - `docs/agent_12_memory.md`: replace "JSONL source of truth" with "JSONL archive" (3 occurrences: L55, L124, L413)
+  - `docs/agent_12_memory.md`: fix method name `rebuild_from_jsonl` → `import_from_jsonl` (L336) and clarify it does not replay deletes/pin state
+  - `docs/agent_12_memory.md`: clarify that SQLite is the authoritative state, JSONL is the append-only archive
 - **Out-of-Scope**:
   - DB schema changes
   - New commands beyond the existing `import-jsonl` alias (already implemented)
@@ -21,7 +21,7 @@ Correct all remaining "JSONL source of truth" descriptions to "JSONL archive" in
 - `_MEMORY_HELP` already uses "archive" (L56) — confirmed
 - `_memory_rebuild` messages already use "JSONL archive records" and "NOT replayed" — confirmed
 - All 8 tests in `test_cmd_memory.py` already pass — confirmed
-- The only remaining work is updating `docs/05_agent_12_memory.md` to remove "source of truth" references to JSONL
+- The only remaining work is updating `docs/agent_12_memory.md` to remove "source of truth" references to JSONL
 
 ## Unknowns & Gaps
 
@@ -32,13 +32,13 @@ Correct all remaining "JSONL source of truth" descriptions to "JSONL archive" in
 ## Verification Results
 
 ### 1. "JSONL source of truth" occurrences confirmed
-- **File**: `docs/05_agent_12_memory.md`
+- **File**: `docs/agent_12_memory.md`
 - Line 55: `| jsonl_store.py | Append-only JSONL source of truth |`
 - Line 124: `| jsonl_store.py  |  Append-only source of truth`
 - Line 413: `### 11. jsonl_store.py — JSONL source of truth`
 
 ### 2. Method name mismatch confirmed
-- **File**: `docs/05_agent_12_memory.md:336`
+- **File**: `docs/agent_12_memory.md:336`
 - Doc references: `rebuild_from_jsonl(jsonl_store, *, dry_run=False)`
 - Actual method: `import_from_jsonl` at `scripts/agent/memory/store.py:354`
 
@@ -54,7 +54,7 @@ Correct all remaining "JSONL source of truth" descriptions to "JSONL archive" in
 
 ## Implementation
 
-### Target file: `docs/05_agent_12_memory.md`
+### Target file: `docs/agent_12_memory.md`
 
 #### Procedure
 
@@ -107,7 +107,7 @@ Direct file edit — targeted replacements for each occurrence.
 **Note:** SQLite (`memories` table) is the authoritative state for memory data. The JSONL archive is an append-only backup used for import/export and disaster recovery only. Deletions and pin/unpin state changes are not replayed from the JSONL archive — they must be applied directly to SQLite.
 ```
 
-### Target file: `docs/05_agent_12_memory.md`
+### Target file: `docs/agent_12_memory.md`
 
 #### Procedure (optional)
 
@@ -120,7 +120,7 @@ Run grep to confirm zero matches.
 #### Details
 
 ```bash
-grep -n "JSONL source of truth" docs/05_agent_12_memory.md
+grep -n "JSONL source of truth" docs/agent_12_memory.md
 # Expected: no output
 ```
 
@@ -129,8 +129,8 @@ grep -n "JSONL source of truth" docs/05_agent_12_memory.md
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
 | `tests/test_cmd_memory.py` | Re-run existing 8 tests | `uv run --no-sync pytest tests/test_cmd_memory.py -q` | 8 passed, 0 failed |
-| `docs/05_agent_12_memory.md` | String search for forbidden phrase | `grep -n "JSONL source of truth" docs/05_agent_12_memory.md` | No output (0 matches) |
-| `docs/05_agent_12_memory.md` | String search for correct method name | `grep -n "import_from_jsonl" docs/05_agent_12_memory.md` | At least 1 match on API table row |
+| `docs/agent_12_memory.md` | String search for forbidden phrase | `grep -n "JSONL source of truth" docs/agent_12_memory.md` | No output (0 matches) |
+| `docs/agent_12_memory.md` | String search for correct method name | `grep -n "import_from_jsonl" docs/agent_12_memory.md` | At least 1 match on API table row |
 
 ## Risks & Mitigations
 

@@ -14,9 +14,9 @@ docs/ 配下の 3 つのドキュメントファイルで `agent/config.py` へ�
 ## Scope
 
 **In:**
-- `docs/05_agent_08_configuration.md`: "agent/config.py:627" を "agent/config_builders.py" に更新 (正確な行番号も合わせて修正)
-- `docs/05_agent_01_system-overview.md`: テーブルセル内 "agent/config.py" を "agent/config_dataclasses.py" に更新
-- `docs/05_agent_13_reference-api.md`: セクション見出し "## AgentConfig (agent/config.py)" を "## AgentConfig (agent/config_dataclasses.py)" に更新
+- `docs/agent_08_configuration.md`: "agent/config.py:627" を "agent/config_builders.py" に更新 (正確な行番号も合わせて修正)
+- `docs/agent_01_system-overview.md`: テーブルセル内 "agent/config.py" を "agent/config_dataclasses.py" に更新
+- `docs/agent_13_reference-api.md`: セクション見出し "## AgentConfig (agent/config.py)" を "## AgentConfig (agent/config_dataclasses.py)" に更新
 
 **Out:**
 - ドキュメントの内容・説明文の変更
@@ -26,7 +26,7 @@ docs/ 配下の 3 つのドキュメントファイルで `agent/config.py` へ�
 
 ## Assumptions
 
-1. `build_agent_config` のような builder 関数は `agent/config_builders.py` に定義されているため、`05_agent_08_configuration.md` の参照先は `config_builders.py` が正しい
+1. `build_agent_config` のような builder 関数は `agent/config_builders.py` に定義されているため、`agent_08_configuration.md` の参照先は `config_builders.py` が正しい
 2. `AgentConfig` はデータクラスであるため `agent/config_dataclasses.py` に定義されている
 3. 行番号は `scripts/agent/config_builders.py` の実際の行数を確認してから更新する
 
@@ -40,9 +40,9 @@ docs/ 配下の 3 つのドキュメントファイルで `agent/config.py` へ�
 
 ### Procedure
 
-1. `docs/05_agent_08_configuration.md` を開き、"agent/config.py:627" の参照を特定する。`scripts/agent/config_builders.py` の該当シンボルの実際の行番号を確認してから "agent/config_builders.py:<line>" に更新する。
-2. `docs/05_agent_01_system-overview.md` を開き、テーブル内の "agent/config.py" セルを "agent/config_dataclasses.py" に更新する。
-3. `docs/05_agent_13_reference-api.md` を開き、見出し "## AgentConfig (agent/config.py)" を "## AgentConfig (agent/config_dataclasses.py)" に更新する。
+1. `docs/agent_08_configuration.md` を開き、"agent/config.py:627" の参照を特定する。`scripts/agent/config_builders.py` の該当シンボルの実際の行番号を確認してから "agent/config_builders.py:<line>" に更新する。
+2. `docs/agent_01_system-overview.md` を開き、テーブル内の "agent/config.py" セルを "agent/config_dataclasses.py" に更新する。
+3. `docs/agent_13_reference-api.md` を開き、見出し "## AgentConfig (agent/config.py)" を "## AgentConfig (agent/config_dataclasses.py)" に更新する。
 
 ### Method
 
@@ -52,7 +52,7 @@ Edit tool でドキュメント編集
 
 各ファイルの変更パターン:
 
-**05_agent_08_configuration.md:**
+**agent_08_configuration.md:**
 ```markdown
 # Before
 agent/config.py:627
@@ -61,7 +61,7 @@ agent/config.py:627
 agent/config_builders.py:<actual_line_number>
 ```
 
-**05_agent_01_system-overview.md (テーブルセル):**
+**agent_01_system-overview.md (テーブルセル):**
 ```markdown
 # Before
 | ... | agent/config.py | ... |
@@ -70,7 +70,7 @@ agent/config_builders.py:<actual_line_number>
 | ... | agent/config_dataclasses.py | ... |
 ```
 
-**05_agent_13_reference-api.md (セクション見出し):**
+**agent_13_reference-api.md (セクション見出し):**
 ```markdown
 # Before
 ## AgentConfig (agent/config.py)

@@ -7,7 +7,7 @@ Medium
 Implement and test database-specific recovery verification for `rag.sqlite` and `session.sqlite` after physical restoration.
 
 ## Background
-SQLite physical integrity does not guarantee that application-level relationships, FTS data, vector data, sessions, messages, memories, and links are usable. RAG and Session are the database targets described as supported by the current generic recovery path. Physical restoration and its verification are already implemented: `scripts/db/recovery.py`'s `_restore_from_backup()` validates the backup's physical integrity before use, performs atomic staged replacement (`shutil.copy2()` to a temp file, then `os.replace()`), archives the prior corrupt database, and re-runs `_run_integrity_check()` on the restored file before reporting success — returning `action="restore_verify_failed"` on failure (confirmed by direct read; also recorded as resolved in `docs/90_shared_90_inconsistencies_and_known_issues.md` SHARED-002).
+SQLite physical integrity does not guarantee that application-level relationships, FTS data, vector data, sessions, messages, memories, and links are usable. RAG and Session are the database targets described as supported by the current generic recovery path. Physical restoration and its verification are already implemented: `scripts/db/recovery.py`'s `_restore_from_backup()` validates the backup's physical integrity before use, performs atomic staged replacement (`shutil.copy2()` to a temp file, then `os.replace()`), archives the prior corrupt database, and re-runs `_run_integrity_check()` on the restored file before reporting success — returning `action="restore_verify_failed"` on failure (confirmed by direct read; also recorded as resolved in `docs/shared_90_inconsistencies_and_known_issues.md` SHARED-002).
 
 ## Problem
 The existing post-restore verification in `_restore_from_backup()` re-runs only `_run_integrity_check()`, which performs SQLite-level physical integrity checking (confirmed by direct read of `scripts/db/recovery.py`) — it does not call `check_rag_consistency()` or any Session-specific logical check. A restored `rag.sqlite` or `session.sqlite` can therefore report `success=True` while missing required tables, having FTS/vector orphans, or containing invalid message/memory relationships.
@@ -117,7 +117,7 @@ Yes — update DB recovery documentation to state that post-restore verification
 - Do not re-implement backup validation, atomic staging, or physical post-restore re-verification — these are already implemented in `_restore_from_backup()` (SHARED-002, resolved).
 
 ## Dependencies
-Depends on `H-07-01` (filed alongside this issue, defines the persistence-domain terminology this issue's logical-verification stage is classified under). Does not depend on further physical-recovery implementation work — backup validation, atomic staged replacement, and post-restore physical re-verification are already implemented and resolved (SHARED-002, `docs/90_shared_90_inconsistencies_and_known_issues.md`).
+Depends on `H-07-01` (filed alongside this issue, defines the persistence-domain terminology this issue's logical-verification stage is classified under). Does not depend on further physical-recovery implementation work — backup validation, atomic staged replacement, and post-restore physical re-verification are already implemented and resolved (SHARED-002, `docs/shared_90_inconsistencies_and_known_issues.md`).
 
 ## Unresolved Questions
 N/A: none

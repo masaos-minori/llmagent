@@ -11,9 +11,9 @@ Close the small number of concrete gaps between this requirement's documented in
 
 **In scope**
 - Add an explicit regression test asserting `Orchestrator.handle_turn()` always invokes `WorkflowEngine.run()` (currently only implicitly exercised via `tests/test_orchestrator.py`'s autouse `_patch_workflow_loader` fixture).
-- Document `plan_fn`'s current no-op behavior (`agent/orchestrator.py:199-200`) via inline comment and/or `docs/05_agent_03_01_turn-processing-flow-overview.md`.
+- Document `plan_fn`'s current no-op behavior (`agent/orchestrator.py:199-200`) via inline comment and/or `docs/agent_03_01_turn-processing-flow-overview.md`.
 - Resolve the dead `if self._workflow_def is None: self._log_fallback(...)` branch (`agent/orchestrator.py:169-170`) — recommend converting to an explanatory comment (cheapest, safest, avoids dead-code lint noise) but flag as a reviewer decision since full removal is also defensible; do NOT convert to a bare `assert` without first confirming no `-O`/`PYTHONOPTIMIZE` usage in `deploy/`.
-- Publish a severity-mapping reference table (check name → severity → condition → rationale) in `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`, built from `agent/startup.py`'s actual `add_fatal`/`add_warning`/`add_ok` call sites, each read in full (not just call sites) to distinguish deliberate design from accidental omission.
+- Publish a severity-mapping reference table (check name → severity → condition → rationale) in `docs/agent_10_01_operations-and-observability-startup-and-health.md`, built from `agent/startup.py`'s actual `add_fatal`/`add_warning`/`add_ok` call sites, each read in full (not just call sites) to distinguish deliberate design from accidental omission.
 - Add regression tests for any severity classification not already covered by `tests/test_startup.py`.
 
 **Out of scope**
@@ -41,15 +41,15 @@ Close the small number of concrete gaps between this requirement's documented in
 
 ### Target file
 
-Primary: `scripts/agent/orchestrator.py`, `tests/test_orchestrator.py`. Secondary: `docs/05_agent_03_01_turn-processing-flow-overview.md`, `docs/05_agent_10_01_operations-and-observability-startup-and-health.md`, `tests/test_startup.py`.
+Primary: `scripts/agent/orchestrator.py`, `tests/test_orchestrator.py`. Secondary: `docs/agent_03_01_turn-processing-flow-overview.md`, `docs/agent_10_01_operations-and-observability-startup-and-health.md`, `tests/test_startup.py`.
 
 ### Procedure
 
 1. **Add the explicit `WorkflowEngine.run()`-invocation test** in `tests/test_orchestrator.py`: a dedicated test asserting `mock_engine_instance.run.assert_called_once()` (or equivalent), independent of the autouse fixture's implicit exercise of the same call.
-2. **Document `plan_fn`'s no-op status**: add an inline comment at the definition site (`agent/orchestrator.py:199-200`) referencing this requirement's decision. Check `docs/05_agent_03_01_turn-processing-flow-overview.md` for whether it already describes the plan stage; update it if not.
+2. **Document `plan_fn`'s no-op status**: add an inline comment at the definition site (`agent/orchestrator.py:199-200`) referencing this requirement's decision. Check `docs/agent_03_01_turn-processing-flow-overview.md` for whether it already describes the plan stage; update it if not.
 3. **Resolve the dead-code Unknown with the reviewer**, then apply the chosen resolution to `agent/orchestrator.py:169-170`. Before choosing `assert`, confirm no `-O`/`PYTHONOPTIMIZE` usage exists in `deploy/` scripts; if any doubt remains, prefer the comment-only resolution (zero behavioral risk).
 4. **Read every `agent/startup.py` check function in full** (not just `add_fatal`/`add_warning`/`add_ok` call sites) to extract the exact branching condition and rationale for each severity decision, resolving the `readiness` warning-vs-fatal condition in the process. If any classification looks accidental rather than deliberate, flag it to the user before writing it into the doc as if intentional.
-5. **Publish the severity-mapping table** in `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` with columns `Check (source) | Severity | Condition | Rationale`, one row per check (`security_audit`, `embedding_dimensions`, `readiness`, `tool_definitions`, `routing_drift`, `routing_safety_tiers`, `routing_drift_live`, `rag_consistency`), filled in with step 4's findings.
+5. **Publish the severity-mapping table** in `docs/agent_10_01_operations-and-observability-startup-and-health.md` with columns `Check (source) | Severity | Condition | Rationale`, one row per check (`security_audit`, `embedding_dimensions`, `readiness`, `tool_definitions`, `routing_drift`, `routing_safety_tiers`, `routing_drift_live`, `rag_consistency`), filled in with step 4's findings.
 6. **Cross-reference the table against `tests/test_startup.py`'s existing coverage**: for each row, confirm a test proves that severity is produced under that condition; add any missing test.
 7. **Deployment/verification**: documentation and test-only changes plus one small orchestrator comment/simplification; no service restart needed. Run the full test suite to confirm no regression.
 

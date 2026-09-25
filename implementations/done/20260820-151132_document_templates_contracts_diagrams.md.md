@@ -23,8 +23,8 @@ Add a governance template document covering the six untemplated document classes
     - `docs/01_overview-files-05-config.md`
     - `docs/01_overview-files-06-misc.md`
     - `docs/04_mcp_03_03_transport-and-health.md`
-    - `docs/05_agent_02_runtime-architecture.md`
-    - `docs/05_agent_03_01_turn-processing-flow-overview.md`
+    - `docs/agent_02_runtime-architecture.md`
+    - `docs/agent_03_01_turn-processing-flow-overview.md`
 
 ## Assumptions
 - The requirement's suggested path `docs/00_governance_09_document-templates.md` is stale; the next free slot is `11` (`docs/00_governance_11_document-templates.md`)

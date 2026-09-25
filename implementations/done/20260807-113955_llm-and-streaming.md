@@ -14,7 +14,7 @@ Reduce `docs/05_agent_05_llm-and-streaming-part1.md` and `docs/05_agent_05_llm-a
 - Mark unrecoverable design rationales as `Needs Confirmation`.
 
 **Out-of-Scope**:
-- Modifying other documents in the `05_agent_*.md` set.
+- Modifying other documents in the `agent_*.md` set.
 - Adding new content beyond what exists in the current documents.
 - Changing the doc set directory structure.
 
@@ -126,7 +126,7 @@ Rollback is straightforward: restore the original files from git history if the 
 
 ## Out of scope
 
-- Modifying other documents in the `05_agent_*.md` set.
+- Modifying other documents in the `agent_*.md` set.
 - Adding new content beyond what exists in the current documents.
 - Changing the doc set directory structure.
 - Auto-generating the LLM/streaming flow from code metadata.

@@ -28,8 +28,8 @@ project's own documents actually use for that purpose.
 (function docstring, and `_RATIONALE_MARKERS` definition near line 58) flags any line
 matching `` `x` defaults? to `y` `` that lacks one of its current rationale markers.
 Confirmed false-positive findings from a 2026-09-20 tool run:
-- `docs/05_agent_06_02_tool-execution-and-approval-approval.md:46`, `:117`
-- `docs/05_agent_06_03_tool-execution-and-approval-concurrency-safety.md:86`
+- `docs/agent_06_02_tool-execution-and-approval-approval.md:46`, `:117`
+- `docs/agent_06_03_tool-execution-and-approval-concurrency-safety.md:86`
 
 All three are `## Key Constraints` bullets labeled "Fail-safe:" — design-intent content
 per Docs content policy — retain, not mechanical restatement.
@@ -82,7 +82,7 @@ confirm the net finding count only decreases by the three false positives.
 No `docs/*.md` change required — this is a `tools/` precision fix.
 
 ## Out of Scope
-- Re-running or filing the `docs/05_agent_06_02`/`05_agent_06_03` documentation cleanup
+- Re-running or filing the `docs/05_agent_06_02`/`agent_06_03` documentation cleanup
   itself — those files require no edit; this issue only stops the tool from flagging
   them.
 - Any other `check_docs_content_policy.py` detection function

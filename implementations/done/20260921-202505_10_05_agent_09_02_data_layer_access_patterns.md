@@ -26,7 +26,7 @@ Correct file path from `rag_pipeline_document_manager.py` to `document_manager.p
 
 ### Target file
 
-`docs/05_agent_09_02_data-layer-access-patterns.md`
+`docs/agent_09_02_data-layer-access-patterns.md`
 
 ### Procedure
 
@@ -70,8 +70,8 @@ Read the file, identify the exact line numbers containing the incorrect filename
 
 | Target File | Testing Strategy | Expected Outcome |
 |---|---|---|
-| docs/05_agent_09_02_data-layer-access-patterns.md | Manual review | Correct file path shown |
-| docs/05_agent_09_02_data-layer-access-patterns.md | Automated check | `uv run python tools/check_docs_consistency.py --domain agent` passes without WARNING-level findings for missing files |
+| docs/agent_09_02_data-layer-access-patterns.md | Manual review | Correct file path shown |
+| docs/agent_09_02_data-layer-access-patterns.md | Automated check | `uv run python tools/check_docs_consistency.py --domain agent` passes without WARNING-level findings for missing files |
 
 ## Completion criteria
 
@@ -113,4 +113,4 @@ Read the file, identify the exact line numbers containing the incorrect filename
 - **Source plan**: plans/20260921-201621_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260921-202505
-- **Related target files**: docs/05_agent_09_02_data-layer-access-patterns.md
+- **Related target files**: docs/agent_09_02_data-layer-access-patterns.md

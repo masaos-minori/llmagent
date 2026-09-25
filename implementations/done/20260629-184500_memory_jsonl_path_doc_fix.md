@@ -2,12 +2,12 @@
 
 ## Goal
 
-Replace the stale `memory_jsonl_path` reference in `docs/05_agent_12_memory.md` with the correct `memory_jsonl_dir` config key, clarifying that the full JSONL path is `{memory_jsonl_dir}/memories.jsonl`.
+Replace the stale `memory_jsonl_path` reference in `docs/agent_12_memory.md` with the correct `memory_jsonl_dir` config key, clarifying that the full JSONL path is `{memory_jsonl_dir}/memories.jsonl`.
 
 ## Scope
 
 - **In-Scope**:
-  - Replace `memory_jsonl_path` with `memory_jsonl_dir` in `docs/05_agent_12_memory.md` JSONL Format section (line 222)
+  - Replace `memory_jsonl_path` with `memory_jsonl_dir` in `docs/agent_12_memory.md` JSONL Format section (line 222)
   - Add one-line note clarifying the full path is `{memory_jsonl_dir}/memories.jsonl`
   - Verify no other stale occurrences remain in `docs/`
 
@@ -24,10 +24,10 @@ Replace the stale `memory_jsonl_path` reference in `docs/05_agent_12_memory.md` 
 ## Implementation Steps
 
 1. **Phase 1: Preparation**
-   - [ ] Confirm exact line containing `memory_jsonl_path`: `grep -n "memory_jsonl_path" docs/05_agent_12_memory.md` → line 222
+   - [ ] Confirm exact line containing `memory_jsonl_path`: `grep -n "memory_jsonl_path" docs/agent_12_memory.md` → line 222
 
 2. **Phase 2: Core Doc Update**
-   - [ ] In `docs/05_agent_12_memory.md`, JSONL Format section, replace:
+   - [ ] In `docs/agent_12_memory.md`, JSONL Format section, replace:
      ```
      - File path controlled by `memory_jsonl_path` config
      ```
@@ -38,14 +38,14 @@ Replace the stale `memory_jsonl_path` reference in `docs/05_agent_12_memory.md` 
 
 3. **Phase 3: Verification**
    - [ ] Run `grep -rn "memory_jsonl_path" docs/` — must return 0 hits
-   - [ ] Run `grep -n "memory_jsonl" docs/05_agent_12_memory.md` — must show only `memory_jsonl_dir` occurrences
+   - [ ] Run `grep -n "memory_jsonl" docs/agent_12_memory.md` — must show only `memory_jsonl_dir` occurrences
 
 ## Validation Plan
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_12_memory.md` | Grep check | `grep -rn "memory_jsonl_path" docs/` | 0 hits |
-| `docs/05_agent_12_memory.md` | Grep check | `grep -n "memory_jsonl" docs/05_agent_12_memory.md` | Only `memory_jsonl_dir` matches |
+| `docs/agent_12_memory.md` | Grep check | `grep -rn "memory_jsonl_path" docs/` | 0 hits |
+| `docs/agent_12_memory.md` | Grep check | `grep -n "memory_jsonl" docs/agent_12_memory.md` | Only `memory_jsonl_dir` matches |
 
 ## Risks & Mitigations
 

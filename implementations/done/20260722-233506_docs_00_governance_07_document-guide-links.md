@@ -37,7 +37,7 @@ Add a short Governance subsection to each existing document-guide containing lin
 Five document-guide files:
 - `docs/03_rag_00_document-guide.md`
 - `docs/04_mcp_00_document-guide.md`
-- `docs/05_agent_00_document-guide.md`
+- `docs/agent_00_document-guide.md`
 - `docs/06_eventbus_00_document-guide.md`
 - `docs/90_shared_00_document-guide.md`
 
@@ -111,4 +111,4 @@ N/A — this is a documentation document with no code execution or access contro
 - Source plan: plans/20260722-230316_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260722-233506
-- Related target files: docs/03_rag_00_document-guide.md, docs/04_mcp_00_document-guide.md, docs/05_agent_00_document-guide.md, docs/06_eventbus_00_document-guide.md, docs/90_shared_00_document-guide.md
+- Related target files: docs/03_rag_00_document-guide.md, docs/04_mcp_00_document-guide.md, docs/agent_00_document-guide.md, docs/06_eventbus_00_document-guide.md, docs/90_shared_00_document-guide.md

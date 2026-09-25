@@ -12,8 +12,8 @@ Delete `db/workflow_schema.py` and make `db/create_schema.py` the sole initializ
 - tests/test_workflow_state_store.py: import change
 - tests/test_workflow_engine.py: import change
 - tests/test_create_schema.py: remove workflow_schema equivalence test (lines 357-416)
-- docs/90_shared_01_overview.md: remove workflow_schema.py line
-- docs/90_shared_04_db_architecture_and_schema.md: update workflow_schema.py → create_schema.py references
+- docs/shared_01_overview.md: remove workflow_schema.py line
+- docs/shared_04_db_architecture_and_schema.md: update workflow_schema.py → create_schema.py references
 
 ## Assumptions
 
@@ -31,8 +31,8 @@ Delete `db/workflow_schema.py` and make `db/create_schema.py` the sole initializ
 - tests/test_workflow_state_store.py → import change
 - tests/test_workflow_engine.py → import change
 - tests/test_create_schema.py → remove equivalence test
-- docs/90_shared_01_overview.md → remove reference
-- docs/90_shared_04_db_architecture_and_schema.md → update references
+- docs/shared_01_overview.md → remove reference
+- docs/shared_04_db_architecture_and_schema.md → update references
 
 ### Procedure
 
@@ -67,9 +67,9 @@ rm tests/test_workflow_schema.py
 
 #### Phase 5: Documentation updates
 
-In docs/90_shared_01_overview.md: Remove the workflow_schema.py line.
+In docs/shared_01_overview.md: Remove the workflow_schema.py line.
 
-In docs/90_shared_04_db_architecture_and_schema.md: Change `workflow_schema.py` references to `create_schema.py`. Update code samples from `init_schema("/opt/llm/db/workflow.sqlite")` to `python -m db.create_schema`.
+In docs/shared_04_db_architecture_and_schema.md: Change `workflow_schema.py` references to `create_schema.py`. Update code samples from `init_schema("/opt/llm/db/workflow.sqlite")` to `python -m db.create_schema`.
 
 ### Method
 

@@ -15,7 +15,7 @@ Reduce `docs/05_agent_03_*_turn-processing-flow*.md` documents to canonical sour
 - Mark unrecoverable design rationales as `Needs Confirmation`.
 
 **Out-of-Scope**:
-- Modifying other documents in the `05_agent_*.md` set.
+- Modifying other documents in the `agent_*.md` set.
 - Adding new content beyond what exists in the current documents.
 - Changing the doc set directory structure.
 
@@ -42,8 +42,8 @@ Reduce `docs/05_agent_03_*_turn-processing-flow*.md` documents to canonical sour
 
 ### Target files
 
-- `docs/05_agent_03_01_turn-processing-flow-overview.md`
-- `docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
+- `docs/agent_03_01_turn-processing-flow-overview.md`
+- `docs/agent_03_02_turn-processing-flow-llm-tool-loop.md`
 - `docs/05_agent_03_03_turn-processing-flow-workflow-engine-part1.md`
 - `docs/05_agent_03_03_turn-processing-flow-workflow-engine-part2.md`
 
@@ -135,7 +135,7 @@ Rollback is straightforward: restore the original files from git history if the 
 
 ## Out of scope
 
-- Modifying other documents in the `05_agent_*.md` set.
+- Modifying other documents in the `agent_*.md` set.
 - Adding new content beyond what exists in the current documents.
 - Changing the doc set directory structure.
 - Auto-generating the turn processing flow from code metadata.
@@ -148,4 +148,4 @@ Rollback is straightforward: restore the original files from git history if the 
 - Source plan: plans/20260807-102618_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260807-113613
-- Related target files: docs/05_agent_03_01_turn-processing-flow-overview.md, docs/05_agent_03_02_turn-processing-flow-llm-tool-loop.md, docs/05_agent_03_03_turn-processing-flow-workflow-engine-part1.md, docs/05_agent_03_03_turn-processing-flow-workflow-engine-part2.md
+- Related target files: docs/agent_03_01_turn-processing-flow-overview.md, docs/agent_03_02_turn-processing-flow-llm-tool-loop.md, docs/05_agent_03_03_turn-processing-flow-workflow-engine-part1.md, docs/05_agent_03_03_turn-processing-flow-workflow-engine-part2.md

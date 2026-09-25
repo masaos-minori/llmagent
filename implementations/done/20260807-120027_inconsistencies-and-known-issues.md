@@ -1,13 +1,13 @@
-# Implementation Procedure: docs/05_agent_90_inconsistencies_and_known_issues.md
+# Implementation Procedure: docs/agent_90_inconsistencies_and_known_issues.md
 
 ## Goal
 
-Reduce `docs/05_agent_90_inconsistencies_and_known_issues.md` by removing bare diff memos and unexplained file:line notes, while restructuring each entry to have operational meaning (what the issue means, why it is a problem, what operators should watch for, and the criteria for deciding whether/how to fix it).
+Reduce `docs/agent_90_inconsistencies_and_known_issues.md` by removing bare diff memos and unexplained file:line notes, while restructuring each entry to have operational meaning (what the issue means, why it is a problem, what operators should watch for, and the criteria for deciding whether/how to fix it).
 
 ## Scope
 
 **In-Scope**:
-- Restructure all entries in `docs/05_agent_90_inconsistencies_and_known_issues.md` to preserve: the meaning of each known issue, why it is a problem, operational cautions, fix-decision criteria, the classification of items as removed/migrated/needs-confirmation, and the reasoning behind each Needs Confirmation entry.
+- Restructure all entries in `docs/agent_90_inconsistencies_and_known_issues.md` to preserve: the meaning of each known issue, why it is a problem, operational cautions, fix-decision criteria, the classification of items as removed/migrated/needs-confirmation, and the reasoning behind each Needs Confirmation entry.
 - Remove: bare code-diff memos, "confirmed at file X line Y" notes with no operational meaning, plain implementation-visible enumerations.
 - **CRITICAL**: Never drop operational judgment during trimming. After trimming, explicitly re-verify: all known issues still state their reasoning and operational caveat.
 - When in doubt about whether a detail is operational judgment, keep it and mark for human review rather than deleting.
@@ -19,7 +19,7 @@ Reduce `docs/05_agent_90_inconsistencies_and_known_issues.md` by removing bare d
 - File new "Implementation fix required" items as separate issues under `issues/` rather than only noting them here.
 
 **Out-of-Scope**:
-- Modifying other documents in the `05_agent_*.md` set.
+- Modifying other documents in the `agent_*.md` set.
 - Adding new content beyond what exists in the current documents.
 - Changing the doc set directory structure.
 
@@ -27,7 +27,7 @@ Reduce `docs/05_agent_90_inconsistencies_and_known_issues.md` by removing bare d
 
 1. The `memo-doc-agent-review.md` referenced in acceptance criteria existed during the original review but may have been moved or deleted since then.
 2. `tools/check_agent_docs_consistency.py` is available and functional for post-edit verification, including the obsolete diagnostics/event-name reference check relevant to this chapter.
-3. All entries in `docs/05_agent_90_inconsistencies_and_known_issues.md` can be verified against current code.
+3. All entries in `docs/agent_90_inconsistencies_and_known_issues.md` can be verified against current code.
 4. The five-way classification exists: Accepted current specification / Implementation fix required / Documentation fix required / Issue already tracked / Obsolete and removable.
 
 ## Design decisions
@@ -48,7 +48,7 @@ Reduce `docs/05_agent_90_inconsistencies_and_known_issues.md` by removing bare d
 
 ### Target files
 
-- `docs/05_agent_90_inconsistencies_and_known_issues.md`
+- `docs/agent_90_inconsistencies_and_known_issues.md`
 
 ### Procedure
 
@@ -56,7 +56,7 @@ Reduce `docs/05_agent_90_inconsistencies_and_known_issues.md` by removing bare d
 
 1. Confirm `memo-doc-agent-review.md` existence and locate it (search repo root and subdirectories); if unavailable, proceed using require doc acceptance criteria.
 2. Verify the five-way classification exists and is documented.
-3. Read `docs/05_agent_90_inconsistencies_and_known_issues.md` in full.
+3. Read `docs/agent_90_inconsistencies_and_known_issues.md` in full.
 4. Identify sections containing:
    - Bare code-diff memos
    - "Confirmed at file X line Y" notes with no operational meaning
@@ -147,7 +147,7 @@ Rollback is straightforward: restore the original file from git history if the r
 
 ## Out of scope
 
-- Modifying other documents in the `05_agent_*.md` set.
+- Modifying other documents in the `agent_*.md` set.
 - Adding new content beyond what exists in the current documents.
 - Changing the doc set directory structure.
 - Auto-generating the known issues documentation from code metadata.
@@ -160,4 +160,4 @@ Rollback is straightforward: restore the original file from git history if the r
 - Source plan: plans/20260807-105141_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260807-120027
-- Related target files: docs/05_agent_90_inconsistencies_and_known_issues.md
+- Related target files: docs/agent_90_inconsistencies_and_known_issues.md

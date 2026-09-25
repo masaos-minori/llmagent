@@ -8,9 +8,9 @@ Split oversized Shared/DB documentation files at H2 boundaries and apply normali
 
 ### In scope
 
-- Split `90_shared_01`, `90_shared_02`, `90_shared_03`, `90_shared_04`, `90_shared_05` at H2 boundaries (further split at H3 if needed)
-- Normalize `90_shared_00`, `90_shared_90` (add Front Matter, Keywords, Related Documents)
-- Update File Index/AI Query Routing Table in `90_shared_00_document-guide.md` to reflect new file structure
+- Split `shared_01`, `shared_02`, `shared_03`, `shared_04`, `shared_05` at H2 boundaries (further split at H3 if needed)
+- Normalize `shared_00`, `shared_90` (add Front Matter, Keywords, Related Documents)
+- Update File Index/AI Query Routing Table in `shared_00_document-guide.md` to reflect new file structure
 
 ### Out of scope
 
@@ -32,13 +32,13 @@ Split oversized Shared/DB documentation files at H2 boundaries and apply normali
 
 | Original File | Action | Resulting Files |
 |---|---|---|
-| `90_shared_01_overview.md` (8KB+) | Split at H2/H3 | Multiple files based on shared infrastructure sections |
-| `90_shared_02_types_and_protocols.md` (8KB+) | Split at H2/H3 | Multiple files based on types/protocols sections |
-| `90_shared_03_runtime_and_execution.md` (8KB+) | Split at H2/H3 | Multiple files based on runtime/execution sections |
-| `90_shared_04_db_architecture_and_schema.md` (8KB+) | Split at H2/H3 | Multiple files based on DB architecture sections |
-| `90_shared_05_db_api_and_operations.md` (8KB+) | Split at H2/H3 | Multiple files based on DB operations sections |
-| `90_shared_00_document-guide.md` | Normalize + update | Same filename (modified) |
-| `90_shared_90_inconsistencies_and_known_issues.md` | Normalize only | Same filename (modified) |
+| `shared_01_overview.md` (8KB+) | Split at H2/H3 | Multiple files based on shared infrastructure sections |
+| `shared_02_types_and_protocols.md` (8KB+) | Split at H2/H3 | Multiple files based on types/protocols sections |
+| `shared_03_runtime_and_execution.md` (8KB+) | Split at H2/H3 | Multiple files based on runtime/execution sections |
+| `shared_04_db_architecture_and_schema.md` (8KB+) | Split at H2/H3 | Multiple files based on DB architecture sections |
+| `shared_05_db_api_and_operations.md` (8KB+) | Split at H2/H3 | Multiple files based on DB operations sections |
+| `shared_00_document-guide.md` | Normalize + update | Same filename (modified) |
+| `shared_90_inconsistencies_and_known_issues.md` | Normalize only | Same filename (modified) |
 
 ### Procedure
 
@@ -64,7 +64,7 @@ For each file that exceeds 8KB:
 
 #### Step 2: Normalize non-split Shared/DB files
 
-For `90_shared_00_document-guide.md` and `90_shared_90_inconsistencies_and_known_issues.md`:
+For `shared_00_document-guide.md` and `shared_90_inconsistencies_and_known_issues.md`:
 
 1. Read the full content of each file
 2. Add YAML Front Matter at the beginning:
@@ -84,9 +84,9 @@ source:
 ```
 3. Add Related Documents and Keywords sections at the end if not present
 
-#### Step 3: Update `90_shared_00_document-guide.md`
+#### Step 3: Update `shared_00_document-guide.md`
 
-1. After all Shared/DB files are split and renamed, read the updated `90_shared_00_document-guide.md`
+1. After all Shared/DB files are split and renamed, read the updated `shared_00_document-guide.md`
 2. Update the File Index section to list all new filenames instead of old ones
 3. Update the AI Query Routing Table to reference correct file paths
 4. Ensure all internal links within this file point to existing files

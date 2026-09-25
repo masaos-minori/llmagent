@@ -2,14 +2,14 @@
 
 ## Goal
 
-Update startup-banner, `/context`, and `/stats` output examples in `05_agent_10` to reflect current format. Verify consistency in `05_agent_15` and `05_agent_17`.
+Update startup-banner, `/context`, and `/stats` output examples in `agent_10` to reflect current format. Verify consistency in `agent_15` and `agent_17`.
 
 ## Scope
 
 **In:**
-- `docs/05_agent_10_operations_and_deployment.md` — update examples
-- `docs/05_agent_15_performance_and_tuning.md` — verify `/context` token example
-- `docs/05_agent_17_troubleshooting_and_diagnostics.md` — verify `/stats` diagnostic example
+- `docs/agent_10_operations_and_deployment.md` — update examples
+- `docs/agent_15_performance_and_tuning.md` — verify `/context` token example
+- `docs/agent_17_troubleshooting_and_diagnostics.md` — verify `/stats` diagnostic example
 
 **Out:** No changes to output format.
 
@@ -24,7 +24,7 @@ Update startup-banner, `/context`, and `/stats` output examples in `05_agent_10`
 
 ### Target file
 
-`docs/05_agent_10_operations_and_deployment.md`, `docs/05_agent_15_performance_and_tuning.md`, `docs/05_agent_17_troubleshooting_and_diagnostics.md`
+`docs/agent_10_operations_and_deployment.md`, `docs/agent_15_performance_and_tuning.md`, `docs/agent_17_troubleshooting_and_diagnostics.md`
 
 ### Procedure
 
@@ -40,8 +40,8 @@ Update startup-banner, `/context`, and `/stats` output examples in `05_agent_10`
    ```bash
    grep -rn "def.*stats\|approval_pending\|write_table" agent/commands/ --include="*.py" | head -20
    ```
-4. Update examples in `05_agent_10` to match current output.
-5. Verify `05_agent_15` and `05_agent_17` examples are consistent.
+4. Update examples in `agent_10` to match current output.
+5. Verify `agent_15` and `agent_17` examples are consistent.
 
 ### Method
 
@@ -81,6 +81,6 @@ Uptime: 1h 23m | Turns: 47 | Partial: 0
 
 | Check | Command | Expected |
 |---|---|---|
-| approval_pending in /stats example | `grep -n "approval_pending\|Approval pending" docs/05_agent_10_operations_and_deployment.md` | found |
-| /context token example | `grep -n "tokens.*200\|200,000" docs/05_agent_10_operations_and_deployment.md` | found |
+| approval_pending in /stats example | `grep -n "approval_pending\|Approval pending" docs/agent_10_operations_and_deployment.md` | found |
+| /context token example | `grep -n "tokens.*200\|200,000" docs/agent_10_operations_and_deployment.md` | found |
 | No code changes | `git diff agent/` | empty |

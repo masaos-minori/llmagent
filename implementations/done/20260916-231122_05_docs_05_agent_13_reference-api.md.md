@@ -1,10 +1,10 @@
 ## Goal
 
-Remove the stale numeric sub-config count ("7") from `docs/05_agent_13_reference-api.md` line 229, per `skills/DESIGN.md` "No implementation counts" — replace with prose that does not drift when a sub-config is added or removed.
+Remove the stale numeric sub-config count ("7") from `docs/agent_13_reference-api.md` line 229, per `skills/DESIGN.md` "No implementation counts" — replace with prose that does not drift when a sub-config is added or removed.
 
 ## Scope
 
-- Correct the prose on line 229 in `docs/05_agent_13_reference-api.md`
+- Correct the prose on line 229 in `docs/agent_13_reference-api.md`
 - No other files are modified in this row
 
 ## Assumptions
@@ -25,7 +25,7 @@ Remove the stale numeric sub-config count ("7") from `docs/05_agent_13_reference
 
 ### Target file
 
-`docs/05_agent_13_reference-api.md`
+`docs/agent_13_reference-api.md`
 
 ### Procedure
 
@@ -33,7 +33,7 @@ Remove the stale numeric sub-config count from the AgentConfig description.
 
 ### Method
 
-1. Re-verify, immediately before editing, that each target row's cited line/content is unchanged since this Plan's evidence-gathering (per `rules/workflow-lifecycle.md` Revalidation): `docs/05_agent_13_reference-api.md` line 229.
+1. Re-verify, immediately before editing, that each target row's cited line/content is unchanged since this Plan's evidence-gathering (per `rules/workflow-lifecycle.md` Revalidation): `docs/agent_13_reference-api.md` line 229.
 2. Correct the prose on line 229:
    - Change: `Configuration container. 7 sub-configurations. Supports hot-reloading via /reload.`
    - To: `Configuration container. Supports hot-reloading via /reload.`
@@ -83,7 +83,7 @@ Remove the stale numeric sub-config count from the AgentConfig description.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove stale numeric sub-config count from docs/05_agent_13_reference-api.md | Completed | 20260917-202046 | 20260917-202046 |  |
+| 1 | Remove stale numeric sub-config count from docs/agent_13_reference-api.md | Completed | 20260917-202046 | 20260917-202046 |  |
 | 2 | Run the validation sequence (rules/toolchain.md) | Completed | 20260917-202046 | 20260917-202046 |  |
 
 ### Blocker Log
@@ -104,4 +104,4 @@ Remove the stale numeric sub-config count from the AgentConfig description.
 - **Source plan**: plans/20260916-131528_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260916-231122
-- **Related target files**: docs/05_agent_13_reference-api.md
+- **Related target files**: docs/agent_13_reference-api.md

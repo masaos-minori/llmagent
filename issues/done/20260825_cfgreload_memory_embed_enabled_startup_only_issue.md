@@ -45,7 +45,7 @@ Add `memory_embed_enabled` to `_detect_startup_only()` following the exact patte
 - Regression: existing `_detect_startup_only()` tests for the other two fields continue to pass.
 
 ## Documentation Impact
-If `docs/05_agent_07_06_cli-and-commands-hot-reload.md` (or the equivalent hot-reload scope doc) lists which fields are startup-only, add `memory_embed_enabled` to that list.
+If `docs/agent_07_06_cli-and-commands-hot-reload.md` (or the equivalent hot-reload scope doc) lists which fields are startup-only, add `memory_embed_enabled` to that list.
 
 ## Out of Scope
 - Making `memory_embed_enabled` actually hot-reloadable.

@@ -1,4 +1,4 @@
-# Implementation: L-4 — docs/05_agent_90_inconsistencies_and_known_issues.md DISC-05 entry
+# Implementation: L-4 — docs/agent_90_inconsistencies_and_known_issues.md DISC-05 entry
 
 Source plan: `plans/20260709-102404_plan.md` (L-4, Implementation step 2).
 
@@ -11,7 +11,7 @@ agent-layer, not MCP-layer.
 
 ## Scope
 
-**Target**: `docs/05_agent_90_inconsistencies_and_known_issues.md`,
+**Target**: `docs/agent_90_inconsistencies_and_known_issues.md`,
 "Document Inconsistencies" section, after the existing `DISC-04` entry
 (around line 47, after its closing `---`).
 
@@ -29,7 +29,7 @@ Should land together with
 
 ### Target file
 
-`docs/05_agent_90_inconsistencies_and_known_issues.md`
+`docs/agent_90_inconsistencies_and_known_issues.md`
 
 ### Procedure
 
@@ -40,7 +40,7 @@ Current (lines 40-48):
 ### DISC-04: workflow_mode=required startup blocking scope
 
 - **Type:** Needs confirmation
-- **Impact scope:** `05_agent_08_configuration.md` (workflow_mode description)
+- **Impact scope:** `agent_08_configuration.md` (workflow_mode description)
 - **Statement A:** `workflow_mode = "required"` raises `RuntimeError` when `WorkflowLoader` fails during `Orchestrator.__init__()`
 - **Statement B:** Unclear whether failure is at agent startup or at first turn — depends on whether `StartupOrchestrator.run()` catches this
 - **Current safe interpretation:** Failure occurs during agent boot (Orchestrator construction phase), not at the first turn
@@ -54,7 +54,7 @@ Insert after the `---`:
 ### DISC-05: MCP reload/config docs describe soon-to-be-removed hot-reload and deferred behavior
 
 - **Type:** Document inconsistency
-- **Impact scope:** `05_agent_08_configuration.md`, `05_agent_07_cli-and-commands.md` (MCP reload classification wording)
+- **Impact scope:** `agent_08_configuration.md`, `agent_07_cli-and-commands.md` (MCP reload classification wording)
 - **Statement A:** These docs currently describe MCP HTTP URL as
   hot-reloadable and `auth_token`/`startup_mode` as deferred.
 - **Statement B:** Requirements H-1 through L-2
@@ -79,5 +79,5 @@ Insert after the `---`:
 
 | Check | Command | Expected |
 |---|---|---|
-| New entry present | `grep -n "DISC-05" docs/05_agent_90_inconsistencies_and_known_issues.md` | 1 match |
+| New entry present | `grep -n "DISC-05" docs/agent_90_inconsistencies_and_known_issues.md` | 1 match |
 | Cross-reference valid | confirm `04_mcp_90_inconsistencies_and_known_issues.md` contains `BUG-01` (see `implementations/20260709-103731_...md`) | present |

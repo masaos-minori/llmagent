@@ -1,8 +1,8 @@
-# Implementation Procedure: Fix stale `EmbeddingClientConfig` field list at docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md:67
+# Implementation Procedure: Fix stale `EmbeddingClientConfig` field list at docs/agent_12_05_memory-module-ref-extraction-and-facade.md:67
 
 ## Goal
 
-Correct `docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md:67` so the documented
+Correct `docs/agent_12_05_memory-module-ref-extraction-and-facade.md:67` so the documented
 `EmbeddingClientConfig` field list matches the actual dataclass in
 `scripts/agent/memory/embedding_client.py`, by removing the two non-existent fields
 `query_prefix="query: "` and `embed_dim=384`.
@@ -10,7 +10,7 @@ Correct `docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md:67` so t
 ## Scope
 
 **In scope:**
-- Edit line 67 of `docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md` only.
+- Edit line 67 of `docs/agent_12_05_memory-module-ref-extraction-and-facade.md` only.
 
 **Out of scope:**
 - `scripts/agent/memory/embedding_client.py` (read-only reference; confirmed correct, not modified).
@@ -54,7 +54,7 @@ Correct `docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md:67` so t
 
 ### Target file
 
-`docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md`
+`docs/agent_12_05_memory-module-ref-extraction-and-facade.md`
 
 ### Procedure
 
@@ -65,7 +65,7 @@ Correct `docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md:67` so t
 3. Grep the target doc and wider `docs/` tree for `query_prefix` and `embed_dim` to confirm no
    remaining `EmbeddingClientConfig`-related stale matches (unrelated `embed_dim` hits tied to
    `MemoryStore`/`memory_embed_dim` are expected and out of scope).
-4. Review `git diff docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md` to confirm
+4. Review `git diff docs/agent_12_05_memory-module-ref-extraction-and-facade.md` to confirm
    only line 67 changed.
 
 ### Method
@@ -95,15 +95,15 @@ N/A — no code, secrets, or configuration involved; plain Markdown text edit.
 
 ## Rollback considerations
 
-Trivial single-line revert via `git checkout -- docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md`
+Trivial single-line revert via `git checkout -- docs/agent_12_05_memory-module-ref-extraction-and-facade.md`
 or `git revert` of the introducing commit; no migration or data-state implications.
 
 ## Validation plan
 
 | Target | Testing strategy | Tool / command | Expected outcome |
 |---|---|---|---|
-| Line 67 | Manual re-read | `sed -n '67p' docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md` | Lists exactly the 6 current fields, no `query_prefix`/`embed_dim` |
-| Whole file | No unintended edits | `git diff docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md` | Only line 67 changed |
+| Line 67 | Manual re-read | `sed -n '67p' docs/agent_12_05_memory-module-ref-extraction-and-facade.md` | Lists exactly the 6 current fields, no `query_prefix`/`embed_dim` |
+| Whole file | No unintended edits | `git diff docs/agent_12_05_memory-module-ref-extraction-and-facade.md` | Only line 67 changed |
 | Repo-wide safety check | No stale references remain | `rg -n "query_prefix|embed_dim" docs/` | Zero `query_prefix` matches; only pre-existing unrelated `embed_dim` references remain |
 | Source dataclass | Unchanged | `git diff scripts/agent/memory/embedding_client.py` | No output (file untouched) |
 
@@ -124,4 +124,4 @@ No automated tests, lint, type-check, or coverage gates apply — documentation-
 - Source plan: plans/20260804-140117_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260804-154228
-- Related target files: 05_agent_12_05_memory-module-ref-extraction-and-facade.md
+- Related target files: agent_12_05_memory-module-ref-extraction-and-facade.md

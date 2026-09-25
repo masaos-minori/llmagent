@@ -1,10 +1,10 @@
 # Design: Remove resolved OQ-01 from agent inconsistencies doc
 
 ## Goal
-Remove the `AgentSession` RAG boundary open question (OQ-01) from `docs/05_agent_90_inconsistencies_and_known_issues.md` since it is now resolved by moving document operations to rag-pipeline-mcp.
+Remove the `AgentSession` RAG boundary open question (OQ-01) from `docs/agent_90_inconsistencies_and_known_issues.md` since it is now resolved by moving document operations to rag-pipeline-mcp.
 
 ## Target File
-- `docs/05_agent_90_inconsistencies_and_known_issues.md`
+- `docs/agent_90_inconsistencies_and_known_issues.md`
 
 ## Current State (lines 18-26)
 ```markdown

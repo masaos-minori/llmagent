@@ -33,7 +33,7 @@ N/A: a directory move has exactly one correct implementation (`git mv`) for this
 - No Front Matter or body edit in this row — `git mv` never alters file content.
 
 ## Compatibility considerations
-Any bare-filename reference to `90_shared_00_document-guide.md` elsewhere in the repository continues to resolve via `tools/check_docs_structure.py`'s basename-index resolution (`docsreorg01`). Relative-path (`/`-containing) references are handled by separate rows (seq 12: `docs/00_governance/00_index.md`'s 2 links) — not this row.
+Any bare-filename reference to `shared_00_document-guide.md` elsewhere in the repository continues to resolve via `tools/check_docs_structure.py`'s basename-index resolution (`docsreorg01`). Relative-path (`/`-containing) references are handled by separate rows (seq 12: `docs/00_governance/00_index.md`'s 2 links) — not this row.
 
 ## Security considerations
 N/A: a documentation file rename has no security surface.

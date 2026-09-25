@@ -7,7 +7,7 @@ Low
 `docs/adr/ADR-004-environment-profile-fail-fast-fail-open.md`'s revision removed the concept
 of a Local execution mode and its Fail-Open/Degraded-startup behavior. One document listed
 under ADR-004's own Related Documents section
-(`docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`) still
+(`docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`) still
 contains a "production or local mode" phrase describing startup failure classification. The
 other two Related Documents were checked and contain no such language.
 
@@ -19,7 +19,7 @@ task. A grep for `required_in_local`/`required_in_production`/`failure_policy` a
 issue's scope to the one phrase found.
 
 ## Problem
-`docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md` states
+`docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md` states
 (Evidence: Explicit in code): "Failure in `mcp_tool_discovery` is treated as FATAL regardless
 of whether it is production or local mode." The conclusion (always FATAL) is still consistent
 with ADR-004's current Fail-Fast-only model, but the phrase "production or local mode" implies
@@ -39,7 +39,7 @@ re-read of the sentence's surrounding context to confirm no other nearby text de
 production/local distinction before editing.
 
 ## Target Files or Areas
-- `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md` — primary target
+- `docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md` — primary target
 
 ## Required Changes
 - Reword the identified sentence to remove the "production or local mode" phrasing while preserving its FATAL-classification conclusion.
@@ -52,7 +52,7 @@ production/local distinction before editing.
 ## Acceptance Criteria
 - The document no longer contains "local mode" or equivalent phrasing implying a non-Production execution mode.
 - The FATAL classification for `mcp_tool_discovery` failure remains stated and correct.
-- `uv run python tools/check_docs_quality.py docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md` shows no new issues.
+- `uv run python tools/check_docs_quality.py docs/agent_10_04_operations-and-observability-validation-and-troubleshooting.md` shows no new issues.
 
 ## Testing Expectations
 Documentation-only change; not required beyond the validation command listed above.

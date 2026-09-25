@@ -67,7 +67,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_01_02_overview-layer-responsibilities.md`**
+**File: `shared_01_02_overview-layer-responsibilities.md`**
 - shared/ module-by-module responsibility table: Replace table with prose summary referencing `scripts/shared/`
 - db/ module-by-module responsibility table: Replace table with prose summary referencing `scripts/db/`
 - Per-file function/DTO descriptions: Replace descriptions with prose summaries

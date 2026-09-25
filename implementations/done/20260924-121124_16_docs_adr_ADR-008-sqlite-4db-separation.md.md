@@ -9,7 +9,7 @@ In scope: both occurrences of the relative-path string
 `../00_governance/00_governance_03_issue-and-uncertainty-management.md`. Out of scope:
 any other content in this file (including its own pre-existing, unrelated broken links
 to `03_rag_04_02_rag-persistence.md`, `03_rag_04_03_rag-recovery.md`,
-`05_agent_04_01_agent-session-persistence.md`, and its size-limit finding — all
+`agent_04_01_agent-session-persistence.md`, and its size-limit finding — all
 confirmed pre-existing and unrelated to this Plan); any other REQ-005 file.
 
 ## Assumptions

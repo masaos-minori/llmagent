@@ -65,7 +65,7 @@ Single-entry deletion from a list literal — no other code change needed in thi
 ### Details
 
 - Do not touch any other `CommandDef` entry.
-- After this change, `docs/05_agent_01_system-overview.md`'s "Slash Command Categories" table and `docs/05_agent_07_*` slash-command reference docs will need their `/plugin` rows removed too — that is the existing `plugin_documentation_removal` doc's job (already completed per the task list), not this one; if that doc already ran before this one, double-check it didn't leave a `/plugin` doc row referencing a command this doc is only now removing from code (re-verify docs are still consistent after this lands, since doc-then-code ordering matters less here but should still be checked).
+- After this change, `docs/agent_01_system-overview.md`'s "Slash Command Categories" table and `docs/05_agent_07_*` slash-command reference docs will need their `/plugin` rows removed too — that is the existing `plugin_documentation_removal` doc's job (already completed per the task list), not this one; if that doc already ran before this one, double-check it didn't leave a `/plugin` doc row referencing a command this doc is only now removing from code (re-verify docs are still consistent after this lands, since doc-then-code ordering matters less here but should still be checked).
 
 ## Validation plan
 

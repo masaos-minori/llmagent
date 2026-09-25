@@ -10,7 +10,7 @@ Improve startup validation clarity and operator guidance for `workflow_mode="req
   - Add a preflight workflow-definition check inside `StartupOrchestrator._initialize()` (before `_init_orchestrator()`)
   - Enrich error messages in `Orchestrator.__init__()` and `Orchestrator._log_fallback()` with: mode, expected file path, and remediation hint
   - Add a `check_workflow_definition()` helper in `repl_health.py` (consistent with existing `check_readiness`, `check_routing_drift` patterns)
-  - Update `docs/05_agent_08_configuration.md` — clarify production deployment contract under the `workflow_mode` section
+  - Update `docs/agent_08_configuration.md` — clarify production deployment contract under the `workflow_mode` section
   - Update `docs/05_agent_10_operations-and-observability.md` — add a "Workflow startup validation" sub-section with troubleshooting steps
   - Expand tests in `tests/test_orchestrator.py` and `tests/test_repl_health.py` to assert the new error messages and preflight path
 
@@ -26,7 +26,7 @@ Improve startup validation clarity and operator guidance for `workflow_mode="req
 |---|---|---|
 | UNK-01 | Ordering of `_initialize()` vs `_check_services()` — the preflight check must run before `Orchestrator.__init__()` triggers the actual load | Resolved: Preflight check goes in `_initialize()`, BEFORE `_init_orchestrator()`. The run() sequence is: `_initialize()` (which calls `_init_orchestrator()` at line 68) → `_start_servers()` → `_check_services()`. The preflight must go between lines 67 and 68 in `_initialize()`. |
 | UNK-02 | Whether `check_workflow_definition()` should use `production_mode` flag (raise vs warn) to match `check_readiness()` contract | Resolved: Pass `workflow_mode: str` string parameter to the preflight helper so it can enforce raise-vs-warn based on the mode value, consistent with `check_readiness()` pattern. |
-| UNK-03 | Whether doc updates should also cover `/reload` behaviour when `workflow_mode` changes at runtime | Resolved: `workflow_mode` is NOT listed in the hot-reload eligibility table (lines 60-73 of `docs/05_agent_08_configuration.md`) and is NOT handled in `config_reload.py`. It is a startup-only field. The doc update should note this explicitly. |
+| UNK-03 | Whether doc updates should also cover `/reload` behaviour when `workflow_mode` changes at runtime | Resolved: `workflow_mode` is NOT listed in the hot-reload eligibility table (lines 60-73 of `docs/agent_08_configuration.md`) and is NOT handled in `config_reload.py`. It is a startup-only field. The doc update should note this explicitly. |
 
 ## Code Verification: Current State
 
@@ -116,7 +116,7 @@ The new `check_workflow_definition()` should follow a similar pattern but simple
 
 ### 5. `workflow_mode` is NOT hot-reloadable
 
-**File**: `docs/05_agent_08_configuration.md:60-73` — not in the hot-reload eligibility table.
+**File**: `docs/agent_08_configuration.md:60-73` — not in the hot-reload eligibility table.
 **File**: `scripts/agent/services/config_reload.py` — no references to `workflow_mode`.
 
 This means `/reload` cannot change workflow_mode at runtime; it's a startup-only field. The doc update should make this explicit.
@@ -144,7 +144,7 @@ _WORKFLOWS_DIR = WORKFLOWS_DIR  # backward compat for internal usage
 
 #### 1.2 Confirm `workflow_mode` hot-reload eligibility in docs
 
-**File**: `docs/05_agent_08_configuration.md:60-73` — add note under the table:
+**File**: `docs/agent_08_configuration.md:60-73` — add note under the table:
 
 ```markdown
 **Startup-only settings** (not hot-reloadable):
@@ -370,9 +370,9 @@ def test_required_mode_enriched_error_message(
 
 ### Phase 4: Documentation
 
-#### 4.1 Update `docs/05_agent_08_configuration.md`
+#### 4.1 Update `docs/agent_08_configuration.md`
 
-**File**: `docs/05_agent_08_configuration.md:60-73` — add under the hot-reload eligibility table:
+**File**: `docs/agent_08_configuration.md:60-73` — add under the hot-reload eligibility table:
 
 ```markdown
 **Startup-only settings** (not hot-reloadable):
@@ -439,5 +439,5 @@ Any change requires a full agent restart.
 - `scripts/agent/orchestrator.py` — enrich error messages with mode, file path, and remediation hint
 - `tests/test_repl_health.py` — add `TestCheckWorkflowDefinition` test class
 - `tests/test_orchestrator.py` — extend required_mode test to assert enriched message content
-- `docs/05_agent_08_configuration.md` — note workflow_mode as startup-only (not hot-reloadable); update production default paragraph
+- `docs/agent_08_configuration.md` — note workflow_mode as startup-only (not hot-reloadable); update production default paragraph
 - `docs/05_agent_10_operations-and-observability.md` — add "Workflow startup validation" troubleshooting sub-section

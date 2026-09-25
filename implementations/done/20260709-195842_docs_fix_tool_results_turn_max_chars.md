@@ -2,11 +2,11 @@
 
 ## Goal
 
-Replace stale `"Deprecated — tool_results table removed; no longer enforced"` description in `docs/05_agent_08_configuration.md` with accurate description of current enforcement.
+Replace stale `"Deprecated — tool_results table removed; no longer enforced"` description in `docs/agent_08_configuration.md` with accurate description of current enforcement.
 
 ## Scope
 
-- `docs/05_agent_08_configuration.md` — line 250 field description
+- `docs/agent_08_configuration.md` — line 250 field description
 
 ## Assumptions
 
@@ -17,11 +17,11 @@ Replace stale `"Deprecated — tool_results table removed; no longer enforced"` 
 
 ### Target file
 
-`docs/05_agent_08_configuration.md`
+`docs/agent_08_configuration.md`
 
 ### Procedure
 
-1. Locate line 250 in `docs/05_agent_08_configuration.md`.
+1. Locate line 250 in `docs/agent_08_configuration.md`.
 2. Replace the stale description with:
    "Maximum cumulative tool result characters added to LLM context in a single turn. Protects against excessive per-turn context growth from multiple tool outputs. When exceeded, omitted results are replaced with TURN_LIMIT_HINT."
 

@@ -7,7 +7,7 @@ Medium
 Apply the design-doc reduction policy from `memo-doc-shared-review.md` to `docs/90_shared_05_02_db_api_and_operations-protocol-and-backend.md`: keep the Protocol-based abstraction intent and the store-vs-agent-side responsibility split; remove full method/class enumerations.
 
 ## Reason for Change
-This chapter is the canonical source for store Protocol/backend boundaries (per `memo-doc-shared-review.md` §「章間の正本ルール」: store protocol / backend境界 = `90_shared_05_02_db_api_and_operations-protocol-and-backend`), but currently carries Protocol method lists and backend class enumerations that duplicate the code.
+This chapter is the canonical source for store Protocol/backend boundaries (per `memo-doc-shared-review.md` §「章間の正本ルール」: store protocol / backend境界 = `shared_05_02_db_api_and_operations-protocol-and-backend`), but currently carries Protocol method lists and backend class enumerations that duplicate the code.
 
 ## Implementation Intent
 Keep this chapter focused on why Protocol is used, why `SQLiteSessionStore` is a thin adapter while `SessionMessageRepository` holds semantics, and why `MemoryStore` lives on the agent/memory side rather than in `db/`.

@@ -9,7 +9,7 @@ accurately but does not mention `ToolExecutor.server_configs` at all.
 - **In-Scope**: `docs/04_mcp_03_01_dispatch-and-routing.md`'s `## ToolRouteResolver`
   section only — adding the `ToolExecutor.server_configs`-vs.-removed-argument
   distinction.
-- **Out-of-Scope**: `docs/05_agent_13_reference-api.md` (seq 01 of this Plan); this
+- **Out-of-Scope**: `docs/agent_13_reference-api.md` (seq 01 of this Plan); this
   file's existing constructor example (`resolver = ToolRouteResolver()` /
   `resolver.set_runtime_registry(registry)` / `resolver.resolve(...)`), already
   corrected by DOC-001 and not re-edited here; `docs/04_mcp_90_inconsistencies_and_known_issues.md`
@@ -51,7 +51,7 @@ accurately but does not mention `ToolExecutor.server_configs` at all.
   structural addition than REQ-005 calls for, when the contrast is naturally
   anchored to the `ToolRouteResolver` section this Plan is already correcting the
   false claim about (the removed constructor argument).
-- **Cross-reference `docs/05_agent_13_reference-api.md`'s corrected Configuration
+- **Cross-reference `docs/agent_13_reference-api.md`'s corrected Configuration
   line instead of restating the parameter list here** — considered, rejected: this
   document's own established pattern (e.g., the tool-set table, the MDQ four-layer
   table) is to be self-contained for the concepts it documents rather than
@@ -93,7 +93,7 @@ resolver.set_runtime_registry(registry)
 server_key = resolver.resolve("read_text_file")  # → "file_read"
 ```
 
-**Not to be confused with `ToolExecutor.server_configs`:** `ToolRouteResolver`'s constructor has no `server_configs` parameter — it accepts only `warn_on_missing`, `strict_mode`, and `runtime_registry` (see [Agent Reference API](05_agent_13_reference-api.md) for the full parameter list). `ToolExecutor.server_configs` (`shared/tool_executor.py`) is a separate, current, active configuration: a `dict[str, McpServerConfig]` used for MCP server transport and startup-mode checks (`self._server_configs.get(server_key)`), unrelated to tool-name routing.
+**Not to be confused with `ToolExecutor.server_configs`:** `ToolRouteResolver`'s constructor has no `server_configs` parameter — it accepts only `warn_on_missing`, `strict_mode`, and `runtime_registry` (see [Agent Reference API]()agent_13_reference-api.md for the full parameter list). `ToolExecutor.server_configs` (`shared/tool_executor.py`) is a separate, current, active configuration: a `dict[str, McpServerConfig]` used for MCP server transport and startup-mode checks (`self._server_configs.get(server_key)`), unrelated to tool-name routing.
 
 **Four-layer responsibility of MDQ tool definitions:**
 ```
@@ -117,7 +117,7 @@ rollback carries no cross-file follow-up.
 | Target File/Module | Testing Strategy | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
 | docs/04_mcp_03_01_dispatch-and-routing.md | Automated doc quality check | `uv run python tools/check_docs_quality.py` | No new errors |
-| docs/04_mcp_03_01_dispatch-and-routing.md | Domain consistency check | `uv run python tools/check_docs_consistency.py --domain mcp` | No new port/tool/link drift findings; the new `[Agent Reference API](05_agent_13_reference-api.md)` link resolves |
+| docs/04_mcp_03_01_dispatch-and-routing.md | Domain consistency check | `uv run python tools/check_docs_consistency.py --domain mcp` | No new port/tool/link drift findings; the new `[Agent Reference API]()agent_13_reference-api.md` link resolves |
 | docs/04_mcp_03_01_dispatch-and-routing.md | Manual cross-check | Re-read the new paragraph | `ToolExecutor.server_configs` is clearly distinguished from the removed resolver argument |
 
 ## Completion criteria
@@ -128,7 +128,7 @@ rollback carries no cross-file follow-up.
   tools/check_docs_consistency.py --domain mcp` report no new errors.
 
 ## Out of scope
-`docs/05_agent_13_reference-api.md` (seq 01 of this Plan) — has its own
+`docs/agent_13_reference-api.md` (seq 01 of this Plan) — has its own
 implementation-procedure document per this Plan's Implementation Target Files
 table. `docs/04_mcp_90_inconsistencies_and_known_issues.md` / REQ-006 — Obsolete
 per this Plan's 2026-09-03 correction (file no longer exists).
@@ -140,7 +140,7 @@ per this Plan's 2026-09-03 correction (file no longer exists).
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260903 | 20260903 | Re-verified lines 100-112 before editing — no drift. Inserted the distinction paragraph exactly as designed. |
 | 2 | Add or update tests per Validation plan | Completed | 20260903 | 20260903 | N/A: documentation-only row, no test file owned by this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `check_docs_quality.py`: 0 errors, 1 pre-existing unrelated warning. `check_docs_consistency.py --domain mcp`: no finding mentions this file. `check_docs_structure.py docs/04_mcp_03_01_dispatch-and-routing.md`: All checks passed (new `[Agent Reference API](05_agent_13_reference-api.md)` link resolves). Diff confirmed scoped to exactly the 2 inserted lines. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260903 | 20260903 | `check_docs_quality.py`: 0 errors, 1 pre-existing unrelated warning. `check_docs_consistency.py --domain mcp`: no finding mentions this file. `check_docs_structure.py docs/04_mcp_03_01_dispatch-and-routing.md`: All checks passed (new `[Agent Reference API]()agent_13_reference-api.md` link resolves). Diff confirmed scoped to exactly the 2 inserted lines. |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260903 | 20260903 | N/A: no `docs/00_index.md` task-scope mapping applies |
 
 ### Blocker Log

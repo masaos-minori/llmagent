@@ -30,9 +30,9 @@ Classify each item in Known Issues files into keep, move to main doc, or delete 
 
 - `docs/03_rag_90_inconsistencies_and_known_issues.md`
 - `docs/04_mcp_90_inconsistencies_and_known_issues.md`
-- `docs/05_agent_90_inconsistencies_and_known_issues.md`
+- `docs/agent_90_inconsistencies_and_known_issues.md`
 - `docs/06_eventbus_90_inconsistencies_and_known_issues.md`
-- `docs/90_shared_90_inconsistencies_and_known_issues.md`
+- `docs/shared_90_inconsistencies_and_known_issues.md`
 
 ### Procedure
 
@@ -59,7 +59,7 @@ For `docs/04_mcp_90_inconsistencies_and_known_issues.md`:
 
 #### Step 3: Classify Agent Known Issues
 
-For `docs/05_agent_90_inconsistencies_and_known_issues.md`:
+For `docs/agent_90_inconsistencies_and_known_issues.md`:
 
 1. Open the file
 2. Check if it's empty except for Related Documents and Keywords sections
@@ -79,7 +79,7 @@ For `docs/06_eventbus_90_inconsistencies_and_known_issues.md`:
 
 #### Step 5: Classify Shared Known Issues
 
-For `docs/90_shared_90_inconsistencies_and_known_issues.md`:
+For `docs/shared_90_inconsistencies_and_known_issues.md`:
 
 1. Open the file
 2. Review each item
@@ -128,4 +128,4 @@ Create a summary table of classifications for each file:
 - Source plan: plans/20260722-171210_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260722-181901
-- Related target files: docs/03_rag_90_inconsistencies_and_known_issues.md, docs/04_mcp_90_inconsistencies_and_known_issues.md, docs/05_agent_90_inconsistencies_and_known_issues.md, docs/06_eventbus_90_inconsistencies_and_known_issues.md, docs/90_shared_90_inconsistencies_and_known_issues.md
+- Related target files: docs/03_rag_90_inconsistencies_and_known_issues.md, docs/04_mcp_90_inconsistencies_and_known_issues.md, docs/agent_90_inconsistencies_and_known_issues.md, docs/06_eventbus_90_inconsistencies_and_known_issues.md, docs/shared_90_inconsistencies_and_known_issues.md

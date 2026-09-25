@@ -42,7 +42,7 @@ Remove two backward-compatibility layers that are actively depended on by produc
 
 1. `orchestrator.py:432` is the only production call site of `TurnResult.success` — confirmed by grepping `\.success\b` across `scripts/agent` and manually verifying every other hit (`factory.py`, `context_view.py`, `rag_maintenance_service.py`, `db_maintenance_service.py`, `embedding_client.py`, `memory/injection.py`, `memory/ingestion.py`) resolves to an unrelated `RepoResult`/`EmbedResult`-style dataclass, not `TurnResult`.
 2. No test constructs a `TurnResult` and then asserts on `.success` — confirmed via `grep -n "\.success\|TurnResult(" tests/test_orchestrator.py tests/test_llm_turn_runner.py`; all `TurnResult(...)` constructions in tests already use `action=...` directly.
-3. `shared.types` already defines `RagHit`, `MergedHit`, `RankedHit`, `RawHit` as the canonical source; `scripts/rag/types.py` currently re-exports them purely for backward compatibility (per its own docstring and `docs/90_shared_02_types_and_protocols.md`).
+3. `shared.types` already defines `RagHit`, `MergedHit`, `RankedHit`, `RawHit` as the canonical source; `scripts/rag/types.py` currently re-exports them purely for backward compatibility (per its own docstring and `docs/shared_02_types_and_protocols.md`).
 4. `rag → shared` is an already-permitted import direction per the layer contract in `AGENTS.md` (`rag → db, shared`), so switching these imports to `shared.types` introduces no new architecture violation.
 
 ## Implementation

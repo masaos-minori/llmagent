@@ -5,7 +5,7 @@ Move `docs/databases/active_databases.md` into `docs/41_db/` using `git mv`, con
 ## Scope
 
 - **In-Scope**: Moving exactly this one file via `git mv`; removing the empty `docs/databases/` directory after the move; verifying git history preservation through the move.
-- **Out-of-Scope**: Moving any other DB-topic file (tracked by its own procedure document); renaming any file; changing `agent-docs-consistency.yml`'s pre-existing asymmetric coverage of `90_shared_04_*` vs `90_shared_05_*`; any content edit beyond what `docsreorg04` already covers.
+- **Out-of-Scope**: Moving any other DB-topic file (tracked by its own procedure document); renaming any file; changing `agent-docs-consistency.yml`'s pre-existing asymmetric coverage of `shared_04_*` vs `shared_05_*`; any content edit beyond what `docsreorg04` already covers.
 
 ## Assumptions
 
@@ -84,7 +84,7 @@ To rollback, execute `git revert <commit>` where `<commit>` is the merge commit 
 
 ## Out of scope
 
-Moving any other DB-topic file (each tracked by its own procedure document); renaming any file; changing `agent-docs-consistency.yml`'s pre-existing asymmetric coverage of `90_shared_04_*` vs `90_shared_05_*`; any content edit beyond what `docsreorg04` already covers.
+Moving any other DB-topic file (each tracked by its own procedure document); renaming any file; changing `agent-docs-consistency.yml`'s pre-existing asymmetric coverage of `shared_04_*` vs `shared_05_*`; any content edit beyond what `docsreorg04` already covers.
 
 ## Execution Status
 

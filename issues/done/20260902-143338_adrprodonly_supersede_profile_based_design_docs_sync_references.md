@@ -46,7 +46,7 @@ allowlist for unrelated "local" meanings.
 - `docs/adr-index.md`
 - `docs/00_security_01_architecture-and-trust-boundaries.md`
 - `docs/04_mcp_06_02_configuration-file-inventory.md`
-- `docs/05_agent_08_01_configuration-loading-agent-config.md`
+- `docs/agent_08_01_configuration-loading-agent-config.md`
 - MCP and Agent startup/failure-policy documents
 - Deployment, operations, troubleshooting, and testing guides
 - Known Issues documents

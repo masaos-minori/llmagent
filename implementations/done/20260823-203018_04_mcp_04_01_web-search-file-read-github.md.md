@@ -39,7 +39,7 @@ this same file.
 ## Design decisions
 
 - Follow the established "See also: [target](target)" inline-note convention already
-  used elsewhere in this file/repo (e.g. `docs/05_agent_03_03_turn-processing-flow-workflow-engine.md`)
+  used elsewhere in this file/repo (e.g. `docs/agent_03_03_turn-processing-flow-workflow-engine.md`)
   and by the sibling `docs/04_mcp_04_05_git.md` (already implemented — see this plan's
   Scope), rather than inventing new phrasing.
 - Place the note as the very first line of the section (immediately after the `##

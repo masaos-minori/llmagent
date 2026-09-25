@@ -10,7 +10,7 @@ Add a Migration Notes entry for the removed `/note` command group in `docs/05_ag
 - Add `/note commands (removed)` section to Migration Notes in `docs/05_agent_07_cli-and-commands.md`
 
 **Out-of-Scope**:
-- Cleanup of residual `/note` references in `docs/05_agent_13_reference-api.md`
+- Cleanup of residual `/note` references in `docs/agent_13_reference-api.md`
 - Cleanup of notes references in other docs
 - Backward-compatible alias implementation
 

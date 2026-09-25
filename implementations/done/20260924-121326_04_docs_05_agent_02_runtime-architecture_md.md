@@ -2,17 +2,17 @@
 
 ## Goal
 
-Include the preflight gate coverage map in Agent architecture documentation at `docs/05_agent_02_runtime-architecture.md`, per REQ-04.
+Include the preflight gate coverage map in Agent architecture documentation at `docs/agent_02_runtime-architecture.md`, per REQ-04.
 
 ## Scope
 
-- Modify `docs/05_agent_02_runtime-architecture.md`
+- Modify `docs/agent_02_runtime-architecture.md`
 - Add a new section documenting the preflight gate coverage map
 - Document all 4 `check_preflight()` call sites with their caller chains, gate status, and test coverage
 
 ## Assumptions
 
-- The Agent runtime architecture document is `docs/05_agent_02_runtime-architecture.md` (confirmed by UNK-01 resolution)
+- The Agent runtime architecture document is `docs/agent_02_runtime-architecture.md` (confirmed by UNK-01 resolution)
 - The coverage map should follow the existing document structure (sections with headings, bullet points)
 - The document uses Markdown format with Japanese headers (consistent with other Agent docs)
 
@@ -32,7 +32,7 @@ Include the preflight gate coverage map in Agent architecture documentation at `
 
 ### Target file
 
-`docs/05_agent_02_runtime-architecture.md`
+`docs/agent_02_runtime-architecture.md`
 
 ### Procedure
 
@@ -127,7 +127,7 @@ Coverage map accuracy must be maintained over time. Future changes to gate place
 
 ## Completion criteria
 
-- [ ] `docs/05_agent_02_runtime-architecture.md` contains a `## Preflight Gate Coverage` section
+- [ ] `docs/agent_02_runtime-architecture.md` contains a `## Preflight Gate Coverage` section
 - [ ] Coverage map table includes all 4 `check_preflight()` call sites
 - [ ] Exempt paths table documents all 3 exemption cases
 - [ ] Gateway-bypass gap analysis documents all 3 patterns
@@ -168,4 +168,4 @@ Coverage map accuracy must be maintained over time. Future changes to gate place
 - **Source plan**: plans/20260924-070936_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260924-121326
-- **Related target files**: docs/05_agent_02_runtime-architecture.md
+- **Related target files**: docs/agent_02_runtime-architecture.md

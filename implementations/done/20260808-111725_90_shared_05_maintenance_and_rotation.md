@@ -69,7 +69,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md`**
+**File: `shared_05_03_db_api_and_operations-maintenance-and-rotation.md`**
 - Full maintenance function signatures: Replace with prose summary referencing `scripts/db/maintenance.py`
 - MaintenanceResult dataclass definitions: Replace with prose summary
 - Verbose processing explanations of purge/prune: Replace with prose summary

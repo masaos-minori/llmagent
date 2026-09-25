@@ -1,7 +1,7 @@
 ## Goal
 
 Remove the stale "ToolExecutor: tool_cache_ttl" hot-reloadable-scope bullet from
-`docs/05_agent_08_01_configuration-loading-agent-config.md` (REQ-002), per
+`docs/agent_08_01_configuration-loading-agent-config.md` (REQ-002), per
 `plans/20260825-142943_plan.md`.
 
 ## Scope
@@ -30,7 +30,7 @@ Remove the stale "ToolExecutor: tool_cache_ttl" hot-reloadable-scope bullet from
 
 ## Implementation
 ### Target file
-`docs/05_agent_08_01_configuration-loading-agent-config.md`
+`docs/agent_08_01_configuration-loading-agent-config.md`
 
 ### Procedure
 1. Re-confirm the current line number immediately before editing (verified at
@@ -64,12 +64,12 @@ Delete this line entirely from the "Hot-Reloadable Scope" list.
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_08_01_configuration-loading-agent-config.md` | Manual diff | `git diff <path>` | Bullet removed |
-| `docs/05_agent_08_01_configuration-loading-agent-config.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | No new warning/error |
+| `docs/agent_08_01_configuration-loading-agent-config.md` | Manual diff | `git diff <path>` | Bullet removed |
+| `docs/agent_08_01_configuration-loading-agent-config.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | No new warning/error |
 
 ## Completion criteria
 
-- `rg -n "tool_cache_ttl" docs/05_agent_08_01_configuration-loading-agent-config.md`
+- `rg -n "tool_cache_ttl" docs/agent_08_01_configuration-loading-agent-config.md`
   returns no matches.
 
 ## Out of scope
@@ -103,4 +103,4 @@ Delete this line entirely from the "Hot-Reloadable Scope" list.
 - **Source plan**: `plans/20260825-142943_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure; supersedes the corresponding portion of `implementations/20260825-224356_11_docs_tool_cache_removal.md` (left Blocked, never implemented)
 - **Generated at**: 20260827-133325
-- **Related target files**: `docs/05_agent_08_01_configuration-loading-agent-config.md`
+- **Related target files**: `docs/agent_08_01_configuration-loading-agent-config.md`

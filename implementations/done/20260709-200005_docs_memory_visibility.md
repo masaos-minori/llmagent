@@ -7,7 +7,7 @@ Update memory status documentation to reflect the new mode labels and improved v
 ## Scope
 
 - `docs/05_agent_10_operations-and-observability.md`
-- `docs/05_agent_12_memory.md`
+- `docs/agent_12_memory.md`
 
 ## Assumptions
 
@@ -23,12 +23,12 @@ Update memory status documentation to reflect the new mode labels and improved v
 ### Target files
 
 1. `docs/05_agent_10_operations-and-observability.md`
-2. `docs/05_agent_12_memory.md`
+2. `docs/agent_12_memory.md`
 
 ### Procedure
 
-1. In `05_agent_10_operations-and-observability.md`: update `/memory status` output documentation to include the mode labels.
-2. In `05_agent_12_memory.md`: add section explaining each memory mode and what it means for retrieval behavior.
+1. In `agent_10_operations-and-observability.md`: update `/memory status` output documentation to include the mode labels.
+2. In `agent_12_memory.md`: add section explaining each memory mode and what it means for retrieval behavior.
 
 ### Details
 

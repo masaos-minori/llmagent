@@ -26,7 +26,7 @@ Update or remove reference to non-existent Python module (`scripts/agent/http_li
 
 ### Target file
 
-`docs/05_agent_14_reference-api-generated.md`
+`docs/agent_14_reference-api-generated.md`
 
 ### Procedure
 
@@ -70,8 +70,8 @@ Read the file, identify the exact line numbers containing the incorrect filename
 
 | Target File | Testing Strategy | Expected Outcome |
 |---|---|---|
-| docs/05_agent_14_reference-api-generated.md | Manual review | No reference to non-existent module |
-| docs/05_agent_14_reference-api-generated.md | Automated check | `uv run python tools/check_docs_consistency.py --domain agent` passes without WARNING-level findings for missing files |
+| docs/agent_14_reference-api-generated.md | Manual review | No reference to non-existent module |
+| docs/agent_14_reference-api-generated.md | Automated check | `uv run python tools/check_docs_consistency.py --domain agent` passes without WARNING-level findings for missing files |
 
 ## Completion criteria
 
@@ -113,4 +113,4 @@ Read the file, identify the exact line numbers containing the incorrect filename
 - **Source plan**: plans/20260921-201621_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260921-202505
-- **Related target files**: docs/05_agent_14_reference-api-generated.md
+- **Related target files**: docs/agent_14_reference-api-generated.md

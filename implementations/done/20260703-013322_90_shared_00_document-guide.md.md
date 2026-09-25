@@ -62,7 +62,7 @@ Bash tool（grep検索） → ヒットがある場合のみ Edit tool
 期待される結果: 現行ファイルにはマイグレーション関連の記述がないため、変更不要となる見込み。
 
 ファイルの「Canonical Source Rules」セクションや「Guidance for Safe AI Use」セクションにマイグレーション関連の記述がある場合は以下の方針で対処する:
-- DB再作成ポリシーへの参照が存在しない場合: `90_shared_05` §8 の「corruption recovery」セクションが再作成手順を扱うため、そこへのリンクで代替
+- DB再作成ポリシーへの参照が存在しない場合: `shared_05` §8 の「corruption recovery」セクションが再作成手順を扱うため、そこへのリンクで代替
 
 ---
 

@@ -10,7 +10,7 @@ Agent documentation gains the same class of automated, CI-enforced doc-vs-code c
 ## Scope
 
 **In scope**
-- New `tools/check_agent_docs_consistency.py`, mirroring `tools/check_mcp_docs_consistency.py`'s architecture (typed `Issue`/`DocFile` dataclasses, one function per check, `--skip` flag registry, ERROR/WARNING severity), implementing: broken internal Markdown link detection, removed-legacy-doc-file reference prohibition, slash-command drift (vs. `command_defs_list.py`'s `_COMMANDS`), best-effort DB-schema drift (vs. `schema_sql.py`), and obsolete diagnostics references (seeded from `docs/05_agent_90_inconsistencies_and_known_issues.md`).
+- New `tools/check_agent_docs_consistency.py`, mirroring `tools/check_mcp_docs_consistency.py`'s architecture (typed `Issue`/`DocFile` dataclasses, one function per check, `--skip` flag registry, ERROR/WARNING severity), implementing: broken internal Markdown link detection, removed-legacy-doc-file reference prohibition, slash-command drift (vs. `command_defs_list.py`'s `_COMMANDS`), best-effort DB-schema drift (vs. `schema_sql.py`), and obsolete diagnostics references (seeded from `docs/agent_90_inconsistencies_and_known_issues.md`).
 - **Prerequisite fix 1**: `.github/workflows/mcp-docs-consistency.yml` and `.github/workflows/rag-docs-quality.yml` both invoke the non-existent path `scripts/checks/check_*_consistency.py` — correct both to `tools/check_*_consistency.py`.
 - **Prerequisite fix 2**: `uv run check-mcp-docs` is currently non-functional (`ModuleNotFoundError`) because `pyproject.toml`'s `[tool.setuptools.packages.find]` scopes `where = ["scripts"]` only, excluding `tools/` — fix the package/entry-point configuration so both `check-mcp-docs` and the new `check-agent-docs` resolve.
 - New `.github/workflows/agent-docs-consistency.yml`, modeled on the path-corrected `mcp-docs-consistency.yml`.
@@ -23,12 +23,12 @@ Agent documentation gains the same class of automated, CI-enforced doc-vs-code c
 - Semantic verification of every paragraph.
 - Automatically deleting `Current behavior` notes without a verification step.
 - Resolving every implementation mismatch found during triage inline — file as tracked issues instead.
-- Treating `05_agent_all.md` / `04_mcp_all.md` as real target files — confirmed these never existed in this repo's git history (Assumption 1); this plan targets the actual split doc files.
+- Treating `agent_all.md` / `04_mcp_all.md` as real target files — confirmed these never existed in this repo's git history (Assumption 1); this plan targets the actual split doc files.
 - A full, column-level DB schema documentation diff — scoped to "feasible-effort" per the source requirement.
 
 ## Assumptions
 
-1. `05_agent_all.md` and `04_mcp_all.md` (the source requirement's stated target files) do not exist and have never existed in this repo's git history — confirmed via `find` and `git log --all --oneline`. The only references to these filenames anywhere are inside requirement documents themselves. This plan targets the real split files (`docs/05_agent_*.md`, `docs/04_mcp_*.md`).
+1. `agent_all.md` and `04_mcp_all.md` (the source requirement's stated target files) do not exist and have never existed in this repo's git history — confirmed via `find` and `git log --all --oneline`. The only references to these filenames anywhere are inside requirement documents themselves. This plan targets the real split files (`docs/05_agent_*.md`, `docs/04_mcp_*.md`).
 2. `tools/check_docs_consistency.py` (441 lines, 10 checks, gates its RAG-specific checks on `filename.startswith("03_rag_")`) and `tools/check_mcp_docs_consistency.py` (809 lines, 12 checks) are the correct existing assets — neither currently does broken-link detection, command-drift, or DB-schema-drift checking; Agent docs today receive only 8 generic checks and nothing agent-specific.
 3. `.github/workflows/mcp-docs-consistency.yml` and `rag-docs-quality.yml` reference `scripts/checks/check_*.py` — **confirmed broken** by direct local reproduction (`FileNotFoundError`); real files live at `tools/check_*.py`.
 4. `uv run check-mcp-docs` **confirmed broken** (`ModuleNotFoundError: No module named 'check_mcp_docs_consistency'`) — `pyproject.toml`'s `[tool.setuptools.packages.find]` sets `where = ["scripts"]` only; `tools/` is outside the package path.
@@ -53,7 +53,7 @@ Primary (new): `tools/check_agent_docs_consistency.py`. Secondary: `.github/work
    - Removed-legacy-file-reference prohibition: flag references to any removed/renamed doc file.
    - Slash-command drift: extract command names from `CommandDef(...)` calls in `command_defs_list.py`; flag doc-referenced `/command` not in `_COMMANDS`, or `_COMMANDS` entries with no doc mention.
    - DB-schema drift (best-effort): regex-extract `CREATE TABLE`/`CREATE VIRTUAL TABLE` names from `schema_sql.py`'s template strings per Step 1's verified extractor; cross-check against table names in `docs/90_shared_04_*` and `docs/05_agent_09_*`.
-   - Obsolete diagnostics references: seed from `docs/05_agent_90_inconsistencies_and_known_issues.md`.
+   - Obsolete diagnostics references: seed from `docs/agent_90_inconsistencies_and_known_issues.md`.
    - Wire each check behind a `--skip <name>` flag; severity: broken links and removed-file references are ERROR; command/DB-schema drift and diagnostics references are WARNING initially (staged rollout, promotable to ERROR later); ensure error output includes file path, section/line, and offending reference.
 5. **Add `check-agent-docs` to `pyproject.toml`** (using Step 3's corrected package-resolution mechanism) and wire `.github/workflows/agent-docs-consistency.yml`, triggered on `docs/05_agent_*.md` + the new checker file.
 6. **Run the new checker against the current doc set** and fix any real findings (broken links, stale command references, etc.) before wiring it as a required CI check.

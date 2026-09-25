@@ -1,7 +1,7 @@
 ## Goal
 
 Correct the stale fetch()-decryption "Known Limitations"/description notes in
-`docs/05_agent_09_01_data-layer-session-db.md` (REQ-006), per
+`docs/agent_09_01_data-layer-session-db.md` (REQ-006), per
 `plans/20260826-120102_plan.md`.
 
 ## Scope
@@ -37,7 +37,7 @@ Correct the stale fetch()-decryption "Known Limitations"/description notes in
 
 ## Implementation
 ### Target file
-`docs/05_agent_09_01_data-layer-session-db.md`
+`docs/agent_09_01_data-layer-session-db.md`
 
 ### Procedure
 1. Rewrite line 74's "Can be encrypted with `encrypt=True`, but `fetch()` does not
@@ -90,7 +90,7 @@ error) rather than claiming decryption is unimplemented.
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `docs/05_agent_09_01_data-layer-session-db.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | Passes; no new findings |
+| `docs/agent_09_01_data-layer-session-db.md` | Doc consistency check | `uv run python tools/check_docs_consistency.py --domain agent` | Passes; no new findings |
 
 ## Completion criteria
 
@@ -130,4 +130,4 @@ error) rather than claiming decryption is unimplemented.
 - **Source plan**: `plans/20260826-120102_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260827-111437
-- **Related target files**: `docs/05_agent_09_01_data-layer-session-db.md`
+- **Related target files**: `docs/agent_09_01_data-layer-session-db.md`

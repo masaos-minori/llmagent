@@ -41,7 +41,7 @@ drift validation; `ToolExecutor.server_configs` is an active execution dependenc
 
 ## Target Files or Areas
 - `docs/01_overview-arch-03-features.md`
-- `docs/05_agent_13_reference-api.md`
+- `docs/agent_13_reference-api.md`
 - `docs/90_shared_02_02_types_and_protocols-tool-and-execution-dto.md`
 - `docs/90_shared_03_04_runtime_and_execution-caching-and-reference.md`
 - `docs/adr/ADR-003-runtime-tool-registry-routing-authority.md`

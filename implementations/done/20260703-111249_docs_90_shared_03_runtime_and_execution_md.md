@@ -1,6 +1,6 @@
 ## Goal
 
-Add a "Test isolation" note to section 4 (`plugin_registry`) of `docs/90_shared_03_runtime_and_execution.md` clarifying that `_reset_for_testing()` must not be called from non-test code and must be called in a fixture in any test file that touches the registry.
+Add a "Test isolation" note to section 4 (`plugin_registry`) of `docs/shared_03_runtime_and_execution.md` clarifying that `_reset_for_testing()` must not be called from non-test code and must be called in a fixture in any test file that touches the registry.
 
 ## Scope
 
@@ -21,7 +21,7 @@ Add a "Test isolation" note to section 4 (`plugin_registry`) of `docs/90_shared_
 
 ### Target file
 
-`/home/masaos/llmagent/docs/90_shared_03_runtime_and_execution.md`
+`/home/masaos/llmagent/docs/shared_03_runtime_and_execution.md`
 
 ### Procedure
 
@@ -65,10 +65,10 @@ Add a "Test isolation" note to section 4 (`plugin_registry`) of `docs/90_shared_
 
 ```bash
 # Confirm the new text is present
-grep -n 'Test isolation' /home/masaos/llmagent/docs/90_shared_03_runtime_and_execution.md
+grep -n 'Test isolation' /home/masaos/llmagent/docs/shared_03_runtime_and_execution.md
 
 # Confirm _reset_for_testing now appears in section 4
-grep -n '_reset_for_testing' /home/masaos/llmagent/docs/90_shared_03_runtime_and_execution.md
+grep -n '_reset_for_testing' /home/masaos/llmagent/docs/shared_03_runtime_and_execution.md
 ```
 
 Expected: `Test isolation:` appears in the document; `_reset_for_testing` appears in the section 4 context (not just in code blocks under other sections).

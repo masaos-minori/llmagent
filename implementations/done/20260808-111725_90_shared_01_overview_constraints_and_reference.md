@@ -65,7 +65,7 @@ For each target section:
 
 ### Details
 
-**File: `90_shared_01_03_overview-constraints-and-reference.md`**
+**File: `shared_01_03_overview-constraints-and-reference.md`**
 - Overly fine-grained constraint value table: Replace table with prose summary referencing `scripts/shared/` and `scripts/db/`
 - AI reference guide question table: Replace question table with prose summary
 - Mechanical DB table enumeration: Replace table enumeration with prose summary
