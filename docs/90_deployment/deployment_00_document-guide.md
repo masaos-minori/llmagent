@@ -18,16 +18,16 @@ These documents describe the deployment process, environment setup, and operatio
 
 | Category | File |
 |---|---|
-| Deployment Guide | ~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) |
+| Deployment Guide | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) |
 
 ## AI Query Routing
 
 | Question | Rule |
 |---|---|
-| Environment setup & provisioning | ~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) |
-| DB initialization | ~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) §3 |
-| Service configuration | ~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) §4 |
-| Monitoring & health checks | ~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) §5 |
+| Environment setup & provisioning | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) |
+| DB initialization | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) §3 |
+| Service configuration | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) §4 |
+| Monitoring & health checks | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) §5 |
 
 ## Canonical Source Rule
 
@@ -48,4 +48,4 @@ No reference APIs exist in this directory. All files are deployment guides.
 
 ## Related Documents
 
-- ~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)
+- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)

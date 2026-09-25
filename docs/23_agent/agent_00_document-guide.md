@@ -100,7 +100,7 @@ When schema/command references change, verify that `agent_01_system-overview.md`
 
 ### Removed Files
 
-Deleted `05_ref-*` / ~~~~~~~~~~~~~~~~~~~~`05_agent-impl-flow.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~`05_agent-ops.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) files are integrated into chapters 02-13 above. See [governance_03_issue-and-uncertainty-management.md](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Agent) for known issues and unresolved items.
+Deleted `05_ref-*` / ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`05_agent-impl-flow.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`05_agent-ops.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) files are integrated into chapters 02-13 above. See [governance_03_issue-and-uncertainty-management.md](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Agent) for known issues and unresolved items.
 
 ### Additional References
 
