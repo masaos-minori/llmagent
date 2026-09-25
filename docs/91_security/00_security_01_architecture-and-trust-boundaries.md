@@ -14,15 +14,15 @@ related:
   - 04_mcp_05_01_access-control-and-allowlists.md
   - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - 05_agent_06_01_tool-execution-and-approval-execution.md
-  - 03_rag_03_05_query_pipeline-augment-stages.md
+  - rag_03_05_query_pipeline-augment-stages.md
   - 04_mcp_06_16_pre-production-fail-open-checklist.md
   - 04_mcp_06_17_local-to-production-auth-migration.md
   - 04_mcp_02_03_audit-logging-and-errors.md
   - 04_mcp_06_07_reading-audit-logs.md
   - 05_agent_10_02_operations-and-observability-audit-and-otel.md
   - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
-  - 03_rag_04_02_dto-models_result.md
-  - 03_rag_05_2-execution-guide.md
+  - rag_04_02_dto-models_result.md
+  - rag_05_2-execution-guide.md
 ---
 
 # System Security Architecture and Trust Boundaries
@@ -61,7 +61,7 @@ The following assets are protected by the security architecture:
 The threat model covers the following threat vectors:
 
 - **Untrusted LLM output**: LLM may generate malicious tool calls, paths, or arguments; mitigated by tool argument validation, path allowlists, command allowlists, and approval workflows
-- **Untrusted RAG-ingested content**: Ingested web content may contain malicious payloads; mitigated by `sanitize_document()` in `03_rag_03_05`, size limits, and content-type validation
+- **Untrusted RAG-ingested content**: Ingested web content may contain malicious payloads; mitigated by `sanitize_document()` in `rag_03_05`, size limits, and content-type validation
 - **Untrusted tool arguments**: Tool arguments may contain path traversal, command injection, or SQL injection; mitigated by `validate_tool_arguments()` in `05_agent_06_01`, path resolution via `Path.resolve()`, and command allowlists
 - **Path/symlink escape**: Attempts to escape `allowed_dirs`/`allowed_repo_paths`; mitigated by `Path.resolve()` before allowlist comparison
 - **Command-allowlist bypass**: Attempts to execute unauthorized commands; mitigated by command allowlist enforcement in shell MCP and shell tool
@@ -167,10 +167,10 @@ Prompt injection responsibility is distributed across layers:
 | Agent → LLM | Agent | System prompt construction; no user input in system prompt |
 | LLM output → Tool args | Agent | `validate_tool_arguments()` in `05_agent_06_01`; schema validation |
 | Tool args → MCP server | MCP | Path allowlist, command allowlist, schema validation |
-| RAG ingestion → Vector store | RAG ingestion | `sanitize_document()` in `03_rag_03_05` removes scripts, iframes, suspicious patterns |
-| RAG query → LLM | Agent | Retrieved chunks passed as context; `was_sanitized` flag in `03_rag_04_02` |
+| RAG ingestion → Vector store | RAG ingestion | `sanitize_document()` in `rag_03_05` removes scripts, iframes, suspicious patterns |
+| RAG query → LLM | Agent | Retrieved chunks passed as context; `was_sanitized` flag in `rag_04_02` |
 
-*Source: `03_rag_03_05_query_pipeline-augment-stages.md` (`sanitize_document()`), `03_rag_04_02_dto-models_result.md` (`was_sanitized`, `patterns_detected`)*
+*Source: `rag_03_05_query_pipeline-augment-stages.md` (`sanitize_document()`), `rag_04_02_dto-models_result.md` (`was_sanitized`, `patterns_detected`)*
 
 ## Failure modes and operational readiness
 
@@ -216,7 +216,7 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 
 When embedding is unavailable: existing documents remain searchable via FTS, new documents cannot be indexed, `memory_embed_enabled` remains `true` but embeddings are not generated, and the system logs a WARNING on each failed embedding attempt.
 
-*Source: [03_rag_05_2-execution-guide.md](03_rag_05_2-execution-guide.md#26-rag-integrity-check)*
+*Source: [rag_05_2-execution-guide.md](rag_05_2-execution-guide.md#26-rag-integrity-check)*
 
 ### Memory layer failure behavior
 
@@ -308,15 +308,15 @@ and remains in effect as defense-in-depth.
 - `04_mcp_05_01_access-control-and-allowlists.md`
 - `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `05_agent_06_01_tool-execution-and-approval-execution.md`
-- `03_rag_03_05_query_pipeline-augment-stages.md`
+- `rag_03_05_query_pipeline-augment-stages.md`
 - `04_mcp_06_16_pre-production-fail-open-checklist.md`
 - `04_mcp_06_17_local-to-production-auth-migration.md`
 - `04_mcp_02_03_audit-logging-and-errors.md`
 - `04_mcp_06_07_reading-audit-logs.md`
 - `05_agent_10_02_operations-and-observability-audit-and-otel.md`
 - `05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
-- `03_rag_04_02_dto-models_result.md`
-- `03_rag_05_2-execution-guide.md`
+- `rag_04_02_dto-models_result.md`
+- `rag_05_2-execution-guide.md`
 
 ## Keywords
 

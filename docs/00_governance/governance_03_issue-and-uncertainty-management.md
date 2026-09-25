@@ -67,7 +67,7 @@ Part 1 entries are reviewed quarterly, consistent with the cadence documented fo
 
 ### Consolidation Note
 
-The area-specific `03_rag_90_inconsistencies_and_known_issues.md`,
+The area-specific `rag_90_inconsistencies_and_known_issues.md`,
 `04_mcp_90_inconsistencies_and_known_issues.md`,
 `05_agent_90_inconsistencies_and_known_issues.md`,
 `06_eventbus_90_inconsistencies_and_known_issues.md`, and
@@ -379,7 +379,7 @@ Note on CI-008 through CI-016 batching: These nine structurally identical "ADR i
 #### CI-017
 
 - **ID**: CI-017
-- **Title**: `docs/03_rag_04_04_dto-models_config.md`'s documented DTOs no longer exist — `scripts/rag/models_config.py` replaced by `RagConfigImpl`
+- **Title**: `docs/rag_04_04_dto-models_config.md`'s documented DTOs no longer exist — `scripts/rag/models_config.py` replaced by `RagConfigImpl`
 - **Status**: open
 - **Severity**: Medium
 - **Area**: RAG
@@ -387,13 +387,13 @@ Note on CI-008 through CI-016 batching: These nine structurally identical "ADR i
 - **Source**: `scripts/rag/models_config.py`, `scripts/shared/types.py::RagConfig`
 - **Owner**: Unassigned
 - **First Found**: 2026-09-20
-- **Target**: `docs/03_rag_04_04_dto-models_config.md`
+- **Target**: `docs/rag_04_04_dto-models_config.md`
 - **Related**: N/A
-- **Summary**: The 7 dataclasses documented in `docs/03_rag_04_04_dto-models_config.md` (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) no longer exist in `scripts/rag/models_config.py`, which now defines only `RagConfigImpl`.
+- **Summary**: The 7 dataclasses documented in `docs/rag_04_04_dto-models_config.md` (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) no longer exist in `scripts/rag/models_config.py`, which now defines only `RagConfigImpl`.
 - **Current Description**: The doc's main body still describes the 7 legacy per-stage config dataclasses as the runtime config contract.
 - **Observed Implementation**: `scripts/rag/models_config.py` defines only `RagConfigImpl` (a flat dataclass), actively used by `scripts/rag/pipeline.py` and 5 test files, implementing the `RagConfig` Protocol (`scripts/shared/types.py`), whose docstring no longer claims these files are "DTOs for the ingestion TOML format".
 - **Impact**: A reader of this doc would look for config classes that no longer exist and miss the actual runtime contract (`RagConfigImpl`/`RagConfig` Protocol).
-- **Recommended Action**: Rewrite `docs/03_rag_04_04_dto-models_config.md`'s main body to document `RagConfigImpl` and the `RagConfig` Protocol instead of the removed per-stage dataclasses.
+- **Recommended Action**: Rewrite `docs/rag_04_04_dto-models_config.md`'s main body to document `RagConfigImpl` and the `RagConfig` Protocol instead of the removed per-stage dataclasses.
 - **Resolution Target**: Next RAG documentation pass covering `scripts/rag/models_config.py`
 
 #### CI-018
@@ -407,7 +407,7 @@ Note on CI-008 through CI-016 batching: These nine structurally identical "ADR i
 - **Source**: `scripts/rag/exceptions.py`, `scripts/rag/llm_prompts.py::RagRerankError`, `scripts/rag/pipeline.py::RagPipelineError`
 - **Owner**: Unassigned
 - **First Found**: 2026-09-19
-- **Target**: `docs/03_rag_05_4-error-handling-reference.md`
+- **Target**: `docs/rag_05_4-error-handling-reference.md`
 - **Related**: N/A
 - **Summary**: `RagRerankError` and `RagPipelineError` are defined outside `scripts/rag/exceptions.py` and inherit from `RuntimeError` rather than the `RagLayerError` base class used by the other 7 rag-layer exceptions, with no ADR or design document recording a rationale for the split.
 - **Current Description**: The exception hierarchy is not unified under a single base class across the rag layer.
@@ -542,7 +542,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-027
 
-- **Source File**: `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
+- **Source File**: `rag_02_03_ingestion_pipeline-chunksplitter.md`
 - **Section**: 3. ChunkSplitter (`scripts/rag/ingestion/chunk_splitter.py`) — Module-level Constants
 - **Line Number**: ~40
 - **Question**: What is the rationale for `MIN_HEADING_LINES_FOR_MARKDOWN = 2` (the minimum heading-line count threshold used to decide Markdown heading-based chunking)?
@@ -559,7 +559,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-028
 
-- **Source File**: `03_rag_02_08_ingestion_pipeline-shared.md`
+- **Source File**: `rag_02_08_ingestion_pipeline-shared.md`
 - **Section**: FTS5 Query Token Limit
 - **Line Number**: ~132
 - **Question**: What is the rationale for the FTS5 query token limit of 20 (`_MAX_FTS_TOKENS` in `scripts/rag/repository.py`)? Is it based on measurement or load testing?
@@ -576,7 +576,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-029
 
-- **Source File**: `03_rag_02_09_ingestion_pipeline-shared-utilities.md`
+- **Source File**: `rag_02_09_ingestion_pipeline-shared-utilities.md`
 - **Section**: Constants
 - **Line Number**: ~47
 - **Question**: What is the rationale for `MIN_TEXT_LENGTH_FOR_DETECTION = 100` (the minimum text length required for language detection)?
@@ -618,7 +618,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-033
 
-- **Source File**: `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
+- **Source File**: `rag_02_03_ingestion_pipeline-chunksplitter.md`
 - **Section**: lang Field Validation
 - **Line Number**: ~194
 - **Question**: Is `lang` field enforcement against `LanguageCode` values intended?
@@ -639,7 +639,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Section**: min_chunk / max_chunk / chunk_overlap constants
 - **Line Number**: ~70-71, 168-169, 185-186
 - **Question**: Why is the minimum chunk size 40 characters, maximum chunk size 500 characters, and overlap 50 characters? What is the historical reason for these specific values?
-- **Evidence**: No rationale comment in `chunk_splitter.py` or `config/chunk_splitter.toml`; no ADR or governance entry found. `_min_chunk` (line 70), `_max_chunk` (line 71), and `_chunk_overlap` (line 74) enforce the constraint boundaries documented in `docs/03_rag_05_1-configuration-reference.md` line 39, but no explanation exists for why 40/500/50 were chosen over any other values.
+- **Evidence**: No rationale comment in `chunk_splitter.py` or `config/chunk_splitter.toml`; no ADR or governance entry found. `_min_chunk` (line 70), `_max_chunk` (line 71), and `_chunk_overlap` (line 74) enforce the constraint boundaries documented in `docs/rag_05_1-configuration-reference.md` line 39, but no explanation exists for why 40/500/50 were chosen over any other values.
 - **Impact**: Operators cannot understand why sub-40-char chunks are discarded as noise, why sections exceeding 500 chars are split further, or why overlap is set to 50 characters
 - **Required Action**: Owner confirmation of the historical reason for these specific values; if resolved, update the chunksplitter documentation accordingly
 - **Status**: open
@@ -703,7 +703,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-039
 
-- **Source File**: `docs/03_rag_05_3-logging.md`
+- **Source File**: `docs/rag_05_3-logging.md`
 - **Section**: Implementation Notes (JSON-lines structured logging)
 - **Line Number**: ~33 (pre-reclassification; now a cross-reference to this entry)
 - **Question**: Is it deliberate that `crawler.py`, `chunk_splitter.py`, and `ingester.py` never set `structured_log=True` (staying on text format), or was JSON-lines output intended for these scripts and never enabled?

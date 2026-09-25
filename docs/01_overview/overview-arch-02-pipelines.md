@@ -22,7 +22,7 @@ File Structure → [`01_overview-files-01-build.md`](01_overview-files-01-build.
 
 ### 2.2 Ingestion Pipeline
 
-Details → [`03_rag_02_01_ingestion_pipeline-overview.md`](03_rag_02_01_ingestion_pipeline-overview.md)
+Details → [`rag_02_01_ingestion_pipeline-overview.md`](rag_02_01_ingestion_pipeline-overview.md)
 
 ``` text
 target_urls → crawler.py (BFS crawling) → rag-src/*.json
@@ -32,7 +32,7 @@ target_urls → crawler.py (BFS crawling) → rag-src/*.json
 
 ### 2.3 Query Pipeline
 
-Details → [`03_rag_03_01_query_pipeline-overview.md`](03_rag_03_01_query_pipeline-overview.md)
+Details → [`rag_03_01_query_pipeline-overview.md`](rag_03_01_query_pipeline-overview.md)
 
 ``` text
 User Input

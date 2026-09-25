@@ -15,7 +15,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 
 - [Overview](../overview/overview_00_document-guide.md) — System-wide architecture and file structure
 - [Deployment](../90_deployment/02_deployment.md) — Environment setup and deployment procedures
-- [RAG](21_rag/03_rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
+- [RAG](21_rag/rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
 - [MCP](22_mcp/04_mcp_00_document-guide.md) — Model Context Protocol servers
 - [Agent](23_agent/05_agent_00_document-guide.md) — Agent REPL system and operation
 - [Event Bus](24_eventbus/24_eventbus_00_document-guide.md) — Event Bus infrastructure
@@ -32,7 +32,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 1. [System Overview](../overview/overview_00_document-guide.md) — Start here to understand the overall system picture
 2. [Deployment Guide](../90_deployment/02_deployment.md) — Set up your environment
 3. Select an area of interest:
-   - [RAG Pipeline](21_rag/03_rag_00_document-guide.md)
+   - [RAG Pipeline](21_rag/rag_00_document-guide.md)
    - [MCP Servers](22_mcp/04_mcp_00_document-guide.md)
    - [Agent System](23_agent/05_agent_00_document-guide.md)
    - [Event Bus](24_eventbus/24_eventbus_00_document-guide.md)
@@ -56,7 +56,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | Agent spec (overview, design, known issues) | `23_agent/05_agent_00_document-guide.md` + `23_agent/05_agent_01_system-overview_00_document-guide.md` |
 | Agent known issues / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent) |
 | MCP server spec (overview, design, known issues) | `22_mcp/04_mcp_00_document-guide.md` + `22_mcp/04_mcp_01_system_overview_00_document-guide.md` |
-| RAG pipeline spec (overview, design, known issues) | `21_rag/03_rag_00_document-guide.md` + `21_rag/03_rag_01_system_overview_00_document-guide.md` |
+| RAG pipeline spec (overview, design, known issues) | `21_rag/rag_00_document-guide.md` + `21_rag/rag_01_system_overview_00_document-guide.md` |
 | MDQ vs RAG boundary | `22_mcp/04_mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
 | DB layer spec (schema, ops, known issues) | `41_db/41_db_01_db_architecture_and_schema-overview-and-config.md` + `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
 | Shared infra spec (config, logging, types, constants) | `40_shared/90_shared_00_document-guide.md` + `40_shared/90_shared_overview_00_document-guide.md` |
@@ -113,14 +113,14 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| RAG pipeline modification | `21_rag/03_rag_03_01_query_pipeline-overview_00_document-guide.md` + `21_rag/03_rag_04_05_dto-types.md` + `40_shared/90_shared_02_01_types_and_protocols-core-types.md` |
-| RAG types / repository / LLM utils | `21_rag/03_rag_04_05_dto-types.md` + `40_shared/90_shared_02_01_types_and_protocols-core-types.md` |
-| Ingestion pipeline run (execute commands, file lifecycle) | `21_rag/03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md` + `21_rag/03_rag_05_1-configuration-reference.md` |
-| crawler.py changes / API reference | `21_rag/03_rag_02_02_ingestion_pipeline-crawler.md` |
-| chunk_splitter.py changes / API reference | `21_rag/03_rag_02_03_ingestion_pipeline-chunksplitter.md` |
-| ingester.py changes / API reference | `21_rag/03_rag_02_04_ingestion_pipeline-ingester.md` |
+| RAG pipeline modification | `21_rag/rag_03_01_query_pipeline-overview_00_document-guide.md` + `21_rag/rag_04_05_dto-types.md` + `40_shared/90_shared_02_01_types_and_protocols-core-types.md` |
+| RAG types / repository / LLM utils | `21_rag/rag_04_05_dto-types.md` + `40_shared/90_shared_02_01_types_and_protocols-core-types.md` |
+| Ingestion pipeline run (execute commands, file lifecycle) | `21_rag/rag_02_01_ingestion_pipeline-overview_00_document-guide.md` + `21_rag/rag_05_1-configuration-reference.md` |
+| crawler.py changes / API reference | `21_rag/rag_02_02_ingestion_pipeline-crawler.md` |
+| chunk_splitter.py changes / API reference | `21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` |
+| ingester.py changes / API reference | `21_rag/rag_02_04_ingestion_pipeline-ingester.md` |
 | RAG known bugs / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
-| RAG configuration parameters | `21_rag/03_rag_05_1-configuration-reference.md` |
+| RAG configuration parameters | `21_rag/rag_05_1-configuration-reference.md` |
 
 #### DB / Shared
 
@@ -146,7 +146,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 - `overview/overview_00_document-guide.md`
 - `90_deployment/02_deployment.md`
-- `21_rag/03_rag_00_document-guide.md`
+- `21_rag/rag_00_document-guide.md`
 - `22_mcp/04_mcp_00_document-guide.md`
 - `23_agent/05_agent_00_document-guide.md`
 - `24_eventbus/24_eventbus_00_document-guide.md`
