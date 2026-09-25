@@ -18,7 +18,7 @@ source:
 # Agent State and Persistence
 
 - Runtime Architecture → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
-- Turn Flow → [05_agent_03_01_turn-processing-flow-overview_00_document-guide.md](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md)
+- Turn Flow → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
 - Data Layer (Schema) → [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)
 
 ## Purpose
@@ -47,7 +47,7 @@ AgentREPL.run()
 
 ### DiagnosticStore Separation Design
 
-Diagnostic data (LLM transport errors, guard hints, session runtime summaries) is persisted in the `session_diagnostics` table via `DiagnosticStore`. It is separate from the `messages` table. Regarding the partial completion model for persistence, refer to [05_agent_03 Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md).
+Diagnostic data (LLM transport errors, guard hints, session runtime summaries) is persisted in the `session_diagnostics` table via `DiagnosticStore`. It is separate from the `messages` table. Regarding the partial completion model for persistence, refer to [05_agent_03 Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md).
 
 **Current Implementation Behavior:** `DiagnosticStore` only writes to the `session_diagnostics` table. Diagnostic data is persisted only through `session_diagnostics`; dual persistence to `diagnostics.jsonl` is not performed.
 

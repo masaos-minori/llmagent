@@ -9,7 +9,7 @@ related:
 ---
 # Agent LLM and Streaming
 
-Turn flow $\rightarrow$ [05_agent_03_01_turn-processing-flow-overview_00_document-guide.md](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md)
+Turn flow $\rightarrow$ [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
 
 ## Purpose
 

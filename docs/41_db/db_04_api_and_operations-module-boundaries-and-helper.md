@@ -7,7 +7,7 @@ tags:
   - module-boundaries
 related:
   - db_05_db_api_and_operations-protocol-and-backend.md
-  - db_06_db_api_and_operations-maintenance-and-rotation.md
+  - db_06_api_and_operations-maintenance-and-rotation.md
 ---
 # DB API and Operations
 

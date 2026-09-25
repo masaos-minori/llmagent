@@ -7,7 +7,7 @@ tags:
   - guide
   - routing
 related:
-  - 05_agent_01_system-overview_00_document-guide.md
+  - 05_agent_01_system-overview.md
   - 05_agent_02_runtime-architecture.md
   - 05_agent_05_llm-and-streaming.md
   - 05_agent_13_reference-api.md
@@ -77,7 +77,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ### Consistency Checklist
 
-When schema/command references change, verify that `05_agent_01_system-overview_00_document-guide.md` Slash Commands and `05_agent_07_cli-and-commands-*.md` match `scripts/agent/commands/registry.py` (CommandDef per documented item, no deleted command references), `05_agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py`/`init_db.sh`, and diagnostic docs reference only `session_diagnostics` (no references to deleted `diagnostics.jsonl`).
+When schema/command references change, verify that `05_agent_01_system-overview.md` Slash Commands and `05_agent_07_cli-and-commands-*.md` match `scripts/agent/commands/registry.py` (CommandDef per documented item, no deleted command references), `05_agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py`/`init_db.sh`, and diagnostic docs reference only `session_diagnostics` (no references to deleted `diagnostics.jsonl`).
 
 ### Document Set Chapters
 
@@ -100,11 +100,11 @@ When schema/command references change, verify that `05_agent_01_system-overview_
 
 ### Removed Files
 
-Deleted `05_ref-*` / `05_agent-impl-flow.md` / `05_agent-ops.md` files are integrated into chapters 02-13 above. See [governance_03_issue-and-uncertainty-management.md](governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Agent) for known issues and unresolved items.
+Deleted `05_ref-*` / ~~~~~~~~~~`05_agent-impl-flow.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~`05_agent-ops.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) files are integrated into chapters 02-13 above. See [governance_03_issue-and-uncertainty-management.md](governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Agent) for known issues and unresolved items.
 
 ### Additional References
 
-- `05_agent_01_system-overview_00_document-guide.md`
+- `05_agent_01_system-overview.md`
 - `05_agent_02_runtime-architecture.md`
 - `05_agent_05_llm-and-streaming.md`
 - `05_agent_13_reference-api.md`

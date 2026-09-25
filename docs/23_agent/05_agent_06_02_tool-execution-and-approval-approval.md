@@ -14,7 +14,7 @@ source:
 
 # Agent Tool Execution and Approval
 
-- Turn Flow → [05_agent_03_01_turn-processing-flow-overview_00_document-guide.md](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md)
+- Turn Flow → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
 - MCP Routing → [mcp_03_01_dispatch-and-routing.md](mcp_03_01_dispatch-and-routing.md)
 
 ## Purpose
@@ -131,7 +131,7 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 - `05_agent_06_01_tool-execution-and-approval-execution.md`
 - `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
 - `05_agent_06_04_tool-execution-and-approval-canonical.md`
-- `00_security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (approval-risk tier mapping)
+- `security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (approval-risk tier mapping)
 
 ## Keywords
 

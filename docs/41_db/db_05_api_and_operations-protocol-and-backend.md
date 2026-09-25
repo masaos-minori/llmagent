@@ -6,8 +6,8 @@ tags:
   - db
   - protocol-backend
 related:
-  - db_04_db_api_and_operations-module-boundaries-and-helper.md
-  - db_06_db_api_and_operations-maintenance-and-rotation.md
+  - db_04_api_and_operations-module-boundaries-and-helper.md
+  - db_06_api_and_operations-maintenance-and-rotation.md
 ---
 # DB API and Operations
 
@@ -44,6 +44,6 @@ All protocols are `@runtime_checkable`, so `isinstance()` checks work. Embedding
 ## Related Documents
 
 - `shared_00_document-guide.md`
-- `db_04_db_api_and_operations-module-boundaries-and-helper.md`
-- `db_06_db_api_and_operations-maintenance-and-rotation.md`
-- `db_07_db_api_and_operations-recovery-and-reference.md`
+- `db_04_api_and_operations-module-boundaries-and-helper.md`
+- `db_06_api_and_operations-maintenance-and-rotation.md`
+- `db_07_api_and_operations-recovery-and-reference.md`

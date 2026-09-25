@@ -12,7 +12,7 @@ related:
 ## Related Documents
 <placeholder>
 
-- System Overview $\rightarrow$ [05_agent_01_system-overview_00_document-guide.md](05_agent_01_system-overview_00_document-guide.md)
+- System Overview $\rightarrow$ [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
@@ -45,11 +45,11 @@ Describes the primary runtime components, their dependencies, and responsibility
 ## Operational Notes
 
 - `AgentContext.diagnostics` is an attribute not shown in the diagram above, which is set after `Orchestrator.__init__()` execution.
-- `handle_turn()` executes the plan/execute/verify stages via the workflow engine. New turns are rejected while `ctx.workflow.approval_pending` is `True` or while background tasks are paused. (See [05_agent_03_01_turn-processing-flow-overview_00_document-guide.md](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md) for details.)
+- `handle_turn()` executes the plan/execute/verify stages via the workflow engine. New turns are rejected while `ctx.workflow.approval_pending` is `True` or while background tasks are paused. (See [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) for details.)
 
 ## Known Limitations
 
-- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [05_agent_03_01_turn-processing-flow-overview_00_document-guide.md](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md) for details.)
+- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) for details.)
 
 ## Preflight Gate Coverage
 
@@ -104,7 +104,7 @@ lifecycle
 
 ## Agent Runtime Architecture (Part 2)
 
-- System Overview $\rightarrow$ [05_agent_01_system-overview_00_document-guide.md](05_agent_01_system-overview_00_document-guide.md)
+- System Overview $\rightarrow$ [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
@@ -239,7 +239,7 @@ Service checks accumulate results in `StartupValidationResult`, and startup is a
 
 - Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default).
 - `handle_turn()` executes the plan/execute/verify stages via the workflow engine.
-  While `ctx.workflow.approval_pending` is `True`, and while background tasks are paused, new turns are rejected. (See [05_agent_03_01_turn-processing-flow-overview_00_document-guide.md](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md) for details.)
+  While `ctx.workflow.approval_pending` is `True`, and while background tasks are paused, new turns are rejected. (See [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) for details.)
 
 ## Preflight Gate Coverage Map
 
@@ -272,7 +272,7 @@ When adding new `check_preflight()` calls, you MUST:
 
 ## Known Limitations
 
-- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [05_agent_03_01_turn-processing-flow-overview_00_document-guide.md](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md) for details.)
+- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) for details.)
 
 ## Related Docs
 

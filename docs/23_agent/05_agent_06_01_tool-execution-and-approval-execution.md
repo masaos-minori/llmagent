@@ -12,7 +12,7 @@ source:
 
 # Agent Tool Execution and Approval
 
-- Turn Flow → [05_agent_03_01_turn-processing-flow-overview_00_document-guide.md](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md)
+- Turn Flow → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
 - MCP Routing → [mcp_03_01_dispatch-and-routing.md](mcp_03_01_dispatch-and-routing.md)
 - GitHub Change Approval/GitOps Control → [05_agent_06_02_tool-execution-and-approval-approval.md](05_agent_06_02_tool-execution-and-approval-approval.md)
 
@@ -101,7 +101,7 @@ Uses verified methods via `ConversationState.append_message()` / `extend_message
 - `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
 - `05_agent_06_04_tool-execution-and-approval-canonical.md`
 - `05_agent_04_01_state-and-persistence-state-model.md`
-- `00_security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (Approval-Risk Tier Mapping)
+- `security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (Approval-Risk Tier Mapping)
 
 ## Keywords
 

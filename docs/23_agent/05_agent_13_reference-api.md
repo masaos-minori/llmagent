@@ -79,7 +79,7 @@ Full details: [05_agent_02_runtime-architecture.md AgentREPL](05_agent_02_runtim
 - **Configuration:** `cfg.llm.*`, `cfg.tool.*`, `cfg.memory.*`
 - **On Failure:** `LLMTransportError` is caught internally; REPL continues. If `WorkflowLoader().load()` fails during `__init__()`, a `RuntimeError` is raised, causing construction of the `Orchestrator` itself to fail (workflow definitions are mandatory).
 
-Full details: [05_agent_03_01_turn-processing-flow-overview_00_document-guide.md](05_agent_03_01_turn-processing-flow-overview_00_document-guide.md)
+Full details: [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
 
 ---
 

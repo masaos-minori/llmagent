@@ -18,7 +18,7 @@ source:
 # DB Architecture and Schema
 
 - Overview → [90_shared_overview_00_document-guide.md](shared_overview_00_document-guide.md)
-- DB API → [db_04_db_api_and_operations-module-boundaries-and-helper.md](/home/sugimoto/llmagent/docs/41_db/db_04_db_api_and_operations-module-boundaries-and-helper.md)
+- DB API → [db_04_api_and_operations-module-boundaries-and-helper.md](/home/sugimoto/llmagent/docs/41_db/db_04_api_and_operations-module-boundaries-and-helper.md)
 
 ## 1. Purpose
 
@@ -34,7 +34,7 @@ Four DB files exist: `rag.sqlite` (agent.toml::rag_db_path, documents/chunks/chu
 
 **Why separate DB files?** RAG indexing and conversation state have different access patterns. `rag.sqlite` has high write volume during ingestion and high read volume during queries. `session.sqlite` is append-heavy during conversations. Separation avoids WAL contention.
 
-**Import Boundaries:** For complete import rules, see [db_04 section 1a](db_04_db_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries). Callers should always import from `db.store` and must not import directly from internal modules.
+**Import Boundaries:** For complete import rules, see [db_04 section 1a](db_04_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries). Callers should always import from `db.store` and must not import directly from internal modules.
 
 ---
 

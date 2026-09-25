@@ -6,7 +6,7 @@ tags:
   - turn-processing
   - workflow-engine
 related:
-  - 05_agent_03_01_turn-processing-flow-overview_00_document-guide.md
+  - 05_agent_03_01_turn-processing-flow-overview.md
   - 05_agent_03_02_turn-processing-flow-llm-tool-loop.md
 ---
 # Agent Turn Processing Flow - Workflow Engine Integration & Turn-by-turn State Changes
@@ -182,9 +182,9 @@ In default production settings, approval gates are not triggered. Enabling appro
 ## Related Docs
 
 - `05_agent_00_document-guide.md`
-- `05_agent_03_01_turn-processing-flow-overview_00_document-guide.md`
+- `05_agent_03_01_turn-processing-flow-overview.md`
 - `05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
-- `24_eventbus_00_document-guide.md`
+- `eventbus_00_document-guide.md`
 
 ## Keywords
 

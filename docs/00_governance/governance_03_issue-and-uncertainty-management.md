@@ -452,7 +452,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-021
 
-- **Source File**: `db_07_db_api_and_operations-recovery-and-reference.md`
+- **Source File**: `~~db_07_db_api_and_operations-recovery-and-reference~~ (deleted).md`
 - **Section**: 9.3 Integrity-result model (target design)
 - **Line Number**: ~39
 - **Question**: Should `_classify_error()` be extended to actually classify a case as `INVALID_FORMAT`, or should the enum value and its dispatch branch be removed as dead?

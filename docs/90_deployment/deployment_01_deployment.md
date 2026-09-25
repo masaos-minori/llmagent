@@ -14,7 +14,7 @@ tags:
 related:
   - overview_00_document-guide.md
   - agent_03_03_turn-processing-flow-workflow-engine.md
-  - db_01_db_architecture_and_schema-overview-and-config.md
+  - db_01_architecture_and_schema-overview-and-config.md
 ---
 
 # Deployment Guide
@@ -227,7 +227,7 @@ The agent uses four SQLite databases. Three have explicit path keys in
 | `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | Task tracking, event processing |
 | `eventbus.sqlite` | `/opt/llm/db/eventbus.sqlite` | `eventbus_db_path` | Event Bus records |
 
-Schema details: `db_01_db_architecture_and_schema-overview-and-config.md`
+Schema details: `db_01_architecture_and_schema-overview-and-config.md`
 
 ### 3.1 Applying Schema
 
@@ -281,7 +281,7 @@ Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit 
 
 - `overview_00_document-guide.md`
 - `agent_03_03_turn-processing-flow-workflow-engine.md`
-- `db_01_db_architecture_and_schema-overview-and-config.md`
+- `db_01_architecture_and_schema-overview-and-config.md`
 
 ## Keywords
 

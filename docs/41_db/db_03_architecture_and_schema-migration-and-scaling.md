@@ -19,7 +19,7 @@ source:
 # DB Architecture and Schema
 
 - Overview → [90_shared_overview_00_document-guide.md](shared_overview_00_document-guide.md)
-- DB API → [db_04_db_api_and_operations-module-boundaries-and-helper.md](/home/sugimoto/llmagent/docs/41_db/db_04_db_api_and_operations-module-boundaries-and-helper.md)
+- DB API → [db_04_api_and_operations-module-boundaries-and-helper.md](/home/sugimoto/llmagent/docs/41_db/db_04_api_and_operations-module-boundaries-and-helper.md)
 
 ## 8. Schema Generation and Migration Policy
 
@@ -30,7 +30,7 @@ create_schema()
 ```
 
 - For create-only DDL (used by `create_schema()` bootstrap): all statements use `IF NOT EXISTS` — idempotent and safe to run multiple times.
-- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_db_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8c) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
+- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8c) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
 - Embedding dimension is a fixed code-level constant returned by `scripts/db/store_protocols.py::get_embedding_dims()`, not a config key.
 
 ### 8a. Incremental Migrations for `workflow.sqlite` Only (Explicit in code)

@@ -10,11 +10,11 @@ tags:
   - ai-reference
 related:
   - 90_shared_00_document-guide.md
-  - db_04_db_api_and_operations-module-boundaries-and-helper.md
+  - db_04_api_and_operations-module-boundaries-and-helper.md
   - db_05_db_api_and_operations-protocol-and-backend.md
-  - db_06_db_api_and_operations-maintenance-and-rotation.md
+  - db_06_api_and_operations-maintenance-and-rotation.md
 source:
-  - db_07_db_api_and_operations-recovery-and-reference.md
+  - db_07_api_and_operations-recovery-and-reference.md
 ---
 
 # DB API and Operations

@@ -10,7 +10,7 @@ related:
 # DB Architecture and Schema
 
 - Overview → [90_shared_overview_00_document-guide.md](shared_overview_00_document-guide.md)
-- DB API → [db_04_db_api_and_operations-module-boundaries-and-helper.md](/home/sugimoto/llmagent/docs/41_db/db_04_db_api_and_operations-module-boundaries-and-helper.md)
+- DB API → [db_04_api_and_operations-module-boundaries-and-helper.md](/home/sugimoto/llmagent/docs/41_db/db_04_api_and_operations-module-boundaries-and-helper.md)
 
 ## 5. rag.sqlite Schema
 
