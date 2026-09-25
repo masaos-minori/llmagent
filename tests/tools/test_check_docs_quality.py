@@ -244,9 +244,9 @@ EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
         # adr/ADR-014-agent-control-plane-responsibility-boundaries.md
         "adr/ADR-014-agent-control-plane-responsibility-boundaries.md:'1. 最重要の採用理由 — Maintainability' <-> 'Negative Consequences'",
         "adr/ADR-014-agent-control-plane-responsibility-boundaries.md:'Disadvantages' <-> 'Startup Validation'",
-        # databases/active_databases.md
-        "databases/active_databases.md:'Keywords' <-> 'Related Documents'",
-        "databases/active_databases.md:'rag.sqlite' <-> 'session.sqlite'",
+        # 41_db/active_databases.md
+        "41_db/active_databases.md:'Keywords' <-> 'Related Documents'",
+        "41_db/active_databases.md:'rag.sqlite' <-> 'session.sqlite'",
         # eventbus/ack-nack-endpoints.md
         "eventbus/ack-nack-endpoints.md:'Bad Request Responses' <-> 'Bad Request Responses'",
         "eventbus/ack-nack-endpoints.md:'Forbidden Response' <-> 'Forbidden Response'",
