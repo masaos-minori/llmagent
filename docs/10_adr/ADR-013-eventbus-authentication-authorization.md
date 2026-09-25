@@ -51,7 +51,7 @@ Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in
 
 ### Assumptions
 
-- The next unused ADR number is `ADR-013` (not the vacated `ADR-011` slot) — inferred from this repository's Known-Issue ID-non-reuse convention applied by analogy to ADRs, since no explicit ADR-numbering-reuse policy was found in `docs/adr-index.md`.
+- The next unused ADR number is `ADR-013` (not the vacated `ADR-011` slot) — inferred from this repository's Known-Issue ID-non-reuse convention applied by analogy to ADRs, since no explicit ADR-numbering-reuse policy was found in `docs/10_adr/adr-index.md`.
 - "Privileged replay" means all `/replay` calls require operator permission (simplest interpretation consistent with the Issue's Required Changes and Acceptance Criteria).
 - The token is stored as a plain string in config (following the existing `auth_token = "${ENV:...}"` convention used by every `*_mcp_server.toml` file).
 - Empty/missing `auth_token` must fail closed at startup, per `REQ-005`.
