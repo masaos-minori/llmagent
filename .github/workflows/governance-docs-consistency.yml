@@ -61,8 +61,7 @@ jobs:
           set -euo pipefail
           python tools/check_canonical_source_conflicts.py
 
-      - name: Run Front Matter schema compliance check (report-only)
-        continue-on-error: true
+      - name: Run Front Matter schema compliance check
         run: |
           set -euo pipefail
           python -m pip install --quiet pyyaml

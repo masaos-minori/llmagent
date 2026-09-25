@@ -14,6 +14,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -151,6 +152,22 @@ def check_schema_compliance(
     return issues
 
 
+def check_status_value(path: Path, data: dict[str, Any]) -> list[str]:
+    """Validate the 'status' field against allowed values [stable, draft].
+
+    Returns empty list when the 'status' field is absent (defaults to stable).
+    Returns error list when the value is invalid.
+    """
+    status = data.get("status")
+    if status is None:
+        return []
+    if status not in ("stable", "draft"):
+        return [
+            f"{path.name}: 'status' value {status!r} is not one of ['stable', 'draft']"
+        ]
+    return []
+
+
 def check_tail_sections(path: Path, content: str) -> list[str]:
     issues = []
     if not re.search(r"^## Related Documents", content, re.MULTILINE):
@@ -236,6 +253,16 @@ def validate_file(
     issues.extend(check_size(path, size))
     issues.extend(check_h1_count(path, body))
     issues.extend(check_front_matter(path, content, expected_area))
+    # Parse front matter once for downstream checks
+    data: dict[str, Any] = {}
+    try:
+        end = content.find("\n---", 3)
+        if end != -1:
+            raw = content[3:end]
+            data = yaml.safe_load(raw) or {}
+    except yaml.YAMLError:
+        pass
+    issues.extend(check_status_value(path, data))
     if schema is not None:
         issues.extend(check_schema_compliance(path, content, schema))
     issues.extend(check_tail_sections(path, content))
@@ -283,6 +310,9 @@ def main() -> int:
     if args.schema is not None:
         schema_path = None if args.schema == "__default__" else Path(args.schema)
         schema = load_front_matter_schema(schema_path)
+    else:
+        # Default-on: use the canonical schema when no --schema argument is passed
+        schema = load_front_matter_schema(None)
 
     total_issues = 0
     for path in sorted(files):

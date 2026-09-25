@@ -291,7 +291,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | Rule ID | Rule | Doc | Method | Tool/Review | Timing | Gate | Status | Follow-up |
 |---------|------|-----|--------|--------------|--------|------|--------|-----------|
 | GV-001 | Required Front Matter | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
-| GV-002 | Valid Document Status | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Missing | Implement |
+| GV-002 | Valid Document Status | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-005 | Existence of Related Documents | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-006 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Missing | Implement |
@@ -316,8 +316,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 
 Rules marked "Missing" or "Partial" above need new inspection tools or processes:
 
-1. **GV-002**: Implement Valid Document Status value validation
-2. **GV-006**: Implement Self-reference prohibition check
+1. **GV-006**: Implement Self-reference prohibition check
 4. **GV-007**: Implement Duplicate Related Link prohibition check
 5. **GV-008**: Broaden to cover full issue inventory conformance scope (vocabulary, template, referential integrity)
 6. **GV-009**: Implement Needs Confirmation owner and deadline validation

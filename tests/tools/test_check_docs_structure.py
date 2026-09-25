@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from tools._front_matter_schema import load_front_matter_schema
 from tools.check_docs_structure import (
@@ -22,6 +23,7 @@ from tools.check_docs_structure import (
     check_related_links,
     check_schema_compliance,
     check_size,
+    check_status_value,
     check_unique_adr_ids,
     validate_file,
 )
@@ -139,6 +141,79 @@ class TestSchemaComplianceEnums:
         issues = check_schema_compliance(doc, doc.read_text(), schema)
         assert len(issues) == 1
         assert "obsolete" in issues[0]
+
+
+class TestCheckStatusValue:
+    def test_missing_status_field_passes(self, tmp_path: Path) -> None:
+        """REQ-002: Documents without a 'status' field pass validation (defaults to stable)."""
+        content = _COMPLIANT_DOC.replace("area: agent\n", "")
+        doc = _write(tmp_path / "example.md", content)
+        data = yaml.safe_load(content.split("---")[1]) or {}
+        assert check_status_value(doc, data) == []
+
+    def test_status_stable_passes(self, tmp_path: Path) -> None:
+        """REQ-003: Documents with 'status: stable' pass validation."""
+        content = (
+            '---\n'
+            'title: "Example"\n'
+            "area: agent\n"
+            "tags:\n"
+            "  - agent\n"
+            "related:\n"
+            "status: stable\n"
+            "---\n\n"
+            "# Example\n\n"
+            "Body.\n\n"
+            "## Related Documents\n\n"
+            "## Keywords\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        data = yaml.safe_load(content.split("---")[1]) or {}
+        assert check_status_value(doc, data) == []
+
+    def test_status_draft_passes(self, tmp_path: Path) -> None:
+        """REQ-003: Documents with 'status: draft' pass validation."""
+        content = (
+            '---\n'
+            'title: "Example"\n'
+            "area: agent\n"
+            "tags:\n"
+            "  - agent\n"
+            "related:\n"
+            "status: draft\n"
+            "---\n\n"
+            "# Example\n\n"
+            "Body.\n\n"
+            "## Related Documents\n\n"
+            "## Keywords\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        data = yaml.safe_load(content.split("---")[1]) or {}
+        assert check_status_value(doc, data) == []
+
+    def test_status_invalid_is_flagged(self, tmp_path: Path) -> None:
+        """REQ-004: Documents with invalid 'status' values report an error."""
+        for invalid_value in ("deprecated", "superseded", "stabel"):
+            content = (
+                '---\n'
+                'title: "Example"\n'
+                "area: agent\n"
+                "tags:\n"
+                "  - agent\n"
+                "related:\n"
+                f"status: {invalid_value}\n"
+                "---\n\n"
+                "# Example\n\n"
+                "Body.\n\n"
+                "## Related Documents\n\n"
+                "## Keywords\n"
+            )
+            doc = _write(tmp_path / "example.md", content)
+            data = yaml.safe_load(content.split("---")[1]) or {}
+            issues = check_status_value(doc, data)
+            assert len(issues) == 1
+            assert invalid_value in issues[0]
+            assert "not one of ['stable', 'draft']" in issues[0]
 
 
 class TestCheckSize:
@@ -277,3 +352,50 @@ class TestDefaultGlobIsRecursive:
         _write(tmp_path / "sub" / "nested.md", "# Nested\n")
         found = set(tmp_path.glob("**/*.md"))
         assert len(found) == 2
+
+
+class TestValidateFileStatusIntegration:
+    """REQ-008: Integration test confirming the check runs in `validate_file()` flow."""
+
+    def test_validate_file_reports_invalid_status_without_schema_arg(self, tmp_path: Path) -> None:
+        """Invalid status value is reported even when --schema is not passed explicitly,
+        because check_status_value() is called unconditionally in validate_file()."""
+        content = (
+            '---\n'
+            'title: "Example"\n'
+            "area: agent\n"
+            "tags:\n"
+            "  - agent\n"
+            "related:\n"
+            "status: obsolete\n"
+            "---\n\n"
+            "# Example\n\n"
+            "Body.\n\n"
+            "## Related Documents\n\n"
+            "## Keywords\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        # No schema argument — check_status_value() should still catch it
+        issues = validate_file(doc, expected_area=None, basename_index={})
+        assert any("obsolete" in i for i in issues)
+
+    def test_validate_file_accepts_valid_status(self, tmp_path: Path) -> None:
+        """Valid status values are accepted in validate_file() flow."""
+        for status_val in ("stable", "draft"):
+            content = (
+                '---\n'
+                'title: "Example"\n'
+                f"area: agent\n"
+                "tags:\n"
+                "  - agent\n"
+                "related:\n"
+                f"status: {status_val}\n"
+                "---\n\n"
+                "# Example\n\n"
+                "Body.\n\n"
+                "## Related Documents\n\n"
+                "## Keywords\n"
+            )
+            doc = _write(tmp_path / "example.md", content)
+            issues = validate_file(doc, expected_area=None, basename_index={})
+            assert not any("status" in i for i in issues), f"Unexpected status issue for '{status_val}': {issues}"
