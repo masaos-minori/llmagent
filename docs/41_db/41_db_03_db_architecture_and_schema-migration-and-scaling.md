@@ -10,16 +10,16 @@ tags:
   - ai-reference
 related:
   - 90_shared_00_document-guide.md
-  - 90_shared_04_01_db_architecture_and_schema-overview-and-config.md
-  - 90_shared_04_02_db_architecture_and_schema-schema-reference.md
+  - 41_db_01_db_architecture_and_schema-overview-and-config.md
+  - 41_db_02_db_architecture_and_schema-schema-reference.md
 source:
-  - 90_shared_04_01_db_architecture_and_schema-overview-and-config.md
+  - 41_db_03_db_architecture_and_schema-migration-and-scaling.md
 ---
 
 # DB Architecture and Schema
 
 - Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
-- DB API → [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)
+- DB API → [41_db_04_db_api_and_operations-module-boundaries-and-helper.md](41_db_04_db_api_and_operations-module-boundaries-and-helper.md)
 
 ## 8. Schema Generation and Migration Policy
 
@@ -30,7 +30,7 @@ create_schema()
 ```
 
 - For create-only DDL (used by `create_schema()` bootstrap): all statements use `IF NOT EXISTS` — idempotent and safe to run multiple times.
-- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [90_shared_05 section 11](90_shared_05_04_db_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8c) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
+- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [41_db_07 section 11](41_db_07_db_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8c) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
 - Embedding dimension is a fixed code-level constant returned by `scripts/db/store_protocols.py::get_embedding_dims()`, not a config key.
 
 ### 8a. Incremental Migrations for `workflow.sqlite` Only (Explicit in code)

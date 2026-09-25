@@ -398,7 +398,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - [RAG Error Handling Reference](../03_rag_05_4-error-handling-reference.md) — エラーハンドリング
 - [Configuration Reference](../03_rag_05_1-configuration-reference.md) — 設定参照
 - [RAG Design Notes](../03_rag_91_design_notes.md) — DESIGN-1ノート
-- [DB Schema Reference](../90_shared_04_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
+- [DB Schema Reference](../41_db/41_db_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
 
 ### Operations
 

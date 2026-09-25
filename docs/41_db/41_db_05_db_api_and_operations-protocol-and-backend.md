@@ -6,12 +6,12 @@ tags:
   - db
   - protocol-backend
 related:
-  - 90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md
-  - 90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md
+  - 41_db_04_db_api_and_operations-module-boundaries-and-helper.md
+  - 41_db_06_db_api_and_operations-maintenance-and-rotation.md
 ---
 # DB API and Operations
 
-- Schema $\rightarrow$ [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md)
+- Schema $\rightarrow$ [41_db_01_db_architecture_and_schema-overview-and-config.md](41_db_01_db_architecture_and_schema-overview-and-config.md)
 
 ## 3. `db/store.py` Protocol Groups
 
@@ -44,6 +44,6 @@ All protocols are `@runtime_checkable`, so `isinstance()` checks work. Embedding
 ## Related Documents
 
 - `90_shared_00_document-guide.md`
-- `90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md`
-- `90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md`
-- `90_shared_05_04_db_api_and_operations-recovery-and-reference.md`
+- `41_db_04_db_api_and_operations-module-boundaries-and-helper.md`
+- `41_db_06_db_api_and_operations-maintenance-and-rotation.md`
+- `41_db_07_db_api_and_operations-recovery-and-reference.md`

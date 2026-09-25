@@ -402,7 +402,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - [RAG Data Model](../03_rag_04_01_dto-models_data.md) — データモデル定義
 - [RAG Consistency Checks](../03_rag_05_7-rag-index-consistency-checks.md) — 整合性チェック手順
 - [RAG MCP Internal Operations](../03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md) — MCP内部操作
-- [DB Schema Reference](../90_shared_04_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
+- [DB Schema Reference](../41_db/41_db_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
 - [Ingestion Pipeline Overview](../03_rag_02_01_ingestion_pipeline-overview.md) — インジェクション概要
 - [Ingestion Pipeline - Ingester](../03_rag_02_04_ingestion_pipeline-ingester.md) — Ingester詳細
 - [Ingestion Pipeline - Crawler](../03_rag_02_02_ingestion_pipeline-crawler.md) — Crawler詳細

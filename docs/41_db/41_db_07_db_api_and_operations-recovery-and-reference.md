@@ -10,16 +10,16 @@ tags:
   - ai-reference
 related:
   - 90_shared_00_document-guide.md
-  - 90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md
-  - 90_shared_05_02_db_api_and_operations-protocol-and-backend.md
-  - 90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md
+  - 41_db_04_db_api_and_operations-module-boundaries-and-helper.md
+  - 41_db_05_db_api_and_operations-protocol-and-backend.md
+  - 41_db_06_db_api_and_operations-maintenance-and-rotation.md
 source:
-  - 90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md
+  - 41_db_07_db_api_and_operations-recovery-and-reference.md
 ---
 
 # DB API and Operations
 
-- Schema → [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md)
+- Schema → [41_db_01_db_architecture_and_schema-overview-and-config.md](41_db_01_db_architecture_and_schema-overview-and-config.md)
 
 ## 9. Corruption Recovery
 

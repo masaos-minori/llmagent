@@ -58,7 +58,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | MCP server spec (overview, design, known issues) | `22_mcp/04_mcp_00_document-guide.md` + `22_mcp/04_mcp_01_system_overview.md` |
 | RAG pipeline spec (overview, design, known issues) | `21_rag/03_rag_00_document-guide.md` + `21_rag/03_rag_01_system_overview.md` |
 | MDQ vs RAG boundary | `22_mcp/04_mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
-| DB layer spec (schema, ops, known issues) | `41_db/90_shared_04_01_db_architecture_and_schema-overview-and-config.md` + `41_db/90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md` |
+| DB layer spec (schema, ops, known issues) | `41_db/41_db_01_db_architecture_and_schema-overview-and-config.md` + `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
 | Shared infra spec (config, logging, types, constants) | `40_shared/90_shared_00_document-guide.md` + `40_shared/90_shared_01_overview.md` |
 
 ### Implementation reference
@@ -86,7 +86,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | Agent REPL flow / tool execution | `23_agent/05_agent_03_01_turn-processing-flow-overview.md` + `23_agent/05_agent_06_01_tool-execution-and-approval-execution.md` |
 | AgentContext / DI hub | `23_agent/05_agent_02_runtime-architecture.md` + `23_agent/05_agent_04_01_state-and-persistence-state-model.md` |
 | AgentConfig / config constants | `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
-| Session / DB persistence | `23_agent/05_agent_09_01_data-layer-session-db.md` + `41_db/90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md` |
+| Session / DB persistence | `23_agent/05_agent_09_01_data-layer-session-db.md` + `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
 | LLM client (streaming/retry) | `23_agent/05_agent_05_llm-and-streaming.md` |
 | CLI view / readline | `23_agent/05_agent_07_01_cli-and-commands-cli-reference.md` |
 
@@ -126,7 +126,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| SQLite / DB connection / WAL / transactions | `41_db/90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md` |
+| SQLite / DB connection / WAL / transactions | `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
 | Config / logger / formatters / rag_utils | `40_shared/90_shared_03_01_runtime_and_execution-config-and-logging.md` |
 | Shared layer / DB layer known issues / inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Shared/DB) |
 

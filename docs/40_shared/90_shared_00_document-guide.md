@@ -58,7 +58,7 @@ Refer to [00_governance_03_issue-and-uncertainty-management.md](00_governance_03
 
 ## Canonical Source Rules
 
-- `06_spec_shared.md` / `07_ref-sqlite.md` / `07_spec_db.md` / `90_shared.md` are legacy source files that have been deleted; their content now resides within the restructured `90_shared_02_*` through `90_shared_05_*` files.
+- `06_spec_shared.md` / `07_ref-sqlite.md` / `07_spec_db.md` / `90_shared.md` are legacy source files that have been deleted; their content now resides within the restructured `90_shared_02_*` through `90_shared_05_*` files. DB layer files moved to `41_db/`: `90_shared_04_*` → `41_db_01-*`, `90_shared_05_*` → `41_db_04-*`.
 - If contents conflict between source files, trust the new restructured files (see `90_shared_90` for all discrepancies).
 - `docs/adr/ADR-008-sqlite-4db-separation.md`'s Recovery Policy Matrix is the canonical source for persistence-domain recovery policy, superseding any per-domain policy prose duplicated elsewhere.
 

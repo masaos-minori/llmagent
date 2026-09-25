@@ -74,12 +74,12 @@ DB は rag.sqlite / session.sqlite / workflow.sqlite / eventbus.sqlite の 4 フ
 
 | DB | 参照先 |
 |---|---|
-| `rag.sqlite` | `docs/90_shared_04_02_db_architecture_and_schema-schema-reference-part1.md` §5 |
-| `session.sqlite` | `docs/90_shared_04_02_db_architecture_and_schema-schema-reference-part2.md` §6 |
-| `workflow.sqlite` | `docs/90_shared_04_02_db_architecture_and_schema-schema-reference-part2.md` §7 |
+| `rag.sqlite` | `docs/41_db/41_db_02_db_architecture_and_schema-schema-reference.md` §5 |
+| `session.sqlite` | `docs/41_db/41_db_02_db_architecture_and_schema-schema-reference.md` §6 |
+| `workflow.sqlite` | `docs/41_db/41_db_02_db_architecture_and_schema-schema-reference.md` §7 |
 | `eventbus.sqlite` | `docs/24_eventbus/24_eventbus_07_persistence_schema_and_replay.md` |
 
-DB 構成・接続管理の全体像: `docs/41_db/90_shared_04_01_db_architecture_and_schema-overview-and-config.md`。マイグレーション/スケーリング: `docs/41_db/90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md`。
+DB 構成・接続管理の全体像: `docs/41_db/41_db_01_db_architecture_and_schema-overview-and-config.md`。マイグレーション/スケーリング: `docs/41_db/41_db_03_db_architecture_and_schema-migration-and-scaling.md`。
 
 ## Config files
 

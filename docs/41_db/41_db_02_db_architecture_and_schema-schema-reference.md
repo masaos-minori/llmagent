@@ -10,7 +10,7 @@ related:
 # DB Architecture and Schema
 
 - Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
-- DB API → [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)
+- DB API → [41_db_04_db_api_and_operations-module-boundaries-and-helper.md](41_db_04_db_api_and_operations-module-boundaries-and-helper.md)
 
 ## 5. rag.sqlite Schema
 
@@ -46,7 +46,7 @@ Initialized by `create_workflow_schema()`, used by `agent/workflow/state_store.p
 
 ## 8. eventbus.sqlite Schema
 
-Independent persistence domain per [ADR-008](adr/ADR-008-sqlite-4db-separation.md) INV-04: `eventbus.sqlite` is the system of record for Event, Offset, Delivery, and DLQ state. Schema authority: `scripts/db/schema_sql.py::build_eventbus_schema_sql()` (bootstrap DDL) and `scripts/eventbus/db.py` (incremental migration at service startup — see [90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md](90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md) section 8b). Table/column detail: [24_eventbus_07_persistence_schema_and_replay.md](24_eventbus_07_persistence_schema_and_replay.md).
+Independent persistence domain per [ADR-008](adr/ADR-008-sqlite-4db-separation.md) INV-04: `eventbus.sqlite` is the system of record for Event, Offset, Delivery, and DLQ state. Schema authority: `scripts/db/schema_sql.py::build_eventbus_schema_sql()` (bootstrap DDL) and `scripts/eventbus/db.py` (incremental migration at service startup — see [41_db_03_db_architecture_and_schema-migration-and-scaling.md](41_db_03_db_architecture_and_schema-migration-and-scaling.md) section 8b). Table/column detail: [24_eventbus_07_persistence_schema_and_replay.md](24_eventbus_07_persistence_schema_and_replay.md).
 
 ---
 

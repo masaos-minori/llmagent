@@ -9,16 +9,16 @@ tags:
   - layer-structure
 related:
   - 90_shared_00_document-guide.md
-  - 90_shared_04_02_db_architecture_and_schema-schema-reference.md
-  - 90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md
+  - 41_db_02_db_architecture_and_schema-schema-reference.md
+  - 41_db_03_db_architecture_and_schema-migration-and-scaling.md
 source:
-  - 90_shared_04_01_db_architecture_and_schema-overview-and-config.md
+  - 41_db_01_db_architecture_and_schema-overview-and-config.md
 ---
 
 # DB Architecture and Schema
 
 - Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
-- DB API → [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)
+- DB API → [41_db_04_db_api_and_operations-module-boundaries-and-helper.md](41_db_04_db_api_and_operations-module-boundaries-and-helper.md)
 
 ## 1. Purpose
 
