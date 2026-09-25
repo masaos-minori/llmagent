@@ -230,10 +230,7 @@ All ADRs must use the following section headers in this order:
 13. Related Documents
 14. Completion Checklist
 
-Duplicate notes shared across all ADRs:
-- "この章は設計判断の根拠にしない" (Do not use this chapter as the basis for design decisions)
-- "該当しない場合は「対象外」と記載する" (If not applicable, write "Not applicable")
-- "ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する" (Do not align ADR text to current implementation; manage discrepancies via Known Issues)
+See [Policy's ADR Section Header Standardization](00_governance_01_documentation-policy.md#adr-section-header-standardization) for duplicate notes shared across all ADRs.
 
 ### 12. Area Dependency Graph Validation
 
