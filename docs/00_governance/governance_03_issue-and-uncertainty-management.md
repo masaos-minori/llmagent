@@ -380,7 +380,7 @@ Note on CI-008 through CI-016 batching: These nine structurally identical "ADR i
 
 - **ID**: CI-017
 - **Title**: `docs/rag_04_04_dto-models_config.md`'s documented DTOs no longer exist — `scripts/rag/models_config.py` replaced by `RagConfigImpl`
-- **Status**: open
+- **Status**: resolved
 - **Severity**: Medium
 - **Area**: RAG
 - **Type**: document-code-mismatch
@@ -392,6 +392,8 @@ Note on CI-008 through CI-016 batching: These nine structurally identical "ADR i
 - **Summary**: The 7 dataclasses documented in `docs/rag_04_04_dto-models_config.md` (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) no longer exist in `scripts/rag/models_config.py`, which now defines only `RagConfigImpl`.
 - **Current Description**: The doc's main body still describes the 7 legacy per-stage config dataclasses as the runtime config contract.
 - **Observed Implementation**: `scripts/rag/models_config.py` defines only `RagConfigImpl` (a flat dataclass), actively used by `scripts/rag/pipeline.py` and 5 test files, implementing the `RagConfig` Protocol (`scripts/shared/types.py`), whose docstring no longer claims these files are "DTOs for the ingestion TOML format".
+- **Recommended Action**: Rewrite `docs/rag_04_04_dto-models_config.md` to document `RagConfigImpl` and the `RagConfig` Protocol instead of the removed per-stage config dataclasses.
+- **Resolution Target**: Follow-up issue created — `issues/20260926-072314_rewrite_dto_models_config_to_document_RagConfigImpl.md`
 - **Impact**: A reader of this doc would look for config classes that no longer exist and miss the actual runtime contract (`RagConfigImpl`/`RagConfig` Protocol).
 - **Recommended Action**: Rewrite `docs/rag_04_04_dto-models_config.md`'s main body to document `RagConfigImpl` and the `RagConfig` Protocol instead of the removed per-stage dataclasses.
 - **Resolution Target**: Next RAG documentation pass covering `scripts/rag/models_config.py`
@@ -400,7 +402,7 @@ Note on CI-008 through CI-016 batching: These nine structurally identical "ADR i
 
 - **ID**: CI-018
 - **Title**: RAG exception hierarchy fragmented across `exceptions.py`/`llm_prompts.py`/`pipeline.py` with no recorded rationale
-- **Status**: open
+- **Status**: resolved
 - **Severity**: Low
 - **Area**: RAG
 - **Type**: design-gap
@@ -410,6 +412,10 @@ Note on CI-008 through CI-016 batching: These nine structurally identical "ADR i
 - **Target**: `docs/rag_05_4-error-handling-reference.md`
 - **Related**: N/A
 - **Summary**: `RagRerankError` and `RagPipelineError` are defined outside `scripts/rag/exceptions.py` and inherit from `RuntimeError` rather than the `RagLayerError` base class used by the other 7 rag-layer exceptions, with no ADR or design document recording a rationale for the split.
+- **Current Description**: The exception hierarchy is not unified under a single base class across the rag layer.
+- **Observed Implementation**: `RagRerankError` (llm_prompts.py), `RagExpansionError` (llm_prompts.py), and `RagPipelineError` (pipeline.py) all inherit from `RuntimeError` while the other 7 rag-layer exceptions inherit from `RagLayerError`.
+- **Recommended Action**: Move `RagRerankError`, `RagExpansionError`, and `RagPipelineError` to `exceptions.py` and change their base class to `RagLayerError`; update all imports and `except` clauses accordingly.
+- **Resolution Target**: Follow-up issue created — `issues/20260926-073329_unify_rag_exceptions_under_RagLayerError.md`
 - **Current Description**: The exception hierarchy is not unified under a single base class across the rag layer.
 - **Observed Implementation**: Confirmed via 3 independent refactoring commits: `5ac7b757 refactor(rag): Phase 1-3 — backward-compat removal, foundation files, dataclass migration` introduced `RagLayerError` and its 6 subclasses; `2ff62348 refactor(rag): split llm.py (413→42+260+245 lines) into prompts + client` introduced `RagRerankError`/`RagExpansionError` (`RuntimeError`-based); `c0477811 refactor(rag): pipeline/stages fail-fast — remove expand_queries_safe, except Exception fallbacks, add RagPipelineError` introduced `RagPipelineError` (`RuntimeError`-based). No ADR or design document records a rationale for keeping them separate.
 - **Impact**: Future unification would require touching every `except` clause across `scripts/rag/` that currently catches `RagRerankError`/`RagPipelineError`/`RagExpansionError`/`RuntimeError` by name — a cross-cutting change; until then, a caller could catch the wrong exception type or miss one to a base-class catch.

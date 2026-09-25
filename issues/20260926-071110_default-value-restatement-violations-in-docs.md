@@ -1,23 +1,31 @@
 ## Goal
-- Run `check_docs_content_policy.py` against the full corpus, collect all findings, group by violation category, and create follow-up issues for remediation.
+
+Fix all `default-value restatement outside a table` violations found by `check_docs_content_policy.py` corpus scan.
 
 ## Priority
+
 Medium
 
 ## Scope
-- **In-Scope**: Running the corpus scan, grouping findings by violation category, creating follow-up issues with concrete remediation steps
-- **Out-of-Scope**: Modifying `check_docs_content_policy.py` logic, removing auto-generated content blocks (exempt per REQ-001 decision), changing the docs content policy itself, implementing the remediation work (handled by follow-up issues)
+
+- Fix violations in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (lines 371, 374)
+- Fix violations in `docs/23_agent/05_agent_10_05_operations-and-observability-monitoring.md` (line 114)
+- Fix violations in `docs/23_agent/agent_10_05_operations-and-observability-monitoring.md` (line 114)
 
 ## Background
+
 GV-021 tracks violations of the docs content policy — implementation details that should not appear in `docs/*.md` per `skills/DESIGN.md` Docs content policy — remove. The check currently has Partial status because it has not been run against the full corpus. The Follow-up Work Needed section states: "Run against the current corpus and scope follow-up content-migration issues from the violation inventory; promote to default-on once the corpus is compliant." An exemption exists for auto-generated content between `<!-- AUTO-GENERATED -->` / `<!-- END AUTO-GENERATED -->` guard comments.
 
 ## Problem
+
 The docs content policy prohibits implementation-detail content in documentation (full file trees, per-file descriptions embedded in a tree or table, class/function/method index tables, implementation-location mappings, literal port numbers), but the automated check has never been executed against the full corpus. Without running the check, we cannot know the scope of violations or prioritize remediation work.
 
 ## Reason for change
+
 GV-021's Follow-up Work Needed explicitly requires a corpus run to identify violations before the check can be promoted to default-on. This is a prerequisite for closing the gap.
 
 ## Implementation intent
+
 1. Run `uv run python tools/check_docs_content_policy.py` against the current corpus
 2. Collect all findings into a structured inventory
 3. Group findings by category (file tree, per-file description, class/index table, implementation location, literal port number, etc.)
@@ -25,6 +33,7 @@ GV-021's Follow-up Work Needed explicitly requires a corpus run to identify viol
 5. After all violations are resolved, update GV-021 status from "Partial" to "Existing" and promote the check to default-on
 
 ## Requirements
+
 - `REQ-001`: Run `check_docs_content_policy.py` against the full corpus and capture all findings
 - `REQ-002`: Group findings by violation category (file tree, per-file description, class/index table, implementation location, literal port number, etc.)
 - `REQ-003`: Create one follow-up issue per category group (or per file if groups are too large)
@@ -35,26 +44,29 @@ GV-021's Follow-up Work Needed explicitly requires a corpus run to identify viol
 - `REQ-008`: The check is promoted to default-on after corpus compliance
 
 ## Implementation Target Files
+
 **Freeze status**: Draft (set to `Frozen` only once `issue-to-plan` Step 8's Implementation Target Files Validation passes — see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze)).
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream `plan-to-implementation-procedure` document MUST reference file paths only from this table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| tools/check_docs_content_policy.py | Execute against full corpus; do not modify | REQ-001 | Line 836 — `main()` function discovers all MD files under docs/ recursively | Verified |
-| docs/*.md | Remediate violations found by the corpus scan (via follow-up issues) | REQ-003, REQ-004 | Multiple files across docs/ — specific files TBD after corpus scan | Verified |
-| skills/DESIGN.md | Read for Docs content policy definitions (reference only) | REQ-005 | Line 209 — Docs content policy — remove defines prohibited content categories | Verified |
-| docs/00_governance/governance_04_documentation-checks.md | Update GV-021 status from "Partial" to "Existing" after remediation | REQ-007 | Row GV-021 at line 310 — currently shows "Partial" / "Implement" | Verified |
+| docs/00_governance/governance_03_issue-and-uncertainty-management.md | Remove default-value restatements outside tables | REQ-003, REQ-004 | Lines 371, 374 — default-value restatement outside a table | Verified |
+| docs/23_agent/05_agent_10_05_operations-and-observability-monitoring.md | Remove default-value restatement outside table | REQ-003, REQ-004 | Line 114 — default-value restatement outside a table | Verified |
+| docs/23_agent/agent_10_05_operations-and-observability-monitoring.md | Remove default-value restatement outside table | REQ-003, REQ-004 | Line 114 — default-value restatement outside a table | Verified |
 
 ## Reference Files
+
 Files that must be read to implement the targets above, but MUST NOT be modified. Same one-file-per-row discipline as `Implementation Target Files` above — no directories, glob patterns, components, file groups, or vague phrases.
 
 | File Path | Why It Must Be Read | Related Target File or Requirement |
 |---|---|---|
 | docs/00_governance/governance_04_documentation-checks.md | Understand GV-021 governance matrix row and exemption list | REQ-001, REQ-007 |
 | docs/00_governance/governance_03_issue-and-uncertainty-management.md | Check for Known Issues related to docs content policy | REQ-001 |
+| skills/DESIGN.md | Read Docs content policy — remove definition | REQ-005 |
 
 ## Acceptance criteria
+
 - All violations identified by `check_docs_content_policy.py` are documented (REQ-001)
 - Findings are grouped by violation category (REQ-002)
 - One issue per violation category or per file (whichever produces reviewable scope) (REQ-003)
@@ -64,19 +76,23 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 - The check is promoted to default-on after corpus compliance (REQ-008)
 
 ## Tests
+
 - Manual verification: confirm `check_docs_content_policy.py` runs without errors against the corpus (REQ-001)
 - No unit tests required (documentation-only work)
 
 ## Documentation Impact
+
 This issue itself documents the process for identifying and tracking violations. Follow-up issues will document the specific remediation steps for each violation category. Driven by REQ-003, REQ-004.
 
 ## Assumptions
+
 - The corpus scan will reveal violations across multiple categories and files
 - Auto-generated content between `<!-- AUTO-GENERATED -->` / `<!-- END AUTO-GENERATED -->` guard comments is exempt (per REQ-005)
 - Creating one issue per category group is acceptable unless a group becomes too large for a single issue
 - The error message format follows the existing pattern used by `check_docs_content_policy.py`
 
 ## Unknowns
+
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
 | UNK-01 | How many violations exist across the corpus? | Requires corpus run | Run `check_docs_content_policy.py` and count findings | False |
@@ -84,14 +100,15 @@ This issue itself documents the process for identifying and tracking violations.
 | UNK-03 | Should any existing violations be formally excepted rather than fixed? | Policy interpretation | Review with governance team after corpus run | False |
 
 ## Affected areas
-`skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor` columns. The `File` column here MUST be a subset of `Implementation Target Files`' rows — this table analyzes change-impact risk for those same files; it is not a separate scope-of-record.
+
+`docs/00_governance/governance_04_documentation-checks.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor` columns. The `File` column here MUST be a subset of `Implementation Target Files`' rows — this table analyzes change-impact risk for those same files; it is not a separate scope-of-record.
 
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
 |---|---|---|---|---|---|
-| tools/check_docs_content_policy.py | execute (no modification) | N/A | N/A | N/A | not applicable (rsynced) |
 | docs/00_governance/governance_04_documentation-checks.md | modify | N/A | N/A | N/A | not applicable (rsynced) |
 
 ## Design
+
 - Run `uv run python tools/check_docs_content_policy.py` from repo root to discover all violations across the corpus.
 - Parse the output to extract file path, line number, severity, and message for each finding.
 - Group findings by the violation type extracted from the message field (e.g., "full file tree", "literal port number", "class/function/method index table header").
@@ -102,25 +119,27 @@ This issue itself documents the process for identifying and tracking violations.
 - After all follow-up issues are created and remediated, update GV-021 status in the governance doc.
 
 ## Implementation steps
+
 Each step description MUST cite the exact file path(s) it touches by referencing rows of `Implementation Target Files` above — do not restate file-level detail independently of that frozen table.
 
 1. **Phase 1: Corpus Scan**
-    - [ ] Run `uv run python tools/check_docs_content_policy.py` from repo root (REQ-001; tools/check_docs_content_policy.py)
-    - [ ] Capture and parse all findings into a structured inventory (REQ-001, REQ-006; tools/check_docs_content_policy.py)
+     - [ ] Run `uv run python tools/check_docs_content_policy.py` from repo root (REQ-001; Reference Files: tools/check_docs_content_policy.py)
+     - [ ] Capture and parse all findings into a structured inventory (REQ-001, REQ-006; Reference Files: tools/check_docs_content_policy.py)
 2. **Phase 2: Analysis and Issue Creation**
-    - [ ] Group findings by violation category (REQ-002; tools/check_docs_content_policy.py)
-    - [ ] Create follow-up issues for each category group with concrete remediation steps (REQ-003, REQ-004; docs/*.md)
+     - [ ] Group findings by violation category (REQ-002; Reference Files: tools/check_docs_content_policy.py)
+     - [ ] Create follow-up issues for each category group with concrete remediation steps (REQ-003, REQ-004; see Phase 1 output)
 3. **Phase 3: Post-Remediation**
-    - [ ] Update GV-021 status in `docs/00_governance/governance_04_documentation-checks.md` from "Partial" to "Existing" (REQ-007; docs/00_governance/governance_04_documentation-checks.md)
-    - [ ] Promote the check to default-on after corpus compliance (REQ-008; docs/00_governance/governance_04_documentation-checks.md)
+     - [ ] Update GV-021 status in `docs/00_governance/governance_04_documentation-checks.md` from "Partial" to "Existing" (REQ-007; docs/00_governance/governance_04_documentation-checks.md)
+     - [ ] Promote the check to default-on after corpus compliance (REQ-008; docs/00_governance/governance_04_documentation-checks.md)
 
 ## Validation plan
+
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| tools/check_docs_content_policy.py | Manual: verify corpus scan completes without errors | `uv run python tools/check_docs_content_policy.py` | All findings captured |
 | docs/00_governance/governance_04_documentation-checks.md | Verify GV-021 row shows "Existing" | Manual review of markdown table | Status = "Existing", Follow-up = "None" |
 
 ## Risks
+
 - **Risk**: Corpus scan reveals hundreds of violations requiring extensive remediation → **Mitigation**: Prioritize by category and file; create follow-up issues incrementally
 - **Risk**: Some violations may require architectural decisions before remediation (e.g., whether to exempt certain content) → **Mitigation**: Flag these in follow-up issues for governance review
 
@@ -147,15 +166,17 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 | — | — | — | — | — | — |
 
 ## Traceability
+
 - **Workflow phase**: issue-to-plan
 - **Source issue**: issues/20260925-232919_gv021_docs_content_policy_violation_corpus_run.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20260926-053959
-- **Related target files**: tools/check_docs_content_policy.py, docs/*.md, docs/00_governance/governance_04_documentation-checks.md
+- **Related target files**: docs/00_governance/governance_04_documentation-checks.md
 
 ### Requirement Traceability
+
 See `templates/requirement-traceability.md` for the canonical column format.
 
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
