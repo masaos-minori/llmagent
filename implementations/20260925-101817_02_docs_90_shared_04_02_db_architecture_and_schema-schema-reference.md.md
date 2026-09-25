@@ -85,7 +85,7 @@ Moving any other DB-topic file (each tracked by its own procedure document); ren
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Move docs/90_shared_04_02_db_architecture_and_schema-schema-reference.md to docs/41_db/ | Completed | — | 20260925-104258 |  |
-| 2 | Verify git history preserved through move | Pending | — | — |  |
+| 2 | Verify git history preserved through move | Completed | — | 20260925-104416 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
