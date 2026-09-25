@@ -134,10 +134,10 @@ If the result exceeds 512 KB:
 
 ## Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_02_01_endpoints-and-transport.md`
-- `04_mcp_02_03_audit-logging-and-errors.md`
-- `04_mcp_06_12_watchdog-configuration-monitoring.md`
+- `mcp_00_document-guide.md`
+- `mcp_02_01_endpoints-and-transport.md`
+- `mcp_02_03_audit-logging-and-errors.md`
+- `mcp_06_12_watchdog-configuration-monitoring.md`
 
 ## Keywords
 

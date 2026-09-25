@@ -51,8 +51,8 @@ After all migrations are complete:
 
 ## Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_03_02_tool-registry.md`
+- `mcp_00_document-guide.md`
+- `mcp_03_02_tool-registry.md`
 
 ## Keywords
 

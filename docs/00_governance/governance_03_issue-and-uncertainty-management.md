@@ -67,11 +67,11 @@ Part 1 entries are reviewed quarterly, consistent with the cadence documented fo
 
 ### Consolidation Note
 
-The area-specific `rag_90_inconsistencies_and_known_issues.md`,
-`mcp_90_inconsistencies_and_known_issues.md`,
-`05_agent_90_inconsistencies_and_known_issues.md`,
-`06_eventbus_90_inconsistencies_and_known_issues.md`, and
-`90_shared_90_inconsistencies_and_known_issues.md` files were consolidated into this
+The area-specific `~~rag_90_inconsistencies_and_known_issues~~ (deleted).md`,
+`~~mcp_90_inconsistencies_and_known_issues~~ (deleted).md`,
+`~~agent_90_inconsistencies_and_known_issues~~ (deleted).md`,
+`~~eventbus_90_inconsistencies_and_known_issues~~ (deleted).md`, and
+`~~shared_90_inconsistencies_and_known_issues~~ (deleted).md` files were consolidated into this
 section on 2026-09-03 and deleted; this document is now the single system of record
 for Known Issues across all areas. Existing IDs were preserved as-is (`RAG-*`,
 `EVENTBUS-*`, `SHARED-*`, `CI-*`, `DESIGN-*`); one previously untitled RAG entry was
@@ -86,7 +86,7 @@ since several concern RAG, MCP, or Agent behavior rather than Shared/DB.
 Two non-Known-Issue notes from the deleted files, with no active items depending on
 them, are preserved here rather than lost:
 
-- **Agent 5-Tier Scheme (historical, superseded by this consolidation):** `05_agent_90`'s design intent
+- **Agent 5-Tier Scheme (historical, superseded by this consolidation):** `agent_90`'s design intent
   had, for Agent-area entries only, used a 5-tier classification (Design Decision /
   Implementation Bug / Documentation Gap / Needs Confirmation / Operational
   Observation) as a documented exception to this document's common template,
@@ -452,7 +452,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-021
 
-- **Source File**: `41_db_07_db_api_and_operations-recovery-and-reference.md`
+- **Source File**: `db_07_db_api_and_operations-recovery-and-reference.md`
 - **Section**: 9.3 Integrity-result model (target design)
 - **Line Number**: ~39
 - **Question**: Should `_classify_error()` be extended to actually classify a case as `INVALID_FORMAT`, or should the enum value and its dispatch branch be removed as dead?
@@ -843,9 +843,9 @@ Topics explicitly excluded from this document:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](governance_01_documentation-policy.md)
-- [Documentation Metadata](governance_02_documentation-metadata.md)
-- [Documentation Checks](governance_04_documentation-checks.md)
+- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md)
+- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md)
+- [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md)
 
 ## Keywords
 

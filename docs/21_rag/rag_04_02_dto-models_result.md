@@ -100,7 +100,7 @@ These fields are only meaningful when the search is delegated to a remote HTTP R
 
 - [03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md)
 - [03_rag_00_document-guide.md](03_rag_00_document-guide.md)
-- `00_security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
+- `security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 
 ## Keywords
 

@@ -6,18 +6,18 @@ tags:
   - search-diagnostics
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview_00_document-guide.md
-  - 03_rag_03_01_query_pipeline-overview_00_document-guide.md
+  - 03_rag_01_system_overview.md
+  - 03_rag_03_01_query_pipeline-overview.md
   - 03_rag_04_05_dto-types.md
   - 03_rag_05_1-configuration-reference.md
 source:
-  - 03_rag_03_01_query_pipeline-overview_00_document-guide.md
+  - 03_rag_03_01_query_pipeline-overview.md
 ---
 
 
 # RAG Query Pipeline
 
-- System Overview → [03_rag_01_system_overview_00_document-guide.md](03_rag_01_system_overview_00_document-guide.md)
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
 - Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 - Type Definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
@@ -102,11 +102,11 @@ StageResult = TypedDict with keys:
 
 ## Related Documents
 
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview_00_document-guide.md`
-- `03_rag_03_01_query_pipeline-overview_00_document-guide.md`
-- `03_rag_04_05_dto-types.md`
-- `03_rag_05_1-configuration-reference.md`
+- `rag_00_document-guide.md`
+- `rag_01_system_overview.md`
+- `rag_03_01_query_pipeline-overview.md`
+- `rag_04_05_dto-types.md`
+- `rag_05_1-configuration-reference.md`
 
 ## Keywords
 

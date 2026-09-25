@@ -7,12 +7,12 @@ tags:
   - sqlite
   - file-structure
 related:
-  - 01_overview-files-04-shared.md
+  - overview-files-04-shared.md
 ---
 
 # File Structure
 
-Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01-process.md), [`01_overview-arch-02-pipelines.md`](01_overview-arch-02-pipelines.md), [`01_overview-arch-03-features.md`](01_overview-arch-03-features.md)
+Architecture Overview → [`overview-arch-01-process.md`](overview-arch-01-process.md), [`overview-arch-02-pipelines.md`](overview-arch-02-pipelines.md), [`overview-arch-03-features.md`](overview-arch-03-features.md)
 
 ## 3. File Structure
 
@@ -58,7 +58,7 @@ Config Drift defaults to warnings, raises RuntimeError if `routing_drift_strict`
 
 ## Related Documents
 
-- `01_overview-files-04-shared.md`
+- `overview-files-04-shared.md`
 - [01_overview.md](01_overview.md)
 
 ## Keywords

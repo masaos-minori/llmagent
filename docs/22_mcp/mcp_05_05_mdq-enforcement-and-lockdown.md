@@ -82,13 +82,13 @@ Instead, the path authorization based on `allowed_dirs` (default `[]`) serves as
 
 ## Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_05_01_access-control-and-allowlists.md`
-- `04_mcp_05_02_auth-profiles-and-sandboxing.md`
-- `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `04_mcp_05_04_mdq-rag-boundary.md`
-- `04_mcp_04_04_mdq.md`
-- `00_security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
+- `mcp_00_document-guide.md`
+- `mcp_05_01_access-control-and-allowlists.md`
+- `mcp_05_02_auth-profiles-and-sandboxing.md`
+- `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
+- `mcp_05_04_mdq-rag-boundary.md`
+- `mcp_04_04_mdq.md`
+- `security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
 
 ## Keywords
 

@@ -402,15 +402,15 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 ### Specifications
 
 - [MCP System Overview](../mcp_01_system_overview_00_document-guide.md) — MCPアーキテクチャ概要
-- [Endpoints and Transport](../mcp_02_01_endpoints-and-transport.md) — エンドポイントとTransport
-- [Startup Modes and Health](../mcp_02_02_startup-modes-and-health.md) — 起動モードとヘルス
-- [Dispatch and Routing](../mcp_03_01_dispatch-and-routing.md) — ディスパッチとルーティング
-- [Transport and Health](../mcp_03_03_transport-and-health.md) — Transportとヘルス
-- [Tool Call Tracing and Watchdog](../mcp_03_04_tool-call-tracing-and-watchdog.md) — ツール呼び出し追跡とウォッチドッグ
-- [Lifecycle and New Server](../mcp_03_05_lifecycle-and-new-server.md) — ライフサイクル
-- [Configuration File Inventory](../mcp_06_02_configuration-file-inventory.md) — 設定ファイル一覧
-- [Long-running HTTP Operation Startup Mode/Subprocess](../mcp_06_05_long-running-http-operation-startup_modesubprocess.md) — HTTP操作起動モード
-- [New MCP Server Addition Checklist](../mcp_06_15_new-mcp-server-addition-checklist.md) — MCPサーバー追加チェックリスト
+- [Endpoints and Transport](/home/sugimoto/llmagent/docs/22_mcp/mcp_02_01_endpoints-and-transport.md) — エンドポイントとTransport
+- [Startup Modes and Health](/home/sugimoto/llmagent/docs/22_mcp/mcp_02_02_startup-modes-and-health.md) — 起動モードとヘルス
+- [Dispatch and Routing](/home/sugimoto/llmagent/docs/22_mcp/mcp_03_01_dispatch-and-routing.md) — ディスパッチとルーティング
+- [Transport and Health](/home/sugimoto/llmagent/docs/22_mcp/mcp_03_03_transport-and-health.md) — Transportとヘルス
+- [Tool Call Tracing and Watchdog](/home/sugimoto/llmagent/docs/22_mcp/mcp_03_04_tool-call-tracing-and-watchdog.md) — ツール呼び出し追跡とウォッチドッグ
+- [Lifecycle and New Server](/home/sugimoto/llmagent/docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md) — ライフサイクル
+- [Configuration File Inventory](/home/sugimoto/llmagent/docs/22_mcp/mcp_06_02_configuration-file-inventory.md) — 設定ファイル一覧
+- [Long-running HTTP Operation Startup Mode/Subprocess](/home/sugimoto/llmagent/docs/22_mcp/mcp_06_05_long-running-http-operation-startup_modesubprocess.md) — HTTP操作起動モード
+- [New MCP Server Addition Checklist](/home/sugimoto/llmagent/docs/22_mcp/mcp_06_15_new-mcp-server-addition-checklist.md) — MCPサーバー追加チェックリスト
 
 ### Operations
 
@@ -418,7 +418,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — MCP既知の問題
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — MCP既知の問題
 
 ### Implementation References
 

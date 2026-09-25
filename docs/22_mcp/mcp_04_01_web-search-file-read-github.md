@@ -21,7 +21,7 @@ related:
 
 Specifications for 10 MCP servers per server: purpose, port, tools, I/O, configuration, startup, security, logs, operational notes, and known limitations.
 
-> **Note:** This document is a formal server catalog. For a system-level list of servers including ports and transport types, refer to [04_mcp_01_system_overview_00_document-guide.md Server Catalog](04_mcp_01_system_overview_00_document-guide.md).
+> **Note:** This document is a formal server catalog. For a system-level list of servers including ports and transport types, refer to [04_mcp_01_system_overview.md Server Catalog](04_mcp_01_system_overview.md).
 
 ---
 
@@ -188,11 +188,11 @@ The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server 
 
 ## Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_04_02_file-write-file-delete-shell.md`
-- `04_mcp_04_03_rag-pipeline-and-cicd.md`
-- `04_mcp_04_04_mdq.md`
-- `04_mcp_04_05_git.md`
+- `mcp_00_document-guide.md`
+- `mcp_04_02_file-write-file-delete-shell.md`
+- `mcp_04_03_rag-pipeline-and-cicd.md`
+- `mcp_04_04_mdq.md`
+- `mcp_04_05_git.md`
 
 ## Keywords
 

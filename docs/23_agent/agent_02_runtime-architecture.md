@@ -1,0 +1,287 @@
+---
+title: "Agent Runtime Architecture (Part 1)"
+area: agent
+tags:
+  - agent
+  - runtime
+  - architecture
+related:
+---
+# Agent Runtime Architecture (Part 1)
+
+## Related Documents
+<placeholder>
+
+- System Overview $\rightarrow$ [agent_01_system-overview.md](agent_01_system-overview.md)
+
+## Purpose
+
+Describes the primary runtime components, their dependencies, and responsibility boundaries, enabling engineers and AI to identify where specific behaviors are implemented.
+
+> **Scope of this chapter:** Runtime behavior, module graph, data flow, and component lifecycles. For function signatures, parameter types, and return values $\rightarrow$ see [agent_13 Reference API]()agent_13_reference-api.md.
+
+## Responsibility Boundary
+
+### Component Responsibilities
+
+- **Component Responsibilities**: AgentREPL (UI loop, command dispatching, output display), StartupOrchestrator (startup sequence orchestration), Orchestrator (turn-level facade), AgentContext (per-session DI hub), LLMClient (SSE streaming, retry), ToolExecutor (MCP routing), HistoryManager (char counting, LLM compression), CLIView (readline, progress display), CommandRegistry (built-in command dispatch), LifecycleState (transport state enum), AgentSession (CRUD for sessions/messages), Memory Services (injection, ingestion, store, retriever).
+- **Owned State**: AgentREPL owns the input loop and UI state; AgentContext owns shared mutable state and component references; each service owns its own runtime state.
+- **Allowed Dependency Direction**: AgentREPL depends on StartupOrchestrator, AgentContext, CLIView, Orchestrator; Orchestrator depends on LlmTurnExecutor; AgentContext depends on LLMClient, ToolExecutor, HistoryManager, ServerLifecycleRouter; no circular dependencies among services.
+- **Reason for Process Separation**: Decoupling StartupOrchestrator from AgentREPL allows complexity during startup to be separated from REPL's responsibility; decoupling Orchestrator from LlmTurnExecutor separates turn-level coordination from LLM streaming and tool loop execution.
+- **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
+
+### Responsibility Boundary Supplement
+
+- `AgentContext` is the hub for shared mutable state and component references. `factory.build_agent_context()` injects all services.
+- `Orchestrator` handles end-to-end processing of a single user turn, delegating LLM streaming and the tool loop to `LlmTurnExecutor`.
+- The runtime implementation of `AppServices.lifecycle` is defined in `agent/factory.py`; starting and stopping HTTP subprocesses is delegated to `agent/http_lifecycle.py`.
+
+## Key Constraints
+
+- `Orchestrator.__init__()` loads workflow definitions via `WorkflowLoader().load()`, raising a `RuntimeError` on failure (which stops startup).
+- If an exception occurs after starting an MCP subprocess, the started MCP subprocesses are rolled back.
+- Side-effect detection: if `write`/`delete`/`shell_run` is included, parallel tool calls are serialized.
+
+## Operational Notes
+
+- `AgentContext.diagnostics` is an attribute not shown in the diagram above, which is set after `Orchestrator.__init__()` execution.
+- `handle_turn()` executes the plan/execute/verify stages via the workflow engine. New turns are rejected while `ctx.workflow.approval_pending` is `True` or while background tasks are paused. (See [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md) for details.)
+
+## Known Limitations
+
+- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md) for details.)
+
+## Preflight Gate Coverage
+
+`check_preflight()` の呼び出しサイトとそのテストカバレッジを文書化する。
+未テストの実行経路はゲートを迂回する可能性があるため、すべての経路にテストまたは正当化が必要。
+
+### Enumerated Call Sites
+
+| # | Location | Caller Chain | Gate Status | Test Coverage | Exemption |
+|---|---|---|---|---|---|
+| 1 | `scripts/agent/repository_gateway.py:114` | `RepositoryGateway._gate_write()` → `RepositoryGateway.execute()` | Enforced | Partial (mocked in tests) | None |
+| 2 | `scripts/agent/commands/cmd_mdq.py:67` | `_MdqMixin._execute_mdq()` → `/mdq <subcommand>` | Enforced | None | None |
+| 3 | `scripts/agent/commands/cmd_context.py:206` | `_ContextMixin._cmd_diff()` → `/diff` | Enforced | None | None |
+| 4 | `scripts/agent/tool_approval.py:148` | `check_approval()` → `run_approval_checks()` | Enforced | Partial (existing tests) | None |
+
+### Exempt Paths
+
+| Path | Justification |
+|---|---|
+| `repository_gateway.py:execute()` line 85-86 (`if op == OperationType.READ`) | READ operations are intentionally preflight-exempt per design (direct passthrough for read-only tools). No separate `read_execute()` method exists. |
+| `tool_approval.py:check_approval()` via `ApprovalDecisionType.DRY_RUN` | dry_run execution is preflight-exempt (read-only operation). No separate `build_preview()` method exists; handled via `DryRun` decision type. |
+| `tool_runner.py:run_tool_call()` line 116-119 (`else` branch) | Gateway not yet configured; requires separate resolution. This path bypasses both the gateway and the preflight gate. |
+
+### Gateway-Bypass Gap Analysis
+
+Three distinct patterns exist where `tools.execute()` is called directly without going through the gateway:
+
+**Pattern 1: Preflight gate present, gateway bypass** (cmd_mdq.py, cmd_context.py)
+- These paths have `check_preflight()` gates but bypass the gateway.
+- They are partially covered but inconsistent with the gateway-centric enforcement model.
+
+**Pattern 2: No preflight gate, no gateway** (tool_runner.py)
+- Critical gap: neither preflight nor gateway protection.
+- Priority 1: Resolve by adding preflight check in the `else` branch.
+- Priority 2: Standardize all write/delete/API-write operations through the gateway.
+
+### Ongoing Maintenance
+
+Coverage map accuracy must be maintained over time. Future changes to gate placement must update this map as part of the acceptance criteria (REQ-07 / AC-07). Any new `check_preflight()` addition requires a corresponding test or documented exception.
+
+## Related Docs
+
+- `agent_00_document-guide.md`
+- `agent_02_runtime-architecture.md`
+
+## Keywords
+
+agent
+runtime
+architecture
+lifecycle
+
+## Agent Runtime Architecture (Part 2)
+
+- System Overview $\rightarrow$ [agent_01_system-overview.md](agent_01_system-overview.md)
+
+## Purpose
+
+Describes runtime extension points, lifecycle phases, and shutdown policies, clarifying component operation duration and interdependencies.
+
+## Design Intent
+
+`AgentREPL` is responsible only for the UI loop, command dispatching, and output display, containing no business logic. By delegating all startup sequences to `StartupOrchestrator`, the REPL functions purely as an I/O layer.
+
+Decoupling `StartupOrchestrator` from `AgentREPL` allows complexity during startup (service checks, MCP server startup, approval recovery) to be separated from the REPL's responsibility, ensuring the REPL focuses solely on UI concerns.
+
+## Responsibility Boundary
+
+### Component Responsibilities
+
+#### AgentREPL (`agent/repl.py`)
+
+- Manages the input/dispatch loop: reads lines $\rightarrow$ commands or LLM turns.
+- Manages graceful shutdown.
+- Contains no business logic. Responsible only for UI loop, command dispatch, and output display.
+
+#### StartupOrchestrator (`agent/startup.py`)
+
+- Encapsulates all startup orchestration processes extracted from `AgentREPL`.
+- Constructed with `(ctx, view)`. `run()` returns `(CommandRegistry, Orchestrator)`.
+- Decouples startup complexity so that `AgentREPL` remains focused on UI concerns.
+
+#### Orchestrator (`agent/orchestrator.py`)
+
+- Handles end-to-end processing of a single user turn.
+- Manages the flow: memory injection $\rightarrow$ user message addition $\rightarrow$ history compression $\rightarrow$ LLM turn.
+- Delegates LLM streaming and the tool loop to `LlmTurnExecutor`.
+- Issues audit log events (`turn_start`, `turn_end`).
+
+#### AgentContext (`agent/context.py`)
+
+The hub for shared mutable state and component references. All services are injected via `factory.build_agent_context()`.
+
+| Sub-structure | Scope | Key contents |
+|---|---|---|
+| `ctx.conv` | Session | `history`, `plan_mode`, `debug_mode`, `system_prompt_content` |
+| `ctx.turn` | Per-turn | `current_turn_id` (UUID4, None between turns) |
+| `ctx.stats` | Cumulative | `stat_turns`, `stat_tool_calls`, `stat_latency`, token counts |
+| `ctx.workflow` | Session | `WorkflowState`: `active`, `current_task_id`, `workflow_id`, `approval_pending` (transient) |
+| `ctx.cfg` | Hot-reload | `AgentConfig` (composite sub-configs) |
+| `ctx.session` | Session | `AgentSession` (SQLite) |
+| `ctx.services` | Injected | All service instances (LLMClient, ToolExecutor, etc.) |
+
+#### LLMClient (`shared/llm_client.py`)
+
+- Constructs request payloads (messages + tool_defs + temperature + max_tokens).
+- SSE streaming (incremental UTF-8, heartbeat tracking).
+- Reconnects upon recoverable errors.
+- Detects and reports partial completions.
+
+#### ToolExecutor (`shared/tool_executor.py`)
+
+- MCP routing.
+- Side-effect detection: serializes parallel tool calls if `write`/`delete`/`shell_run` is included.
+- Resolves tool name $\rightarrow$ server key.
+- Tracks health status per server.
+
+#### HistoryManager (`agent/history.py`)
+
+- Counts conversation history size (character count or token count).
+- Triggers LLM-based summarization when thresholds are exceeded.
+- Selects turns for compression (importance scoring + category).
+- Protects the most recent `history_protect_turns` pair from being compressed.
+
+#### CommandRegistry (`agent/commands/registry.py`)
+
+Dispatches built-in commands.
+
+#### CLIView (`agent/cli_view.py`)
+
+- Responsible only for the presentation layer, containing no business logic.
+- Provides `Writer` and `Reader` protocols for testability.
+- Receives callbacks from `Orchestrator`, `HistoryManager`, and `LLMClient`.
+
+#### LifecycleState (`agent/lifecycle.py`)
+
+An enum representing transport state shared among lifecycle managers:
+
+| Value | Description |
+|---|---|
+| `STARTING` | Server is starting |
+| `RUNNING` | Server is running |
+| `STOPPED` | Server is stopped |
+| `FAILED` | An error occurred in the server |
+| `UNKNOWN` | Initial/unknown state |
+
+Valid transitions: `STOPPED → STARTING/FAILED`, `STARTING → RUNNING/FAILED/STOPPED`, `RUNNING → STOPPED/FAILED/STARTING`, `FAILED → STARTING/STOPPED`, `UNKNOWN → any`.
+
+#### AgentSession (`agent/session.py`)
+
+- CRUD for `sessions` and `messages` tables.
+- Deletion/listing of RAG documents (delegated from `/db` command).
+- Returns message lists for session restoration.
+
+#### Memory Services (`agent/memory/`)
+
+An optional subsystem enabled when `use_memory_layer=True`. Accessed via `ctx.services.memory`.
+
+| Sub-service | Role |
+|---|---|
+| `injection` | Injects relevant memories at session start and each turn. |
+| `ingestion` | Extracts and persists memories at session end. |
+| `store` | JSONL + SQLite store for memory entries. |
+| `retriever` | FTS5 and optional KNN search. |
+
+## Key Constraints
+
+### Shutdown
+
+Graceful shutdown is controlled via flags. Upon receiving `SIGTERM`, the `shutdown_requested` flag is set, and the loop terminates after the next turn completion. There is a maximum 10-second grace period before timeout.
+
+This approach was chosen to ensure the integrity of ongoing workflows rather than performing a direct system exit. Handlers do not block, instead deferring termination to the post-turn check.
+
+Resource closing occurs after WAL checkpointing, and both calls are independent and protected. One failing does not block the other.
+
+### Startup Validation Pipeline
+
+Service checks accumulate results in `StartupValidationResult`, and startup is aborted if even one `FATAL` error occurs. MCP subprocesses are rolled back if an exception occurs after they have been started.
+
+### Lifecycle Implementation Location
+
+`LifecycleManagerProtocol` defines `ensure_ready`/`shutdown_all`/`restart`/`shutdown_idle`/`get_transport_state`/`start_http_subprocess`/`get_process_snapshot` using structural subtyping. The production implementation is in `agent/factory.py`, where HTTP subprocess startup, health polling, restart, and termination are delegated to `agent/http_lifecycle.py`.
+
+`ensure_ready`/`start_http_subprocess`/`restart` are guarded against being ignored once shutdown has started.
+
+## Operational Notes
+
+- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default).
+- `handle_turn()` executes the plan/execute/verify stages via the workflow engine.
+  While `ctx.workflow.approval_pending` is `True`, and while background tasks are paused, new turns are rejected. (See [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md) for details.)
+
+## Preflight Gate Coverage Map
+
+This section documents the coverage of all `check_preflight()` call sites across the Agent subsystem. Each entry includes the call site location, caller chain, gate status, test coverage, and exemption justification.
+
+### Enumerated Call Sites
+
+| # | Location | Caller Chain | Gate Status | Test Coverage | Exemption |
+|---|---|---|---|---|---|
+| 1 | `scripts/agent/repository_gateway.py:114` | `RepositoryGateway._gate_write()` → `RepositoryGateway.execute()` | Enforced | Partial (mocked in tests) | None |
+| 2 | `scripts/agent/commands/cmd_mdq.py:67` | `_MdqMixin._execute_mdq()` → `/mdq <subcommand>` | Enforced | None | None |
+| 3 | `scripts/agent/commands/cmd_context.py:206` | `_ContextMixin._cmd_diff()` → `/diff` | Enforced | None | None |
+| 4 | `scripts/agent/tool_approval.py:148` | `check_approval()` → `run_approval_checks()` | Enforced | Partial (existing tests) | None |
+
+### Exempt Paths
+
+| Path | Justification |
+|---|---|
+| `repository_gateway.py::read_execute()` | READ operations are intentionally preflight-exempt per design (direct passthrough for read-only tools) |
+| `tool_approval.py::build_preview()` | dry_run execution is preflight-exempt (read-only operation) |
+| `tool_runner.py::run_tool_call()` when `gateway is None` | Gateway not yet configured; requires separate resolution |
+
+### Future Gate Additions
+
+When adding new `check_preflight()` calls, you MUST:
+
+1. Add an entry to the coverage map above.
+2. Ensure the new path has either a passing test or a documented justification for exclusion.
+3. Update this section's acceptance criteria if the exemption rationale changes.
+
+## Known Limitations
+
+- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md) for details.)
+
+## Related Docs
+
+- `agent_00_document-guide.md`
+- `agent_02_runtime-architecture.md`
+
+## Keywords
+
+agent
+runtime
+architecture
+lifecycle

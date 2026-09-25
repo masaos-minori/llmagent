@@ -457,11 +457,11 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [mcp_03_01_dispatch-and-routing.md](../mcp_03_01_dispatch-and-routing.md) — MCP Discovery and Routing
-- [mcp_03_02_tool-registry.md](../mcp_03_02_tool-registry.md) — Tool Registry Reference
-- [mcp_03_06_tool-runtime-availability-metadata.md](../mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Availability Metadata
-- [05_agent_06_01_tool-execution-and-approval-execution.md](../05_agent_06_01_tool-execution-and-approval-execution.md) — Agent Tool Execution
-- [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](../40_shared/90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime
+- [mcp_03_01_dispatch-and-routing.md](/home/sugimoto/llmagent/docs/22_mcp/mcp_03_01_dispatch-and-routing.md) — MCP Discovery and Routing
+- [mcp_03_02_tool-registry.md](/home/sugimoto/llmagent/docs/22_mcp/mcp_03_02_tool-registry.md) — Tool Registry Reference
+- [mcp_03_06_tool-runtime-availability-metadata.md](/home/sugimoto/llmagent/docs/22_mcp/mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Availability Metadata
+- [agent_06_01_tool-execution-and-approval-execution.md](/home/sugimoto/llmagent/docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md) — Agent Tool Execution
+- [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](/home/sugimoto/llmagent/docs/40_shared/shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime
 
 ### Operations
 
@@ -469,7 +469,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — CI-003（Reload実行フロー全体の検証未了）、CI-015（Tool所有権重複検出のテスト未整備）
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — CI-003（Reload実行フロー全体の検証未了）、CI-015（Tool所有権重複検出のテスト未整備）
 
 ### Implementation References
 

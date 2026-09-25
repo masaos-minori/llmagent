@@ -49,7 +49,7 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 ### Summary of Routing Precedence
 
-See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
+See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 ### New Server/Tool Registration Checklist
 
@@ -60,7 +60,7 @@ See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for ration
 | `config/agent.toml` — Add `tool_safety_tiers` entry | **Required** | All tools must declare a safety tier |
 | `config/<key>_mcp_server.toml` — Server config file | **Required** (for new servers) | Server application settings (server-specific values only). The `[mcp_servers.<key>]` transport section belongs in `config/agent.toml`. |
 | `deploy/deploy.sh` — Add installation/copy step | **Required** (for new servers) | The deployment must include the new server |
-| Update `routing.md` | **Required** | Documentation guide must reference the new server |
+| Update `/routing.md` | **Required** | Documentation guide must reference the new server |
 
 ### Manual Procedure
 
@@ -88,11 +88,11 @@ Even if `tool_names` is omitted or incomplete, the registry will continue to rou
 
 ## Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_03_01_dispatch-and-routing.md`
-- `04_mcp_03_02_tool-registry.md`
-- `04_mcp_03_03_transport-and-health.md`
-- `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
+- `mcp_00_document-guide.md`
+- `mcp_03_01_dispatch-and-routing.md`
+- `mcp_03_02_tool-registry.md`
+- `mcp_03_03_transport-and-health.md`
+- `mcp_03_04_tool-call-tracing-and-watchdog.md`
 
 ## Keywords
 

@@ -19,7 +19,7 @@ related:
 
 ## MDQ vs RAG boundary
 
-> **Source of Truth.** This section consolidates content previously located in `04_mcp_07_mdq_rag_boundary.md` (removed in commit f24efc1).
+> **Source of Truth.** This section consolidates content previously located in `~~mcp_07_mdq_rag_boundary~~ (deleted).md` (removed in commit f24efc1).
 
 ### Purpose
 
@@ -136,12 +136,12 @@ Use `mdq-mcp` only for Markdown-specific structural queries where embedding qual
 
 ## Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_05_01_access-control-and-allowlists.md`
-- `04_mcp_05_02_auth-profiles-and-sandboxing.md`
-- `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `04_mcp_05_05_mdq-enforcement-and-lockdown.md`
-- `00_security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
+- `mcp_00_document-guide.md`
+- `mcp_05_01_access-control-and-allowlists.md`
+- `mcp_05_02_auth-profiles-and-sandboxing.md`
+- `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
+- `mcp_05_05_mdq-enforcement-and-lockdown.md`
+- `security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 
 ## Keywords
 

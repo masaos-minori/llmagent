@@ -63,7 +63,7 @@ RAGインデックス、セッション状態、ワークフロー状態、イ�
 ### Recovery Category Glossary
 
 - **initialization**: Creating a fresh, empty database or required schema when no valid database exists (`scripts/db/create_schema.py`; section 11 "DB Recreation Procedure").
-- **schema-repair**: Correcting a missing or incompatible schema through an approved migration or initialization path (`apply_workflow_migrations()` / `_migrate()` in `docs/41_db/41_db_03_db_architecture_and_schema-migration-and-scaling.md` sections 8a/8b); distinct from recreate-only paths.
+- **schema-repair**: Correcting a missing or incompatible schema through an approved migration or initialization path (`apply_workflow_migrations()` / `_migrate()` in `docs/41_db/db_03_db_architecture_and_schema-migration-and-scaling.md` sections 8a/8b); distinct from recreate-only paths.
 - **logical-repair**: Correcting application-level inconsistencies while the SQLite file remains physically valid (`RagMaintenanceService.consistency()` in `scripts/agent/services/rag_maintenance_service.py`).
 - **derived-data-rebuild**: Recreating indexes or other data that can be derived from an authoritative source (`RagMaintenanceService.rebuild_fts()` / `rebuild_vec()` in `scripts/agent/services/rag_maintenance_service.py`; `rag.sqlite`-only per Decision Detail #11/#20).
 - **physical-recovery**: Restoring usability after SQLite file corruption (`DbCondition.CORRUPTION` path in `scripts/db/recovery.py`; DbCondition StrEnum members: HEALTHY/CORRUPTION/LOCK_CONTENTION/PERMISSION_FAILURE/INVALID_FORMAT/UNKNOWN).
@@ -524,26 +524,26 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [DB Architecture and Schema](../41_db/41_db_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
-- [DB API and Operations — Recovery and Reference](../41_db/41_db_07_db_api_and_operations-recovery-and-reference.md) — リカバリAPIとOperations参照
+- [DB Architecture and Schema](/home/sugimoto/llmagent/docs/41_db/db_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
+- [DB API and Operations — Recovery and Reference](/home/sugimoto/llmagent/docs/41_db/db_07_db_api_and_operations-recovery-and-reference.md) — リカバリAPIとOperations参照
 - [RAG Persistence](rag_04_02_rag-persistence.md) — RAG永続化
 - [RAG Recovery](rag_04_03_rag-recovery.md) — RAG復旧
-- [Agent Session Persistence](05_agent_04_01_agent-session-persistence.md) — セッション永続化
-- [EventBus Persistence Schema and Replay](../24_eventbus_07_persistence_schema_and_replay.md) — EventBus永続化スキーマ
-- [DLQ Offsets and Delivery Semantics](../24_eventbus_06_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
+- [Agent Session Persistence](agent_04_01_agent-session-persistence.md) — セッション永続化
+- [EventBus Persistence Schema and Replay](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_07_persistence_schema_and_replay.md) — EventBus永続化スキーマ
+- [DLQ Offsets and Delivery Semantics](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
 
 ### Operations
 
-- [Operations and Observability](../05_agent_10_01_operations-and-observability-startup-and-health.md) — 運用と観測
-- [Manual Recovery: workflow.sqlite / eventbus.sqlite](../05_agent_10_01_operations-and-observability-startup-and-health.md#manual-recovery-workflowsqlite-eventbussqlite) — workflow.sqlite / eventbus.sqliteの手動復旧手順
+- [Operations and Observability](/home/sugimoto/llmagent/docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) — 運用と観測
+- [Manual Recovery: workflow.sqlite / eventbus.sqlite](../agent_10_01_operations-and-observability-startup-and-health.md#manual-recovery-workflowsqlite-eventbussqlite) — workflow.sqlite / eventbus.sqliteの手動復旧手順
 
 ### Known Issues
 
 <!-- TODO: Document 'rag_04_02_rag-persistence.md' was deleted -->
 <!-- TODO: Document 'rag_04_03_rag-recovery.md' was deleted -->
 <!-- TODO: Document '05_agent_04_01_agent-session-persistence.md' was deleted -->
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — SHARED-003（workflow/eventbus復旧手続きの実務Runbook整備済み、resolved）、CI-002（本ADRの現行内容と対応しない旧記述の疑い）
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — SHARED-003（workflow/eventbus復旧手続きの実務Runbook整備済み、resolved）、CI-002（本ADRの現行内容と対応しない旧記述の疑い）
 
 ### Implementation References
 

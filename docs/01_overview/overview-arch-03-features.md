@@ -10,18 +10,18 @@ tags:
   - sqlite-vec
   - diagnostic-store
 related:
-  - 01_overview-arch-01-process.md
-  - 01_overview-arch-02-pipelines.md
+  - overview-arch-01-process.md
+  - overview-arch-02-pipelines.md
   - 01_overview.md
 ---
 
 # Overview & Architecture
 
-File Structure → [`01_overview-files-01-build.md`](01_overview-files-01-build.md), [`01_overview-files-02-rag.md`](01_overview-files-02-rag.md), [`01_overview-files-03-scripts.md`](01_overview-files-03-scripts.md), [`01_overview-files-04-shared.md`](01_overview-files-04-shared.md), [`01_overview-files-05-config.md`](01_overview-files-05-config.md), [`01_overview-files-06-misc.md`](01_overview-files-06-misc.md)
+File Structure → [`overview-files-01-build.md`](overview-files-01-build.md), [`overview-files-02-rag.md`](overview-files-02-rag.md), [`overview-files-03-scripts.md`](overview-files-03-scripts.md), [`overview-files-04-shared.md`](overview-files-04-shared.md), [`overview-files-05-config.md`](overview-files-05-config.md), [`overview-files-06-misc.md`](overview-files-06-misc.md)
 
 ## 2.4 Agent Features & Commands List
 
-Details → [`05_agent_07_01_cli-and-commands-cli-reference.md`](05_agent_07_01_cli-and-commands-cli-reference.md)
+Details → [`agent_07_01_cli-and-commands-cli-reference.md`]()agent_07_01_cli-and-commands-cli-reference.md
 
 ## 2.5 Implemented Features Summary
 
@@ -41,7 +41,7 @@ Details → [`05_agent_07_01_cli-and-commands-cli-reference.md`](05_agent_07_01_
 | Dependency Injection Hub (AgentContext) | `scripts/agent/` |
 | Diagnostic Store (turn/session statistics) | `scripts/agent/` |
 
-Refer to the `01_overview-files-03-scripts-part*.md` series for detailed file structure.
+Refer to the `overview-files-03-scripts-part*.md` series for detailed file structure.
 
 ### Implementation Notes
 
@@ -75,8 +75,8 @@ Diagnostics can be viewed using the `/db` command. (Source: `agent/repl.py`)
 
 ## Related Documents
 
-- `01_overview-arch-01-process.md`
-- `01_overview-arch-02-pipelines.md`
+- `overview-arch-01-process.md`
+- `overview-arch-02-pipelines.md`
 - [01_overview.md](01_overview.md)
 
 ## Keywords

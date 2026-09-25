@@ -177,7 +177,7 @@ For authoritative tool-to-server and risk-tier mapping, see [MCP Tool Ownership 
 
 ## Unconfirmed Items
 
-- [NC-004](governance_03_issue-and-uncertainty-management.md): Cross-server tool coordination protocol
+- [NC-004](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md): Cross-server tool coordination protocol
 
 ## Related Documents
 

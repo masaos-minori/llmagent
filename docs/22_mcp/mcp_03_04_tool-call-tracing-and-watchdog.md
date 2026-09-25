@@ -67,7 +67,7 @@ For operational tracing procedures, see [04_mcp_06 End-to-End Tool Call Tracing]
 
 ## Lifecycle Flow
 
-For behavior regarding tool definition startup validation, see `04_mcp_06` Startup Validation Behavior.
+For behavior regarding tool definition startup validation, see `mcp_06` Startup Validation Behavior.
 
 ``` text
 AgentREPL.run()
@@ -97,12 +97,12 @@ AgentREPL.run()
 
 ## Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_03_01_dispatch-and-routing.md`
-- `04_mcp_03_02_tool-registry.md`
-- `04_mcp_03_03_transport-and-health.md`
-- `04_mcp_03_05_lifecycle-and-new-server.md`
-- `04_mcp_06_12_watchdog-configuration-monitoring.md`
+- `mcp_00_document-guide.md`
+- `mcp_03_01_dispatch-and-routing.md`
+- `mcp_03_02_tool-registry.md`
+- `mcp_03_03_transport-and-health.md`
+- `mcp_03_05_lifecycle-and-new-server.md`
+- `mcp_06_12_watchdog-configuration-monitoring.md`
 
 ## Keywords
 

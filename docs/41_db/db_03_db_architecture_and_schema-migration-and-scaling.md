@@ -1,0 +1,182 @@
+---
+title: "DB Architecture and Schema - Migration and Scaling"
+area: shared
+tags:
+  - shared
+  - db
+  - migration
+  - constraints
+  - scaling-limits
+  - ai-reference
+related:
+  - 90_shared_00_document-guide.md
+  - db_01_db_architecture_and_schema-overview-and-config.md
+  - db_02_db_architecture_and_schema-schema-reference.md
+source:
+  - db_03_db_architecture_and_schema-migration-and-scaling.md
+---
+
+# DB Architecture and Schema
+
+- Overview → [90_shared_overview_00_document-guide.md](shared_overview_00_document-guide.md)
+- DB API → [db_04_db_api_and_operations-module-boundaries-and-helper.md](/home/sugimoto/llmagent/docs/41_db/db_04_db_api_and_operations-module-boundaries-and-helper.md)
+
+## 8. Schema Generation and Migration Policy
+
+```python
+# Initialize all schemas (rag + session + workflow + eventbus)
+from db.create_schema import create_schema
+create_schema()
+```
+
+- For create-only DDL (used by `create_schema()` bootstrap): all statements use `IF NOT EXISTS` — idempotent and safe to run multiple times.
+- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_db_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8c) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
+- Embedding dimension is a fixed code-level constant returned by `scripts/db/store_protocols.py::get_embedding_dims()`, not a config key.
+
+### 8a. Incremental Migrations for `workflow.sqlite` Only (Explicit in code)
+
+The principle that "rag/session do not support backward-compatible migrations" applies only to those two databases. `workflow.sqlite` is an exception, as `db/schema_sql.py` implements a dedicated incremental migration mechanism.
+
+- `db/schema_sql.py` maintains a migration list in `list[tuple[str, str]]` format (ID + SQL statement pairs) and applies them sequentially using `apply_workflow_migrations()`.
+- It catches `sqlite3.OperationalError` containing `"duplicate column name"` (treating it as already applied) while re-raising others.
+- `create_workflow_schema()` creates base tables, then applies migrations, and finally records the version.
+- For new databases, migrations are no-ops since base schemas already contain the required columns. They function as incremental column additions for existing databases.
+
+Incremental migration mechanisms like this do not exist for `rag.sqlite` or `session.sqlite`.
+
+### 8b. Incremental Migration for `eventbus.sqlite` (Explicit in code)
+
+`scripts/eventbus/schema.py::_migrate()` performs incremental, additive schema
+evolution on `eventbus.sqlite` at every EventBus service startup, called from
+`_init_schema()` when the `events` table already exists. The base schema for
+`events`, `consumer_delivery`, and `consumer_offsets` is defined in
+`scripts/eventbus/schema.sql`; see `scripts/eventbus/schema.py` for the additive
+migration logic that creates `consumer_delivery`/`consumer_offsets` on existing
+databases.
+
+Each table serves a distinct purpose:
+- `events`: Stores all published events with auto-incrementing sequence numbers.
+- `consumer_delivery`: Tracks which events each consumer has acknowledged, enabling per-consumer delivery semantics.
+- `consumer_offsets`: Stores the last-committed sequence offset for each consumer, enabling resume-after-restart.
+
+- **Additive columns:** `delivery_failure_count` and `dlq_requeue_count` (both `INTEGER NOT NULL DEFAULT 0`) are added via `ALTER TABLE events ADD COLUMN`; duplicate-column errors are caught and ignored.
+- **Column removal:** `retry_count` is dropped via `ALTER TABLE events DROP COLUMN retry_count`; "no such column" errors are caught and ignored (already dropped or never existed).
+- **Additive indexes:** `idx_events_dlq_at ON events(dlq_at)` and `idx_events_dlq_seq ON events(dlq_at, seq)` are created with `CREATE INDEX IF NOT EXISTS`; duplicate-index errors are caught and ignored.
+- **New tables:** `_migrate()` additionally creates the `consumer_delivery` and `consumer_offsets` tables via the same idempotent `CREATE TABLE IF NOT EXISTS` pattern used for column/index additions.
+- **Separate data migration:** A one-time, idempotent data migration seeds `consumer_offsets` from any pre-existing legacy offset files at service startup; this data migration is distinct from `_migrate()`'s own schema-DDL role and does not modify or delete the legacy files.
+- **Two initialization paths:** `create_schema()` bootstrap (create-only DDL via `schema.sql`) vs. `eventbus/db.py::open_db()` live-service startup (incremental ALTER TABLE operations). A reader must distinguish them — conflating them would incorrectly suggest `eventbus.sqlite` lacks migration support.
+
+### 8c. RAG Consistency Verification (Explicit in code)
+
+`db/rag_consistency.py::check_rag_consistency()` is a read-only verification function that compares row counts of `chunks`, `chunks_fts`, and `chunks_vec`, returning a `RagConsistencyReport` (`db/models.py`). See code for details on consistency conditions and error message generation logic.
+
+### 8d. Automatic Legacy Schema Detection for `mdq.sqlite` Only (Explicit in code)
+
+`scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` is a third pattern of schema update, distinct from rag/session/eventbus and workflow, which runs automatically upon MDQ service startup.
+
+- **Trigger:** Called every time the MDQ service starts (no explicit migration command required).
+- **Detection:** Determines if the schema is legacy using `PRAGMA table_info(chunks)`.
+- **Action:** If a legacy schema is detected, it unconditionally `DROP`s the `chunks`/`chunks_fts` tables and related triggers, then recreates them with the current schema.
+- **Comparison:** Unlike 8a's `workflow.sqlite`, there are no version control columns or explicit `ALTER TABLE` migration lists — it simply inspects the schema shape at startup and rebuilds it silently if it is outdated.
+- **Data Loss Warning:** The `DROP` during legacy schema detection is unconditional; existing data is lost after recreation.
+
+The `chunks_vec`/`memories_vec` (`db/schema_sql.py`) for `rag.sqlite`, `session.sqlite`, and `eventbus.sqlite` are unrelated to the MDQ schema/hybrid search cleanup and are unaffected.
+
+---
+
+## 9. Schema Evolution
+
+The EventBus SQLite database uses `CREATE TABLE IF NOT EXISTS` for all new tables, ensuring safe re-runs. The `_migrate()` function in `scripts/eventbus/db.py` applies schema changes incrementally:
+
+1. **New tables:** Created via `CREATE TABLE IF NOT EXISTS` — safe to run multiple times.
+2. **New columns:** Added via `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` — defensive check against duplicate-column errors.
+3. **New indexes:** Created via `CREATE INDEX IF NOT EXISTS` — safe to run multiple times.
+
+For example, the `consumer_delivery` and `consumer_offsets` tables were added by `_migrate()` during the transition from file-based offsets to SQLite-backed offsets. Both tables use `CREATE TABLE IF NOT EXISTS` so they are safe to run on existing databases.
+
+### Migration Strategy
+
+The `migrate_legacy_offsets()` function seeds the `consumer_offsets` table from existing `offsets_dir` files on every startup. It reads each `.map` companion file to recover the original `consumer_id`, then inserts the offset using `INSERT OR IGNORE` (idempotent). Legacy files are retained until verified end-to-end.
+
+---
+
+## 9a. AI Reference Guide
+
+rag.sqlite schema location: this doc section 5; session.sqlite schema location: this doc section 6; SQLiteHelper supports workflow.sqlite: yes (target="workflow", not documented in spec, see section 4); embedding dimension fixed by `scripts/db/store_protocols.py::get_embedding_dims()`; schema initializer: `create_schema()` — idempotent DDL-only initialization, not migration; DB triggers documented: `chunks_fts` auto-sync triggers (section 5), `memories_fts` auto-sync triggers (section 6).
+
+---
+
+## 10. Source of Truth
+
+DDL source: `db/schema_sql.py`; schema initialization entry point: `db/create_schema.py::create_schema()`; deploy initialization entry point: `deploy/init_db.sh`; DB connection helper: `db/helper.py::SQLiteHelper`; DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`; Event Bus schema (DDL only): `scripts/eventbus/schema.sql`; mdq.sqlite schema/auto-update source: `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` (see section 8c); deleted entry point: `db/workflow_schema.py` — removed in plan 54.
+
+**Note:** The Event Bus runtime (publisher/subscriber/dispatcher/DLQ worker) is outside the scope of this cleanup. Future Event Bus write operations must use ISO-8601 UTC Z-suffix timestamps.
+
+## 11. Storage Growth
+
+The `consumer_delivery` table grows proportionally to the product of (number of consumers × number of events). For a single consumer, this is bounded by the total number of events. For multiple consumers, the growth is linear with respect to the number of consumers.
+
+**Mitigation strategies:**
+- Periodic cleanup of old delivery-state rows (e.g., events older than N days).
+- Partitioning by consumer_id or event_id if the dataset becomes very large.
+- Using a separate database per consumer if the workload requires strict isolation.
+
+The `consumer_offsets` table has constant-size growth (one row per consumer), regardless of the number of events.
+
+## 12. Scaling Limits and Migration Indicators
+
+The current RAG architecture uses single-node SQLite. This is suitable for team-scale deployments where corpus size is moderate and concurrent writes are infrequent.
+The following indicators suggest a need for re-evaluation.
+
+### Corpus Size
+
+- **When `chunks` table exceeds ~500,000 rows:** KNN scan time in `chunks_vec` increases linearly with corpus size. Start monitoring `/rag search` latency at this scale. *(Note: Actual thresholds depend on hardware and embedding dimensions.)*
+- **When DB file size exceeds ~10GB:** Latency for `VACUUM`, backups, and WAL checkpoints will increase, and `/db vacuum` may take minutes instead of seconds. *(Note: To be verified.)*
+
+### Write Concurrency
+
+- When multiple `RagIngester` processes write to the same `rag.sqlite`, they are serialized at the WAL layer. If ingestion throughput becomes a bottleneck, SQLite write serialization may become a constraint.
+- **Indicator:** WAL files grow faster than checkpointing can shrink them. Monitor via `/db health`.
+
+### FTS5 Search Latency
+
+- **Indicator:** `/rag search` consistently takes over 500ms. Since FTS5 BM25 scales with document count, search speed may decrease with very large corpora. *(Note: To be verified.)*
+
+### Operational Complexity Indicators
+
+- Backups and point-in-time recovery become more complex as file sizes increase.
+- Sharing the same DB file across multiple environments is not supported (SQLite is a single-file system).
+- Resolving issues with `/session rag-consistency` becomes harder as scale increases.
+
+### Migration Indicator Checklist
+
+Consider architectural review if two or more apply:
+
+- [ ] p95 KNN search latency exceeds 1 second
+- [ ] DB file size exceeds 20GB
+- [ ] WAL checkpoints consistently exceed 30 seconds
+- [ ] Ingestion queue depth consistently exceeds 10,000 unprocessed chunk files
+- [ ] Multiple teams or processes require simultaneous write access
+
+Monitor these indicators during normal operation using `/db health` and `/session rag-consistency`.
+
+### Considerations when limits are approached
+
+- **Vector Search:** Dedicated vector databases (Approximate Nearest Neighbor search, distributed indexing) outperform `sqlite-vec` at scales exceeding 1 million vectors.
+- **Full-Text Search:** Full-text search services offer lower latency for large corpora.
+- **Hybrid Store:** Relational DB + Vector extensions (e.g., `pgvector` compatible) allow scaling write concurrency while maintaining SQL semantics.
+
+> **Note:** The numerical thresholds above are estimates and not guaranteed by benchmarking. Actual limits depend on hardware, embedding dimensions, query patterns, and corpus characteristics. Always verify in individual deployment environments before treating any threshold as definitive.
+
+## 13. Schema Change Checklist
+
+Before performing a schema change task, answer all of the following:
+
+- [ ] Which DB is affected? (rag/session/workflow/eventbus/mdq)
+- [ ] Which schema source files are affected?
+- [ ] Is this a DDL change exclusive to new installations?
+- [ ] Is a migration required for existing databases?
+- [ ] If no migration is provided, is database recreation required?
+- [ ] Is there a possibility of data loss?
+- [ ] Are tests updated to reflect the schema behavior?
+- [ ] Which component is affected: RAG, session, workflow, eventbus, or MDQ?

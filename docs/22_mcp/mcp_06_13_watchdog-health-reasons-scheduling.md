@@ -73,10 +73,10 @@ Currently, since `record_degraded()` is not called, `get_degraded_reason()` alwa
 
 ### Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_06_02_configuration-file-inventory.md`
-- `04_mcp_06_13_watchdog-health-reasons-scheduling.md`
-- `04_mcp_06_12_watchdog-configuration-monitoring.md`
+- `mcp_00_document-guide.md`
+- `mcp_06_02_configuration-file-inventory.md`
+- `mcp_06_13_watchdog-health-reasons-scheduling.md`
+- `mcp_06_12_watchdog-configuration-monitoring.md`
 
 ### Keywords
 
@@ -123,7 +123,7 @@ grep '"error_type":"tool"' agent.log
 
 ### Tool Scheduling and Serialization
 
-An agent executes tool calls grouped by resource scope (always active DAG scheduling when `serial_tool_calls=False`). While `use_tool_dag` is not present in the codebase (Explicit in code — [05_agent_08_03](05_agent_08_03_configuration-tools-memory.md#toolconfig-cfgtool)), setting `serial_tool_calls=True` switches to the legacy standard execution mode (sequential if any side-effecting tool is present, otherwise parallel). Most tools are executed in parallel, but
+An agent executes tool calls grouped by resource scope (always active DAG scheduling when `serial_tool_calls=False`). While `use_tool_dag` is not present in the codebase (Explicit in code — [agent_08_03](agent_08_03_configuration-tools-memory.md)), setting `serial_tool_calls=True` switches to the legacy standard execution mode (sequential if any side-effecting tool is present, otherwise parallel). Most tools are executed in parallel, but
 
 serialization is forced within a round under certain conditions:
 
@@ -172,10 +172,10 @@ Do not change `requires_serial` or `resource_scope_kind`/`resource_scope_keys` v
 
 ### Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_06_02_configuration-file-inventory.md`
-- `04_mcp_06_13_watchdog-health-reasons-scheduling.md`
-- `04_mcp_06_12_watchdog-configuration-monitoring.md`
+- `mcp_00_document-guide.md`
+- `mcp_06_02_configuration-file-inventory.md`
+- `mcp_06_13_watchdog-health-reasons-scheduling.md`
+- `mcp_06_12_watchdog-configuration-monitoring.md`
 
 ### Keywords
 

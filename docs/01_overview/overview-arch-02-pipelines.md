@@ -10,19 +10,19 @@ tags:
   - embedding
   - search
 related:
-  - 01_overview-arch-01-process.md
-  - 01_overview-arch-03-features.md
+  - overview-arch-01-process.md
+  - overview-arch-03-features.md
 ---
 
 # Overview & Architecture
 
-File Structure → [`01_overview-files-01-build.md`](01_overview-files-01-build.md), [`01_overview-files-02-rag.md`](01_overview-files-02-rag.md), [`01_overview-files-03-scripts.md`](01_overview-files-03-scripts.md), [`01_overview-files-04-shared.md`](01_overview-files-04-shared.md), [`01_overview-files-05-config.md`](01_overview-files-05-config.md), [`01_overview-files-06-misc.md`](01_overview-files-06-misc.md)
+File Structure → [`overview-files-01-build.md`](overview-files-01-build.md), [`overview-files-02-rag.md`](overview-files-02-rag.md), [`overview-files-03-scripts.md`](overview-files-03-scripts.md), [`overview-files-04-shared.md`](overview-files-04-shared.md), [`overview-files-05-config.md`](overview-files-05-config.md), [`overview-files-06-misc.md`](overview-files-06-misc.md)
 
 ## 2. Architecture
 
 ### 2.2 Ingestion Pipeline
 
-Details → [`rag_02_01_ingestion_pipeline-overview.md`](rag_02_01_ingestion_pipeline-overview.md)
+Details → [`rag_02_01_ingestion_pipeline-overview.md`](/home/sugimoto/llmagent/docs/21_rag/rag_02_01_ingestion_pipeline-overview.md)
 
 ``` text
 target_urls → crawler.py (BFS crawling) → rag-src/*.json
@@ -32,7 +32,7 @@ target_urls → crawler.py (BFS crawling) → rag-src/*.json
 
 ### 2.3 Query Pipeline
 
-Details → [`rag_03_01_query_pipeline-overview.md`](rag_03_01_query_pipeline-overview.md)
+Details → [`rag_03_01_query_pipeline-overview.md`](/home/sugimoto/llmagent/docs/21_rag/rag_03_01_query_pipeline-overview.md)
 
 ``` text
 User Input
@@ -45,7 +45,7 @@ User Input
 
 - **Turn processing is separated into 4 layers**: `AgentREPL` (REPL loop) → `Orchestrator` (Turn control / Workflow management) → `LlmTurnExecutor` (LLM streaming + internal tool loop) → `agent/tool_runner.py` (Tool execution). The responsibilities of each layer are declared in the docstrings of `agent/repl.py`.
 - **MDQ/RAG Tool Selection**: `agent/mdq_rag_classifier.py` analyzes the query string; if it contains keywords related to Markdown structure, it injects a hint into the history as an ephemeral message with the `system` role to prioritize MDQ tools, otherwise prioritizing RAG tools. This can also be fixed via configuration. (Source: `agent/orchestrator.py`)
-- **Tool Loop Guard**: Detects abnormal repetitive tool calling patterns within a turn and returns a stop hint to the LLM to force termination. Details → [`05_agent_03_02_turn-processing-flow-llm-tool-loop.md`](05_agent_03_02_turn-processing-flow-llm-tool-loop.md) (Source: `agent/tool_loop_guard.py`)
+- **Tool Loop Guard**: Detects abnormal repetitive tool calling patterns within a turn and returns a stop hint to the LLM to force termination. Details → [`agent_03_02_turn-processing-flow-llm-tool-loop.md`]()agent_03_02_turn-processing-flow-llm-tool-loop.md (Source: `agent/tool_loop_guard.py`)
 - **Workflow Engine**: `agent/workflow/workflow_engine.py` manages stage transitions: plan → execute → [Post-execution approval gate] → verify. The post-execution approval gate is passed using `/approve` / `/reject` slash commands. If waiting for approval at the start of a turn, LLM processing is blocked. (Source: `agent/orchestrator.py`)
 
 **Processing Order within a Turn**
@@ -62,12 +62,12 @@ Messages with flags are removed during the system prompt synchronization process
 
 **Workflows are Always Required (No Mode Setting)**
 
-See [ADR-001](../adr/ADR-001-workflow-engine-mandatory.md) for rationale and invariants.
+See [ADR-001](/home/sugimoto/llmagent/docs/10_adr/ADR-001-workflow-engine-mandatory.md) for rationale and invariants.
 
 **Enabling Post-Execution Approval Gates:**
 In the workflow definition file (`config/workflows/*.json`), the `require_approval` field (defaults to `false`) can enable a post-execution approval gate between the `execute` and `verify` stages. Since the pending approval state is persisted in `workflow.sqlite`, pending approvals are restored even after a restart. (Sources: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
 
-For the per-category production policy on when `require_approval: true` is required, see [Approval Gate](05_agent_03_03_turn-processing-flow-workflow-engine.md#Approval Gate).
+For the per-category production policy on when `require_approval: true` is required, see [Approval Gate](agent_03_03_turn-processing-flow-workflow-engine.md#Approval Gate).
 
 **MCP Server `startup_mode`**
 
@@ -83,12 +83,12 @@ Currently, `config/agent.toml` explicitly specifies `startup_mode = "subprocess"
 
 ### Implementation Note: Behavior on Server Startup Failure
 
-See [ADR-004](../adr/ADR-004-environment-failure-handling-policy.md) for rationale, tradeoffs, and invariants.
+See [ADR-004](/home/sugimoto/llmagent/docs/10_adr/ADR-004-environment-failure-handling-policy.md) for rationale, tradeoffs, and invariants.
 
 ## Related Documents
 
-- `01_overview-arch-01-process.md`
-- `01_overview-arch-03-features.md`
+- `overview-arch-01-process.md`
+- `overview-arch-03-features.md`
 - [01_overview.md](01_overview.md)
 
 ## Keywords

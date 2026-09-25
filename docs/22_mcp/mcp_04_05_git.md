@@ -96,7 +96,7 @@ The "Tier" column does not exist within the `scripts/mcp_servers/git/` directory
 
 ## Write protection policy
 
-See also: `00_security_02_high-risk-tool-common-policy.md` Layered protection model for the general framework this section instantiates.
+See also: `security_02_high-risk-tool-common-policy.md` Layered protection model for the general framework this section instantiates.
 
 ### Purpose
 
@@ -131,7 +131,7 @@ A command-specific guard exists for protected-branch enforcement via `GitSecurit
 
 ### Approval level (current gap)
 
-`git_checkout`/`git_pull`/`git_push` are tiered `WRITE_DANGEROUS`, which the risk-tier table describes as requiring full-word `yes` confirmation. In the current `agent.toml::approval_risk_rules`, only tools with an explicit `"high"` override actually get that prompt; `git_checkout`/`git_pull`/`git_push` have no such override and fall back to `RiskLevel.MEDIUM` (`y/N` single-character approval) — see `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`. This is a documentation/behavior mismatch in the approval layer, separate from the MCP-side guard gaps above.
+`git_checkout`/`git_pull`/`git_push` are tiered `WRITE_DANGEROUS`, which the risk-tier table describes as requiring full-word `yes` confirmation. In the current `agent.toml::approval_risk_rules`, only tools with an explicit `"high"` override actually get that prompt; `git_checkout`/`git_pull`/`git_push` have no such override and fall back to `RiskLevel.MEDIUM` (`y/N` single-character approval) — see `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`. This is a documentation/behavior mismatch in the approval layer, separate from the MCP-side guard gaps above.
 
 ### Structured rejection codes (current)
 
@@ -147,11 +147,11 @@ Every `/v1/call_tool` invocation is recorded via the shared `_audit_log()` helpe
 
 ## Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_04_01_web-search-file-read-github.md`
-- `04_mcp_04_02_file-write-file-delete-shell.md`
-- `04_mcp_04_03_rag-pipeline-and-cicd.md`
-- `04_mcp_04_04_mdq.md`
-- `00_security_02_high-risk-tool-common-policy.md`
-- `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
+- `mcp_00_document-guide.md`
+- `mcp_04_01_web-search-file-read-github.md`
+- `mcp_04_02_file-write-file-delete-shell.md`
+- `mcp_04_03_rag-pipeline-and-cicd.md`
+- `mcp_04_04_mdq.md`
+- `security_02_high-risk-tool-common-policy.md`
+- `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `governance_03_issue-and-uncertainty-management.md`

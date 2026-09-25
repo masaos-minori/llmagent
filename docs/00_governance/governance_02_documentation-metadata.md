@@ -118,7 +118,7 @@ Topics explicitly excluded from this document:
 | Operational Fallback | A runtime behavior that automatically switches to an alternate code path when a primary path fails or is unavailable, without requiring manual intervention. Distinct from Backward Compatibility (a static interface-preservation property): a fallback is a live, per-call runtime decision. | RAG's `call_rag_service()` falls back to in-process execution when the remote RAG service call fails (`docs/rag_03_01_query_pipeline-overview_00_document-guide.md`). |
 | Default | A value substituted when a configuration key is absent or `None`, applied at load time. Distinct from Lenient Parsing: a present-but-wrong-typed value still raises rather than silently falling back to the default. | `get_typed(d, "field_name", int, "an integer", default=DEFAULT_VALUE)` (`rules/coding.md` Type-coercion policy) returns `default` only when the key is missing or `None`. |
 | Lenient Parsing | Tolerating an unexpected or partially-invalid input by skipping or degrading gracefully rather than raising, when that input is not itself the primary contract being validated. | `scripts/shared/production_config_validator.py`'s best-effort tool-registry lookup is skipped (not failed) on an unexpected exception during production config validation (`# noqa: BLE001` — justified inline as best-effort). |
-| Migration | A structural or schema change applied incrementally to an existing system's persisted state, without discarding existing data. | `workflow.sqlite`'s `db/schema_sql.py::apply_workflow_migrations()` applies a sequential list of (ID, SQL) pairs as incremental column additions to existing databases; a no-op for new databases (`docs/41_db/41_db_03_db_architecture_and_schema-migration-and-scaling.md`). |
+| Migration | A structural or schema change applied incrementally to an existing system's persisted state, without discarding existing data. | `workflow.sqlite`'s `db/schema_sql.py::apply_workflow_migrations()` applies a sequential list of (ID, SQL) pairs as incremental column additions to existing databases; a no-op for new databases (`docs/41_db/db_03_db_architecture_and_schema-migration-and-scaling.md`). |
 | Obsolete | A named entity (function, class, config key) that still exists in source and remains callable, but is no longer the current production path for its original purpose — superseded by a different mechanism. | `read_json_file()` (`scripts/rag/ingestion/pipeline_utils.py`) is retained in code but no longer documented as the current production reader (`plans/done/20260903-085152_plan.md`). |
 | Dead Code | A named entity that exists in source with zero current callers anywhere in the codebase — distinct from Obsolete, which may still be reachable via a legacy path. | `shared/tool_executor_helpers.py::is_side_effect()` is defined but has zero call sites in current source (confirmed by repository-wide search); `docs/mcp_03_01_dispatch-and-routing.md` accurately describes it as "deprecated (no longer used after TTL cache removal)". |
 
@@ -134,10 +134,10 @@ When referencing other documents:
 
 ### Link Format Examples
 
-Same area: `[Agent Guide](05_agent_01_system-overview_00_document-guide.md)`
+Same area: `[Agent Guide](agent_01_system-overview_00_document-guide.md)`
 Cross area: `[RAG Specification](rag_01_system_overview_00_document-guide.md)`
-ADR: `[ADR-001](../adr/ADR-001-workflow-engine-mandatory.md)`
-Internal anchor: `[Section](05_agent_01_system-overview_00_document-guide.md#workflow-engine)`
+ADR: `[ADR-001](/home/sugimoto/llmagent/docs/10_adr/ADR-001-workflow-engine-mandatory.md)`
+Internal anchor: `[Section](agent_01_system-overview_00_document-guide.md#workflow-engine)`
 
 ## Markdown Syntax Rules
 
@@ -211,9 +211,9 @@ execution (a test failing, a config load erroring), not by review.
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](governance_01_documentation-policy.md)
-- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](governance_04_documentation-checks.md)
+- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md)
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md)
 
 ## Keywords
 

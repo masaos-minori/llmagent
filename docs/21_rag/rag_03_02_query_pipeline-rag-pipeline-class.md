@@ -6,8 +6,8 @@ tags:
   - http-mode
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview_00_document-guide.md
-  - 03_rag_03_01_query_pipeline-overview_00_document-guide.md
+  - 03_rag_01_system_overview.md
+  - 03_rag_03_01_query_pipeline-overview.md
   - 03_rag_03_03_query_pipeline-context-and-diagnostics.md
   - 03_rag_03_04_query_pipeline-search-stages.md
   - 03_rag_03_05_query_pipeline-augment-stages.md
@@ -22,7 +22,7 @@ source:
 
 # RAG Query Pipeline
 
-- System Overview → [03_rag_01_system_overview_00_document-guide.md](03_rag_01_system_overview_00_document-guide.md)
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
 - Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 - Type Definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
@@ -47,16 +47,16 @@ Refer to the source code for a list of public attributes and methods.
 
 ## Related Documents
 
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview_00_document-guide.md`
-- `03_rag_03_01_query_pipeline-overview_00_document-guide.md`
-- `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
-- `03_rag_03_04_query_pipeline-search-stages.md`
-- `03_rag_03_05_query_pipeline-augment-stages.md`
-- `03_rag_03_06_query_pipeline-helpers-and-cache.md`
-- `03_rag_04_05_dto-types.md`
-- `03_rag_05_1-configuration-reference.md`
-- `03_rag_03_02_query_pipeline-rag-pipeline-class.md`
+- `rag_00_document-guide.md`
+- `rag_01_system_overview.md`
+- `rag_03_01_query_pipeline-overview.md`
+- `rag_03_03_query_pipeline-context-and-diagnostics.md`
+- `rag_03_04_query_pipeline-search-stages.md`
+- `rag_03_05_query_pipeline-augment-stages.md`
+- `rag_03_06_query_pipeline-helpers-and-cache.md`
+- `rag_04_05_dto-types.md`
+- `rag_05_1-configuration-reference.md`
+- `rag_03_02_query_pipeline-rag-pipeline-class.md`
 
 ## Keywords
 
@@ -106,16 +106,16 @@ This classification result can be verified here:
 
 ## Related Documents
 
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview_00_document-guide.md`
-- `03_rag_03_01_query_pipeline-overview_00_document-guide.md`
-- `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
-- `03_rag_03_04_query_pipeline-search-stages.md`
-- `03_rag_03_05_query_pipeline-augment-stages.md`
-- `03_rag_03_06_query_pipeline-helpers-and-cache.md`
-- `03_rag_04_05_dto-types.md`
-- `03_rag_05_1-configuration-reference.md`
-- `03_rag_03_02_query_pipeline-rag-pipeline-class.md`
+- `rag_00_document-guide.md`
+- `rag_01_system_overview.md`
+- `rag_03_01_query_pipeline-overview.md`
+- `rag_03_03_query_pipeline-context-and-diagnostics.md`
+- `rag_03_04_query_pipeline-search-stages.md`
+- `rag_03_05_query_pipeline-augment-stages.md`
+- `rag_03_06_query_pipeline-helpers-and-cache.md`
+- `rag_04_05_dto-types.md`
+- `rag_05_1-configuration-reference.md`
+- `rag_03_02_query_pipeline-rag-pipeline-class.md`
 
 ## Keywords
 

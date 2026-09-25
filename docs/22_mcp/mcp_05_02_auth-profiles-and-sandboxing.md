@@ -40,7 +40,7 @@ Missing or mismatched token $\rightarrow$ HTTP 401.
 Applies to: All servers (configured per server via `McpServerConfig.auth_token`).
 Use environment-variable injection (`"${ENV:VAR_NAME}"`) rather than a literal
 secret in the TOML file — see
-[`02_deployment.md`'s Production-Only Migration Procedure](02_deployment.md#production-only-migration-procedure)
+[~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)'s Production-Only Migration Procedure](02_deployment.md#production-only-migration-procedure)
 for the current setup steps.
 
 ---
@@ -56,7 +56,7 @@ environment; there is no profile value that relaxes it.
 
 **Enforcement Point:** `agent/services/security_audit.py::audit_security_defaults()` raises `RuntimeError` unconditionally if any HTTP MCP server has an empty `auth_token` — this check no longer branches on `security_profile`. It also raises an exception, regardless of environment, if `shell_sandbox_backend == "none"`; it separately warns about empty `tool.allowed_tools`.
 
-**Reload Boundary:** `/reload` does not re-run these checks nor apply `auth_token` changes to running MCP servers — token changes always require a restart (see [Configuration: Hot-reload eligibility](./05_agent_08_01_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility)). Production authentication validation is performed only at startup; there are no runtime paths to weaken or bypass this.
+**Reload Boundary:** `/reload` does not re-run these checks nor apply `auth_token` changes to running MCP servers — token changes always require a restart (see [Configuration: Hot-reload eligibility](./agent_08_01_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility)). Production authentication validation is performed only at startup; there are no runtime paths to weaken or bypass this.
 
 **Audit API Isolation:** `agent/security_audit_config.py` is the sole authorized point in the agent layer for importing MCP server configuration models (`mcp_servers.shell.shell_models`, `mcp_servers.git.git_models`, `mcp_servers.github.github_models_config`, `mcp_servers.cicd.cicd_models`). It exposes four loader functions that handle four narrow scopes of DTOs (`ShellAuditConfig`, `GitAuditConfig`, `GitHubAuditConfig`, `CicdAuditConfig`) and their respective optional dependencies (`ImportError` $\rightarrow$ `None`) and config loading failures (`Exception` $\rightarrow$ `RuntimeError`).
 
@@ -107,13 +107,13 @@ Verify: `firejail --version`
 
 ## Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_05_01_access-control-and-allowlists.md`
-- `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `04_mcp_05_04_mdq-rag-boundary.md`
-- `04_mcp_05_05_mdq-enforcement-and-lockdown.md`
-- `00_security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
-- `00_security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
+- `mcp_00_document-guide.md`
+- `mcp_05_01_access-control-and-allowlists.md`
+- `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
+- `mcp_05_04_mdq-rag-boundary.md`
+- `mcp_05_05_mdq-enforcement-and-lockdown.md`
+- `security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
+- `security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
 
 ## Keywords
 

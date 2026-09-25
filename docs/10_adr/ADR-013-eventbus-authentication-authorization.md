@@ -307,14 +307,14 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [EventBus System Overview](../24_eventbus_01_system-overview_00_document-guide.md)
-- [EventBus Persistence Schema and Replay](../24_eventbus_07_persistence_schema_and_replay.md)
-- [EventBus DLQ Offsets and Delivery Semantics](../24_eventbus_06_dlq_offsets_and_delivery_semantics.md)
+- [EventBus System Overview](../eventbus_01_system-overview_00_document-guide.md)
+- [EventBus Persistence Schema and Replay](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_07_persistence_schema_and_replay.md)
+- [EventBus DLQ Offsets and Delivery Semantics](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md)
 - [Architecture and Trust Boundaries](../91_security/00_security_01_architecture-and-trust-boundaries.md)
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EVENTBUS-008 (No Production Authentication Model) and CI-001 (ConfigLoader migration) addressed by this ADR.
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — EVENTBUS-008 (No Production Authentication Model) and CI-001 (ConfigLoader migration) addressed by this ADR.
 
 ### Implementation References
 

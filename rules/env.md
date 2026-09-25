@@ -53,9 +53,9 @@ eventbus → 他の全レイヤーから完全に独立（shared にすら依存
 
 | ディレクトリ | エントリポイント docs |
 |---|---|
-| `scripts/agent/` | `docs/23_agent/05_agent_00_document-guide.md` |
+| `scripts/agent/` | `docs/23_agent/agent_00_document-guide.md` |
 | `scripts/db/` | `docs/40_shared/90_shared_00_document-guide.md` |
-| `scripts/eventbus/` | `docs/24_eventbus/24_eventbus_00_document-guide.md` |
+| `scripts/eventbus/` | `docs/24_eventbus/eventbus_00_document-guide.md` |
 | `scripts/mcp_servers/` | `docs/22_mcp/04_mcp_00_document-guide.md` |
 | `scripts/rag/` | `docs/21_rag/03_rag_00_document-guide.md` |
 | `scripts/shared/` | `docs/40_shared/90_shared_00_document-guide.md` |
@@ -74,12 +74,12 @@ DB は rag.sqlite / session.sqlite / workflow.sqlite / eventbus.sqlite の 4 フ
 
 | DB | 参照先 |
 |---|---|
-| `rag.sqlite` | `docs/41_db/41_db_02_db_architecture_and_schema-schema-reference.md` §5 |
-| `session.sqlite` | `docs/41_db/41_db_02_db_architecture_and_schema-schema-reference.md` §6 |
-| `workflow.sqlite` | `docs/41_db/41_db_02_db_architecture_and_schema-schema-reference.md` §7 |
-| `eventbus.sqlite` | `docs/24_eventbus/24_eventbus_07_persistence_schema_and_replay.md` |
+| `rag.sqlite` | `docs/41_db/db_02_db_architecture_and_schema-schema-reference.md` §5 |
+| `session.sqlite` | `docs/41_db/db_02_db_architecture_and_schema-schema-reference.md` §6 |
+| `workflow.sqlite` | `docs/41_db/db_02_db_architecture_and_schema-schema-reference.md` §7 |
+| `eventbus.sqlite` | `docs/24_eventbus/eventbus_07_persistence_schema_and_replay.md` |
 
-DB 構成・接続管理の全体像: `docs/41_db/41_db_01_db_architecture_and_schema-overview-and-config.md`。マイグレーション/スケーリング: `docs/41_db/41_db_03_db_architecture_and_schema-migration-and-scaling.md`。
+DB 構成・接続管理の全体像: `docs/41_db/db_01_db_architecture_and_schema-overview-and-config.md`。マイグレーション/スケーリング: `docs/41_db/db_03_db_architecture_and_schema-migration-and-scaling.md`。
 
 ## Config files
 
@@ -96,7 +96,7 @@ DB 構成・接続管理の全体像: `docs/41_db/41_db_01_db_architecture_and_s
 | `config/ingester.toml` | `rag/ingestion/ingester.py` 専用設定 |
 | `config/workflows/default.json` | ワークフロー定義。デプロイ時に存在チェック・スキーマ検証・SHA256 照合が行われる必須アーティファクト |
 
-agent.toml の全設定項目・ホットリロード可否・分類: `docs/05_agent_08_01_configuration-loading-agent-config-part1.md` 以降（`05_agent_08_02〜04`）
+agent.toml の全設定項目・ホットリロード可否・分類: `docs/05_agent_08_01_configuration-loading-agent-config-part1.md` 以降（`agent_08_02〜04`）
 
 ## Reference documents
 
@@ -107,8 +107,8 @@ agent.toml の全設定項目・ホットリロード可否・分類: `docs/05_a
 | `docs/02_deployment-part1.md` / `-part2.md` | 導入手順・デプロイ |
 | `docs/21_rag/03_rag_00_document-guide.md` | RAG ドキュメントセット入口 |
 | `docs/22_mcp/04_mcp_00_document-guide.md` | MCP ドキュメントセット入口 |
-| `docs/23_agent/05_agent_00_document-guide.md` | Agent ドキュメントセット入口 |
-| `docs/24_eventbus/24_eventbus_00_document-guide.md` | Event Bus ドキュメントセット入口 |
+| `docs/23_agent/agent_00_document-guide.md` | Agent ドキュメントセット入口 |
+| `docs/24_eventbus/eventbus_00_document-guide.md` | Event Bus ドキュメントセット入口 |
 | `docs/40_shared/90_shared_00_document-guide.md` | shared/DB ドキュメントセット入口 |
 | `routing.md` | タスク種別 → ロードすべき skill/docs のルーティング表 |
 

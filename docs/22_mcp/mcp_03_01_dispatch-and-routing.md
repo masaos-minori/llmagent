@@ -15,7 +15,7 @@ related:
 
 # MCP Tool Call Dispatch Flow and Routing Resolution
 
-- System Overview → [04_mcp_01_system_overview_00_document-guide.md](04_mcp_01_system_overview_00_document-guide.md)
+- System Overview → [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md)
 
 ## Purpose
 
@@ -55,9 +55,9 @@ LLM returns tool_call
 
 A single stage does the real filtering: `RuntimeToolRegistry.llm_tool_definitions()` returns only tools with `enabled_for_llm=True`, and that is the set of function definitions actually sent to the LLM. Disabled tools (per the owning server's `enabled`/`disabled_reason`) are excluded here, before the LLM ever sees them — not at a later "runtime routability" stage.
 
-`LlmTurnExecutor` never had a second filtering stage: its predecessor's `_filter_disabled_tool_definitions()` was a confirmed self-referential no-op (it built `visible_names` from the exact same `registry.llm_tool_definitions()` call and filtered against that set, removing nothing beyond what Stage 1 already removed) and has been removed. `LlmTurnExecutor._stream_llm()` calls `registry.llm_tool_definitions()` directly (falling back to `ctx.cfg.tool.tool_definitions` only when no registry is available), so Stage 1 above is the sole filtering stage — see `04_mcp_03_06_tool-runtime-availability-metadata.md` sections 6a/6b for the concepts this area actually needs (static vs. dynamic availability, approval).
+`LlmTurnExecutor` never had a second filtering stage: its predecessor's `_filter_disabled_tool_definitions()` was a confirmed self-referential no-op (it built `visible_names` from the exact same `registry.llm_tool_definitions()` call and filtered against that set, removing nothing beyond what Stage 1 already removed) and has been removed. `LlmTurnExecutor._stream_llm()` calls `registry.llm_tool_definitions()` directly (falling back to `ctx.cfg.tool.tool_definitions` only when no registry is available), so Stage 1 above is the sole filtering stage — see `mcp_03_06_tool-runtime-availability-metadata.md` sections 6a/6b for the concepts this area actually needs (static vs. dynamic availability, approval).
 
-Once a tool call reaches `ToolRouteResolver.resolve()`/`RuntimeToolRegistry`, routing succeeds as long as the tool is *owned* by a server — `enabled_for_llm`/`disabled_reason` are not re-checked at this layer. A disabled tool that somehow reaches this point (e.g., a stale LLM response referencing a tool disabled after the definitions were generated) is not rejected by the agent-side router; enforcement of "disabled tools must not execute" then depends on the owning MCP server's own `/v1/call_tool` gate, which only 4 of 8 server categories implement (`git`, `file_read`/`file_write`/`file_delete`, `github`, `web_search` — see `04_mcp_03_06_tool-runtime-availability-metadata.md`).
+Once a tool call reaches `ToolRouteResolver.resolve()`/`RuntimeToolRegistry`, routing succeeds as long as the tool is *owned* by a server — `enabled_for_llm`/`disabled_reason` are not re-checked at this layer. A disabled tool that somehow reaches this point (e.g., a stale LLM response referencing a tool disabled after the definitions were generated) is not rejected by the agent-side router; enforcement of "disabled tools must not execute" then depends on the owning MCP server's own `/v1/call_tool` gate, which only 4 of 8 server categories implement (`git`, `file_read`/`file_write`/`file_delete`, `github`, `web_search` — see `mcp_03_06_tool-runtime-availability-metadata.md`).
 
 **Critical failure mode:** If `RuntimeToolRegistry` is missing entirely, the LLM sees no tools at all, resulting in "Unknown tool" errors even when tools exist in the system.
 
@@ -84,7 +84,7 @@ There is a single data source for scheduling metadata today: a tool's `/v1/tools
 
 ## ToolRouteResolver (`shared/route_resolver.py`)
 
-Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
+Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 | Tool Set | Server Key |
 |---|---|
@@ -107,7 +107,7 @@ resolver.set_runtime_registry(registry)
 server_key = resolver.resolve("read_text_file")  # → "file_read"
 ```
 
-**Not to be confused with `ToolExecutor.server_configs`:** `ToolRouteResolver`'s constructor has no `server_configs` parameter — it accepts only `warn_on_missing`, `strict_mode`, and `runtime_registry` (see [Agent Reference API](05_agent_13_reference-api.md) for the full parameter list). `ToolExecutor.server_configs` (`shared/tool_executor.py`) is a separate, current, active configuration: a `dict[str, McpServerConfig]` used for MCP server transport and startup-mode checks (`self._server_configs.get(server_key)`), unrelated to tool-name routing.
+**Not to be confused with `ToolExecutor.server_configs`:** `ToolRouteResolver`'s constructor has no `server_configs` parameter — it accepts only `warn_on_missing`, `strict_mode`, and `runtime_registry` (see [Agent Reference API]()agent_13_reference-api.md for the full parameter list). `ToolExecutor.server_configs` (`shared/tool_executor.py`) is a separate, current, active configuration: a `dict[str, McpServerConfig]` used for MCP server transport and startup-mode checks (`self._server_configs.get(server_key)`), unrelated to tool-name routing.
 
 **Four-layer responsibility of MDQ tool definitions:** MDQ (`mdq`) tool definitions are spread across four independent files, each having a single responsibility. Changing any one of them requires updating the other three synchronously (`tests/test_mdq_tool_layer_consistency.py` verifies this consistency).
 
@@ -159,23 +159,23 @@ Previously, there were two separate mechanisms: batch-level downgrade ("if any t
 
 ## Reliable Sources for Routing
 
-See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
+See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 ---
 
 ## Tool Registry (`shared/tool_registry.py`)
 
-Drift detection only; not used for routing. See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between routing authority and drift detection.
+Drift detection only; not used for routing. See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between routing authority and drift detection.
 
 ## Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_03_02_tool-registry.md`
-- `04_mcp_03_03_transport-and-health.md`
-- `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
-- `04_mcp_03_05_lifecycle-and-new-server.md`
-- [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
-- [ADR-004](adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
+- `mcp_00_document-guide.md`
+- `mcp_03_02_tool-registry.md`
+- `mcp_03_03_transport-and-health.md`
+- `mcp_03_04_tool-call-tracing-and-watchdog.md`
+- `mcp_03_05_lifecycle-and-new-server.md`
+- [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
+- [ADR-004](/home/sugimoto/llmagent/docs/10_adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
 
 ## Keywords
 

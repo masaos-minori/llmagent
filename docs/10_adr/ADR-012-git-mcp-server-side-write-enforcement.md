@@ -97,7 +97,7 @@ Less code in the MCP server; simpler tool implementation.
 No protection if the approval step is bypassed or the MCP endpoint is reached directly; unvalidated `branch`/`remote` values reaching the underlying `git` CLI remain exploitable regardless of approval-layer changes.
 
 #### Reason for Rejection
-Violates the layered-protection principle already adopted for other high-risk MCP tools (`00_security_02_high-risk-tool-common-policy.md`); approval is a UX/intent layer, not a technical control.
+Violates the layered-protection principle already adopted for other high-risk MCP tools (`security_02_high-risk-tool-common-policy.md`); approval is a UX/intent layer, not a technical control.
 
 ### Alternative B: Block `git_checkout`/`git_pull`/`git_push` entirely until guards are implemented
 
@@ -235,12 +235,12 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 ## Related Documents
 
 ### Specifications
-- [MCP Server Catalog: git-mcp](../mcp_04_05_git.md)
-- [High-Risk MCP Tool Common Policy](../91_security/00_security_02_high-risk-tool-common-policy.md)
-- [Fail-Open/Fail-Closed and Risk Tiers](../mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)
+- [MCP Server Catalog: git-mcp](/home/sugimoto/llmagent/docs/22_mcp/mcp_04_05_git.md)
+- [High-Risk MCP Tool Common Policy](/home/sugimoto/llmagent/docs/91_security/security_02_high-risk-tool-common-policy.md)
+- [Fail-Open/Fail-Closed and Risk Tiers](/home/sugimoto/llmagent/docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)
 
 ### Known Issues
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — no active entries related to this ADR; the protected-branch/Force-Push guard, approval risk-tier mapping, and audit repository-identity gaps this ADR addressed are all resolved.
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — no active entries related to this ADR; the protected-branch/Force-Push guard, approval risk-tier mapping, and audit repository-identity gaps this ADR addressed are all resolved.
 
 ### Implementation References
 - `scripts/mcp_servers/git/repository_state.py` — `RepositoryState`, `RepositoryState.snapshot()`, `WriteProtectionPipeline`, `WriteProtectionPipeline.run()`

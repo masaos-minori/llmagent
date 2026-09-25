@@ -13,8 +13,8 @@ tags:
   - db-initialization
 related:
   - overview_00_document-guide.md
-  - 05_agent_03_03_turn-processing-flow-workflow-engine.md
-  - 41_db_01_db_architecture_and_schema-overview-and-config.md
+  - agent_03_03_turn-processing-flow-workflow-engine.md
+  - db_01_db_architecture_and_schema-overview-and-config.md
 ---
 
 # Deployment Guide
@@ -206,7 +206,7 @@ document's recorded finding.
 `localcleanup`, `plans/done/20260903-092746_plan.md`) have all landed, making this
 the current, canonical migration procedure. For authentication-specific
 troubleshooting after following the steps above, see
-[`mcp_06_17_local-to-production-auth-migration.md`](mcp_06_17_local-to-production-auth-migration.md)'s
+[`mcp_06_17_local-to-production-auth-migration.md`](/home/sugimoto/llmagent/docs/22_mcp/mcp_06_17_local-to-production-auth-migration.md)'s
 Troubleshooting section — that document's own Migration Steps are historical and
 superseded by this procedure.
 
@@ -227,7 +227,7 @@ The agent uses four SQLite databases. Three have explicit path keys in
 | `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | Task tracking, event processing |
 | `eventbus.sqlite` | `/opt/llm/db/eventbus.sqlite` | `eventbus_db_path` | Event Bus records |
 
-Schema details: `41_db_01_db_architecture_and_schema-overview-and-config.md`
+Schema details: `db_01_db_architecture_and_schema-overview-and-config.md`
 
 ### 3.1 Applying Schema
 
@@ -258,11 +258,11 @@ bash deploy/init_db.sh
 | `[FATAL] Workflow database schema is missing or incomplete.` | init_db.sh / setup_services.sh | Re-run `init_db.sh` |
 | `[FATAL] Workflow schema version mismatch: expected <X>, found <Y>.` | setup_services.sh | Apply migrations via `init_db.sh` |
 
-For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
+For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
-For the production `require_approval` category policy (which categories require a post-execution approval gate, and the local-dev exception), see [Approval Gate](05_agent_03_03_turn-processing-flow-workflow-engine.md#approval-gate).
+For the production `require_approval` category policy (which categories require a post-execution approval gate, and the local-dev exception), see [Approval Gate](agent_03_03_turn-processing-flow-workflow-engine.md#approval-gate).
 
-Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of approval state), see [ADR-001](../adr/ADR-001-workflow-engine-mandatory.md).
+Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of approval state), see [ADR-001](/home/sugimoto/llmagent/docs/10_adr/ADR-001-workflow-engine-mandatory.md).
 
 ### DB Path Reference (auto-generated)
 
@@ -280,8 +280,8 @@ Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit 
 ## Related Documents
 
 - `overview_00_document-guide.md`
-- `05_agent_03_03_turn-processing-flow-workflow-engine.md`
-- `41_db_01_db_architecture_and_schema-overview-and-config.md`
+- `agent_03_03_turn-processing-flow-workflow-engine.md`
+- `db_01_db_architecture_and_schema-overview-and-config.md`
 
 ## Keywords
 

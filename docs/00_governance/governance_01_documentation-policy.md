@@ -107,11 +107,11 @@ Security-relevant constraints — access control rules, encryption requirements,
 
 ### documentation-metadata
 
-Metadata fields attached to documentation assets (title, area, tags, related, etc.). Canonical source kind: `docs/00_governance_02_documentation-metadata.md`; conflict destination: Known Issues.
+Metadata fields attached to documentation assets (title, area, tags, related, etc.). Canonical source kind: `docs/governance_02_documentation-metadata.md`; conflict destination: Known Issues.
 
 ### unconfirmed-claim
 
-A claim whose truth has not yet been verified through evidence. Canonical source kind: Needs Confirmation inventory (`docs/00_governance_03_issue-and-uncertainty-management.md`); conflict destination: Needs Confirmation.
+A claim whose truth has not yet been verified through evidence. Canonical source kind: Needs Confirmation inventory (`docs/governance_03_issue-and-uncertainty-management.md`); conflict destination: Needs Confirmation.
 
 ### Resolution Matrix
 
@@ -128,10 +128,10 @@ A claim whose truth has not yet been verified through evidence. Canonical source
 | database-schema | Tables, columns, indexes, constraints | Schema Generator or official DDL | Schema Test | Known Issues | |
 | operational-procedure | Operator interaction guidance | Operations / Runbook | Operational Validation | Known Issues | |
 | security-policy | Security constraints and mandates | Governance + Security Policy Spec | Audit Evidence | Known Issues | |
-| documentation-metadata | Metadata on documentation assets | `docs/00_governance_02_documentation-metadata.md` | Metadata Validator | Known Issues | |
+| documentation-metadata | Metadata on documentation assets | `docs/governance_02_documentation-metadata.md` | Metadata Validator | Known Issues | |
 | unconfirmed-claim | Unverified claim | Needs Confirmation inventory | Investigation Evidence | Needs Confirmation | |
 
-Any rule for deciding whether documentation content is mechanically removable (verifiable from code, config, or schema alone) belongs in `00_governance_02_documentation-metadata.md`'s "Guidelines for Recording Information Verifiable via Implementation Reference" section — do not add a second, independently-worded rule here.
+Any rule for deciding whether documentation content is mechanically removable (verifiable from code, config, or schema alone) belongs in `governance_02_documentation-metadata.md`'s "Guidelines for Recording Information Verifiable via Implementation Reference" section — do not add a second, independently-worded rule here.
 
 ### Authority vs. Evidence
 
@@ -156,7 +156,7 @@ treated as the top canonical source for every kind of decision.
 | DB Schema | Schema Generator or official DDL | Schema Test | Known Issues |
 | API Contract | API Schema or official Contract | Integration Test | Known Issues |
 | Operational Procedures | Operations / Runbook | Operational Validation | Known Issues |
-| Unconfirmed Items | `00_governance_03_issue-and-uncertainty-management.md` | Investigation Evidence | Needs Confirmation |
+| Unconfirmed Items | `governance_03_issue-and-uncertainty-management.md` | Investigation Evidence | Needs Confirmation |
 
 **Code is canonical for current behavior, NOT for adopted design.** When code
 contradicts an ADR, the ADR represents the intended architecture and the discrepancy
@@ -234,8 +234,8 @@ Recency must never be used for any of the following:
 | Document | Authority | Status |
 |----------|-----------|--------|
 | docs/00_governance_01_documentation-policy.md | Primary | Active |
-| docs/00_governance_02_documentation-metadata.md | Primary | Active |
-| docs/00_governance_03_issue-and-uncertainty-management.md | Primary | Active |
+| docs/governance_02_documentation-metadata.md | Primary | Active |
+| docs/governance_03_issue-and-uncertainty-management.md | Primary | Active |
 | docs/00_governance_04_documentation-checks.md | Primary | Active |
 
 ### Canonical Source Registry
@@ -338,7 +338,7 @@ To determine which documents are affected by a change:
    - Configuration or API changes → continue to use the existing Canonical Source
      Precedence matrix (Decision Target Canonical Source Matrix); no separate
      Configuration Ownership Map or API Consumer Map exists (tracked as a Needs
-     Confirmation entry in `docs/00_governance_03_issue-and-uncertainty-management.md`)
+     Confirmation entry in `docs/governance_03_issue-and-uncertainty-management.md`)
 
    Map the change to the areas or components covered by the selected graph or matrix.
 3. List all documents in affected areas that reference the changed element
@@ -403,7 +403,7 @@ The ADR list, dependency graph, and invariant verification matrix are maintained
 - High-severity open issue exists in affected area
 - Documentation outdated but code is correct
 - Config drift detected but no behavioral impact
-- Removed-name reintroduction detected by `check_compat_shims.py --check-removed-names` (`GV-020`), without an approved temporary exception (`docs/00_governance_03_issue-and-uncertainty-management.md`)
+- Removed-name reintroduction detected by `check_compat_shims.py --check-removed-names` (`GV-020`), without an approved temporary exception (`docs/governance_03_issue-and-uncertainty-management.md`)
 
 ### Merge Workflow
 1. Check blocking conditions — if any fail, reject merge.
@@ -539,10 +539,10 @@ This document does not cover:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Metadata](00_governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
+- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md)
 - [Documentation Checks](00_governance_04_documentation-checks.md)
-- [ADR Index](../adr-index.md)
+- [ADR Index](/home/sugimoto/llmagent/docs/10_adr/adr-index.md)
 
 ## Keywords
 

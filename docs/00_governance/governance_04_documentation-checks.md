@@ -158,7 +158,7 @@ Validates structural conventions for `docs/*.md`:
 **Usage:**
 ```bash
 uv run python tools/check_docs_structure.py [glob ...]
-uv run python tools/check_docs_structure.py docs/05_agent_*.md --category agent
+uv run python tools/check_docs_structure.py docs/agent_*.md --category agent
 ```
 
 ### 15. Docs Content Policy Check (`check_docs_content_policy.py`)
@@ -273,10 +273,10 @@ When referencing other documents:
 - For ADR references, use the ADR number format (ADR-001) rather than the filename
 
 **Link format examples:**
-- Same area: `[Agent Guide](05_agent_01_system-overview_00_document-guide.md)`
+- Same area: `[Agent Guide](agent_01_system-overview_00_document-guide.md)`
 - Cross area: `[RAG Specification](rag_01_system_overview_00_document-guide.md)`
-- ADR: `[ADR-001](../adr/ADR-001-workflow-engine-mandatory.md)`
-- Internal anchor: `[Section](05_agent_01_system-overview_00_document-guide.md#workflow-engine)`
+- ADR: `[ADR-001](/home/sugimoto/llmagent/docs/10_adr/ADR-001-workflow-engine-mandatory.md)`
+- Internal anchor: `[Section](agent_01_system-overview_00_document-guide.md#workflow-engine)`
 
 ## Governance Verification Matrix
 
@@ -348,7 +348,7 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
     `security_profile="local"`, `allow_public_bind`, and an unconditionally-permitted
     empty `auth_token`/`auth_token_env` as retired runtime-profile terms (all three
     removed by `localremoval`/`loopbackonly`/`mcpauth`,
-    `plans/done/20260903-091417_plan.md`/`20260903-091921_plan.md`/`20260903-092407_plan.md`).
+    `plans/done/20260903-091417_plan.md`//).
     `_is_historical_context`'s marker set was extended with Japanese equivalents
     (解消/解決/廃止/撤廃/削除済み/確認済み) at the same time, since this repository's
     docs mix English and Japanese prose and the English-only marker set previously
@@ -392,9 +392,9 @@ This document does not cover:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](governance_01_documentation-policy.md)
-- [Documentation Metadata](governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
+- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md)
+- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md)
 
 ## Keywords
 

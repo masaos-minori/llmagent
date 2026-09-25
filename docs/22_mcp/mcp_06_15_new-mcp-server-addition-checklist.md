@@ -23,7 +23,7 @@ When adding a new server:
 - [ ] Add the new file to the copy list in `deploy/deploy.sh`
 - [ ] Add startup procedures to `deploy/setup_services.sh`
 - [ ] For every new tool, add an entry for `tool_safety_tiers` in `config/agent.toml`
-- [ ] Update `routing.md` if new documentation is required
+- [ ] Update `/routing.md` if new documentation is required
 
 ---
 

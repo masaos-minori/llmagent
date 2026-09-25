@@ -7,13 +7,13 @@ tags:
   - mcp-server
   - file-structure
 related:
-  - 01_overview-files-03-scripts.md
+  - overview-files-03-scripts.md
   - 01_overview.md
 ---
 
 # File Structure
 
-Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01-process.md), [`01_overview-arch-02-pipelines.md`](01_overview-arch-02-pipelines.md), [`01_overview-arch-03-features.md`](01_overview-arch-03-features.md)
+Architecture Overview → [`overview-arch-01-process.md`](overview-arch-01-process.md), [`overview-arch-02-pipelines.md`](overview-arch-02-pipelines.md), [`overview-arch-03-features.md`](overview-arch-03-features.md)
 
 ## 3. File Structure
 
@@ -73,7 +73,7 @@ Refer to the repository implementation tree for the full list of files.
 
 ## Related Documents
 
-- `01_overview-files-03-scripts.md`
+- `overview-files-03-scripts.md`
 - [01_overview.md](01_overview.md)
 
 ## Keywords

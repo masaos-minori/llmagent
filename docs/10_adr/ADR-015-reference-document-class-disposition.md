@@ -111,7 +111,7 @@ Run the corresponding `tools/generate_reference_table.py --type <domain>` genera
 
 ## Implementation Notes
 
-Agent (`docs/05_agent_13_reference-api.md`) and EventBus (`docs/24_eventbus_10_reference_api.md`)
+Agent (`docs/agent_13_reference-api.md`) and EventBus (`docs/eventbus_10_reference_api.md`)
 have both been migrated to generated Reference-class status under Option B.
 
 Memory migration target document(s) remain unresolved — see
@@ -145,7 +145,7 @@ This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance E
 
 ## Related Documents
 
-- [Documentation Policy](../00_governance/governance_01_documentation-policy.md) — Document Classification, ADR Section Header Standardization, ADR Acceptance Evidence Standard
+- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md) — Document Classification, ADR Section Header Standardization, ADR Acceptance Evidence Standard
 - `tools/generate_reference_table.py` — existing Option B precedent (rag/mcp/deployment generators)
 - `tools/check_docs_content_policy.py` — `GV-021`'s guard-comment exemption, currently mismatched against the real guard format (tracked separately)
 - `plans/done/20260919-105034_plan.md` — the gated follow-up extending `tools/generate_reference_table.py` to Agent/EventBus/Memory

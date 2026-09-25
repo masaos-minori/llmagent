@@ -10,14 +10,14 @@ tags:
   - mcp-server
   - llm-service
 related:
-  - 01_overview-arch-02-pipelines.md
-  - 01_overview-arch-03-features.md
+  - overview-arch-02-pipelines.md
+  - overview-arch-03-features.md
   - 01_overview.md
 ---
 
 # Overview & Architecture
 
-File Structure → [`01_overview-files-01-build.md`](01_overview-files-01-build.md), [`01_overview-files-02-rag.md`](01_overview-files-02-rag.md), [`01_overview-files-03-scripts.md`](01_overview-files-03-scripts.md), [`01_overview-files-04-shared.md`](01_overview-files-04-shared.md), [`01_overview-files-05-config.md`](01_overview-files-05-config.md), [`01_overview-files-06-misc.md`](01_overview-files-06-misc.md)
+File Structure → [`overview-files-01-build.md`](overview-files-01-build.md), [`overview-files-02-rag.md`](overview-files-02-rag.md), [`overview-files-03-scripts.md`](overview-files-03-scripts.md), [`overview-files-04-shared.md`](overview-files-04-shared.md), [`overview-files-05-config.md`](overview-files-05-config.md), [`overview-files-06-misc.md`](overview-files-06-misc.md)
 
 ## 1. Overview & Purpose
 
@@ -86,7 +86,7 @@ Each process (Agent, each MCP server, crawler, ingester, chunk_splitter) operate
 | ingester | `config/ingester.toml` |
 | chunk_splitter | `config/chunk_splitter.toml` |
 
-Details → [ADR-002](../adr/ADR-002-config-isolation.md) / [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
+Details → [ADR-002](/home/sugimoto/llmagent/docs/10_adr/ADR-002-config-isolation.md) / [90_shared_03 §2a](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 The following table contains representative examples; the exact number and ports of MCP servers are defined in `[mcp_servers.*]` of `config/agent.toml`.
 
@@ -104,7 +104,7 @@ The following table contains representative examples; the exact number and ports
 | `cicd-mcp` | GitHub Actions CI/CD MCP Server |
 | `mdq-mcp` | Markdown Context Compression Engine MCP Server |
 | `git-mcp` | Local Git Operation MCP Server |
-| `eventbus` | Event Delivery Server (Separate process from MCP servers. Details: `24_eventbus_01_system-overview.md`) |
+| `eventbus` | Event Delivery Server (Separate process from MCP servers. Details: `eventbus_01_system-overview.md`) |
 
 #### Implementation Notes (LLM Service URL/Port)
 
@@ -122,8 +122,8 @@ Port `8011` was deprecated (formerly `sqlite-mcp`) and is intentionally absent f
 
 ## Related Documents
 
-- `01_overview-arch-02-pipelines.md`
-- `01_overview-arch-03-features.md`
+- `overview-arch-02-pipelines.md`
+- `overview-arch-03-features.md`
 - [01_overview.md](01_overview.md)
 
 ## Keywords

@@ -19,7 +19,7 @@ Each MCP server is an independent process and **only reads its own configuration
 
 `MCPServer.run_http()` calls `ConfigLoader.restrict_to(own_config_file)` before starting uvicorn to enforce this rule at runtime. A `ConfigPermissionError` is raised upon violation.
 
-→ Details: [ADR-002](adr/ADR-002-config-isolation.md) / [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-isolation-policy-config-isolation-policy)
+→ Details: [ADR-002](/home/sugimoto/llmagent/docs/10_adr/ADR-002-config-isolation.md) / [90_shared_03 §2a](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-isolation-policy-config-isolation-policy)
 
 ## Layer 1 — Agent Process Configuration (`config/agent.toml`)
 
@@ -43,7 +43,7 @@ see [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-co
 A crashed subprocess-mode server is retried automatically only on the next
 tool dispatch via `ensure_ready()` (`agent/factory.py`); it does not read or
 apply any pending `/reload` config change either. See
-[Agent Operations: MCP restart requirement](05_agent_10_01_operations-and-observability-startup-and-health.md)
+[Agent Operations: MCP restart requirement]()agent_10_01_operations-and-observability-startup-and-health.md
 for the full explanation.
 
 **`cmd` script-path invariant:** for every `[mcp_servers.<name>]` entry with

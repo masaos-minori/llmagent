@@ -80,12 +80,12 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 
 84. ## Related Documents
 
-86. - `04_mcp_00_document-guide.md`
-87. - `04_mcp_03_01_dispatch-and-routing.md`
-88. - `04_mcp_03_02_tool-registry.md`
-89. - `04_mcp_03_03_transport-and-health.md`
-90. - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
-91. - `04_mcp_03_05_lifecycle-and-new-server.md`
+86. - `mcp_00_document-guide.md`
+87. - `mcp_03_01_dispatch-and-routing.md`
+88. - `mcp_03_02_tool-registry.md`
+89. - `mcp_03_03_transport-and-health.md`
+90. - `mcp_03_04_tool-call-tracing-and-watchdog.md`
+91. - `mcp_03_05_lifecycle-and-new-server.md`
 
 93. ## Keywords
 
@@ -145,12 +145,12 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 
 235. ## Related Documents
 
-237. - `04_mcp_00_document-guide.md`
-238. - `04_mcp_03_01_dispatch-and-routing.md`
-239. - `04_mcp_03_02_tool-registry.md`
-240. - `04_mcp_03_03_transport-and-health.md`
-241. - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
-242. - `04_mcp_03_05_lifecycle-and-new-server.md`
+237. - `mcp_00_document-guide.md`
+238. - `mcp_03_01_dispatch-and-routing.md`
+239. - `mcp_03_02_tool-registry.md`
+240. - `mcp_03_03_transport-and-health.md`
+241. - `mcp_03_04_tool-call-tracing-and-watchdog.md`
+242. - `mcp_03_05_lifecycle-and-new-server.md`
 
 244. ## Keywords
 

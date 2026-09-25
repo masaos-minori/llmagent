@@ -10,14 +10,14 @@ tags:
   - embedding
   - file-structure
 related:
-  - 01_overview-files-01-build.md
-  - 01_overview-files-05-config.md
-  - 01_overview-files-06-misc.md
+  - overview-files-01-build.md
+  - overview-files-05-config.md
+  - overview-files-06-misc.md
 ---
 
 # File Structure
 
-Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01-process.md), [`01_overview-arch-02-pipelines.md`](01_overview-arch-02-pipelines.md), [`01_overview-arch-03-features.md`](01_overview-arch-03-features.md)
+Architecture Overview → [`overview-arch-01-process.md`](overview-arch-01-process.md), [`overview-arch-02-pipelines.md`](overview-arch-02-pipelines.md), [`overview-arch-03-features.md`](overview-arch-03-features.md)
 
 ## 3. File Structure
 
@@ -43,11 +43,11 @@ Retention period for post-ingestion staging files is not confirmed within this d
 
 ## Related Documents
 
-- `01_overview-files-01-build.md`
-- `01_overview-files-03-scripts.md`
-- `01_overview-files-04-shared.md`
-- `01_overview-files-05-config.md`
-- `01_overview-files-06-misc.md`
+- `overview-files-01-build.md`
+- `overview-files-03-scripts.md`
+- `overview-files-04-shared.md`
+- `overview-files-05-config.md`
+- `overview-files-06-misc.md`
 - [01_overview.md](01_overview.md)
 
 ## Keywords

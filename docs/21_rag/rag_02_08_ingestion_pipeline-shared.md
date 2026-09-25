@@ -7,8 +7,8 @@ tags:
   - fts5
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview_00_document-guide.md
-  - 03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md
+  - 03_rag_01_system_overview.md
+  - 03_rag_02_01_ingestion_pipeline-overview.md
   - 03_rag_02_02_ingestion_pipeline-crawler.md
   - 03_rag_02_03_ingestion_pipeline-chunksplitter.md
   - 03_rag_02_04_ingestion_pipeline-ingester.md
@@ -16,13 +16,13 @@ related:
   - 03_rag_02_09_ingestion_pipeline-shared-utilities.md
   - 03_rag_05_1-configuration-reference.md
 source:
-  - 03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md
+  - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
 
 # RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview_00_document-guide.md](03_rag_01_system_overview_00_document-guide.md)
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
 - Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
@@ -72,7 +72,7 @@ for the functions it currently uses.
 
 ### FTS5 / LLM Content Separation
 
-See [ADR-009](adr/ADR-009-rag-ft5-text-separation.md) for rationale, alternatives, tradeoffs, and invariants.
+See [ADR-009](/home/sugimoto/llmagent/docs/10_adr/ADR-009-rag-ft5-text-separation.md) for rationale, alternatives, tradeoffs, and invariants.
 
 Japanese chunks store two versions:
 - `chunks.content` — Original text (passed as context to the LLM)
@@ -96,15 +96,15 @@ Tokens exceeding this limit are silently truncated to prevent query explosion. D
 
 ## Related Documents
 
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview_00_document-guide.md`
-- `03_rag_02_01_ingestion_pipeline-overview_00_document-guide.md`
-- `03_rag_02_02_ingestion_pipeline-crawler.md`
-- `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
-- `03_rag_02_04_ingestion_pipeline-ingester.md`
-- `03_rag_02_07_ingestion_pipeline-utils.md`
-- `03_rag_02_09_ingestion_pipeline-shared-utilities.md`
-- `03_rag_05_1-configuration-reference.md`
+- `rag_00_document-guide.md`
+- `rag_01_system_overview.md`
+- `rag_02_01_ingestion_pipeline-overview.md`
+- `rag_02_02_ingestion_pipeline-crawler.md`
+- `rag_02_03_ingestion_pipeline-chunksplitter.md`
+- `rag_02_04_ingestion_pipeline-ingester.md`
+- `rag_02_07_ingestion_pipeline-utils.md`
+- `rag_02_09_ingestion_pipeline-shared-utilities.md`
+- `rag_05_1-configuration-reference.md`
 
 ## Keywords
 

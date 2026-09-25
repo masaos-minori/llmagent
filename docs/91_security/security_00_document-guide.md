@@ -18,15 +18,15 @@ This directory contains security-related documentation including system security
 
 | Category | File |
 |---|---|
-| System Security Architecture & Trust Boundaries | `00_security_01_architecture-and-trust-boundaries.md` |
-| High-Risk Tool Common Policy | `00_security_02_high-risk-tool-common-policy.md` |
+| System Security Architecture & Trust Boundaries | `security_01_architecture-and-trust-boundaries.md` |
+| High-Risk Tool Common Policy | `security_02_high-risk-tool-common-policy.md` |
 
 ## AI Query Routing
 
 | Question | Rule |
 |---|---|
-| Security architecture & trust boundaries | `00_security_01` |
-| High-risk tool policy | `00_security_02` |
+| Security architecture & trust boundaries | `security_01` |
+| High-risk tool policy | `security_02` |
 | Access control & allowlists | `mcp_05_01_access-control-and-allowlists.md` |
 | Fail-open/fail-closed risk tiers | `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` |
 | Auth profiles & sandboxing | `mcp_05_02_auth-profiles-and-sandboxing.md` |
@@ -36,7 +36,7 @@ This directory contains security-related documentation including system security
 
 ## Canonical Source Rule
 
-See [System Security Architecture and Trust Boundaries](00_security_01_architecture-and-trust-boundaries.md) for the primary security architecture overview.
+See [System Security Architecture and Trust Boundaries](/home/sugimoto/llmagent/docs/91_security/security_01_architecture-and-trust-boundaries.md) for the primary security architecture overview.
 
 ## Known Issues / Deferred Items
 
@@ -48,11 +48,11 @@ No reference APIs exist in this directory. All files are security policy/archite
 
 ## Related ADRs
 
-- [ADR-008](adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
-- [ADR-013](adr/ADR-013-eventbus-authentication-authorization.md) — EventBus認証認可
-- [ADR-015](adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
+- [ADR-008](/home/sugimoto/llmagent/docs/10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
+- [ADR-013](/home/sugimoto/llmagent/docs/10_adr/ADR-013-eventbus-authentication-authorization.md) — EventBus認証認可
+- [ADR-015](/home/sugimoto/llmagent/docs/10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
 
 ## Related Documents
 
-- `00_security_01_architecture-and-trust-boundaries.md`
-- `00_security_02_high-risk-tool-common-policy.md`
+- `security_01_architecture-and-trust-boundaries.md`
+- `security_02_high-risk-tool-common-policy.md`

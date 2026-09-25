@@ -13,17 +13,17 @@ related:
   - 04_mcp_04_02_file-write-file-delete-shell.md
   - 04_mcp_04_03_rag-pipeline-and-cicd.md
   - 04_mcp_04_05_git.md
-  - 05_agent_08_04_configuration-mcp-approval-obs.md
+  - agent_08_04_configuration-mcp-approval-obs.md
   - governance_03_issue-and-uncertainty-management.md
 ---
 
 # Tool Runtime Availability Metadata: `config_dependent`, `enabled`, `disabled_reason`
 
-> **Implementation status:** `config_dependent` is adopted across `git`, `file_read`/`file_write`/`file_delete`, `github`, and `web_search` (`browser_fetch`). `enabled`/`disabled_reason` fields are now wired into RuntimeToolRegistry via `_dedupe_and_build()` in `mcp_tool_discovery.py` — see `04_mcp_03_01_dispatch-and-routing.md` for details.
+> **Implementation status:** `config_dependent` is adopted across `git`, `file_read`/`file_write`/`file_delete`, `github`, and `web_search` (`browser_fetch`). `enabled`/`disabled_reason` fields are now wired into RuntimeToolRegistry via `_dedupe_and_build()` in `mcp_tool_discovery.py` — see `mcp_03_01_dispatch-and-routing.md` for details.
 
 ## 0. Concept distinctions
 
-See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between these concepts.
+See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between these concepts.
 
 ## 1. `config_dependent` (static)
 
@@ -51,11 +51,11 @@ Always returns every implemented tool; disabled tools are never omitted from the
 
 ## /v1/tools as RuntimeToolRegistry Source
 
-See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that `/v1/tools` is the sole source for constructing `RuntimeToolRegistry`.
+See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that `/v1/tools` is the sole source for constructing `RuntimeToolRegistry`.
 
 ## Reload vs. restart for RuntimeToolRegistry
 
-See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that reload does not rediscover tools.
+See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that reload does not rediscover tools.
 
 ## Field Mapping: /v1/tools ↔ RuntimeTool
 
@@ -79,21 +79,21 @@ Disabled tools must be rejected by `/v1/call_tool` before reaching the dispatch 
 
 ## 6. RuntimeToolRegistry (agent-side)
 
-See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision about RuntimeToolRegistry as the sole authority.
+See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision about RuntimeToolRegistry as the sole authority.
 
 ## 6a. Static availability vs. dynamic health (distinct, unintegrated boundary)
 
-See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that static availability and dynamic health are separate subsystems.
+See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that static availability and dynamic health are separate subsystems.
 
 ## 6b. Approval is not a disabled state
 
-See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that approval is not a form of disabled availability.
+See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that approval is not a form of disabled availability.
 
 ## Wiring reference
 
 For end-to-end tracing of how `disabled_reason` flows into `/mcp status`, see also:
 - `docs/04_mcp_03_02_tool-registry.md` — `RuntimeToolRegistry` module overview and discovery wiring.
-- `docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` — `/mcp status` command reference (general health/status view; does not yet detail the per-tool diagnostics table).
+- `docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` — `/mcp status` command reference (general health/status view; does not yet detail the per-tool diagnostics table).
 
 ## `include_disabled` and `disabled_code`
 

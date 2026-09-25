@@ -418,14 +418,14 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Impact**: 同一Host内/SSHトンネル経由のアクセスに認証層がない(外部への直接公開は設定上不可能)
 - **Resolution Target**: 認証の実装が必要
 
-- **Known Issue**: EVENTBUS-009 — `nack_event` lacks idempotency guard; duplicate NACK increases `delivery_failure_count` without bound. Also, `nack_event` does not check `acked_at` before incrementing failure count, allowing NACK after ACK. Both are documented as **Implementation fix required** in `24_eventbus_03_dlq_operations.md`.
+- **Known Issue**: EVENTBUS-009 — `nack_event` lacks idempotency guard; duplicate NACK increases `delivery_failure_count` without bound. Also, `nack_event` does not check `acked_at` before incrementing failure count, allowing NACK after ACK. Both are documented as **Implementation fix required** in `eventbus_03_dlq_operations.md`.
 - **Type**: Implementation Gap
 - **Summary**: NACKの冪等性ガード欠如、ACK後のNACK許可
 - **Impact**: 重複NACKによりDLQ昇格が意図せぬタイミングで発生する可能性
 - **Resolution Target**: `nack_event`に冪等性ガードと`acked_at`チェックを追加
 - **Status**: Partially Resolved — `acked_at`/`dlq_at` predicates added to WHERE clause (returns `-2,-2` for invalid transitions); HTTP 409 response added in `ack_route.py`; idempotency guard for duplicate NACK remains unresolved
 
-- **Known Issue**: EVENTBUS-010 — When `since_seq=0` is explicitly provided alongside a `consumer_id`, it is indistinguishable from omitting `since_seq` entirely. Both resolve to "read from the saved offset". Clients cannot express "full replay while providing a consumer_id". Documented in `24_eventbus_03_dlq_operations.md` under `since_seq`/Offset Precedence Rules.
+- **Known Issue**: EVENTBUS-010 — When `since_seq=0` is explicitly provided alongside a `consumer_id`, it is indistinguishable from omitting `since_seq` entirely. Both resolve to "read from the saved offset". Clients cannot express "full replay while providing a consumer_id". Documented in `eventbus_03_dlq_operations.md` under `since_seq`/Offset Precedence Rules.
 - **Type**: API Design Gap
 - **Summary**: `since_seq=0`と省略時の区別不能
 - **Impact**: consumer_id付きで全Replayを実行できない
@@ -496,12 +496,12 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [EventBus System Overview](../24_eventbus_01_system-overview_00_document-guide.md) — EventBusアーキテクチャ概要
-- [Event Bus Operations](../24_eventbus_03_dlq_operations.md) — Publish/Replay/Subscribe/ACK/NACK/Health/DLQプロトコル
-- [Persistence Schema and Replay](../24_eventbus_07_persistence_schema_and_replay.md) — 永続化スキーマとReplay
-- [DLQ Offsets and Delivery Semantics](../24_eventbus_06_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
-- [Configuration and Operations](../24_eventbus_09_configuration-and-operations.md) — 設定・バインドアドレス・ヘルスエンドポイント・Consumer ID・配信・DLQ運用
-- [Reference API](../24_eventbus_10_reference_api.md) — コアモジュール・ルートハンドラ・Broker/Offsets
+- [EventBus System Overview](../eventbus_01_system-overview_00_document-guide.md) — EventBusアーキテクチャ概要
+- [Event Bus Operations](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_03_dlq_operations.md) — Publish/Replay/Subscribe/ACK/NACK/Health/DLQプロトコル
+- [Persistence Schema and Replay](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_07_persistence_schema_and_replay.md) — 永続化スキーマとReplay
+- [DLQ Offsets and Delivery Semantics](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
+- [Configuration and Operations](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_09_configuration-and-operations.md) — 設定・バインドアドレス・ヘルスエンドポイント・Consumer ID・配信・DLQ運用
+- [Reference API](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_10_reference_api.md) — コアモジュール・ルートハンドラ・Broker/Offsets
 
 ### Operations
 
@@ -509,7 +509,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
 
 ### Implementation References
 

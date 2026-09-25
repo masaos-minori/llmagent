@@ -53,7 +53,7 @@ See `workflow.md` for detailed phase content including failure recovery procedur
 
 - **Config-only change** (no `scripts/` change): Phase 3 (Restart) may be skipped only if the
   changed field appears in the affected service's `/reload`-eligible field list (see
-  `docs/05_agent_08_01_configuration-loading-agent-config.md`'s hot-reload table for the
+  `docs/agent_08_01_configuration-loading-agent-config.md`'s hot-reload table for the
   agent; for an MCP server, check whether `ConfigLoader().load(...)` is called at module
   import / `__init__` time — if so, it is startup-only and requires Phase 3; if it is called
   inside a request handler, `/reload` suffices and Phase 3 may be skipped).

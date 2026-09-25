@@ -9,18 +9,18 @@ tags:
   - auth
   - audit
 related:
-  - 00_security_02_high-risk-tool-common-policy.md
+  - security_02_high-risk-tool-common-policy.md
   - governance_01_documentation-policy.md
   - mcp_05_01_access-control-and-allowlists.md
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
-  - 05_agent_06_01_tool-execution-and-approval-execution.md
+  - agent_06_01_tool-execution-and-approval-execution.md
   - rag_03_05_query_pipeline-augment-stages.md
   - mcp_06_16_pre-production-fail-open-checklist.md
   - mcp_06_17_local-to-production-auth-migration.md
   - mcp_02_03_audit-logging-and-errors.md
   - mcp_06_07_reading-audit-logs.md
-  - 05_agent_10_02_operations-and-observability-audit-and-otel.md
-  - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+  - agent_10_02_operations-and-observability-audit-and-otel.md
+  - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - rag_04_02_dto-models_result.md
   - rag_05_2-execution-guide.md
 ---
@@ -62,11 +62,11 @@ The threat model covers the following threat vectors:
 
 - **Untrusted LLM output**: LLM may generate malicious tool calls, paths, or arguments; mitigated by tool argument validation, path allowlists, command allowlists, and approval workflows
 - **Untrusted RAG-ingested content**: Ingested web content may contain malicious payloads; mitigated by `sanitize_document()` in `rag_03_05`, size limits, and content-type validation
-- **Untrusted tool arguments**: Tool arguments may contain path traversal, command injection, or SQL injection; mitigated by `validate_tool_arguments()` in `05_agent_06_01`, path resolution via `Path.resolve()`, and command allowlists
+- **Untrusted tool arguments**: Tool arguments may contain path traversal, command injection, or SQL injection; mitigated by `validate_tool_arguments()` in `agent_06_01`, path resolution via `Path.resolve()`, and command allowlists
 - **Path/symlink escape**: Attempts to escape `allowed_dirs`/`allowed_repo_paths`; mitigated by `Path.resolve()` before allowlist comparison
 - **Command-allowlist bypass**: Attempts to execute unauthorized commands; mitigated by command allowlist enforcement in shell MCP and shell tool
 - **Unauthorized repo/workflow access**: Attempts to access unauthorized GitHub repos or CI/CD workflows; mitigated by `allowed_repos` and workflow allowlists
-- **Execution without approval**: High-risk tools executed without required approval; mitigated by approval workflow in `05_agent_06_01`/`05_agent_06_02`
+- **Execution without approval**: High-risk tools executed without required approval; mitigated by approval workflow in `agent_06_01`/`agent_06_02`
 
 ## Per-externally-reachable-API authN/authZ table
 
@@ -114,7 +114,7 @@ Audit retention policy:
 - **Disabled purge**: `retention_days <= 0` disables automatic purge
 - **Audit log files**: JSON-lines files at `audit_log_file` path rotated by external logrotate; no application-level rotation
 
-*Source: `mcp_06_07_reading-audit-logs.md`, `05_agent_10_02_operations-and-observability-audit-and-otel.md`*
+*Source: `mcp_06_07_reading-audit-logs.md`, `agent_10_02_operations-and-observability-audit-and-otel.md`*
 
 ## Local-vs-production behavior
 
@@ -163,9 +163,9 @@ Prompt injection responsibility is distributed across layers:
 
 | Boundary Crossing | Responsible Layer | Mechanism |
 |---|---|---|
-| User input → Agent | Agent | Input sanitization in `05_agent_06_01`; tool argument validation |
+| User input → Agent | Agent | Input sanitization in `agent_06_01`; tool argument validation |
 | Agent → LLM | Agent | System prompt construction; no user input in system prompt |
-| LLM output → Tool args | Agent | `validate_tool_arguments()` in `05_agent_06_01`; schema validation |
+| LLM output → Tool args | Agent | `validate_tool_arguments()` in `agent_06_01`; schema validation |
 | Tool args → MCP server | MCP | Path allowlist, command allowlist, schema validation |
 | RAG ingestion → Vector store | RAG ingestion | `sanitize_document()` in `rag_03_05` removes scripts, iframes, suspicious patterns |
 | RAG query → LLM | Agent | Retrieved chunks passed as context; `was_sanitized` flag in `rag_04_02` |
@@ -201,7 +201,7 @@ Fail-fast vs fail-open at MCP startup failure: `production` raises `RuntimeError
 
 ### Workflow deployment failures
 
-Full failure-scenario table (missing definition, invalid JSON, checksum mismatch, schema incomplete/version mismatch, stage execution failure) and remediation commands: [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
+Full failure-scenario table (missing definition, invalid JSON, checksum mismatch, schema incomplete/version mismatch, stage execution failure) and remediation commands: [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
 ### RAG failure behavior
 
@@ -271,7 +271,7 @@ The EventBus API enforces authentication and authorization as a fail-closed secu
 All EventBus routes require Bearer-token authentication. Requests without a valid
 `Authorization: Bearer <token>` header receive HTTP 401 Unauthorized.
 
-See [ADR-013-eventbus-authentication-authorization](../adr/ADR-013-eventbus-authentication-authorization.md)
+See [ADR-013-eventbus-authentication-authorization](/home/sugimoto/llmagent/docs/10_adr/ADR-013-eventbus-authentication-authorization.md)
 for the authentication mechanism decision and configuration details.
 
 ### Authorization
@@ -291,7 +291,7 @@ a caller cannot act as another consumer or access unauthorized topics.
 DLQ administration (`/dlq`, `/dlq/{event_id}/requeue`) and privileged replay
 (`/replay`) require operator permission.
 
-See [ADR-013-eventbus-authentication-authorization](../adr/ADR-013-eventbus-authentication-authorization.md)
+See [ADR-013-eventbus-authentication-authorization](/home/sugimoto/llmagent/docs/10_adr/ADR-013-eventbus-authentication-authorization.md)
 for the authorization model decision and role definitions.
 
 ### Loopback-only Binding
@@ -303,18 +303,18 @@ and remains in effect as defense-in-depth.
 
 ## Related Documents
 
-- `00_security_02_high-risk-tool-common-policy.md`
+- `security_02_high-risk-tool-common-policy.md`
 - `governance_01_documentation-policy.md`
 - `mcp_05_01_access-control-and-allowlists.md`
 - `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `05_agent_06_01_tool-execution-and-approval-execution.md`
+- `agent_06_01_tool-execution-and-approval-execution.md`
 - `rag_03_05_query_pipeline-augment-stages.md`
 - `mcp_06_16_pre-production-fail-open-checklist.md`
 - `mcp_06_17_local-to-production-auth-migration.md`
 - `mcp_02_03_audit-logging-and-errors.md`
 - `mcp_06_07_reading-audit-logs.md`
-- `05_agent_10_02_operations-and-observability-audit-and-otel.md`
-- `05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+- `agent_10_02_operations-and-observability-audit-and-otel.md`
+- `agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
 - `rag_04_02_dto-models_result.md`
 - `rag_05_2-execution-guide.md`
 

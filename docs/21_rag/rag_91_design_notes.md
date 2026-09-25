@@ -14,15 +14,15 @@ related:
 
 ## DESIGN-1: RAG Remote Fallback
 
-Migrated to [ADR-010](adr/ADR-010-rag-fallback.md).
+Migrated to [ADR-010](/home/sugimoto/llmagent/docs/10_adr/ADR-010-rag-fallback.md).
 
 ## DESIGN-2: FTS5 Content Separation
 
-Migrated to [ADR-009](adr/ADR-009-rag-ft5-text-separation.md).
+Migrated to [ADR-009](/home/sugimoto/llmagent/docs/10_adr/ADR-009-rag-ft5-text-separation.md).
 
 ## DESIGN-3: Table Responsibilities
 
-Migrated to [ADR-005](adr/ADR-005-rag-source-derived-index-relationships.md).
+Migrated to [ADR-005](/home/sugimoto/llmagent/docs/10_adr/ADR-005-rag-source-derived-index-relationships.md).
 
 ## Related Documents
 

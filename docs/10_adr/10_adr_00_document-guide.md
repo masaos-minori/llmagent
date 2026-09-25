@@ -45,7 +45,7 @@ This directory contains all Architecture Decision Records (ADRs). Each ADR captu
 
 ## Canonical Source Rule
 
-See [Documentation Policy](../00_governance/governance_01_documentation-policy.md) for ADR naming conventions, status definitions, and section header rules.
+See [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md) for ADR naming conventions, status definitions, and section header rules.
 
 ## Known Issues / Deferred Items
 
@@ -57,7 +57,7 @@ No reference APIs exist in this directory. All files are ADR documents.
 
 ## Related ADRs
 
-- [ADR-015](ADR-015-reference-document-class-disposition.md) — Reference document class disposition (defines how ADRs relate to other document types)
+- [ADR-015](/home/sugimoto/llmagent/docs/10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition (defines how ADRs relate to other document types)
 
 ## Related Documents
 

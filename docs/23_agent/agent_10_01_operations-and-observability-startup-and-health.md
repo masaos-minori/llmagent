@@ -1,0 +1,148 @@
+---
+title: "Agent Operations and Observability - Startup and Health"
+area: agent
+tags:
+  - agent
+  - operations
+  - startup
+  - health-probes
+  - operational-verification
+related:
+  - agent_00_document-guide.md
+  - agent_10_02_operations-and-observability-audit-and-otel.md
+  - agent_10_03_operations-and-observability-workflow-observability.md
+  - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+  - agent_10_05_operations-and-observability-monitoring.md
+  - agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md
+source:
+  - agent_10_01_operations-and-observability-startup-and-health.md
+---
+
+# Agent Operations and Observability
+
+- Configuration → [agent_08_04_configuration-mcp-approval-obs.md]()agent_08_04_configuration-mcp-approval-obs.md
+
+## Purpose
+
+Documents the agent startup procedure, operational verification, health checks, and resource cleanup during shutdown.
+
+## Design Intent
+
+The startup process is divided into three phases: server start, health check, and restoration of approval states. If an exception occurs in any phase, a rollback is triggered to ensure all started subprocesses are reliably terminated.
+
+`StartupOrchestrator` centrally manages the entire startup sequence. If startup fails, it closes all resources via `shutdown_all()` and re-raises the original exception. Even if the rollback itself fails, the original exception is preserved (only a log is recorded).
+
+SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asyncio.wait(FIRST_COMPLETED)`, these signals compete with delayed timers; if a shutdown event fires first, the delay is interrupted immediately.
+
+## Responsibility Boundary
+
+- **Scope**: The lifecycle from agent process startup to shutdown.
+- **Out of Scope**: Implementation of MCP servers, RAG pipeline details, internal workings of LLM endpoints.
+- **Owners**: `agent/startup.py` (`StartupOrchestrator`), `agent/repl.py` (`AgentREPL`).
+
+## Key Constraints
+
+- Workflow definition files must always be loaded at startup. If they are missing or invalid, startup fails. Direct execution fallback is not supported.
+- Unreachable health probes are treated as startup failure (FATAL) regardless of environment.
+- Embedding dimension mismatches are treated as startup failures to prevent vector search data corruption.
+- During rolling upgrades for session startup, the new process's startup is verified before the old process is shut down; if issues arise, the old process is maintained.
+
+## Operational Notes
+
+### Severity Mapping for Startup Verification
+
+| Severity | Meaning | Behavior |
+|---|---|---|
+| FATAL | Condition preventing startup | Throws `RuntimeError` after all checks complete, aborting startup |
+| WARNING | Check performed but problem detected | Continues startup, but requires operator attention |
+| SKIPPED | Check could not be performed | Continues startup. Occurs when environment-dependent checks are unavailable |
+| OK | Check performed successfully | Indicates normal state (Note: `security_audit` OK means "check completed", not necessarily "no problems found") |
+
+**Important Notes:**
+- `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
+- `tool_definitions` follows a unified severity scheme: FATAL when in strict mode, WARNING otherwise (the former `security_profile=PRODUCTION` branch was removed when `SecurityProfile.LOCAL` was removed — `security_profile` is always `PRODUCTION` now, so checking it added nothing).
+- Failure in `mcp_tool_discovery` is treated as FATAL regardless of environment. Since tool discovery failure makes all session tool calls impossible, it is critical.
+- `mcp_auth` ("1b. MCP authentication check", runs between the security audit and service-readiness checks): FATAL if any `[mcp_servers.*]` entry has an empty `auth_token`, listing every offending server key in one outcome. In practice this is unreachable via a real `McpServerConfig` — construction itself already rejects an empty `auth_token` (see [mcp_06_02](/home/sugimoto/llmagent/docs/22_mcp/mcp_06_02_configuration-file-inventory.md)) — so this check only fires for a `ctx` assembled some other way than the normal config-load path. `check_services()` does not short-circuit on an earlier FATAL: every check listed here always runs and reports independently; only the final aggregated `has_fatal` decides whether startup aborts.
+
+### Restoration of Pending Post-Execution Approvals
+
+If post-execution approvals from a previous session remain unresolved upon agent startup, they are restored from `workflow.sqlite` via `StateStore.find_latest_pending_approval()`. Only one such approval is tracked at a time, applying the latest record across all sessions.
+
+If a restoration value is set while a `pending_approval_task_id` is already configured, a `WARNING` level log is emitted, but the value is overwritten (the process does not abort).
+
+### Resource Cleanup on Shutdown
+
+Resources are closed in the following order within a `finally` block:
+
+1. WAL checkpoint (with PASSIVE $\rightarrow$ TRUNCATE fallback)
+2. WAL backup (with path validation)
+3. `lifecycle.shutdown_all()`
+4. `http.aclose()`
+
+Each step is independently guarded so that if one fails, others still execute. WAL backups are allowed only within paths matching `allowed_root`, and symlinks are resolved before validation.
+
+### SIGINT/SIGTERM Interruption During Startup
+
+If SIGINT/SIGTERM is received during the startup sequence, a `ShutdownInterrupted` exception is raised, triggering a rollback. The HTTP subprocess health polling loop is also immediately interrupted by the shutdown event.
+
+### Manual Recovery: workflow.sqlite / eventbus.sqlite
+
+When `workflow.sqlite` or `eventbus.sqlite` becomes corrupted (e.g., disk failure, unexpected shutdown), `recover_corruption()` returns `action="no_recovery_allowed"` for both — ADR-008 INV-18 prohibits automatic restoration for these two domains. Recovery is an operator action. Prefer restoring from a rotation-archive backup (below); fall back to the empty-state procedure only when no valid backup exists.
+
+**Step 1 — Stop the agent process completely** (ensure no remaining subprocesses).
+
+**Step 2 — Preserve the corrupted files for forensics:**
+```bash
+cp workflow.sqlite workflow.sqlite.corrupted
+cp eventbus.sqlite eventbus.sqlite.corrupted
+```
+
+**Step 3 — Locate available backups.** `rotate_all_dbs()` (`scripts/db/rotation.py`) archives `workflow.sqlite`/`eventbus.sqlite` alongside `rag.sqlite`/`session.sqlite` via the SQLite online backup API, writing WAL-consistent copies to the configured archive directory (`sqlite_archive_dir` in `agent.toml`; defaults to `/opt/llm/db/archive` when unset) named `{stem}_{timestamp}{suffix}` (e.g. `workflow_20260901-063000.sqlite`):
+```bash
+ARCHIVE_DIR="${SQLITE_ARCHIVE_DIR:-/opt/llm/db/archive}"
+ls -lt "$ARCHIVE_DIR"/workflow_*.sqlite 2>/dev/null
+ls -lt "$ARCHIVE_DIR"/eventbus_*.sqlite 2>/dev/null
+```
+List is sorted newest-first (`-t`); if none are listed, skip to Step 6 (No backup available).
+
+**Note on retention**: archives written by `rotate_all_dbs()`/`rotate_workflow_db()`/`rotate_eventbus_db()` have no automatic cleanup — they accumulate indefinitely in the archive directory unless an operator or external job removes them. This is distinct from `scripts/db/maintenance.py`'s `CorruptArchiveRetentionConfig` (`max_files`/`max_age_days`), which governs only the timestamped `*_corrupt_*` pre-restore safety copies `recover_corruption()` creates for `rag`/`session` — it does not apply to these workflow/eventbus rotation archives.
+
+**Step 4 — Validate a candidate backup**, starting with the most recent and working backward until one passes:
+```bash
+sqlite3 "$ARCHIVE_DIR/workflow_<timestamp>.sqlite" "PRAGMA integrity_check;"
+sqlite3 "$ARCHIVE_DIR/eventbus_<timestamp>.sqlite" "PRAGMA integrity_check;"
+```
+Each must print exactly `ok`. Reject and try the next-older archive otherwise.
+
+**Step 5 — Apply the validated backup, then re-verify:**
+```bash
+cp "$ARCHIVE_DIR/workflow_<timestamp>.sqlite" workflow.sqlite
+cp "$ARCHIVE_DIR/eventbus_<timestamp>.sqlite" eventbus.sqlite
+sqlite3 workflow.sqlite "PRAGMA integrity_check;"
+sqlite3 eventbus.sqlite "PRAGMA integrity_check;"
+```
+Both must print `ok` again post-copy before starting the agent. Data committed after the backup's timestamp is lost — this is expected; note the gap when escalating if it matters operationally.
+
+**Step 6 — No valid backup available (all candidates missing or failing integrity check).** Fall back to reinitializing empty state — this is a last resort, not the default path:
+```bash
+sqlite3 workflow.sqlite ".dump" > workflow.sql 2>/dev/null || true
+sqlite3 eventbus.sqlite ".dump" > eventbus.sql 2>/dev/null || true
+rm -f workflow.sqlite eventbus.sqlite
+sqlite3 workflow.sqlite < workflow.sql 2>/dev/null || touch workflow.sqlite
+sqlite3 eventbus.sqlite < eventbus.sql 2>/dev/null || touch eventbus.sqlite
+```
+This clears all pending approvals and workflow state. If the data loss is significant, escalate before proceeding — this step is irreversible once the corrupted files are removed (Step 2's `.corrupted` copies are the only remaining record).
+
+**Step 7 — Start the agent process again** and confirm normal startup (see Severity Mapping above).
+
+## Known Limitations / Unresolved Issues
+
+- Some branches in `startup.py` have been tested, but their actual behavior in production environments has only been partially verified.
+- The WAL checkpoint timeout (default 30 seconds) may need adjustment based on real-world load.
+- Information regarding rollback failures is not displayed on the console screen; it can only be checked in the log files.
+
+## Related Docs
+
+- [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md — Role of `session_diagnostics`
+- [agent_09_02_data-layer-access-patterns.md]()agent_09_02_data-layer-access-patterns.md — DB access patterns
+- [agent_08_04_configuration-mcp-approval-obs.md]()agent_08_04_configuration-mcp-approval-obs.md — Configuration files

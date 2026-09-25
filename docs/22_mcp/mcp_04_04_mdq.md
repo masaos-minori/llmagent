@@ -114,12 +114,12 @@ Tool-level exceptions (`MdqValidationError` / `MdqAuthorizationError` / `MdqNotF
 
 ### Related Documents
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_04_01_web-search-file-read-github.md`
-- `04_mcp_04_02_file-write-file-delete-shell.md`
-- `04_mcp_04_03_rag-pipeline-and-cicd.md`
-- `04_mcp_04_05_git.md`
-- `00_security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (mdq traversal processing is one implementation example of this common policy)
+- `mcp_00_document-guide.md`
+- `mcp_04_01_web-search-file-read-github.md`
+- `mcp_04_02_file-write-file-delete-shell.md`
+- `mcp_04_03_rag-pipeline-and-cicd.md`
+- `mcp_04_05_git.md`
+- `security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (mdq traversal processing is one implementation example of this common policy)
 
 ### Keywords
 

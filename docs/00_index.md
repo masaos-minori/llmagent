@@ -13,52 +13,52 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 
 ## Categories
 
-- [Overview](../overview/overview_00_document-guide.md) — System-wide architecture and file structure
+- [Overview](/home/sugimoto/llmagent/docs/01_overview/overview_00_document-guide.md) — System-wide architecture and file structure
 - [Deployment](../90_deployment/02_deployment.md) — Environment setup and deployment procedures
-- [RAG](21_rag/rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
-- [MCP](22_mcp/mcp_00_document-guide.md) — Model Context Protocol servers
-- [Agent](23_agent/05_agent_00_document-guide.md) — Agent REPL system and operation
-- [Event Bus](24_eventbus/24_eventbus_00_document-guide.md) — Event Bus infrastructure
-- [Shared/DB](../40_shared/90_shared_00_document-guide.md) — Shared infrastructure and database layer
-- [Documentation Policy](governance_01_documentation-policy.md) — Canonical source precedence (including decision target → canonical source mapping), conflict resolution, ADR conventions
-- [Documentation Metadata](governance_02_documentation-metadata.md) — Metadata conventions, terminology glossary, link rules
-- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md) — Known Issues templates, Needs Confirmation inventory
-- [Documentation Checks](governance_04_documentation-checks.md) — Automated and manual validation checks, governance verification matrix
-- [ADR Index](../adr-index.md) — ADR list, dependency graph, invariant verification matrix
+- [RAG](/home/sugimoto/llmagent/docs/21_rag/rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
+- [MCP](/home/sugimoto/llmagent/docs/22_mcp/mcp_00_document-guide.md) — Model Context Protocol servers
+- [Agent](/home/sugimoto/llmagent/docs/23_agent/agent_00_document-guide.md) — Agent REPL system and operation
+- [Event Bus](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_00_document-guide.md) — Event Bus infrastructure
+- [Shared/DB](/home/sugimoto/llmagent/docs/40_shared/shared_00_document-guide.md) — Shared infrastructure and database layer
+- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md) — Canonical source precedence (including decision target → canonical source mapping), conflict resolution, ADR conventions
+- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md) — Metadata conventions, terminology glossary, link rules
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — Known Issues templates, Needs Confirmation inventory
+- [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md) — Automated and manual validation checks, governance verification matrix
+- [ADR Index](/home/sugimoto/llmagent/docs/10_adr/adr-index.md) — ADR list, dependency graph, invariant verification matrix
 - [Known Issues](#known-issues) — Known inconsistencies per category
 
 ## Recommended Reading Order
 
-1. [System Overview](../overview/overview_00_document-guide.md) — Start here to understand the overall system picture
+1. [System Overview](/home/sugimoto/llmagent/docs/01_overview/overview_00_document-guide.md) — Start here to understand the overall system picture
 2. [Deployment Guide](../90_deployment/02_deployment.md) — Set up your environment
 3. Select an area of interest:
-   - [RAG Pipeline](21_rag/rag_00_document-guide.md)
-   - [MCP Servers](22_mcp/mcp_00_document-guide.md)
-   - [Agent System](23_agent/05_agent_00_document-guide.md)
-   - [Event Bus](24_eventbus/24_eventbus_00_document-guide.md)
-   - [Shared Infrastructure](../40_shared/90_shared_00_document-guide.md)
+   - [RAG Pipeline](/home/sugimoto/llmagent/docs/21_rag/rag_00_document-guide.md)
+   - [MCP Servers](/home/sugimoto/llmagent/docs/22_mcp/mcp_00_document-guide.md)
+   - [Agent System](/home/sugimoto/llmagent/docs/23_agent/agent_00_document-guide.md)
+   - [Event Bus](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_00_document-guide.md)
+   - [Shared Infrastructure](/home/sugimoto/llmagent/docs/40_shared/shared_00_document-guide.md)
 4. Check for known issues in your area of interest
 
 ## Known Issues
 
 All areas' known inconsistencies and unresolved items are tracked in one place:
 
-- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md) — Part 1: Known Issues (all areas)
+- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — Part 1: Known Issues (all areas)
 
 ## Document References by Task
 
-Migrated from `routing.md`. Load only the necessary documents according to the task type. DO NOT load all `docs/*.md`.
+Migrated from `/routing.md`. Load only the necessary documents according to the task type. DO NOT load all `docs/*.md`.
 
 ### Domain specs
 
 | Task scope | Reference docs |
 |---|---|
-| Agent spec (overview, design, known issues) | `23_agent/05_agent_00_document-guide.md` + `23_agent/05_agent_01_system-overview_00_document-guide.md` |
+| Agent spec (overview, design, known issues) | `23_agent/agent_00_document-guide.md` + `23_agent/agent_01_system-overview_00_document-guide.md` |
 | Agent known issues / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent) |
 | MCP server spec (overview, design, known issues) | `22_mcp/mcp_00_document-guide.md` + `22_mcp/mcp_01_system_overview_00_document-guide.md` |
 | RAG pipeline spec (overview, design, known issues) | `21_rag/rag_00_document-guide.md` + `21_rag/rag_01_system_overview_00_document-guide.md` |
 | MDQ vs RAG boundary | `22_mcp/mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
-| DB layer spec (schema, ops, known issues) | `41_db/41_db_01_db_architecture_and_schema-overview-and-config.md` + `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
+| DB layer spec (schema, ops, known issues) | `41_db/db_01_db_architecture_and_schema-overview-and-config.md` + `41_db/db_04_db_api_and_operations-module-boundaries-and-helper.md` |
 | Shared infra spec (config, logging, types, constants) | `40_shared/90_shared_00_document-guide.md` + `40_shared/90_shared_overview_00_document-guide.md` |
 
 ### Implementation reference
@@ -77,29 +77,29 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| Memory layer (types / store / retriever / extract / jsonl_store / services.py) | `23_agent/05_agent_04_01_state-and-persistence-state-model.md` + `23_agent/05_agent_08_01_configuration-loading-agent-config.md` + `23_agent/05_agent_12_03_memory-module-ref-core-and-store.md` + `23_agent/05_agent_12_04_memory-module-ref-retrieval-and-injection.md` |
-| OTel observability (otel_tracer.py) | `23_agent/05_agent_10_01_operations-and-observability-startup-and-health.md` + `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
-| Agent REPL slash commands (`CommandRegistry`) | `23_agent/05_agent_07_01_cli-and-commands-cli-reference.md` |
-| Agent startup / verification / troubleshooting | `23_agent/05_agent_10_01_operations-and-observability-startup-and-health.md` |
-| Agent features / slash commands / tool calling | `23_agent/05_agent_01_system-overview_00_document-guide.md` + `23_agent/05_agent_07_01_cli-and-commands-cli-reference.md` |
-| AgentREPL class structure | `23_agent/05_agent_02_runtime-architecture.md` + `23_agent/05_agent_13_reference-api.md` |
-| Agent REPL flow / tool execution | `23_agent/05_agent_03_01_turn-processing-flow-overview_00_document-guide.md` + `23_agent/05_agent_06_01_tool-execution-and-approval-execution.md` |
-| AgentContext / DI hub | `23_agent/05_agent_02_runtime-architecture.md` + `23_agent/05_agent_04_01_state-and-persistence-state-model.md` |
-| AgentConfig / config constants | `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
-| Session / DB persistence | `23_agent/05_agent_09_01_data-layer-session-db.md` + `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
-| LLM client (streaming/retry) | `23_agent/05_agent_05_llm-and-streaming.md` |
-| CLI view / readline | `23_agent/05_agent_07_01_cli-and-commands-cli-reference.md` |
+| Memory layer (types / store / retriever / extract / jsonl_store / services.py) | `23_agent/agent_04_01_state-and-persistence-state-model.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` + `23_agent/agent_12_03_memory-module-ref-core-and-store.md` + `23_agent/agent_12_04_memory-module-ref-retrieval-and-injection.md` |
+| OTel observability (otel_tracer.py) | `23_agent/agent_10_01_operations-and-observability-startup-and-health.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` |
+| Agent REPL slash commands (`CommandRegistry`) | `23_agent/agent_07_01_cli-and-commands-cli-reference.md` |
+| Agent startup / verification / troubleshooting | `23_agent/agent_10_01_operations-and-observability-startup-and-health.md` |
+| Agent features / slash commands / tool calling | `23_agent/agent_01_system-overview_00_document-guide.md` + `23_agent/agent_07_01_cli-and-commands-cli-reference.md` |
+| AgentREPL class structure | `23_agent/agent_02_runtime-architecture.md` + `23_agent/agent_13_reference-api.md` |
+| Agent REPL flow / tool execution | `23_agent/agent_03_01_turn-processing-flow-overview_00_document-guide.md` + `23_agent/agent_06_01_tool-execution-and-approval-execution.md` |
+| AgentContext / DI hub | `23_agent/agent_02_runtime-architecture.md` + `23_agent/agent_04_01_state-and-persistence-state-model.md` |
+| AgentConfig / config constants | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
+| Session / DB persistence | `23_agent/agent_09_01_data-layer-session-db.md` + `41_db/db_04_db_api_and_operations-module-boundaries-and-helper.md` |
+| LLM client (streaming/retry) | `23_agent/agent_05_llm-and-streaming.md` |
+| CLI view / readline | `23_agent/agent_07_01_cli-and-commands-cli-reference.md` |
 
 #### MCP
 
 | Task scope | Reference docs |
 |---|---|
 | MCP server implementation | `22_mcp/mcp_02_01_endpoints-and-transport.md` + `22_mcp/mcp_03_01_dispatch-and-routing.md` |
-| MCP transport / startup_mode / lifecycle | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
-| ToolRouteResolver / route_resolver.py | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
-| ServerLifecycleManager / lifecycle.py | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/05_agent_02_runtime-architecture.md` |
-| ToolSpec / tool_spec.py (execution metadata DAG) | `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
-| tool_cache.py (_CacheEntry LRU cache) | `23_agent/05_agent_08_01_configuration-loading-agent-config.md` |
+| MCP transport / startup_mode / lifecycle | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` |
+| ToolRouteResolver / route_resolver.py | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` |
+| ServerLifecycleManager / lifecycle.py | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/agent_02_runtime-architecture.md` |
+| ToolSpec / tool_spec.py (execution metadata DAG) | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
+| tool_cache.py (_CacheEntry LRU cache) | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | TransportType / StartupMode / HealthcheckMode enums (mcp_config.py) | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `22_mcp/mcp_06_02_configuration-file-inventory.md` |
 | MCP security model (allowlist / denylist / fail-closed) | `22_mcp/mcp_05_01_access-control-and-allowlists.md` |
 |---|---|
@@ -126,7 +126,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| SQLite / DB connection / WAL / transactions | `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
+| SQLite / DB connection / WAL / transactions | `41_db/db_04_db_api_and_operations-module-boundaries-and-helper.md` |
 | Config / logger / formatters / rag_utils | `40_shared/90_shared_03_01_runtime_and_execution-config-and-logging.md` |
 | Shared layer / DB layer known issues / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Shared/DB) |
 
@@ -134,12 +134,12 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| Event Bus (overview) | `24_eventbus/24_eventbus_01_system-overview_00_document-guide.md` |
-| Event Bus (HTTP API) | `24_eventbus/24_eventbus_02_api-reference-index.md` |
-| Event Bus (persistence) | `24_eventbus/24_eventbus_07_persistence_schema_and_replay.md` |
-| Event Bus (DLQ/offsets) | `24_eventbus/24_eventbus_06_dlq_offsets_and_delivery_semantics.md` |
-| Event Bus (config/ops) | `24_eventbus/24_eventbus_09_configuration-and-operations.md` |
-| Event Bus (API ref) | `24_eventbus/24_eventbus_10_reference_api.md` |
+| Event Bus (overview) | `24_eventbus/eventbus_01_system-overview_00_document-guide.md` |
+| Event Bus (HTTP API) | `24_eventbus/eventbus_02_api-reference-index.md` |
+| Event Bus (persistence) | `24_eventbus/eventbus_07_persistence_schema_and_replay.md` |
+| Event Bus (DLQ/offsets) | `24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md` |
+| Event Bus (config/ops) | `24_eventbus/eventbus_09_configuration-and-operations.md` |
+| Event Bus (API ref) | `24_eventbus/eventbus_10_reference_api.md` |
 | Event Bus (issues) | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## Related Documents
@@ -148,8 +148,8 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 - `90_deployment/02_deployment.md`
 - `21_rag/rag_00_document-guide.md`
 - `22_mcp/mcp_00_document-guide.md`
-- `23_agent/05_agent_00_document-guide.md`
-- `24_eventbus/24_eventbus_00_document-guide.md`
+- `23_agent/agent_00_document-guide.md`
+- `24_eventbus/eventbus_00_document-guide.md`
 - `40_shared/90_shared_00_document-guide.md`
 
 ## Keywords

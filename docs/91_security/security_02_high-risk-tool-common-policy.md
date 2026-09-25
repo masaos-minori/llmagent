@@ -10,19 +10,19 @@ tags:
   - audit
   - symlink-traversal
 related:
-  - 00_security_01_architecture-and-trust-boundaries.md
+  - security_01_architecture-and-trust-boundaries.md
   - governance_01_documentation-policy.md
   - mcp_05_01_access-control-and-allowlists.md
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
-  - 05_agent_06_01_tool-execution-and-approval-execution.md
+  - agent_06_01_tool-execution-and-approval-execution.md
   - mcp_04_02_file-write-file-delete-shell.md
   - mcp_04_04_mdq.md
   - mcp_05_05_mdq-enforcement-and-lockdown.md
-  - 05_agent_06_02_tool-execution-and-approval-approval.md
+  - agent_06_02_tool-execution-and-approval-approval.md
   - mcp_06_16_pre-production-fail-open-checklist.md
   - mcp_02_03_audit-logging-and-errors.md
 source:
-  - 00_security_02_high-risk-tool-common-policy.md
+  - security_02_high-risk-tool-common-policy.md
 ---
 
 # High-Risk MCP Tool Common Policy
@@ -90,7 +90,7 @@ All tool arguments are validated before execution via `agent/tool_arg_validator.
 - **Constraint checking**: Numeric bounds, string length, enum values enforced
 - **Path validation**: File paths checked against `allowed_dirs`/`allowed_repo_paths` after `Path.resolve()`
 
-*Source: `05_agent_06_01_tool-execution-and-approval-execution.md`*
+*Source: `agent_06_01_tool-execution-and-approval-execution.md`*
 
 ## Path-traversal prevention
 
@@ -126,7 +126,7 @@ The following table reproduces the authoritative approval-to-risk-tier mapping f
 | `WRITE_DANGEROUS` | Destructive or high-impact writes | User approval (mandatory) | `delete_file`, `delete_directory`, `shell_run`, `github_push_files`, `github_merge_pull_request` |
 | `ADMIN` | Administrative/privileged operations | Admin approval + audit | `delete_repo`, `cicd_deploy`, `db_maintenance` |
 
-**Cross-linked with approval-execution flow**: `05_agent_06_01_tool-execution-and-approval-execution.md` and `05_agent_06_02_tool-execution-and-approval-approval.md` define how approval is requested, granted, and audited.
+**Cross-linked with approval-execution flow**: `agent_06_01_tool-execution-and-approval-execution.md` and `agent_06_02_tool-execution-and-approval-approval.md` define how approval is requested, granted, and audited.
 
 *Source: `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification*
 
@@ -170,7 +170,7 @@ restrictions below apply unconditionally in every environment, not only when a
 
 **Fail-closed by default** — all high-risk operations default to denial unless explicitly allowed by configuration and approval.
 
-This is cross-linked with `00_security_01_architecture-and-trust-boundaries.md` Fail-open-vs-fail-closed behavior table.
+This is cross-linked with `security_01_architecture-and-trust-boundaries.md` Fail-open-vs-fail-closed behavior table.
 
 The fail-closed posture applies to:
 - Allowlist checks (empty = deny)
@@ -189,19 +189,19 @@ This policy defines the common baseline. Tool-specific deviations are documented
 - **Git MCP**: `GitConfig.protected_branches` and `GitService._check_protected_branch()` (called via `_validate_protected()`) enforce a protected-branch policy (tests: `test_git_security_compliance.py::test_check_protected_branch`, `test_git_checkout_protected_branch`, `test_git_push_protected_branch`, `test_is_safe_ref`; `TestLiveCallToolAuthorization`: `test_checkout_protected_branch_denied`, `test_pull_protected_branch_denied`, `test_push_protected_branch_denied`, `test_checkout_non_protected_branch_allowed`, `test_pull_non_protected_branch_allowed`, `test_push_non_protected_branch_allowed`, `test_checkout_implicit_target_denied`, `test_pull_implicit_target_denied`, `test_push_implicit_target_denied`). The Force-Push block is not applicable because `git_push` exposes no `force` parameter. Dirty-Worktree/Detached-HEAD guards and postcondition verification are implemented (`TestDryRunAndDetachedHeadLivePath`: `test_dry_run_checkout_skips_dirty_and_detached_precondition`, `test_dry_run_checkout_protected_branch_still_denied`, `test_non_dry_run_detached_head_denied_then_allowed`, `test_dry_run_pull_and_push_skip_dirty_precondition`; `TestPostConditionBypassPrevention`: `test_checkout_postcondition_cannot_be_bypassed`, `test_pull_postcondition_cannot_be_bypassed`, `test_push_postcondition_cannot_be_bypassed`) (see `governance_03_issue-and-uncertainty-management.md`).
 - **Shell MCP**: `approval_shell_safe_prefixes` allows auto-approval for safe prefixes (documented in `mcp_04_02_file-write-file-delete-shell.md`)
 
-Tool-specific docs must include a "See also: `00_security_02_high-risk-tool-common-policy.md`" reference.
+Tool-specific docs must include a "See also: `security_02_high-risk-tool-common-policy.md`" reference.
 
 ## Related Documents
 
-- `00_security_01_architecture-and-trust-boundaries.md`
+- `security_01_architecture-and-trust-boundaries.md`
 - `governance_01_documentation-policy.md`
 - `mcp_05_01_access-control-and-allowlists.md`
 - `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `05_agent_06_01_tool-execution-and-approval-execution.md`
+- `agent_06_01_tool-execution-and-approval-execution.md`
 - `mcp_04_02_file-write-file-delete-shell.md`
 - `mcp_04_04_mdq.md`
 - `mcp_05_05_mdq-enforcement-and-lockdown.md`
-- `05_agent_06_01_tool-execution-and-approval-execution.md`
-- `05_agent_06_02_tool-execution-and-approval-approval.md`
+- `agent_06_01_tool-execution-and-approval-execution.md`
+- `agent_06_02_tool-execution-and-approval-approval.md`
 - `mcp_06_16_pre-production-fail-open-checklist.md`
 - `mcp_02_03_audit-logging-and-errors.md`
