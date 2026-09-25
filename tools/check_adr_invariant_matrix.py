@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_adr_invariant_matrix.py — Verify test paths cited in the ADR Invariant Verification Matrix exist.
 
-`docs/adr-index.md`'s "## ADR Invariant Verification Matrix" table's
+`docs/10_adr/adr-index.md`'s "## ADR Invariant Verification Matrix" table's
 `Verification Status` column sometimes cites a specific pytest node id in
 backticks (e.g. `` `tests/agent/test_startup.py::test_aborts_on_missing_workflow_definition` ``)
 as evidence that an invariant is covered by an automated test. Nothing
@@ -135,7 +135,7 @@ def render_json(issues: list[Issue]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Verify every pytest node id cited in docs/adr-index.md's ADR "
+            "Verify every pytest node id cited in docs/10_adr/adr-index.md's ADR "
             "Invariant Verification Matrix resolves to an existing file."
         )
     )

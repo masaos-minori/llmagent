@@ -189,6 +189,15 @@ def check_links(path: Path, content: str, basename_index: dict[str, Path]) -> li
             found = target in basename_index
         if not found:
             issues.append(f"{path.name}: broken link -> '{target}'")
+        else:
+            # Self-reference check: compare resolved paths to handle absolute/relative/cross-dir cases
+            if "/" in target:
+                resolved_target = (path.parent / target).resolve()
+            else:
+                # For bare basenames, resolve via basename_index to get the actual path
+                resolved_target = basename_index.get(target, path.parent / target).resolve()
+            if resolved_target == path.resolve():
+                issues.append(f"{path.name}: self-reference detected -> '{target}'")
     return issues
 
 
@@ -236,6 +245,16 @@ def check_related_links(
                 issues.append(
                     f"{path.name}: front matter references missing file '{entry}' (field: {field})"
                 )
+            else:
+                # Self-reference check: compare resolved paths to handle absolute/relative/cross-dir cases
+                if "/" in entry:
+                    resolved_entry = (path.parent / entry).resolve()
+                else:
+                    resolved_entry = basename_index.get(entry, path.parent / entry).resolve()
+                if resolved_entry == path.resolve():
+                    issues.append(
+                        f"{path.name}: self-reference detected -> '{entry}'"
+                    )
     return issues
 
 

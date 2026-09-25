@@ -354,6 +354,59 @@ class TestDefaultGlobIsRecursive:
         assert len(found) == 2
 
 
+class TestSelfReferenceCheck:
+    """GV-006: Self-reference prohibition check."""
+
+    def test_self_reference_in_body_link_is_flagged(self, tmp_path: Path) -> None:
+        """REQ-008: A document linking to itself in body text is flagged."""
+        doc = _write(tmp_path / "example.md", "# Example\n\nSee [example](example.md).\n")
+        index = _build_basename_index(tmp_path)
+        issues = check_links(doc, doc.read_text(), index)
+        assert any("self-reference detected" in i for i in issues)
+
+    def test_self_reference_in_related_field_is_flagged(self, tmp_path: Path) -> None:
+        """REQ-008: A document referencing itself in 'related' front-matter is flagged."""
+        content = (
+            '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
+            "related:\n  - example.md\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        index = _build_basename_index(tmp_path)
+        issues = check_related_links(doc, doc.read_text(), index)
+        assert any("self-reference detected" in i for i in issues)
+
+    def test_cross_directory_self_reference_with_path_is_flagged(self, tmp_path: Path) -> None:
+        """REQ-004: Self-reference with relative path across directories is detected."""
+        _write(tmp_path / "sub" / "example.md", "# Example\n")
+        content = (
+            '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
+            "related:\n  - ./example.md\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "sub" / "example.md", content)
+        index = _build_basename_index(tmp_path)
+        issues = check_related_links(doc, doc.read_text(), index)
+        assert any("self-reference detected" in i for i in issues)
+
+    def test_normal_cross_reference_passes(self, tmp_path: Path) -> None:
+        """REQ-009: Normal cross-references do not trigger false positives."""
+        _write(tmp_path / "other.md", "# Other\n")
+        content = (
+            '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
+            "related:\n  - other.md\n---\n\nBody.\n"
+        )
+        doc = _write(tmp_path / "example.md", content)
+        index = _build_basename_index(tmp_path)
+        issues = check_related_links(doc, doc.read_text(), index)
+        assert not any("self-reference" in i for i in issues)
+
+    def test_bare_basename_self_reference_guard_works(self, tmp_path: Path) -> None:
+        """The target != path.name guard skips resolution when the string equals the filename."""
+        doc = _write(tmp_path / "same.md", "# Same\n\nSee [same](same.md).\n")
+        index = _build_basename_index(tmp_path)
+        issues = check_links(doc, doc.read_text(), index)
+        assert any("self-reference detected" in i for i in issues)
+
+
 class TestValidateFileStatusIntegration:
     """REQ-008: Integration test confirming the check runs in `validate_file()` flow."""
 
