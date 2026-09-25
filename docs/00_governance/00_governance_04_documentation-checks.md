@@ -377,9 +377,7 @@ for the conditions that require review before merging.
 
 ## Maintenance Rules
 
-- New ADRs must be created within one week of the decision being made
-- "Proposed" ADRs must be reviewed quarterly
-- "Needs confirmation" items must be reviewed quarterly
+See [Policy's Maintenance Rules](00_governance_01_documentation-policy.md#maintenance-rules).
 
 ## Non-Goals
 
