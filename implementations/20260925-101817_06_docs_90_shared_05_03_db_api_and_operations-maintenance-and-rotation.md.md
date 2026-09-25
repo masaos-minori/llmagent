@@ -84,8 +84,8 @@ Moving any other DB-topic file (each tracked by its own procedure document); ren
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move docs/90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md to docs/41_db/ | Pending | — | — | |
-| 2 | Verify git history preserved through move | Pending | — | — | |
+| 1 | Move docs/90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md to docs/41_db/ | Completed | — | 20260925-104707 |  |
+| 2 | Verify git history preserved through move | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
