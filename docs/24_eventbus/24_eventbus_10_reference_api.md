@@ -21,15 +21,15 @@ tags:
   - eventbroker
   - subscriber
 related:
-  - 06_eventbus_00_document-guide.md
-  - 06_eventbus_01_system-overview.md
-  - 06_eventbus_02_operations.md
+  - 24_eventbus_00_document-guide.md
+  - 24_eventbus_01_system-overview.md
+  - 24_eventbus_03_dlq_operations.md
 ---
 
 # Event Bus: Reference API
 
 Detailed API specifications (module responsibilities, route handlers, and internal
-classes) for verification purposes. Refer to `06_eventbus_02_operations.md` for the
+classes) for verification purposes. Refer to `24_eventbus_03_dlq_operations.md` for the
 endpoint contracts (request/response shapes, status codes) — this document covers the
 implementing modules, not the HTTP-level behavior.
 
@@ -73,11 +73,11 @@ Common route helpers. See code for details.
 
 ### scripts/eventbus/dlq_route.py
 
-`dlq_list(request, limit=100, offset=0)`: `GET /dlq`. `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. If `failure_count >= max_retry`, it may be re-moved to the DLQ. See `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
+`dlq_list(request, limit=100, offset=0)`: `GET /dlq`. `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. If `failure_count >= max_retry`, it may be re-moved to the DLQ. See `24_eventbus_06_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
 
 ### scripts/eventbus/replay_route.py
 
-`replay(request, since_seq=0, fmt=sse, limit=100, offset=0)`: `GET /replay`. SSE stream or paginated JSON. See `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` for replay semantics.
+`replay(request, since_seq=0, fmt=sse, limit=100, offset=0)`: `GET /replay`. SSE stream or paginated JSON. See `24_eventbus_06_dlq_offsets_and_delivery_semantics.md` for replay semantics.
 
 **Format parameter:** Accepts only `sse` or `json`. Unsupported values return HTTP 422. Default is `sse`.
 
@@ -89,7 +89,7 @@ Common route helpers. See code for details.
 
 ### scripts/eventbus/subscribe_route.py
 
-`subscribe(request, topic=[], since_seq=0, consumer_id="")`: `GET /subscribe`. SSE streaming + replay+push. See `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` for delivery semantics, offset semantics, and backpressure behavior.
+`subscribe(request, topic=[], since_seq=0, consumer_id="")`: `GET /subscribe`. SSE streaming + replay+push. See `24_eventbus_06_dlq_offsets_and_delivery_semantics.md` for delivery semantics, offset semantics, and backpressure behavior.
 
 **SSE-standard features (REQ-001 through REQ-005):**
 - Heartbeat: During live delivery phase, emits `: heartbeat\n\n` comments at `cfg.sse_heartbeat_interval` intervals to keep idle connections alive through proxies/LBs.
@@ -97,11 +97,11 @@ Common route helpers. See code for details.
 - Last-Event-ID: Client can send `Last-Event-ID` HTTP header with a sequence number to resume from that point. Precedence: `since_seq` query param > persisted consumer offset > `Last-Event-ID` header.
 - Stale reconnect rejection: If `Last-Event-ID` exceeds current max seq in SQLite, returns HTTP 412 Precondition Failed.
 
-For detailed delivery semantics (ordering guarantees, ACK/NACK rules, offset semantics, backpressure), see `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`.
+For detailed delivery semantics (ordering guarantees, ACK/NACK rules, offset semantics, backpressure), see `24_eventbus_06_dlq_offsets_and_delivery_semantics.md`.
 
 ### scripts/eventbus/health_route.py
 
-`health_check(request)`: `GET /health`. See `06_eventbus_05_configuration-and-operations.md` for monitoring thresholds.
+`health_check(request)`: `GET /health`. See `24_eventbus_09_configuration-and-operations.md` for monitoring thresholds.
 
 ### HTTP Endpoints Summary
 
@@ -123,11 +123,11 @@ Methods: `subscribe(topics→_Subscriber, consumer_id=str)`, `unsubscribe(sub→
 
 ## Related Documents
 
-- `06_eventbus_00_document-guide.md`
-- `06_eventbus_01_system-overview.md`
-- `06_eventbus_02_operations.md`
-- `06_eventbus_03_persistence_schema_and_replay.md`
-- `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
+- `24_eventbus_00_document-guide.md`
+- `24_eventbus_01_system-overview.md`
+- `24_eventbus_03_dlq_operations.md`
+- `24_eventbus_07_persistence_schema_and_replay.md`
+- `24_eventbus_06_dlq_offsets_and_delivery_semantics.md`
 
 ## Module Class/Function Reference (auto-generated)
 

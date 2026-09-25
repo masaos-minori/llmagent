@@ -529,8 +529,8 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - [RAG Persistence](03_rag_04_02_rag-persistence.md) — RAG永続化
 - [RAG Recovery](03_rag_04_03_rag-recovery.md) — RAG復旧
 - [Agent Session Persistence](05_agent_04_01_agent-session-persistence.md) — セッション永続化
-- [EventBus Persistence Schema and Replay](../06_eventbus_03_persistence_schema_and_replay.md) — EventBus永続化スキーマ
-- [DLQ Offsets and Delivery Semantics](../06_eventbus_04_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
+- [EventBus Persistence Schema and Replay](../24_eventbus_07_persistence_schema_and_replay.md) — EventBus永続化スキーマ
+- [DLQ Offsets and Delivery Semantics](../24_eventbus_06_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
 
 ### Operations
 

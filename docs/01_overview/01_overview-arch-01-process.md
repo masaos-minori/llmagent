@@ -104,7 +104,7 @@ The following table contains representative examples; the exact number and ports
 | `cicd-mcp` | GitHub Actions CI/CD MCP Server |
 | `mdq-mcp` | Markdown Context Compression Engine MCP Server |
 | `git-mcp` | Local Git Operation MCP Server |
-| `eventbus` | Event Delivery Server (Separate process from MCP servers. Details: `06_eventbus_01_system-overview.md`) |
+| `eventbus` | Event Delivery Server (Separate process from MCP servers. Details: `24_eventbus_01_system-overview.md`) |
 
 #### Implementation Notes (LLM Service URL/Port)
 

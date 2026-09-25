@@ -10,12 +10,12 @@ tags:
   - at-least-once
   - idempotent
 related:
-  - 06_eventbus_00_document-guide.md
-  - 06_eventbus_01_system-overview.md
-  - 06_eventbus_02_operations.md
-  - 06_eventbus_03_persistence_schema_and_replay.md
+  - 24_eventbus_00_document-guide.md
+  - 24_eventbus_01_system-overview.md
+  - 24_eventbus_03_dlq_operations.md
+  - 24_eventbus_07_persistence_schema_and_replay.md
 source:
-  - 00_index.md
+  - 24_eventbus_02_api-reference-index.md
 ---
 
 # Event Bus: DLQ, Offsets, and Delivery Semantics
@@ -453,7 +453,7 @@ JSONL archive files are appended to `{storage_dir}/events.jsonl` as a secondary 
 
 ## Related Documents
 
-- `06_eventbus_00_document-guide.md`
-- `../06_eventbus_01_system-overview.md`
-- `../06_eventbus_02_operations.md`
-- `../06_eventbus_03_persistence_schema_and_replay.md`
+- `24_eventbus_00_document-guide.md`
+- `24_eventbus_01_system-overview.md`
+- `24_eventbus_03_dlq_operations.md`
+- `24_eventbus_07_persistence_schema_and_replay.md`

@@ -18,7 +18,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 - [RAG](21_rag/03_rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
 - [MCP](22_mcp/04_mcp_00_document-guide.md) — Model Context Protocol servers
 - [Agent](23_agent/05_agent_00_document-guide.md) — Agent REPL system and operation
-- [Event Bus](24_eventbus/06_eventbus_00_document-guide.md) — Event Bus infrastructure
+- [Event Bus](24_eventbus/24_eventbus_00_document-guide.md) — Event Bus infrastructure
 - [Shared/DB](../40_shared/90_shared_00_document-guide.md) — Shared infrastructure and database layer
 - [Documentation Policy](00_governance_01_documentation-policy.md) — Canonical source precedence (including decision target → canonical source mapping), conflict resolution, ADR conventions
 - [Documentation Metadata](00_governance_02_documentation-metadata.md) — Metadata conventions, terminology glossary, link rules
@@ -35,7 +35,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
    - [RAG Pipeline](21_rag/03_rag_00_document-guide.md)
    - [MCP Servers](22_mcp/04_mcp_00_document-guide.md)
    - [Agent System](23_agent/05_agent_00_document-guide.md)
-   - [Event Bus](24_eventbus/06_eventbus_00_document-guide.md)
+   - [Event Bus](24_eventbus/24_eventbus_00_document-guide.md)
    - [Shared Infrastructure](../40_shared/90_shared_00_document-guide.md)
 4. Check for known issues in your area of interest
 
@@ -134,12 +134,12 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 
 | Task scope | Reference docs |
 |---|---|
-| Event Bus (overview) | `24_eventbus/06_eventbus_01_system-overview.md` |
-| Event Bus (HTTP API) | `24_eventbus/06_eventbus_02_operations.md` |
-| Event Bus (persistence) | `24_eventbus/06_eventbus_03_persistence_schema_and_replay.md` |
-| Event Bus (DLQ/offsets) | `24_eventbus/06_eventbus_04_dlq_offsets_and_delivery_semantics.md` |
-| Event Bus (config/ops) | `24_eventbus/06_eventbus_05_configuration-and-operations.md` |
-| Event Bus (API ref) | `24_eventbus/06_eventbus_06_reference-api.md` |
+| Event Bus (overview) | `24_eventbus/24_eventbus_01_system-overview.md` |
+| Event Bus (HTTP API) | `24_eventbus/24_eventbus_02_api-reference-index.md` |
+| Event Bus (persistence) | `24_eventbus/24_eventbus_07_persistence_schema_and_replay.md` |
+| Event Bus (DLQ/offsets) | `24_eventbus/24_eventbus_06_dlq_offsets_and_delivery_semantics.md` |
+| Event Bus (config/ops) | `24_eventbus/24_eventbus_09_configuration-and-operations.md` |
+| Event Bus (API ref) | `24_eventbus/24_eventbus_10_reference_api.md` |
 | Event Bus (issues) | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## Related Documents
@@ -149,7 +149,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 - `21_rag/03_rag_00_document-guide.md`
 - `22_mcp/04_mcp_00_document-guide.md`
 - `23_agent/05_agent_00_document-guide.md`
-- `24_eventbus/06_eventbus_00_document-guide.md`
+- `24_eventbus/24_eventbus_00_document-guide.md`
 - `40_shared/90_shared_00_document-guide.md`
 
 ## Keywords

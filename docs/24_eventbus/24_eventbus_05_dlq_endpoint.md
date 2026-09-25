@@ -84,9 +84,9 @@ Concurrent requeue attempts on the same event produce exactly one successful red
 
 ## Related Documents
 
-- [DLQ Operations Reference](01_dlq_operations.md)
-- [Event Bus Overview](../06_eventbus_01_system-overview.md)
-- [Event Bus DLQ/Offsets/Delivery Semantics](../06_eventbus_04_dlq_offsets_and_delivery_semantics.md)
+- [DLQ Operations Reference](24_eventbus_03_dlq_operations.md)
+- [Event Bus Overview](24_eventbus_01_system-overview.md)
+- [Event Bus DLQ/Offsets/Delivery Semantics](24_eventbus_06_dlq_offsets_and_delivery_semantics.md)
 
 ## Keywords
 

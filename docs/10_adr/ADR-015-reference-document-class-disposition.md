@@ -111,7 +111,7 @@ Run the corresponding `tools/generate_reference_table.py --type <domain>` genera
 
 ## Implementation Notes
 
-Agent (`docs/05_agent_13_reference-api.md`) and EventBus (`docs/06_eventbus_06_reference-api.md`)
+Agent (`docs/05_agent_13_reference-api.md`) and EventBus (`docs/24_eventbus_10_reference_api.md`)
 have both been migrated to generated Reference-class status under Option B.
 
 Memory migration target document(s) remain unresolved — see

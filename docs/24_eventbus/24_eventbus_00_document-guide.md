@@ -16,24 +16,25 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 
 | Category | File |
 |---|---|
-| Overview & Architecture | `06_eventbus_01_system-overview.md` |
-| Primary Operations (publish/replay/subscribe/ack/nack/DLQ) | `06_eventbus_02_*` |
-| Persistence & Schema | `06_eventbus_03_persistence_schema_and_replay.md` |
-| Delivery Semantics & Consumer Responsibilities | `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` |
-| Configuration, Security Constraints & Operations | `06_eventbus_05_*` |
-| Reference API (for detailed verification) | `06_eventbus_06_*` |
+| Overview & Architecture | `24_eventbus_01_system-overview.md` |
+| Primary Operations (publish/replay/subscribe/ack/nack/DLQ) | `24_eventbus_03_*`, `24_eventbus_04_*`, `24_eventbus_05_*` |
+| Persistence & Schema | `24_eventbus_07_persistence_schema_and_replay.md` |
+| Delivery Semantics & Consumer Responsibilities | `24_eventbus_06_dlq_offsets_and_delivery_semantics.md` |
+| Configuration, Security Constraints & Operations | `24_eventbus_09_configuration-and-operations.md` |
+| Validation Status | `24_eventbus_08_validation_status.md` |
+| Reference API (for detailed verification) | `24_eventbus_10_reference_api.md` |
 | Known Issues & Pending Items | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## AI Query Routing
 
 | Question | Rule |
 |---|---|
-| Event Bus design intent & architecture | `06_eventbus_01` |
-| Publishing / replaying / subscribing / acking / nacking / DLQ events | `06_eventbus_02` |
-| Persistence layer & canonical data | `06_eventbus_03` |
-| Delivery semantics & consumer responsibilities | `06_eventbus_04` |
-| Configuration, bind address, health checks & operations | `06_eventbus_05` |
-| API details, types & schemas | `06_eventbus_06` |
+| Event Bus design intent & architecture | `24_eventbus_01` |
+| Publishing / replaying / subscribing / acking / nacking / DLQ events | `24_eventbus_03`, `24_eventbus_04`, `24_eventbus_05` |
+| Persistence layer & canonical data | `24_eventbus_07` |
+| Delivery semantics & consumer responsibilities | `24_eventbus_06` |
+| Configuration, bind address, health checks & operations | `24_eventbus_09` |
+| API details, types & schemas | `24_eventbus_10` |
 | Known issues & specification inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## Canonical Source Rule
@@ -46,7 +47,7 @@ Known limitations, specification gaps, and pending items are centrally managed i
 
 ## Reference API
 
-`06_eventbus_06_*` files are Reference APIs containing detailed API specifications (type definitions, schemas, endpoint specifications). Refer to them as needed after verifying design decisions, but they are separate from the core design documentation.
+`24_eventbus_10_*` files are Reference APIs containing detailed API specifications (type definitions, schemas, endpoint specifications). Refer to them as needed after verifying design decisions, but they are separate from the core design documentation.
 
 ## Governance
 
@@ -64,8 +65,8 @@ Cross-cutting documentation rules and policies:
 
 ## Related Documents
 
-- `06_eventbus_01_system-overview.md`
-- `06_eventbus_03_persistence_schema_and_replay.md`
-- `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
-- `06_eventbus_05_configuration-and-operations.md`
-- `06_eventbus_06_reference-api.md`
+- `24_eventbus_01_system-overview.md`
+- `24_eventbus_07_persistence_schema_and_replay.md`
+- `24_eventbus_06_dlq_offsets_and_delivery_semantics.md`
+- `24_eventbus_09_configuration-and-operations.md`
+- `24_eventbus_10_reference_api.md`

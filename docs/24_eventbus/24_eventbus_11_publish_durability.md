@@ -96,11 +96,11 @@ Partial lines in JSONL (from interrupted writes) are naturally excluded by line-
 
 ## Related Documents
 
-- [DLQ Operations Reference](01_dlq_operations.md)
-- [DLQ Requeue API Reference](02_dlq_requeue_api.md)
-- [Replay Operations Reference](03_replay_operations.md)
-- [Event Bus Overview](../06_eventbus_01_system-overview.md)
-- [Event Bus DLQ/Offsets/Delivery Semantics](../06_eventbus_04_dlq_offsets_and_delivery_semantics.md)
+- [DLQ Operations Reference](24_eventbus_03_dlq_operations.md)
+- [DLQ Requeue API Reference](24_eventbus_05_dlq_endpoint.md)
+- [Replay Operations Reference](24_eventbus_16_replay_operations.md)
+- [Event Bus Overview](24_eventbus_01_system-overview.md)
+- [Event Bus DLQ/Offsets/Delivery Semantics](24_eventbus_06_dlq_offsets_and_delivery_semantics.md)
 
 ## Keywords
 

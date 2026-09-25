@@ -10,12 +10,12 @@ tags:
   - replay
   - consumer-offset
 related:
-  - 06_eventbus_00_document-guide.md
-  - 06_eventbus_01_system-overview.md
-  - 06_eventbus_02_operations.md
-  - 06_eventbus_04_dlq_offsets_and_delivery_semantics.md
+  - 24_eventbus_00_document-guide.md
+  - 24_eventbus_01_system-overview.md
+  - 24_eventbus_03_dlq_operations.md
+  - 24_eventbus_06_dlq_offsets_and_delivery_semantics.md
 source:
-  - 00_index.md
+  - 24_eventbus_02_api-reference-index.md
 ---
 
 # Event Bus: Persistence, Schema, and Replay
@@ -197,7 +197,7 @@ If inconsistencies are detected, follow this controlled restart procedure:
    ```
 
 6. Re-run Steps 1–4 to confirm consistency.
-- `06_eventbus_00_document-guide.md`
-- `../06_eventbus_01_system-overview.md`
-- `../06_eventbus_02_operations.md`
-- `../06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
+- `24_eventbus_00_document-guide.md`
+- `24_eventbus_01_system-overview.md`
+- `24_eventbus_03_dlq_operations.md`
+- `24_eventbus_06_dlq_offsets_and_delivery_semantics.md`

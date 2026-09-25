@@ -55,7 +55,7 @@ eventbus → 他の全レイヤーから完全に独立（shared にすら依存
 |---|---|
 | `scripts/agent/` | `docs/23_agent/05_agent_00_document-guide.md` |
 | `scripts/db/` | `docs/40_shared/90_shared_00_document-guide.md` |
-| `scripts/eventbus/` | `docs/24_eventbus/06_eventbus_00_document-guide.md` |
+| `scripts/eventbus/` | `docs/24_eventbus/24_eventbus_00_document-guide.md` |
 | `scripts/mcp_servers/` | `docs/22_mcp/04_mcp_00_document-guide.md` |
 | `scripts/rag/` | `docs/21_rag/03_rag_00_document-guide.md` |
 | `scripts/shared/` | `docs/40_shared/90_shared_00_document-guide.md` |
@@ -77,7 +77,7 @@ DB は rag.sqlite / session.sqlite / workflow.sqlite / eventbus.sqlite の 4 フ
 | `rag.sqlite` | `docs/90_shared_04_02_db_architecture_and_schema-schema-reference-part1.md` §5 |
 | `session.sqlite` | `docs/90_shared_04_02_db_architecture_and_schema-schema-reference-part2.md` §6 |
 | `workflow.sqlite` | `docs/90_shared_04_02_db_architecture_and_schema-schema-reference-part2.md` §7 |
-| `eventbus.sqlite` | `docs/24_eventbus/06_eventbus_03_persistence_schema_and_replay.md` |
+| `eventbus.sqlite` | `docs/24_eventbus/24_eventbus_07_persistence_schema_and_replay.md` |
 
 DB 構成・接続管理の全体像: `docs/41_db/90_shared_04_01_db_architecture_and_schema-overview-and-config.md`。マイグレーション/スケーリング: `docs/41_db/90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md`。
 
@@ -108,7 +108,7 @@ agent.toml の全設定項目・ホットリロード可否・分類: `docs/05_a
 | `docs/21_rag/03_rag_00_document-guide.md` | RAG ドキュメントセット入口 |
 | `docs/22_mcp/04_mcp_00_document-guide.md` | MCP ドキュメントセット入口 |
 | `docs/23_agent/05_agent_00_document-guide.md` | Agent ドキュメントセット入口 |
-| `docs/24_eventbus/06_eventbus_00_document-guide.md` | Event Bus ドキュメントセット入口 |
+| `docs/24_eventbus/24_eventbus_00_document-guide.md` | Event Bus ドキュメントセット入口 |
 | `docs/40_shared/90_shared_00_document-guide.md` | shared/DB ドキュメントセット入口 |
 | `routing.md` | タスク種別 → ロードすべき skill/docs のルーティング表 |
 

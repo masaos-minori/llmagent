@@ -184,7 +184,7 @@ In default production settings, approval gates are not triggered. Enabling appro
 - `05_agent_00_document-guide.md`
 - `05_agent_03_01_turn-processing-flow-overview.md`
 - `05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
-- `06_eventbus_00_document-guide.md`
+- `24_eventbus_00_document-guide.md`
 
 ## Keywords
 

@@ -10,11 +10,11 @@ tags:
   - security-model
   - authentication
 related:
-  - 06_eventbus_00_document-guide.md
-  - 06_eventbus_02_operations.md
-  - 06_eventbus_05_configuration-and-operations.md
+  - 24_eventbus_00_document-guide.md
+  - 24_eventbus_03_dlq_operations.md
+  - 24_eventbus_09_configuration-and-operations.md
 source:
-  - 00_index.md
+  - 24_eventbus_02_api-reference-index.md
 ---
 
 # Event Bus: System Overview
@@ -61,13 +61,13 @@ These items are also documented as Deferred Items in `docs/00_governance_03_issu
 
 ### EVENTBUS-001: Offset Monotonicity Not Guaranteed
 
-Offset monotonicity is NOT guaranteed across all scenarios. If ACKs are not received in `seq` order, the offset may become non-monotonic (skipped `seq` values will not be re-acquired later). See `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` for details.
+Offset monotonicity is NOT guaranteed across all scenarios. If ACKs are not received in `seq` order, the offset may become non-monotonic (skipped `seq` values will not be re-acquired later). See `24_eventbus_06_dlq_offsets_and_delivery_semantics.md` for details.
 
 ## Related Documents
 
-- `06_eventbus_00_document-guide.md`
-- `../06_eventbus_02_operations.md`
-- `../06_eventbus_03_persistence_schema_and_replay.md`
-- `../06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
-- `../06_eventbus_05_configuration-and-operations.md`
-- `../06_eventbus_06_reference-api.md`
+- `24_eventbus_00_document-guide.md`
+- `24_eventbus_03_dlq_operations.md`
+- `24_eventbus_07_persistence_schema_and_replay.md`
+- `24_eventbus_06_dlq_offsets_and_delivery_semantics.md`
+- `24_eventbus_09_configuration-and-operations.md`
+- `24_eventbus_10_reference_api.md`
