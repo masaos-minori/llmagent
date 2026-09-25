@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_adr_reference.py — Verify scripts/*.py files named by the ADR Invariant Matrix carry an ADR-XXX comment.
 
-`docs/adr-index.md`'s "## ADR Invariant Verification Matrix" table sometimes
+`docs/10_adr/adr-index.md`'s "## ADR Invariant Verification Matrix" table sometimes
 cites a `scripts/<path>.py` source file directly in a row's `Verification
 Status` cell (e.g. `` `scripts/agent/startup.py` `` for INV-011/ADR-004) as
 the implementation evidence for that invariant. This check requires that any
@@ -144,7 +144,7 @@ def check_adr_reference(refs: list[MatrixSourceRef]) -> list[Issue]:
                     line_no=0,
                     severity="ERROR",
                     message=(
-                        f"file is cited by docs/adr-index.md's Invariant Matrix "
+                        f"file is cited by docs/10_adr/adr-index.md's Invariant Matrix "
                         f"for {ref.adr_id}, but contains no inline reference to "
                         f"'{ref.adr_id}'"
                     ),
@@ -183,7 +183,7 @@ def render_json(issues: list[Issue]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Verify every scripts/*.py file cited by docs/adr-index.md's ADR "
+            "Verify every scripts/*.py file cited by docs/10_adr/adr-index.md's ADR "
             "Invariant Verification Matrix contains an inline reference to "
             "that row's ADR id."
         )
