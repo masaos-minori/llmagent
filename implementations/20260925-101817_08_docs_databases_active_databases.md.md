@@ -93,7 +93,7 @@ Moving any other DB-topic file (each tracked by its own procedure document); ren
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Move docs/databases/active_databases.md to docs/41_db/ | Completed | — | 20260925-105529 |  |
 | 2 | Remove empty docs/databases/ directory | Completed | — | 20260925-105804 |  |
-| 3 | Verify git history preserved through move | Pending | — | — |  |
+| 3 | Verify git history preserved through move | Completed | — | 20260925-105840 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
