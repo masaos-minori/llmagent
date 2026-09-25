@@ -521,6 +521,7 @@ Not cycle-checked: this is a matrix, not a directed graph.
 - New ADRs must be created within one week of the decision being made
 - "Proposed" ADRs must be reviewed quarterly
 - "Needs confirmation" items must be reviewed quarterly
+- Consumed by: [Documentation Checks](governance_04_documentation-checks.md)
 
 ## Non-Goals
 
