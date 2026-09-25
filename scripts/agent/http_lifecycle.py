@@ -28,9 +28,10 @@ import os
 import shutil  # noqa: F401 — kept for tests patching agent.http_lifecycle.shutil.which (shared module object also used by CommandValidator)
 import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
 import time
+from collections.abc import Iterator
 from dataclasses import asdict
 from http import HTTPStatus
-from typing import IO, Any, Iterator, NoReturn, cast
+from typing import IO, Any, NoReturn, cast
 
 import httpx
 from shared.mcp_config import McpServerConfig
@@ -238,7 +239,7 @@ class HttpServerLifecycleManager:
 
     def iter_processes(self) -> Iterator[tuple[str, subprocess.Popen[bytes]]]:
         """Yield (server_key, proc) pairs for all managed HTTP subprocess servers.
-        
+
         This method provides controlled access to managed processes without
         exposing the internal `_http_procs` dictionary directly. Callers receive
         an iterator and cannot modify the underlying dictionary.

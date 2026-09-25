@@ -95,7 +95,10 @@ def _patch_workflow_loader():
         patch("agent.workflow_engine_adapter.create_task", return_value=mock_task),
         patch("agent.workflow_engine_adapter.audit_workflow_start"),
         patch("agent.workflow_engine_adapter.StateStore"),
-        patch("agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine_instance),
+        patch(
+            "agent.workflow_engine_adapter.WorkflowEngine",
+            return_value=mock_engine_instance,
+        ),
     ):
         yield
 

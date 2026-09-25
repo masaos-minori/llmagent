@@ -257,9 +257,7 @@ class TestDelegationVerification:
         self, view_with_mock_port: CLIView, mock_port: MagicMock
     ) -> None:
         view_with_mock_port.write_startup_banner("12345", 10)
-        mock_port.write_startup_banner.assert_called_once_with(
-            "12345", 10, "", None
-        )
+        mock_port.write_startup_banner.assert_called_once_with("12345", 10, "", None)
 
     def test_delegates_write_table_to_outputport(
         self, view_with_mock_port: CLIView, mock_port: MagicMock

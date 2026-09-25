@@ -57,20 +57,31 @@ class _ConfigDisplayMixin(MixinBase):
             ("sse_heartbeat_timeout", f"{ctx.cfg.llm.sse_heartbeat_timeout}s"),
             ("sse_malformed_retry", str(ctx.cfg.llm.sse_malformed_retry)),
             ("sse_reconnect_max", str(ctx.cfg.llm.sse_reconnect_max)),
-            ("llm_stream_retry_on_heartbeat_timeout", str(ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout)),
-            ("llm_stream_retry_on_malformed_chunk", str(ctx.cfg.llm.llm_stream_retry_on_malformed_chunk)),
+            (
+                "llm_stream_retry_on_heartbeat_timeout",
+                str(ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout),
+            ),
+            (
+                "llm_stream_retry_on_malformed_chunk",
+                str(ctx.cfg.llm.llm_stream_retry_on_malformed_chunk),
+            ),
         ]
         self._out.write_kv(pairs, key_width=35)
 
     def _print_execution_settings(self, ctx: AgentContext) -> None:
         """Print execution settings."""
         self._out.write("Execution settings:")
-        self._out.write_kv([("serial_tool_calls", str(ctx.cfg.tool.serial_tool_calls))], key_width=20)
+        self._out.write_kv(
+            [("serial_tool_calls", str(ctx.cfg.tool.serial_tool_calls))], key_width=20
+        )
 
     def _print_mcp_settings(self, ctx: AgentContext) -> None:
         """Print MCP and security settings."""
         self._out.write("MCP / security settings:")
-        self._out.write_kv([("tool_def_strict", str(ctx.cfg.tool.tool_definitions_strict))], key_width=20)
+        self._out.write_kv(
+            [("tool_def_strict", str(ctx.cfg.tool.tool_definitions_strict))],
+            key_width=20,
+        )
 
     def _print_approval_settings(self, ctx: AgentContext) -> None:
         """Print approval and risk rule settings."""
@@ -81,13 +92,23 @@ class _ConfigDisplayMixin(MixinBase):
             pairs = [("risk_rules", rule_str)]
         else:
             pairs = [("risk_rules", "(none)")]
-        pairs.extend([
-            ("protected_paths", ", ".join(ctx.cfg.approval.approval_protected_paths)),
-            ("high_risk_branches", ", ".join(ctx.cfg.approval.approval_high_risk_branches)),
-        ])
+        pairs.extend(
+            [
+                (
+                    "protected_paths",
+                    ", ".join(ctx.cfg.approval.approval_protected_paths),
+                ),
+                (
+                    "high_risk_branches",
+                    ", ".join(ctx.cfg.approval.approval_high_risk_branches),
+                ),
+            ]
+        )
         dry_run_tools = ctx.cfg.approval.approval_dry_run_tools
         masked = ctx.cfg.tool.masked_fields
-        pairs.append(("dry_run_tools", ", ".join(dry_run_tools) if dry_run_tools else "(none)"))
+        pairs.append(
+            ("dry_run_tools", ", ".join(dry_run_tools) if dry_run_tools else "(none)")
+        )
         pairs.append(("masked_fields", ", ".join(masked) if masked else "(none)"))
         self._out.write_kv(pairs, key_width=20)
 
@@ -101,7 +122,9 @@ class _ConfigDisplayMixin(MixinBase):
         if allowed_repos:
             pairs.append(("github_allowed_repos", ", ".join(allowed_repos)))
         else:
-            pairs.append(("github_allowed_repos", "(Fail-Closed — all write ops denied)"))
+            pairs.append(
+                ("github_allowed_repos", "(Fail-Closed — all write ops denied)")
+            )
         tier_count = len(ctx.cfg.approval.tool_safety_tiers)
         pairs.append(("tool_safety_tiers", f"{tier_count} tools classified"))
         allowed_tools = ctx.cfg.tool.allowed_tools

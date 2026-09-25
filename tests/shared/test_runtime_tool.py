@@ -134,9 +134,7 @@ class TestRuntimeTool:
         assert tool_enabled.llm_visibility_base is True
 
     def test_llm_visibility_base_explicit_override(self) -> None:
-        tool = build_runtime_tool(
-            name="t", server_key="s", llm_visibility_base=True
-        )
+        tool = build_runtime_tool(name="t", server_key="s", llm_visibility_base=True)
         assert tool.llm_visibility_base is True
 
         tool_disabled = build_runtime_tool(

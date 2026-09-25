@@ -104,12 +104,16 @@ def test_dlq_pagination(client: TestClient) -> None:
     nack_headers = {"Authorization": "Bearer consumer-token"}
     for event_id in events:
         r = client.post(
-            "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}, headers=nack_headers
+            "/nack",
+            params={"event_id": event_id, "consumer_id": "consumer-A"},
+            headers=nack_headers,
         )
         assert r.status_code == 200
     for event_id in events:
         r = client.post(
-            "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}, headers=nack_headers
+            "/nack",
+            params={"event_id": event_id, "consumer_id": "consumer-A"},
+            headers=nack_headers,
         )
         assert r.status_code == 200
 

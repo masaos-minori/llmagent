@@ -383,9 +383,9 @@ def _check_symbol_refs(
         # actual source-code symbols. Matches: _-prefixed, CamelCase, or snake_case
         # with 2+ underscore-separated segments.
         if not (
-            re.match(r"^_[a-zA-Z0-9_]+$", sym)           # _-prefixed
-            or re.search(r"[A-Z]", sym)                    # CamelCase (has uppercase)
-            or "_" in sym                                    # snake_case with segment
+            re.match(r"^_[a-zA-Z0-9_]+$", sym)  # _-prefixed
+            or re.search(r"[A-Z]", sym)  # CamelCase (has uppercase)
+            or "_" in sym  # snake_case with segment
         ):
             continue
 

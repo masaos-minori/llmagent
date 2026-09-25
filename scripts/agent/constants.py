@@ -12,7 +12,6 @@ config_dataclasses.py.
 Import from here:  from agent.constants import _DEFAULT_...
 """
 
-
 _DEFAULT_PLAN_BLOCKED_TOOLS: list[str] = [
     "write_file",
     "create_directory",

@@ -331,7 +331,9 @@ class TestInitTracer:
 # ── _ServerLifecycleRouter shutdown guard ────────────────────────────────────
 
 
-def _make_router(server_key: str = "srv") -> tuple[_ServerLifecycleRouter, _SubprocessLifecycleManager]:
+def _make_router(
+    server_key: str = "srv",
+) -> tuple[_ServerLifecycleRouter, _SubprocessLifecycleManager]:
     cfg = McpServerConfig(
         transport=TransportType.HTTP,
         url="http://localhost:9999",
@@ -459,7 +461,9 @@ class TestLifecycleStateTracking:
     @pytest.mark.asyncio
     async def test_state_failed_when_start_raises(self) -> None:
         router, _ = _make_router()
-        router._subprocess_mgr._http_mgr.start.side_effect = RuntimeError("startup error")
+        router._subprocess_mgr._http_mgr.start.side_effect = RuntimeError(
+            "startup error"
+        )
         cfg = router._server_configs["srv"]
         with pytest.raises(RuntimeError):
             await router.start_http_subprocess("srv", cfg)

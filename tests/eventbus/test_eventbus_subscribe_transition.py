@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -235,7 +234,10 @@ class TestReconnectResumeSemantics:
             assert resp.status_code == 200
 
         # First subscribe via /subscribe with consumer_id — gets all 5 events
-        resp = client.get("/subscribe?since_seq=0&topic=resume&consumer_id=test-consumer", timeout=(5.0, 10.0))
+        resp = client.get(
+            "/subscribe?since_seq=0&topic=resume&consumer_id=test-consumer",
+            timeout=(5.0, 10.0),
+        )
         assert resp.status_code == 200
         event_ids_first = set()
         for line in resp.iter_lines():
@@ -244,7 +246,9 @@ class TestReconnectResumeSemantics:
                 event_ids_first.add(event_id)
             if len(event_ids_first) == 5:
                 break
-        assert len(event_ids_first) == 5, "First subscription should receive all 5 events"
+        assert len(event_ids_first) == 5, (
+            "First subscription should receive all 5 events"
+        )
         resp.close()
 
         # Publish 3 more events after first subscription completes
@@ -261,7 +265,10 @@ class TestReconnectResumeSemantics:
         assert total_events == 8, f"Expected 8 total events, got {total_events}"
 
         # Reconnect with same consumer_id — should resume from offset (get only new events)
-        resp = client.get("/subscribe?since_seq=0&topic=resume2&consumer_id=test-consumer", timeout=(5.0, 10.0))
+        resp = client.get(
+            "/subscribe?since_seq=0&topic=resume2&consumer_id=test-consumer",
+            timeout=(5.0, 10.0),
+        )
         assert resp.status_code == 200
         event_ids_second = set()
         for line in resp.iter_lines():
@@ -272,9 +279,13 @@ class TestReconnectResumeSemantics:
                 break
 
         # Should only get the 3 new events (not duplicates from first batch)
-        assert len(event_ids_second) == 3, f"Expected 3 new events, got {len(event_ids_second)}"
+        assert len(event_ids_second) == 3, (
+            f"Expected 3 new events, got {len(event_ids_second)}"
+        )
         # No overlap with first batch
-        assert event_ids_first.isdisjoint(event_ids_second), "No duplicate events between subscriptions"
+        assert event_ids_first.isdisjoint(event_ids_second), (
+            "No duplicate events between subscriptions"
+        )
 
     def test_since_seq_precedence_over_consumer_offset(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
@@ -287,7 +298,10 @@ class TestReconnectResumeSemantics:
             assert resp.status_code == 200
 
         # Subscribe with consumer_id — should get all 5 events
-        resp = client.get("/subscribe?since_seq=0&topic=precedence&consumer_id=test-precedence", timeout=(5.0, 10.0))
+        resp = client.get(
+            "/subscribe?since_seq=0&topic=precedence&consumer_id=test-precedence",
+            timeout=(5.0, 10.0),
+        )
         assert resp.status_code == 200
         event_ids_first = set()
         for line in resp.iter_lines():
@@ -296,7 +310,9 @@ class TestReconnectResumeSemantics:
                 event_ids_first.add(event_id)
             if len(event_ids_first) == 5:
                 break
-        assert len(event_ids_first) == 5, "First subscription should receive all 5 events"
+        assert len(event_ids_first) == 5, (
+            "First subscription should receive all 5 events"
+        )
         resp.close()
 
         # Verify via /replay that consumer offset was stored (should return all 5 events from seq=0)
@@ -307,7 +323,10 @@ class TestReconnectResumeSemantics:
         assert total_events == 5, f"Expected 5 total events, got {total_events}"
 
         # Reconnect with same consumer_id BUT provide since_seq=3 — should override consumer offset
-        resp = client.get("/subscribe?since_seq=3&topic=precedence&consumer_id=test-precedence", timeout=(5.0, 10.0))
+        resp = client.get(
+            "/subscribe?since_seq=3&topic=precedence&consumer_id=test-precedence",
+            timeout=(5.0, 10.0),
+        )
         assert resp.status_code == 200
         event_ids_override = set()
         for line in resp.iter_lines():
@@ -318,9 +337,13 @@ class TestReconnectResumeSemantics:
                 break
 
         # Should get events from seq=4 onwards (2 events: seq 4 and 5)
-        assert len(event_ids_override) == 2, f"Expected 2 events from seq=4+, got {len(event_ids_override)}"
+        assert len(event_ids_override) == 2, (
+            f"Expected 2 events from seq=4+, got {len(event_ids_override)}"
+        )
         # No overlap with first batch
-        assert event_ids_first.isdisjoint(event_ids_override), "No duplicate events between subscriptions"
+        assert event_ids_first.isdisjoint(event_ids_override), (
+            "No duplicate events between subscriptions"
+        )
 
 
 class TestStaleLastEventID:

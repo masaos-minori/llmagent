@@ -508,6 +508,7 @@ class TestRunHttpAugment:
         mock_selected_hits = [{"id": "hit1", "score": 0.9}]
 
         with patch("rag.http_augment.call_rag_service") as mock_call_rag_service:
+
             def side_effect(*args, **kwargs):
                 set_fetch_result = kwargs.get("set_fetch_result")
                 if set_fetch_result:

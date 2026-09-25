@@ -36,8 +36,8 @@ from tools.check_canonical_source_conflicts import (
     detect_multiple_source_paths_violation,
     detect_non_canonical_reference_without_link,
     detect_stale_non_canonical_document,
-    detect_unregistered_authority_declaration,
     detect_unrecognized_claim_type,
+    detect_unregistered_authority_declaration,
 )
 
 # ---------------------------------------------------------------------------
@@ -68,6 +68,7 @@ def _entry(
         notes=notes or kwargs.get("notes"),
     )
 
+
 # -----------------------------------------------------------------------
 # CANONICAL-001: Duplicate normative canonical sources
 # -----------------------------------------------------------------------
@@ -95,6 +96,7 @@ class TestDetectDuplicateNormativeSources:
         conflicts = detect_duplicate_normative_sources([e1, e2])
         assert conflicts == []
 
+
 # -----------------------------------------------------------------------
 # CANONICAL-008: Multiple canonical Specifications
 # -----------------------------------------------------------------------
@@ -115,6 +117,7 @@ class TestDetectMultipleCanonicalSpecifications:
         e2 = _entry(decision_target="t1", claim_type="architecture-decision")
         conflicts = detect_multiple_canonical_specifications([e1, e2])
         assert conflicts == []
+
 
 # -----------------------------------------------------------------------
 # CANONICAL-010: Area guide contradiction
@@ -137,6 +140,7 @@ class TestDetectAreaGuideContradiction:
         conflicts = detect_area_guide_contradiction([area, spec])
         assert conflicts == []
 
+
 # -----------------------------------------------------------------------
 # CANONICAL-011: Legacy universal-precedence reintroduction (no-op — field removed)
 # -----------------------------------------------------------------------
@@ -147,6 +151,7 @@ class TestDetectLegacyPrecedenceReintroduction:
         entry = _entry()
         conflicts = detect_legacy_precedence_reintroduction([entry])
         assert conflicts == []
+
 
 # -----------------------------------------------------------------------
 # CANONICAL-W-01: Non-canonical Reference without link (no-op — validation_ref removed)
@@ -159,6 +164,7 @@ class TestDetectNonCanonicalReferenceWithoutLink:
         conflicts = detect_non_canonical_reference_without_link([entry])
         assert conflicts == []
 
+
 # -----------------------------------------------------------------------
 # CANONICAL-W-02: Potentially stale non-canonical document (no-op — status/expiry_date removed)
 # -----------------------------------------------------------------------
@@ -169,6 +175,7 @@ class TestDetectStaleNonCanonicalDocument:
         entry = _entry(claim_type="api-contract")
         conflicts = detect_stale_non_canonical_document([entry])
         assert conflicts == []
+
 
 # -----------------------------------------------------------------------
 # CANONICAL-W-03: Missing validation reference (no-op — validation_ref removed)
@@ -181,6 +188,7 @@ class TestDetectMissingValidationRef:
         conflicts = detect_missing_validation_ref([entry])
         assert conflicts == []
 
+
 # -----------------------------------------------------------------------
 # CANONICAL-W-04: Unregistered authority declaration (no-op — authority removed)
 # -----------------------------------------------------------------------
@@ -191,6 +199,7 @@ class TestDetectUnregisteredAuthorityDeclaration:
         entry = _entry()
         conflicts = detect_unregistered_authority_declaration([entry])
         assert conflicts == []
+
 
 # -----------------------------------------------------------------------
 # CANONICAL-W-05: Authoritative terms in non-canonical documents
@@ -228,6 +237,7 @@ class TestDetectAuthoritativeTermsInNonCanonical:
         conflicts = detect_authoritative_terms_in_non_canonical([entry])
         assert conflicts == []
 
+
 # -----------------------------------------------------------------------
 # Integration tests (tmp_path-based)
 # -----------------------------------------------------------------------
@@ -240,11 +250,11 @@ class TestIntegrationWithTempRegistry:
         """Write a minimal TOML registry file and return its path."""
         toml_content = 'version = "1"\n\n'
         for key, val in entries.items():
-            toml_content += f"[[canonical_sources]]\n"
+            toml_content += "[[canonical_sources]]\n"
             for k, v in val.items():
                 if isinstance(v, list):
                     items = ", ".join(f'"{i}"' for i in v)
-                    toml_content += f'{k} = [{items}]\n'
+                    toml_content += f"{k} = [{items}]\n"
                 elif isinstance(v, str):
                     toml_content += f'{k} = "{v}"\n'
                 else:
@@ -286,8 +296,7 @@ class TestIntegrationWithTempRegistry:
 
     @pytest.mark.skip(
         reason=(
-            "blocked on seq 01 — "
-            "CANONICAL-002 through CANONICAL-006/-009 (REQ-001)"
+            "blocked on seq 01 — CANONICAL-002 through CANONICAL-006/-009 (REQ-001)"
         ),
     )
     def test_canonical_002_case(self, tmp_path: Path) -> None:
@@ -298,15 +307,13 @@ class TestIntegrationWithTempRegistry:
         pass
 
     @pytest.mark.skip(
-        reason=(
-            "blocked on seq 02 — "
-            "CANONICAL-007 duplicate ADR ID (REQ-004)"
-        ),
+        reason=("blocked on seq 02 — CANONICAL-007 duplicate ADR ID (REQ-004)"),
     )
     def test_canonical_007_case(self, tmp_path: Path) -> None:
         # TODO(seq 02): Implement after duplicate ADR ID check lands.
         # Expected: duplicate ADR identifiers across docs/adr/*.md files.
         pass
+
 
 # -----------------------------------------------------------------------
 # CANONICAL-002: Empty decision_target
@@ -333,6 +340,7 @@ class TestDetectEmptyDecisionTarget:
         conflicts = detect_empty_decision_target([entry])
         assert conflicts == []
 
+
 # -----------------------------------------------------------------------
 # CANONICAL-003: Empty claim_type
 # -----------------------------------------------------------------------
@@ -358,6 +366,7 @@ class TestDetectEmptyClaimType:
         conflicts = detect_empty_claim_type([entry])
         assert conflicts == []
 
+
 # -----------------------------------------------------------------------
 # CANONICAL-004: Unrecognized claim_type
 # -----------------------------------------------------------------------
@@ -377,6 +386,7 @@ class TestDetectUnrecognizedClaimType:
         conflicts = detect_unrecognized_claim_type([entry])
         assert conflicts == []
 
+
 # -----------------------------------------------------------------------
 # CANONICAL-005: Empty source_paths
 # -----------------------------------------------------------------------
@@ -395,6 +405,7 @@ class TestDetectEmptySourcePaths:
         entry = _entry(source_paths=["/path/to/file.md"])
         conflicts = detect_empty_source_paths([entry])
         assert conflicts == []
+
 
 # -----------------------------------------------------------------------
 # CANONICAL-006: Multiple source_paths violation
@@ -428,6 +439,7 @@ class TestDetectMultipleSourcePathsViolation:
         )
         conflicts = detect_multiple_source_paths_violation([entry])
         assert conflicts == []
+
 
 # -----------------------------------------------------------------------
 # CANONICAL-009: Empty area

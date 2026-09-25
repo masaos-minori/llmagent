@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 _EXEC_TOOLS: frozenset[str] = frozenset({"shell_run"})
 
 # Shell metacharacters/control operators — fail closed on any detection
-_METACHAR_RE = re.compile(r'[;|&]|&&|\|\||`|\$\(|<\(|>\(|>>|<<|[<>]|\n')
+_METACHAR_RE = re.compile(r"[;|&]|&&|\|\||`|\$\(|<\(|>\(|>>|<<|[<>]|\n")
 
 _UNSAFE_FLAGS: dict[str, set[str]] = {
     "find": {"-exec", "-delete", "-ok"},
@@ -120,7 +120,10 @@ def _match_executable_identity(
                 return RiskLevel.NONE
         # Multi-word prefix: match corresponding leading tokens
         elif len(argv) >= len(prefix_tokens):
-            if all(os.path.basename(a) == p for a, p in zip(argv[:len(prefix_tokens)], prefix_tokens)):
+            if all(
+                os.path.basename(a) == p
+                for a, p in zip(argv[: len(prefix_tokens)], prefix_tokens)
+            ):
                 return RiskLevel.NONE
     return None
 
@@ -220,7 +223,9 @@ def _special_case_risk(
             return RiskLevel.HIGH
         if not argv:
             return RiskLevel.HIGH
-        if match := _match_executable_identity(argv, cfg.approval.approval_shell_safe_prefixes):
+        if match := _match_executable_identity(
+            argv, cfg.approval.approval_shell_safe_prefixes
+        ):
             # REQ-003: route positional args through path/argument checks
             if escalated := _check_positional_args(cfg, argv, match):
                 return escalated

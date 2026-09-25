@@ -620,7 +620,9 @@ class TestMetacharacterRejectionComprehensive:
     def test_semicolon_metacharacter_rejected(self) -> None:
         """REQ-005: ';' must cause HIGH regardless of prefix match."""
         cfg = _cfg(approval_shell_safe_prefixes=["cat"])
-        result = classify_risk(cfg, "shell_run", {"command": "cat /etc/hosts; rm -rf /"})
+        result = classify_risk(
+            cfg, "shell_run", {"command": "cat /etc/hosts; rm -rf /"}
+        )
         assert result == "high"
 
     def test_ampersand_metacharacter_rejected(self) -> None:

@@ -40,7 +40,11 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "memory_local_only": True,
         "memory_embed_enabled": False,
         "mcp_servers": {
-            "test_server": {"transport": "http", "url": "http://localhost:8011", "auth_token": "test-token"}
+            "test_server": {
+                "transport": "http",
+                "url": "http://localhost:8011",
+                "auth_token": "test-token",
+            }
         },
     }
     merged = {**defaults, **overrides}

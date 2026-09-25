@@ -42,7 +42,9 @@ def main() -> int:
     try:
         wdef = validate_path(args.path)
     except WorkflowLoadError as exc:
-        port.write_stderr(f"{OutputTag.FATAL} Invalid workflow definition {args.path}: {exc}")
+        port.write_stderr(
+            f"{OutputTag.FATAL} Invalid workflow definition {args.path}: {exc}"
+        )
         return 1
 
     port.write(f"OK: {args.path} is a valid workflow definition")

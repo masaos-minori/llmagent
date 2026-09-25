@@ -7,19 +7,17 @@ with OutputPort protocol injection rather than _CliExportOutput.
 
 from __future__ import annotations
 
-import io
 import json
 import pathlib
-import sys
-from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
-
-from agent.commands.output_port import CliOutputPort, OutputPort
-from agent.services.export_formatter import render_export, render_history_md, write_export
 from agent.services.enums import ExportFormat
 from agent.services.exceptions import ExportWriteError
+from agent.services.export_formatter import (
+    render_export,
+    render_history_md,
+    write_export,
+)
 
 
 class TestRenderHistoryMd:
@@ -80,10 +78,10 @@ class TestRenderHistoryMd:
         assert "## User" not in result
 
     def test_unicode_content_in_user_message(self) -> None:
-        history = [{"role": "user", "content": "日本語テスト \U0001F30D"}]
+        history = [{"role": "user", "content": "日本語テスト \U0001f30d"}]
         result = render_history_md(history)
         assert "日本語" in result
-        assert "\U0001F30D" in result
+        assert "\U0001f30d" in result
 
     def test_multiline_content_in_assistant_message(self) -> None:
         history = [{"role": "assistant", "content": "line1\nline2"}]
@@ -221,7 +219,6 @@ class TestRenderHistoryMd:
         assert "line1" in result
         assert "line2" in result
         assert "line3" in result
-
 
 
 class TestRenderExport:
@@ -600,10 +597,10 @@ class TestRenderExport:
         assert len(sections) >= 3
 
     def test_markdown_unicode_content(self) -> None:
-        history = [{"role": "user", "content": "日本語テスト \U0001F30D"}]
+        history = [{"role": "user", "content": "日本語テスト \U0001f30d"}]
         result = render_export(history, "markdown")
         assert "日本語" in result
-        assert "\U0001F30D" in result
+        assert "\U0001f30d" in result
 
     def test_markdown_special_chars_in_content(self) -> None:
         history = [{"role": "user", "content": 'quote" and backslash\\'}]
@@ -623,17 +620,16 @@ class TestRenderExport:
         assert "## Assistant" not in result
 
     def test_markdown_output_is_valid_utf8(self) -> None:
-        history = [{"role": "user", "content": "日本語テスト \U0001F30D"}]
+        history = [{"role": "user", "content": "日本語テスト \U0001f30d"}]
         result = render_export(history, "markdown")
         assert isinstance(result, str)
         result.encode("utf-8")
 
     def test_json_output_is_valid_utf8(self) -> None:
-        history = [{"role": "user", "content": "日本語テスト \U0001F30D"}]
+        history = [{"role": "user", "content": "日本語テスト \U0001f30d"}]
         result = render_export(history, "json")
         assert isinstance(result, str)
         result.encode("utf-8")
-
 
 
 class TestWriteExport:
@@ -666,7 +662,9 @@ class TestWriteExport:
         file_content = outpath.read_text()
         assert "## User" in file_content
 
-    def test_write_export_overwrites_existing_file(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_overwrites_existing_file(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         oldfile = tmp_path / "export.json"
         oldfile.write_text("old content")
         history = [{"role": "user", "content": "new content"}]
@@ -701,7 +699,9 @@ class TestWriteExport:
         assert len(parsed) == 1
         assert parsed[0]["content"] == "Hello"
 
-    def test_write_export_markdown_trailing_newline(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_markdown_trailing_newline(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         history = [{"role": "user", "content": "Hello"}]
         content_str = render_export(history, "markdown")
         outpath = tmp_path / "export.md"
@@ -709,17 +709,20 @@ class TestWriteExport:
         file_content = outpath.read_text()
         assert file_content.endswith("\n")
 
-    def test_write_export_raises_when_parent_dir_missing(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_raises_when_parent_dir_missing(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         """write_export does NOT create parent directories."""
         history = [{"role": "user", "content": "Hello"}]
         content_str = render_export(history, "json")
         subdir = tmp_path / "nonexistent_subdir"
         outpath = subdir / "export.json"
-        from agent.services.exceptions import ExportWriteError
         with pytest.raises(ExportWriteError):
             write_export(content_str, str(outpath), len(history))
 
-    def test_write_export_binary_mode_writes_bytes(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_binary_mode_writes_bytes(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         history = [{"role": "user", "content": "Hello"}]
         content_str = render_export(history, "json")
         outpath = tmp_path / "export.json"
@@ -749,7 +752,9 @@ class TestWriteExport:
         file_content = outpath.read_text()
         assert "# Conversation Export" in file_content
 
-    def test_write_export_large_content_not_truncated(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_large_content_not_truncated(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         large = "x" * 50000
         history = [{"role": "user", "content": large}]
         content_str = render_export(history, "json")
@@ -770,7 +775,9 @@ class TestWriteExport:
         assert '"First"' in file_content
         assert '"Second"' in file_content
 
-    def test_write_export_tool_message_fields_preserved(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_tool_message_fields_preserved(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         history = [
             {
                 "role": "tool",
@@ -784,7 +791,9 @@ class TestWriteExport:
         parsed = json.loads(outpath.read_text())
         assert parsed[0]["tool_call_id"] == "call_abc"
 
-    def test_write_export_markdown_tool_code_fence(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_markdown_tool_code_fence(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         history = [
             {
                 "role": "tool",
@@ -799,7 +808,9 @@ class TestWriteExport:
         assert "```" in file_content
         assert "tool output" in file_content
 
-    def test_write_export_markdown_tool_no_content(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_markdown_tool_no_content(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         history = [
             {
                 "role": "tool",
@@ -814,12 +825,14 @@ class TestWriteExport:
         assert "```\n\n```" in file_content
 
     def test_write_export_unicode_markdown(self, tmp_path: pathlib.Path) -> None:
-        history = [{"role": "user", "content": "\U0001F30D\u3053\u3093\u306b\u3061\u306f"}]
+        history = [
+            {"role": "user", "content": "\U0001f30d\u3053\u3093\u306b\u3061\u306f"}
+        ]
         content_str = render_export(history, "markdown")
         outpath = tmp_path / "export.md"
         write_export(content_str, str(outpath), len(history))
         file_content = outpath.read_text(encoding="utf-8")
-        assert "\U0001F30D" in file_content
+        assert "\U0001f30d" in file_content
         assert "\u3053\u3093\u306b\u3061\u306f" in file_content
 
     def test_write_export_special_chars_json(self, tmp_path: pathlib.Path) -> None:
@@ -838,7 +851,9 @@ class TestWriteExport:
         parsed = json.loads(outpath.read_text())
         assert parsed[0]["role"] is None
 
-    def test_write_export_null_role_skipped_in_markdown(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_null_role_skipped_in_markdown(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         history = [{"role": None, "content": "test"}]
         content_str = render_export(history, "markdown")
         outpath = tmp_path / "export.md"
@@ -848,7 +863,9 @@ class TestWriteExport:
         assert "## Assistant" not in file_content
         assert "## Tool" not in file_content
 
-    def test_write_export_system_message_skipped_in_markdown(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_system_message_skipped_in_markdown(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         history = [{"role": "system", "content": "S1"}]
         content_str = render_export(history, "markdown")
         outpath = tmp_path / "export.md"
@@ -857,7 +874,9 @@ class TestWriteExport:
         assert "## System" not in file_content
         assert "S1" not in file_content
 
-    def test_write_export_mixed_roles_order_preserved(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_mixed_roles_order_preserved(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         history = [
             {"role": "user", "content": "U1"},
             {"role": "assistant", "content": "A1"},
@@ -872,7 +891,9 @@ class TestWriteExport:
         u2_idx = file_content.index("## User", a1_idx + 1)
         assert u1_idx < a1_idx < u2_idx
 
-    def test_write_export_file_permissions_created(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_file_permissions_created(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         history = [{"role": "user", "content": "test"}]
         content_str = render_export(history, "json")
         outpath = tmp_path / "export.json"
@@ -890,7 +911,9 @@ class TestWriteExport:
         assert "new content" in file_content
         assert "original content" not in file_content
 
-    def test_write_export_different_formats_same_content(self, tmp_path: pathlib.Path) -> None:
+    def test_write_export_different_formats_same_content(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         history = [{"role": "user", "content": "test"}]
         json_content = render_export(history, "json")
         md_content = render_export(history, "markdown")
@@ -926,4 +949,3 @@ class TestWriteExport:
         write_export(content_str, str(outpath), len(history))
         parsed = json.loads(outpath.read_text())
         assert parsed[0]["content"] == {"key": "value"}
-

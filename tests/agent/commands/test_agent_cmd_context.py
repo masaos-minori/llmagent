@@ -757,7 +757,9 @@ class TestCmdDiff:
         assert "no working-tree diff" not in out
 
     @pytest.mark.asyncio
-    async def test_cmd_diff_denies_when_git_diff_not_in_allowed_tools(self, capsys: Any) -> None:
+    async def test_cmd_diff_denies_when_git_diff_not_in_allowed_tools(
+        self, capsys: Any
+    ) -> None:
         ctx = _make_ctx()
         ctx.cfg.tool.allowed_tools = ("read_file", "write_file")
         ctx.conv.history = [_write_tool_call_msg("/repo/a.py")]

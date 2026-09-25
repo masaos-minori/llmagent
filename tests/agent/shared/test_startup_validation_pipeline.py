@@ -404,7 +404,9 @@ class TestInv07EnvironmentFailureHandling:
     """
 
     @pytest.mark.asyncio
-    async def test_allowlist_failure_produces_fatal(self, mock_ctx_with_strict_profile) -> None:
+    async def test_allowlist_failure_produces_fatal(
+        self, mock_ctx_with_strict_profile
+    ) -> None:
         """Verify that Allowlist verification failure produces a FATAL error."""
         instance = StartupOrchestrator.__new__(StartupOrchestrator)
         instance._ctx = mock_ctx_with_strict_profile
@@ -437,7 +439,9 @@ class TestInv07EnvironmentFailureHandling:
                 await instance._check_services()
 
     @pytest.mark.asyncio
-    async def test_safety_tier_failure_produces_fatal(self, mock_ctx_with_strict_profile) -> None:
+    async def test_safety_tier_failure_produces_fatal(
+        self, mock_ctx_with_strict_profile
+    ) -> None:
         """Verify that Safety Tier verification failure produces a FATAL error."""
         instance = StartupOrchestrator.__new__(StartupOrchestrator)
         instance._ctx = mock_ctx_with_strict_profile

@@ -10,8 +10,6 @@ import orjson
 logger = logging.getLogger(__name__)
 
 
-
-
 def _canonical_payload(payload_str: str) -> bytes:
     """Return canonical JSON representation of a payload string."""
     return orjson.dumps(orjson.loads(payload_str), option=orjson.OPT_SORT_KEYS)

@@ -45,12 +45,18 @@ def test_classify_startup_only_empty_dict(svc: ConfigReloadService) -> None:
     assert result == []
 
 
-def test_classify_startup_only_non_startup_keys_ignored(svc: ConfigReloadService) -> None:
-    result = svc._classify_startup_only_fields({"llm_temperature": 0.3, "llm_max_tokens": 8192})
+def test_classify_startup_only_non_startup_keys_ignored(
+    svc: ConfigReloadService,
+) -> None:
+    result = svc._classify_startup_only_fields(
+        {"llm_temperature": 0.3, "llm_max_tokens": 8192}
+    )
     assert result == []
 
 
-def test_classify_startup_only_hot_reload_false_detected(svc: ConfigReloadService) -> None:
+def test_classify_startup_only_hot_reload_false_detected(
+    svc: ConfigReloadService,
+) -> None:
     ctx = svc._ctx
     ctx.cfg.memory.use_memory_layer = False
     result = svc._classify_startup_only_fields({"use_memory_layer": True})
@@ -88,6 +94,3 @@ def test_detect_diagnostics_live_fields_change_detected(
         {"diagnostics": {"encryption_key": "new_key"}}
     )
     assert "diagnostics.encryption_key" in result
-
-
-

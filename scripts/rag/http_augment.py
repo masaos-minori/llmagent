@@ -27,7 +27,9 @@ _HTTP_RESULT_KIND_MAP: dict[str, HttpResultKind] = {
 
 
 def _map_http_result_kind(
-    kind: Literal["remote_nonempty", "remote_empty", "in_process_fallback", "auth_error"]
+    kind: Literal[
+        "remote_nonempty", "remote_empty", "in_process_fallback", "auth_error"
+    ]
     | str
     | None,
 ) -> HttpResultKind:
@@ -159,6 +161,9 @@ class HttpAugment:
     @property
     def http_result_kind(
         self,
-    ) -> Literal["remote_nonempty", "remote_empty", "in_process_fallback", "auth_error"] | None:
+    ) -> (
+        Literal["remote_nonempty", "remote_empty", "in_process_fallback", "auth_error"]
+        | None
+    ):
         """Return the HTTP result kind."""
         return getattr(self, "_http_result_kind", None)

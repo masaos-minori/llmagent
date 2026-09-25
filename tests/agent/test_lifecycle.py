@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from agent.factory import _ServerLifecycleRouter, _SubprocessLifecycleManager
+from agent.factory import _ServerLifecycleRouter
 from agent.http_lifecycle import (
     HttpServerLifecycleManager,
     HttpStartupError,
@@ -143,7 +143,9 @@ class TestEnsureReadySubprocess:
             ),
             patch("agent.http_lifecycle.os.getpgid", return_value=9999),
         ):
-            mgr._subprocess_mgr._http_mgr.verify_running_async = AsyncMock(return_value=True)
+            mgr._subprocess_mgr._http_mgr.verify_running_async = AsyncMock(
+                return_value=True
+            )
             await mgr.ensure_ready("srv")
         await mgr.ensure_ready("srv")
         # verify no attempt to start a new process
@@ -454,7 +456,9 @@ class TestStartHttpSubprocess:
         assert "s" not in mgr._subprocess_mgr._http_mgr._http_procs
         assert "s" not in mgr._subprocess_mgr._http_mgr._http_pgids
         assert "s" not in mgr._subprocess_mgr._http_mgr._stderr_files
-        assert mgr._subprocess_mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
+        assert (
+            mgr._subprocess_mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
+        )
         mock_proc.terminate.assert_called_once()
 
     async def test_getpgid_failure_escalates_to_kill_on_non_exit(self) -> None:
@@ -484,7 +488,9 @@ class TestStartHttpSubprocess:
         assert "s" not in mgr._subprocess_mgr._http_mgr._http_procs
         assert "s" not in mgr._subprocess_mgr._http_mgr._http_pgids
         assert "s" not in mgr._subprocess_mgr._http_mgr._stderr_files
-        assert mgr._subprocess_mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
+        assert (
+            mgr._subprocess_mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
+        )
         mock_proc.terminate.assert_called_once()
 
 

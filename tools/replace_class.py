@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Replace TestLiveCallToolAuthorization class with a clean version."""
 
-filepath = "/home/sugimoto/llmagent/tests/mcp_servers/git/test_git_security_compliance.py"
+filepath = (
+    "/home/sugimoto/llmagent/tests/mcp_servers/git/test_git_security_compliance.py"
+)
 
-with open(filepath, "r") as f:
+with open(filepath) as f:
     lines = f.readlines()
 
 # Class spans lines 925-1510 (0-indexed: 924-1509)
 class_start = 924  # 0-indexed
-class_end = 1510   # 0-indexed (exclusive)
+class_end = 1510  # 0-indexed (exclusive)
 
 new_class = '''class TestLiveCallToolAuthorization:
     """TestClient-based regression tests for POST /v1/call_tool path.

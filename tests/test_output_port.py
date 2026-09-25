@@ -8,13 +8,10 @@ ExportOutputPort Protocols.
 
 from __future__ import annotations
 
-import io
-import sys
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.output_tags import OutputTag
 
@@ -184,7 +181,7 @@ class TestOutputPortProtocolCoverage:
         port = CliOutputPort()
         port.write_error("fail")
         captured = capsys.readouterr()
-        assert captured.out.strip() == f"[error] fail"
+        assert captured.out.strip() == "[error] fail"
 
     def test_clioutputport_write_success_prefix(self, capsys: Any) -> None:
         port = CliOutputPort()
@@ -198,9 +195,7 @@ class TestOutputPortProtocolCoverage:
         captured = capsys.readouterr()
         assert captured.out.strip() == "empty"
 
-    def test_clioutputport_write_validation_error_prefix(
-        self, capsys: Any
-    ) -> None:
+    def test_clioutputport_write_validation_error_prefix(self, capsys: Any) -> None:
         port = CliOutputPort()
         port.write_validation_error("bad")
         captured = capsys.readouterr()
@@ -224,17 +219,13 @@ class TestOutputPortProtocolCoverage:
         captured = capsys.readouterr()
         assert captured.out == "tok"
 
-    def test_clioutputport_write_turn_start_blank_line(
-        self, capsys: Any
-    ) -> None:
+    def test_clioutputport_write_turn_start_blank_line(self, capsys: Any) -> None:
         port = CliOutputPort()
         port.write_turn_start()
         captured = capsys.readouterr()
         assert captured.out.strip() == ""
 
-    def test_clioutputport_write_turn_end_blank_line(
-        self, capsys: Any
-    ) -> None:
+    def test_clioutputport_write_turn_end_blank_line(self, capsys: Any) -> None:
         port = CliOutputPort()
         port.write_turn_end()
         captured = capsys.readouterr()
@@ -284,9 +275,7 @@ class TestOutputPortProtocolCoverage:
         captured = capsys.readouterr()
         assert "Exported 10 messages to /tmp/out.json" in captured.out
 
-    def test_clioutputport_write_stderr_to_stderr(
-        self, capsys: Any
-    ) -> None:
+    def test_clioutputport_write_stderr_to_stderr(self, capsys: Any) -> None:
         port = CliOutputPort()
         port.write_stderr("stderr msg")
         captured = capsys.readouterr()

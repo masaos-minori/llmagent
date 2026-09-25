@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Apply all fixes using precise line-number-based edits."""
 
-filepath = "/home/sugimoto/llmagent/tests/mcp_servers/git/test_git_security_compliance.py"
+filepath = (
+    "/home/sugimoto/llmagent/tests/mcp_servers/git/test_git_security_compliance.py"
+)
 
-with open(filepath, "r") as f:
+with open(filepath) as f:
     lines = f.readlines()
 
 # Find the exact line numbers we need
@@ -15,33 +17,36 @@ mock_dynamic_yield_line = None
 
 for i, line in enumerate(lines):
     # Helpers after imports (use FIRST occurrence only)
-    if "from mcp_servers.git.repository_state import RepositoryState" in line and helpers_after_line is None:
+    if (
+        "from mcp_servers.git.repository_state import RepositoryState" in line
+        and helpers_after_line is None
+    ):
         helpers_after_line = i
-    
+
     # First enabled fixture (TestNewlyReachableToolsViaHTTP)
-    if "@pytest.fixture" in line and i > 0 and "def enabled" in lines[i+1]:
+    if "@pytest.fixture" in line and i > 0 and "def enabled" in lines[i + 1]:
         # Check if this is inside TestNewlyReachableToolsViaHTTP
-        for j in range(max(0, i-10), i):
+        for j in range(max(0, i - 10), i):
             if "class TestNewlyReachableToolsViaHTTP" in lines[j]:
                 newly_reachable_enabled_start = i
                 break
-    
+
     # Second enabled fixture (TestRemoteAuthorizationViaHTTP)
-    if "@pytest.fixture" in line and i > 0 and "def enabled" in lines[i+1]:
-        for j in range(max(0, i-10), i):
+    if "@pytest.fixture" in line and i > 0 and "def enabled" in lines[i + 1]:
+        for j in range(max(0, i - 10), i):
             if "class TestRemoteAuthorizationViaHTTP" in lines[j]:
                 remote_auth_enabled_start = i
                 break
-    
+
     # Third enabled fixture (TestGitServiceErrorHandlerIdentity)
-    if "@pytest.fixture" in line and i > 0 and "def enabled" in lines[i+1]:
-        for j in range(max(0, i-10), i):
+    if "@pytest.fixture" in line and i > 0 and "def enabled" in lines[i + 1]:
+        for j in range(max(0, i - 10), i):
             if "class TestGitServiceErrorHandlerIdentity" in lines[j]:
                 error_handler_enabled_start = i
                 break
-    
+
     # mock_repo_state_snapshot_dynamic yield line
-    if "monkeypatch.setattr(WriteProtectionPipeline, \"run\", mock_pipeline_run)" in line:
+    if 'monkeypatch.setattr(WriteProtectionPipeline, "run", mock_pipeline_run)' in line:
         mock_dynamic_yield_line = i + 2  # yield should come after this
 
 print(f"helpers_after_line: {helpers_after_line}")
@@ -79,11 +84,11 @@ def _rst_cfg_svc(snap):
 lines.insert(helpers_after_line + 1, helpers_block)
 
 # Now re-read to get updated line numbers
-with open(filepath, "r") as f:
+with open(filepath) as f:
     content = f.read()
 
 # Update first enabled fixture
-old_first = '''    @pytest.fixture
+old_first = """    @pytest.fixture
     def enabled(self, repo_dir):
         from scripts.mcp_servers.git import git_server
 
@@ -103,9 +108,9 @@ old_first = '''    @pytest.fixture
             git_server._service._allowed_repo_paths = original_svc_paths
             git_server._service._read_only = original_svc_read_only
 
-class TestRemoteAuthorizationViaHTTP:'''
+class TestRemoteAuthorizationViaHTTP:"""
 
-new_first = '''    @pytest.fixture
+new_first = """    @pytest.fixture
     def enabled(self, repo_dir):
         snap = _snap_cfg_svc()
         from scripts.mcp_servers.git import git_server
@@ -120,12 +125,12 @@ new_first = '''    @pytest.fixture
         finally:
             _rst_cfg_svc(snap)
 
-class TestRemoteAuthorizationViaHTTP:'''
+class TestRemoteAuthorizationViaHTTP:"""
 
 content = content.replace(old_first, new_first)
 
 # Update second enabled fixture
-old_second = '''    @pytest.fixture
+old_second = """    @pytest.fixture
     def enabled(self, repo_dir):
         from scripts.mcp_servers.git import git_server
 
@@ -145,9 +150,9 @@ old_second = '''    @pytest.fixture
             git_server._service._allowed_repo_paths = original_svc_paths
             git_server._service._read_only = original_svc_read_only
 
-    def test_pull_rejects_unauthorized_remote'''
+    def test_pull_rejects_unauthorized_remote"""
 
-new_second = '''    @pytest.fixture
+new_second = """    @pytest.fixture
     def enabled(self, repo_dir):
         snap = _snap_cfg_svc()
         from scripts.mcp_servers.git import git_server
@@ -162,12 +167,12 @@ new_second = '''    @pytest.fixture
         finally:
             _rst_cfg_svc(snap)
 
-    def test_pull_rejects_unauthorized_remote'''
+    def test_pull_rejects_unauthorized_remote"""
 
 content = content.replace(old_second, new_second)
 
 # Update third enabled fixture
-old_third = '''    @pytest.fixture
+old_third = """    @pytest.fixture
     def enabled(self, repo_dir):
         from scripts.mcp_servers.git import git_server
 
@@ -187,9 +192,9 @@ old_third = '''    @pytest.fixture
             git_server._service._allowed_repo_paths = original_svc_paths
             git_server._service._read_only = original_svc_read_only
 
-    def test_induced_git_service_error_is_caught_by_registered_handler('''
+    def test_induced_git_service_error_is_caught_by_registered_handler("""
 
-new_third = '''    @pytest.fixture
+new_third = """    @pytest.fixture
     def enabled(self, repo_dir):
         snap = _snap_cfg_svc()
         from scripts.mcp_servers.git import git_server
@@ -204,17 +209,17 @@ new_third = '''    @pytest.fixture
         finally:
             _rst_cfg_svc(snap)
 
-    def test_induced_git_service_error_is_caught_by_registered_handler('''
+    def test_induced_git_service_error_is_caught_by_registered_handler("""
 
 content = content.replace(old_third, new_third)
 
 # Fix mock_repo_state_snapshot_dynamic teardown
-old_mock = '''        monkeypatch.setattr(WriteProtectionPipeline, "run", mock_pipeline_run)
+old_mock = """        monkeypatch.setattr(WriteProtectionPipeline, "run", mock_pipeline_run)
 
     @pytest.mark.asyncio
-    async def test_checkout_protected_branch_denied('''
+    async def test_checkout_protected_branch_denied("""
 
-new_mock = '''        monkeypatch.setattr(WriteProtectionPipeline, "run", mock_pipeline_run)
+new_mock = """        monkeypatch.setattr(WriteProtectionPipeline, "run", mock_pipeline_run)
         orig_snapshot = RepositoryState.snapshot
         orig_run = WriteProtectionPipeline.run
         yield
@@ -223,7 +228,7 @@ new_mock = '''        monkeypatch.setattr(WriteProtectionPipeline, "run", mock_p
         WriteProtectionPipeline.run = orig_run
 
     @pytest.mark.asyncio
-    async def test_checkout_protected_branch_denied('''
+    async def test_checkout_protected_branch_denied("""
 
 content = content.replace(old_mock, new_mock)
 

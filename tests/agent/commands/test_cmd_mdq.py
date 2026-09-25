@@ -18,7 +18,12 @@ class _Ctx:
     services: Any
     cfg: Any
 
-    def __init__(self, *, tools_available: bool = True, allowed_tools: tuple[str, ...] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        tools_available: bool = True,
+        allowed_tools: tuple[str, ...] | None = None,
+    ) -> None:
         if tools_available:
             self.services = MagicMock()
             self.services.tools = MagicMock()

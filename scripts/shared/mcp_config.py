@@ -90,7 +90,9 @@ class McpServerConfig:
         default_factory=list
     )  # launch command for startup_mode=subprocess
     env: dict[str, str] = field(default_factory=dict)  # extra env vars for subprocess
-    fields: dict[str, Any] = field(default_factory=dict)  # additional kwargs for subprocess.Popen()
+    fields: dict[str, Any] = field(
+        default_factory=dict
+    )  # additional kwargs for subprocess.Popen()
     key: str = field(
         default="", compare=False, repr=False
     )  # server key from config; compare=False keeps equality unaffected
@@ -99,7 +101,9 @@ class McpServerConfig:
     )
     max_stderr_log_size_mb: float = 100.0  # max size in MB before rotation
     max_stderr_log_files: int = 3  # number of rotated files to keep
-    required: bool = True  # Startup criticality: FATAL vs WARNING escalation at discovery
+    required: bool = (
+        True  # Startup criticality: FATAL vs WARNING escalation at discovery
+    )
     failure_policy: FailurePolicy = FailurePolicy.FAIL_FAST  # Reserved: runtime call-failure behavior; currently single-valued (FAIL_FAST) with no branching
 
     @property

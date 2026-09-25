@@ -139,6 +139,7 @@ class TestCrashBeforeAck:
     def test_partial_ack_replay(self, client: TestClient) -> None:
         """Consumer acks some events but not others — only unacked replayed."""
         import asyncio
+
         import eventbus.app as eb_app
         from eventbus.db import get_consumer_offset
 

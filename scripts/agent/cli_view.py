@@ -222,7 +222,9 @@ class CLIView(WriterBase):
         memory_mode: str | None = None,
     ) -> None:
         """Print the agent startup line for display purposes."""
-        self._port.write_startup_banner(chunk_count, n_tools, workflow_status, memory_mode)
+        self._port.write_startup_banner(
+            chunk_count, n_tools, workflow_status, memory_mode
+        )
 
     # --- OutputPort methods (delegated) ---
 

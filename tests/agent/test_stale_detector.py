@@ -383,8 +383,7 @@ class TestCheckLineRefsScoping:
     def test_line_citation_for_target_file_still_flagged_out_of_bounds(self) -> None:
         result = StaleResult.clean()
         proc_text = (
-            "See `scripts/agent/does_not_exist.py` in passing.\n\n"
-            "See Line 9999 here."
+            "See `scripts/agent/does_not_exist.py` in passing.\n\nSee Line 9999 here."
         )
         source_lines = [""] * 100
         _check_line_refs(
@@ -400,9 +399,7 @@ class TestCheckLineRefsFallbackHandling:
     def test_scoped_file_load_failure_skips_citation(self, monkeypatch):
         """When scoped file can't be loaded, skip citation instead of flagging."""
         result = StaleResult.clean()
-        proc_text = (
-            "See `scripts/agent/missing_file.py` (lines 149-163) for details."
-        )
+        proc_text = "See `scripts/agent/missing_file.py` (lines 149-163) for details."
         source_lines = [""] * 10
         # Mock _find_scoped_path to return a path, but _load_scoped_source returns None
         monkeypatch.setattr(
@@ -421,9 +418,7 @@ class TestCheckLineRefsFallbackHandling:
     def test_scoped_file_load_success_validates_against_scoped_file(self, monkeypatch):
         """When scoped file loads successfully, validate against it."""
         result = StaleResult.clean()
-        proc_text = (
-            "See `scripts/agent/exists_file.py` (lines 149-163) for details."
-        )
+        proc_text = "See `scripts/agent/exists_file.py` (lines 149-163) for details."
         source_lines = [""] * 10
         scoped_lines = [""] * 200  # 200 lines, so 149-163 is valid
         # Mock _find_scoped_path to return a path, and _load_scoped_source returns content
@@ -443,9 +438,7 @@ class TestCheckLineRefsFallbackHandling:
     def test_scoped_file_load_success_invalid_range_flagged(self, monkeypatch):
         """When scoped file loads but range exceeds its length, flag as out-of-bounds."""
         result = StaleResult.clean()
-        proc_text = (
-            "See `scripts/agent/small_file.py` (lines 149-163) for details."
-        )
+        proc_text = "See `scripts/agent/small_file.py` (lines 149-163) for details."
         source_lines = [""] * 10
         scoped_lines = [""] * 50  # Only 50 lines, so 149-163 is invalid
         # Mock _find_scoped_path to return a path, and _load_scoped_source returns content

@@ -11,7 +11,9 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPT = REPO_ROOT / "tools" / "check_chunks_fts_invariant.py"
 SCHEMA_SQL = REPO_ROOT / "scripts" / "db" / "schema_sql.py"
-RAG_MAINTENANCE = REPO_ROOT / "scripts" / "agent" / "services" / "rag_maintenance_service.py"
+RAG_MAINTENANCE = (
+    REPO_ROOT / "scripts" / "agent" / "services" / "rag_maintenance_service.py"
+)
 
 
 @pytest.fixture
@@ -30,7 +32,7 @@ class TestViolationDetection:
         _write_file(
             tmpdir,
             "bad.py",
-            '''db.execute("INSERT INTO chunks_fts(rowid, content) VALUES(?, ?)")''',
+            """db.execute("INSERT INTO chunks_fts(rowid, content) VALUES(?, ?)")""",
         )
         result = subprocess.run(
             ["uv", "run", "python", str(SCRIPT), "--path", str(tmpdir)],
@@ -44,7 +46,7 @@ class TestViolationDetection:
         _write_file(
             tmpdir,
             "bad.py",
-            '''db.execute("UPDATE chunks_fts SET content=? WHERE rowid=?")''',
+            """db.execute("UPDATE chunks_fts SET content=? WHERE rowid=?")""",
         )
         result = subprocess.run(
             ["uv", "run", "python", str(SCRIPT), "--path", str(tmpdir)],
@@ -69,7 +71,9 @@ class TestViolationDetection:
 
     def test_no_false_positive_on_rebuild_fts(self, tmpdir: Path) -> None:
         # Create a copy of rag_maintenance_service.py with only rebuild_fts content
-        src = REPO_ROOT / "scripts" / "agent" / "services" / "rag_maintenance_service.py"
+        src = (
+            REPO_ROOT / "scripts" / "agent" / "services" / "rag_maintenance_service.py"
+        )
         dst = tmpdir / "rag_maintenance_service.py"
         dst.write_bytes(src.read_bytes())
         result = subprocess.run(
@@ -87,7 +91,7 @@ class TestViolationDetection:
         _write_file(
             mdq_dir,
             "db_schema.py",
-            '''INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)''',
+            """INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)""",
         )
         result = subprocess.run(
             ["uv", "run", "python", str(SCRIPT), "--path", str(tmpdir)],
@@ -103,7 +107,7 @@ class TestViolationDetection:
         _write_file(
             tests_dir,
             "test_bad.py",
-            '''INSERT INTO chunks_fts(rowid, content) VALUES(?, ?)''',
+            """INSERT INTO chunks_fts(rowid, content) VALUES(?, ?)""",
         )
         result = subprocess.run(
             ["uv", "run", "python", str(SCRIPT), "--path", str(tmpdir)],
