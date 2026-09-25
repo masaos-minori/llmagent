@@ -40,7 +40,7 @@ Missing or mismatched token $\rightarrow$ HTTP 401.
 Applies to: All servers (configured per server via `McpServerConfig.auth_token`).
 Use environment-variable injection (`"${ENV:VAR_NAME}"`) rather than a literal
 secret in the TOML file — see
-[~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)'s Production-Only Migration Procedure](02_deployment.md#production-only-migration-procedure)
+[~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)'s Production-Only Migration Procedure](02_deployment.md#production-only-migration-procedure)
 for the current setup steps.
 
 ---

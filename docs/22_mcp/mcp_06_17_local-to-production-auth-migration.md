@@ -21,13 +21,13 @@ Every environment now enforces the authentication requirements below
 unconditionally; there is no profile switch to perform. The canonical, current
 migration procedure for an existing deployment (bind-address migration together
 with MCP authentication token setup) is
-[~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)'s "Production-Only Migration Procedure"](02_deployment.md#production-only-migration-procedure) —
+[~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)'s "Production-Only Migration Procedure"](02_deployment.md#production-only-migration-procedure) —
 follow that document for a step-by-step deployment migration. This document's
 Migration Steps below are retained as a historical record of the pre-removal
 procedure and as a focused authentication-only reference; its Troubleshooting
 section below remains current and applicable to any deployment.
 
-### Migration Steps (historical — see ~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) for the current procedure)
+### Migration Steps (historical — see ~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) for the current procedure)
 
 1. ~~Switch `security_profile` from `local` to `production` in `config/agent.toml`~~ —
    no longer applicable; mandatory authentication requirement checks now run
