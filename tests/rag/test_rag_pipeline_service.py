@@ -237,7 +237,7 @@ class TestFallbackReasonCallback:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_json_parse_error_calls_set_fallback_reason(self) -> None:
+    async def test_json_parse_error_does_not_call_set_fallback_reason(self) -> None:
         reasons: list[str] = []
         respx.post(f"{RAG_URL}/v1/call_tool").mock(
             return_value=httpx.Response(200, content=b"not-json")
@@ -252,8 +252,7 @@ class TestFallbackReasonCallback:
                 set_fallback_reason=reasons.append,
             )
         assert result == ""
-        assert len(reasons) == 1
-        assert reasons[0].startswith("http_parse_error:")
+        assert len(reasons) == 0
 
 
 class TestReturnedStatusCode:

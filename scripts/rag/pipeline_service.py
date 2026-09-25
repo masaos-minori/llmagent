@@ -178,7 +178,6 @@ async def call_rag_service(
                 rag_url,
                 e,
             )
-            _set_fallback_reason(set_fallback_reason, f"http_parse_error: {e}")
             return "", None, 0.0
         if attempt < _MAX_ATTEMPTS - 1:
             await asyncio.sleep(min(2**attempt, 5))
