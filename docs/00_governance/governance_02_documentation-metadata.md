@@ -44,7 +44,7 @@ status: stable
 
 ### class
 
-Document class (see `00_governance_01_documentation-policy.md`'s Document
+Document class (see `governance_01_documentation-policy.md`'s Document
 Classification). Optional — no default; a document without this field has an
 unclassified status, not an error.
 
@@ -64,7 +64,7 @@ optional field:
 title: Agent Reorganization
 area: agent
 tags: [architecture, reorganization]
-related: [00_governance_01_documentation-policy.md]
+related: [governance_01_documentation-policy.md]
 status: stable
 ---
 ```
@@ -211,9 +211,9 @@ execution (a test failing, a config load erroring), not by review.
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](00_governance_01_documentation-policy.md)
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](00_governance_04_documentation-checks.md)
+- [Documentation Policy](governance_01_documentation-policy.md)
+- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](governance_04_documentation-checks.md)
 
 ## Keywords
 

@@ -469,7 +469,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — CI-003（Reload実行フロー全体の検証未了）、CI-015（Tool所有権重複検出のテスト未整備）
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — CI-003（Reload実行フロー全体の検証未了）、CI-015（Tool所有権重複検出のテスト未整備）
 
 ### Implementation References
 

@@ -5,8 +5,8 @@ tags:
   - governance
   - adr
 related:
-  - 00_governance_01_documentation-policy.md
-  - 00_governance_04_documentation-checks.md
+  - governance_01_documentation-policy.md
+  - governance_04_documentation-checks.md
 ---
 
 # ADR Index
@@ -16,7 +16,7 @@ related:
 Canonical list of all Architecture Decision Records (ADRs): current status,
 dependency relationships, and invariant verification status. ADR status
 definitions, ID format rules, and section header conventions are defined once in
-`00_governance_01_documentation-policy.md` — not repeated here.
+`governance_01_documentation-policy.md` — not repeated here.
 
 ## ADR List
 
@@ -112,8 +112,8 @@ currently exists.
 
 ## Related Documents
 
-- [Documentation Policy](00_governance_01_documentation-policy.md)
-- [Documentation Checks](00_governance_04_documentation-checks.md)
+- [Documentation Policy](governance_01_documentation-policy.md)
+- [Documentation Checks](governance_04_documentation-checks.md)
 
 ## Keywords
 

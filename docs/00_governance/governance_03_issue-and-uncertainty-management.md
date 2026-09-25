@@ -63,7 +63,7 @@ longer applicable to the current system.
 
 ### Review Cadence
 
-Part 1 entries are reviewed quarterly, consistent with the cadence documented for Part 2 Needs Confirmation items and "Proposed" ADRs in `docs/00_governance_01_documentation-policy.md` line 521.
+Part 1 entries are reviewed quarterly, consistent with the cadence documented for Part 2 Needs Confirmation items and "Proposed" ADRs in `docs/governance_01_documentation-policy.md` line 521.
 
 ### Consolidation Note
 
@@ -469,7 +469,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-023
 
-- **Source File**: `00_governance_01_documentation-policy.md`
+- **Source File**: `governance_01_documentation-policy.md`
 - **Section**: Software Runtime Dependency Graph
 - **Line Number**: ~306
 - **Question**: Are `scripts/rag/` and `scripts/mcp_servers/rag_pipeline/` the same
@@ -493,7 +493,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-024
 
-- **Source File**: `00_governance_01_documentation-policy.md`
+- **Source File**: `governance_01_documentation-policy.md`
 - **Section**: Software Runtime Dependency Graph / Governance Applicability Matrix
 - **Line Number**: ~306
 - **Question**: Should the Security governance area be treated as a runtime
@@ -518,7 +518,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-025
 
-- **Source File**: `00_governance_01_documentation-policy.md`
+- **Source File**: `governance_01_documentation-policy.md`
 - **Section**: Change Impact Rule
 - **Line Number**: ~198
 - **Question**: Is a Configuration Ownership Map or API Consumer Map needed for the
@@ -593,7 +593,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-031
 
-- **Source File**: `00_governance_02_documentation-metadata.md`
+- **Source File**: `governance_02_documentation-metadata.md`
 - **Section**: Existing Metadata Fields (`related`)
 - **Line Number**: ~24
 - **Question**: Is the front-matter `related` field and the `## Related
@@ -601,8 +601,8 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
   tooling, body section for human readers), or an unintentional drift where
   one should be removed?
 - **Evidence**: Both exist in active use across the document set; no design
-  rationale was found in `docs/00_governance_01_documentation-policy.md` or
-  `docs/00_governance_02_documentation-metadata.md` explaining why both exist
+  rationale was found in `docs/governance_01_documentation-policy.md` or
+  `docs/governance_02_documentation-metadata.md` explaining why both exist
 - **Impact**: If unintentional drift, maintaining two parallel
   related-documents lists risks them diverging (one updated, the other left
   stale)
@@ -801,10 +801,10 @@ The following resolution criteria apply across all four parts of this document:
 ## Temporary Exception Process
 
 Applies to any automated check finding classified `Warning` (not `Blocking`) in
-`docs/00_governance_04_documentation-checks.md`'s Governance Verification Matrix
+`docs/governance_04_documentation-checks.md`'s Governance Verification Matrix
 — for example, `GV-020`'s removed-name reintroduction findings. A `Warning`
 finding does not block merge by itself, but leaving it neither fixed nor formally
-excepted is not a complete review (see `docs/00_governance_04_documentation-checks.md`
+excepted is not a complete review (see `docs/governance_04_documentation-checks.md`
 `### 13. Merge Condition Validation`).
 
 ### Exception Record Fields
@@ -827,7 +827,7 @@ For example: `<!-- exception: GV-020 — read_json_file mention is a historical
 comparison, not a current-spec claim — @agent-lead — expires 2026-12-01 -->`
 
 An exception past its expiration date is treated as an unexplained finding (see
-`docs/00_governance_04_documentation-checks.md`
+`docs/governance_04_documentation-checks.md`
 `### 13. Merge Condition Validation`) — not as still-covered.
 
 ## Non-Goals
@@ -843,9 +843,9 @@ Topics explicitly excluded from this document:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](00_governance_01_documentation-policy.md)
-- [Documentation Metadata](00_governance_02_documentation-metadata.md)
-- [Documentation Checks](00_governance_04_documentation-checks.md)
+- [Documentation Policy](governance_01_documentation-policy.md)
+- [Documentation Metadata](governance_02_documentation-metadata.md)
+- [Documentation Checks](governance_04_documentation-checks.md)
 
 ## Keywords
 

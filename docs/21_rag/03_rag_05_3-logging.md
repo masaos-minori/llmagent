@@ -30,7 +30,7 @@ availability choice, not a silent failure mode.
 
 JSON-lines output is available (`structured_log=True`) but unused by these 3 scripts;
 whether this is a deliberate scope decision or unfinished work is tracked as
-`docs/00_governance_03_issue-and-uncertainty-management.md` NC-039.
+`docs/governance_03_issue-and-uncertainty-management.md` NC-039.
 
 ---
 

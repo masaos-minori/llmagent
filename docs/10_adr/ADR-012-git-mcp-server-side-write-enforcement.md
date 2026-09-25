@@ -209,7 +209,7 @@ See Related Documents > Implementation References for the current file/symbol li
 
 ## Known Deviations
 
-`docs/00_governance_03_issue-and-uncertainty-management.md`'s MCP-001 (`verify_postcondition()` unconditional-success placeholder) and MCP-002 (`PipelineResult` missing `post_state`) are both registered and marked `resolved` (confirmed this cycle). Whether any further deviation remains open after Phase 1's dead-method removal lands is tracked in row 4 of that document.
+`docs/governance_03_issue-and-uncertainty-management.md`'s MCP-001 (`verify_postcondition()` unconditional-success placeholder) and MCP-002 (`PipelineResult` missing `post_state`) are both registered and marked `resolved` (confirmed this cycle). Whether any further deviation remains open after Phase 1's dead-method removal lands is tracked in row 4 of that document.
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
@@ -228,7 +228,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
 - **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
-- **Approval Reference**: `docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
 本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
 
@@ -240,7 +240,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - [Fail-Open/Fail-Closed and Risk Tiers](../04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)
 
 ### Known Issues
-- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — no active entries related to this ADR; the protected-branch/Force-Push guard, approval risk-tier mapping, and audit repository-identity gaps this ADR addressed are all resolved.
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — no active entries related to this ADR; the protected-branch/Force-Push guard, approval risk-tier mapping, and audit repository-identity gaps this ADR addressed are all resolved.
 
 ### Implementation References
 - `scripts/mcp_servers/git/repository_state.py` — `RepositoryState`, `RepositoryState.snapshot()`, `WriteProtectionPipeline`, `WriteProtectionPipeline.run()`
@@ -269,6 +269,6 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] 各InvariantにVerificationが対応している
 - [x] 自動化可能な検証がManual Reviewだけになっていない
 - [x] 現行実装との差異がKnown Issueへ登録されている
-- [x] Ownerと必要なReviewerが定義されている（`docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
+- [x] Ownerと必要なReviewerが定義されている（`docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
 - [x] Review Triggersが記載されている
 - [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）

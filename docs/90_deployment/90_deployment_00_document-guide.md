@@ -35,7 +35,7 @@ See [02_deployment.md](02_deployment.md) for the complete deployment guide.
 
 ## Known Issues / Deferred Items
 
-Known limitations, specification gaps, and pending items are centrally managed in `00_governance_03_issue-and-uncertainty-management.md`. Do not duplicate them in individual chapters.
+Known limitations, specification gaps, and pending items are centrally managed in `governance_03_issue-and-uncertainty-management.md`. Do not duplicate them in individual chapters.
 
 ## Reference API
 

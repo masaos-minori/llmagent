@@ -343,7 +343,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
 - **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
-- **Approval Reference**: `docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
 本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
 
@@ -388,6 +388,6 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] 自動化可能な検証がManual Reviewだけになっていない
 - [x] 関係するSpecificationと矛盾していない
 - [x] 現行実装との差異がKnown Issueへ登録されている
-- [x] Ownerと必要なReviewerが定義されている（`docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
+- [x] Ownerと必要なReviewerが定義されている（`docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
 - [x] Review Triggersが記載されている
 - [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）

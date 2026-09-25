@@ -50,7 +50,7 @@ unbounded growth in processing time, storage, and external-site load — see
 [section 1.1 Configuration Reference](03_rag_05_1-configuration-reference.md)
 below for the current operational values. The rationale for the specific
 limit values is tracked as unresolved in NC-035
-(`docs/00_governance_03_issue-and-uncertainty-management.md`).
+(`docs/governance_03_issue-and-uncertainty-management.md`).
 `skip_nofollow` controls whether nofollow-marked links are excluded from
 the BFS queue.
 

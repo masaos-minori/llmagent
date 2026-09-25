@@ -9,7 +9,7 @@ tags:
   - routing
   - ai reference
 related:
-  - 00_governance_03_issue-and-uncertainty-management.md
+  - governance_03_issue-and-uncertainty-management.md
 source:
   - 90_shared_00_document-guide.md
 ---
@@ -52,7 +52,7 @@ Documents the `shared/` layer (common types, configuration, logging, OTel, tool 
 
 ## Navigation to Major Known Issues
 
-Refer to [00_governance_03_issue-and-uncertainty-management.md](00_governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB) for a full catalog of known inconsistencies. Note that `ArtifactEvent` does not involve an event bus (it is data definition only).
+Refer to [governance_03_issue-and-uncertainty-management.md](governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB) for a full catalog of known inconsistencies. Note that `ArtifactEvent` does not involve an event bus (it is data definition only).
 
 ---
 
@@ -74,10 +74,10 @@ Read the `shared/` documentation group in order: `01_overview` â†’ `02_types` â†
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](00_governance_01_documentation-policy.md)
-- [Documentation Metadata](00_governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](00_governance_04_documentation-checks.md)
+- [Documentation Policy](governance_01_documentation-policy.md)
+- [Documentation Metadata](governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](governance_04_documentation-checks.md)
 
 ## Guidance for Safe AI Use
 

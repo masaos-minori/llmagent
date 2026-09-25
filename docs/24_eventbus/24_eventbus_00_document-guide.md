@@ -23,7 +23,7 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 | Configuration, Security Constraints & Operations | `24_eventbus_09_configuration-and-operations.md` |
 | Validation Status | `24_eventbus_08_validation_status.md` |
 | Reference API (for detailed verification) | `24_eventbus_10_reference_api.md` |
-| Known Issues & Pending Items | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
+| Known Issues & Pending Items | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## AI Query Routing
 
@@ -35,7 +35,7 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 | Delivery semantics & consumer responsibilities | `24_eventbus_06` |
 | Configuration, bind address, health checks & operations | `24_eventbus_09` |
 | API details, types & schemas | `24_eventbus_10` |
-| Known issues & specification inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
+| Known issues & specification inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## Canonical Source Rule
 
@@ -43,7 +43,7 @@ See [EventBus runtime-behavior](../config/documentation_canonical_sources.toml#e
 
 ## Known Issues / Deferred Items
 
-Known limitations, specification gaps, and pending items are centrally managed in `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus). Do not duplicate them in individual chapters.
+Known limitations, specification gaps, and pending items are centrally managed in `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus). Do not duplicate them in individual chapters.
 
 ## Reference API
 
@@ -53,10 +53,10 @@ Known limitations, specification gaps, and pending items are centrally managed i
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](00_governance_01_documentation-policy.md)
-- [Documentation Metadata](00_governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](00_governance_04_documentation-checks.md)
+- [Documentation Policy](governance_01_documentation-policy.md)
+- [Documentation Metadata](governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](governance_04_documentation-checks.md)
 
 ## Related ADRs
 

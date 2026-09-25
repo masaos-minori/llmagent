@@ -20,10 +20,10 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 - [Agent](23_agent/05_agent_00_document-guide.md) — Agent REPL system and operation
 - [Event Bus](24_eventbus/24_eventbus_00_document-guide.md) — Event Bus infrastructure
 - [Shared/DB](../40_shared/90_shared_00_document-guide.md) — Shared infrastructure and database layer
-- [Documentation Policy](00_governance_01_documentation-policy.md) — Canonical source precedence (including decision target → canonical source mapping), conflict resolution, ADR conventions
-- [Documentation Metadata](00_governance_02_documentation-metadata.md) — Metadata conventions, terminology glossary, link rules
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — Known Issues templates, Needs Confirmation inventory
-- [Documentation Checks](00_governance_04_documentation-checks.md) — Automated and manual validation checks, governance verification matrix
+- [Documentation Policy](governance_01_documentation-policy.md) — Canonical source precedence (including decision target → canonical source mapping), conflict resolution, ADR conventions
+- [Documentation Metadata](governance_02_documentation-metadata.md) — Metadata conventions, terminology glossary, link rules
+- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md) — Known Issues templates, Needs Confirmation inventory
+- [Documentation Checks](governance_04_documentation-checks.md) — Automated and manual validation checks, governance verification matrix
 - [ADR Index](../adr-index.md) — ADR list, dependency graph, invariant verification matrix
 - [Known Issues](#known-issues) — Known inconsistencies per category
 
@@ -43,7 +43,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 
 All areas' known inconsistencies and unresolved items are tracked in one place:
 
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — Part 1: Known Issues (all areas)
+- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md) — Part 1: Known Issues (all areas)
 
 ## Document References by Task
 
@@ -54,7 +54,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | Task scope | Reference docs |
 |---|---|
 | Agent spec (overview, design, known issues) | `23_agent/05_agent_00_document-guide.md` + `23_agent/05_agent_01_system-overview.md` |
-| Agent known issues / inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent) |
+| Agent known issues / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent) |
 | MCP server spec (overview, design, known issues) | `22_mcp/04_mcp_00_document-guide.md` + `22_mcp/04_mcp_01_system_overview.md` |
 | RAG pipeline spec (overview, design, known issues) | `21_rag/03_rag_00_document-guide.md` + `21_rag/03_rag_01_system_overview.md` |
 | MDQ vs RAG boundary | `22_mcp/04_mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
@@ -106,8 +106,8 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | System security architecture / trust boundaries / threat model | `91_security/00_security_01_architecture-and-trust-boundaries.md` |
 | High-risk MCP tool policy (path/repo allowlists, traversal prevention, approval-to-risk-tier mapping) | `91_security/00_security_02_high-risk-tool-common-policy.md` |
 | Any MCP server (catalog only) | `22_mcp/04_mcp_04_01_web-search-file-read-github.md` |
-| mdq-mcp specifics | `22_mcp/04_mcp_04_04_mdq.md` + `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
-| MCP known bugs / inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
+| mdq-mcp specifics | `22_mcp/04_mcp_04_04_mdq.md` + `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
+| MCP known bugs / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
 
 #### RAG
 
@@ -119,7 +119,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | crawler.py changes / API reference | `21_rag/03_rag_02_02_ingestion_pipeline-crawler.md` |
 | chunk_splitter.py changes / API reference | `21_rag/03_rag_02_03_ingestion_pipeline-chunksplitter.md` |
 | ingester.py changes / API reference | `21_rag/03_rag_02_04_ingestion_pipeline-ingester.md` |
-| RAG known bugs / inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
+| RAG known bugs / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
 | RAG configuration parameters | `21_rag/03_rag_05_1-configuration-reference.md` |
 
 #### DB / Shared
@@ -128,7 +128,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 |---|---|
 | SQLite / DB connection / WAL / transactions | `41_db/41_db_04_db_api_and_operations-module-boundaries-and-helper.md` |
 | Config / logger / formatters / rag_utils | `40_shared/90_shared_03_01_runtime_and_execution-config-and-logging.md` |
-| Shared layer / DB layer known issues / inconsistencies | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Shared/DB) |
+| Shared layer / DB layer known issues / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Shared/DB) |
 
 #### Event Bus
 
@@ -140,7 +140,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | Event Bus (DLQ/offsets) | `24_eventbus/24_eventbus_06_dlq_offsets_and_delivery_semantics.md` |
 | Event Bus (config/ops) | `24_eventbus/24_eventbus_09_configuration-and-operations.md` |
 | Event Bus (API ref) | `24_eventbus/24_eventbus_10_reference_api.md` |
-| Event Bus (issues) | `00_governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
+| Event Bus (issues) | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## Related Documents
 

@@ -14,7 +14,7 @@ related:
   - 04_mcp_04_03_rag-pipeline-and-cicd.md
   - 04_mcp_04_05_git.md
   - 05_agent_08_04_configuration-mcp-approval-obs.md
-  - 00_governance_03_issue-and-uncertainty-management.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # Tool Runtime Availability Metadata: `config_dependent`, `enabled`, `disabled_reason`

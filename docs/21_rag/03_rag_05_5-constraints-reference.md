@@ -17,7 +17,7 @@ source:
 | Constraint | Value |
 |---|---|
 | Language detection threshold | CJK ratio $\ge$ 0.10 $\rightarrow$ `ja`; If page < 100 chars $\rightarrow$ use hint language |
-| Chunk size range | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale for the specific bounds tracked as unresolved in NC-034 (`docs/00_governance_03_issue-and-uncertainty-management.md`). |
+| Chunk size range | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale for the specific bounds tracked as unresolved in NC-034 (`docs/governance_03_issue-and-uncertainty-management.md`). |
 | Chunk overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale tracked as unresolved in NC-034. |
 | Embedding dimensions | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB |
 | Crawl depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference §1.1](03_rag_05_1-configuration-reference.md). Rationale for the specific limit tracked as unresolved in NC-035. |

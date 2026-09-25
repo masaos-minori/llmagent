@@ -84,7 +84,7 @@ Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in
 - Re-implementing or weakening loopback-only binding (`EventBusConfig.__post_init__`, `_LoopbackVerifyingServer`) — already implemented; this Plan only adds a regression test confirming it.
 - Transactional ACK/offset redesign, backpressure handling, and DLQ requeue redesign — each tracked by a separate Issue/Plan in this batch (`eb_h01`, `eb_h02`, `eb_h03`).
 - Migrating EventBus configuration loading to `scripts/shared/config_loader.py`'s `ConfigLoader` — architecturally prohibited (ADR-002 already resolved this via a documented local-invariant exception).
-- Correcting the stale `CI-001` status/Recommended-Action text in `docs/00_governance_03_issue-and-uncertainty-management.md` (pre-existing documentation inconsistency unrelated to this Issue's stated Target Files).
+- Correcting the stale `CI-001` status/Recommended-Action text in `docs/governance_03_issue-and-uncertainty-management.md` (pre-existing documentation inconsistency unrelated to this Issue's stated Target Files).
 - Choosing between static bearer token / rotatable service token / mutual TLS / reverse-proxy authentication as an open research question — this Plan resolves it to static bearer token.
 
 ## Rationale
@@ -278,7 +278,7 @@ See Related Documents > Implementation References for the current file/symbol li
 
 ## Known Deviations
 
-`docs/00_governance_03_issue-and-uncertainty-management.md`'s EVENTBUS-008 (No Production Authentication Model for Event Bus HTTP API, High severity, resolved 2026-09-14) and CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, resolved 2026-09-15) are both resolved. Residual gaps from EVENTBUS-008 (token with no configured consumer_id allowlist entry has consumer-identity validation skipped — fail-open) are tracked separately in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`.
+`docs/governance_03_issue-and-uncertainty-management.md`'s EVENTBUS-008 (No Production Authentication Model for Event Bus HTTP API, High severity, resolved 2026-09-14) and CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, resolved 2026-09-15) are both resolved. Residual gaps from EVENTBUS-008 (token with no configured consumer_id allowlist entry has consumer-identity validation skipped — fail-open) are tracked separately in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`.
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
@@ -299,7 +299,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
 - **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
-- **Approval Reference**: `docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
 本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
 
@@ -314,7 +314,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — EVENTBUS-008 (No Production Authentication Model) and CI-001 (ConfigLoader migration) addressed by this ADR.
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EVENTBUS-008 (No Production Authentication Model) and CI-001 (ConfigLoader migration) addressed by this ADR.
 
 ### Implementation References
 
@@ -353,6 +353,6 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] 各InvariantにVerificationが対応している
 - [x] 自動化可能な検証がManual Reviewだけになっていない
 - [x] 現行実装との差異がKnown Issueへ登録されている
-- [x] Ownerと必要なReviewerが定義されている（`docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
+- [x] Ownerと必要なReviewerが定義されている（`docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
 - [x] Review Triggersが記載されている
 - [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）

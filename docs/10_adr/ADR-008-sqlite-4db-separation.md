@@ -510,7 +510,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
 - **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
-- **Approval Reference**: `docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
 本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
 
@@ -542,8 +542,8 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 <!-- TODO: Document '03_rag_04_02_rag-persistence.md' was deleted -->
 <!-- TODO: Document '03_rag_04_03_rag-recovery.md' was deleted -->
 <!-- TODO: Document '05_agent_04_01_agent-session-persistence.md' was deleted -->
-- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
-- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — SHARED-003（workflow/eventbus復旧手続きの実務Runbook整備済み、resolved）、CI-002（本ADRの現行内容と対応しない旧記述の疑い）
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — SHARED-003（workflow/eventbus復旧手続きの実務Runbook整備済み、resolved）、CI-002（本ADRの現行内容と対応しない旧記述の疑い）
 
 ### Implementation References
 

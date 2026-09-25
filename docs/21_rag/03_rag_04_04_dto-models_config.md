@@ -53,7 +53,7 @@ described above, not independent primitive fields.
 
 ## Implementation Notes
 
-See Known Issue CI-017 in `docs/00_governance_03_issue-and-uncertainty-management.md`
+See Known Issue CI-017 in `docs/governance_03_issue-and-uncertainty-management.md`
 for the documented-dataclasses-vs-actual-runtime-contract mismatch tracked for this file.
 
 ## Related Documents

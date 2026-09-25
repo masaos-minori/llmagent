@@ -16,7 +16,7 @@ related:
   - 04_mcp_06_02_configuration-file-inventory.md
   - 04_mcp_07_tool_schema_export_policy.md
   - 04_mcp_08_tool_capability_naming_convention.md
-  - 00_governance_03_issue-and-uncertainty-management.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # MCP Documentation Guide
@@ -110,7 +110,7 @@ Provides guidance on determining which chapters to open as the entry point for t
 | [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) | Schema Export |
 | [04_mcp_08_tool_capability_naming_convention.md](04_mcp_08_tool_capability_naming_convention.md) | Capability Naming Convention |
 | ~~[04_mcp_07_mdq_rag_boundary.md]~~ | Deleted |
-| [00_governance_03_issue-and-uncertainty-management.md](00_governance_03_issue-and-uncertainty-management.md) | Known Issues (all areas) |
+| [governance_03_issue-and-uncertainty-management.md](governance_03_issue-and-uncertainty-management.md) | Known Issues (all areas) |
 
 ---
 
@@ -118,10 +118,10 @@ Provides guidance on determining which chapters to open as the entry point for t
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](00_governance_01_documentation-policy.md)
-- [Documentation Metadata](00_governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](00_governance_04_documentation-checks.md)
+- [Documentation Policy](governance_01_documentation-policy.md)
+- [Documentation Metadata](governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](governance_04_documentation-checks.md)
 
 ## Migration Notes
 
@@ -150,9 +150,9 @@ Old MCP source files were kept during the documentation restructuring phase (pla
 
 ## Unconfirmed Items
 
-- [NC-002](00_governance_03_issue-and-uncertainty-management.md): Reason for unused ResultSource field
-- [NC-005](00_governance_03_issue-and-uncertainty-management.md): Dead code detection for AuditLogRecord/ApprovalDecision (resolved)
-- [NC-006](00_governance_03_issue-and-uncertainty-management.md): Future usability of result_source field
+- [NC-002](governance_03_issue-and-uncertainty-management.md): Reason for unused ResultSource field
+- [NC-005](governance_03_issue-and-uncertainty-management.md): Dead code detection for AuditLogRecord/ApprovalDecision (resolved)
+- [NC-006](governance_03_issue-and-uncertainty-management.md): Future usability of result_source field
 
 *Note: This section only lists major files defined in the routing table and files explicitly referenced in the text.*
 
@@ -173,7 +173,7 @@ Old MCP source files were kept during the documentation restructuring phase (pla
 - `04_mcp_06_01_purpose.md`
 - `04_mcp_07_tool_schema_export_policy.md`
 - `04_mcp_08_tool_capability_naming_convention.md`
-- `00_governance_03_issue-and-uncertainty-management.md`
+- `governance_03_issue-and-uncertainty-management.md`
 
 ## Keywords
 

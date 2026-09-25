@@ -389,7 +389,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
 - **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
-- **Approval Reference**: `docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
 本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
 
@@ -418,7 +418,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — MCP既知の問題
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — MCP既知の問題
 
 ### Implementation References
 

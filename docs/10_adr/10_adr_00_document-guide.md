@@ -41,15 +41,15 @@ This directory contains all Architecture Decision Records (ADRs). Each ADR captu
 |---|---|
 | Architectural decisions & rationale | Any `ADR-NNN` file |
 | ADR status & dependencies | `adr-index.md` |
-| Documentation policy for ADRs | `00_governance_01_documentation-policy.md` |
+| Documentation policy for ADRs | `governance_01_documentation-policy.md` |
 
 ## Canonical Source Rule
 
-See [Documentation Policy](../00_governance/00_governance_01_documentation-policy.md) for ADR naming conventions, status definitions, and section header rules.
+See [Documentation Policy](../00_governance/governance_01_documentation-policy.md) for ADR naming conventions, status definitions, and section header rules.
 
 ## Known Issues / Deferred Items
 
-Known limitations, specification gaps, and pending items are centrally managed in `00_governance_03_issue-and-uncertainty-management.md`. Do not duplicate them in individual chapters.
+Known limitations, specification gaps, and pending items are centrally managed in `governance_03_issue-and-uncertainty-management.md`. Do not duplicate them in individual chapters.
 
 ## Reference API
 

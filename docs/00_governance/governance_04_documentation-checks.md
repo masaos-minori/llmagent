@@ -92,7 +92,7 @@ python tools/check_docs_consistency.py --domain agent --skip schemadrift  # skip
 Verifies the NC inventory stays in sync with `docs/*.md`.
 
 **Checks:**
-- "Needs confirmation" mentions in docs are registered in the centralized inventory (`00_governance_03_issue-and-uncertainty-management.md`)
+- "Needs confirmation" mentions in docs are registered in the centralized inventory (`governance_03_issue-and-uncertainty-management.md`)
 - Resolved NC items do not leave markers in source documents
 - Field count declarations match actual list item counts
 
@@ -193,10 +193,10 @@ python tools/check_adr_structure.py --format json
 
 ### 9. Canonical Source Verification
 
-When conflicts arise between documentation and code/config, apply the precedence hierarchy defined in `00_governance_01_documentation-policy.md`:
+When conflicts arise between documentation and code/config, apply the precedence hierarchy defined in `governance_01_documentation-policy.md`:
 
-1. Canonical authority resolved per claim type and decision target — see `00_governance_01_documentation-policy.md`'s Claim Type Taxonomy and Decision Target Canonical Source Matrix
-2. Recency (review/modification/commit date) never determines canonical authority — see `00_governance_01_documentation-policy.md`'s Recency Is Not Authority subsection
+1. Canonical authority resolved per claim type and decision target — see `governance_01_documentation-policy.md`'s Claim Type Taxonomy and Decision Target Canonical Source Matrix
+2. Recency (review/modification/commit date) never determines canonical authority — see `governance_01_documentation-policy.md`'s Recency Is Not Authority subsection
 3. The area's document-guide identifies the canonical source within that area
 
 ### 10. Evidence Label Validation
@@ -207,7 +207,7 @@ Verify evidence labels on statements match their actual grounding level:
 2. **Strongly implied by code** — Inferred from code structure/patterns
 3. **Documentation only** — Exists only in documentation without code verification
 4. **Needs confirmation** — Accuracy unverified against implementation
-5. **Deprecated** — Describes an obsolete feature no longer in use. Distinct from `docs/00_governance_02_documentation-metadata.md`'s Terminology Glossary terms `Obsolete` (a name still present and callable, but no longer the current production path) and `Dead Code` (a name with zero current callers): this evidence label classifies how well a *statement* is grounded, not the compatibility lifecycle of the thing the statement describes.
+5. **Deprecated** — Describes an obsolete feature no longer in use. Distinct from `docs/governance_02_documentation-metadata.md`'s Terminology Glossary terms `Obsolete` (a name still present and callable, but no longer the current production path) and `Dead Code` (a name with zero current callers): this evidence label classifies how well a *statement* is grounded, not the compatibility lifecycle of the thing the statement describes.
 6. **Verified by test** — Confirmed through automated tests
 7. **Operationally observed** — Based on runtime behavior observations
 
@@ -230,30 +230,30 @@ All ADRs must use the following section headers in this order:
 13. Related Documents
 14. Completion Checklist
 
-See [Policy's ADR Section Header Standardization](00_governance_01_documentation-policy.md#adr-section-header-standardization) for duplicate notes shared across all ADRs.
+See [Policy's ADR Section Header Standardization](governance_01_documentation-policy.md#adr-section-header-standardization) for duplicate notes shared across all ADRs.
 
 ### 12. Area Dependency Graph Validation
 
 Canonical source: the dependency-graph taxonomy (Software Runtime Dependency Graph,
 Deployment Management Graph, Documentation Reference Graph, Governance Applicability
-Matrix) is defined in `docs/00_governance_01_documentation-policy.md` — see that
+Matrix) is defined in `docs/governance_01_documentation-policy.md` — see that
 document's sections by these names. This document does not duplicate the edge list.
 
 **Automated** (Software Runtime Dependency Graph only): `tools/check_dependency_graph_cycles.py`
 parses the Software Runtime Dependency Graph's edge list from
-`docs/00_governance_01_documentation-policy.md` and fails if a cycle exists among its
+`docs/governance_01_documentation-policy.md` and fails if a cycle exists among its
 5 in-scope nodes (Agent, MCP, RAG, EventBus, Shared/DB). Wired into
 `.github/workflows/governance-docs-consistency.yml`.
 
 **Manual** (all other relation types): the Deployment Management Graph, Documentation
 Reference Graph, and Governance Applicability Matrix are not cycle-checked by any
 tool — see each section's own cycle-tolerance statement in
-`docs/00_governance_01_documentation-policy.md` — and remain subject to human review
+`docs/governance_01_documentation-policy.md` — and remain subject to human review
 only.
 
 ### 13. Merge Condition Validation
 
-Merge is gated on [Policy's Merge Conditions](00_governance_01_documentation-policy.md#merge-conditions)
+Merge is gated on [Policy's Merge Conditions](governance_01_documentation-policy.md#merge-conditions)
 (Blocking/Non-Blocking conditions and the Merge Workflow) — see that
 section for the full list, including the `GV-020`-specific
 removed-name-reintroduction condition this checker enforces.
@@ -284,9 +284,9 @@ Maps governance rules to their enforcement methods, distinguishing auto-validate
 rules from Manual Review rules. Tracks whether each rule currently has an inspection
 tool and identifies follow-up work needed.
 
-Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, **Meta**
-= `00_governance_02_documentation-metadata.md`, **Iss** =
-`00_governance_03_issue-and-uncertainty-management.md`, **Chk** = this document.
+Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **Meta**
+= `governance_02_documentation-metadata.md`, **Iss** =
+`governance_03_issue-and-uncertainty-management.md`, **Chk** = this document.
 
 | Rule ID | Rule | Doc | Method | Tool/Review | Timing | Gate | Status | Follow-up |
 |---------|------|-----|--------|--------------|--------|------|--------|-----------|
@@ -330,7 +330,7 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
    originally requested. Remaining, optional scope: actually running each cited test in CI
    (this check only verifies the path exists), tracked as a future enhancement, not a gap in
    the current implementation.
-10. **GV-015**: Resolved — `docs/00_governance_01_documentation-policy.md`'s
+10. **GV-015**: Resolved — `docs/governance_01_documentation-policy.md`'s
    Software Runtime Dependency Graph, Deployment Management Graph, Documentation
    Reference Graph, and Governance Applicability Matrix sections separate the four
    relation types the previous single graph conflated; closing reference:
@@ -357,24 +357,24 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
     unaffected — the new patterns match only the specific retired identifiers above,
     not the word "local" itself. Running `--check-removed-names` against the current
     corpus after this extension found 14 pre-existing findings outside this Plan's own
-    scope (`docs/00_governance_03`, `00_security_02`, `06_eventbus_01`, ADR-006,
+    scope (`docs/governance_03`, `00_security_02`, `06_eventbus_01`, ADR-006,
     ADR-008, and others still describing `allow_public_bind` as current) — these are
     tracked as a follow-up documentation-drift cleanup, not fixed by this Plan.
 
 ## Change Impact Assessment
 
-See [Policy's Change Impact Rule and Change-Impact Matrix](00_governance_01_documentation-policy.md#change-impact-rule)
+See [Policy's Change Impact Rule and Change-Impact Matrix](governance_01_documentation-policy.md#change-impact-rule)
 for the full procedure and matrix determining which documents are
 affected by a change.
 
 ## Review Gate Conditions
 
-See [Policy's Review Rule](00_governance_01_documentation-policy.md#review-rule)
+See [Policy's Review Rule](governance_01_documentation-policy.md#review-rule)
 for the conditions that require review before merging.
 
 ## Maintenance Rules
 
-See [Policy's Maintenance Rules](00_governance_01_documentation-policy.md#maintenance-rules).
+See [Policy's Maintenance Rules](governance_01_documentation-policy.md#maintenance-rules).
 
 ## Non-Goals
 
@@ -392,9 +392,9 @@ This document does not cover:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](00_governance_01_documentation-policy.md)
-- [Documentation Metadata](00_governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
+- [Documentation Policy](governance_01_documentation-policy.md)
+- [Documentation Metadata](governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
 
 ## Keywords
 

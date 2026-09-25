@@ -167,7 +167,7 @@ MCP server processes (mcp_servers/<name>/server.py)
 | Per-server specification | [04_mcp_04_01_web-search-file-read-github.md](04_mcp_04_01_web-search-file-read-github.md) |
 | Security and Safety model | [04_mcp_05_01_access-control-and-allowlists.md](04_mcp_05_01_access-control-and-allowlists.md) |
 | Configuration and Operations | [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) |
-| Known issues and inconsistencies | [00_governance_03_issue-and-uncertainty-management.md](00_governance_03_issue-and-uncertainty-management.md) (Part 1, Area: MCP) |
+| Known issues and inconsistencies | [governance_03_issue-and-uncertainty-management.md](governance_03_issue-and-uncertainty-management.md) (Part 1, Area: MCP) |
 
 ---
 

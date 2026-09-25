@@ -88,7 +88,7 @@ owned state must consider downstream impact on dependent components.
 
 #### Known issue
 
-The `rag-src/registered/` directory's retention policy is configurable via `config/ingester.toml` with a default of 30 days. Automated cleanup of `rag-src/registered/` files requires a separate design decision. See Known Issue `RAG-006` in `docs/00_governance_03_issue-and-uncertainty-management.md`.
+The `rag-src/registered/` directory's retention policy is configurable via `config/ingester.toml` with a default of 30 days. Automated cleanup of `rag-src/registered/` files requires a separate design decision. See Known Issue `RAG-006` in `docs/governance_03_issue-and-uncertainty-management.md`.
 
 ---
 
@@ -206,7 +206,7 @@ Troubleshooting:
 | Constraint | Value | Source |
 |---|---|---|
 | Language Detection | CJK ratio ≥ 0.10 → `ja`; otherwise `en`; fallback to hint if < 100 chars | `crawler.py` |
-| Chunk Size | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale for the specific bounds tracked as unresolved in NC-034 (`docs/00_governance_03_issue-and-uncertainty-management.md`). | `config/chunk_splitter.toml` |
+| Chunk Size | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale for the specific bounds tracked as unresolved in NC-034 (`docs/governance_03_issue-and-uncertainty-management.md`). | `config/chunk_splitter.toml` |
 | Chunk Overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale tracked as unresolved in NC-034. | `config/chunk_splitter.toml` |
 | Embedding Dimension | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB | `scripts/db/store_protocols.py` |
 | Crawl Depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference §1.1](03_rag_05_1-configuration-reference.md). Rationale for the specific limit tracked as unresolved in NC-035. | `config/crawler.toml` |
@@ -257,7 +257,7 @@ For details on responsibilities of these components, please refer to `docs/03_ra
 | Query Pipeline (API, Stage Details) | [03_rag_03_01_query_pipeline-overview.md](03_rag_03_01_query_pipeline-overview.md) |
 | DB Schema, Type Definitions | [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md) |
 | Config, Execution Commands, Logs | [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md) |
-| Known Bugs and Inconsistencies | [00_governance_03_issue-and-uncertainty-management.md](00_governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG) |
+| Known Bugs and Inconsistencies | [governance_03_issue-and-uncertainty-management.md](governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG) |
 
 ## Related Documents
 

@@ -6,7 +6,7 @@ tags:
   - governance
   - reference
 related:
-  - ../00_governance/00_governance_01_documentation-policy.md
+  - ../00_governance/governance_01_documentation-policy.md
 ---
 
 # ADR-015: Reference Document Class Disposition
@@ -27,7 +27,7 @@ Accepted後に現在の判断を変更する場合は、本ADR本文を直接更
 
 ## Summary
 
-`docs/00_governance_01_documentation-policy.md`'s Document Classification defines a "Reference" class (API/command/configuration reference material), but a proposed documentation-slimming policy's mechanical-content removal criteria conflict with hand-written Reference documents by design — their entire content is exactly the kind of code-derivable listing the policy wants removed. This ADR recommends treating Reference-class documents as generated artifacts (Option B), produced from source code via `tools/generate_reference_table.py`, rather than retiring the class or accepting continued drift.
+`docs/governance_01_documentation-policy.md`'s Document Classification defines a "Reference" class (API/command/configuration reference material), but a proposed documentation-slimming policy's mechanical-content removal criteria conflict with hand-written Reference documents by design — their entire content is exactly the kind of code-derivable listing the policy wants removed. This ADR recommends treating Reference-class documents as generated artifacts (Option B), produced from source code via `tools/generate_reference_table.py`, rather than retiring the class or accepting continued drift.
 
 ## Context
 
@@ -59,7 +59,7 @@ Adopt **Option B**: Reference-class documents are treated as generated artifacts
 
 ### Scope
 
-Applies to any `docs/*.md` document classified `class: Reference` per `docs/00_governance_01_documentation-policy.md`'s Document Classification, once tooling exists to generate its content.
+Applies to any `docs/*.md` document classified `class: Reference` per `docs/governance_01_documentation-policy.md`'s Document Classification, once tooling exists to generate its content.
 
 ### Out of Scope
 
@@ -115,7 +115,7 @@ Agent (`docs/05_agent_13_reference-api.md`) and EventBus (`docs/24_eventbus_10_r
 have both been migrated to generated Reference-class status under Option B.
 
 Memory migration target document(s) remain unresolved — see
-`docs/00_governance_03_issue-and-uncertainty-management.md` NC-038.
+`docs/governance_03_issue-and-uncertainty-management.md` NC-038.
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -141,11 +141,11 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - **Approval Date**: 2026-09-19
 - **Approval Reference**: Reviewed and approved via chat (Claude Code session llmagent-73), content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
 
-This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance_01_documentation-policy.md`) — not the task-level fallback path.
+This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/governance_01_documentation-policy.md`) — not the task-level fallback path.
 
 ## Related Documents
 
-- [Documentation Policy](../00_governance/00_governance_01_documentation-policy.md) — Document Classification, ADR Section Header Standardization, ADR Acceptance Evidence Standard
+- [Documentation Policy](../00_governance/governance_01_documentation-policy.md) — Document Classification, ADR Section Header Standardization, ADR Acceptance Evidence Standard
 - `tools/generate_reference_table.py` — existing Option B precedent (rag/mcp/deployment generators)
 - `tools/check_docs_content_policy.py` — `GV-021`'s guard-comment exemption, currently mismatched against the real guard format (tracked separately)
 - `plans/done/20260919-105034_plan.md` — the gated follow-up extending `tools/generate_reference_table.py` to Agent/EventBus/Memory

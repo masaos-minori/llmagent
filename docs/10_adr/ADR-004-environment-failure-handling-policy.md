@@ -459,7 +459,7 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 起動検証結果の非永続化については`## Rationale`の「6. 起動検証結果の非永続化」を参照。
 
 MCPサーバー到達不能時の再試行方針（固定単発再試行が意図的な簡素化か、設定可能な汎用Retry Policyが
-未実装なだけかの区別）については`docs/00_governance_03_issue-and-uncertainty-management.md`の
+未実装なだけかの区別）については`docs/governance_03_issue-and-uncertainty-management.md`の
 NC-037を参照。
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
@@ -533,7 +533,7 @@ NC-037を参照。
 - **Expected Design**: コンポーネントの必須性が未定義または判定不能な場合、非必須であると仮定せず、未解決の設計上または設定上の誤りとして扱う（Decision #12、INV-14）。
 - **Observed Implementation**: `McpServerConfig.required`は`True`をデフォルト値とする（`scripts/shared/mcp_config.py:95`）ため、未指定の必須性が暗黙に非必須として扱われることはない。ただし、このデフォルト値の安全性を検証する自動テストは存在せず、「必須性が明示的に設定されなかった」こと自体を独立した設計/設定上の誤りとして検出する経路も存在しない。
 - **Impact**: テストが存在しないため、将来`required`のデフォルト値が変更された場合（例: `False`へ）、INV-14への違反を検知する自動チェックがない。
-- **Recommended Action**: `docs/00_governance_03_issue-and-uncertainty-management.md`の`CI-016`として登録済み。`McpServerConfig.required`のデフォルト値が`True`であることを検証する単体テスト、および/または未定義の必須性を持つコンポーネントが非必須としてRoutingされないことを検証するテストの追加を推奨する。
+- **Recommended Action**: `docs/governance_03_issue-and-uncertainty-management.md`の`CI-016`として登録済み。`McpServerConfig.required`のデフォルト値が`True`であることを検証する単体テスト、および/または未定義の必須性を持つコンポーネントが非必須としてRoutingされないことを検証するテストの追加を推奨する。
 - **Owner**: Unassigned
 - **Status**: open
 - **Resolution Target**: `McpServerConfig.required`のデフォルト値および未定義必須性の扱いに対する単体テストの追加
@@ -570,7 +570,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
 - **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
-- **Approval Reference**: `docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
 本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
 
@@ -595,7 +595,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/00_governance_03_issue-and-uncertainty-management.md) — ADR-004関連のKnown Issue（CI-016）
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — ADR-004関連のKnown Issue（CI-016）
 
 ### Implementation References
 
@@ -624,6 +624,6 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] 既存ADRとの関係が記載されている
 - [x] 関係するSpecificationと矛盾していない（コンポーネント必須性分類を記録するSpecificationが整備済み）
 - [x] 現行実装との差異がKnown Issueへ登録されている（`CI-016`として登録済み、`## Known Deviations`参照）
-- [x] Ownerと必要なReviewerが定義されている（`docs/00_governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
+- [x] Ownerと必要なReviewerが定義されている（`docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
 - [x] Review Triggersが記載されている
 - [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）

@@ -91,7 +91,7 @@ base classes.
 #### Known hierarchy deviation
 
 Tracked as Known Issue CI-018 in
-`docs/00_governance_03_issue-and-uncertainty-management.md`. `RagRerankError`
+`docs/governance_03_issue-and-uncertainty-management.md`. `RagRerankError`
 and `RagPipelineError` are defined outside `scripts/rag/exceptions.py` (in
 `llm_prompts.py` and `pipeline.py` respectively), inheriting from `RuntimeError` rather
 than `RagLayerError`. This fragmentation arose from three independent refactoring efforts

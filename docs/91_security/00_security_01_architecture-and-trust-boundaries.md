@@ -10,7 +10,7 @@ tags:
   - audit
 related:
   - 00_security_02_high-risk-tool-common-policy.md
-  - 00_governance_01_documentation-policy.md
+  - governance_01_documentation-policy.md
   - 04_mcp_05_01_access-control-and-allowlists.md
   - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - 05_agent_06_01_tool-execution-and-approval-execution.md
@@ -304,7 +304,7 @@ and remains in effect as defense-in-depth.
 ## Related Documents
 
 - `00_security_02_high-risk-tool-common-policy.md`
-- `00_governance_01_documentation-policy.md`
+- `governance_01_documentation-policy.md`
 - `04_mcp_05_01_access-control-and-allowlists.md`
 - `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `05_agent_06_01_tool-execution-and-approval-execution.md`

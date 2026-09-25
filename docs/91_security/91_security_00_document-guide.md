@@ -40,7 +40,7 @@ See [System Security Architecture and Trust Boundaries](00_security_01_architect
 
 ## Known Issues / Deferred Items
 
-Known limitations, specification gaps, and pending items are centrally managed in `00_governance_03_issue-and-uncertainty-management.md`. Do not duplicate them in individual chapters.
+Known limitations, specification gaps, and pending items are centrally managed in `governance_03_issue-and-uncertainty-management.md`. Do not duplicate them in individual chapters.
 
 ## Reference API
 
