@@ -19,9 +19,10 @@ This document consolidates metadata conventions for AI agents to select relevant
 The following four metadata fields are required in every document's front matter:
 
 - **title** — Document title
-- **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/adr/`) and security documents (`docs/00_security_*.md`) use `area: governance` — resolved 2026-09-14 (`NC-030`) rather than carrying their own top-level values, since both are cross-cutting governance/policy content rather than a distinct runtime area. The sole category-style field — `category` is not a valid front-matter key.
+- **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/adr/`) and security documents (`docs/00_security_*.md`) use `area: governance` — resolved 2026-09-14 (`NC-030`) rather than carrying their own top-level values, since both are cross-cutting governance/policy content rather than a distinct runtime area.
 - **tags** — Keywords describing the document content
 - **related** — Links to related documents
+- **category** — Not a valid front-matter key. Do not use this field.
 
 `keywords` is not a front-matter key. Every document instead uses a `## Keywords` body-section heading — see `tools/check_docs_structure.py`'s own check, which looks for that heading, not a front-matter key.
 
