@@ -56,10 +56,10 @@ Seq 02 (the file's own move, a prerequisite).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: no test code applies to a docs link fix; validation is `tools/check_docs_structure.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row's own edit IS the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260925-072954 | 20260925-072954 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260925-072957 | 20260925-072957 | N/A: no test code applies to a docs link fix; validation is `tools/check_docs_structure.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260925-073001 | 20260925-073001 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260925-073004 | 20260925-073004 | N/A: this row's own edit IS the documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

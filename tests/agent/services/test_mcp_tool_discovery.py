@@ -840,6 +840,7 @@ class TestDiscoverAllCrossProfileEquivalence:
             url="http://127.0.0.1:9000",
             required=required_value,
             auth_token="test-token",
+            startup_mode=StartupMode.PERSISTENT,
         )
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
@@ -1407,7 +1408,9 @@ async def test_malformed_capabilities_produces_warning_not_fatal() -> None:
 
 
 @pytest.mark.asyncio
-async def test_malformed_capabilities_produces_warning_for_non_required_server() -> None:
+async def test_malformed_capabilities_produces_warning_for_non_required_server() -> (
+    None
+):
     """Verify WARNING (not FATAL) when server has required=False."""
     http = AsyncMock(spec=httpx.AsyncClient)
     http.get = _async_result(

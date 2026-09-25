@@ -122,7 +122,7 @@ Critical constraint: `orjson.dumps()` returns `bytes` (`not str`). If a `str` is
 | `workflow.sqlite` | Workflow engine task tracking |
 | `eventbus.sqlite` | Event Bus event/offset/delivery/DLQ state |
 
-All four databases use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only for `rag.sqlite` (target=`"rag"`). See [ADR-008](adr/ADR-008-sqlite-4db-separation.md) for the rationale behind the separation.
+All four databases use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only for `rag.sqlite` (target=`"rag"`). See [ADR-008](../adr/ADR-008-sqlite-4db-separation.md) for the rationale behind the separation.
 
 ---
 

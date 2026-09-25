@@ -55,10 +55,10 @@ Seq 06 (the linked file's own move, a prerequisite for the link to resolve); any
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: no test code applies to a docs link fix; validation is `tools/check_docs_structure.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row's own edit IS the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260925-085424 | 20260925-085424 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260925-085428 | 20260925-085428 | N/A: no test code applies to a docs link fix; validation is `tools/check_docs_structure.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260925-085432 | 20260925-085432 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260925-085435 | 20260925-085435 | N/A: this row's own edit IS the documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -183,7 +183,7 @@ async def test_required_mcp_failure_aborts_startup() -> None:
     unreachable_cfg = McpServerConfig(
         transport=TransportType.HTTP,
         url="http://127.0.0.1:1",
-        startup_mode=StartupMode.NONE,
+        startup_mode=StartupMode.PERSISTENT,
         required=True,
         auth_token="test-token",
     )
@@ -224,7 +224,7 @@ async def test_optional_mcp_failure_disables_only_that_tool() -> None:
     optional_cfg = McpServerConfig(
         transport=TransportType.HTTP,
         url="http://127.0.0.1:1",
-        startup_mode=StartupMode.NONE,
+        startup_mode=StartupMode.PERSISTENT,
         required=False,
         auth_token="test-token",
     )

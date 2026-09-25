@@ -68,10 +68,10 @@ Deduplicating the repeated `# Fixtures` block itself; seq 04 (the linked file's 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: this row edits the test fixture itself; no additional test is added |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row's own edit is a test-fixture fix, not a documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260925-090658 | 20260925-090658 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260925-090702 | 20260925-090702 | N/A: this row edits the test fixture itself; no additional test is added |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260925-090705 | 20260925-090705 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260925-090709 | 20260925-090709 | N/A: this row's own edit is a test-fixture fix, not a documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

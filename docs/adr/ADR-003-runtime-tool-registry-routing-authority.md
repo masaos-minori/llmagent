@@ -461,7 +461,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - [04_mcp_03_02_tool-registry.md](../04_mcp_03_02_tool-registry.md) — Tool Registry Reference
 - [04_mcp_03_06_tool-runtime-availability-metadata.md](../04_mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Availability Metadata
 - [05_agent_06_01_tool-execution-and-approval-execution.md](../05_agent_06_01_tool-execution-and-approval-execution.md) — Agent Tool Execution
-- [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](../90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime
+- [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](../40_shared/90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime
 
 ### Operations
 
