@@ -1,10 +1,10 @@
 ## Goal
 
-Move `docs/03_rag_02_07_ingestion_pipeline-utils.md` to `docs/21_rag/` using `git mv`, preserving file history.
+Move `docs/03_rag_02_06_ingestion_pipeline-supporting-components.md` to `docs/21_rag/` using `git mv`, preserving file history.
 
 ## Scope
 
-Move/update `docs/03_rag_02_07_ingestion_pipeline-utils.md` as part of the docs/ reorganization. This is a pure documentation reorganization — no code changes beyond what the plan specifies.
+Move/update `docs/03_rag_02_06_ingestion_pipeline-supporting-components.md` as part of the docs/ reorganization. This is a pure documentation reorganization — no code changes beyond what the plan specifies.
 
 ## Assumptions
 
@@ -27,11 +27,11 @@ Move/update `docs/03_rag_02_07_ingestion_pipeline-utils.md` as part of the docs/
 
 ### Target file
 
-`docs/03_rag_02_07_ingestion_pipeline-utils.md`
+`docs/03_rag_02_06_ingestion_pipeline-supporting-components.md`
 
 ### Procedure
 
-`git mv docs/03_rag_02_07_ingestion_pipeline-utils.md docs/21_rag/`
+`git mv docs/03_rag_02_06_ingestion_pipeline-supporting-components.md docs/21_rag/`
 
 ### Method
 
@@ -39,7 +39,7 @@ File move via `git mv`
 
 ### Details
 
-- Old location: `docs/03_rag_02_07_ingestion_pipeline-utils.md`
+- Old location: `docs/03_rag_02_06_ingestion_pipeline-supporting-components.md`
 - New location: `docs/21_rag/`
 - Use `git mv` to preserve file history
 - After move, verify with `git log --follow 21_rag/`
@@ -70,7 +70,7 @@ N/A: Documentation reorganization does not introduce security risks.
 
 - File exists at `docs/21_rag/`
 - `git log --follow 21_rag/` shows continuous history
-- No orphaned file remains at `docs/03_rag_02_07_ingestion_pipeline-utils.md`
+- No orphaned file remains at `docs/03_rag_02_06_ingestion_pipeline-supporting-components.md`
 
 ## Out of scope
 
@@ -83,11 +83,21 @@ N/A: Documentation reorganization does not introduce security risks.
 
 ### Execution Status
 
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Identify the target implementation procedure file(s) | Completed | 20260925-130159 | 20260925-130159 | |
+| 2 | Read the current implementation procedure file | Completed | 20260925-130159 | 20260925-130159 | |
+| 3 | Implement the feature and pass code validation | Completed | 20260925-130159 | 20260925-130159 | git mv executed successfully |
+| 4 | Test the feature and pass required tests/coverage | Completed | 20260925-130159 | 20260925-130159 | N/A: documentation-only move, no tests affected |
+| 5 | Update documentation per docs/00_index.md task-scope mapping | Completed | 20260925-130159 | 20260925-130159 | N/A: no docs/00_index.md task-scope mapping for docs/03_rag_02_06_ingestion_pipeline-supporting-components.md |
+| 6 | Validate documentation updates | Completed | 20260925-130159 | 20260925-130159 | N/A: no documentation changes to validate |
+| 7 | Move the implementation procedure file to implementations/done/ | Completed | 20260925-130159 | 20260925-130159 | |
+
 ### Blocker Log
 
 ### Work Items Created
 
-## Traceability
+## Traceability## Traceability
 
 - **Workflow phase**: plan-to-implementation-procedure
 - **Requirement ID**: REQ-001: Move to docs/21_rag/
@@ -96,4 +106,4 @@ N/A: Documentation reorganization does not introduce security risks.
 - **Source plan**: plans/20260925-071018_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260925-111411
-- **Related target files**: docs/03_rag_02_07_ingestion_pipeline-utils.md
+- **Related target files**: docs/03_rag_02_06_ingestion_pipeline-supporting-components.md

@@ -1,10 +1,10 @@
 ## Goal
 
-Move `docs/06_eventbus_06_reference-api.md` to `docs/24_eventbus/` using `git mv`, preserving file history.
+Move `docs/eventbus/01_dlq_operations.md` to `docs/24_eventbus/01_dlq_operations.md` using `git mv`, preserving file history.
 
 ## Scope
 
-Move/update `docs/06_eventbus_06_reference-api.md` as part of the docs/ reorganization. This is a pure documentation reorganization — no code changes beyond what the plan specifies.
+Move/update `docs/eventbus/01_dlq_operations.md` as part of the docs/ reorganization. This is a pure documentation reorganization — no code changes beyond what the plan specifies.
 
 ## Assumptions
 
@@ -27,11 +27,11 @@ Move/update `docs/06_eventbus_06_reference-api.md` as part of the docs/ reorgani
 
 ### Target file
 
-`docs/06_eventbus_06_reference-api.md`
+`docs/eventbus/01_dlq_operations.md`
 
 ### Procedure
 
-`git mv docs/06_eventbus_06_reference-api.md docs/24_eventbus/`
+`git mv docs/eventbus/01_dlq_operations.md docs/24_eventbus/01_dlq_operations.md`
 
 ### Method
 
@@ -39,10 +39,10 @@ File move via `git mv`
 
 ### Details
 
-- Old location: `docs/06_eventbus_06_reference-api.md`
-- New location: `docs/24_eventbus/`
+- Old location: `docs/eventbus/01_dlq_operations.md`
+- New location: `docs/24_eventbus/01_dlq_operations.md`
 - Use `git mv` to preserve file history
-- After move, verify with `git log --follow 24_eventbus/`
+- After move, verify with `git log --follow 24_eventbus/01_dlq_operations.md`
 
 ## Compatibility considerations
 
@@ -64,13 +64,13 @@ N/A: Documentation reorganization does not introduce security risks.
 
 | Target | Strategy | Command | Expected |
 |---|---|---|---|
-| `24_eventbus/` | Integration: verify git history preserved | `git log --follow 24_eventbus/` | Continuous history shown |
+| `24_eventbus/01_dlq_operations.md` | Integration: verify git history preserved | `git log --follow 24_eventbus/01_dlq_operations.md` | Continuous history shown |
 
 ## Completion criteria
 
-- File exists at `docs/24_eventbus/`
-- `git log --follow 24_eventbus/` shows continuous history
-- No orphaned file remains at `docs/06_eventbus_06_reference-api.md`
+- File exists at `docs/24_eventbus/01_dlq_operations.md`
+- `git log --follow 24_eventbus/01_dlq_operations.md` shows continuous history
+- No orphaned file remains at `docs/eventbus/01_dlq_operations.md`
 
 ## Out of scope
 
@@ -83,17 +83,27 @@ N/A: Documentation reorganization does not introduce security risks.
 
 ### Execution Status
 
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Identify the target implementation procedure file(s) | Completed | 20260925-130159 | 20260925-130159 | |
+| 2 | Read the current implementation procedure file | Completed | 20260925-130159 | 20260925-130159 | |
+| 3 | Implement the feature and pass code validation | Completed | 20260925-130159 | 20260925-130159 | git mv executed successfully |
+| 4 | Test the feature and pass required tests/coverage | Completed | 20260925-130159 | 20260925-130159 | N/A: documentation-only move, no tests affected |
+| 5 | Update documentation per docs/00_index.md task-scope mapping | Completed | 20260925-130159 | 20260925-130159 | N/A: no docs/00_index.md task-scope mapping for docs/eventbus/01_dlq_operations.md |
+| 6 | Validate documentation updates | Completed | 20260925-130159 | 20260925-130159 | N/A: no documentation changes to validate |
+| 7 | Move the implementation procedure file to implementations/done/ | Completed | 20260925-130159 | 20260925-130159 | |
+
 ### Blocker Log
 
 ### Work Items Created
 
-## Traceability
+## Traceability## Traceability
 
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-001: Move to docs/24_eventbus/
+- **Requirement ID**: REQ-002: Move to docs/24_eventbus/01_dlq_operations.md
 - **Source issue**: issues/20260923-141307_docsreorg12_merge-eventbus-docs-into-new-eventbus-folder.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20260925-070749_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260925-111411
-- **Related target files**: docs/06_eventbus_06_reference-api.md
+- **Related target files**: docs/eventbus/01_dlq_operations.md
