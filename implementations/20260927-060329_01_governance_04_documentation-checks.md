@@ -134,10 +134,10 @@ Rollback is straightforward: restore the original list items (4. GV-007, 6. GV-0
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove GV-007, GV-009, GV-015 entries from "Follow-up Work Needed" list | Pending | — | — | REQ-001, REQ-002, REQ-003 |
-| 2 | Renumber the ordered list so numbering is contiguous | Pending | — | — | REQ-004 |
-| 3 | Verify remaining list items correspond to Missing/Partial matrix rows | Pending | — | — | REQ-005 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Remove GV-007, GV-009, GV-015 entries from "Follow-up Work Needed" list | Completed | — | — | REQ-001, REQ-002, REQ-003 |
+| 2 | Renumber the ordered list so numbering is contiguous | Completed | — | — | REQ-004 |
+| 3 | Verify remaining list items correspond to Missing/Partial matrix rows | Completed | — | — | REQ-005 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
