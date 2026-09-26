@@ -15,46 +15,48 @@ source:
 
 # 6.5 models_config.py (`scripts/rag/models_config.py`)
 
-**MqeConfig** — MQE query expansion settings.
+`RagConfigImpl` is the concrete implementation of the `RagConfig` Protocol, defining the flat configuration contract for the RAG pipeline. It contains 28 fields covering MQE query expansion, search, reranking, refiner, LLM/embedding service URLs, database paths, and retry/workers configuration. All fields are required (no defaults).
 
-See `MqeConfig` in `scripts/rag/models_config.py` for exact fields, types, and
-defaults.
+| Field | Type | Description |
+|---|---|---|
+| use_mqe | bool | Enable multi-query expansion |
+| top_k_search | int | Number of results from search |
+| use_rerank | bool | Enable cross-encoder reranking |
+| rag_top_k | int | Number of results after reranking |
+| max_chunks_per_doc | int | Maximum chunks per document |
+| top_k_rerank | int | Number of results before reranking |
+| rag_min_score | float | Minimum score threshold |
+| use_rrf | bool | Enable reciprocal rank fusion |
+| rrf_k | int | RRF parameter k |
+| use_search | bool | Enable search functionality |
+| rag_service_url | str | RAG service URL |
+| rag_auth_token | str \| None | Authentication token |
+| use_refiner | bool | Enable document refiner |
+| refiner_max_tokens | int | Maximum tokens for refiner |
+| refiner_max_chars_per_chunk | int | Maximum characters per chunk |
+| refiner_timeout | float | Refiner timeout in seconds |
+| llm_url | str | LLM service URL |
+| embed_url | str | Embedding service URL |
+| rag_db_path | str | Path to RAG database |
+| sqlite_vec_so | str | Path to sqlite-vec extension |
+| sqlite_timeout | int | SQLite timeout |
+| sqlite_busy_timeout_ms | int | SQLite busy timeout in milliseconds |
+| embed_retry | int | Embedding retry count |
+| embed_workers | int | Embedding worker count |
+| rag_pipeline_service_url | str \| None | Pipeline service URL |
+| mqe_prompt_template | str | MQE prompt template |
+| mqe_n_queries | int | Number of MQE queries |
+| rerank_prompt_template | str | Rerank prompt template |
 
-**FusionConfig** — RRF fusion settings.
+Note: All fields are required — no default values are specified in the dataclass.
 
-See `FusionConfig` in `scripts/rag/models_config.py` for exact fields, types, and
-defaults.
+## RagConfig Protocol
 
-**RerankConfig** — Cross-encoder reranking settings.
-
-See `RerankConfig` in `scripts/rag/models_config.py` for exact fields, types, and
-defaults.
-
-**SearchConfig** — Search settings.
-
-See `SearchConfig` in `scripts/rag/models_config.py` for exact fields, types, and
-defaults.
-
-**ChunkSplitterConfig** — Chunk splitting settings.
-
-See `ChunkSplitterConfig` in `scripts/rag/models_config.py` for exact fields, types,
-and defaults.
-
-**IngesterConfig** — Ingestion settings.
-
-See `IngesterConfig` in `scripts/rag/models_config.py` for exact fields, types, and
-defaults.
-
-**PipelineConfig** — Top-level pipeline configuration. Includes nested configurations for each stage.
-
-See `PipelineConfig` in `scripts/rag/models_config.py` for exact fields — its 4
-fields are the `MqeConfig`/`FusionConfig`/`RerankConfig`/`SearchConfig` DTOs
-described above, not independent primitive fields.
+`RagConfigImpl` implements the `RagConfig` Protocol defined in `scripts/shared/types.py`. Any object satisfying these 28 fields can be passed to `RagPipeline` without importing agent-layer classes into the RAG layer. This is NOT a file-format DTO; config file DTOs live in `mcp_servers.rag_pipeline.models.RagPipelineConfig` (MCP TOML) and `rag.models_config.*` (ingestion TOML).
 
 ## Implementation Notes
 
-See Known Issue CI-017 in `docs/governance_03_issue-and-uncertainty-management.md`
-for the documented-dataclasses-vs-actual-runtime-contract mismatch tracked for this file.
+CI-017 has been resolved — the legacy per-stage config dataclasses (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) have been replaced by `RagConfigImpl`.
 
 ## Related Documents
 
@@ -65,4 +67,4 @@ for the documented-dataclasses-vs-actual-runtime-contract mismatch tracked for t
 
 dto
 data-model
-unused-dto
+rag-config
