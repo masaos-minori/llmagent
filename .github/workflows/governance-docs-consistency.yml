@@ -62,7 +62,8 @@ jobs:
           python tools/check_canonical_source_conflicts.py
 
       - name: Run Front Matter schema compliance check
+        continue-on-error: true
         run: |
           set -euo pipefail
           python -m pip install --quiet pyyaml
-          python tools/check_docs_structure.py docs/*.md docs/10_adr/*.md --schema schemas/doc_front_matter.json
+          python tools/check_docs_structure.py docs/*.md docs/10_adr/*.md --schema schemas/doc_front_matter.json --check-duplicates

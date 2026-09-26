@@ -295,7 +295,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-005 | Existence of Related Documents | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-006 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
-| GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Missing | Implement |
+| GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-008 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | Implement |
 | GV-009 | Needs Confirmation owner and deadline | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Missing | Implement |
 | GV-011 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
