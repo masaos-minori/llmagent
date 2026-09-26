@@ -6,13 +6,13 @@ tags:
   - server-catalog
   - git
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_04_01_web-search-file-read-github.md
-  - 04_mcp_04_02_file-write-file-delete-shell.md
-  - 04_mcp_04_03_rag-pipeline-and-cicd.md
-  - 04_mcp_04_04_mdq.md
-  - 00_security_02_high-risk-tool-common-policy.md
-  - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - mcp_00_document-guide.md
+  - mcp_04_01_web-search-file-read-github.md
+  - mcp_04_02_file-write-file-delete-shell.md
+  - mcp_04_03_rag-pipeline-and-cicd.md
+  - mcp_04_04_mdq.md
+   - ../91_security/security_02_high-risk-tool-common-policy.md
+  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - governance_03_issue-and-uncertainty-management.md
 ---
 
@@ -29,7 +29,7 @@ related:
 
 All tools require configuration (`config_dependent: true`).
 
-Git server's `enabled`/`disabled_reason` calculation: If `allowed_repo_paths` is empty, it is prioritized for disabling (reason `"allowed_repo_paths is empty"`). Otherwise, if `read_only=true`, only write tools are disabled (reason `"read_only=true"`). See [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) for details.
+Git server's `enabled`/`disabled_reason` calculation: If `allowed_repo_paths` is empty, it is prioritized for disabling (reason `"allowed_repo_paths is empty"`). Otherwise, if `read_only=true`, only write tools are disabled (reason `"read_only=true"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
 ### Availability metadata
 

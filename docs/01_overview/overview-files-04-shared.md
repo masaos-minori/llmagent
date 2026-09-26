@@ -59,7 +59,6 @@ Config Drift defaults to warnings, raises RuntimeError if `routing_drift_strict`
 ## Related Documents
 
 - `overview-files-04-shared.md`
-- [01_overview.md](01_overview.md)
 
 ## Keywords
 

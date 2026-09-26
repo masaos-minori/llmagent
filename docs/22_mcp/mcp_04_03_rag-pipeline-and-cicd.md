@@ -7,11 +7,11 @@ tags:
   - rag-pipeline
   - cicd
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_04_01_web-search-file-read-github.md
-  - 04_mcp_04_02_file-write-file-delete-shell.md
-  - 04_mcp_04_04_mdq.md
-  - 04_mcp_04_05_git.md
+  - mcp_00_document-guide.md
+  - mcp_04_01_web-search-file-read-github.md
+  - mcp_04_02_file-write-file-delete-shell.md
+  - mcp_04_04_mdq.md
+  - mcp_04_05_git.md
 ---
 
 # MCP Server Catalog: rag-pipeline-mcp / cicd-mcp
@@ -67,7 +67,7 @@ related:
 
 ## cicd-mcp 
 
-See also: [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing cicd-mcp as a high-risk tool.
+See also: [00_security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing cicd-mcp as a high-risk tool.
 
 **Purpose:** GitHub Actions workflow management.
 **Startup Mode:** persistent (HTTP)
@@ -83,7 +83,7 @@ See also: [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-r
 | `get_workflow_status` | READ_ONLY | `{repo, run_id}` | yes |
 | `get_workflow_logs` | READ_ONLY | `{repo, run_id}` | yes |
 
-The git-mcp server's `enabled`/`disabled_reason` calculation logic ("workflow_allowlist is empty", etc.) is reserved for future use only. As planned in requirement 15, cicd/shell implementations are excluded. See [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) for details.
+The git-mcp server's `enabled`/`disabled_reason` calculation logic ("workflow_allowlist is empty", etc.) is reserved for future use only. As planned in requirement 15, cicd/shell implementations are excluded. See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
 **Security:**
 - `repo_allowlist`: fail-closed (empty = reject all; logs a warning at startup)

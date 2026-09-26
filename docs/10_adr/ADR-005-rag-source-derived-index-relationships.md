@@ -399,15 +399,15 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [RAG Data Model](/home/sugimoto/llmagent/docs/21_rag/rag_04_01_dto-models_data.md) — データモデル定義
-- [RAG Consistency Checks](/home/sugimoto/llmagent/docs/21_rag/rag_05_7-rag-index-consistency-checks.md) — 整合性チェック手順
-- [RAG MCP Internal Operations](/home/sugimoto/llmagent/docs/21_rag/rag_05_8-rag-mcp-internal-operations-direct-db-access.md) — MCP内部操作
-- [DB Schema Reference](/home/sugimoto/llmagent/docs/41_db/db_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
-- [Ingestion Pipeline Overview](../rag_02_01_ingestion_pipeline-overview_00_document-guide.md) — インジェクション概要
-- [Ingestion Pipeline - Ingester](/home/sugimoto/llmagent/docs/21_rag/rag_02_04_ingestion_pipeline-ingester.md) — Ingester詳細
-- [Ingestion Pipeline - Crawler](/home/sugimoto/llmagent/docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md) — Crawler詳細
-- [Ingestion Pipeline - ChunkSplitter](/home/sugimoto/llmagent/docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md) — ChunkSplitter詳細
-- [Configuration Reference](/home/sugimoto/llmagent/docs/21_rag/rag_05_1-configuration-reference.md) — 設定参照
+- [RAG Data Model](../21_rag/rag_04_01_dto-models_data.md) — データモデル定義
+- [RAG Consistency Checks](../21_rag/rag_05_7-rag-index-consistency-checks.md) — 整合性チェック手順
+- [RAG MCP Internal Operations](../21_rag/rag_05_8-rag-mcp-internal-operations-direct-db-access.md) — MCP内部操作
+- [DB Schema Reference](../41_db/db_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
+- [Ingestion Pipeline Overview](../21_rag/rag_02_01_ingestion_pipeline-overview.md) — インジェクション概要
+- [Ingestion Pipeline - Ingester](../21_rag/rag_02_04_ingestion_pipeline-ingester.md) — Ingester詳細
+- [Ingestion Pipeline - Crawler](../21_rag/rag_02_02_ingestion_pipeline-crawler.md) — Crawler詳細
+- [Ingestion Pipeline - ChunkSplitter](../21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md) — ChunkSplitter詳細
+- [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — 設定参照
 
 ### Operations
 

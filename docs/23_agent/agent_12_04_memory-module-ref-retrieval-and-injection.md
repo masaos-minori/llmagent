@@ -12,8 +12,8 @@ related:
 ---
 # Memory Layer — Module Reference: Retrieval and Injection
 
-- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md]()agent_10_01_operations-and-observability-startup-and-health.md
-- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md]()agent_08_03_configuration-tools-memory.md
+- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
+- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
 
 ## Purpose
 

@@ -5,10 +5,10 @@ tags:
   - rag
   - configuration
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_05_1-configuration-reference.md
+  - rag_00_document-guide.md
+  - rag_05_1-configuration-reference.md
 source:
-  - 03_rag_05_1-configuration-reference.md
+  - rag_05_1-configuration-reference.md
 ---
 
 
@@ -37,7 +37,7 @@ whether this is a deliberate scope decision or unfinished work is tracked as
 
 ## Related Documents
 
-- [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
 
 ## Keywords
 

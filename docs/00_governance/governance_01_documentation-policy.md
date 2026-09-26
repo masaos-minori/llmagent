@@ -5,7 +5,7 @@ tags:
   - governance
 related:
   - ../00_index.md
-  - overview_00_document-guide.md
+  - ../01_overview/overview_00_document-guide.md
 ---
 
 # Documentation Policy
@@ -63,7 +63,7 @@ The Claim Type Taxonomy resolves canonical authority at the level of individual 
 
 ### architecture-decision
 
-An adopted architectural decision documented in an accepted ADR (`docs/adr/ADR-{NNN}-*.md`). Boundary against `functional-requirement`: an architecture-decision may constrain how a requirement is implemented but does not itself define what the requirement specifies.
+An adopted architectural decision documented in an accepted ADR (`docs/10_adr/ADR-{NNN}-*.md`). Boundary against `functional-requirement`: an architecture-decision may constrain how a requirement is implemented but does not itself define what the requirement specifies.
 
 ### functional-requirement
 
@@ -117,7 +117,7 @@ A claim whose truth has not yet been verified through evidence. Canonical source
 
 | Claim type | Definition | Canonical source kind | Auxiliary evidence | Conflict destination | Notes or constraints |
 |------------|-----------|----------------------|--------------------|---------------------|---------------------|
-| architecture-decision | Adopted architectural decision in accepted ADR | `docs/adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues | Does not grant code authority over adopted design (AC4) |
+| architecture-decision | Adopted architectural decision in accepted ADR | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues | Does not grant code authority over adopted design (AC4) |
 | functional-requirement | Normative requirement in Specification | `docs/{area}_*_specification.md` | Acceptance Test | Known Issues | |
 | external-behavior | Observable system behavior for external consumers | Specification + Integration Test | Runtime Log, Test | Known Issues | |
 | api-contract | Formal interface contract | Official API Schema or Contract | Integration Test | Known Issues | |
@@ -148,7 +148,7 @@ treated as the top canonical source for every kind of decision.
 
 | Decision Target | Canonical | Auxiliary Evidence | Discrepancy Registration Target |
 |-----------------|-----------|--------------------|----------------------------------|
-| Adopted Architecture Decision | `docs/adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues |
+| Adopted Architecture Decision | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues |
 | Requirements, External Behavior | `docs/{area}_*_specification.md` | Acceptance Test | Known Issues |
 | Current Runtime Behavior | Source under `scripts/`, `implementations/` | Runtime Log, Test | Known Issues |
 | Expected Behavior | `tests/` + Specification | ADR | Known Issues |

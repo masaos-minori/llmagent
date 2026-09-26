@@ -20,7 +20,7 @@ source:
 
 # Agent Operations and Observability
 
-- Configuration → [agent_08_04_configuration-mcp-approval-obs.md]()agent_08_04_configuration-mcp-approval-obs.md
+- Configuration → [agent_08_04_configuration-mcp-approval-obs.md](agent_08_04_configuration-mcp-approval-obs.md)
 
 ## Purpose
 
@@ -82,8 +82,8 @@ Expected span names:
 
 ## Related Documents
 
-- [agent_10_03_operations-and-observability-workflow-observability.md]()agent_10_03_operations-and-observability-workflow-observability.md — Workflow observability
-- [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md — Role of `session_diagnostics`
+- [agent_10_03_operations-and-observability-workflow-observability.md](agent_10_03_operations-and-observability-workflow-observability.md) — Workflow observability
+- [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) — Role of `session_diagnostics`
 - `security_01_architecture-and-trust-boundaries.md` — System architecture / trust boundaries / threat modeling / authentication & authorization / auditing / local vs production / Fail-open/Fail-closed / prompt injection responsibility boundaries
 
 (End of file - total 87 lines)

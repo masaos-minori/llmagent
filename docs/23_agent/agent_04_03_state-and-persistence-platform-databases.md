@@ -17,9 +17,9 @@ source:
 
 # Agent State and Persistence - Platform Databases
 
-- Runtime Architecture → [agent_02_runtime-architecture.md]()agent_02_runtime-architecture.md
+- Runtime Architecture → [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
 - Turn Flow → [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md)
-- Data Layer (Schema) → [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md
+- Data Layer (Schema) → [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md)
 
 ## Purpose
 
@@ -78,27 +78,27 @@ Verified Boundaries:
 
 ### StateStore Responsibility Scope
 
-`StateStore` manages tasks/attempts/approvals/artifacts in `workflow.sqlite`. See [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md for detailed method lists.
+`StateStore` manages tasks/attempts/approvals/artifacts in `workflow.sqlite`. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for detailed method lists.
 
 ### Task CRUD Operations
 
-`task_ops.py` provides CRUD operations for workflow states. See [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md for details.
+`task_ops.py` provides CRUD operations for workflow states. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
 
 ### Attempt Operations
 
-`attempt_ops.py` provides management for attempt records. See [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md for details.
+`attempt_ops.py` provides management for attempt records. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
 
 ### Approval Operations
 
-`approval_ops.py` provides management for post-execution approvals. See [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md for details.
+`approval_ops.py` provides management for post-execution approvals. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
 
 ### Artifact Operations
 
-`artifact_ops.py` provides recording of artifact references. See [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md for details.
+`artifact_ops.py` provides recording of artifact references. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
 
 ### Idempotency Operations
 
-`idempotency_ops.py` provides duplicate detection and atomic attempt initiation. See [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md for details.
+`idempotency_ops.py` provides duplicate detection and atomic attempt initiation. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
 
 ## Key Constraints
 

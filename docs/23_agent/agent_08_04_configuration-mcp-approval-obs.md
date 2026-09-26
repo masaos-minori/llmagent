@@ -12,7 +12,7 @@ source:
 
 # Agent Configuration
 
-- Operations → [agent_10_01_operations-and-observability-startup-and-health.md]()agent_10_01_operations-and-observability-startup-and-health.md
+- Operations → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
 
 ## Purpose
 
@@ -64,7 +64,7 @@ this table, per ADR-004 Decision Group 3 item 13.
 
 #### Process Isolation
 
-Each MCP server is an independent process that only reads its own configuration file. → [ADR-002](/home/sugimoto/llmagent/docs/10_adr/ADR-002-config-isolation.md)
+Each MCP server is an independent process that only reads its own configuration file. → [ADR-002](../10_adr/ADR-002-config-isolation.md)
 
 ### Approval Configuration
 
@@ -139,11 +139,11 @@ Unknown
 
 ## Related Docs
 
-- [agent_00_document-guide.md]()agent_00_document-guide.md
-- [agent_08_01_configuration-loading-agent-config.md]()agent_08_01_configuration-loading-agent-config.md
-- [agent_08_02_configuration-llm-rag.md]()agent_08_02_configuration-llm-rag.md
-- [agent_08_03_configuration-tools-memory.md]()agent_08_03_configuration-tools-memory.md
-- [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md
+- [agent_00_document-guide.md](agent_00_document-guide.md)
+- [agent_08_01_configuration-loading-agent-config.md](agent_08_01_configuration-loading-agent-config.md)
+- [agent_08_02_configuration-llm-rag.md](agent_08_02_configuration-llm-rag.md)
+- [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
+- [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md)
 - System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 - High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
 

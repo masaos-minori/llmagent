@@ -5,10 +5,10 @@ tags:
   - rag
   - configuration
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_05_1-configuration-reference.md
+  - rag_00_document-guide.md
+  - rag_05_1-configuration-reference.md
 source:
-  - 03_rag_05_1-configuration-reference.md
+  - rag_05_1-configuration-reference.md
 ---
 
 
@@ -35,7 +35,7 @@ See `delete_document()` in `scripts/mcp_servers/rag_pipeline/document_manager.py
 1. First, explicitly delete rows from `chunks_vec` (the embedding vectors corresponding to the document's chunks).
 2. Delete the row from `documents` (`ON DELETE CASCADE` handles the cascading deletion of `chunks` rows, which in turn triggers synchronization of `chunks_fts`).
 
-This order is necessary because `chunks_vec` does not have a foreign key constraint pointing to `chunks`. Explicit `DELETE` statements for the `chunks` table do not exist in the code (see [ADR-005](/home/sugimoto/llmagent/docs/10_adr/ADR-005-rag-source-derived-index-relationships.md) for details).
+This order is necessary because `chunks_vec` does not have a foreign key constraint pointing to `chunks`. Explicit `DELETE` statements for the `chunks` table do not exist in the code (see [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md) for details).
 
 ```python
 # Order matters — chunks_vec before documents (CASCADE removes chunks)
@@ -58,7 +58,7 @@ For current CLI usage, run `crawler.py --help`, `chunk_splitter.py --help`, or `
 
 ## Related Documents
 
-- [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
 
 ## Keywords
 

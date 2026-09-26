@@ -5,10 +5,10 @@ tags:
   - mcp
   - configuration
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_00_document-guide.md
+  - mcp_06_02_configuration-file-inventory.md
 source:
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_06_02_configuration-file-inventory.md
 ---
 
 # Reading Audit Logs
@@ -132,7 +132,7 @@ grep '"tool":"shell_run"' /opt/llm/logs/audit.log
 
 ## Related Documents
 
-- [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
+- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 - `security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 
 ## Keywords

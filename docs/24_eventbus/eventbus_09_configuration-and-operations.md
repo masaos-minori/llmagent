@@ -58,7 +58,7 @@ covers connection/storage settings (`port`, `db_path`, `storage_dir`, `offsets_d
 `subscriber_count`), and the fields listed individually below, each of which carries
 additional constraints or operational notes not captured by the dataclass alone. See
 that dataclass's `__post_init__()` for the exact validation rules enforced at startup,
-and `docs/adr/ADR-013-eventbus-authentication-authorization.md` for the authorization
+and `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` for the authorization
 model the token fields below implement.
 
 - `retained_event_count` — Number of events retained in SQLite for replay (default: 10000)
@@ -75,7 +75,7 @@ model the token fields below implement.
 - `subscriber_queue_maxsize` — Per-subscriber queue capacity (default: 1000)
 - `backlog_health_threshold` — Max queue depth before health endpoint reports `broker_queue_backlog_high` (default: 500)
 
-Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Startup fails unless `auth_token` or at least one of the 5 per-role tokens above is configured — see `docs/adr/ADR-013-eventbus-authentication-authorization.md` for the four-role authorization model these tokens implement.
+Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Startup fails unless `auth_token` or at least one of the 5 per-role tokens above is configured — see `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` for the four-role authorization model these tokens implement.
 
 ### Deprecated Keys
 

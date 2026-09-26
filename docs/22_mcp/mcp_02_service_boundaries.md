@@ -6,8 +6,8 @@ tags:
   - service-boundaries
   - responsibilities
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_01_tool_ownership_matrix.md
+  - mcp_00_document-guide.md
+  - mcp_01_tool_ownership_matrix.md
 ---
 
 # MCP Service Boundaries
@@ -156,7 +156,7 @@ Consolidated from retired browser-mcp server; focuses on read-only web interacti
 **Ownership rationale:**
 Comprehensive GitHub integration requires careful separation of read/write/dangerous operations for security.
 
-For authoritative tool-to-server and risk-tier mapping, see [MCP Tool Ownership Matrix](04_mcp_01_tool_ownership_matrix.md).
+For authoritative tool-to-server and risk-tier mapping, see [MCP Tool Ownership Matrix](mcp_01_tool_ownership_matrix.md).
 
 ## Key Boundary Rules
 
@@ -177,12 +177,12 @@ For authoritative tool-to-server and risk-tier mapping, see [MCP Tool Ownership 
 
 ## Unconfirmed Items
 
-- [NC-004](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md): Cross-server tool coordination protocol
+- [NC-004](../00_governance/governance_03_issue-and-uncertainty-management.md): Cross-server tool coordination protocol
 
 ## Related Documents
 
-- [MCP Documentation Guide](04_mcp_00_document-guide.md)
-- [MCP Tool Ownership Matrix](04_mcp_01_tool_ownership_matrix.md)
+- [MCP Documentation Guide](mcp_00_document-guide.md)
+- [MCP Tool Ownership Matrix](mcp_01_tool_ownership_matrix.md)
 
 ## Keywords
 

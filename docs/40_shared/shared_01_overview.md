@@ -26,7 +26,7 @@ related:
 
 # Shared and DB Layer Overview
 
-- Document guide → [shared_00_document-guide.md](/home/sugimoto/llmagent/docs/40_shared/shared_00_document-guide.md)
+- Document guide → [shared_00_document-guide.md](shared_00_document-guide.md)
 
 ## 1. Purpose
 
@@ -53,7 +53,7 @@ This document provides an overview of the `shared/` and `db/` layers. It covers 
 - LLM and embedding servers (external processes)
 - Distributed or replicated SQLite configurations
 - External vector databases (only in-process `sqlite-vec` is supported)
-- Detailed LLM communication protocols (handled in [agent_05_llm-and-streaming.md]()agent_05_llm-and-streaming.md)
+- Detailed LLM communication protocols (handled in [agent_05_llm-and-streaming.md](agent_05_llm-and-streaming.md))
 
 ---
 
@@ -122,7 +122,7 @@ Critical constraint: `orjson.dumps()` returns `bytes` (`not str`). If a `str` is
 | `workflow.sqlite` | Workflow engine task tracking |
 | `eventbus.sqlite` | Event Bus event/offset/delivery/DLQ state |
 
-All four databases use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only for `rag.sqlite` (target=`"rag"`). See [ADR-008](/home/sugimoto/llmagent/docs/10_adr/ADR-008-sqlite-4db-separation.md) for the rationale behind the separation.
+All four databases use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only for `rag.sqlite` (target=`"rag"`). See [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) for the rationale behind the separation.
 
 ---
 
@@ -149,4 +149,4 @@ All persistent data resides in four SQLite files: `rag.sqlite` (RAG index), `ses
 
 ## 10. AI Reference Guide
 
-You can identify corresponding documents from the section titles: Types/DTOs → [section 2](/home/sugimoto/llmagent/docs/40_shared/shared_02_01_types_and_protocols-core-types.md), ConfigLoader → [section 3](/home/sugimoto/llmagent/docs/40_shared/shared_03_01_runtime_and_execution-config-and-logging.md), SQLite Schema → [section 4](/home/sugimoto/llmagent/docs/41_db/db_01_db_architecture_and_schema-overview-and-config.md), SQLiteHelper API → [section 5](/home/sugimoto/llmagent/docs/41_db/db_04_db_api_and_operations-module-boundaries-and-helper.md), Inconsistencies → [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB).
+You can identify corresponding documents from the section titles: Types/DTOs → [section 2](shared_02_01_types_and_protocols-core-types.md), ConfigLoader → [section 3](shared_03_01_runtime_and_execution-config-and-logging.md), SQLite Schema → section 4, SQLiteHelper API → section 5, Inconsistencies → [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB).

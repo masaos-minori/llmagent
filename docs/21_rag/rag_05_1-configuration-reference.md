@@ -5,17 +5,17 @@ tags:
   - rag
   - configuration
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_05_1-configuration-reference.md
+  - rag_00_document-guide.md
+  - rag_05_1-configuration-reference.md
 source:
-  - 03_rag_05_1-configuration-reference.md
+  - rag_05_1-configuration-reference.md
 ---
 
 # 1. Configuration Reference
 
 Crawler / chunk_splitter / ingester / rag-pipeline-mcp are each independent processes, reading only their respective configuration files. There are no shared configuration files. If multiple processes require the same DB path or external service URL, they must specify them individually in their respective configuration files.
 
-→ For details on the Process Separation Policy: [ADR-002](/home/sugimoto/llmagent/docs/10_adr/ADR-002-config-isolation.md) / [90_shared_03 §2a](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
+→ For details on the Process Separation Policy: [ADR-002](../10_adr/ADR-002-config-isolation.md) / [90_shared_03 §2a](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 ## 1.1 `config/crawler.toml`
 
@@ -65,7 +65,7 @@ Used by: `ingester.py` only
 | `sqlite_timeout` | `30` | SQLite connection timeout (seconds) |
 | `sqlite_busy_timeout_ms` | `30000` | SQLite busy timeout (milliseconds) |
 | `embed_url` | `http://127.0.0.1:8081/embedding` | Embedding API endpoint |
-| Embedding dimension | Fixed code-level constant | `scripts/db/store_protocols.py::get_embedding_dims()` — must match the actual deployed embedding model; see [docs/02_deployment.md section 1.4](./90_deployment/02_deployment.md#14-llm--How to get models) for canonical model names |
+| Embedding dimension | Fixed code-level constant | `scripts/db/store_protocols.py::get_embedding_dims()` — must match the actual deployed embedding model; see [deployment_01_deployment.md section 1.4](../90_deployment/deployment_01_deployment.md#14-obtaining-llm-models) for canonical model names |
 | `embed_retry` | `3` | Max embedding API retries (exponential backoff) |
 | `embed_workers` | `4` | Number of threads in `ThreadPoolExecutor` for parallel embedding |
 
@@ -160,7 +160,7 @@ Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `Ag
 
 ## Related Documents
 
-- [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
 
 ## Keywords
 

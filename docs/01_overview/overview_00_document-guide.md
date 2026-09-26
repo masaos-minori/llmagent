@@ -16,7 +16,6 @@ related:
   - overview-files-04-shared.md
   - overview-files-05-config.md
   - overview-files-06-misc.md
-  - 02_deployment.md
 source:
   - 01_overview.md
 ---
@@ -34,7 +33,6 @@ source:
 | [overview-files-04-shared.md](overview-files-04-shared.md) 〜 part2 | Shared infrastructure file structure (split into 2 parts) |
 | [overview-files-05-config.md](overview-files-05-config.md) | Configuration file structure |
 | [overview-files-06-misc.md](overview-files-06-misc.md) | Other file structures |
-| [02_deployment.md](02_deployment.md) | Deployment Topology (assumes single host/multiple hosts), environment setup, and service startup |
 
 ## Implementation Intent
 
@@ -54,4 +52,3 @@ source:
 - `overview-files-04-shared.md`
 - `overview-files-05-config.md`
 - `overview-files-06-misc.md`
-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted),`

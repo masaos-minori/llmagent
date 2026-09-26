@@ -6,13 +6,13 @@ tags:
   - security
   - safety-model
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_05_01_access-control-and-allowlists.md
-  - 04_mcp_05_02_auth-profiles-and-sandboxing.md
-  - 04_mcp_05_04_mdq-rag-boundary.md
-  - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
-  - 00_security_01_architecture-and-trust-boundaries.md
-  - 00_security_02_high-risk-tool-common-policy.md
+  - mcp_00_document-guide.md
+  - mcp_05_01_access-control-and-allowlists.md
+  - mcp_05_02_auth-profiles-and-sandboxing.md
+  - mcp_05_04_mdq-rag-boundary.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
+  - ../91_security/security_01_architecture-and-trust-boundaries.md
+  - ../91_security/security_02_high-risk-tool-common-policy.md
 ---
 
 # MCP Security and Safety Model: Fail-Open vs Fail-Closed Summary, Dry-Run, Risk Tiers and AI Notes
@@ -44,7 +44,7 @@ related:
 | `shell_sandbox_backend` | `shell_mcp_server.toml` | RuntimeError if `"firejail"` + binary missing; WARNING if not `"firejail"` or `"none"`; RuntimeError in production if `"none"` |
 | `command_allowlist` | `shell_mcp_server.toml` | DENY-ALL warning if empty (fail-closed) |
 | `allowed_repo_paths` | `git_mcp_server.toml` | DENY-ALL warning if empty (fail-closed) |
-| `workflow_allowlist` | `cicd_mcp_server.toml` | DENY-ALL warning at both agent and server layers if empty (see [04_mcp_05_01_access-control-and-allowlists.md](./04_mcp_05_01_access-control-and-allowlists.md)) |
+| `workflow_allowlist` | `cicd_mcp_server.toml` | DENY-ALL warning at both agent and server layers if empty (see [mcp_05_01_access-control-and-allowlists.md](./mcp_05_01_access-control-and-allowlists.md)) |
 
 Warnings for empty allowlists use the following format: `DENY-ALL detected: {setting} is empty. {server} will reject ALL requests from this category. Verify this is intentional or add allowed values to config.`
 
@@ -108,7 +108,7 @@ Both checks are performed via `ProductionConfigValidator.validate()`, which inte
 
 4. **`workflow_allowlist` is fail-closed** (similar to `repo_allowlist`). An empty list denies all workflow triggers. Explicitly enumerate allowed workflows in `cicd_mcp_server.toml`.
 
-5. **mdq-mcp is production-ready.** FTS5 indexing and searching is implemented. For production RAG workloads, use `rag-pipeline-mcp`. See [04_mcp_05 MDQ vs RAG Boundary](./04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) for guidelines.
+5. **mdq-mcp is production-ready.** FTS5 indexing and searching is implemented. For production RAG workloads, use `rag-pipeline-mcp`. See [04_mcp_05 MDQ vs RAG Boundary](./mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) for guidelines.
 
 6. **Preview with `dry_run=True` before destructive operations.** The agent's approval flow automatically injects `dry_run=True` for registered tools before displaying a user prompt.
 

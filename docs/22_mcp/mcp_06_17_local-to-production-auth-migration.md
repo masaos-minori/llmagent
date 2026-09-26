@@ -5,10 +5,10 @@ tags:
   - mcp
   - configuration
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_00_document-guide.md
+  - mcp_06_02_configuration-file-inventory.md
 source:
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_06_02_configuration-file-inventory.md
 ---
 
 # Local to Production Auth Migration
@@ -20,14 +20,13 @@ has a single `PRODUCTION` member (`plans/done/20260903-091417_plan.md`, "localre
 Every environment now enforces the authentication requirements below
 unconditionally; there is no profile switch to perform. The canonical, current
 migration procedure for an existing deployment (bind-address migration together
-with MCP authentication token setup) is
-[~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)'s "Production-Only Migration Procedure"](02_deployment.md#production-only-migration-procedure) —
+with MCP authentication token setup) is the Production-Only Migration Procedure —
 follow that document for a step-by-step deployment migration. This document's
 Migration Steps below are retained as a historical record of the pre-removal
 procedure and as a focused authentication-only reference; its Troubleshooting
 section below remains current and applicable to any deployment.
 
-### Migration Steps (historical — see ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) for the current procedure)
+### Migration Steps (historical — see the current procedure for details)
 
 1. ~~Switch `security_profile` from `local` to `production` in `config/agent.toml`~~ —
    no longer applicable; mandatory authentication requirement checks now run
@@ -86,7 +85,7 @@ section below remains current and applicable to any deployment.
 
 ### Related Documents
 
-- [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
+- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 - `security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 
 ### Keywords

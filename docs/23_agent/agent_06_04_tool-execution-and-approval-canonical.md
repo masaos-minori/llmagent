@@ -18,7 +18,7 @@ source:
 # Agent Tool Execution and Approval
 
 - Turn Flow → [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md)
-- MCP Routing → [mcp_03_01_dispatch-and-routing.md](/home/sugimoto/llmagent/docs/22_mcp/mcp_03_01_dispatch-and-routing.md)
+- MCP Routing → [mcp_03_01_dispatch-and-routing.md](../22_mcp/mcp_03_01_dispatch-and-routing.md)
 
 ## Purpose
 

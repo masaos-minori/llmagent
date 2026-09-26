@@ -351,12 +351,12 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [Deployment Guide](../90_deployment/02_deployment.md) — デプロイメント時のワークフロー検証
+- [Deployment Guide](../90_deployment/deployment_01_deployment.md) — デプロイメント時のワークフロー検証
 <!-- TODO: Document 'agent_03_03_turn-processing-flow-workflow-engine.md' was deleted -->
 
 ### Operations
 
-- [Workflow Deployment Runbook](../agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — 障害対応手順
+- [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — 障害対応手順
 
 ### Known Issues
 

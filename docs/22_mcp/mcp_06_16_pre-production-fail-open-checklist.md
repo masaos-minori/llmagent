@@ -5,10 +5,10 @@ tags:
   - mcp
   - configuration
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_00_document-guide.md
+  - mcp_06_02_configuration-file-inventory.md
 source:
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_06_02_configuration-file-inventory.md
 ---
 
 # Pre-Production Fail-Open Checklist
@@ -17,7 +17,7 @@ Before deploying to production, verify the following:
 
 - [ ] `tool_definitions_strict = true` (Default is `false`; explicitly enable in production to treat schema mismatches as fatal errors)
 - [ ] `routing_drift_strict = true` (Treat routing drift as a fatal error)
-- [ ] `serial_tool_calls = false` (Default; DAG scheduling is always enabled. Setting to `true` switches to legacy sequential/parallel determination mode. Note: The setting field `use_tool_dag` does not exist — see [agent_08_03](agent_08_03_configuration-tools-memory.md))
+- [ ] `serial_tool_calls = false` (Default; DAG scheduling is always enabled. Setting to `true` switches to legacy sequential/parallel determination mode. Note: The setting field `use_tool_dag` does not exist — see [agent_08_03](../23_agent/agent_08_03_configuration-tools-memory.md))
 - [ ] `allowed_tools` is explicitly configured (Empty = allow all tools; should be whitelisted)
 - [ ] All registered tools have an entry in `tool_safety_tiers` (Missing tier → Fatal error in production)
 - [ ] No unknown keys in `tool_safety_tiers` (Unknown key → Fatal error in production)
@@ -33,7 +33,7 @@ Before deploying to production, verify the following:
 
 ### Firejail Installation and Configuration
 
-For instructions on installing `firejail` and configuring the sandbox backend, please refer to the "Sandbox Backend (shell-mcp)" section in [docs/04_mcp_05_02_auth-profiles-and-sandboxing.md](docs/04_mcp_05_02_auth-profiles-and-sandboxing.md).
+For instructions on installing `firejail` and configuring the sandbox backend, please refer to the "Sandbox Backend (shell-mcp)" section in [docs/mcp_05_02_auth-profiles-and-sandboxing.md](mcp_05_02_auth-profiles-and-sandboxing.md).
 
 Refer to `mcp_05_01_access-control-and-allowlists.md` for the complete table of fail-open/fail-closed policies.
 
@@ -42,7 +42,7 @@ Refer to `mcp_05_01_access-control-and-allowlists.md` for the complete table of 
 
 ## Related Documents
 
-- [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
+- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 - `security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 
 ## Keywords

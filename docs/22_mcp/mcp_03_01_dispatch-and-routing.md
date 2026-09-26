@@ -6,16 +6,16 @@ tags:
   - routing
   - lifecycle
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_03_02_tool-registry.md
-  - 04_mcp_03_03_transport-and-health.md
-  - 04_mcp_03_04_tool-call-tracing-and-watchdog.md
-  - 04_mcp_03_05_lifecycle-and-new-server.md
+  - mcp_00_document-guide.md
+  - mcp_03_02_tool-registry.md
+  - mcp_03_03_transport-and-health.md
+  - mcp_03_04_tool-call-tracing-and-watchdog.md
+  - mcp_03_05_lifecycle-and-new-server.md
 ---
 
 # MCP Tool Call Dispatch Flow and Routing Resolution
 
-- System Overview → [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md)
+- System Overview → [mcp_01_system_overview.md](mcp_01_system_overview.md)
 
 ## Purpose
 
@@ -84,7 +84,7 @@ There is a single data source for scheduling metadata today: a tool's `/v1/tools
 
 ## ToolRouteResolver (`shared/route_resolver.py`)
 
-Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
+Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 | Tool Set | Server Key |
 |---|---|
@@ -99,7 +99,7 @@ Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](/
 | `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs) | `mdq` |
 | No Match | `ValueError` |
 
-For diagnosis guidance, see [MCP Failure Diagnosis](04_mcp_06_09_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
+For diagnosis guidance, see [MCP Failure Diagnosis](mcp_06_09_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
 
 ```python
 resolver = ToolRouteResolver()
@@ -107,7 +107,7 @@ resolver.set_runtime_registry(registry)
 server_key = resolver.resolve("read_text_file")  # → "file_read"
 ```
 
-**Not to be confused with `ToolExecutor.server_configs`:** `ToolRouteResolver`'s constructor has no `server_configs` parameter — it accepts only `warn_on_missing`, `strict_mode`, and `runtime_registry` (see [Agent Reference API]()agent_13_reference-api.md for the full parameter list). `ToolExecutor.server_configs` (`shared/tool_executor.py`) is a separate, current, active configuration: a `dict[str, McpServerConfig]` used for MCP server transport and startup-mode checks (`self._server_configs.get(server_key)`), unrelated to tool-name routing.
+**Not to be confused with `ToolExecutor.server_configs`:** `ToolRouteResolver`'s constructor has no `server_configs` parameter — it accepts only `warn_on_missing`, `strict_mode`, and `runtime_registry` (see [Agent Reference API](../23_agent/agent_13_reference-api.md) for the full parameter list). `ToolExecutor.server_configs` (`shared/tool_executor.py`) is a separate, current, active configuration: a `dict[str, McpServerConfig]` used for MCP server transport and startup-mode checks (`self._server_configs.get(server_key)`), unrelated to tool-name routing.
 
 **Four-layer responsibility of MDQ tool definitions:** MDQ (`mdq`) tool definitions are spread across four independent files, each having a single responsibility. Changing any one of them requires updating the other three synchronously (`tests/test_mdq_tool_layer_consistency.py` verifies this consistency).
 
@@ -159,13 +159,13 @@ Previously, there were two separate mechanisms: batch-level downgrade ("if any t
 
 ## Reliable Sources for Routing
 
-See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
+See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 ---
 
 ## Tool Registry (`shared/tool_registry.py`)
 
-Drift detection only; not used for routing. See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between routing authority and drift detection.
+Drift detection only; not used for routing. See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between routing authority and drift detection.
 
 ## Related Documents
 
@@ -174,8 +174,8 @@ Drift detection only; not used for routing. See [ADR-003](/home/sugimoto/llmagen
 - `mcp_03_03_transport-and-health.md`
 - `mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `mcp_03_05_lifecycle-and-new-server.md`
-- [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
-- [ADR-004](/home/sugimoto/llmagent/docs/10_adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
+- [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
+- [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
 
 ## Keywords
 

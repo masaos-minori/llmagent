@@ -20,7 +20,7 @@ source:
 
 # Agent Operations and Observability
 
-- Configuration → [agent_08_04_configuration-mcp-approval-obs.md]()agent_08_04_configuration-mcp-approval-obs.md
+- Configuration → [agent_08_04_configuration-mcp-approval-obs.md](agent_08_04_configuration-mcp-approval-obs.md)
 
 ## Purpose
 
@@ -62,7 +62,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 - `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
 - `tool_definitions` follows a unified severity scheme: FATAL when in strict mode, WARNING otherwise (the former `security_profile=PRODUCTION` branch was removed when `SecurityProfile.LOCAL` was removed — `security_profile` is always `PRODUCTION` now, so checking it added nothing).
 - Failure in `mcp_tool_discovery` is treated as FATAL regardless of environment. Since tool discovery failure makes all session tool calls impossible, it is critical.
-- `mcp_auth` ("1b. MCP authentication check", runs between the security audit and service-readiness checks): FATAL if any `[mcp_servers.*]` entry has an empty `auth_token`, listing every offending server key in one outcome. In practice this is unreachable via a real `McpServerConfig` — construction itself already rejects an empty `auth_token` (see [mcp_06_02](/home/sugimoto/llmagent/docs/22_mcp/mcp_06_02_configuration-file-inventory.md)) — so this check only fires for a `ctx` assembled some other way than the normal config-load path. `check_services()` does not short-circuit on an earlier FATAL: every check listed here always runs and reports independently; only the final aggregated `has_fatal` decides whether startup aborts.
+- `mcp_auth` ("1b. MCP authentication check", runs between the security audit and service-readiness checks): FATAL if any `[mcp_servers.*]` entry has an empty `auth_token`, listing every offending server key in one outcome. In practice this is unreachable via a real `McpServerConfig` — construction itself already rejects an empty `auth_token` (see [mcp_06_02](../22_mcp/mcp_06_02_configuration-file-inventory.md)) — so this check only fires for a `ctx` assembled some other way than the normal config-load path. `check_services()` does not short-circuit on an earlier FATAL: every check listed here always runs and reports independently; only the final aggregated `has_fatal` decides whether startup aborts.
 
 ### Restoration of Pending Post-Execution Approvals
 
@@ -143,6 +143,6 @@ This clears all pending approvals and workflow state. If the data loss is signif
 
 ## Related Docs
 
-- [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md — Role of `session_diagnostics`
-- [agent_09_02_data-layer-access-patterns.md]()agent_09_02_data-layer-access-patterns.md — DB access patterns
-- [agent_08_04_configuration-mcp-approval-obs.md]()agent_08_04_configuration-mcp-approval-obs.md — Configuration files
+- [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) — Role of `session_diagnostics`
+- [agent_09_02_data-layer-access-patterns.md](agent_09_02_data-layer-access-patterns.md) — DB access patterns
+- [agent_08_04_configuration-mcp-approval-obs.md](agent_08_04_configuration-mcp-approval-obs.md) — Configuration files

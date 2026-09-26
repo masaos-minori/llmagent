@@ -6,8 +6,8 @@ tags:
   - startup-modes
   - health-checks
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_03_03_transport-and-health.md
+  - mcp_00_document-guide.md
+  - mcp_03_03_transport-and-health.md
 ---
 # MCP Protocol and Transport: Startup Modes, Authentication, and Health Checks
 
@@ -57,7 +57,7 @@ All MCP server `/health` endpoints follow consistent semantics for response fiel
 - Reflected in `health_reason` as `operator_action_required` if `operator_action_required=true`.
 - `HealthRegistry.record_degraded(server_key, reason=...)` in the tool execution layer is called via a different path (`dispatch` result in `shared/tool_executor.py`) (currently a no-op for `UNAVAILABLE`/`HALF_OPEN` cases)
 
-Automatic restarts (formerly MCP watchdog) were removed on 2026-07-16. For details and manual recovery procedures, see [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md).
+Automatic restarts (formerly MCP watchdog) were removed on 2026-07-16. For details and manual recovery procedures, see [mcp_06_12_watchdog-configuration-monitoring.md](mcp_06_12_watchdog-configuration-monitoring.md).
 
 **Healthy Response Example**:
 ```json

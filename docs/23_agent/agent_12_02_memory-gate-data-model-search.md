@@ -11,8 +11,8 @@ related:
 ---
 # Memory Layer — Activation Gate, Data Model, and Search (Part 1)
 
-- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md]()agent_10_01_operations-and-observability-startup-and-health.md
-- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md]()agent_08_03_configuration-tools-memory.md
+- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
+- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
 
 ## Purpose
 
@@ -57,8 +57,8 @@ The memory layer is controlled by three independent gates: complete bypass via a
 
 ## Memory Layer — Module Reference
 
-- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md]()agent_10_01_operations-and-observability-startup-and-health.md
-- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md]()agent_08_03_configuration-tools-memory.md
+- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
+- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
 
 ## Data Model
 
@@ -149,7 +149,7 @@ Each line in the JSONL store is a single JSON object serializing all `MemoryEntr
 
 ## Disabled Behavior
 
-For detailed breakdown by module, see the [Activation Gate section in agent_12_02](agent_12_02_memory-gate-data-model-search.md#activation-gate) and the [Module-specific behavior when disabled table](agent_12_02_memory-gate-data-model-search.md#module-specific-behavior-when-disabled).
+For detailed breakdown by module, see the [Activation Gate section in agent_12_02](agent_12_02_memory-gate-data-model-search.md)#activation-gate) and the [Module-specific behavior when disabled table](agent_12_02_memory-gate-data-model-search.md)#module-specific-behavior-when-disabled).
 
 Overview:
 - `use_memory_layer=False` $\rightarrow$ `ctx.services.memory` becomes `None`, skipping all memory operations.

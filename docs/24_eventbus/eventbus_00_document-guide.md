@@ -39,7 +39,7 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 
 ## Canonical Source Rule
 
-See [EventBus runtime-behavior](../config/documentation_canonical_sources.toml#eventbuscore-behavior) and [EventBus persistence-schema](../config/documentation_canonical_sources.toml#eventbuspersistence-schema) in the Canonical Source Registry.
+See EventBus runtime-behavior and EventBus persistence-schema in the Canonical Source Registry.
 
 ## Known Issues / Deferred Items
 
@@ -53,15 +53,15 @@ Known limitations, specification gaps, and pending items are centrally managed i
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md)
-- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md)
+- [Documentation Policy](../00_governance/governance_01_documentation-policy.md)
+- [Documentation Metadata](../00_governance/governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
 
 ## Related ADRs
 
-- [ADR-006](/home/sugimoto/llmagent/docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md) — EventBusのSQLite永続化とSSE配信方式
-- [ADR-008](/home/sugimoto/llmagent/docs/10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
+- [ADR-006](../10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md) — EventBusのSQLite永続化とSSE配信方式
+- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
 
 ## Related Documents
 

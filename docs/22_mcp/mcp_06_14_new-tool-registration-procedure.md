@@ -5,10 +5,10 @@ tags:
   - mcp
   - configuration
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_00_document-guide.md
+  - mcp_06_02_configuration-file-inventory.md
 source:
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_06_02_configuration-file-inventory.md
 ---
 
 # New Tool Registration Procedure
@@ -17,7 +17,7 @@ source:
 
 ### /v1/tools Requirements
 
-Before registering a new tool, ensure your MCP server responds to `/v1/tools` requests with the correct format. See [endpoints-and-transport.md](./04_mcp_02_01_endpoints-and-transport.md) for the complete field specification.
+Before registering a new tool, ensure your MCP server responds to `/v1/tools` requests with the correct format. See [endpoints-and-transport.md](./mcp_02_01_endpoints-and-transport.md) for the complete field specification.
 
 #### Required fields
 
@@ -95,7 +95,7 @@ there is no separate `config/agent.toml`-driven scheduling metadata path. `confi
 `[[tool_definitions]]` only supplies the LLM-facing function-calling schema (name, description,
 parameters) and carries no scheduling metadata.
 
-See [dispatch-and-routing.md](./04_mcp_03_01_dispatch-and-routing.md#data-source-for-dag-scheduling) for details.
+See [dispatch-and-routing.md](./mcp_03_01_dispatch-and-routing.md#data-source-for-dag-scheduling) for details.
 
 ---
 
@@ -103,7 +103,7 @@ See [dispatch-and-routing.md](./04_mcp_03_01_dispatch-and-routing.md#data-source
 
 ## Related Documents
 
-- [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
+- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 
 ## Keywords
 

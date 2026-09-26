@@ -233,8 +233,8 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [ADR-001: Workflow Engine必須化](/home/sugimoto/llmagent/docs/10_adr/ADR-001-workflow-engine-mandatory.md) — Workflow Engineの必須性・唯一性を定める前提ADR
-- [Turn Processing Flow](/home/sugimoto/llmagent/docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md) — ワークフロー実行の詳細
+- [ADR-001: Workflow Engine必須化](ADR-001-workflow-engine-mandatory.md) — Workflow Engineの必須性・唯一性を定める前提ADR
+- [Turn Processing Flow](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md) — ワークフロー実行の詳細
 
 ### Operations
 

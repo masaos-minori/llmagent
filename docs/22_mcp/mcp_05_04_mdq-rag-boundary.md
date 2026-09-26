@@ -8,11 +8,11 @@ tags:
   - mdq
   - rag
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_05_01_access-control-and-allowlists.md
-  - 04_mcp_05_02_auth-profiles-and-sandboxing.md
-  - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
-  - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
+  - mcp_00_document-guide.md
+  - mcp_05_01_access-control-and-allowlists.md
+  - mcp_05_02_auth-profiles-and-sandboxing.md
+  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
 ---
 
 # MCP Security and Safety Model: MDQ vs RAG Boundary

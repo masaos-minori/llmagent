@@ -395,10 +395,10 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - [RAG Query Pipeline](rag_05_9-rag-query-pipeline.md) — クエリパイプライン
 - [RAG Augment Stage](rag_05_10_augment-stage.md) — Augmentステージ
-- [RAG Error Handling Reference](/home/sugimoto/llmagent/docs/21_rag/rag_05_4-error-handling-reference.md) — エラーハンドリング
-- [Configuration Reference](/home/sugimoto/llmagent/docs/21_rag/rag_05_1-configuration-reference.md) — 設定参照
-- [RAG Design Notes](/home/sugimoto/llmagent/docs/21_rag/rag_91_design_notes.md) — DESIGN-1ノート
-- [DB Schema Reference](/home/sugimoto/llmagent/docs/41_db/db_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
+- [RAG Error Handling Reference](../21_rag/rag_05_4-error-handling-reference.md) — エラーハンドリング
+- [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — 設定参照
+- [RAG Design Notes](../21_rag/rag_91_design_notes.md) — DESIGN-1ノート
+- [DB Schema Reference](../41_db/db_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
 
 ### Operations
 

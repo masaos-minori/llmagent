@@ -22,7 +22,7 @@ threshold. Do not hand-edit between the guard comments — run the generator.
 ## Related Documents
 
 - [05_agent_13_reference-api.md](05_agent_13_reference-api.md) — hand-curated Agent API reference
-- [governance_01_documentation-policy.md](governance_01_documentation-policy.md) — ADR-015 Reference Document Class Disposition
+- [governance_01_documentation-policy.md](../00_governance/governance_01_documentation-policy.md) — ADR-015 Reference Document Class Disposition
 
 ## Keywords
 

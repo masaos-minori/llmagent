@@ -370,7 +370,7 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Known Issue**: CI-001
 - **Type**: Design Deviation
 - **Summary**: EventBus uses tomllib directly for config loading, bypassing ConfigLoader.restrict_to() permission checks
-- **Conflicting Source**: docs/adr/ADR-002-config-isolation.md:Decision #9, scripts/eventbus/config.py (load_config()), scripts/eventbus/app.py
+- **Conflicting Source**: docs/10_adr/ADR-002-config-isolation.md:Decision #9, scripts/eventbus/config.py (load_config()), scripts/eventbus/app.py
 - **Expected Design**: All processes MUST load config through ConfigLoader.restrict_to() to enforce process-level config ownership boundaries
 - **Observed Implementation**: EventBus config.py loads its own config via tomllib without calling restrict_to(), allowing it to access configs outside its declared scope
 - **Impact**: Config isolation invariant violated for EventBus; could read/write configs belonging to other processes
@@ -423,12 +423,12 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 
 ### Specifications
 
-- [Configuration Loading](/home/sugimoto/llmagent/docs/23_agent/agent_08_01_configuration-loading-agent-config.md) — Agent設定読み込みの詳細
-- [MCP Configuration File Inventory](/home/sugimoto/llmagent/docs/22_mcp/mcp_06_02_configuration-file-inventory.md) — MCP設定ファイル一覧
+- [Configuration Loading](../23_agent/agent_08_01_configuration-loading-agent-config.md) — Agent設定読み込みの詳細
+- [MCP Configuration File Inventory](../22_mcp/mcp_06_02_configuration-file-inventory.md) — MCP設定ファイル一覧
 
 ### Operations
 
-- [Runtime and Execution - Config and Logging](/home/sugimoto/llmagent/docs/40_shared/shared_03_01_runtime_and_execution-config-and-logging.md) — ランタイム設定とロギング
+- [Runtime and Execution - Config and Logging](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md) — ランタイム設定とロギング
 
 ### Known Issues
 

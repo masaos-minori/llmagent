@@ -6,24 +6,24 @@ tags:
   - ingestion-configuration
   - rag
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview.md
-  - 03_rag_02_01_ingestion_pipeline-overview.md
-  - 03_rag_02_02_ingestion_pipeline-crawler.md
-  - 03_rag_02_03_ingestion_pipeline-chunksplitter.md
-  - 03_rag_02_04_ingestion_pipeline-ingester.md
-  - 03_rag_02_07_ingestion_pipeline-utils.md
-  - 03_rag_02_05_ingestion_pipeline-document-manager.md
-  - 03_rag_05_1-configuration-reference.md
+  - rag_00_document-guide.md
+  - rag_01_system_overview.md
+  - rag_02_01_ingestion_pipeline-overview.md
+  - rag_02_02_ingestion_pipeline-crawler.md
+  - rag_02_03_ingestion_pipeline-chunksplitter.md
+  - rag_02_04_ingestion_pipeline-ingester.md
+  - rag_02_07_ingestion_pipeline-utils.md
+  - rag_02_05_ingestion_pipeline-document-manager.md
+  - rag_05_1-configuration-reference.md
 source:
-  - 03_rag_02_01_ingestion_pipeline-overview.md
+  - rag_02_01_ingestion_pipeline-overview.md
 ---
 
 
 # RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
+- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
 
 ---
 
@@ -60,15 +60,15 @@ For exhaustive detail, see `scripts/rag/ingestion/etag_manager.py` (ETagManager 
 - **Both `etag` and `last_modified` absent:** as already documented above, `update()`
   returns early without any database write in this case — no staleness check occurs.
 
-See [03_rag_02_04_ingestion_pipeline-ingester.md](03_rag_02_04_ingestion_pipeline-ingester.md)
-and [03_rag_02_05_ingestion_pipeline-document-manager.md](03_rag_02_05_ingestion_pipeline-document-manager.md)
+See [rag_02_04_ingestion_pipeline-ingester.md](rag_02_04_ingestion_pipeline-ingester.md)
+and [rag_02_05_ingestion_pipeline-document-manager.md](rag_02_05_ingestion_pipeline-document-manager.md)
 for how callers rely on this contract, and
-[03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md) for
+[rag_05_4-error-handling-reference.md](rag_05_4-error-handling-reference.md) for
 the `ValueError` conditions in the shared error-handling reference table.
 
 ## 4.9 Configuration (`config/ingester.toml`)
 
-See [03_rag_05_1-configuration-reference.md section 1.2](03_rag_05_1-configuration-reference.md).
+See [rag_05_1-configuration-reference.md section 1.2](rag_05_1-configuration-reference.md).
 
 ---
 

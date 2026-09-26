@@ -18,7 +18,7 @@ source:
 # Agent Tool Execution and Approval
 
 - Turn Flow → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
-- MCP Routing → [mcp_03_01_dispatch-and-routing.md](mcp_03_01_dispatch-and-routing.md)
+- MCP Routing → [mcp_03_01_dispatch-and-routing.md](../22_mcp/mcp_03_01_dispatch-and-routing.md)
 
 ## Purpose
 

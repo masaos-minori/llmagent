@@ -6,10 +6,10 @@ tags:
   - dto
   - data-model
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_04_05_dto-types.md
+  - rag_00_document-guide.md
+  - rag_04_05_dto-types.md
 source:
-  - 03_rag_04_05_dto-types.md
+  - rag_04_05_dto-types.md
 ---
 
 
@@ -34,7 +34,7 @@ source:
 
 `ResultSource`/`HttpResultKind` are `StrEnum`; every other DTO in this module is
 `@dataclass(frozen=True)`, following the DTO-layer immutability policy shared with
-[03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md).
+[rag_04_01_dto-models_data.md](rag_04_01_dto-models_data.md).
 
 **ExpandedQuerySet** — MQE expansion results.
 
@@ -98,9 +98,9 @@ These fields are only meaningful when the search is delegated to a remote HTTP R
 
 ## Related Documents
 
-- [03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md)
-- [03_rag_00_document-guide.md](03_rag_00_document-guide.md)
-- `security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
+- [rag_04_01_dto-models_data.md](rag_04_01_dto-models_data.md)
+- [rag_00_document-guide.md](rag_00_document-guide.md)
+- [91_security/security_01_architecture-and-trust-boundaries.md](../91_security/security_01_architecture-and-trust-boundaries.md) — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 
 ## Keywords
 

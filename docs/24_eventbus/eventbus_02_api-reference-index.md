@@ -15,10 +15,10 @@ This directory contains the API reference documentation for the EventBus HTTP se
 
 | Document | Description |
 |----------|-------------|
-| [Health Endpoint](health-endpoint.md) | GET /health — Service health monitoring |
-| [Replay Endpoint](replay-endpoint.md) | GET /replay — Replay events via SSE or JSON |
-| [DLQ Endpoint](dlq-endpoint.md) | GET /dlq + POST /dlq/{event_id}/requeue — Dead-letter queue management |
-| [ACK/NACK Endpoints](ack-nack-endpoints.md) | POST /events/{event_id}/ack + POST /nack — Consumer acknowledgments |
+| [Health Endpoint](eventbus_12_health_endpoint.md) | GET /health — Service health monitoring |
+| [Replay Endpoint](eventbus_13_replay_endpoint.md) | GET /replay — Replay events via SSE or JSON |
+| [DLQ Endpoint](eventbus_05_dlq_endpoint.md) | GET /dlq + POST /dlq/{event_id}/requeue — Dead-letter queue management |
+| [ACK/NACK Endpoints](eventbus_15_ack_nack_endpoints.md) | POST /events/{event_id}/ack + POST /nack — Consumer acknowledgments |
 
 ## Authentication Model
 

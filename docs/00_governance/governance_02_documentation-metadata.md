@@ -5,7 +5,7 @@ tags:
   - governance
 related:
   - ../00_index.md
-  - overview_00_document-guide.md
+  - ../01_overview/overview_00_document-guide.md
 ---
 
 # Documentation Metadata
@@ -19,7 +19,7 @@ This document consolidates metadata conventions for AI agents to select relevant
 The following four metadata fields are required in every document's front matter:
 
 - **title** — Document title
-- **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/adr/`) and security documents (`docs/00_security_*.md`) use `area: governance`, since both are cross-cutting governance/policy content rather than a distinct runtime area.
+- **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/10_adr/`) and security documents (`docs/00_security_*.md`) use `area: governance`, since both are cross-cutting governance/policy content rather than a distinct runtime area.
 - **tags** — Keywords describing the document content
 - **related** — Links to related documents
 - **category** — Not a valid front-matter key. Do not use this field.

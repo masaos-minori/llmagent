@@ -18,7 +18,7 @@ related:
 
 Describes the primary runtime components, their dependencies, and responsibility boundaries, enabling engineers and AI to identify where specific behaviors are implemented.
 
-> **Scope of this chapter:** Runtime behavior, module graph, data flow, and component lifecycles. For function signatures, parameter types, and return values $\rightarrow$ see [agent_13 Reference API]()agent_13_reference-api.md.
+> **Scope of this chapter:** Runtime behavior, module graph, data flow, and component lifecycles. For function signatures, parameter types, and return values $\rightarrow$ see [agent_13 Reference API](agent_13_reference-api.md).
 
 ## Responsibility Boundary
 

@@ -18,7 +18,7 @@ source:
 
 # Shared Runtime and Execution
 
-- Overview → [shared_overview_00_document-guide.md](shared_overview_00_document-guide.md)
+- Overview → [shared_00_document-guide.md](shared_00_document-guide.md)
 
 ## 1. Purpose
 

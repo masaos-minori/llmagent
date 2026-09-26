@@ -9,7 +9,7 @@ related:
 ---
 # Agent Operations and Observability
 
-- Configuration → [agent_08_04_configuration-mcp-approval-obs.md]()agent_08_04_configuration-mcp-approval-obs.md
+- Configuration → [agent_08_04_configuration-mcp-approval-obs.md](agent_08_04_configuration-mcp-approval-obs.md)
 
 ## Monitoring Partial Completions and Truncation
 
@@ -116,8 +116,8 @@ DiagnosticStore.loop_guard_hint method was removed after confirming zero product
 
 ## Related Docs
 
-- [agent_10_01_operations-and-observability-startup-and-health.md]()agent_10_01_operations-and-observability-startup-and-health.md — Startup and Health Checks
-- [agent_10_02_operations-and-observability-audit-and-otel.md]()agent_10_02_operations-and-observability-audit-and-otel.md — Audit Logs and OTel
-- [agent_10_03_operations-and-observability-workflow-observability.md]()agent_10_03_operations-and-observability-workflow-observability.md — Workflow Observability
-- [agent_10_04_operations-and-observability-validation-and-troubleshooting.md]()agent_10_04_operations-and-observability-validation-and-troubleshooting.md — Validation and Troubleshooting
-- [agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md]()agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md — RAG Diagnostics and Memory
+- [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md) — Startup and Health Checks
+- [agent_10_02_operations-and-observability-audit-and-otel.md](agent_10_02_operations-and-observability-audit-and-otel.md) — Audit Logs and OTel
+- [agent_10_03_operations-and-observability-workflow-observability.md](agent_10_03_operations-and-observability-workflow-observability.md) — Workflow Observability
+- [agent_10_04_operations-and-observability-validation-and-troubleshooting.md](agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — Validation and Troubleshooting
+- [agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md](agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md) — RAG Diagnostics and Memory

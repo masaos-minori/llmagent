@@ -51,7 +51,6 @@ MCP server configs define: transport type (SSE/HTTP), target URL, timeout durati
 - `overview-files-03-scripts.md`
 - `overview-files-04-shared.md`
 - `overview-files-06-misc.md`
-- [01_overview.md](01_overview.md)
 
 ## Keywords
 

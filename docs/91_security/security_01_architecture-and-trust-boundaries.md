@@ -10,19 +10,19 @@ tags:
   - audit
 related:
   - security_02_high-risk-tool-common-policy.md
-  - governance_01_documentation-policy.md
-  - mcp_05_01_access-control-and-allowlists.md
-  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
-  - agent_06_01_tool-execution-and-approval-execution.md
-  - rag_03_05_query_pipeline-augment-stages.md
-  - mcp_06_16_pre-production-fail-open-checklist.md
-  - mcp_06_17_local-to-production-auth-migration.md
-  - mcp_02_03_audit-logging-and-errors.md
-  - mcp_06_07_reading-audit-logs.md
-  - agent_10_02_operations-and-observability-audit-and-otel.md
-  - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
-  - rag_04_02_dto-models_result.md
-  - rag_05_2-execution-guide.md
+  - ../00_governance/governance_01_documentation-policy.md
+  - ../22_mcp/mcp_05_01_access-control-and-allowlists.md
+  - ../22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - ../23_agent/agent_06_01_tool-execution-and-approval-execution.md
+  - ../21_rag/rag_03_05_query_pipeline-augment-stages.md
+  - ../22_mcp/mcp_06_16_pre-production-fail-open-checklist.md
+  - ../22_mcp/mcp_06_17_local-to-production-auth-migration.md
+  - ../22_mcp/mcp_02_03_audit-logging-and-errors.md
+  - ../22_mcp/mcp_06_07_reading-audit-logs.md
+  - ../23_agent/agent_10_02_operations-and-observability-audit-and-otel.md
+  - ../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+  - ../21_rag/rag_04_02_dto-models_result.md
+  - ../21_rag/rag_05_2-execution-guide.md
 ---
 
 # System Security Architecture and Trust Boundaries
@@ -201,7 +201,7 @@ Fail-fast vs fail-open at MCP startup failure: `production` raises `RuntimeError
 
 ### Workflow deployment failures
 
-Full failure-scenario table (missing definition, invalid JSON, checksum mismatch, schema incomplete/version mismatch, stage execution failure) and remediation commands: [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
+Full failure-scenario table (missing definition, invalid JSON, checksum mismatch, schema incomplete/version mismatch, stage execution failure) and remediation commands: [Workflow Deployment Runbook](../../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
 ### RAG failure behavior
 
@@ -216,7 +216,7 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 
 When embedding is unavailable: existing documents remain searchable via FTS, new documents cannot be indexed, `memory_embed_enabled` remains `true` but embeddings are not generated, and the system logs a WARNING on each failed embedding attempt.
 
-*Source: [rag_05_2-execution-guide.md](rag_05_2-execution-guide.md#26-rag-integrity-check)*
+*Source: [rag_05_2-execution-guide.md](../../21_rag/rag_05_2-execution-guide.md#26-rag-integrity-check)*
 
 ### Memory layer failure behavior
 
@@ -271,7 +271,7 @@ The EventBus API enforces authentication and authorization as a fail-closed secu
 All EventBus routes require Bearer-token authentication. Requests without a valid
 `Authorization: Bearer <token>` header receive HTTP 401 Unauthorized.
 
-See [ADR-013-eventbus-authentication-authorization](/home/sugimoto/llmagent/docs/10_adr/ADR-013-eventbus-authentication-authorization.md)
+See [ADR-013-eventbus-authentication-authorization](../10_adr/ADR-013-eventbus-authentication-authorization.md)
 for the authentication mechanism decision and configuration details.
 
 ### Authorization
@@ -291,7 +291,7 @@ a caller cannot act as another consumer or access unauthorized topics.
 DLQ administration (`/dlq`, `/dlq/{event_id}/requeue`) and privileged replay
 (`/replay`) require operator permission.
 
-See [ADR-013-eventbus-authentication-authorization](/home/sugimoto/llmagent/docs/10_adr/ADR-013-eventbus-authentication-authorization.md)
+See [ADR-013-eventbus-authentication-authorization](../10_adr/ADR-013-eventbus-authentication-authorization.md)
 for the authorization model decision and role definitions.
 
 ### Loopback-only Binding
@@ -304,19 +304,19 @@ and remains in effect as defense-in-depth.
 ## Related Documents
 
 - `security_02_high-risk-tool-common-policy.md`
-- `governance_01_documentation-policy.md`
-- `mcp_05_01_access-control-and-allowlists.md`
-- `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `agent_06_01_tool-execution-and-approval-execution.md`
-- `rag_03_05_query_pipeline-augment-stages.md`
-- `mcp_06_16_pre-production-fail-open-checklist.md`
-- `mcp_06_17_local-to-production-auth-migration.md`
-- `mcp_02_03_audit-logging-and-errors.md`
-- `mcp_06_07_reading-audit-logs.md`
-- `agent_10_02_operations-and-observability-audit-and-otel.md`
-- `agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
-- `rag_04_02_dto-models_result.md`
-- `rag_05_2-execution-guide.md`
+- `../00_governance/governance_01_documentation-policy.md`
+- `../22_mcp/mcp_05_01_access-control-and-allowlists.md`
+- `../22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
+- `../23_agent/agent_06_01_tool-execution-and-approval-execution.md`
+- `../21_rag/rag_03_05_query_pipeline-augment-stages.md`
+- `../22_mcp/mcp_06_16_pre-production-fail-open-checklist.md`
+- `../22_mcp/mcp_06_17_local-to-production-auth-migration.md`
+- `../22_mcp/mcp_02_03_audit-logging-and-errors.md`
+- `../22_mcp/mcp_06_07_reading-audit-logs.md`
+- `../23_agent/agent_10_02_operations-and-observability-audit-and-otel.md`
+- `../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+- `../21_rag/rag_04_02_dto-models_result.md`
+- `../21_rag/rag_05_2-execution-guide.md`
 
 ## Keywords
 

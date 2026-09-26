@@ -22,20 +22,20 @@ definitions, ID format rules, and section header conventions are defined once in
 
 | ID | Title | Status | File |
 |----|-------|--------|------|
-| ADR-001 | Workflow Engine必須化 | Accepted | `adr/ADR-001-workflow-engine-mandatory.md` |
-| ADR-002 | プロセス単位の設定所有権とConfig Isolation | Accepted | `adr/ADR-002-config-isolation.md` |
-| ADR-003 | RuntimeToolRegistryを唯一のルーティング権威とする | Accepted | `adr/ADR-003-runtime-tool-registry-routing-authority.md` |
-| ADR-004 | 環境における障害処理方針 | Accepted | `adr/ADR-004-environment-failure-handling-policy.md` |
-| ADR-005 | RAGの正本と派生インデックスの関係 | Accepted | `adr/ADR-005-rag-source-derived-index-relationships.md` |
-| ADR-006 | EventBusのSQLite永続化とSSE配信方式 | Accepted | `adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
-| ADR-007 | HTTP MCP採用とstdio非サポート | Accepted | `adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md` |
-| ADR-008 | SQLiteを4DBへ分離する | Accepted | `adr/ADR-008-sqlite-4db-separation.md` |
-| ADR-009 | RAGのFTS5検索用テキストとLLM提示用テキスト分離 | Accepted | `adr/ADR-009-rag-ft5-text-separation.md` |
-| ADR-010 | RAGの外部実行失敗時のインプロセスフォールバック | Accepted | `adr/ADR-010-rag-fallback.md` |
-| ADR-013 | EventBus認証・認可 | Accepted | `adr/ADR-013-eventbus-authentication-authorization.md` |
-| ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | `adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
-| ADR-014 | Agent制御プレーンの責任境界 | Accepted | `adr/ADR-014-agent-control-plane-responsibility-boundaries.md` |
-| ADR-015 | Reference Document Class Disposition | Accepted | `adr/ADR-015-reference-document-class-disposition.md` |
+| ADR-001 | Workflow Engine必須化 | Accepted | `10_adr/ADR-001-workflow-engine-mandatory.md` |
+| ADR-002 | プロセス単位の設定所有権とConfig Isolation | Accepted | `10_adr/ADR-002-config-isolation.md` |
+| ADR-003 | RuntimeToolRegistryを唯一のルーティング権威とする | Accepted | `10_adr/ADR-003-runtime-tool-registry-routing-authority.md` |
+| ADR-004 | 環境における障害処理方針 | Accepted | `10_adr/ADR-004-environment-failure-handling-policy.md` |
+| ADR-005 | RAGの正本と派生インデックスの関係 | Accepted | `10_adr/ADR-005-rag-source-derived-index-relationships.md` |
+| ADR-006 | EventBusのSQLite永続化とSSE配信方式 | Accepted | `10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
+| ADR-007 | HTTP MCP採用とstdio非サポート | Accepted | `10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md` |
+| ADR-008 | SQLiteを4DBへ分離する | Accepted | `10_adr/ADR-008-sqlite-4db-separation.md` |
+| ADR-009 | RAGのFTS5検索用テキストとLLM提示用テキスト分離 | Accepted | `10_adr/ADR-009-rag-ft5-text-separation.md` |
+| ADR-010 | RAGの外部実行失敗時のインプロセスフォールバック | Accepted | `10_adr/ADR-010-rag-fallback.md` |
+| ADR-013 | EventBus認証・認可 | Accepted | `10_adr/ADR-013-eventbus-authentication-authorization.md` |
+| ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | `10_adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
+| ADR-014 | Agent制御プレーンの責任境界 | Accepted | `10_adr/ADR-014-agent-control-plane-responsibility-boundaries.md` |
+| ADR-015 | Reference Document Class Disposition | Accepted | `10_adr/ADR-015-reference-document-class-disposition.md` |
 
 ADR-011（Database Corruption Recovery Safety Boundary）はADR-008へ統合され、削除された。
 
@@ -112,8 +112,8 @@ currently exists.
 
 ## Related Documents
 
-- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md)
-- [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md)
+- [Documentation Policy](../00_governance/governance_01_documentation-policy.md)
+- [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
 
 ## Keywords
 

@@ -5,10 +5,10 @@ tags:
   - mcp
   - configuration
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_00_document-guide.md
+  - mcp_06_02_configuration-file-inventory.md
 source:
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_06_02_configuration-file-inventory.md
 ---
 
 # New MCP Server Addition Checklist
@@ -29,7 +29,7 @@ When adding a new server:
 
 ## Related Documents
 
-- [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
+- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 
 ## Keywords
 

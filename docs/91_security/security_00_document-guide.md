@@ -6,7 +6,7 @@ tags:
   - document-guide
 related:
   - ../00_index.md
-  - overview_00_document-guide.md
+  - ../01_overview/overview_00_document-guide.md
 ---
 # Security: Document Guide
 
@@ -36,7 +36,7 @@ This directory contains security-related documentation including system security
 
 ## Canonical Source Rule
 
-See [System Security Architecture and Trust Boundaries](/home/sugimoto/llmagent/docs/91_security/security_01_architecture-and-trust-boundaries.md) for the primary security architecture overview.
+See [System Security Architecture and Trust Boundaries](security_01_architecture-and-trust-boundaries.md) for the primary security architecture overview.
 
 ## Known Issues / Deferred Items
 
@@ -48,9 +48,9 @@ No reference APIs exist in this directory. All files are security policy/archite
 
 ## Related ADRs
 
-- [ADR-008](/home/sugimoto/llmagent/docs/10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
-- [ADR-013](/home/sugimoto/llmagent/docs/10_adr/ADR-013-eventbus-authentication-authorization.md) — EventBus認証認可
-- [ADR-015](/home/sugimoto/llmagent/docs/10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
+- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
+- [ADR-013](../10_adr/ADR-013-eventbus-authentication-authorization.md) — EventBus認証認可
+- [ADR-015](../10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
 
 ## Related Documents
 

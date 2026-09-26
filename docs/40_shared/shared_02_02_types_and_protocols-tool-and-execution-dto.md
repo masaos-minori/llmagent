@@ -11,7 +11,7 @@ related:
 ---
 # Shared Types and Protocols - Tool and Execution DTOs (Part 1)
 
-- Overview → [shared_overview_00_document-guide.md](shared_overview_00_document-guide.md)
+- Overview → [shared_00_document-guide.md](shared_00_document-guide.md)
 
 ## 6. `LLMUsage` / `LLMResponse` (`shared/llm_types.py`)
 

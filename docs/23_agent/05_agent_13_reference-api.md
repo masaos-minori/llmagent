@@ -133,7 +133,7 @@ Full details: [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent
 
 > **Evidence Classification: Explicit in code (Correction).** Previous versions described a "4-layer cascade (live discovery > ToolRegistry > config `tool_names` > static constants)", stated that a `KeyError` would occur on failure, and incorrectly claimed the constructor retained a `server_configs` parameter for backward compatibility (corrected above). After `shared/route_resolver.py::ToolRouteResolver.resolve()` was updated to only reference `ToolRegistry` and raise `ValueError` if no match is found, and subsequently migrated to `RuntimeToolRegistry` (`shared/runtime_tool_registry.py`), the logic changed. `ToolRegistry` has been downgraded to seed data for drift detection and is no longer used for routing decisions. Config `tool_names` is merely drift verification metadata and not an input for routing. This change follows the implementation in `mcp_03_01_dispatch-and-routing.md` Reliable source of routing information.
 
-Full details: [mcp_03_01_dispatch-and-routing.md Reliable source of routing information](mcp_03_01_dispatch-and-routing.md)
+Full details: [mcp_03_01_dispatch-and-routing.md Reliable source of routing information](../22_mcp/mcp_03_01_dispatch-and-routing.md)
 
 ---
 

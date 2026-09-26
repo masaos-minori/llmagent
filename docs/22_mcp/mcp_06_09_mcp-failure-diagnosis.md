@@ -26,13 +26,13 @@ To track failed or unexpected MCP tool calls, use the following flow:
 
 4. Has the circuit breaker tripped (UNAVAILABLE)?
    YES → No automatic restart will happen (the MCP watchdog was removed on 2026-07-16;
-          see [04_mcp_06_12_watchdog-configuration-monitoring.md](./04_mcp_06_12_watchdog-configuration-monitoring.md)). Manual recovery required —
+          see [mcp_06_12_watchdog-configuration-monitoring.md](./mcp_06_12_watchdog-configuration-monitoring.md)). Manual recovery required —
           either wait for the next tool call to trigger `ensure_ready()`, or restart the
           server/agent process manually.
    NO  → Check serialization. See Serialization in Tool Execution.
 ```
 
-For correlation analysis across agent, transport, and server logs, see [04_mcp_03 End-to-End Tool Call Tracing](./04_mcp_03_03_transport-and-health.md#end-to-end-tool-call-tracing).
+For correlation analysis across agent, transport, and server logs, see [04_mcp_03 End-to-End Tool Call Tracing](./mcp_03_03_transport-and-health.md#end-to-end-tool-call-tracing).
 
 ## Failure mode: LLM sees tool but execution fails
 
@@ -74,9 +74,9 @@ except Exception:                               # any startup failure
     raise                                       # propagate up so caller sees the failure
 ```
 
-In other words, even if a server repeatedly crashes, individual tool calls that have not yet reached their own circuit-break threshold can attempt recovery through `ensure_ready()`. This is currently the only automatic recovery path (periodic polling + automatic restart by the old MCP watchdog was removed on 2026-07-16. See [04_mcp_06_12_watchdog-configuration-monitoring.md](./04_mcp_06_12_watchdog-configuration-monitoring.md)).
+In other words, even if a server repeatedly crashes, individual tool calls that have not yet reached their own circuit-break threshold can attempt recovery through `ensure_ready()`. This is currently the only automatic recovery path (periodic polling + automatic restart by the old MCP watchdog was removed on 2026-07-16. See [mcp_06_12_watchdog-configuration-monitoring.md](./mcp_06_12_watchdog-configuration-monitoring.md)).
 
-Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recovery of any kind — `ensure_ready()` returns immediately for them (`cfg.transport != TransportType.HTTP or cfg.startup_mode != StartupMode.SUBPROCESS`) — so recovery for a crashed persistent-mode server depends entirely on external process supervision (see [04_mcp_06_16_pre-production-fail-open-checklist.md](./04_mcp_06_16_pre-production-fail-open-checklist.md)'s restart-policy requirement). This explicitly contrasts with subprocess-mode's reactive-on-next-dispatch recovery described above.
+Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recovery of any kind — `ensure_ready()` returns immediately for them (`cfg.transport != TransportType.HTTP or cfg.startup_mode != StartupMode.SUBPROCESS`) — so recovery for a crashed persistent-mode server depends entirely on external process supervision (see [mcp_06_16_pre-production-fail-open-checklist.md](./mcp_06_16_pre-production-fail-open-checklist.md)'s restart-policy requirement). This explicitly contrasts with subprocess-mode's reactive-on-next-dispatch recovery described above.
 
 **Implementation Note (Explicit in code):** `ensure_ready()` is not in `shared/tool_executor.py`; it is implemented in the `_ServerLifecycleRouter` class in `agent/factory.py`. Actual subprocess startup/shutdown is delegated to `HttpServerLifecycleManager` in `agent/http_lifecycle.py`. `ToolExecutor` only calls this router via `LifecycleProtocol` (`shared/tool_lifecycle.py`) and does not hold the startup logic itself.
 
@@ -95,7 +95,7 @@ Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recov
 - A failure during `HALF_OPEN` immediately reverts the state to `UNAVAILABLE` and resets the cooldown.
 - `record_success()` restores the state to `HEALTHY` and clears the failure count and degraded reason.
 
-The `[mcp_servers.*].tool_names` does not affect the circuit breaker state or routing — it is merely reference information and not an input for routing (consistent with [04_mcp_06_03](04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md)).
+The `[mcp_servers.*].tool_names` does not affect the circuit breaker state or routing — it is merely reference information and not an input for routing (consistent with [04_mcp_06_03](mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md)).
 
 Basis: Explicit in code (`shared/mcp_health.py`). Health checks within the `ToolExecutor` execution process act as a gate before dispatching.
 
@@ -122,8 +122,8 @@ The "Unknown tool" error originates from `ToolRouteResolver.resolve()` which rai
 
 ## Related Documents
 
-- [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
-- [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)
+- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
+- [mcp_06_12_watchdog-configuration-monitoring.md](mcp_06_12_watchdog-configuration-monitoring.md)
 
 ## Keywords
 

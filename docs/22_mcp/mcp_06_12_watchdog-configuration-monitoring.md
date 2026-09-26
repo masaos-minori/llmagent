@@ -45,14 +45,14 @@ recovery paths are:
 1. **On the next tool call** — for `startup_mode="subprocess"` servers, `ensure_ready()` (`agent/factory.py`, invoked from `ToolExecutor._raw_execute()`) still attempts to start the process if it is not running. This is reactive (triggered by the next tool call to that server), not periodic.
 2. **Manual process restart** — if a subprocess-mode server keeps crashing, or an externally-managed (`startup_mode="persistent"`) server goes down, an operator must restart it directly (e.g. via the process supervisor managing that server) or restart the agent process itself so MCP server startup runs again. There is no `/mcp restart` slash command; `/mcp status` is read-only and only reports state, it does not trigger a restart.
 
-Use `/mcp status` to check current DEGRADED/UNAVAILABLE state and `health_reason` before deciding whether a manual restart is needed — see [04_mcp_06_09_mcp-failure-diagnosis.md](04_mcp_06_09_mcp-failure-diagnosis.md).
+Use `/mcp status` to check current DEGRADED/UNAVAILABLE state and `health_reason` before deciding whether a manual restart is needed — see [mcp_06_09_mcp-failure-diagnosis.md](mcp_06_09_mcp-failure-diagnosis.md).
 
 ## Related Documents
 
-- [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md)
-- [04_mcp_02_02_startup-modes-and-health.md](04_mcp_02_02_startup-modes-and-health.md)
-- [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
-- [04_mcp_06_09_mcp-failure-diagnosis.md](04_mcp_06_09_mcp-failure-diagnosis.md)
+- [mcp_00_document-guide.md](mcp_00_document-guide.md)
+- [mcp_02_02_startup-modes-and-health.md](mcp_02_02_startup-modes-and-health.md)
+- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
+- [mcp_06_09_mcp-failure-diagnosis.md](mcp_06_09_mcp-failure-diagnosis.md)
 
 ## Keywords
 

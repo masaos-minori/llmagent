@@ -17,9 +17,9 @@ source:
 
 # Agent State and Persistence
 
-- Runtime Architecture → [agent_02_runtime-architecture.md]()agent_02_runtime-architecture.md
+- Runtime Architecture → [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
 - Turn Flow → [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md)
-- Data Layer (Schema) → [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md
+- Data Layer (Schema) → [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md)
 
 ## Purpose
 
@@ -68,7 +68,7 @@ All failure cases are non-blocking, and the session continues normally. When a f
 
 ### Session Persistence
 
-`AgentSession` manages the `sessions` and `messages` tables in `session.sqlite`. See [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md for details.
+`AgentSession` manages the `sessions` and `messages` tables in `session.sqlite`. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
 
 ### Relationship Between Conversation History and Database
 

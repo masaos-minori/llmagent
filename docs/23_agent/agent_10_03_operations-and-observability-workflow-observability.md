@@ -19,7 +19,7 @@ source:
 
 # Agent Operations and Observability
 
-- Configuration → [agent_08_04_configuration-mcp-approval-obs.md]()agent_08_04_configuration-mcp-approval-obs.md
+- Configuration → [agent_08_04_configuration-mcp-approval-obs.md](agent_08_04_configuration-mcp-approval-obs.md)
 
 ## Purpose
 
@@ -76,6 +76,6 @@ Expected span names:
 
 ## Related Docs
 
-- [agent_10_01_operations-and-observability-startup-and-health.md]()agent_10_01_operations-and-observability-startup-and-health.md — Startup and Health Checks
-- [agent_10_02_operations-and-observability-audit-and-otel.md]()agent_10_02_operations-and-observability-audit-and-otel.md — Audit Logs and OTel
-- [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md — Role of `session_diagnostics`
+- [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md) — Startup and Health Checks
+- [agent_10_02_operations-and-observability-audit-and-otel.md](agent_10_02_operations-and-observability-audit-and-otel.md) — Audit Logs and OTel
+- [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) — Role of `session_diagnostics`

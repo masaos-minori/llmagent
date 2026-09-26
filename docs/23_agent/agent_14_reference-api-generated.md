@@ -15,14 +15,14 @@ related:
 
 Generated index of every public top-level class/function under
 `scripts/agent/*.py` (`tools/generate_reference_table.py --type agent`).
-Companion to [agent_13_reference-api.md]()agent_13_reference-api.md
+Companion to [agent_13_reference-api.md](agent_13_reference-api.md)
 (hand-curated); split into its own file to stay under the per-document size
 threshold. Do not hand-edit between the guard comments — run the generator.
 
 ## Related Documents
 
-- [agent_13_reference-api.md]()agent_13_reference-api.md — hand-curated Agent API reference
-- [governance_01_documentation-policy.md](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md) — ADR-015 Reference Document Class Disposition
+- [agent_13_reference-api.md](agent_13_reference-api.md) — hand-curated Agent API reference
+- [governance_01_documentation-policy.md](../00_governance/governance_01_documentation-policy.md) — ADR-015 Reference Document Class Disposition
 
 ## Keywords
 

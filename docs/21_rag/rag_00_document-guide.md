@@ -104,7 +104,7 @@ Only the restructured documents listed in the following file index are valid sou
 | [rag_05_6-local-file-re-ingestion.md](rag_05_6-local-file-re-ingestion.md) | Local file re-ingestion |
 | [rag_05_7-rag-index-consistency-checks.md](rag_05_7-rag-index-consistency-checks.md) | Consistency checks |
 | [rag_05_8-rag-mcp-internal-operations-direct-db-access.md](rag_05_8-rag-mcp-internal-operations-direct-db-access.md) | MCP internal operations |
-| [governance_03_issue-and-uncertainty-management.md](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) | Known issues (all areas) |
+| [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) | Known issues (all areas) |
 | [rag_91_design_notes.md](rag_91_design_notes.md) | DESIGN-2 notes |
 | [rag_91_design_notes.md](rag_91_design_notes.md) | DESIGN-3 notes |
 
@@ -114,10 +114,10 @@ Only the restructured documents listed in the following file index are valid sou
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md)
-- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md)
+- [Documentation Policy](../00_governance/governance_01_documentation-policy.md)
+- [Documentation Metadata](../00_governance/governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
 
 ## Related Documents
 
@@ -130,10 +130,10 @@ Cross-cutting documentation rules and policies:
 
 ## Related ADRs
 
-- [ADR-005](/home/sugimoto/llmagent/docs/10_adr/ADR-005-rag-source-derived-index-relationships.md) — RAGの正本と派生インデックスの関係
-- [ADR-008](/home/sugimoto/llmagent/docs/10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
-- [ADR-009](/home/sugimoto/llmagent/docs/10_adr/ADR-009-rag-ft5-text-separation.md) — RAGのFTS5検索用テキストとLLM提示用テキスト分離
-- [ADR-010](/home/sugimoto/llmagent/docs/10_adr/ADR-010-rag-fallback.md) — RAGの外部実行失敗時のインプロセスフォールバック
+- [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md) — RAGの正本と派生インデックスの関係
+- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
+- [ADR-009](../10_adr/ADR-009-rag-ft5-text-separation.md) — RAGのFTS5検索用テキストとLLM提示用テキスト分離
+- [ADR-010](../10_adr/ADR-010-rag-fallback.md) — RAGの外部実行失敗時のインプロセスフォールバック
 
 ## Keywords
 

@@ -12,7 +12,7 @@ source:
 
 # Agent Configuration
 
-- Operations → [agent_10_01_operations-and-observability-startup-and-health.md]()agent_10_01_operations-and-observability-startup-and-health.md
+- Operations → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
 
 ## Purpose
 

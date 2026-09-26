@@ -5,10 +5,10 @@ tags:
   - rag
   - configuration
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_05_1-configuration-reference.md
+  - rag_00_document-guide.md
+  - rag_05_1-configuration-reference.md
 source:
-  - 03_rag_05_1-configuration-reference.md
+  - rag_05_1-configuration-reference.md
 ---
 
 
@@ -89,7 +89,7 @@ Run `/session rag-rebuild-fts` to re-sync `chunks_fts` from the `chunks` table.
 
 ## Related Documents
 
-- [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
 
 ## Keywords
 

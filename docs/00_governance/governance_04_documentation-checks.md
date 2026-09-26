@@ -5,7 +5,7 @@ tags:
   - governance
 related:
   - ../00_index.md
-  - overview_00_document-guide.md
+  - ../01_overview/overview_00_document-guide.md
 ---
 
 # Documentation Checks
@@ -177,7 +177,7 @@ uv run python tools/check_docs_content_policy.py
 
 ### 16. ADR Structure Check (`check_adr_structure.py`)
 
-Validates `docs/adr/*.md` structure:
+Validates `docs/10_adr/*.md` structure:
 - `## Known Deviations` heading presence (missing → Error)
 - Notes vs References path drift (a `scripts/`/`tests/` path in
   Implementation Notes absent from Implementation References → Warning;

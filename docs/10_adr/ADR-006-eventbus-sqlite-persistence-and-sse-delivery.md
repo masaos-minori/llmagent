@@ -496,12 +496,12 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [EventBus System Overview](../eventbus_01_system-overview_00_document-guide.md) — EventBusアーキテクチャ概要
-- [Event Bus Operations](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_03_dlq_operations.md) — Publish/Replay/Subscribe/ACK/NACK/Health/DLQプロトコル
-- [Persistence Schema and Replay](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_07_persistence_schema_and_replay.md) — 永続化スキーマとReplay
-- [DLQ Offsets and Delivery Semantics](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
-- [Configuration and Operations](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_09_configuration-and-operations.md) — 設定・バインドアドレス・ヘルスエンドポイント・Consumer ID・配信・DLQ運用
-- [Reference API](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_10_reference_api.md) — コアモジュール・ルートハンドラ・Broker/Offsets
+- [EventBus System Overview](../24_eventbus/eventbus_01_system-overview.md) — EventBusアーキテクチャ概要
+- [Event Bus Operations](../24_eventbus/eventbus_03_dlq_operations.md) — Publish/Replay/Subscribe/ACK/NACK/Health/DLQプロトコル
+- [Persistence Schema and Replay](../24_eventbus/eventbus_07_persistence_schema_and_replay.md) — 永続化スキーマとReplay
+- [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
+- [Configuration and Operations](../24_eventbus/eventbus_09_configuration-and-operations.md) — 設定・バインドアドレス・ヘルスエンドポイント・Consumer ID・配信・DLQ運用
+- [Reference API](../24_eventbus/eventbus_10_reference_api.md) — コアモジュール・ルートハンドラ・Broker/Offsets
 
 ### Operations
 
@@ -509,7 +509,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
 
 ### Implementation References
 

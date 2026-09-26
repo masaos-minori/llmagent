@@ -15,13 +15,13 @@ source:
 # Agent Tool Execution and Approval
 
 - Turn Flow → [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md)
-- MCP Routing → [mcp_03_01_dispatch-and-routing.md](/home/sugimoto/llmagent/docs/22_mcp/mcp_03_01_dispatch-and-routing.md)
+- MCP Routing → [mcp_03_01_dispatch-and-routing.md](../22_mcp/mcp_03_01_dispatch-and-routing.md)
 
 ## Purpose
 
 Documents design decisions for approval flows, risk classification, and plan mode.
 
-**Note**: This document only covers **pre-execution approval** (tool-level). For **post-execution approval** (workflow-level), see [agent_06_04_tool-execution-and-approval-canonical.md]()agent_06_04_tool-execution-and-approval-canonical.md.
+**Note**: This document only covers **pre-execution approval** (tool-level). For **post-execution approval** (workflow-level), see [agent_06_04_tool-execution-and-approval-canonical.md](agent_06_04_tool-execution-and-approval-canonical.md).
 
 ## Design Intent
 

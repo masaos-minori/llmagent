@@ -105,12 +105,12 @@ Provides guidance on determining which chapters to open as the entry point for t
 | [mcp_06_15_new-mcp-server-addition-checklist.md](mcp_06_15_new-mcp-server-addition-checklist.md) | New Server Addition Checklist |
 | [mcp_06_16_pre-production-fail-open-checklist.md](mcp_06_16_pre-production-fail-open-checklist.md) | Pre-Production Checklist |
 | [mcp_06_17_local-to-production-auth-migration.md](mcp_06_17_local-to-production-auth-migration.md) | Auth Migration |
-| [00_security_01_architecture-and-trust-boundaries.md](00_security_01_architecture-and-trust-boundaries.md) | System architecture / trust boundaries / threat modeling (canonical cross-cutting source) |
-| [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-risk-tool-common-policy.md) | High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping) |
+| [../91_security/security_01_architecture-and-trust-boundaries.md](../91_security/security_01_architecture-and-trust-boundaries.md) | System architecture / trust boundaries / threat modeling (canonical cross-cutting source) |
+| [00_security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) | High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping) |
 | [mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md) | Schema Export |
 | [mcp_08_tool_capability_naming_convention.md](mcp_08_tool_capability_naming_convention.md) | Capability Naming Convention |
 | ~~[~~mcp_07_mdq_rag_boundary~~ (deleted).md]~~ | Deleted |
-| [governance_03_issue-and-uncertainty-management.md](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) | Known Issues (all areas) |
+| [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) | Known Issues (all areas) |
 
 ---
 
@@ -118,10 +118,10 @@ Provides guidance on determining which chapters to open as the entry point for t
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md)
-- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md)
+- [Documentation Policy](../00_governance/governance_01_documentation-policy.md)
+- [Documentation Metadata](../00_governance/governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
 
 ## Migration Notes
 
@@ -150,18 +150,18 @@ Old MCP source files were kept during the documentation restructuring phase (pla
 
 ## Unconfirmed Items
 
-- [NC-002](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md): Reason for unused ResultSource field
-- [NC-005](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md): Dead code detection for AuditLogRecord/ApprovalDecision (resolved)
-- [NC-006](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md): Future usability of result_source field
+- [NC-002](../00_governance/governance_03_issue-and-uncertainty-management.md): Reason for unused ResultSource field
+- [NC-005](../00_governance/governance_03_issue-and-uncertainty-management.md): Dead code detection for AuditLogRecord/ApprovalDecision (resolved)
+- [NC-006](../00_governance/governance_03_issue-and-uncertainty-management.md): Future usability of result_source field
 
 *Note: This section only lists major files defined in the routing table and files explicitly referenced in the text.*
 
 ## Related ADRs
 
-- [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
-- [ADR-004](/home/sugimoto/llmagent/docs/10_adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
-- [ADR-007](/home/sugimoto/llmagent/docs/10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — HTTP MCP採用とstdio非サポート
-- [ADR-012](/home/sugimoto/llmagent/docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md) — Git MCP Server-Side Write Enforcement
+- [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
+- [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
+- [ADR-007](../10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — HTTP MCP採用とstdio非サポート
+- [ADR-012](../10_adr/ADR-012-git-mcp-server-side-write-enforcement.md) — Git MCP Server-Side Write Enforcement
 
 ## Related Documents
 

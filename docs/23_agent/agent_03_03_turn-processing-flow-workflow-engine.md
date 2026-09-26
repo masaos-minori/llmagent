@@ -11,7 +11,7 @@ related:
 ---
 # Agent Turn Processing Flow - Workflow Engine Integration & Turn-by-turn State Changes
 
-- Runtime Architecture $\rightarrow$ [agent_02_runtime-architecture.md]()agent_02_runtime-architecture.md
+- Runtime Architecture $\rightarrow$ [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
 
 ## Purpose
 
@@ -21,7 +21,7 @@ To document the partial completion model, workflow engine integration, and state
 
 ### Mandatory Workflow Execution
 
-See [ADR-001](/home/sugimoto/llmagent/docs/10_adr/ADR-001-workflow-engine-mandatory.md) for rationale, alternatives, tradeoffs, and invariants.
+See [ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md) for rationale, alternatives, tradeoffs, and invariants.
 
 ### Workflow State Semantics
 
@@ -96,7 +96,7 @@ Partial completion occurs when an LLM response stream is interrupted before all 
 
 ### Mandatory Workflow Execution
 
-`Orchestrator.handle_turn()` is always executed via `WorkflowEngine`. See [ADR-001](/home/sugimoto/llmagent/docs/10_adr/ADR-001-workflow-engine-mandatory.md) for rationale and invariants.
+`Orchestrator.handle_turn()` is always executed via `WorkflowEngine`. See [ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md) for rationale and invariants.
 
 ### Workflow Status
 
@@ -133,7 +133,7 @@ When loading workflow definitions from `config/workflows/*.json`:
 - `retry_policy.max_attempts` must be $\ge 1$
 - `retry_policy.backoff_sec` must be $\ge 0$
 
-See also: [02_deployment.md](02_deployment.md) for deploy-time validation of these same rules, and the [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) for recovery steps when a rule is violated.
+See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md)#workflow-deployment-runbook) for recovery steps when a rule is violated.
 
 ## Key Constraints
 

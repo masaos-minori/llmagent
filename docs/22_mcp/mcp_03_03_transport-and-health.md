@@ -6,13 +6,13 @@ tags:
   - transport
   - health-registry
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_03_01_dispatch-and-routing.md
-  - 04_mcp_03_02_tool-registry.md
-  - 04_mcp_03_04_tool-call-tracing-and-watchdog.md
-  - 04_mcp_03_05_lifecycle-and-new-server.md
+  - mcp_00_document-guide.md
+  - mcp_03_01_dispatch-and-routing.md
+  - mcp_03_02_tool-registry.md
+  - mcp_03_04_tool-call-tracing-and-watchdog.md
+  - mcp_03_05_lifecycle-and-new-server.md
 source:
-  - 04_mcp_03_03_transport-and-health.md
+  - mcp_03_03_transport-and-health.md
 ---
 
 # HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys (Part 1)

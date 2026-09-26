@@ -6,10 +6,10 @@ tags:
   - dto
   - data-model
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_04_05_dto-types.md
+  - rag_00_document-guide.md
+  - rag_04_05_dto-types.md
 source:
-  - 03_rag_04_05_dto-types.md
+  - rag_04_05_dto-types.md
 ---
 
 
@@ -22,8 +22,8 @@ source:
 
 ## Related Documents
 
-- [03_rag_04_05_dto-types.md](03_rag_04_05_dto-types.md)
-- [03_rag_00_document-guide.md](03_rag_00_document-guide.md)
+- [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
+- [rag_00_document-guide.md](rag_00_document-guide.md)
 
 ## Keywords
 

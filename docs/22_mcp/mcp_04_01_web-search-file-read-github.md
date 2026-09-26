@@ -8,11 +8,11 @@ tags:
   - file-read
   - github
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_04_02_file-write-file-delete-shell.md
-  - 04_mcp_04_03_rag-pipeline-and-cicd.md
-  - 04_mcp_04_04_mdq.md
-  - 04_mcp_04_05_git.md
+  - mcp_00_document-guide.md
+  - mcp_04_02_file-write-file-delete-shell.md
+  - mcp_04_03_rag-pipeline-and-cicd.md
+  - mcp_04_04_mdq.md
+  - mcp_04_05_git.md
 ---
 
 # MCP Server Catalog: web-search-mcp / file-read-mcp / github-mcp
@@ -21,7 +21,7 @@ related:
 
 Specifications for 10 MCP servers per server: purpose, port, tools, I/O, configuration, startup, security, logs, operational notes, and known limitations.
 
-> **Note:** This document is a formal server catalog. For a system-level list of servers including ports and transport types, refer to [04_mcp_01_system_overview.md Server Catalog](04_mcp_01_system_overview.md).
+> **Note:** This document is a formal server catalog. For a system-level list of servers including ports and transport types, refer to [mcp_01_system_overview.md Server Catalog](mcp_01_system_overview.md).
 
 ---
 
@@ -109,7 +109,7 @@ When `browser_fetch` is called with a domain not in the allowlist, the server ra
 
 All tools do not require configuration (`config_dependent: false`).
 
-Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) for details.
+Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
 **Primary Tool Inputs:**
 
@@ -142,7 +142,7 @@ Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty
 
 ## github-mcp 
 
-See also: [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing github-mcp as a high-risk tool.
+See also: [00_security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing github-mcp as a high-risk tool.
 
 **Purpose:** GitHub API via PyGithub. Performs reads and writes to GitHub repositories.
 **Startup Mode:** persistent (HTTP)
@@ -153,7 +153,7 @@ See also: [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-r
 
 All tools require configuration (`config_dependent: true`).
 
-The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server is subject to implementation requirements 15/16. Refer [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) for current contract.
+The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server is subject to implementation requirements 15/16. Refer [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for current contract.
 
 **Write Operations (9 items) are subject to repository allowlist:**
 `github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`, `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request`

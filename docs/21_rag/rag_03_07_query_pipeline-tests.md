@@ -5,33 +5,33 @@ tags:
   - rag-tests
   - quality-regression
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview.md
-  - 03_rag_03_01_query_pipeline-overview.md
-  - 03_rag_03_03_query_pipeline-context-and-diagnostics.md
-  - 03_rag_03_04_query_pipeline-search-stages.md
-  - 03_rag_03_05_query_pipeline-augment-stages.md
-  - 03_rag_03_06_query_pipeline-helpers-and-cache.md
-  - 03_rag_04_05_dto-types.md
-  - 03_rag_05_1-configuration-reference.md
+  - rag_00_document-guide.md
+  - rag_01_system_overview.md
+  - rag_03_01_query_pipeline-overview.md
+  - rag_03_03_query_pipeline-context-and-diagnostics.md
+  - rag_03_04_query_pipeline-search-stages.md
+  - rag_03_05_query_pipeline-augment-stages.md
+  - rag_03_06_query_pipeline-helpers-and-cache.md
+  - rag_04_05_dto-types.md
+  - rag_05_1-configuration-reference.md
 source:
-  - 03_rag_03_01_query_pipeline-overview.md
+  - rag_03_01_query_pipeline-overview.md
 ---
 
 
 # RAG Query Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- Type Definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
+- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- Type Definitions → [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md)
 
 ---
 
 ## 8. Tests
 
-### 8.1 Deterministic Regression Tests (`tests/test_rag_quality_regression.py`)
+### 8.1 Deterministic Regression Tests (`tests/rag/test_rag_quality_regression.py`)
 
-This test suite verifies that the key operational characteristics of the RAG query pipeline are maintained deterministically. For detailed test cases and assertions, see [tests/test_rag_quality_regression.py](tests/test_rag_quality_regression.py).
+This test suite verifies that the key operational characteristics of the RAG query pipeline are maintained deterministically. For detailed test cases and assertions, see [tests/rag/test_rag_quality_regression.py](../../tests/rag/test_rag_quality_regression.py).
 
 #### Key Characteristics Verified:
 - **RRF and Fusion Mode Behavior**:
@@ -47,11 +47,11 @@ This test suite verifies that the key operational characteristics of the RAG que
   - Slicing of the `reranked` list based on `rag_top_k`, and retention of all hits in the `merged` list.
 
 **Execution Command:**
-`uv run pytest tests/test_rag_quality_regression.py -v`
+`uv run pytest tests/rag/test_rag_quality_regression.py -v`
 
 ### 8.2 References
 
-This section is limited to the scope of `tests/test_rag_quality_regression.py`. Other tests covering individual stages or service layers are included in the following files:
+This section is limited to the scope of `tests/rag/test_rag_quality_regression.py`. Other tests covering individual stages or service layers are included in the following files:
 - `test_rag_pipeline.py`
 - `test_rag_pipeline_stage.py`
 - `test_rag_pipeline_service.py`

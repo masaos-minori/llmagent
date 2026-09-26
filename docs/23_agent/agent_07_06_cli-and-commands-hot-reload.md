@@ -56,7 +56,7 @@ The reload subcommand reads the base configuration files and applies changes as 
 
 ## Operational Notes
 
-- For full classification of each field, see [Configuration: Config file reload eligibility](agent_08_01_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility).
+- For full classification of each field, see [Configuration: Config file reload eligibility](agent_08_01_configuration-loading-agent-config.md)#config-file-ownership-and-hot-reload-eligibility).
 
 ## Known Limitations
 

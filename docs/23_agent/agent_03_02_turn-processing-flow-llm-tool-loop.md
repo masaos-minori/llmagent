@@ -11,7 +11,7 @@ related:
 ---
 # Agent Turn Processing Flow - LLM and Tool Loop
 
-- Runtime Architecture $\rightarrow$ [agent_02_runtime-architecture.md]()agent_02_runtime-architecture.md
+- Runtime Architecture $\rightarrow$ [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
 
 ## Purpose
 

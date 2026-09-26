@@ -585,17 +585,17 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Specifications
 
-- [Deployment Guide](../90_deployment/02_deployment.md) — デプロイメント時のワークフロー検証
-- [MCP Configuration / Approval / Observability](../agent_08_04_configuration-mcp-approval-obs.md#component-criticality-classification) — MCPサーバーの必須／非必須分類記録(Decision Group 3)
+- [Deployment Guide](../90_deployment/deployment_01_deployment.md) — デプロイメント時のワークフロー検証
+- [MCP Configuration / Approval / Observability](../23_agent/agent_08_04_configuration-mcp-approval-obs.md#component-criticality-classification) — MCPサーバーの必須／非必須分類記録(Decision Group 3)
 <!-- TODO: Document 'agent_03_03_turn-processing-flow-workflow-engine.md' was deleted -->
 
 ### Operations
 
-- [Workflow Deployment Runbook](../agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — 障害対応手順
+- [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — 障害対応手順
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — ADR-004関連のKnown Issue（CI-016）
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — ADR-004関連のKnown Issue（CI-016）
 
 ### Implementation References
 

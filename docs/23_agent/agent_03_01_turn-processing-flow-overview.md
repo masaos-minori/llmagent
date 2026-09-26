@@ -11,7 +11,7 @@ related:
 ---
 # Agent Turn Processing Flow - Overview
 
-- Runtime Architecture $\rightarrow$ [agent_02_runtime-architecture.md]()agent_02_runtime-architecture.md
+- Runtime Architecture $\rightarrow$ [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
 
 ## Purpose
 
@@ -77,7 +77,7 @@ User input (line)
 
 ### Implementation note: Always goes through the workflow engine
 
-`Orchestrator.__init__` calls `WorkflowLoader().load()`; if it fails, it raises a `RuntimeError` and orchestration construction itself fails. Therefore, when `handle_turn()` is called, the workflow definition is non-None and mandatory, with no fallback path for direct execution. The steps ①–⑥ above are executed as callbacks in the `plan`/`execute`/`verify` stages of `WorkflowEngine.run()`. The `plan_fn` is intentionally a no-op because turn start processing is already completed before this stage. For details on stage composition, see [agent_03_03_turn-processing-flow-workflow-engine.md]()agent_03_03_turn-processing-flow-workflow-engine.md.
+`Orchestrator.__init__` calls `WorkflowLoader().load()`; if it fails, it raises a `RuntimeError` and orchestration construction itself fails. Therefore, when `handle_turn()` is called, the workflow definition is non-None and mandatory, with no fallback path for direct execution. The steps ①–⑥ above are executed as callbacks in the `plan`/`execute`/`verify` stages of `WorkflowEngine.run()`. The `plan_fn` is intentionally a no-op because turn start processing is already completed before this stage. For details on stage composition, see [agent_03_03_turn-processing-flow-workflow-engine.md](agent_03_03_turn-processing-flow-workflow-engine.md).
 
 ### Background Task Failure Threshold Notification and Pausing
 

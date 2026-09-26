@@ -52,7 +52,7 @@ Documents the `shared/` layer (common types, configuration, logging, OTel, tool 
 
 ## Navigation to Major Known Issues
 
-Refer to [governance_03_issue-and-uncertainty-management.md](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB) for a full catalog of known inconsistencies. Note that `ArtifactEvent` does not involve an event bus (it is data definition only).
+Refer to [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB) for a full catalog of known inconsistencies. Note that `ArtifactEvent` does not involve an event bus (it is data definition only).
 
 ---
 
@@ -60,7 +60,7 @@ Refer to [governance_03_issue-and-uncertainty-management.md](/home/sugimoto/llma
 
 - ~~~~~~~~~~~~~~~~~~~~~~~~`06_spec_shared.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~~~~~`07_ref-sqlite.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~~~~~`07_spec_db.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~~~~~`90_shared.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) are legacy source files that have been deleted; their content now resides within the restructured `shared_02_*` through `shared_05_*` files. DB layer files moved to `41_db/`: `shared_04_*` → `db_01-*`, `shared_05_*` → `db_04-*`.
 - If contents conflict between source files, trust the new restructured files (see `shared_90` for all discrepancies).
-- `docs/adr/ADR-008-sqlite-4db-separation.md`'s Recovery Policy Matrix is the canonical source for persistence-domain recovery policy, superseding any per-domain policy prose duplicated elsewhere.
+- `docs/10_adr/ADR-008-sqlite-4db-separation.md`'s Recovery Policy Matrix is the canonical source for persistence-domain recovery policy, superseding any per-domain policy prose duplicated elsewhere.
 
 ---
 
@@ -74,10 +74,10 @@ Read the `shared/` documentation group in order: `overview` → `02_types` → `
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md)
-- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md)
+- [Documentation Policy](../00_governance/governance_01_documentation-policy.md)
+- [Documentation Metadata](../00_governance/governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
 
 ## Guidance for Safe AI Use
 
@@ -91,4 +91,4 @@ Cross-cutting documentation rules and policies:
 
 ## Related ADRs
 
-- [ADR-008](/home/sugimoto/llmagent/docs/10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
+- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する

@@ -13,7 +13,7 @@ related:
 
 All MCP server tool schema modules (`scripts/mcp_servers/<server_name>/<server_name>_tools.py`) must export the standard tool list as `TOOL_LIST`.
 
-Related: [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — describes the ownership and routing roles of `ToolRegistry` (different from the schema export role described in this document).
+Related: [mcp_03_02_tool-registry.md](mcp_03_02_tool-registry.md) — describes the ownership and routing roles of `ToolRegistry` (different from the schema export role described in this document).
 
 ### Rationale
 

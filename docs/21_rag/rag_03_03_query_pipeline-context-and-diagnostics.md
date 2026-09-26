@@ -5,21 +5,21 @@ tags:
   - pipeline-context
   - search-diagnostics
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview.md
-  - 03_rag_03_01_query_pipeline-overview.md
-  - 03_rag_04_05_dto-types.md
-  - 03_rag_05_1-configuration-reference.md
+  - rag_00_document-guide.md
+  - rag_01_system_overview.md
+  - rag_03_01_query_pipeline-overview.md
+  - rag_04_05_dto-types.md
+  - rag_05_1-configuration-reference.md
 source:
-  - 03_rag_03_01_query_pipeline-overview.md
+  - rag_03_01_query_pipeline-overview.md
 ---
 
 
 # RAG Query Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- Type Definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
+- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- Type Definitions → [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md)
 
 ---
 
@@ -49,7 +49,7 @@ stage-populated field is written by a specific pipeline stage:
 from rag.models_result import SearchDiagnostics, ResultSource, HttpResultKind
 ```
 
-For detailed field lists, types, and default values, see <a href="../03_rag_04_02_dto-models_result.md">docs/03_rag_04_02_dto-models_result.md</a>. This section describes boundary conditions and ownership specifically in HTTP mode.
+For detailed field lists, types, and default values, see <a href="../rag_04_02_dto-models_result.md">docs/rag_04_02_dto-models_result.md</a>. This section describes boundary conditions and ownership specifically in HTTP mode.
 
 #### Boundary Conditions (Boundary and ownership)
 

@@ -27,7 +27,7 @@ A group of commands for session management and history operations. `/clear new` 
 
 #### Session DB operation subcommands
 
-All legacy `/db session <subcmd>` subcommands have been migrated to `/session <subcmd>`. For details, see [Context/DB Category]()agent_07_09_cli-and-commands-slash-commands-context-db.md.
+All legacy `/db session <subcmd>` subcommands have been migrated to `/session <subcmd>`. For details, see [Context/DB Category](agent_07_09_cli-and-commands-slash-commands-context-db.md).
 
 ### MCP Category
 

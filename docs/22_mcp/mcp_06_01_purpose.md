@@ -6,7 +6,7 @@ tags:
   - configuration
   - purpose
 related:
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_06_02_configuration-file-inventory.md
 ---
 # Purpose
 
@@ -18,7 +18,7 @@ Document all configuration files, per-server config keys, startup validation, he
 
 ## Related Documents
 
-- [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
+- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 
 ## Keywords
 

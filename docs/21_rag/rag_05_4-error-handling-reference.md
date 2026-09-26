@@ -5,10 +5,10 @@ tags:
   - rag
   - configuration
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_05_1-configuration-reference.md
+  - rag_00_document-guide.md
+  - rag_05_1-configuration-reference.md
 source:
-  - 03_rag_05_1-configuration-reference.md
+  - rag_05_1-configuration-reference.md
 ---
 
 # 4. Error Handling Reference
@@ -35,7 +35,7 @@ Both canonical artifact readers (`scripts/rag/ingestion/pipeline_utils.py`) rais
 `ChunkFormatError` (`scripts/rag/exceptions.py:27`, a `RagLayerError` and `ValueError`
 subclass) on any validation failure — there is no silent-default fallback path in
 either reader (contrast with the legacy `read_json_file()`, documented as historical
-in [03_rag_02_08_ingestion_pipeline-shared.md](03_rag_02_08_ingestion_pipeline-shared.md)).
+in [rag_02_08_ingestion_pipeline-shared.md](rag_02_08_ingestion_pipeline-shared.md)).
 
 | Error | Action |
 |---|---|
@@ -54,7 +54,7 @@ in [03_rag_02_08_ingestion_pipeline-shared.md](03_rag_02_08_ingestion_pipeline-s
 
 For the full per-field Required/Nullable/Conditional classification referenced above,
 see the canonical table in
-[03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md).
+[rag_02_03_ingestion_pipeline-chunksplitter.md](rag_02_03_ingestion_pipeline-chunksplitter.md).
 
 ### ChunkFormatError Classification Guidance
 
@@ -105,7 +105,7 @@ No ADR or design document records a rationale for keeping them separate.
 | Embedding API failure | Retry with exponential backoff up to `embed_retry` |
 | Retry limit reached (single chunk) | `WARNING`; skip chunk; continue |
 | Invalid `lang` value | `ValueError`; skip URL group; `ERROR` (with traceback) |
-| Invalid `fetched_at` (incoming or stored) | `ETagManager._is_stale_update()` raises `ValueError` — `Invalid incoming timestamp: {value}` or `Invalid stored timestamp: {value}` (message text is the only current distinction; no separate exception classes). Uncaught at the call site (`RagIngester.ingest_url_group()`), it propagates to the same catch-all as "Invalid `lang` value" above: skip URL group; `ERROR` (with traceback). See [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.8.1](03_rag_02_06_ingestion_pipeline-supporting-components.md#481-freshness-comparison-edge-cases-and-error-handling). |
+| Invalid `fetched_at` (incoming or stored) | `ETagManager._is_stale_update()` raises `ValueError` — `Invalid incoming timestamp: {value}` or `Invalid stored timestamp: {value}` (message text is the only current distinction; no separate exception classes). Uncaught at the call site (`RagIngester.ingest_url_group()`), it propagates to the same catch-all as "Invalid `lang` value" above: skip URL group; `ERROR` (with traceback). See [rag_02_06_ingestion_pipeline-supporting-components.md section 4.8.1](rag_02_06_ingestion_pipeline-supporting-components.md#481-freshness-comparison-edge-cases-and-error-handling). |
 
 ## RagPipeline
 
@@ -122,8 +122,8 @@ No ADR or design document records a rationale for keeping them separate.
 
 ## Related Documents
 
-- [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- [03_rag_04_04_dto-models_config.md](03_rag_04_04_dto-models_config.md)
+- [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- [rag_04_04_dto-models_config.md](rag_04_04_dto-models_config.md)
 
 ## Keywords
 

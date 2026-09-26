@@ -11,7 +11,7 @@ related:
 ---
 # Shared Runtime and Execution Infrastructure
 
-- Overview → [shared_overview_00_document-guide.md](shared_overview_00_document-guide.md)
+- Overview → [shared_00_document-guide.md](shared_00_document-guide.md)
 
 ## 14. `LlmRetryHandler` (`shared/llm_retry.py`)
 

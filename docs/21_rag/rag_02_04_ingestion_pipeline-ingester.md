@@ -8,25 +8,25 @@ tags:
   - etag-manager
   - rag
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview.md
-  - 03_rag_02_01_ingestion_pipeline-overview.md
-  - 03_rag_02_02_ingestion_pipeline-crawler.md
-  - 03_rag_02_03_ingestion_pipeline-chunksplitter.md
-  - 03_rag_02_07_ingestion_pipeline-utils.md
-  - 03_rag_02_05_ingestion_pipeline-document-manager.md
-  - 03_rag_02_06_ingestion_pipeline-supporting-components.md
-  - 03_rag_05_1-configuration-reference.md
-  - 03_rag_02_04_ingestion_pipeline-ingester.md
+  - rag_00_document-guide.md
+  - rag_01_system_overview.md
+  - rag_02_01_ingestion_pipeline-overview.md
+  - rag_02_02_ingestion_pipeline-crawler.md
+  - rag_02_03_ingestion_pipeline-chunksplitter.md
+  - rag_02_07_ingestion_pipeline-utils.md
+  - rag_02_05_ingestion_pipeline-document-manager.md
+  - rag_02_06_ingestion_pipeline-supporting-components.md
+  - rag_05_1-configuration-reference.md
+  - rag_02_04_ingestion_pipeline-ingester.md
 source:
-  - 03_rag_02_04_ingestion_pipeline-ingester.md
+  - rag_02_04_ingestion_pipeline-ingester.md
 ---
 
 
 # RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
+- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
 
 ---
 
@@ -42,9 +42,9 @@ For a complete list of dataclasses and public methods, see `scripts/rag/ingestio
 reader for chunk-stage JSON artifacts; `RagIngester._read_chunk_json()`
 (`scripts/rag/ingestion/ingester.py:344`, calling `read_chunk_json()` at line 346) is
 its wrapper, used at `ingester.py:222,240`. A missing required key or invalid field
-type raises `ChunkFormatError` — see [03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md)
+type raises `ChunkFormatError` — see [rag_05_4-error-handling-reference.md](rag_05_4-error-handling-reference.md)
 and the canonical field-contract table in
-[03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md).
+[rag_02_03_ingestion_pipeline-chunksplitter.md](rag_02_03_ingestion_pipeline-chunksplitter.md).
 
 ### 4.2 Detailed Behavior
 
@@ -70,9 +70,9 @@ chunks_vec (explicitly deleted) → documents (deleting documents triggers casca
 **Affected Code Paths:**
 - `DocumentManager.delete_existing_document()` (`scripts/rag/ingestion/document_manager.py`) — ingestion pipeline path. Internally calls shared helper `delete_document_chain()`.
 - `DocumentManager.delete_document(url)` (`scripts/mcp_servers/rag_pipeline/document_manager.py`) — MCP tool (`rag_delete_document`) path.
-- Both paths follow the same order to prevent orphaned vector records (see [ADR-005](/home/sugimoto/llmagent/docs/10_adr/ADR-005-rag-source-derived-index-relationships.md) for details).
+- Both paths follow the same order to prevent orphaned vector records (see [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md) for details).
 - **Idempotency:** If the URL already exists in `documents`, processing is skipped. However, due to the freshness guard described below, `etag`/`last_modified` may still be updated. When skipped, `chunking_strategy` is NOT updated.
-- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). All callers now provide `fetched_at`; there is no fallback path for missing timestamps. For the full set of edge cases (invalid timestamps, equal timestamps, missing stored timestamp) and error conditions, see [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.8.1](03_rag_02_06_ingestion_pipeline-supporting-components.md#481-freshness-comparison-edge-cases-and-error-handling).
+- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). All callers now provide `fetched_at`; there is no fallback path for missing timestamps. For the full set of edge cases (invalid timestamps, equal timestamps, missing stored timestamp) and error conditions, see [rag_02_06_ingestion_pipeline-supporting-components.md section 4.8.1](rag_02_06_ingestion_pipeline-supporting-components.md#481-freshness-comparison-edge-cases-and-error-handling).
 - **Embedding Failure Tracking:** Chunk and embedding results are returned as a tuple. `n_embed_failed` counts failures specific to embedding, separate from parsing/DB errors.
 - **Local File Unchanged Detection:** Compares SHA-256 ETags for `file://` URLs.
 
@@ -98,8 +98,8 @@ rag
 
 ## RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
+- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
 
 ---
 
@@ -135,7 +135,7 @@ chunks_vec (explicitly deleted) → documents (deleting documents triggers casca
 **Affected Code Paths:**
 - `DocumentManager.delete_existing_document()` (`scripts/rag/ingestion/document_manager.py`) — ingestion pipeline path. Internally calls shared helper `delete_document_chain()`.
 - `DocumentManager.delete_document(url)` (`scripts/mcp_servers/rag_pipeline/document_manager.py`) — MCP tool (`rag_delete_document`) path.
-- Both paths follow the same order to prevent orphaned vector records (see [ADR-005](/home/sugimoto/llmagent/docs/10_adr/ADR-005-rag-source-derived-index-relationships.md) for details).
+- Both paths follow the same order to prevent orphaned vector records (see [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md) for details).
 - **Idempotency:** If the URL already exists in `documents`, processing is skipped. However, due to the freshness guard described below, `etag`/`last_modified` may still be updated. When skipped, `chunking_strategy` is NOT updated.
 - **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). All callers now provide `fetched_at`; there is no fallback path for missing timestamps.
 - **Embedding Failure Tracking:** Chunk and embedding results are returned as a tuple. `n_embed_failed` counts failures specific to embedding, separate from parsing/DB errors.
@@ -163,7 +163,7 @@ Response: `{"embedding": [float, ...]}` — 384 dimensions (multilingual-E5-smal
 
 ### 4.5 Database Updates
 
-Current DB schema definition $\rightarrow$ [RAG schema reference document](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+Current DB schema definition $\rightarrow$ [RAG schema reference document](rag_02_06_ingestion_pipeline-supporting-components.md)
 
 ### 4.6 Error Handling
 
@@ -180,8 +180,8 @@ this layer), and file-move failure logging.
 - **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 - Detailed log message formats $\rightarrow$ `scripts/rag/ingestion/ingester.py`
 
-Detailed ETagManager info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
-Configuration details $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+Detailed ETagManager info $\rightarrow$ [rag_02_06_ingestion_pipeline-supporting-components.md section 4.8](rag_02_06_ingestion_pipeline-supporting-components.md)
+Configuration details $\rightarrow$ [rag_02_06_ingestion_pipeline-supporting-components.md section 4.9](rag_02_06_ingestion_pipeline-supporting-components.md)
 
 ---
 
@@ -207,8 +207,8 @@ rag
 
 ## RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
+- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
 
 ---
 
@@ -236,7 +236,7 @@ Response: `{"embedding": [float, ...]}` — 384 dimensions (multilingual-E5-smal
 
 ### 4.5 Database Updates
 
-Current DB schema definition $\rightarrow$ [RAG schema reference document](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+Current DB schema definition $\rightarrow$ [RAG schema reference document](rag_02_06_ingestion_pipeline-supporting-components.md)
 
 ### 4.6 Error Handling
 
@@ -253,7 +253,7 @@ this layer), and file-move failure logging.
 - **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 - Detailed log message formats $\rightarrow$ `scripts/rag/ingestion/ingester.py`
 
-ETagManager detailed info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
-Configuration detailed info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+ETagManager detailed info $\rightarrow$ [rag_02_06_ingestion_pipeline-supporting-components.md section 4.8](rag_02_06_ingestion_pipeline-supporting-components.md)
+Configuration detailed info $\rightarrow$ [rag_02_06_ingestion_pipeline-supporting-components.md section 4.9](rag_02_06_ingestion_pipeline-supporting-components.md)
 
 ---

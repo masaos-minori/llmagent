@@ -142,7 +142,7 @@ This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance E
 
 ## Related Documents
 
-- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md) — Document Classification, ADR Section Header Standardization, ADR Acceptance Evidence Standard
+- [Documentation Policy](../00_governance/governance_01_documentation-policy.md) — Document Classification, ADR Section Header Standardization, ADR Acceptance Evidence Standard
 - `tools/generate_reference_table.py` — existing Option B precedent (rag/mcp/deployment generators)
 - `tools/check_docs_content_policy.py` — `GV-021`'s guard-comment exemption, currently mismatched against the real guard format (tracked separately)
 - `plans/done/20260919-105034_plan.md` — the gated follow-up extending `tools/generate_reference_table.py` to Agent/EventBus/Memory

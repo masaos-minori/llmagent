@@ -6,17 +6,17 @@ tags:
   - tracing
   - lifecycle
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_03_01_dispatch-and-routing.md
-  - 04_mcp_03_02_tool-registry.md
-  - 04_mcp_03_03_transport-and-health.md
-  - 04_mcp_03_05_lifecycle-and-new-server.md
-  - 04_mcp_06_12_watchdog-configuration-monitoring.md
+  - mcp_00_document-guide.md
+  - mcp_03_01_dispatch-and-routing.md
+  - mcp_03_02_tool-registry.md
+  - mcp_03_03_transport-and-health.md
+  - mcp_03_05_lifecycle-and-new-server.md
+  - mcp_06_12_watchdog-configuration-monitoring.md
 ---
 
 # Transport Error Tracing and Lifecycle Flow
 
-> **Note:** Due to historical reasons, the filename contains the word `watchdog`, but the MCP watchdog (automatic health polling / automatic restart loop) was removed on 2026-07-16. For details, see [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md).
+> **Note:** Due to historical reasons, the filename contains the word `watchdog`, but the MCP watchdog (automatic health polling / automatic restart loop) was removed on 2026-07-16. For details, see [mcp_06_12_watchdog-configuration-monitoring.md](mcp_06_12_watchdog-configuration-monitoring.md).
 
 ## Example Failure Path (Transport Error)
 
@@ -43,7 +43,7 @@ related:
    → if the call succeeds: HealthRegistry.record_success("file_read") → HALF_OPEN → HEALTHY
    → if it fails again: HealthRegistry.record_failure("file_read") → DEGRADED → UNAVAILABLE
    No background poller retries this automatically; see
-   04_mcp_06_12_watchdog-configuration-monitoring.md for the removed watchdog.
+   mcp_06_12_watchdog-configuration-monitoring.md for the removed watchdog.
 ```
 
 ---
@@ -61,7 +61,7 @@ related:
 
 A tool error means the server processed the request but returned an error. A transport error means the agent never received a response from the server.
 
-For operational tracing procedures, see [04_mcp_06 End-to-End Tool Call Tracing](04_mcp_06_08_end-to-end-tool-call-tracing.md#end-to-end-tool-call-tracing).
+For operational tracing procedures, see [04_mcp_06 End-to-End Tool Call Tracing](mcp_06_08_end-to-end-tool-call-tracing.md#end-to-end-tool-call-tracing).
 
 ---
 

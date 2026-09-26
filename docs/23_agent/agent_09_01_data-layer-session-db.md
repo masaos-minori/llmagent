@@ -13,7 +13,7 @@ source:
 
 # Agent Data Layer
 
-- State and Persistence → [agent_04_01_state-and-persistence-state-model.md]()agent_04_01_state-and-persistence-state-model.md
+- State and Persistence → [agent_04_01_state-and-persistence-state-model.md](agent_04_01_state-and-persistence-state-model.md)
 
 ## Purpose
 

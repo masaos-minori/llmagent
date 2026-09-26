@@ -6,7 +6,7 @@ tags:
   - server-catalog
   - file-operations
 related:
-  - 04_mcp_00_document-guide.md
+  - mcp_00_document-guide.md
 ---
 # MCP Server Catalog: file-write-mcp / file-delete-mcp / shell-mcp
 
@@ -20,7 +20,7 @@ related:
 
 All tools do not require configuration (`config_dependent: false`).
 
-The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) for details.
+The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
 **Configuration Fields:** `allowed_dirs`, `max_write_bytes` (default: 1,000,000)
 
@@ -54,7 +54,7 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 
 All tools do not require configuration (`config_dependent: false`).
 
-The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) for details.
+The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
 **Configuration Fields:** `allowed_dirs`, `audit_log_path`
 

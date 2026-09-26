@@ -7,12 +7,12 @@ tags:
   - overview
   - architecture
 related:
-  - 04_mcp_00_document-guide.md
+  - mcp_00_document-guide.md
 ---
 
 # MCP System Overview
 
-- Document Guide $\rightarrow$ [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md)
+- Document Guide $\rightarrow$ [mcp_00_document-guide.md](mcp_00_document-guide.md)
 
 ## Purpose
 
@@ -62,7 +62,7 @@ Application settings specific to each MCP server:
 
 ## Server Catalog
 
-Configuration, tools, security settings, and operational notes per server $\rightarrow$ [04_mcp_04_01_web-search-file-read-github.md](04_mcp_04_01_web-search-file-read-github.md) (the canonical catalog).
+Configuration, tools, security settings, and operational notes per server $\rightarrow$ [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md) (the canonical catalog).
 
 | Server | Port | Transport | Startup Mode | Tool Count | Role |
 |---|---|---|---|---|---|
@@ -120,7 +120,7 @@ Servers run as subprocesses on loopback.
 | `ToolExecutor` | `shared/tool_executor.py` | Routing, concurrent execution, health registry |
 | `ToolRouteResolver` | `shared/route_resolver.py` | Resolves tool_name $\rightarrow$ server_key (references only `RuntimeToolRegistry.resolve()`) |
 | `RuntimeToolRegistry` | `shared/runtime_tool_registry.py` | **Sole routing authority**. Constructed via live `/v1/tools` discovery using McpToolDiscoveryService |
-The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `docs/04_mcp_06_03` for details. |
+The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `docs/mcp_06_03_*` for details. |
 | `ToolRegistry` | `shared/tool_registry.py` | Seed data for drift detection regarding tool definitions and ownership (constructed at import from frozenset in `tool_constants.py`; not used for routing) |
 | `McpServerConfig` | `shared/mcp_config.py` | Transport settings per server |
 | `McpServerHealthRegistry` | `shared/mcp_health.py` | Server status: HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN/UNKNOWN (only re-exports `shared/mcp_config.py`) |
@@ -161,13 +161,13 @@ MCP server processes (mcp_servers/<name>/server.py)
 
 | Topic | File |
 |---|---|
-| Protocol details, HTTP format | [04_mcp_02_01_endpoints-and-transport.md](04_mcp_02_01_endpoints-and-transport.md) |
-| Audit log | [04_mcp_02_03_audit-logging-and-errors.md](04_mcp_02_03_audit-logging-and-errors.md) |
-| Routing, Lifecycle, ToolExecutor | [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md) |
-| Per-server specification | [04_mcp_04_01_web-search-file-read-github.md](04_mcp_04_01_web-search-file-read-github.md) |
-| Security and Safety model | [04_mcp_05_01_access-control-and-allowlists.md](04_mcp_05_01_access-control-and-allowlists.md) |
-| Configuration and Operations | [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) |
-| Known issues and inconsistencies | [governance_03_issue-and-uncertainty-management.md](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: MCP) |
+| Protocol details, HTTP format | [mcp_02_01_endpoints-and-transport.md](mcp_02_01_endpoints-and-transport.md) |
+| Audit log | [mcp_02_03_audit-logging-and-errors.md](mcp_02_03_audit-logging-and-errors.md) |
+| Routing, Lifecycle, ToolExecutor | [mcp_03_01_dispatch-and-routing.md](mcp_03_01_dispatch-and-routing.md) |
+| Per-server specification | [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md) |
+| Security and Safety model | [mcp_05_01_access-control-and-allowlists.md](mcp_05_01_access-control-and-allowlists.md) |
+| Configuration and Operations | [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md) |
+| Known issues and inconsistencies | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: MCP) |
 
 ---
 

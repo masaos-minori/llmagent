@@ -5,7 +5,7 @@ tags:
   - governance
 related:
   - ../00_index.md
-  - overview_00_document-guide.md
+  - ../01_overview/overview_00_document-guide.md
 ---
 
 # Issue and Uncertainty Management
@@ -205,7 +205,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: Agent Workflow Engine initialization path
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-03
-- **Target**: `docs/adr/ADR-001-workflow-engine-mandatory.md`
+- **Target**: `docs/10_adr/ADR-001-workflow-engine-mandatory.md`
 - **Related**: ADR-001
 - **Summary**: ADR-001 states that workflow definitions are mandatory and missing workflows raise `RuntimeError`.
 - **Current Description**: This has been verified via code inspection (`RuntimeError` raised on missing workflow during initialization), but there is no automated test covering this invariant.
@@ -225,7 +225,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/shared/config_loader.py::restrict_to()`
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-03
-- **Target**: `docs/adr/ADR-002-config-isolation.md`
+- **Target**: `docs/10_adr/ADR-002-config-isolation.md`
 - **Related**: ADR-002, CI-001
 - **Summary**: ADR-002 states that config isolation must be enforced.
 - **Current Description**: This has been verified via code inspection (`restrict_to()` enforcement confirmed in `config_loader.py`), but there is no automated test covering this invariant.
@@ -245,7 +245,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/shared/route_resolver.py::resolve()`
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-03
-- **Target**: `docs/adr/ADR-003-runtime-tool-registry-routing-authority.md`
+- **Target**: `docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md`
 - **Related**: ADR-003, CI-003, CI-015
 - **Summary**: ADR-003 states that `RuntimeToolRegistry` is the sole routing authority.
 - **Current Description**: This has been verified via code inspection (`resolve()` only looks up in `_runtime_registry`, never falls back to `ToolRegistry`), but there is no automated test covering this invariant.
@@ -265,7 +265,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/db/rag_consistency.py` / RAG deletion path
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-03
-- **Target**: `docs/adr/ADR-005-rag-source-derived-index-relationships.md`
+- **Target**: `docs/10_adr/ADR-005-rag-source-derived-index-relationships.md`
 - **Related**: ADR-005, RAG-005
 - **Summary**: ADR-005 states that `chunks_vec` must be deleted before `documents`.
 - **Current Description**: This has been verified via code inspection (implementation matches the invariant), but there is no automated test covering this invariant.
@@ -285,7 +285,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/eventbus/offsets.py::write_offset()`
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-03
-- **Target**: `docs/adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
+- **Target**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
 - **Related**: ADR-006, EVENTBUS-001
 - **Summary**: ADR-006 states that EventBus offsets must be monotonically increasing.
 - **Current Description**: This has been verified via code inspection (`seq > current` enforcement confirmed in `write_offset()`), but there is no automated test covering this invariant.
@@ -305,7 +305,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/mcp_servers/`
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-03
-- **Target**: `docs/adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md`
+- **Target**: `docs/10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md`
 - **Related**: ADR-007
 - **Summary**: ADR-007 states that stdio transport is prohibited.
 - **Current Description**: This has been verified via code inspection (no actual stdio transport code exists in `scripts/`, only conceptual comments), but there is no automated test covering this invariant.
@@ -325,7 +325,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `_format_chunks()`
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-15
-- **Target**: `docs/adr/ADR-009-rag-ft5-text-separation.md`
+- **Target**: `docs/10_adr/ADR-009-rag-ft5-text-separation.md`
 - **Related**: ADR-009, CI-007
 - **Summary**: ADR-009 states that `normalized_content` must not appear in LLM output.
 - **Current Description**: This has been verified via code inspection (`_format_chunks()` uses `c.content`, not `c.normalized_content`), but there is no automated test covering this invariant.
@@ -345,7 +345,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/agent/services/mcp_tool_discovery.py`
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-03
-- **Target**: `docs/adr/ADR-003-runtime-tool-registry-routing-authority.md`
+- **Target**: `docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md`
 - **Related**: ADR-003, CI-003, CI-010
 - **Summary**: ADR-003 (formerly also stated in ADR-013 INV-05, merged 2026-08-31) states that duplicate tool names produce a FATAL outcome.
 - **Current Description**: This has been verified via code inspection (duplicate tool name produces a FATAL outcome, confirmed in `mcp_tool_discovery.py`), but there is no automated test covering this invariant.
@@ -365,7 +365,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/shared/mcp_config.py` (`required: bool = True` default), `scripts/agent/services/mcp_tool_discovery.py`
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-15
-- **Target**: `docs/adr/ADR-004-environment-failure-handling-policy.md`
+- **Target**: `docs/10_adr/ADR-004-environment-failure-handling-policy.md`
 - **Related**: ADR-004
 - **Summary**: ADR-004 Decision #12/INV-14 requires that undefined or undeterminable component criticality never be assumed non-required and be treated as an unresolved design/config error.
 - **Current Description**: `McpServerConfig.required` defaults to `True` (`scripts/shared/mcp_config.py:95`), so an unspecified criticality is never silently treated as non-required. However, no automated test verifies this default-required safety net, and no distinct code path flags "criticality was never explicitly configured" as its own design/config error per Decision #12's literal wording — ADR-004's own Completion Checklist and Manual Review notes still list INV-14 as unverified/Manual-Review-only.
@@ -692,7 +692,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 #### NC-037
 
-- **Source File**: `docs/adr/ADR-004-environment-failure-handling-policy.md`
+- **Source File**: `docs/10_adr/ADR-004-environment-failure-handling-policy.md`
 - **Section**: Implementation Notes (MCP server retry policy)
 - **Line Number**: ~450 (pre-reclassification; now a cross-reference to this entry)
 - **Question**: Is the current single fixed-delay retry (`HEALTH_CHECK_RETRY_DELAY_SEC`) on MCP server unreachability an intentional simplicity choice, or is a configurable-attempt-count general Retry Policy still pending implementation?

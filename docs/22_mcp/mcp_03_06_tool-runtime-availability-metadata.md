@@ -7,12 +7,12 @@ tags:
   - tool-registry
   - runtime-tool-registry
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_03_02_tool-registry.md
-  - 04_mcp_04_01_web-search-file-read-github.md
-  - 04_mcp_04_02_file-write-file-delete-shell.md
-  - 04_mcp_04_03_rag-pipeline-and-cicd.md
-  - 04_mcp_04_05_git.md
+  - mcp_00_document-guide.md
+  - mcp_03_02_tool-registry.md
+  - mcp_04_01_web-search-file-read-github.md
+  - mcp_04_02_file-write-file-delete-shell.md
+  - mcp_04_03_rag-pipeline-and-cicd.md
+  - mcp_04_05_git.md
   - agent_08_04_configuration-mcp-approval-obs.md
   - governance_03_issue-and-uncertainty-management.md
 ---
@@ -23,7 +23,7 @@ related:
 
 ## 0. Concept distinctions
 
-See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between these concepts.
+See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between these concepts.
 
 ## 1. `config_dependent` (static)
 
@@ -43,7 +43,7 @@ Added to each tool dict in the live `/v1/tools` response body, computed per-requ
 | `"command_allowlist is empty"` | shell | active |
 | `"workflow_allowlist is empty"` | cicd | active |
 
-**Implemented:** `git`, `file_read`/`file_write`/`file_delete`, `github`, `web_search`, `rag_pipeline`, `cicd`, `mdq`, and `shell` each compute `enabled`/`disabled_reason` per tool in their own `/v1/tools` handler. See [git-mcp availability metadata](./04_mcp_04_05_git.md#availability-metadata) for git's specific precedence rules. `rag_pipeline`/`cicd`/`mdq`/`shell` compute availability via `_rag_pipeline_tool_availability()`/`_cicd_tool_availability()`/`_mdq_tool_availability()`/`_shell_tool_availability()` respectively.
+**Implemented:** `git`, `file_read`/`file_write`/`file_delete`, `github`, `web_search`, `rag_pipeline`, `cicd`, `mdq`, and `shell` each compute `enabled`/`disabled_reason` per tool in their own `/v1/tools` handler. See [git-mcp availability metadata](./mcp_04_05_git.md#availability-metadata) for git's specific precedence rules. `rag_pipeline`/`cicd`/`mdq`/`shell` compute availability via `_rag_pipeline_tool_availability()`/`_cicd_tool_availability()`/`_mdq_tool_availability()`/`_shell_tool_availability()` respectively.
 
 ## 4. `/v1/tools` behavioral rules
 
@@ -51,11 +51,11 @@ Always returns every implemented tool; disabled tools are never omitted from the
 
 ## /v1/tools as RuntimeToolRegistry Source
 
-See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that `/v1/tools` is the sole source for constructing `RuntimeToolRegistry`.
+See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that `/v1/tools` is the sole source for constructing `RuntimeToolRegistry`.
 
 ## Reload vs. restart for RuntimeToolRegistry
 
-See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that reload does not rediscover tools.
+See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that reload does not rediscover tools.
 
 ## Field Mapping: /v1/tools ↔ RuntimeTool
 
@@ -79,20 +79,20 @@ Disabled tools must be rejected by `/v1/call_tool` before reaching the dispatch 
 
 ## 6. RuntimeToolRegistry (agent-side)
 
-See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision about RuntimeToolRegistry as the sole authority.
+See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision about RuntimeToolRegistry as the sole authority.
 
 ## 6a. Static availability vs. dynamic health (distinct, unintegrated boundary)
 
-See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that static availability and dynamic health are separate subsystems.
+See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that static availability and dynamic health are separate subsystems.
 
 ## 6b. Approval is not a disabled state
 
-See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that approval is not a form of disabled availability.
+See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that approval is not a form of disabled availability.
 
 ## Wiring reference
 
 For end-to-end tracing of how `disabled_reason` flows into `/mcp status`, see also:
-- `docs/04_mcp_03_02_tool-registry.md` — `RuntimeToolRegistry` module overview and discovery wiring.
+- `docs/mcp_03_02_tool-registry.md` — `RuntimeToolRegistry` module overview and discovery wiring.
 - `docs/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` — `/mcp status` command reference (general health/status view; does not yet detail the per-tool diagnostics table).
 
 ## `include_disabled` and `disabled_code`

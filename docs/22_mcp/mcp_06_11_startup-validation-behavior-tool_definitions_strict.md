@@ -10,7 +10,7 @@ related:
 # Startup Validation Behavior (`tool_definitions_strict`)
 
 > **Canonical specification.** This section describes the tool definitions check in `agent/services/tool_validation.py`.
-> For routing drift detection (`validate_routing_against_live` in `route_resolver.py`), see [04_mcp_03 Drift validation](./04_mcp_03_02_tool-registry.md#drift-validation).
+> For routing drift detection (`validate_routing_against_live` in `route_resolver.py`), see [04_mcp_03 Drift validation](./mcp_03_02_tool-registry.md#drift-validation).
 > These are different features.
 
 The tool definitions check is executed at agent startup, comparing the `tool_definitions` in `config/agent.toml` against actual `/v1/tools` responses. Behavior varies depending on server reachability and the `tool_definitions_strict` setting:
@@ -65,7 +65,7 @@ This difference exists because development tooling is designed to be more forgiv
 
 ## Related Documents
 
-- [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
+- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 
 ## Keywords
 

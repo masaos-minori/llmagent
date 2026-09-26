@@ -9,23 +9,23 @@ tags:
   - crawler
   - rag
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview.md
-  - 03_rag_02_01_ingestion_pipeline-overview.md
-  - 03_rag_02_02_ingestion_pipeline-crawler.md
-  - 03_rag_02_04_ingestion_pipeline-ingester.md
-  - 03_rag_02_07_ingestion_pipeline-utils.md
-  - 03_rag_05_1-configuration-reference.md
-  - 03_rag_02_03_ingestion_pipeline-chunksplitter.md
+  - rag_00_document-guide.md
+  - rag_01_system_overview.md
+  - rag_02_01_ingestion_pipeline-overview.md
+  - rag_02_02_ingestion_pipeline-crawler.md
+  - rag_02_04_ingestion_pipeline-ingester.md
+  - rag_02_07_ingestion_pipeline-utils.md
+  - rag_05_1-configuration-reference.md
+  - rag_02_03_ingestion_pipeline-chunksplitter.md
 source:
-  - 03_rag_02_03_ingestion_pipeline-chunksplitter.md
+  - rag_02_03_ingestion_pipeline-chunksplitter.md
 ---
 
 
 ## RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
+- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
 
 ---
 
@@ -99,8 +99,8 @@ rag
 
 # RAG Ingestion Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
+- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
 
 ---
 
@@ -201,11 +201,11 @@ JSON shape.
 ### 3.4a Canonical Artifact-Field Contract
 
 This is the canonical field-contract table for both artifact types in the RAG
-ingestion pipeline — other `docs/03_rag_*.md` documents link here instead of
+ingestion pipeline — other `docs/rag_*.md` documents link here instead of
 duplicating this table. Classification is derived directly from the validator each
 field is checked against in `scripts/rag/ingestion/pipeline_utils.py`
 (`read_crawl_json()` / `read_chunk_json()`); both raise `ChunkFormatError` (see
-[03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md))
+[rag_05_4-error-handling-reference.md](rag_05_4-error-handling-reference.md))
 on a missing required key or an invalid field type.
 
 **Missing key vs. `null` vs. empty string**: a key absent from the JSON payload is
@@ -249,7 +249,7 @@ There is exactly one cross-field validation rule among the crawl/chunk artifact 
 ### 3.5 Error Handling
 
 For the file-level-failure and existing-chunks cases, see
-[03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md)'s
+[rag_05_4-error-handling-reference.md](rag_05_4-error-handling-reference.md)'s
 "ChunkSplitter" section. For the Sudachi-tokenization-error case specifically, see
 `scripts/rag/ingestion/chunk_japanese.py::_normalize_ja_sentence` and
 `scripts/rag/ingestion/chunk_splitter.py::process_all` directly instead —
@@ -271,7 +271,7 @@ per-chunk skip, but the current code has no try/except at the chunk level: a
 
 ### 3.7 Configuration
 
-See [03_rag_05_1-configuration-reference.md section 1.1](03_rag_05_1-configuration-reference.md).
+See [rag_05_1-configuration-reference.md section 1.1](rag_05_1-configuration-reference.md).
 
 ---
 

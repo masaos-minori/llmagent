@@ -8,17 +8,17 @@ tags:
   - architecture
   - pipeline
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_02_01_ingestion_pipeline-overview.md
-  - 03_rag_03_01_query_pipeline-overview.md
+  - rag_00_document-guide.md
+  - rag_02_01_ingestion_pipeline-overview.md
+  - rag_03_01_query_pipeline-overview.md
 source:
-  - 03_rag_01_system_overview.md
+  - rag_01_system_overview.md
 ---
 
 
 # RAG System Overview
 
-- Documentation Guide → [03_rag_00_document-guide.md](03_rag_00_document-guide.md)
+- Documentation Guide → [rag_00_document-guide.md](rag_00_document-guide.md)
 
 ## Purpose
 
@@ -35,7 +35,7 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 - MCP Wrapper: `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`
 
 **Not Included:**
-- MDQ (Markdown Only Query) — A separate service. For boundary definitions, see [mcp_05 MDQ vs RAG Boundary](mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)
+- MDQ (Markdown Only Query) — A separate service. For boundary definitions, see [mcp_05 MDQ vs RAG Boundary](../22_mcp/mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)
 - Agent REPL — Only calls the pipeline via MCP; does not contain RAG logic.
 - LLM and Embedding Servers — External services providing inference and vector generation.
 
@@ -122,7 +122,7 @@ config/crawler.toml [target_urls]
 
 > **Implementation Note:** Configuration consists of three separate files per script:
 > (`config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml`). Each script loads only its own configuration using `ConfigLoader().load("<script>.toml")` and restricts access to other files using `ConfigLoader.restrict_to("<script>.toml")` (verified in `scripts/rag/ingestion/crawler.py` and `ingester.py`).
-> Basis: [ADR-002](/home/sugimoto/llmagent/docs/10_adr/ADR-002-config-isolation.md) §Decision #9, #13. Explicit in code.
+> Basis: [ADR-002](../10_adr/ADR-002-config-isolation.md) §Decision #9, #13. Explicit in code.
 
 ---
 
@@ -130,7 +130,7 @@ config/crawler.toml [target_urls]
 
 **5 Logical Stages executed per agent turn**
 
-Stages: MQE → Search → Fusion → Rerank → Augmentation. For details on each stage, see `docs/03_rag_03_02_query_pipeline-rag-pipeline-class.md` through `docs/03_rag_03_05_query_pipeline-augment-stages.md`.
+Stages: MQE → Search → Fusion → Rerank → Augmentation. For details on each stage, see `docs/rag_03_02_query_pipeline-rag-pipeline-class.md` through `docs/rag_03_05_query_pipeline-augment-stages.md`.
 
 - **MQE**: Query expansion via LLM — generates related queries to broaden retrieval scope.
 - **Search**: Hybrid retrieval — combines vector similarity search with FTS5 full-text search.
@@ -206,11 +206,11 @@ Troubleshooting:
 | Constraint | Value | Source |
 |---|---|---|
 | Language Detection | CJK ratio ≥ 0.10 → `ja`; otherwise `en`; fallback to hint if < 100 chars | `crawler.py` |
-| Chunk Size | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale for the specific bounds tracked as unresolved in NC-034 (`docs/governance_03_issue-and-uncertainty-management.md`). | `config/chunk_splitter.toml` |
-| Chunk Overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](03_rag_05_1-configuration-reference.md). Rationale tracked as unresolved in NC-034. | `config/chunk_splitter.toml` |
+| Chunk Size | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](rag_05_1-configuration-reference.md). Rationale for the specific bounds tracked as unresolved in NC-034 (`docs/governance_03_issue-and-uncertainty-management.md`). | `config/chunk_splitter.toml` |
+| Chunk Overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](rag_05_1-configuration-reference.md). Rationale tracked as unresolved in NC-034. | `config/chunk_splitter.toml` |
 | Embedding Dimension | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB | `scripts/db/store_protocols.py` |
-| Crawl Depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference §1.1](03_rag_05_1-configuration-reference.md). Rationale for the specific limit tracked as unresolved in NC-035. | `config/crawler.toml` |
-| Max Pages Per Site | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value in [Configuration Reference §1.1](03_rag_05_1-configuration-reference.md). Rationale for the specific limit tracked as unresolved in NC-035. | `config/crawler.toml` |
+| Crawl Depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference §1.1](rag_05_1-configuration-reference.md). Rationale for the specific limit tracked as unresolved in NC-035. | `config/crawler.toml` |
+| Max Pages Per Site | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value in [Configuration Reference §1.1](rag_05_1-configuration-reference.md). Rationale for the specific limit tracked as unresolved in NC-035. | `config/crawler.toml` |
 | Database | SQLite single node only | Architecture |
 
 Note: No empirical basis or trade-off analysis for these six constraint values is recorded in this repository's code, configuration files, or ADRs (as of this cycle's search). If these values are tuned, verify the change against actual retrieval quality/performance for your intended use case rather than assuming a known-good adjustment — this documentation set does not currently provide quality-impact guidance for any of them.
@@ -221,7 +221,7 @@ Each constraint below states what happens when violated and whether enforcement 
 
 **Language Detection** — Enforced programmatically in `detect_lang()` (`crawler_utils.py` lines 130-141): text under 100 characters returns `None` (falls back to hint language); CJK ratio ≥ 0.10 triggers `ja`, otherwise `en`. No error is raised — the fallback path handles short-text edge cases gracefully.
 
-**Chunk Size** — Enforced programmatically in `chunk_splitter.py`: sub-minimum chunks (< 40 chars) are discarded as noise (confirmed at lines 168-169: `if len(section) >= self._min_chunk`); over-maximum sections (> 500 chars) are split further via sentence-level chunking (line 174: `self._chunk_english(section)`). See `docs/03_rag_05_1-configuration-reference.md` line 39 for the discard-on-noise policy.
+**Chunk Size** — Enforced programmatically in `chunk_splitter.py`: sub-minimum chunks (< 40 chars) are discarded as noise (confirmed at lines 168-169: `if len(section) >= self._min_chunk`); over-maximum sections (> 500 chars) are split further via sentence-level chunking (line 174: `self._chunk_english(section)`). See `docs/rag_05_1-configuration-reference.md` line 39 for the discard-on-noise policy.
 
 **Chunk Overlap** — A configured value applied programmatically via sliding-window logic in `merge_text_items()` (`chunk_splitter.py` lines 185-186). There is no "violation" concept — any config value is accepted and applied without validation.
 
@@ -247,17 +247,17 @@ The interaction flow is: MCP client → `rag_pipeline_server.py` (HTTP routing) 
 
 Note: External (HTTP-delegated) and local (in-process) RAG execution modes currently read the same corpus database (`rag_db_path`). Both `config/agent.toml` (line 7: `rag_db_path = "/opt/llm/db/rag.sqlite"`) and `config/rag_pipeline_mcp_server.toml` (line 13: `rag_db_path = "/opt/llm/db/rag.sqlite"`) are configured identically. This is a configuration convention, not an enforced invariant — a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` would silently diverge, undetected by any current automated check.
 
-For details on responsibilities of these components, please refer to `docs/03_rag_03_01_query_pipeline-overview.md`.
+For details on responsibilities of these components, please refer to `docs/rag_03_01_query_pipeline-overview.md`.
 
 ## Related Chapters
 
 | Topic | File |
 |---|---|
-| Ingestion Scripts (API, CLI, Config) | [03_rag_02_01_ingestion_pipeline-overview.md](03_rag_02_01_ingestion_pipeline-overview.md) |
-| Query Pipeline (API, Stage Details) | [03_rag_03_01_query_pipeline-overview.md](03_rag_03_01_query_pipeline-overview.md) |
-| DB Schema, Type Definitions | [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md) |
-| Config, Execution Commands, Logs | [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md) |
-| Known Bugs and Inconsistencies | [governance_03_issue-and-uncertainty-management.md](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG) |
+| Ingestion Scripts (API, CLI, Config) | [rag_02_01_ingestion_pipeline-overview.md](rag_02_01_ingestion_pipeline-overview.md) |
+| Query Pipeline (API, Stage Details) | [rag_03_01_query_pipeline-overview.md](rag_03_01_query_pipeline-overview.md) |
+| DB Schema, Type Definitions | [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md) |
+| Config, Execution Commands, Logs | [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md) |
+| Known Bugs and Inconsistencies | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG) |
 
 ## Related Documents
 

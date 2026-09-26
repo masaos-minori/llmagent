@@ -90,10 +90,10 @@ The replay endpoint acquires a shared SQLite lock during the fetch operation, en
 
 ## Related Documents
 
-- [DLQ Operations Reference](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_03_dlq_operations.md)
-- [DLQ Requeue API Reference](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_05_dlq_endpoint.md)
+- [DLQ Operations Reference](eventbus_03_dlq_operations.md)
+- [DLQ Requeue API Reference](eventbus_05_dlq_endpoint.md)
 - [Event Bus Overview](eventbus_01_system-overview.md)
-- [Event Bus DLQ/Offsets/Delivery Semantics](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md)
+- [Event Bus DLQ/Offsets/Delivery Semantics](eventbus_06_dlq_offsets_and_delivery_semantics.md)
 
 ## Keywords
 

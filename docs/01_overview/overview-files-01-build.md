@@ -57,7 +57,6 @@ Deployment scripts are separated because:
 - `overview-files-03-scripts.md`
 - `overview-files-04-shared.md`
 - `overview-files-05-config.md`
-- [01_overview.md](01_overview.md)
 
 ## Keywords
 

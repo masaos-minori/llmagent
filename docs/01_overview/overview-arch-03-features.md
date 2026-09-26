@@ -12,7 +12,6 @@ tags:
 related:
   - overview-arch-01-process.md
   - overview-arch-02-pipelines.md
-  - 01_overview.md
 ---
 
 # Overview & Architecture
@@ -21,7 +20,7 @@ File Structure → [`overview-files-01-build.md`](overview-files-01-build.md), [
 
 ## 2.4 Agent Features & Commands List
 
-Details → [`agent_07_01_cli-and-commands-cli-reference.md`]()agent_07_01_cli-and-commands-cli-reference.md
+Details → [`agent_07_01_cli-and-commands-cli-reference.md`](../23_agent/agent_07_01_cli-and-commands-cli-reference.md)
 
 ## 2.5 Implemented Features Summary
 
@@ -77,7 +76,6 @@ Diagnostics can be viewed using the `/db` command. (Source: `agent/repl.py`)
 
 - `overview-arch-01-process.md`
 - `overview-arch-02-pipelines.md`
-- [01_overview.md](01_overview.md)
 
 ## Keywords
 

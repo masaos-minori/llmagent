@@ -6,11 +6,11 @@ tags:
   - server-catalog
   - mdq
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_04_01_web-search-file-read-github.md
-  - 04_mcp_04_02_file-write-file-delete-shell.md
-  - 04_mcp_04_03_rag-pipeline-and-cicd.md
-  - 04_mcp_04_05_git.md
+  - mcp_00_document-guide.md
+  - mcp_04_01_web-search-file-read-github.md
+  - mcp_04_02_file-write-file-delete-shell.md
+  - mcp_04_03_rag-pipeline-and-cicd.md
+  - mcp_04_05_git.md
 ---
 
 # MCP Server Catalog: mdq-mcp
@@ -33,7 +33,7 @@ related:
 - `max_snippet_chars`: `search.py` snippet processing now truncates snippets using this value instead of `snippet=row["content"][:150]`.
 - `search_timeout_sec`: `search_docs()` now wraps the search in `asyncio.wait_for(asyncio.to_thread(...), timeout=...)` and raises `MdqConsistencyError` upon timeout (note: this does not forcibly interrupt the background thread itself).
 
-**Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns more fields than the basic response (refer to [04_mcp_06 Health probes](04_mcp_06_06_verification-methods.md#health-probes)).
+**Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns more fields than the basic response (refer to [04_mcp_06 Health probes](mcp_06_06_verification-methods.md#health-probes)).
 
 **DB Path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
 **Logs:** `/opt/llm/logs/mdq-mcp.log`

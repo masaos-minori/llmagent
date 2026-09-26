@@ -9,9 +9,9 @@ related:
 ---
 # Agent State and Persistence - History Compression
 
-Turn flow $\rightarrow$ [agent_02_runtime-architecture.md]()agent_02_runtime-architecture.md
+Turn flow $\rightarrow$ [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
 Turn flow $\rightarrow$ [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md)
-Data layer (schema) $\rightarrow$ [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md
+Data layer (schema) $\rightarrow$ [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md)
 
 ## Purpose
 

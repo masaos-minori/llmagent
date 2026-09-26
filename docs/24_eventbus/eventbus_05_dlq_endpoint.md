@@ -176,9 +176,9 @@ Requeue uses a lineage model: each requeue creates a new event row with `redeliv
 
 ## Related Documents
 
-- [DLQ Operations Reference](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_03_dlq_operations.md)
+- [DLQ Operations Reference](eventbus_03_dlq_operations.md)
 - [Event Bus Overview](eventbus_01_system-overview.md)
-- [Event Bus DLQ/Offsets/Delivery Semantics](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md)
+- [Event Bus DLQ/Offsets/Delivery Semantics](eventbus_06_dlq_offsets_and_delivery_semantics.md)
 
 ## Keywords
 

@@ -13,11 +13,11 @@ related:
 
 MCP tools can declare arbitrary capability metadata. A capability is a string in the format `{domain}.{action}` or `{domain}.{subdomain}.{action}`, indicating which domain and what action a tool can perform.
 
-This naming convention is **optional**; existing tools are not required to adopt it. Discovery services allow the absence of this field ([see mcp_tool_discovery.py](04_mcp_03_06_tool-runtime-availability-metadata.md)).
+This naming convention is **optional**; existing tools are not required to adopt it. Discovery services allow the absence of this field ([see mcp_tool_discovery.py](mcp_03_06_tool-runtime-availability-metadata.md)).
 
-Related: [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — Describes ownership and routing roles for `ToolRegistry` (distinct from the capability naming convention in this document).
+Related: [mcp_03_02_tool-registry.md](mcp_03_02_tool-registry.md) — Describes ownership and routing roles for `ToolRegistry` (distinct from the capability naming convention in this document).
 
-Related: [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) — Describes the canonical name for `TOOL_LIST` exports (distinct from the capability naming convention in this document).
+Related: [mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md) — Describes the canonical name for `TOOL_LIST` exports (distinct from the capability naming convention in this document).
 
 ## Naming Convention
 
@@ -62,7 +62,7 @@ Domain-specific verbs also exist. For example, `github.issue.write` is more prec
 
 ## Multiple Capabilities
 
-Tools can declare multiple capabilities (e.g., a tool that triggers both a read and a side effect). Therefore, the corresponding `RuntimeTool` field is a `tuple[str, ...]` rather than a single string ([see runtime_tool.py](04_mcp_03_06_tool-runtime-availability-metadata.md)).
+Tools can declare multiple capabilities (e.g., a tool that triggers both a read and a side effect). Therefore, the corresponding `RuntimeTool` field is a `tuple[str, ...]` rather than a single string ([see runtime_tool.py](mcp_03_06_tool-runtime-availability-metadata.md)).
 
 ## Examples
 
@@ -85,10 +85,10 @@ This is a proposed standard convention. Currently, no MCP servers in production 
 
 ## Related Documents
 
-- [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) — MCP Documentation Guide
-- [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — ToolRegistry Ownership & Routing
-- [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) — Canonical Name for TOOL_LIST Exports
-- [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Capability Field
+- [mcp_00_document-guide.md](mcp_00_document-guide.md) — MCP Documentation Guide
+- [mcp_03_02_tool-registry.md](mcp_03_02_tool-registry.md) — ToolRegistry Ownership & Routing
+- [mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md) — Canonical Name for TOOL_LIST Exports
+- [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Capability Field
 
 ## Keywords
 

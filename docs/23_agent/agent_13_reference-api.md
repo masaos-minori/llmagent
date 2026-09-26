@@ -21,7 +21,7 @@ related:
 A concise per-module API reference including roles, primary public APIs, callers, callees, relevant configurations, and failure behavior. For full method signatures, refer to the respective chapters linked below.
 
 > **Scope of this chapter:** Function signatures, parameter types, return values, error conditions.
-> For component context, data flow, and runtime behavior → see [agent_02 Runtime Architecture]()agent_02_runtime-architecture.md.
+> For component context, data flow, and runtime behavior → see [agent_02 Runtime Architecture](agent_02_runtime-architecture.md).
 
 ## Design Intent
 
@@ -66,7 +66,7 @@ The API reference focuses on "what the API is" and "how it works." "Why this API
 - **Configuration:** Entire `AgentConfig`
 - **On Failure:** Unhandled exceptions propagate to the event loop. `finally` always closes resources.
 
-Full details: [agent_02_runtime-architecture.md AgentREPL]()agent_02_runtime-architecture.md
+Full details: [agent_02_runtime-architecture.md AgentREPL](agent_02_runtime-architecture.md)
 
 ---
 
@@ -92,7 +92,7 @@ Full details: [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-pr
 - **Configuration:** `AgentConfig` is held as `ctx.cfg`
 - **On Failure:** The `ctx.services_required` property raises a `RuntimeError` if `ctx.services` is `None` (before `factory.build_agent_context()` completes). Direct access to `ctx.services` itself does not fail (it merely returns `None`).
 
-Full details: [agent_04_01_state-and-persistence-state-model.md]()agent_04_01_state-and-persistence-state-model.md
+Full details: [agent_04_01_state-and-persistence-state-model.md](agent_04_01_state-and-persistence-state-model.md)
 
 ---
 
@@ -105,7 +105,7 @@ Full details: [agent_04_01_state-and-persistence-state-model.md]()agent_04_01_st
 - **Configuration:** `cfg.llm.*`
 - **On Failure:** Raises `LLMTransportError` with `partial_text` upon stream failure.
 
-Full details: [agent_05_llm-and-streaming.md]()agent_05_llm-and-streaming.md
+Full details: [agent_05_llm-and-streaming.md](agent_05_llm-and-streaming.md)
 
 ---
 
@@ -118,7 +118,7 @@ Full details: [agent_05_llm-and-streaming.md]()agent_05_llm-and-streaming.md
 - **Configuration:** `cfg.tool.*`, `cfg.mcp.*`
 - **On Failure:** Returns `ToolCallResult(is_error=True)` upon transport failure.
 
-Full details: [agent_06_01_tool-execution-and-approval-execution.md]()agent_06_01_tool-execution-and-approval-execution.md
+Full details: [agent_06_01_tool-execution-and-approval-execution.md](agent_06_01_tool-execution-and-approval-execution.md)
 
 ---
 
@@ -133,7 +133,7 @@ Full details: [agent_06_01_tool-execution-and-approval-execution.md]()agent_06_0
 
 > **Evidence Classification: Explicit in code (Correction).** Previous versions described a "4-layer cascade (live discovery > ToolRegistry > config `tool_names` > static constants)", stated that a `KeyError` would occur on failure, and incorrectly claimed the constructor retained a `server_configs` parameter for backward compatibility (corrected above). After `shared/route_resolver.py::ToolRouteResolver.resolve()` was updated to only reference `ToolRegistry` and raise `ValueError` if no match is found, and subsequently migrated to `RuntimeToolRegistry` (`shared/runtime_tool_registry.py`), the logic changed. `ToolRegistry` has been downgraded to seed data for drift detection and is no longer used for routing decisions. Config `tool_names` is merely drift verification metadata and not an input for routing. This change follows the implementation in `mcp_03_01_dispatch-and-routing.md` Reliable source of routing information.
 
-Full details: [mcp_03_01_dispatch-and-routing.md Reliable source of routing information](/home/sugimoto/llmagent/docs/22_mcp/mcp_03_01_dispatch-and-routing.md)
+Full details: [mcp_03_01_dispatch-and-routing.md Reliable source of routing information](../22_mcp/mcp_03_01_dispatch-and-routing.md)
 
 ---
 
@@ -188,7 +188,7 @@ The API reference focuses on "what the API is" and "how it works." "Why this API
 
 > **Evidence Classification: Explicit in code (Correction).** Previous versions stated that callees were `LLMClient`, but summary LLM calls actually perform direct `self._http.post()` requests against the `httpx.AsyncClient` provided at construction, bypassing the `shared/llm_client.py::LLMClient` instance. Additionally, the description "no compression on failure" was incomplete; if character limits are exceeded, fallback truncation occurs (`stat_fallback_truncate_count` is incremented). If only token limits are exceeded, the history is returned unchanged.
 
-Full details: [agent_04_01_state-and-persistence-state-model.md HistoryManager]()agent_04_01_state-and-persistence-state-model.md
+Full details: [agent_04_01_state-and-persistence-state-model.md HistoryManager](agent_04_01_state-and-persistence-state-model.md)
 
 ---
 
@@ -201,7 +201,7 @@ Full details: [agent_04_01_state-and-persistence-state-model.md HistoryManager](
 - **Configuration:** Different `cfg.*` fields per command
 - **On Failure:** Command errors are displayed to the user. REPL continues.
 
-Full details: [agent_07_01_cli-and-commands-cli-reference.md]()agent_07_01_cli-and-commands-cli-reference.md
+Full details: [agent_07_01_cli-and-commands-cli-reference.md](agent_07_01_cli-and-commands-cli-reference.md)
 
 ---
 
@@ -214,7 +214,7 @@ Full details: [agent_07_01_cli-and-commands-cli-reference.md]()agent_07_01_cli-a
 - **Configuration:** No direct configuration. Callbacks are wired during construction.
 - **On Failure:** I/O errors propagate to the caller.
 
-Full details: [agent_07_01_cli-and-commands-cli-reference.md CLIView]()agent_07_01_cli-and-commands-cli-reference.md
+Full details: [agent_07_01_cli-and-commands-cli-reference.md CLIView](agent_07_01_cli-and-commands-cli-reference.md)
 
 ---
 
@@ -229,7 +229,7 @@ Full details: [agent_07_01_cli-and-commands-cli-reference.md CLIView]()agent_07_
 - **Configuration:** DB path is retrieved from `config/agent.toml`
 - **On Failure:** Fatal failures result in `sqlite3.Error`. If `session_id=None`, a warning is logged and the counter is incremented.
 
-Full details: [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md
+Full details: [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md)
 
 ---
 
@@ -242,7 +242,7 @@ Full details: [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-ses
 - **Configuration:** `config/agent.toml`
 - **On Failure:** `ConfigLoadError` on file read/parse failure.
 
-Full details: [agent_08_01_configuration-loading-agent-config.md]()agent_08_01_configuration-loading-agent-config.md
+Full details: [agent_08_01_configuration-loading-agent-config.md](agent_08_01_configuration-loading-agent-config.md)
 
 ---
 

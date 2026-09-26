@@ -60,9 +60,9 @@ Items are ordered by `seq` ascending (oldest first), which corresponds to insert
 
 ## Related Documents
 
-- [DLQ Requeue API Reference](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_05_dlq_endpoint.md)
+- [DLQ Requeue API Reference](eventbus_05_dlq_endpoint.md)
 - [Event Bus Overview](eventbus_01_system-overview.md)
-- [Event Bus DLQ/Offsets/Delivery Semantics](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md)
+- [Event Bus DLQ/Offsets/Delivery Semantics](eventbus_06_dlq_offsets_and_delivery_semantics.md)
 
 ## Keywords
 

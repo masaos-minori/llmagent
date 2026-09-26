@@ -11,7 +11,7 @@ related:
 ---
 # DB API and Operations
 
-- Schema $\rightarrow$ [db_01_db_architecture_and_schema-overview-and-config.md](/home/sugimoto/llmagent/docs/41_db/db_01_db_architecture_and_schema-overview-and-config.md)
+- Schema $\rightarrow$ [db_01_architecture_and_schema-overview-and-config.md](db_01_architecture_and_schema-overview-and-config.md)
 
 ## 3. Maintenance Functions (`db/maintenance.py`)
 

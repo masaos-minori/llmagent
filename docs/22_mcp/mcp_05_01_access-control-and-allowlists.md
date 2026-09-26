@@ -7,12 +7,12 @@ tags:
   - safety-model
   - access-control
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_05_02_auth-profiles-and-sandboxing.md
-  - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
-  - 04_mcp_05_04_mdq-rag-boundary.md
-  - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
-  - 00_security_02_high-risk-tool-common-policy.md
+  - mcp_00_document-guide.md
+  - mcp_05_02_auth-profiles-and-sandboxing.md
+  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - mcp_05_04_mdq-rag-boundary.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
+  - ../91_security/security_02_high-risk-tool-common-policy.md
 ---
 
 # MCP Security and Safety Model: Access Control, Paths, Repos and Allowlists
@@ -22,7 +22,7 @@ related:
 
 ## config/github_mcp_server.toml
 
-- Server Catalog → [04_mcp_04_01_web-search-file-read-github.md](04_mcp_04_01_web-search-file-read-github.md)
+- Server Catalog → [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md)
 
 ## Purpose
 
@@ -230,11 +230,11 @@ These warnings occur in two independent layers: the Agent layer and the cicd-mcp
 ## Related Documents
 
 - `mcp_00_document-guide.md`
-- `../04_mcp_05_02_auth-profiles-and-sandboxing.md`
-- `../04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `../04_mcp_05_04_mdq-rag-boundary.md`
-- `../04_mcp_05_05_mdq-enforcement-and-lockdown.md`
-- `../00_security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
+- `../mcp_05_02_auth-profiles-and-sandboxing.md`
+- `../mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
+- `../mcp_05_04_mdq-rag-boundary.md`
+- `../mcp_05_05_mdq-enforcement-and-lockdown.md`
+- `../91_security/security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
 
 ## Keywords
 

@@ -44,22 +44,22 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ## Known Limitations
 
-- [NC-001](governance_03_issue-and-uncertainty-management.md): UTF8_PARTIAL_DECODE_ERROR and PREMATURE_EOF distinction
-- [NC-004](governance_03_issue-and-uncertainty-management.md): Distance measurement cosine/L2 determination impossibility
+- [NC-001](../00_governance/governance_03_issue-and-uncertainty-management.md): UTF8_PARTIAL_DECODE_ERROR and PREMATURE_EOF distinction
+- [NC-004](../00_governance/governance_03_issue-and-uncertainty-management.md): Distance measurement cosine/L2 determination impossibility
 
 ## Related Docs
 
 ### Governance
-- [Documentation Policy](governance_01_documentation-policy.md)
-- [Documentation Metadata](governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](governance_04_documentation-checks.md)
+- [Documentation Policy](../00_governance/governance_01_documentation-policy.md)
+- [Documentation Metadata](../00_governance/governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
 
 ### Related ADRs
-- [ADR-001](adr/ADR-001-workflow-engine-mandatory.md) — Workflow Engine必須化
-- [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
-- [ADR-004](adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
-- [ADR-007](adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — HTTP MCP採用とstdio非サポート
+- [ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md) — Workflow Engine必須化
+- [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
+- [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
+- [ADR-007](../10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — HTTP MCP採用とstdio非サポート
 
 ### Query Routing Table
 
@@ -100,7 +100,7 @@ When schema/command references change, verify that `05_agent_01_system-overview.
 
 ### Removed Files
 
-Deleted `05_ref-*` / ~~~~~~~~~~~~~~~~~~~~~~~~`05_agent-impl-flow.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~~~~~`05_agent-ops.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) files are integrated into chapters 02-13 above. See [governance_03_issue-and-uncertainty-management.md](governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Agent) for known issues and unresolved items.
+Deleted `05_ref-*` / ~~~~~~~~~~~~~~~~~~~~~~~~`05_agent-impl-flow.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~~~~~`05_agent-ops.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) files are integrated into chapters 02-13 above. See [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Agent) for known issues and unresolved items.
 
 ### Additional References
 

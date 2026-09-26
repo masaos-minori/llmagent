@@ -31,7 +31,7 @@ These documents describe the deployment process, environment setup, and operatio
 
 ## Canonical Source Rule
 
-See [02_deployment.md](02_deployment.md) for the complete deployment guide.
+See 02_deployment.md for the complete deployment guide.
 
 ## Known Issues / Deferred Items
 
@@ -43,8 +43,8 @@ No reference APIs exist in this directory. All files are deployment guides.
 
 ## Related ADRs
 
-- [ADR-008](/home/sugimoto/llmagent/docs/10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
-- [ADR-015](/home/sugimoto/llmagent/docs/10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
+- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
+- [ADR-015](../10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
 
 ## Related Documents
 

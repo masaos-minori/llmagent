@@ -5,11 +5,11 @@ tags:
   - mcp
   - configuration
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_06_02_configuration-file-inventory.md
-  - 04_mcp_06_12_watchdog-configuration-monitoring.md
+  - mcp_00_document-guide.md
+  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_12_watchdog-configuration-monitoring.md
 source:
-  - 04_mcp_06_02_configuration-file-inventory.md
+  - mcp_06_02_configuration-file-inventory.md
 ---
 
 # Verification Methods
@@ -39,7 +39,7 @@ curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 - **HTTP 200**: Server is fully healthy (`status="ok"`, `ready=true`)
 - **HTTP 503**: Server has dependency failures (`status="degraded"`, `ready=false`)
 
-The mcp subcommand's `status` action (`McpStatusService.probe_all()`) reads both the HTTP status code and the `restart_recommended`/`operator_action_required` fields in the response body, reflecting them in the `health_reason` column. This is for display only and does not trigger automatic restarts (see [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md), as the MCP watchdog was removed on 2026-07-16).
+The mcp subcommand's `status` action (`McpStatusService.probe_all()`) reads both the HTTP status code and the `restart_recommended`/`operator_action_required` fields in the response body, reflecting them in the `health_reason` column. This is for display only and does not trigger automatic restarts (see [mcp_06_12_watchdog-configuration-monitoring.md](mcp_06_12_watchdog-configuration-monitoring.md), as the MCP watchdog was removed on 2026-07-16).
 
 ```bash
 # Check HTTP status code (not just body)
@@ -126,8 +126,8 @@ The launcher guards against accidentally starting a server whose port is already
 
 ## Related Documents
 
-- [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
-- [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)
+- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
+- [mcp_06_12_watchdog-configuration-monitoring.md](mcp_06_12_watchdog-configuration-monitoring.md)
 
 ## Keywords
 

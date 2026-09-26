@@ -30,7 +30,7 @@ A group of commands regarding **post-execution approval gates**.
 | `/approve <approval_id> [reason]` | Resolves a pending post-execution approval as "approved" | `approval_id` is a required argument — omitting it causes a validation error (no DB lookup fallback exists) |
 | `/reject <approval_id> [reason]` | Resolves a pending post-execution approval as "rejected" | `approval_id` is a required argument — omitting it causes a validation error (no DB lookup fallback exists) |
 
-> **Scope:** `/approve` and `/reject` resolve **only post-execution approval gates** (`approvals` DB records). They do not affect **pre-execution approvals** (real-time tool-level approval prompts). For the formal approval model, see [Tool Execution and Approval]()agent_06_01_tool-execution-and-approval-execution.md.
+> **Scope:** `/approve` and `/reject` resolve **only post-execution approval gates** (`approvals` DB records). They do not affect **pre-execution approvals** (real-time tool-level approval prompts). For the formal approval model, see [Tool Execution and Approval](agent_06_01_tool-execution-and-approval-execution.md).
 
 #### Recovery on Startup
 

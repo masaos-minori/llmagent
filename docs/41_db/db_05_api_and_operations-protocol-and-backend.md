@@ -11,7 +11,7 @@ related:
 ---
 # DB API and Operations
 
-- Schema $\rightarrow$ [db_01_db_architecture_and_schema-overview-and-config.md](/home/sugimoto/llmagent/docs/41_db/db_01_db_architecture_and_schema-overview-and-config.md)
+- Schema $\rightarrow$ [db_01_architecture_and_schema-overview-and-config.md](db_01_architecture_and_schema-overview-and-config.md)
 
 ## 3. `db/store.py` Protocol Groups
 
@@ -29,7 +29,7 @@ All protocols are `@runtime_checkable`, so `isinstance()` checks work. Embedding
 
 `SQLiteVectorStore(db: SQLiteHelper)` implements the `VectorStore` protocol; validates embedding `BLOB` size in `vec_insert`. `SQLiteDocumentStore(db: SQLiteHelper)` implements the `DocumentStore` protocol; `doc_upsert` performs a `SELECT` followed by an `UPDATE`/`INSERT`. `SQLiteSessionStore(db: SQLiteHelper)` implements the `SessionStore` protocol; session lists are returned ordered by `created_at DESC`. `SQLiteMemoryDeleteStore(db: SQLiteHelper)` implements the `MemoryDeleteStore` protocol; provides atomic cross-table deletion across `memories`/`memories_fts`/`memories_vec`. 
 
-`SessionMessageRepository` (agent layer) vs `SQLiteSessionStore` (db adapter layer): `SessionMessageRepository` handles role validation (`user`/`assistant`/`tool`/`system`), `strict_mode` skip behavior, `content=None` normalization, and `tool_calls` JSON encoding/decoding. `SQLiteSessionStore` performs only schema-consistent `INSERT`/`LIST` operations with minimal validation. **Rule:** Do NOT duplicate validation/encoding logic in `SQLiteSessionStore` — it is a thin DB adapter that performs no role validation, content normalization, or JSON encoding. These concerns belong entirely to `SessionMessageRepository`. For a detailed view of the agent-side responsibility boundary, see [agent_09_01_data-layer-session-db.md]()agent_09_01_data-layer-session-db.md. 
+`SessionMessageRepository` (agent layer) vs `SQLiteSessionStore` (db adapter layer): `SessionMessageRepository` handles role validation (`user`/`assistant`/`tool`/`system`), `strict_mode` skip behavior, `content=None` normalization, and `tool_calls` JSON encoding/decoding. `SQLiteSessionStore` performs only schema-consistent `INSERT`/`LIST` operations with minimal validation. **Rule:** Do NOT duplicate validation/encoding logic in `SQLiteSessionStore` — it is a thin DB adapter that performs no role validation, content normalization, or JSON encoding. These concerns belong entirely to `SessionMessageRepository`. For a detailed view of the agent-side responsibility boundary, see [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md). 
 
 `MemoryDeleteStore`/`SQLiteMemoryDeleteStore`: `from db.store import MemoryDeleteStore, SQLiteMemoryDeleteStore, MemoryDeleteResult`; `store = SQLiteMemoryDeleteStore(db)`; `result = store.delete_memories_before(older_than_days=30)`; `result.deleted` is the count of deleted entries. Performs atomic deletion from `memories`/`memories_fts`/`memories_vec`. `maintenance.py::prune_old_memories()` delegates to this class. `MemoryDeleteStore` is a `Protocol` (structural type) existing to allow for future non-SQLite backends; currently, `SQLiteMemoryDeleteStore` is the only implementation.
 

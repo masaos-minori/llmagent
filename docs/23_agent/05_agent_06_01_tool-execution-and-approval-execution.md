@@ -13,7 +13,7 @@ source:
 # Agent Tool Execution and Approval
 
 - Turn Flow → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
-- MCP Routing → [mcp_03_01_dispatch-and-routing.md](mcp_03_01_dispatch-and-routing.md)
+- MCP Routing → [mcp_03_01_dispatch-and-routing.md](../22_mcp/mcp_03_01_dispatch-and-routing.md)
 - GitHub Change Approval/GitOps Control → [05_agent_06_02_tool-execution-and-approval-approval.md](05_agent_06_02_tool-execution-and-approval-approval.md)
 
 ## Purpose
@@ -78,7 +78,7 @@ Uses verified methods via `ConversationState.append_message()` / `extend_message
 ## Responsibility Boundary
 
 - **Source of Truth**: `shared/tool_executor.py`, `agent/tool_scheduler.py`, `agent/tool_preparation.py` (including preparation phase with argument validation/registry resolution)
-- **Routing Authority**: `ToolRouteResolver.resolve()` ([04_mcp Routing Source of Truth](mcp_03_01_dispatch-and-routing.md))
+- **Routing Authority**: `ToolRouteResolver.resolve()` ([04_mcp Routing Source of Truth](../22_mcp/mcp_03_01_dispatch-and-routing.md))
 
 ## Key Constraints
 

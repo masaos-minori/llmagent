@@ -6,24 +6,24 @@ tags:
   - rag-scorer
   - rag-llm
 related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_01_system_overview.md
-  - 03_rag_03_01_query_pipeline-overview.md
-  - 03_rag_03_03_query_pipeline-context-and-diagnostics.md
-  - 03_rag_03_04_query_pipeline-search-stages.md
-  - 03_rag_03_05_query_pipeline-augment-stages.md
-  - 03_rag_04_05_dto-types.md
-  - 03_rag_05_1-configuration-reference.md
-  - 03_rag_03_06_query_pipeline-helpers-and-cache.md
+  - rag_00_document-guide.md
+  - rag_01_system_overview.md
+  - rag_03_01_query_pipeline-overview.md
+  - rag_03_03_query_pipeline-context-and-diagnostics.md
+  - rag_03_04_query_pipeline-search-stages.md
+  - rag_03_05_query_pipeline-augment-stages.md
+  - rag_04_05_dto-types.md
+  - rag_05_1-configuration-reference.md
+  - rag_03_06_query_pipeline-helpers-and-cache.md
 source:
-  - 03_rag_03_06_query_pipeline-helpers-and-cache.md
+  - rag_03_06_query_pipeline-helpers-and-cache.md
 ---
 
 # RAG Query Pipeline
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- Type Definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
+- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- Type Definitions → [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md)
 
 ---
 
@@ -31,7 +31,7 @@ source:
 
 Every query executes the full retrieval pipeline (`SearchStage`, via `RagPipeline.augment()`) — including repeated identical queries. No query-result cache exists. Committed document additions, updates, and deletions are reflected in the very next query with no cache-invalidation action or service/process restart required. This guarantee is verified by `tests/rag/test_rag_pipeline_no_cache_freshness.py`.
 
-Note: A semantic cache mechanism (cosine-similarity-gated response caching) was previously part of this pipeline but was removed in commit `282b08f38` (req-005: remove SemanticCache from RAG pipeline and MCP server); the "no query-result cache exists" guarantee documented here has applied since that removal. For details on the removal, see [03_rag_01_system_overview.md](03_rag_01_system_overview.md)'s Semantic Cache section.
+Note: A semantic cache mechanism (cosine-similarity-gated response caching) was previously part of this pipeline but was removed in commit `282b08f38` (req-005: remove SemanticCache from RAG pipeline and MCP server); the "no query-result cache exists" guarantee documented here has applied since that removal. For details on the removal, see [rag_01_system_overview.md](rag_01_system_overview.md)'s Semantic Cache section.
 
 ---
 
@@ -58,9 +58,9 @@ rag
 
 ## RAG Query Pipeline Implementation Details
 
-- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- Type Definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
+- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- Type Definitions → [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md)
 
 ---
 

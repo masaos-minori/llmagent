@@ -6,8 +6,8 @@ tags:
   - lifecycle
   - process-introspection
 related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_03_03_transport-and-health.md
+  - mcp_00_document-guide.md
+  - mcp_03_03_transport-and-health.md
 ---
 # Process Introspection and Adding a New MCP Server
 
@@ -49,7 +49,7 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 ### Summary of Routing Precedence
 
-See [ADR-003](/home/sugimoto/llmagent/docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
+See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 ### New Server/Tool Registration Checklist
 
