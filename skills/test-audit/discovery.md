@@ -64,7 +64,7 @@ Find tests that are:
 - missing regression coverage for known bugs
 
 Perform this analysis sequentially by layer (agent, shared, mcp, rag, db — per the
-module grouping in `AGENTS.md`'s Test coverage section). Return only each layer's
+module grouping in `rules/env.md`, section "Architecture"). Return only each layer's
 findings list, not the source read, so one layer's investigation does not accumulate
 into the next.
 

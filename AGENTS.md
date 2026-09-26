@@ -58,7 +58,7 @@ When proposing a new approach, check against this log to avoid duplication.
 
 ### Rollback Directive
 
-If a proposed fix increases errors or fails to resolve the issue, revert the code to its pre-modification state (e.g., `git checkout`) before considering the next approach. Do not accumulate destructive changes.
+If a proposed fix increases errors or fails to resolve the issue, revert the code to its pre-modification state (e.g., `git checkout`) before considering the next approach. Do not accumulate destructive changes. A revert performed under this directive is not itself a "new approach" — it does not reset the Attempt Limit for the error that triggered it.
 
 ### Tool Call Loop Prevention
 

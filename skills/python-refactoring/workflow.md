@@ -1,7 +1,6 @@
 # Python Refactoring — Detailed Workflow
 
-This workflow intentionally prioritizes safety, evidence, and correctness over speed.
-A step MUST NOT be skipped because it seems slow.
+See `skills/DESIGN.md`, section "Safety-over-speed priority".
 
 ## Workflow position
 

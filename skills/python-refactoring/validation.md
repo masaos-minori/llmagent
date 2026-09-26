@@ -87,7 +87,7 @@ In addition, perform and record the following checks:
   - Imports added
   - Imports removed
   - Imports moved
-  - Layer boundary impact (see the import layer contract in `AGENTS.md`)
+  - Layer boundary impact (see `skills/DESIGN.md`, section "Import layer contract")
   - `import-linter` result
   - Circular import risk
   - Runtime import side-effect risk

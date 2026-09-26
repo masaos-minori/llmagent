@@ -444,9 +444,8 @@ report `Blocked: {description}`. Per AGENTS.md Failure Log, record the failure d
 Limit (3 attempts for the same error), the revert-and-report action is required.
 
 After reverting, do not start a new implementation attempt for this same procedure
-document in this session — a revert following 3 exhausted attempts is not itself a
-"new approach" that resets the Attempt Limit (see `AGENTS.md` Loop Prevention >
-Prohibit Repeating Failed Approaches). Stop this file's cycle here and wait for the
+document in this session (see `AGENTS.md` Loop Prevention > Rollback Directive). Stop
+this file's cycle here and wait for the
 user to provide new information, approve a different scope, or explicitly direct a
 retry — do not resume automatically once reverted.
 

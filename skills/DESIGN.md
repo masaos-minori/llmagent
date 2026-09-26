@@ -95,6 +95,16 @@ degradation, incomplete failure handling, fragile tests, ambiguous config behavi
 **Low** (naming, localized duplication, minor typing or documentation cleanup),
 **Informational** (observation with no immediate action).
 
+### Safety-over-speed priority
+
+Applies to a skill whose procedure intentionally prioritizes safety, evidence, and
+correctness over execution speed (currently `python-refactoring`, `test-audit`) — i.e.
+a mandatory, ordered step sequence where skipping or rushing a step risks an incorrect
+result.
+
+Do not skip a step because it seems slow, and do not stop at high-level commentary
+where the skill's deliverable requires a concrete, evidence-backed result.
+
 ### Agent (Explore) threshold
 
 Use `Bash`/`grep`/`Read` for a targeted lookup; spawn `Agent (Explore)` once a search

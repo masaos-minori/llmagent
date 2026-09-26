@@ -20,8 +20,7 @@ description: |
 ## Purpose
 
 Audit the test suite as a whole and turn what is found into an execution-ready plan.
-This workflow intentionally prioritizes safety, evidence, and correctness over speed —
-do not skip a step because it seems slow, and do not stop at high-level commentary.
+See `skills/DESIGN.md`, section "Safety-over-speed priority".
 The output must be practical enough to use directly as:
 - a QA review memo,
 - a test debt report,
