@@ -15,6 +15,10 @@ related:
 
 This directory contains all Architecture Decision Records (ADRs). Each ADR captures a significant architectural decision with its context, options considered, and rationale.
 
+## Known Deviations
+
+確認済みの差異なし
+
 ## Reading Order
 
 | Category | File |

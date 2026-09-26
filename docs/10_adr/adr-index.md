@@ -18,6 +18,10 @@ dependency relationships, and invariant verification status. ADR status
 definitions, ID format rules, and section header conventions are defined once in
 `governance_01_documentation-policy.md` — not repeated here.
 
+## Known Deviations
+
+確認済みの差異なし
+
 ## ADR List
 
 | ID | Title | Status | File |
