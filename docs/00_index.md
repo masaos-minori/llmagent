@@ -13,37 +13,37 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 
 ## Categories
 
-- [Overview](/home/sugimoto/llmagent/docs/01_overview/overview_00_document-guide.md) — System-wide architecture and file structure
+- [Overview](../01_overview/overview_00_document-guide.md) — System-wide architecture and file structure
 - [Deployment](../90_deployment/02_deployment.md) — Environment setup and deployment procedures
-- [RAG](/home/sugimoto/llmagent/docs/21_rag/rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
-- [MCP](/home/sugimoto/llmagent/docs/22_mcp/mcp_00_document-guide.md) — Model Context Protocol servers
-- [Agent](/home/sugimoto/llmagent/docs/23_agent/agent_00_document-guide.md) — Agent REPL system and operation
-- [Event Bus](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_00_document-guide.md) — Event Bus infrastructure
-- [Shared/DB](/home/sugimoto/llmagent/docs/40_shared/shared_00_document-guide.md) — Shared infrastructure and database layer
-- [Documentation Policy](/home/sugimoto/llmagent/docs/00_governance/governance_01_documentation-policy.md) — Canonical source precedence (including decision target → canonical source mapping), conflict resolution, ADR conventions
-- [Documentation Metadata](/home/sugimoto/llmagent/docs/00_governance/governance_02_documentation-metadata.md) — Metadata conventions, terminology glossary, link rules
-- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — Known Issues templates, Needs Confirmation inventory
-- [Documentation Checks](/home/sugimoto/llmagent/docs/00_governance/governance_04_documentation-checks.md) — Automated and manual validation checks, governance verification matrix
+- [RAG](../21_rag/rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
+- [MCP](../22_mcp/mcp_00_document-guide.md) — Model Context Protocol servers
+- [Agent](../23_agent/agent_00_document-guide.md) — Agent REPL system and operation
+- [Event Bus](../24_eventbus/eventbus_00_document-guide.md) — Event Bus infrastructure
+- [Shared/DB](../40_shared/shared_00_document-guide.md) — Shared infrastructure and database layer
+- [Documentation Policy](00_governance/governance_01_documentation-policy.md) — Canonical source precedence (including decision target → canonical source mapping), conflict resolution, ADR conventions
+- [Documentation Metadata](00_governance/governance_02_documentation-metadata.md) — Metadata conventions, terminology glossary, link rules
+- [Issue and Uncertainty Management](00_governance/governance_03_issue-and-uncertainty-management.md) — Known Issues templates, Needs Confirmation inventory
+- [Documentation Checks](00_governance/governance_04_documentation-checks.md) — Automated and manual validation checks, governance verification matrix
 - [ADR Index](10_adr/adr-index.md) — ADR list, dependency graph, invariant verification matrix
 - [Known Issues](#known-issues) — Known inconsistencies per category
 
 ## Recommended Reading Order
 
-1. [System Overview](/home/sugimoto/llmagent/docs/01_overview/overview_00_document-guide.md) — Start here to understand the overall system picture
+1. [System Overview](../01_overview/overview_00_document-guide.md) — Start here to understand the overall system picture
 2. [Deployment Guide](../90_deployment/02_deployment.md) — Set up your environment
 3. Select an area of interest:
-   - [RAG Pipeline](/home/sugimoto/llmagent/docs/21_rag/rag_00_document-guide.md)
-   - [MCP Servers](/home/sugimoto/llmagent/docs/22_mcp/mcp_00_document-guide.md)
-   - [Agent System](/home/sugimoto/llmagent/docs/23_agent/agent_00_document-guide.md)
-   - [Event Bus](/home/sugimoto/llmagent/docs/24_eventbus/eventbus_00_document-guide.md)
-   - [Shared Infrastructure](/home/sugimoto/llmagent/docs/40_shared/shared_00_document-guide.md)
+   - [RAG Pipeline](../21_rag/rag_00_document-guide.md)
+   - [MCP Servers](../22_mcp/mcp_00_document-guide.md)
+   - [Agent System](../23_agent/agent_00_document-guide.md)
+   - [Event Bus](../24_eventbus/eventbus_00_document-guide.md)
+   - [Shared Infrastructure](../40_shared/shared_00_document-guide.md)
 4. Check for known issues in your area of interest
 
 ## Known Issues
 
 All areas' known inconsistencies and unresolved items are tracked in one place:
 
-- [Issue and Uncertainty Management](/home/sugimoto/llmagent/docs/00_governance/governance_03_issue-and-uncertainty-management.md) — Part 1: Known Issues (all areas)
+- [Issue and Uncertainty Management](00_governance/governance_03_issue-and-uncertainty-management.md) — Part 1: Known Issues (all areas)
 
 ## Document References by Task
 
@@ -54,7 +54,7 @@ Migrated from `/routing.md`. Load only the necessary documents according to the 
 | Task scope | Reference docs |
 |---|---|
 | Agent spec (overview, design, known issues) | `23_agent/agent_00_document-guide.md` + `23_agent/agent_01_system-overview_00_document-guide.md` |
-| Agent known issues / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent) |
+| Agent known issues / inconsistencies | `00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent) |
 | MCP server spec (overview, design, known issues) | `22_mcp/mcp_00_document-guide.md` + `22_mcp/mcp_01_system_overview_00_document-guide.md` |
 | RAG pipeline spec (overview, design, known issues) | `21_rag/rag_00_document-guide.md` + `21_rag/rag_01_system_overview_00_document-guide.md` |
 | MDQ vs RAG boundary | `22_mcp/mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
@@ -67,8 +67,8 @@ Migrated from `/routing.md`. Load only the necessary documents according to the 
 
 | Task scope | Reference docs |
 |---|---|
-| System-wide architecture overview | `overview/overview_00_document-guide.md` (indexes `overview-arch-*.md`) |
-| File / module layout | `overview/overview_00_document-guide.md` (indexes `overview-files-*.md`) |
+| System-wide architecture overview | `01_overview/overview_00_document-guide.md` (indexes `overview-arch-*.md`) |
+| File / module layout | `01_overview/overview_00_document-guide.md` (indexes `overview-files-*.md`) |
 | `tools/` scripts overview (CI checks, doc formatting, historical doc migration) | `tools/overview_00_document-guide.md` |
 | Documentation set index / navigation | `00_governance/00_index.md` |
 | Deployment / env setup | `90_deployment/02_deployment.md` + `rules/env.md` |
@@ -106,8 +106,8 @@ Migrated from `/routing.md`. Load only the necessary documents according to the 
 | System security architecture / trust boundaries / threat model | `91_security/00_security_01_architecture-and-trust-boundaries.md` |
 | High-risk MCP tool policy (path/repo allowlists, traversal prevention, approval-to-risk-tier mapping) | `91_security/00_security_02_high-risk-tool-common-policy.md` |
 | Any MCP server (catalog only) | `22_mcp/mcp_04_01_web-search-file-read-github.md` |
-| mdq-mcp specifics | `22_mcp/mcp_04_04_mdq.md` + `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
-| MCP known bugs / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
+| mdq-mcp specifics | `22_mcp/mcp_04_04_mdq.md` + `00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
+| MCP known bugs / inconsistencies | `00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP) |
 
 #### RAG
 
@@ -119,7 +119,7 @@ Migrated from `/routing.md`. Load only the necessary documents according to the 
 | crawler.py changes / API reference | `21_rag/rag_02_02_ingestion_pipeline-crawler.md` |
 | chunk_splitter.py changes / API reference | `21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` |
 | ingester.py changes / API reference | `21_rag/rag_02_04_ingestion_pipeline-ingester.md` |
-| RAG known bugs / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
+| RAG known bugs / inconsistencies | `00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
 | RAG configuration parameters | `21_rag/rag_05_1-configuration-reference.md` |
 
 #### DB / Shared
@@ -128,7 +128,7 @@ Migrated from `/routing.md`. Load only the necessary documents according to the 
 |---|---|
 | SQLite / DB connection / WAL / transactions | `41_db/db_04_db_api_and_operations-module-boundaries-and-helper.md` |
 | Config / logger / formatters / rag_utils | `40_shared/90_shared_03_01_runtime_and_execution-config-and-logging.md` |
-| Shared layer / DB layer known issues / inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Shared/DB) |
+| Shared layer / DB layer known issues / inconsistencies | `00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Shared/DB) |
 
 #### Event Bus
 
@@ -140,17 +140,17 @@ Migrated from `/routing.md`. Load only the necessary documents according to the 
 | Event Bus (DLQ/offsets) | `24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md` |
 | Event Bus (config/ops) | `24_eventbus/eventbus_09_configuration-and-operations.md` |
 | Event Bus (API ref) | `24_eventbus/eventbus_10_reference_api.md` |
-| Event Bus (issues) | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
+| Event Bus (issues) | `00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## Related Documents
 
-- `overview/overview_00_document-guide.md`
-- `90_deployment/02_deployment.md`
-- `21_rag/rag_00_document-guide.md`
-- `22_mcp/mcp_00_document-guide.md`
-- `23_agent/agent_00_document-guide.md`
-- `24_eventbus/eventbus_00_document-guide.md`
-- `40_shared/90_shared_00_document-guide.md`
+- `../01_overview/overview_00_document-guide.md`
+- `../90_deployment/02_deployment.md`
+- `../21_rag/rag_00_document-guide.md`
+- `../22_mcp/mcp_00_document-guide.md`
+- `../23_agent/agent_00_document-guide.md`
+- `../24_eventbus/eventbus_00_document-guide.md`
+- `../40_shared/90_shared_00_document-guide.md`
 
 ## Keywords
 
