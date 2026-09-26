@@ -98,10 +98,10 @@ The key change is replacing `defaults to True` with more general statements abou
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260926-102000 | 20260926-102030 | Removed default-value references from lines 371 and 374; replaced with general safety-net descriptions |
+| 2 | Add or update tests per Validation plan | Completed | 20260926-102030 | 20260926-102100 | No tests needed — documentation cleanup task |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260926-102100 | 20260926-102130 | check_docs_content_policy.py reports no default-value restatement violations for this file |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Not applicable — this step IS the documentation update |
 
 ### Blocker Log
 
