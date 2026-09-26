@@ -89,10 +89,10 @@ The key change is replacing `default to 0 or an empty list` with `fall back to z
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260926-102200 | 20260926-102230 | Replaced "default to" with "fall back to" on line 114; also fixed duplicate file docs/23_agent/05_agent_10_05_operations-and-observability-monitoring.md |
+| 2 | Add or update tests per Validation plan | Completed | 20260926-102230 | 20260926-102300 | No tests needed — documentation cleanup task |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260926-102300 | 20260926-102330 | check_docs_content_policy.py reports no default-value restatement violations for either file |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Not applicable — this step IS the documentation update |
 
 ### Blocker Log
 
