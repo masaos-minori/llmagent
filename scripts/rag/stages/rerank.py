@@ -7,8 +7,8 @@ from typing import Literal
 
 from shared.types import RagConfig
 
+from rag.exceptions import RagRerankError
 from rag.llm_client import RagLLM
-from rag.llm_prompts import RagRerankError
 from rag.repository import RagHit, deduplicate_chunks
 from rag.stage import PipelineContext, PipelineStage
 

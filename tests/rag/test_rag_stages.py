@@ -541,7 +541,7 @@ class TestMqeStage:
     @pytest.mark.asyncio
     async def test_run_mqe_fallback_on_expansion_error(self, mock_context, mock_llm):
         """RagExpansionError triggers fallback to original query."""
-        from rag.llm_prompts import RagExpansionError
+        from rag.exceptions import RagExpansionError
 
         mock_llm.expand_queries.side_effect = RagExpansionError("MQE failed")
 
@@ -600,7 +600,7 @@ class TestRunMqe:
     @pytest.mark.asyncio
     async def test_mqe_expansion_error_propagates(self, mock_llm):
         """Test _run_mqe propagates RagExpansionError (fail-fast)."""
-        from rag.llm_prompts import RagExpansionError
+        from rag.exceptions import RagExpansionError
 
         mock_llm.expand_queries.side_effect = RagExpansionError("MQE failed")
         cfg = SimpleNamespace(use_mqe=True)
@@ -811,7 +811,7 @@ class TestRerankStage:
     @pytest.mark.asyncio
     async def test_run_rerank_fallback_on_rerank_error(self, mock_context, mock_llm):
         """RagRerankError triggers fallback to RRF-ranked results."""
-        from rag.llm_prompts import RagRerankError
+        from rag.exceptions import RagRerankError
 
         mock_context.merged = [
             MergedHit(chunk_id=1, content="result1", url="http://example.com/1"),
@@ -941,7 +941,7 @@ class TestRerank:
     @pytest.mark.asyncio
     async def test_rerank_rerank_error_propagates(self, mock_llm):
         """Test _rerank propagates RagRerankError (fail-fast)."""
-        from rag.llm_prompts import RagRerankError
+        from rag.exceptions import RagRerankError
 
         merged = [MergedHit(chunk_id=1, content="result1", url="http://example.com/1")]
         mock_llm.cross_encoder_rerank.side_effect = RagRerankError("Rerank failed")

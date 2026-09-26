@@ -7,8 +7,8 @@ from typing import Literal
 
 from shared.types import RagConfig
 
+from rag.exceptions import RagExpansionError
 from rag.llm_client import RagLLM
-from rag.llm_prompts import RagExpansionError
 from rag.stage import PipelineContext, PipelineStage
 
 logger = logging.getLogger(__name__)

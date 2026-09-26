@@ -36,6 +36,18 @@ class UnknownMetadataError(RagLayerError, ValueError):
     """Raised when metadata field has an unexpected value."""
 
 
+class RagRerankError(RagLayerError):
+    """Raised when cross-encoder reranking fails (HTTP, parse, or connection error)."""
+
+
+class RagExpansionError(RagLayerError):
+    """Raised when MQE query expansion fails (HTTP, parse, or connection error)."""
+
+
+class RagPipelineError(RagLayerError):
+    """Raised when a pipeline-level operation fails (e.g. DB open, stage failure)."""
+
+
 class IngestionFailureReason(StrEnum):
     """Reason why a chunk ingestion failed."""
 

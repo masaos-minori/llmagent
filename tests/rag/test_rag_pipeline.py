@@ -9,7 +9,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from rag.pipeline import RagPipeline, RagPipelineError
+from rag.exceptions import RagPipelineError
+from rag.pipeline import RagPipeline
 from rag.stages.augment import (
     _RAG_BLOCK_END,
     _RAG_BLOCK_START,

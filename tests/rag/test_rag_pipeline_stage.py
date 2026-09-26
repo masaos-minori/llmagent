@@ -249,7 +249,7 @@ class TestRerankStage:
     @pytest.mark.asyncio
     async def test_rerank_raises_on_error(self) -> None:
         """RerankStage propagates RagRerankError instead of falling back to RRF order."""
-        from rag.llm_prompts import RagRerankError
+        from rag.exceptions import RagRerankError
 
         llm = MagicMock()
         llm.cross_encoder_rerank = AsyncMock(
@@ -433,7 +433,7 @@ class TestRagPipelineRunStage:
         from unittest.mock import AsyncMock, MagicMock
 
         import httpx
-        from rag.llm_prompts import RagRerankError
+        from rag.exceptions import RagRerankError
         from rag.pipeline import RagPipeline
         from rag.stage import PipelineContext
         from rag.stages.rerank import RerankStage
@@ -469,7 +469,7 @@ class TestMqeFallbackIntegration:
     @pytest.mark.asyncio
     async def test_mqe_exception_uses_original_query(self) -> None:
         """When MQE raises an exception, ctx.queries should contain the original query."""
-        from rag.llm_prompts import RagExpansionError
+        from rag.exceptions import RagExpansionError
         from rag.pipeline import RagPipeline
         from rag.stages.mqe import MqeStage
 
@@ -490,7 +490,7 @@ class TestMqeFallbackIntegration:
     @pytest.mark.asyncio
     async def test_mqe_exception_fallback_status_recorded(self) -> None:
         """When MQE raises an exception, StageResult should indicate fallback."""
-        from rag.llm_prompts import RagExpansionError
+        from rag.exceptions import RagExpansionError
         from rag.pipeline import RagPipeline
         from rag.stages.mqe import MqeStage
 
@@ -512,7 +512,7 @@ class TestMqeFallbackIntegration:
     @pytest.mark.asyncio
     async def test_mqe_exception_search_still_runs(self) -> None:
         """When MQE raises an exception, SearchStage should still execute with the original query."""
-        from rag.llm_prompts import RagExpansionError
+        from rag.exceptions import RagExpansionError
         from rag.pipeline import RagPipeline
         from rag.stages.mqe import MqeStage
         from rag.stages.search import SearchStage
@@ -540,7 +540,7 @@ class TestRerankFallbackIntegration:
     @pytest.mark.asyncio
     async def test_rerank_exception_uses_rrf_fallback(self) -> None:
         """When rerank raises an exception, ctx.reranked should contain deduplicated merged results."""
-        from rag.llm_prompts import RagRerankError
+        from rag.exceptions import RagRerankError
         from rag.pipeline import RagPipeline
         from rag.repository import deduplicate_chunks
         from rag.stages.rerank import RerankStage
@@ -577,7 +577,7 @@ class TestRerankFallbackIntegration:
     @pytest.mark.asyncio
     async def test_rerank_exception_augment_produces_output(self) -> None:
         """When rerank raises an exception, AugmentStage should produce valid output from fallback hits."""
-        from rag.llm_prompts import RagRerankError
+        from rag.exceptions import RagRerankError
         from rag.pipeline import RagPipeline
         from rag.stages.augment import AugmentStage
         from rag.stages.rerank import RerankStage
@@ -674,7 +674,7 @@ class TestDiagnosticsFallbackVsDisabled:
     @pytest.mark.asyncio
     async def test_diagnostics_distinguishes_disabled_from_fallback(self) -> None:
         """Diagnostics should distinguish between disabled features and failed fallback features."""
-        from rag.llm_prompts import RagRerankError
+        from rag.exceptions import RagRerankError
         from rag.pipeline import RagPipeline
         from rag.stages.rerank import RerankStage
 

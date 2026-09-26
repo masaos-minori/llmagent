@@ -71,8 +71,8 @@ class TestRagLlmExceptions:
     async def test_expand_queries_raises_ragerexpansionerror_on_http_failure(
         self,
     ) -> None:
+        from rag.exceptions import RagExpansionError
         from rag.llm_client import RagLLM
-        from rag.llm_prompts import RagExpansionError
 
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_response = MagicMock()
@@ -87,8 +87,8 @@ class TestRagLlmExceptions:
 
     @pytest.mark.asyncio
     async def test_expand_queries_raises_on_malformed_json(self) -> None:
+        from rag.exceptions import RagExpansionError
         from rag.llm_client import RagLLM
-        from rag.llm_prompts import RagExpansionError
 
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_response = MagicMock()
@@ -112,8 +112,8 @@ class TestRagLlmExceptions:
     async def test_cross_encoder_rerank_raises_ragrerankerror_on_http_failure(
         self,
     ) -> None:
+        from rag.exceptions import RagRerankError
         from rag.llm_client import RagLLM
-        from rag.llm_prompts import RagRerankError
         from shared.types import MergedHit
 
         mock_client = AsyncMock(spec=httpx.AsyncClient)

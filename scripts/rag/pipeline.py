@@ -36,6 +36,7 @@ from rag.augment import AugmentRefiner
 from rag.config_resolution import resolve_rag_config
 from rag.db_connection import RagDatabaseConnection
 from rag.diagnostics import PipelineDiagnostics
+from rag.exceptions import RagPipelineError
 from rag.http_augment import _map_http_result_kind
 from rag.llm_client import RagLLM
 from rag.models_config import RagConfigImpl
@@ -49,10 +50,6 @@ from rag.stages.augment import (
 from rag.types import PipelineRunResult
 
 logger = logging.getLogger(__name__)
-
-
-class RagPipelineError(RuntimeError):
-    """Raised when a pipeline-level operation fails (e.g. DB open, stage failure)."""
 
 
 class RagPipeline:

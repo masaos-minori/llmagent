@@ -33,6 +33,7 @@ from shared.types import (
     RagHit,
 )
 
+from rag.exceptions import RagExpansionError, RagRerankError
 from rag.llm_prompts import (
     _MQE_MAX_TOKENS,
     _MQE_TEMPERATURE,
@@ -45,8 +46,6 @@ from rag.llm_prompts import (
     _SUMMARIZE_PROMPT_TEMPLATE,
     _SUMMARIZE_TEMPERATURE,
     MqeParseError,
-    RagExpansionError,
-    RagRerankError,
     _apply_rerank_scores,
     _build_rerank_prompt,
     _mqe_prompt,

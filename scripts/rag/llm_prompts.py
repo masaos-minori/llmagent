@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """scripts/rag/llm_prompts.py
 
-LLM prompt constants, exception types, DTOs, and helper functions for the RAG pipeline.
+LLM prompt constants, DTOs, and helper functions for the RAG pipeline.
 
 Provides:
   MqeParseError        — MQE JSON parse failure
-  RagExpansionError    — MQE expansion HTTP/parse failure
-  RagRerankError       — Cross-encoder rerank HTTP/parse failure
   MqeParseResult       — internal DTO from MQE JSON parsing
   _MQE_TEMPERATURE     — MQE temperature constant
   _MQE_MAX_TOKENS      — MQE max tokens constant
@@ -15,12 +13,12 @@ Provides:
   _SUMMARIZE_*         — summarization constants
   _REFINER_*           — context refiner constants
   _DEFAULT_RERANK_SCORE — default score when LLM omits a candidate
- _mqe_prompt          — build MQE rephrasing prompt
-   _parse_mqe_response  — extract/validate JSON array from LLM output
-   _build_rerank_prompt  — build Cross-Encoder scoring prompt
+  _mqe_prompt          — build MQE rephrasing prompt
+  _parse_mqe_response  — extract/validate JSON array from LLM output
+  _build_rerank_prompt  — build Cross-Encoder scoring prompt
   _apply_rerank_scores  — parse LLM score output and return top_k candidates
 
-Import from here:  from rag.llm_prompts import RagExpansionError, RagRerankError, ...
+Import from here:  from rag.llm_prompts import MqeParseError, MqeParseResult, ...
 """
 
 from __future__ import annotations
@@ -47,14 +45,6 @@ logger = logging.getLogger(__name__)
 
 class MqeParseError(ValueError):
     """Raised when the MQE LLM response cannot be parsed as a valid query list."""
-
-
-class RagExpansionError(RuntimeError):
-    """Raised when MQE query expansion fails (HTTP, parse, or connection error)."""
-
-
-class RagRerankError(RuntimeError):
-    """Raised when cross-encoder reranking fails (HTTP, parse, or connection error)."""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -231,8 +221,6 @@ def _apply_rerank_scores(
 
 __all__ = [
     "MqeParseError",
-    "RagExpansionError",
-    "RagRerankError",
     "MqeParseResult",
     "_MQE_TEMPERATURE",
     "_MQE_MAX_TOKENS",
