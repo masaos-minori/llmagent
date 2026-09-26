@@ -1,6 +1,6 @@
-"""tests/agent/test_stale_detector.py
+"""tests/tools/test_stale_detector.py
 
-Unit tests for scripts/agent/stale_detector.py:
+Unit tests for tools/stale_detector.py:
 StaleResult dataclass and detection functions.
 """
 
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from agent.stale_detector import (
+from tools.stale_detector import (
     StaleResult,
     _check_before_blocks,
     _check_import_refs,
@@ -403,11 +403,11 @@ class TestCheckLineRefsFallbackHandling:
         source_lines = [""] * 10
         # Mock _find_scoped_path to return a path, but _load_scoped_source returns None
         monkeypatch.setattr(
-            "agent.stale_detector._find_scoped_path",
+            "tools.stale_detector._find_scoped_path",
             lambda *args: "scripts/agent/missing_file.py",
         )
         monkeypatch.setattr(
-            "agent.stale_detector._load_scoped_source",
+            "tools.stale_detector._load_scoped_source",
             lambda *args: None,
         )
         _check_line_refs(
@@ -423,11 +423,11 @@ class TestCheckLineRefsFallbackHandling:
         scoped_lines = [""] * 200  # 200 lines, so 149-163 is valid
         # Mock _find_scoped_path to return a path, and _load_scoped_source returns content
         monkeypatch.setattr(
-            "agent.stale_detector._find_scoped_path",
+            "tools.stale_detector._find_scoped_path",
             lambda *args: "scripts/agent/exists_file.py",
         )
         monkeypatch.setattr(
-            "agent.stale_detector._load_scoped_source",
+            "tools.stale_detector._load_scoped_source",
             lambda *args: "\n".join(scoped_lines),
         )
         _check_line_refs(
@@ -443,11 +443,11 @@ class TestCheckLineRefsFallbackHandling:
         scoped_lines = [""] * 50  # Only 50 lines, so 149-163 is invalid
         # Mock _find_scoped_path to return a path, and _load_scoped_source returns content
         monkeypatch.setattr(
-            "agent.stale_detector._find_scoped_path",
+            "tools.stale_detector._find_scoped_path",
             lambda *args: "scripts/agent/small_file.py",
         )
         monkeypatch.setattr(
-            "agent.stale_detector._load_scoped_source",
+            "tools.stale_detector._load_scoped_source",
             lambda *args: "\n".join(scoped_lines),
         )
         _check_line_refs(

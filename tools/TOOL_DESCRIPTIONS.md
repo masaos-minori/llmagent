@@ -6,7 +6,7 @@
 
 本ファイル自体の内容ドリフトは `check_tool_descriptions_sync.py` で検出できる(`tools/*.py` とここでの言及の突合)。
 
-## 一覧 (37モジュール)
+## 一覧 (54モジュール)
 
 | ファイル | カテゴリ | 主な目的 |
 |---|---|---|
@@ -46,8 +46,10 @@
 | `fix_docstring_paths.py` | 整形補助 | scriptsモジュールdocstringヘッダーパスの更新 |
 | `check_docstrings.py` | ドキュメント品質 | スクリプトdocstringフォーマット検証 |
 | `check_tool_descriptions_sync.py` | 整合性チェッカー | 本ファイルと実際の`tools/*.py`の突合 |
-| `check_chunks_fts_invariant.py` | 整合性チェッカー | `scripts/`配下のPythonソースから、許可パス(`rag_maintenance_service.py::rebuild_fts()`、`schema_sql.py`)外の `chunks_fts` に対する直接INSERT/UPDATEを検出。`scripts/mcp_servers/mdq/` と `tests/` は除外 |
+| `check_chunks_fts_invariant.py` | 整合性チェッカー | `scripts/`配下のPythonソースから、許可パス(`rag_maintenance_service.py::rebuild_fts()`、`scripts/db/schema_sql.py`)外の `chunks_fts` に対する直接INSERT/UPDATEを検出。`scripts/mcp_servers/mdq/` と `tests/` は除外 |
 | `check_skills_references.py` | 整合性チェッカー | `AGENTS.md`/`routing.md`/`skills/DESIGN.md`/`rules/*.md`/`skills/**/*.md`/`prompts/*.md`内のバッククォート付きファイル参照(`rules/`・`skills/`・`templates/`配下、または`AGENTS.md`/`routing.md`自身)の実在確認 |
+| `generate_impl_procedures.py` | ワークアイテム生成 | ドキュメント再編のPlanを対象に実手続書(implementations/)を生成。パスのslug化を含む |
+| `stale_detector.py` | 整合性チェッカー | 実装手順書が参照する行番号・シンボル名・インポート・`# Before:`ブロックが現ソースで存在するか正規表現で検証。1つでも不一致があればstaleと判定し実行を阻止。CLIは終了コード(staleなら1)で結果を返す |
 
 ## ドメイン別ドキュメント整合性チェッカー
 
@@ -154,3 +156,14 @@ docstringの追加・修正スクリプトは、正規表現によるソース�
 | `apply_all_fixes_v6.py` | 反復 v6 | attrs のインプレイス変更 + セットアップ後のスナップショット |
 | `fix_test_file.py` | 反復 v7 | 不要なフィクスチャの削除と直接設定へ移行 |
 | `replace_class.py` | 反復 v8 | テストクラスのクリーン版への置換 |
+
+## 一時的な一発スクリプト
+
+以下は特定のリネーム・修正作業の一発スクリプトで、本来アーカイブまたは削除されるべきものだが、pre-commit フックの突合チェックにかかるため記載を残す。絶対パス(`/home/sugimoto/llmagent/`)のハードコードなど、汎用性を欠く実装。
+
+| ファイル | カテゴリ | 主な目的 |
+|---|---|---|
+| `rename_docs_prefix.py` | 一発リネーム | `docs/23_agent/` の `NN_agent_` プレフィックスを `agent_` へ一括リネームし、内部リンクを更新（Step1〜2構成） |
+| `rename_docs_prefix2.py`、`rename_docs_prefix3.py`、`rename_docs_prefix4.py`、`rename_docs_prefix5.py`、`rename_docs_prefix6.py`、`rename_docs_prefix7.py`、`rename_docs_prefix8.py` | 一発リネーム（反復） | 上記リネームを発現況別に複製した2〜8のスクリプト |
+| `fix_docs_links.py` | 一発修正 | `docs/` 内の壊れたバッククォート参照にサブディレクトリ接頭辞を追加 |
+| `fix_docs_links2.py` | 一発修正（反復） | 上記fix_docs_linksの一発修正版2 |

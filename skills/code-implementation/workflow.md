@@ -173,7 +173,7 @@ Before proceeding to implementation, verify that the procedure's referenced code
 constructs still exist in the current source. This prevents wasted effort on procedures
 whose targets have been modified by another process or prior execution.
 
-Run `uv run python scripts/agent/stale_detector.py {proc_path}` where `{proc_path}` is
+Run `uv run python tools/stale_detector.py {proc_path}` where `{proc_path}` is
 the repository-relative path to the implementation procedure file (e.g.,
 `implementations/20260916-232443_01_scripts_agent_orchestrator.py.md`). The tool reads
 the procedure document, extracts cited line ranges, symbol names, import paths, and

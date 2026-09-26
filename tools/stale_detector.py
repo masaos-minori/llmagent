@@ -1,4 +1,4 @@
-"""scripts/agent/stale_detector.py
+"""tools/stale_detector.py
 
 Lightweight stale detection for implementation procedures.
 
