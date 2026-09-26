@@ -14,6 +14,8 @@ from tools._docs_consistency_lib import discover_md_files
 from tools.check_needs_confirmation_inventory import (
     _GOVERNANCE_META_DOCS,
     INVENTORY_DOC_PATH,
+    NcEntry,
+    check_missing_nc_fields,
     check_untracked_inline_markers,
 )
 
@@ -91,3 +93,76 @@ class TestUntrackedInlineMarkers:
         assert len(issues) == 1
         assert issues[0].severity == "WARNING"
         assert "untracked" in issues[0].message.lower()
+
+
+class TestMissingNcFields:
+    """check_missing_nc_fields enforces GV-009: every *active* (open) NC item
+    must carry both an 'Assigned To' owner (not empty / not 'Unassigned') and a
+    non-empty 'Resolution Target'. Resolved/non-open items are skipped."""
+
+    def _entry(self, **overrides) -> NcEntry:
+        base = dict(
+            nc_id="NC-100",
+            source_file="governance_03_issue-and-uncertainty-management.md",
+            status="open",
+            assigned_to="alice",
+            resolution_target="next review",
+        )
+        base.update(overrides)
+        return NcEntry(**base)
+
+    def test_complete_active_entry_produces_no_issues(self) -> None:
+        issues = check_missing_nc_fields([self._entry()])
+        assert issues == []
+
+    def test_missing_assigned_to_is_flagged(self) -> None:
+        issues = check_missing_nc_fields([self._entry(assigned_to=None)])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+        assert issues[0].message == ("NC-100: missing required field 'Assigned To'")
+
+    def test_missing_resolution_target_is_flagged(self) -> None:
+        issues = check_missing_nc_fields([self._entry(resolution_target=None)])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+        assert issues[0].message == (
+            "NC-100: missing required field 'Resolution Target'"
+        )
+
+    def test_empty_assigned_to_is_flagged(self) -> None:
+        issues = check_missing_nc_fields([self._entry(assigned_to="")])
+        assert len(issues) == 1
+        assert "Assigned To" in issues[0].message
+
+    def test_unassigned_owner_is_flagged(self) -> None:
+        issues = check_missing_nc_fields([self._entry(assigned_to="Unassigned")])
+        assert len(issues) == 1
+        assert "Assigned To" in issues[0].message
+
+    def test_both_fields_missing_produces_two_issues(self) -> None:
+        issues = check_missing_nc_fields(
+            [self._entry(assigned_to=None, resolution_target=None)]
+        )
+        assert len(issues) == 2
+        messages = {i.message for i in issues}
+        assert "NC-100: missing required field 'Assigned To'" in messages
+        assert "NC-100: missing required field 'Resolution Target'" in messages
+
+    def test_non_open_item_is_excluded(self) -> None:
+        for status in ("resolved", "fixed", "investigating", "deferred"):
+            issues = check_missing_nc_fields(
+                [self._entry(status=status, assigned_to=None, resolution_target=None)]
+            )
+            assert issues == [], f"{status} should be skipped"
+
+    def test_mixed_entries_only_active_are_checked(self) -> None:
+        active = self._entry(nc_id="NC-101", assigned_to=None)
+        resolved = self._entry(
+            nc_id="NC-102",
+            status="resolved",
+            assigned_to=None,
+            resolution_target=None,
+        )
+        issues = check_missing_nc_fields([active, resolved])
+        assert len(issues) == 1
+        assert issues[0].message.startswith("NC-101:")

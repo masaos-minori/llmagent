@@ -70,6 +70,8 @@ _PART2_HEADER_RE = re.compile(r"^## Part 2:")
 _SECTION_HEADER_RE = re.compile(r"^## ")
 _SOURCE_FILE_RE = re.compile(r"\*\*Source File\*\*:\s*`([^`]+)`")
 _STATUS_RE = re.compile(r"\*\*Status\*\*:\s*(\S+)")
+_ASSIGNED_TO_RE = re.compile(r"\*\*Assigned To\*\*:\s*(\S+)")
+_RESOLUTION_TARGET_RE = re.compile(r"\*\*Resolution Target\*\*:\s*(.+)$")
 
 _NUMBER_WORDS = {
     "one": 1,
@@ -100,10 +102,19 @@ _NUMBERED_ITEM_RE = re.compile(r"^\d+\.\s+\*\*")
 
 
 class NcEntry:
-    def __init__(self, nc_id: str, source_file: str | None, status: str | None):
+    def __init__(
+        self,
+        nc_id: str,
+        source_file: str | None,
+        status: str | None,
+        assigned_to: str | None,
+        resolution_target: str | None,
+    ):
         self.nc_id = nc_id
         self.source_file = source_file
         self.status = status
+        self.assigned_to = assigned_to
+        self.resolution_target = resolution_target
 
 
 def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
@@ -112,11 +123,21 @@ def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
     current_id: str | None = None
     current_source: str | None = None
     current_status: str | None = None
+    current_assigned_to: str | None = None
+    current_resolution_target: str | None = None
     in_part2 = False
 
     def flush() -> None:
         if current_id is not None:
-            entries.append(NcEntry(current_id, current_source, current_status))
+            entries.append(
+                NcEntry(
+                    current_id,
+                    current_source,
+                    current_status,
+                    current_assigned_to,
+                    current_resolution_target,
+                )
+            )
 
     for line in inventory.lines:
         if not in_part2:
@@ -132,6 +153,8 @@ def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
             current_id = match.group(1)
             current_source = None
             current_status = None
+            current_assigned_to = None
+            current_resolution_target = None
             continue
         if current_id is None:
             continue
@@ -141,6 +164,12 @@ def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
         status_match = _STATUS_RE.search(line)
         if status_match:
             current_status = status_match.group(1)
+        assigned_match = _ASSIGNED_TO_RE.search(line)
+        if assigned_match:
+            current_assigned_to = assigned_match.group(1)
+        resolution_match = _RESOLUTION_TARGET_RE.search(line)
+        if resolution_match:
+            current_resolution_target = resolution_match.group(1)
     flush()
     return entries
 
@@ -230,6 +259,35 @@ def check_declared_field_count(docs_dir: Path, files: list[DocFile]) -> list[Iss
     return issues
 
 
+def check_missing_nc_fields(entries: list[NcEntry]) -> list[Issue]:
+    """Flag active NC items missing required 'Assigned To' or 'Resolution Target' fields."""
+    issues: list[Issue] = []
+    for entry in entries:
+        if entry.status != "open":
+            continue
+        if not entry.assigned_to or entry.assigned_to == "Unassigned":
+            issues.append(
+                Issue(
+                    file=INVENTORY_DOC_NAME,
+                    line_no=0,
+                    severity="WARNING",
+                    message=(f"{entry.nc_id}: missing required field 'Assigned To'"),
+                )
+            )
+        if not entry.resolution_target:
+            issues.append(
+                Issue(
+                    file=INVENTORY_DOC_NAME,
+                    line_no=0,
+                    severity="WARNING",
+                    message=(
+                        f"{entry.nc_id}: missing required field 'Resolution Target'"
+                    ),
+                )
+            )
+    return issues
+
+
 def main() -> int:
     inventory = None
     try:
@@ -263,6 +321,7 @@ def main() -> int:
     )
     all_issues += check_untracked_inline_markers(DOCS_DIR, all_files, entries)
     all_issues += check_declared_field_count(DOCS_DIR, all_files)
+    all_issues += check_missing_nc_fields(entries)
 
     return report_and_exit(all_issues)
 
