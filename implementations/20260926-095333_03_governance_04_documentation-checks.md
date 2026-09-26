@@ -94,10 +94,10 @@ The key change is updating the Follow-up column to reflect that the check has be
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260926-102400 | 20260926-102430 | Updated GV-021 Follow-up column from "None" to "Promoted to default-on after corpus compliance" |
+| 2 | Add or update tests per Validation plan | Completed | 20260926-102430 | 20260926-102500 | No tests needed — documentation status update task |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260926-102500 | 20260926-102530 | Manual verification of GV-021 row confirms correct status |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Not applicable — this step IS the documentation update |
 
 ### Blocker Log
 
