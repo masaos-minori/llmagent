@@ -178,14 +178,22 @@ def check_tail_sections(path: Path, content: str) -> list[str]:
 
 
 def check_links(
-    path: Path, content: str, basename_index: dict[str, Path], check_duplicates: bool = False
+    path: Path,
+    content: str,
+    basename_index: dict[str, Path],
+    check_duplicates: bool = False,
 ) -> list[str]:
     issues = []
     body = strip_fenced_code(content)
-    seen: dict[str, int] = {}
+    seen: dict[Path, int] = {}
     for _text, target in LINK_RE.findall(body):
         if target.startswith(("http://", "https://")):
             continue
+        if "/" in target:
+            resolved = (path.parent / target).resolve()
+        else:
+            resolved = basename_index.get(target, path.parent / target).resolve()
+        seen[resolved] = seen.get(resolved, 0) + 1
         if "/" in target:
             found = (path.parent / target).resolve().is_file()
         else:
@@ -204,17 +212,11 @@ def check_links(
             if resolved_target == path.resolve():
                 issues.append(f"{path.name}: self-reference detected -> '{target}'")
     if check_duplicates:
-        for _text, target in LINK_RE.findall(body):
-            if target.startswith(("http://", "https://")):
-                continue
-            if "/" in target:
-                resolved = str((path.parent / target).resolve())
-            else:
-                resolved = target
-            seen[resolved] = seen.get(resolved, 0) + 1
         for resolved, count in seen.items():
             if count > 1:
-                issues.append(f"{path.name}: duplicate link -> '{resolved}' (appears {count} times)")
+                issues.append(
+                    f"{path.name}: duplicate link -> '{resolved}' (appears {count} times)"
+                )
     return issues
 
 
@@ -240,7 +242,10 @@ def check_unique_adr_ids(files: list[Path]) -> list[str]:
 
 
 def check_related_links(
-    path: Path, content: str, basename_index: dict[str, Path], check_duplicates: bool = False
+    path: Path,
+    content: str,
+    basename_index: dict[str, Path],
+    check_duplicates: bool = False,
 ) -> list[str]:
     if not content.startswith("---"):
         return []
@@ -252,9 +257,14 @@ def check_related_links(
     except yaml.YAMLError:
         return []  # already reported by check_front_matter(); avoid double-reporting
     issues = []
-    seen: dict[str, int] = {}
+    seen: dict[Path, int] = {}
     for field in ("related", "source"):
         for entry in data.get(field) or []:
+            if "/" in entry:
+                resolved = (path.parent / entry).resolve()
+            else:
+                resolved = basename_index.get(entry, path.parent / entry).resolve()
+            seen[resolved] = seen.get(resolved, 0) + 1
             if "/" in entry:
                 found = (path.parent / entry).resolve().is_file()
             else:
@@ -274,16 +284,11 @@ def check_related_links(
                 if resolved_entry == path.resolve():
                     issues.append(f"{path.name}: self-reference detected -> '{entry}'")
     if check_duplicates:
-        for field in ("related", "source"):
-            for entry in data.get(field) or []:
-                if "/" in entry:
-                    resolved = str((path.parent / entry).resolve())
-                else:
-                    resolved = entry
-                seen[resolved] = seen.get(resolved, 0) + 1
         for resolved, count in seen.items():
             if count > 1:
-                issues.append(f"{path.name}: duplicate related link -> '{resolved}' (appears {count} times)")
+                issues.append(
+                    f"{path.name}: duplicate related link -> '{resolved}' (appears {count} times)"
+                )
     return issues
 
 
@@ -315,8 +320,14 @@ def validate_file(
     if schema is not None:
         issues.extend(check_schema_compliance(path, content, schema))
     issues.extend(check_tail_sections(path, content))
-    issues.extend(check_links(path, content, basename_index, check_duplicates))
-    issues.extend(check_related_links(path, content, basename_index, check_duplicates))
+    issues.extend(
+        check_links(path, content, basename_index, check_duplicates=check_duplicates)
+    )
+    issues.extend(
+        check_related_links(
+            path, content, basename_index, check_duplicates=check_duplicates
+        )
+    )
     return issues
 
 
@@ -343,7 +354,9 @@ def main() -> int:
         ),
     )
     parser.add_argument(
-        "--check-duplicates", action="store_true", help="Check for duplicate links"
+        "--check-duplicates",
+        action="store_true",
+        help="Check for duplicate links",
     )
     args = parser.parse_args()
 

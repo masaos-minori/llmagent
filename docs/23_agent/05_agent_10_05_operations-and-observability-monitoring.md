@@ -111,7 +111,7 @@ DiagnosticStore.loop_guard_hint method was removed after confirming zero product
 | `rag_stage_outcomes` | Aggregated stage results (`stage_results`) from RAG query diagnostics |
 
 **Implementation Notes:**
-- `workflow_count`, `task_count`, `approval_events`, `retry_count`, and `artifacts` default to 0 or an empty list if querying the workflow DB fails.
+- `workflow_count`, `task_count`, `approval_events`, `retry_count`, and `artifacts` fall back to zero or an empty list if querying the workflow DB fails.
 - If persisting diagnostic information fails, it is logged at DEBUG level; this does not affect the main process (e.g., conversation continuation or session shutdown). `DiagnosticStore.save()` is designed so that failures in saving diagnostics do not block primary operations like conversation continuation or session shutdown.
 
 ## Related Docs

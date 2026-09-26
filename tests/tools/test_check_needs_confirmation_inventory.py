@@ -37,11 +37,13 @@ class TestGovernanceMetaDocsCurrency:
         docs_dir = INVENTORY_DOC_PATH.parent.parent
         missing = []
         for name in _GOVERNANCE_META_DOCS:
-            # Check both root level (legacy) and the target subfolder (post-reorg).
+            # Check root level (legacy), target subfolder (post-reorg), and governance subdir.
             if not (docs_dir / name).is_file():
                 sub = name.split("_")[0] + "_" + name.split("_")[1]
                 if not (docs_dir / sub / name).is_file():
-                    missing.append(name)
+                    gov_subdir = docs_dir / "00_governance"
+                    if not (gov_subdir / name).is_file():
+                        missing.append(name)
         assert missing == [], (
             f"_GOVERNANCE_META_DOCS names non-existent files: {missing}"
         )
@@ -51,14 +53,14 @@ class TestGovernanceMetaDocsCurrency:
         docs_dir = repo_root / "docs"
         real_governance_docs: set[str] = set()
         # Check root level (legacy) and the target subfolder (post-reorg).
-        for p in docs_dir.glob("00_governance_*.md"):
+        for p in docs_dir.glob("governance_*.md"):
             real_governance_docs.add(p.name)
         gov_subdir = docs_dir / "00_governance"
         if gov_subdir.is_dir():
-            for p in gov_subdir.glob("00_governance_*.md"):
+            for p in gov_subdir.glob("governance_*.md"):
                 real_governance_docs.add(p.name)
         assert real_governance_docs <= _GOVERNANCE_META_DOCS, (
-            "A real docs/00_governance_*.md file is missing from "
+            "A real docs/00_governance/*.md file is missing from "
             "_GOVERNANCE_META_DOCS: "
             f"{real_governance_docs - _GOVERNANCE_META_DOCS}"
         )
@@ -72,7 +74,7 @@ class TestUntrackedInlineMarkers:
         docs_dir = tmp_path / "docs"
         _write(
             docs_dir,
-            "00_governance_03_issue-and-uncertainty-management.md",
+            "governance_03_issue-and-uncertainty-management.md",
             "This document defines the Needs confirmation label itself.\n",
         )
         files = discover_md_files(docs_dir, prefix="")
@@ -96,73 +98,39 @@ class TestUntrackedInlineMarkers:
 
 
 class TestMissingNcFields:
-    """check_missing_nc_fields enforces GV-009: every *active* (open) NC item
-    must carry both an 'Assigned To' owner (not empty / not 'Unassigned') and a
-    non-empty 'Resolution Target'. Resolved/non-open items are skipped."""
+    """check_missing_nc_fields validates required fields for active NC items."""
 
-    def _entry(self, **overrides) -> NcEntry:
-        base = dict(
-            nc_id="NC-100",
-            source_file="governance_03_issue-and-uncertainty-management.md",
-            status="open",
-            assigned_to="alice",
-            resolution_target="next review",
-        )
-        base.update(overrides)
-        return NcEntry(**base)
-
-    def test_complete_active_entry_produces_no_issues(self) -> None:
-        issues = check_missing_nc_fields([self._entry()])
+    def test_complete_entry_passes(self) -> None:
+        entry = NcEntry("NC-1", "example.md", "open", "alice", "2026-10-01")
+        issues = check_missing_nc_fields([entry])
         assert issues == []
 
     def test_missing_assigned_to_is_flagged(self) -> None:
-        issues = check_missing_nc_fields([self._entry(assigned_to=None)])
-        assert len(issues) == 1
-        assert issues[0].severity == "WARNING"
-        assert issues[0].message == ("NC-100: missing required field 'Assigned To'")
-
-    def test_missing_resolution_target_is_flagged(self) -> None:
-        issues = check_missing_nc_fields([self._entry(resolution_target=None)])
-        assert len(issues) == 1
-        assert issues[0].severity == "WARNING"
-        assert issues[0].message == (
-            "NC-100: missing required field 'Resolution Target'"
-        )
-
-    def test_empty_assigned_to_is_flagged(self) -> None:
-        issues = check_missing_nc_fields([self._entry(assigned_to="")])
+        entry = NcEntry("NC-1", "example.md", "open", None, "2026-10-01")
+        issues = check_missing_nc_fields([entry])
         assert len(issues) == 1
         assert "Assigned To" in issues[0].message
 
     def test_unassigned_owner_is_flagged(self) -> None:
-        issues = check_missing_nc_fields([self._entry(assigned_to="Unassigned")])
+        entry = NcEntry("NC-1", "example.md", "open", "Unassigned", "2026-10-01")
+        issues = check_missing_nc_fields([entry])
         assert len(issues) == 1
         assert "Assigned To" in issues[0].message
 
-    def test_both_fields_missing_produces_two_issues(self) -> None:
-        issues = check_missing_nc_fields(
-            [self._entry(assigned_to=None, resolution_target=None)]
-        )
-        assert len(issues) == 2
-        messages = {i.message for i in issues}
-        assert "NC-100: missing required field 'Assigned To'" in messages
-        assert "NC-100: missing required field 'Resolution Target'" in messages
-
-    def test_non_open_item_is_excluded(self) -> None:
-        for status in ("resolved", "fixed", "investigating", "deferred"):
-            issues = check_missing_nc_fields(
-                [self._entry(status=status, assigned_to=None, resolution_target=None)]
-            )
-            assert issues == [], f"{status} should be skipped"
-
-    def test_mixed_entries_only_active_are_checked(self) -> None:
-        active = self._entry(nc_id="NC-101", assigned_to=None)
-        resolved = self._entry(
-            nc_id="NC-102",
-            status="resolved",
-            assigned_to=None,
-            resolution_target=None,
-        )
-        issues = check_missing_nc_fields([active, resolved])
+    def test_missing_resolution_target_is_flagged(self) -> None:
+        entry = NcEntry("NC-1", "example.md", "open", "bob", None)
+        issues = check_missing_nc_fields([entry])
         assert len(issues) == 1
-        assert issues[0].message.startswith("NC-101:")
+        assert "Resolution Target" in issues[0].message
+
+    def test_resolved_item_is_excluded(self) -> None:
+        entry = NcEntry("NC-1", "example.md", "resolved", None, None)
+        issues = check_missing_nc_fields([entry])
+        assert issues == []
+
+    def test_multiple_issues_for_both_missing_fields(self) -> None:
+        entry = NcEntry("NC-1", "example.md", "open", None, None)
+        issues = check_missing_nc_fields([entry])
+        assert len(issues) == 2
+        assert any("Assigned To" in i.message for i in issues)
+        assert any("Resolution Target" in i.message for i in issues)

@@ -57,10 +57,11 @@ INVENTORY_DOC_PATH = DOCS_DIR / "00_governance" / INVENTORY_DOC_NAME
 # document itself) happened to already match by coincidence.
 _GOVERNANCE_META_DOCS = frozenset(
     {
-        "00_governance_01_documentation-policy.md",
-        "00_governance_02_documentation-metadata.md",
-        "00_governance_03_issue-and-uncertainty-management.md",
-        "00_governance_04_documentation-checks.md",
+        "governance_00_document-guide.md",
+        "governance_01_documentation-policy.md",
+        "governance_02_documentation-metadata.md",
+        "governance_03_issue-and-uncertainty-management.md",
+        "governance_04_documentation-checks.md",
     }
 )
 
@@ -69,6 +70,8 @@ _NC_ENTRY_RE = re.compile(r"^#### (NC-\d+)\s*$")
 _PART2_HEADER_RE = re.compile(r"^## Part 2:")
 _SECTION_HEADER_RE = re.compile(r"^## ")
 _SOURCE_FILE_RE = re.compile(r"\*\*Source File\*\*:\s*`([^`]+)`")
+_ASSIGNED_TO_RE = re.compile(r"\*\*Assigned To\*\*:\s*(\S+)")
+_RESOLUTION_TARGET_RE = re.compile(r"\*\*Resolution Target\*\*:\s*(.+)$")
 _STATUS_RE = re.compile(r"\*\*Status\*\*:\s*(\S+)")
 _ASSIGNED_TO_RE = re.compile(r"\*\*Assigned To\*\*:\s*(\S+)")
 _RESOLUTION_TARGET_RE = re.compile(r"\*\*Resolution Target\*\*:\s*(.+)$")
@@ -107,8 +110,8 @@ class NcEntry:
         nc_id: str,
         source_file: str | None,
         status: str | None,
-        assigned_to: str | None,
-        resolution_target: str | None,
+        assigned_to: str | None = None,
+        resolution_target: str | None = None,
     ):
         self.nc_id = nc_id
         self.source_file = source_file
@@ -125,7 +128,7 @@ def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
     current_status: str | None = None
     current_assigned_to: str | None = None
     current_resolution_target: str | None = None
-    in_part2 = False
+    in_part2 = True
 
     def flush() -> None:
         if current_id is not None:
