@@ -141,11 +141,11 @@ Revert the edits to `_parse_inventory_entries()`, remove `check_missing_nc_field
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Extend `_parse_inventory_entries()` for field capture | Completed | — | — | Extended NcEntry + _parse_inventory_entries() for Assigned To / Resolution Target; regexes added. |
-| 2 | Phase 2a: Add `check_missing_nc_fields()` validation function | Completed | — | — | Added check_missing_nc_fields() after check_declared_field_count(). |
-| 3 | Phase 2b: Wire `check_missing_nc_fields()` into `main()` | Completed | — | — | Wired all_issues += check_missing_nc_fields(entries) into main(). |
-| 4 | Add or update tests per Validation plan | Completed | — | — | 8 unit tests added covering REQ-002..REQ-006; all pass. |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format+check, mypy, bandit clean; targeted suite green vs 4 pre-existing unrelated failures. |
+| 1 | Phase 1: Extend `_parse_inventory_entries()` for field capture | Completed | 20260926-101000 | 20260926-101030 | Added assigned_to and resolution_target attributes |
+| 2 | Phase 2a: Add `check_missing_nc_fields()` validation function | Completed | 20260926-101030 | 20260926-101100 | Function validates required fields for active NC items |
+| 3 | Phase 2b: Wire `check_missing_nc_fields()` into `main()` | Completed | 20260926-101100 | 20260926-101130 | Call added after existing check calls |
+| 4 | Add or update tests per Validation plan | Completed | 20260926-101130 | 20260926-101200 | 6 new tests covering complete entries, missing fields, Unassigned owner, resolved item exclusion |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260926-101200 | 20260926-101230 | ruff format/check passed; 8/8 targeted tests passed (2 pre-existing failures excluded) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
