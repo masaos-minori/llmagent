@@ -90,10 +90,10 @@ Direct conditional restructuring of `_validate_file`'s final `size = ...` line �
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: existing `TestValidateFileDirBranch` test already covers this fix |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs/00_index.md task-scope mapping for this file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-132233 | 20260927-132233 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-132233 | 20260927-132233 | N/A: existing `TestValidateFileDirBranch` test already covers this fix |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-132233 | 20260927-132233 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-132233 | 20260927-132233 | N/A: no docs/00_index.md task-scope mapping for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
