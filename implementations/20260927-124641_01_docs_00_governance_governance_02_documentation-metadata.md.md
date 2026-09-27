@@ -71,10 +71,10 @@ N/A: documentation-only change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Requires an owner ruling before the exact edit can be made |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, automated checks per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: documentation-only; docs checkers run instead |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-161017 | 20260927-161017 | Owner ruling obtained (via AskUserQuestion): (b) drift, front-matter `related:` authoritative. Follow-up reconciliation filed as `issues/20260927-160936_relateddocsdrift_...md` (not performed this cycle) |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-161017 | 20260927-161017 | N/A: documentation-only, automated checks per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-161017 | 20260927-161017 | N/A: documentation-only; docs checkers run instead |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-161017 | 20260927-161017 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -84,7 +84,7 @@ N/A: documentation-only change.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `issues/20260927-160936_relateddocsdrift_reconcile-front-matter-related-field-with-body-related-documents-headings.md` | 1 | Issue | Open | Unassigned | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
