@@ -61,7 +61,8 @@ class ReadSecurityGuards(FileSecurityMixin):
         target = self._resolve_safe(raw_path)
         if expected_type == "file":
             self._require_file(target, raw_path)
+            size = self._check_size_limit(target)
         else:
             self._require_dir(target, raw_path)
-        size = self._check_size_limit(target)
+            size = 0
         return target, size

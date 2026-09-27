@@ -2,6 +2,7 @@
 """Unit tests for mcp_servers.file.read_service.ReadFileService."""
 
 import base64
+import sys
 from pathlib import Path
 
 import pytest
@@ -991,24 +992,16 @@ class TestGetFileInfo:
         from mcp_servers.file.read_models import GetFileInfoRequest
 
         real_stat = Path.stat
-        target_path = tmp_workspace / "file_a.py"
 
-        # On this Python version, Path.exists() itself calls self.stat()
-        # internally (unlike CPython 3.14's os.path.exists()-based
-        # implementation), so patching Path.stat unconditionally would also
-        # break get_file_info's preceding `if not target.exists()` check
-        # rather than reaching the explicit `target.stat()` call inside the
-        # try/except being characterized here. Let the first stat() call
-        # (from .exists()) succeed normally, and only fail the second
-        # (get_file_info's own explicit stat()).
-        call_count = 0
-
+        # Fail only on get_file_info's explicit target.stat() call. Any stat()
+        # reached via Path.exists() must pass through so the pre-existence
+        # check still runs; its implementation varies across Python versions,
+        # so discriminate by caller identity rather than call count (brittle
+        # when the number of intervening stat() calls changes).
         def boom(self: Path, *, follow_symlinks: bool = True):
-            nonlocal call_count
-            if self == target_path:
-                call_count += 1
-                if call_count > 1:
-                    raise OSError("simulated stat failure")
+            caller = sys._getframe(1).f_code.co_name
+            if caller != "exists":
+                raise OSError("simulated stat failure")
             return real_stat(self, follow_symlinks=follow_symlinks)
 
         monkeypatch.setattr(Path, "stat", boom)
