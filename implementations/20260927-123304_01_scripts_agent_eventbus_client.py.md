@@ -75,10 +75,10 @@ New, uncalled file — revert via `git revert` or simple deletion; no other code
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by the sibling procedure for `tests/agent/test_eventbus_client.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no `docs/00_index.md` task-scope row maps this new file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-133459 | 20260927-133459 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-133459 | 20260927-133459 | Covered by the sibling procedure for `tests/agent/test_eventbus_client.py` Test file tests/agent/test_eventbus_client.py written and passing (7/7); see sibling procedure 02 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-133459 | 20260927-133459 | ruff/pyright/lint-imports/bandit clean; mypy blocked repo-wide by pre-existing tool_constants.py dual-module-path error (reproduces on unrelated pre-existing files too, unrelated to this change) — pyright used as substitute, 0 errors. Full suite: 51 pre-existing failures confirmed unrelated (concurrent session WIP + already-broken tests untouched by this change), 7926 passed, this module's own tests included in the pass count |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-133459 | 20260927-133459 | N/A: no `docs/00_index.md` task-scope row maps this new file N/A: no docs/00_index.md task-scope row maps this new file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
