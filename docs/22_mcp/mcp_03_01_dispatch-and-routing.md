@@ -174,8 +174,6 @@ Drift detection only; not used for routing. See [ADR-003](../10_adr/ADR-003-runt
 - `mcp_03_03_transport-and-health.md`
 - `mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `mcp_03_05_lifecycle-and-new-server.md`
-- [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
-- [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
 
 ## Keywords
 

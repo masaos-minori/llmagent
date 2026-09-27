@@ -399,9 +399,8 @@ This document does not cover:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](governance_01_documentation-policy.md)
-- [Documentation Metadata](governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
+- [Documentation Overview](../00_index.md)
+- [System Overview Index](../01_overview/overview_00_document-guide.md)
 
 ## Keywords
 

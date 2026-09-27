@@ -226,6 +226,4 @@ Sweep results are recorded in the logs but are not exposed via the health endpoi
 - `eventbus_01_system-overview.md`
 - `eventbus_03_dlq_operations.md`
 - `eventbus_07_persistence_schema_and_replay.md`
-- `eventbus_06_dlq_offsets_and_delivery_semantics.md`
 - `eventbus_08_validation_status.md`
-- `eventbus_10_reference_api.md`

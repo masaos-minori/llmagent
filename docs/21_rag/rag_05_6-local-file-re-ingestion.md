@@ -69,8 +69,8 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 ## Related Documents
 
+- [RAG Documentation Guide](rag_00_document-guide.md)
 - [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- [rag_05_8-rag-mcp-internal-operations-direct-db-access.md](rag_05_8-rag-mcp-internal-operations-direct-db-access.md)
 
 ## Keywords
 

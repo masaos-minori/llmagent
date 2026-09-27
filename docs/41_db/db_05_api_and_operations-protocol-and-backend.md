@@ -43,7 +43,5 @@ All protocols are `@runtime_checkable`, so `isinstance()` checks work. Embedding
 
 ## Related Documents
 
-- `shared_00_document-guide.md`
 - `db_04_api_and_operations-module-boundaries-and-helper.md`
 - `db_06_api_and_operations-maintenance-and-rotation.md`
-- `db_07_api_and_operations-recovery-and-reference.md`

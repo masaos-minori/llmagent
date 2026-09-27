@@ -82,8 +82,11 @@ Expected span names:
 
 ## Related Documents
 
+- [Agent Documentation Guide](agent_00_document-guide.md)
+- [Agent Operations and Observability - Startup and Health](agent_10_01_operations-and-observability-startup-and-health.md)
+- [Agent Operations and Observability - Validation and Troubleshooting](agent_10_04_operations-and-observability-validation-and-troubleshooting.md)
+- [Agent Operations and Observability](agent_10_05_operations-and-observability-monitoring.md)
+- [Agent Operations and Observability - RAG Diagnostics and Memory](agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md)
 - [agent_10_03_operations-and-observability-workflow-observability.md](agent_10_03_operations-and-observability-workflow-observability.md) — Workflow observability
-- [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) — Role of `session_diagnostics`
-- `security_01_architecture-and-trust-boundaries.md` — System architecture / trust boundaries / threat modeling / authentication & authorization / auditing / local vs production / Fail-open/Fail-closed / prompt injection responsibility boundaries
 
 (End of file - total 87 lines)

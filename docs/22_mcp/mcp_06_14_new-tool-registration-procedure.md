@@ -103,6 +103,7 @@ See [dispatch-and-routing.md](./mcp_03_01_dispatch-and-routing.md#data-source-fo
 
 ## Related Documents
 
+- [MCP Documentation Guide](mcp_00_document-guide.md)
 - [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 
 ## Keywords

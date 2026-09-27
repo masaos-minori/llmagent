@@ -42,8 +42,8 @@ source:
 
 ## Related Documents
 
+- [RAG Documentation Guide](rag_00_document-guide.md)
 - [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- [rag_05_7-rag-index-consistency-checks.md](rag_05_7-rag-index-consistency-checks.md)
 
 ## Keywords
 

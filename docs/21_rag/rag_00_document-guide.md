@@ -121,6 +121,7 @@ Cross-cutting documentation rules and policies:
 
 ## Related Documents
 
+- `../00_governance/governance_03_issue-and-uncertainty-management.md`
 - `rag_01_system_overview.md`
 - `rag_02_01_ingestion_pipeline-overview.md`
 - `rag_03_01_query_pipeline-overview.md`

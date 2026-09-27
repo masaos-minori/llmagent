@@ -361,31 +361,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Confirm whether `_classify_error()` should be extended to produce `INVALID_FORMAT` cases, or whether the enum value and its dispatch branch should be removed as dead code.
 - **Blocking**: No
 
-#### NC-024
-
-- **Source File**: `governance_01_documentation-policy.md`
-- **Section**: Software Runtime Dependency Graph / Governance Applicability Matrix
-- **Line Number**: ~306
-- **Question**: Should the Security governance area be treated as a runtime
-  component (added as a node to the Software Runtime Dependency Graph) rather than
-  governance-only?
-- **Evidence**: No `scripts/security/` or equivalent runtime package was found by a
-  quick `find` during this Plan's investigation, but this was not exhaustively
-  confirmed
-- **Impact**: If Security has a runtime component not yet reflected as a graph
-  node, the Runtime Graph's node set (Agent, MCP, RAG, EventBus, Shared/DB) would be
-  incomplete
-- **Required Action**: Owner confirmation of whether a Security runtime component
-  exists anywhere in the repository; if so, add it to the Software Runtime
-  Dependency Graph's node set
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-03
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next governance area-scope review
-- **Blocking**: No
-
 #### NC-027
 
 - **Source File**: `rag_02_03_ingestion_pipeline-chunksplitter.md`
@@ -505,7 +480,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG architecture review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-024, NC-027, NC-028, NC-029, NC-033, NC-034, NC-035, and NC-036.
+No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-027, NC-028, NC-029, NC-033, NC-034, NC-035, and NC-036.
 
 ## Part 3: Canonical Source Conflict
 
@@ -630,9 +605,8 @@ Topics explicitly excluded from this document:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](governance_01_documentation-policy.md)
-- [Documentation Metadata](governance_02_documentation-metadata.md)
-- [Documentation Checks](governance_04_documentation-checks.md)
+- [Documentation Overview](../00_index.md)
+- [System Overview Index](../01_overview/overview_00_document-guide.md)
 
 ## Keywords
 

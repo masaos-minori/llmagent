@@ -65,18 +65,5 @@ No reference APIs exist in this directory. All files are ADR documents.
 
 ## Related Documents
 
-- `adr-index.md`
-- `ADR-001-workflow-engine-mandatory.md`
-- `ADR-002-config-isolation.md`
-- `ADR-003-runtime-tool-registry-routing-authority.md`
-- `ADR-004-environment-failure-handling-policy.md`
-- `ADR-005-rag-source-derived-index-relationships.md`
-- `ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
-- `ADR-007-http-mcp-adoption-and-stdio-non-support.md`
-- `ADR-008-sqlite-4db-separation.md`
-- `ADR-009-rag-ft5-text-separation.md`
-- `ADR-010-rag-fallback.md`
-- `ADR-012-git-mcp-server-side-write-enforcement.md`
-- `ADR-013-eventbus-authentication-authorization.md`
-- `ADR-014-agent-control-plane-responsibility-boundaries.md`
-- `ADR-015-reference-document-class-disposition.md`
+- `../00_index.md`
+- `../01_overview/overview_00_document-guide.md`

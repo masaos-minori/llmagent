@@ -165,12 +165,12 @@ Old MCP source files were kept during the documentation restructuring phase (pla
 
 ## Related Documents
 
+- `mcp_06_02_configuration-file-inventory.md`
 - `mcp_01_system_overview.md`
 - `mcp_02_01_endpoints-and-transport.md`
 - `mcp_03_01_dispatch-and-routing.md`
 - `mcp_04_01_web-search-file-read-github.md`
 - `mcp_05_01_access-control-and-allowlists.md`
-- `mcp_06_01_purpose.md`
 - `mcp_07_tool_schema_export_policy.md`
 - `mcp_08_tool_capability_naming_convention.md`
 - `governance_03_issue-and-uncertainty-management.md`

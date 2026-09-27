@@ -126,6 +126,7 @@ The launcher guards against accidentally starting a server whose port is already
 
 ## Related Documents
 
+- [MCP Documentation Guide](mcp_00_document-guide.md)
 - [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 - [mcp_06_12_watchdog-configuration-monitoring.md](mcp_06_12_watchdog-configuration-monitoring.md)
 

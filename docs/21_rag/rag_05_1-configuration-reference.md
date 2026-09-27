@@ -160,6 +160,7 @@ Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `Ag
 
 ## Related Documents
 
+- [RAG Documentation Guide](rag_00_document-guide.md)
 - [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
 
 ## Keywords

@@ -134,10 +134,8 @@ If the result exceeds 512 KB:
 
 ## Related Documents
 
+- `mcp_03_03_transport-and-health.md`
 - `mcp_00_document-guide.md`
-- `mcp_02_01_endpoints-and-transport.md`
-- `mcp_02_03_audit-logging-and-errors.md`
-- `mcp_06_12_watchdog-configuration-monitoring.md`
 
 ## Keywords
 

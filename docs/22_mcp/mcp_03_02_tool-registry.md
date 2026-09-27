@@ -116,14 +116,13 @@ is_side_effect(tool_name: str) -> bool
 
 ## Related Documents
 
+- `mcp_03_06_tool-runtime-availability-metadata.md`
 - `mcp_00_document-guide.md`
 - `mcp_03_01_dispatch-and-routing.md`
 - `mcp_03_03_transport-and-health.md`
 - `mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `mcp_03_05_lifecycle-and-new-server.md`
 - `mcp_07_tool_schema_export_policy.md`
-- [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
-- [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
 
 ## Keywords
 

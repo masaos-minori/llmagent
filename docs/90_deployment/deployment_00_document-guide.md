@@ -48,4 +48,5 @@ No reference APIs exist in this directory. All files are deployment guides.
 
 ## Related Documents
 
-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)
+- `../00_index.md`
+- `../01_overview/overview_00_document-guide.md`

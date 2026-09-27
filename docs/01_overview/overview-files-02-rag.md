@@ -44,8 +44,6 @@ Retention period for post-ingestion staging files is not confirmed within this d
 ## Related Documents
 
 - `overview-files-01-build.md`
-- `overview-files-03-scripts.md`
-- `overview-files-04-shared.md`
 - `overview-files-05-config.md`
 - `overview-files-06-misc.md`
 

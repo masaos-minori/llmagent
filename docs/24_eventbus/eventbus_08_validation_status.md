@@ -30,4 +30,6 @@ Since defects related to the DLQ loop have occurred in the past, regression cove
 
 ## Related Documents
 
+- `eventbus_00_document-guide.md`
+- `eventbus_01_system-overview.md`
 - `eventbus_09_configuration-and-operations.md`

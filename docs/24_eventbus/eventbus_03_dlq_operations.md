@@ -215,4 +215,3 @@ Using optimistic locking, it only targets events where `dlq_at IS NULL` to preve
 - `eventbus_01_system-overview.md`
 - `eventbus_06_dlq_offsets_and_delivery_semantics.md`
 - `eventbus_09_configuration-and-operations.md`
-- `eventbus_10_reference_api.md`

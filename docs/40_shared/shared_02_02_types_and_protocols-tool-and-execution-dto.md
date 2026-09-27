@@ -77,10 +77,8 @@ Import: `from shared.runtime_tool_registry import RuntimeToolRegistry`
 
 ## Related Documents
 
-- `shared_00_document-guide.md`
 - `shared_02_01_types_and_protocols-core-types.md`
 - `shared_02_03_types_and_protocols-reference.md`
-- `shared_02_02_types_and_protocols-tool-and-execution-dto.md`
 
 ---
 

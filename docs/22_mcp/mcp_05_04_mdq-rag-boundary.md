@@ -141,7 +141,6 @@ Use `mdq-mcp` only for Markdown-specific structural queries where embedding qual
 - `mcp_05_02_auth-profiles-and-sandboxing.md`
 - `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `mcp_05_05_mdq-enforcement-and-lockdown.md`
-- `security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 
 ## Keywords
 

@@ -67,7 +67,4 @@ Offset monotonicity is NOT guaranteed across all scenarios. If ACKs are not rece
 
 - `eventbus_00_document-guide.md`
 - `eventbus_03_dlq_operations.md`
-- `eventbus_07_persistence_schema_and_replay.md`
-- `eventbus_06_dlq_offsets_and_delivery_semantics.md`
 - `eventbus_09_configuration-and-operations.md`
-- `eventbus_10_reference_api.md`

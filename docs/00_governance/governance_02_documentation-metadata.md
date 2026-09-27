@@ -216,9 +216,8 @@ execution (a test failing, a config load erroring), not by review.
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](governance_01_documentation-policy.md)
-- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](governance_04_documentation-checks.md)
+- [Documentation Overview](../00_index.md)
+- [System Overview Index](../01_overview/overview_00_document-guide.md)
 
 ## Keywords
 

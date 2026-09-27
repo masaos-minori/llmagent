@@ -89,10 +89,7 @@ Even if `tool_names` is omitted or incomplete, the registry will continue to rou
 ## Related Documents
 
 - `mcp_00_document-guide.md`
-- `mcp_03_01_dispatch-and-routing.md`
-- `mcp_03_02_tool-registry.md`
 - `mcp_03_03_transport-and-health.md`
-- `mcp_03_04_tool-call-tracing-and-watchdog.md`
 
 ## Keywords
 

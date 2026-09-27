@@ -439,18 +439,25 @@ Governance: `@governance-lead`, accountable to `@executive`, consulted `@all-are
 
 ## Software Runtime Dependency Graph
 
-Node set: Agent, MCP, RAG, EventBus, Shared/DB. Governance, Overview, and Deployment
-are not runtime components and are intentionally excluded — see the Governance
-Applicability Matrix and Deployment Management Graph below for their own relation
-types.
+Node set: Agent, MCP, RAG, EventBus, Shared/DB, Security. Governance, Overview, and
+Deployment are not runtime components and are intentionally excluded — see the
+Governance Applicability Matrix and Deployment Management Graph below for their own
+relation types.
 
 `A → B` means: A calls B at runtime, or requires B's data or functionality to
 function.
 
-**Cycles prohibited**: no circular dependencies are allowed among these 5 nodes.
+**Cycles prohibited**: no circular dependencies are allowed among these 6 nodes.
 Enforced automatically by `tools/check_dependency_graph_cycles.py` (see
 `docs/00_governance_04_documentation-checks.md` "12. Area Dependency Graph
 Validation").
+
+Security node: `scripts/shared/security/` (`HighRiskToolPolicy`, `SecurityMode`,
+`AuditLogger`) is the current runtime package for this node. It has zero current
+importers anywhere in `scripts/`/`tests/` as of 2026-09-27, so no confirmed or
+planned edge is listed for it yet — added to the node set now so that whichever
+caller wires it in later only needs to add its edge here, not re-litigate whether
+Security belongs in this graph at all.
 
 Confirmed edges (direct source evidence —
 `scripts/agent/services/mcp_tool_discovery.py` fetches every MCP server's
@@ -546,10 +553,8 @@ This document does not cover:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Metadata](governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](governance_04_documentation-checks.md)
-- [ADR Index](../10_adr/adr-index.md)
+- [Documentation Overview](../00_index.md)
+- [System Overview Index](../01_overview/overview_00_document-guide.md)
 
 ## Keywords
 

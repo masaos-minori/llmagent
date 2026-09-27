@@ -122,8 +122,8 @@ No ADR or design document records a rationale for keeping them separate.
 
 ## Related Documents
 
+- [RAG Documentation Guide](rag_00_document-guide.md)
 - [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- [rag_04_04_dto-models_config.md](rag_04_04_dto-models_config.md)
 
 ## Keywords
 

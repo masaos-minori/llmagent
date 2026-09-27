@@ -34,7 +34,6 @@ listing. Do not hand-edit between the guard comments — run the generator.
 - [agent_12_04_memory-module-ref-retrieval-and-injection.md](agent_12_04_memory-module-ref-retrieval-and-injection.md)
 - [agent_12_05_memory-module-ref-extraction-and-facade.md](agent_12_05_memory-module-ref-extraction-and-facade.md)
 - [agent_12_06_memory-module-ref-ops-and-scoring.md](agent_12_06_memory-module-ref-ops-and-scoring.md)
-- [governance_01_documentation-policy.md](../00_governance/governance_01_documentation-policy.md) — ADR-015 Reference Document Class Disposition
 
 ## Keywords
 

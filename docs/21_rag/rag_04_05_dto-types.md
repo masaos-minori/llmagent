@@ -35,8 +35,8 @@ source:
 
 ## Related Documents
 
+- [RAG Documentation Guide](rag_00_document-guide.md)
 - [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
-- [rag_04_04_dto-models_config.md](rag_04_04_dto-models_config.md)
 
 ## Keywords
 

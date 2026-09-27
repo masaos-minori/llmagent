@@ -54,5 +54,5 @@ No reference APIs exist in this directory. All files are security policy/archite
 
 ## Related Documents
 
-- `security_01_architecture-and-trust-boundaries.md`
-- `security_02_high-risk-tool-common-policy.md`
+- `../00_index.md`
+- `../01_overview/overview_00_document-guide.md`

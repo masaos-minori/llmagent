@@ -122,11 +122,6 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 ## Related Documents
 
 - `mcp_00_document-guide.md`
-- `mcp_04_01_web-search-file-read-github.md`
-- `mcp_04_03_rag-pipeline-and-cicd.md`
-- `mcp_04_04_mdq.md`
-- `mcp_04_05_git.md`
-- `security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
 
 ## Keywords
 

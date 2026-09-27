@@ -126,8 +126,6 @@ Methods: `subscribe(topics→_Subscriber, consumer_id=str)`, `unsubscribe(sub→
 - `eventbus_00_document-guide.md`
 - `eventbus_01_system-overview.md`
 - `eventbus_03_dlq_operations.md`
-- `eventbus_07_persistence_schema_and_replay.md`
-- `eventbus_06_dlq_offsets_and_delivery_semantics.md`
 
 ## Module Class/Function Reference (auto-generated)
 
