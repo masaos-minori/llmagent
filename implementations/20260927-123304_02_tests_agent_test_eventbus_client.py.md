@@ -70,10 +70,10 @@ New file; revert via `git revert` or deletion.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on row 1 (`scripts/agent/eventbus_client.py`) being implemented first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document IS the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-133459 | 20260927-133459 | Depends on row 1 (`scripts/agent/eventbus_client.py`) being implemented first Test file written and validated as part of the sibling procedure 01's cycle (scripts/agent/eventbus_client.py); 7/7 tests pass, covers request/auth/body construction, success, and 3 distinct failure paths |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-133459 | 20260927-133459 | This document IS the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-133459 | 20260927-133459 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-133459 | 20260927-133459 | N/A: test-only file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
