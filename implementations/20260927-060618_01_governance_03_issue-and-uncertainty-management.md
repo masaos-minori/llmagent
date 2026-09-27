@@ -164,12 +164,12 @@ Rollback is straightforward: restore the original CI-017 and CI-018 entries and 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove CI-017 entry from Part 1 Active Items | Pending | — | — | REQ-001 |
-| 2 | Remove CI-018 entry from Part 1 Active Items | Pending | — | — | REQ-002 |
-| 3 | Verify no other Active Items entry carries Status=resolved | Pending | — | — | REQ-003 |
-| 4 | Preserve ID-group ordering convention of remaining CI-* entries | Pending | — | — | REQ-004 |
-| 5 | Leave all open/deferred entries unchanged except for adjacency | Pending | — | — | REQ-005 |
-| 6 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Remove CI-017 entry from Part 1 Active Items | Completed | — | — | REQ-001 |
+| 2 | Remove CI-018 entry from Part 1 Active Items | Completed | — | — | REQ-002 |
+| 3 | Verify no other Active Items entry carries Status=resolved | Completed | — | — | REQ-003 |
+| 4 | Preserve ID-group ordering convention of remaining CI-* entries | Completed | — | — | REQ-004 |
+| 5 | Leave all open/deferred entries unchanged except for adjacency | Completed | — | — | REQ-005 |
+| 6 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
