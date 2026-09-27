@@ -76,10 +76,10 @@ N/A: test-only fix, no security-relevant behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: no new test needed — fixing the existing references is itself the fix |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs/00_index.md task-scope mapping for this test file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Inserted `[]` as 3rd positional arg at 8 call sites in TestToolLoopGuardChaos |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: no new test needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | All 56 tests pass; 3 skipped |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: no docs/00_index.md task-scope mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
