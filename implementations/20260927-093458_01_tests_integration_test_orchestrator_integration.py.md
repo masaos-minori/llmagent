@@ -70,10 +70,10 @@ N/A: test-only fix, no security-relevant behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: adding the missing line is itself the fix |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs/00_index.md task-scope mapping for this test file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260927-150123 | Added orch = _make_orchestrator(ctx) after ctx = _make_ctx() |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260927-150138 | N/A: adding the missing line is itself the fix N/A: adding the missing line is itself the fix |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260927-150113 | All 39 tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-150006 | 20260927-150053 | N/A: no docs/00_index.md task-scope mapping for this test file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
