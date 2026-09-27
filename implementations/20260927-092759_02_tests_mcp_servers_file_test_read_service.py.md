@@ -72,10 +72,10 @@ N/A: test-only fix, no security-relevant behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: fixing the existing mock is itself the fix |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs/00_index.md task-scope mapping for this test file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-140518 | 20260927-140518 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-140518 | 20260927-140518 | N/A: fixing the existing mock is itself the fix |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-140518 | 20260927-140518 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-140518 | 20260927-140518 | N/A: no docs/00_index.md task-scope mapping for this test file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
