@@ -108,47 +108,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 **Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
 
 
-#### DESIGN-2
-
-- **ID**: DESIGN-2
-- **Title**: No test guarantees application code never directly operates `chunks_fts`
-- **Status**: open
-- **Severity**: Medium
-- **Area**: RAG
-- **Type**: operational-gap
-- **Source**: `scripts/rag/`
-- **Owner**: Team
-- **First Found**: 2026-08-22
-- **Target**: `tests/` directory
-- **Related**: ADR-009
-- **Summary**: ADR-009 establishes that application code must never directly operate on the `chunks_fts` table — all FTS operations must go through the FTS wrapper. No test enforces this invariant.
-- **Current Description**: The FTS wrapper provides a controlled interface for full-text search, but there is no test that verifies application code respects this boundary.
-- **Observed Implementation**: Zero direct-write bypasses of ADR-005's rebuild-path restriction found. All non-wrapper, non-schema hits on `chunks_fts` outside `scripts/mcp_servers/mdq/` belong to the sanctioned `/session rag-rebuild-fts` path (invoked via `scripts/agent/commands/cmd_session.py`). Read-only `SELECT`/`bm25`/consistency-check queries against `chunks_fts` appear in `scripts/rag/repository.py` and `scripts/db/rag_consistency.py`. MDQ's `chunks_fts` references target a separate database (`/opt/llm/db/mdq.sqlite`, confirmed: `scripts/mcp_servers/mdq/mdq_service.py` line 67) and are out of ADR-009's RAG-boundary scope.
-- **Impact**: Without enforcement, new code could inadvertently operate on `chunks_fts` directly, breaking the abstraction boundary established by the ADR.
-- **Recommended Action**: Add a lint rule or test that scans for direct `chunks_fts` references outside the FTS wrapper, or add integration tests that verify all FTS operations go through the wrapper.
-- **Resolution Target**: Next RAG architecture review
-
 **EventBus-specific verification (REQ-006)**: Verified by configuration test confirming `ConfigMissingError` is raised when a required config file is missing. The EventBus `load_config()` function (`scripts/eventbus/config.py`) validates required keys via `_REQUIRED_CONFIG_KEYS` and raises `ValueError` for missing keys — consistent with the fail-closed behavior described in CI-005.
-
-#### CI-008
-
-- **ID**: CI-008
-- **Title**: ADR-001 INV-01 — workflow definition required, verified but needs test coverage
-- **Status**: open
-- **Severity**: Medium
-- **Area**: Agent
-- **Type**: operational-gap
-- **Source**: Agent Workflow Engine initialization path
-- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
-- **First Found**: 2026-09-03
-- **Target**: `docs/10_adr/ADR-001-workflow-engine-mandatory.md`
-- **Related**: ADR-001
-- **Summary**: ADR-001 states that workflow definitions are mandatory and missing workflows raise `RuntimeError`.
-- **Current Description**: This has been verified via code inspection (`RuntimeError` raised on missing workflow during initialization), but there is no automated test covering this invariant.
-- **Observed Implementation**: Verified by code inspection only.
-- **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
-- **Recommended Action**: Add a unit test for the workflow-definition requirement.
-- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 #### CI-009
 
@@ -182,32 +142,12 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-03
 - **Target**: `docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md`
-- **Related**: ADR-003, CI-015
+- **Related**: ADR-003
 - **Summary**: ADR-003 states that `RuntimeToolRegistry` is the sole routing authority.
 - **Current Description**: This has been verified via code inspection (`resolve()` only looks up in `_runtime_registry`, never falls back to `ToolRegistry`), but there is no automated test covering this invariant.
 - **Observed Implementation**: Verified by code inspection only.
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for routing-authority enforcement.
-- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
-
-#### CI-011
-
-- **ID**: CI-011
-- **Title**: ADR-005 INV-02 — RAG deletion order, verified but needs test coverage
-- **Status**: open
-- **Severity**: Medium
-- **Area**: RAG
-- **Type**: operational-gap
-- **Source**: `scripts/db/rag_consistency.py` / RAG deletion path
-- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
-- **First Found**: 2026-09-03
-- **Target**: `docs/10_adr/ADR-005-rag-source-derived-index-relationships.md`
-- **Related**: ADR-005, RAG-005
-- **Summary**: ADR-005 states that `chunks_vec` must be deleted before `documents`.
-- **Current Description**: This has been verified via code inspection (implementation matches the invariant), but there is no automated test covering this invariant.
-- **Observed Implementation**: Verified by code inspection only.
-- **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
-- **Recommended Action**: Add a unit test for deletion-order enforcement.
 - **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 #### CI-012
@@ -230,26 +170,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Add a unit test for offset-monotonicity enforcement.
 - **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
-#### CI-013
-
-- **ID**: CI-013
-- **Title**: ADR-007 INV-01 — stdio transport prohibition, verified but needs test coverage
-- **Status**: open
-- **Severity**: Medium
-- **Area**: MCP
-- **Type**: operational-gap
-- **Source**: `scripts/mcp_servers/`
-- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
-- **First Found**: 2026-09-03
-- **Target**: `docs/10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md`
-- **Related**: ADR-007
-- **Summary**: ADR-007 states that stdio transport is prohibited.
-- **Current Description**: This has been verified via code inspection (no actual stdio transport code exists in `scripts/`, only conceptual comments), but there is no automated test covering this invariant.
-- **Observed Implementation**: Verified by code inspection only.
-- **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
-- **Recommended Action**: Add a unit test for stdio-transport prohibition.
-- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
-
 #### CI-014
 
 - **ID**: CI-014
@@ -268,26 +188,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Observed Implementation**: Verified by code inspection only.
 - **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
 - **Recommended Action**: Add a unit test for the `normalized_content` prohibition.
-- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
-
-#### CI-015
-
-- **ID**: CI-015
-- **Title**: ADR-003 INV-01 — duplicate tool ownership fails agent startup, verified but needs test coverage
-- **Status**: open
-- **Severity**: Medium
-- **Area**: MCP
-- **Type**: operational-gap
-- **Source**: `scripts/agent/services/mcp_tool_discovery.py`
-- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
-- **First Found**: 2026-09-03
-- **Target**: `docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md`
-- **Related**: ADR-003, CI-010
-- **Summary**: ADR-003 (formerly also stated in ADR-013 INV-05, merged 2026-08-31) states that duplicate tool names produce a FATAL outcome.
-- **Current Description**: This has been verified via code inspection (duplicate tool name produces a FATAL outcome, confirmed in `mcp_tool_discovery.py`), but there is no automated test covering this invariant.
-- **Observed Implementation**: Verified by code inspection only.
-- **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
-- **Recommended Action**: Add a unit test for duplicate-tool detection.
 - **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 #### CI-016
@@ -310,7 +210,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Add a unit test asserting the required field behavior for unspecified criticality values, and/or a test asserting undefined-criticality components are never routed as non-required.
 - **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
-Note on CI-008 through CI-016 batching: These nine structurally identical "ADR invariant verified by code inspection, no automated test" entries are treated as one initiative. Their Area fields span Agent (CI-008, CI-016), Shared/DB (CI-009), MCP (CI-010, CI-013, CI-015), RAG (CI-011, CI-014), and EventBus (CI-012) — no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
+Note on CI-009, CI-010, CI-012, CI-014, CI-016 batching: These five structurally identical "ADR invariant verified by code inspection, no automated test" entries are treated as one initiative (originally nine members; CI-008, CI-011, CI-013, and CI-015 were removed once test coverage was added). Their Area fields span Shared/DB (CI-009), MCP (CI-010), EventBus (CI-012), RAG (CI-014), and Agent (CI-016) — one member per area — and no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
 
 ## Part 2: Needs Confirmation Inventory
 
@@ -349,16 +249,16 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Source File**: `~~db_07_db_api_and_operations-recovery-and-reference~~ (deleted).md`
 - **Section**: 9.3 Integrity-result model (target design)
 - **Line Number**: ~39
-- **Question**: Should `_classify_error()` be extended to actually classify a case as `INVALID_FORMAT`, or should the enum value and its dispatch branch be removed as dead?
-- **Evidence**: The structured six-state `DbCondition` classification is implemented (`scripts/db/recovery.py`), but `INVALID_FORMAT` is defined and dispatched-on without any code path that produces it — the branch is currently unreachable.
-- **Impact**: Implementing wrong classification model would require rework; leaving unconfirmed risks divergent interpretations
-- **Required Action**: Owner review of the classification model defined in ADR-008 (Decision Details #14, merged from former ADR-011) before implementation begins
+- **Question**: ADR-008 (Decision Details #14, merged from former ADR-011) already settles that `INVALID_FORMAT` is kept as a defined-but-currently-unreachable classification, not removed as dead code — the remaining open question is narrower: should a test be added to cover this branch (e.g. via a fixture that triggers it), or is "verified unreachable by design" sufficient?
+- **Evidence**: The structured six-state `DbCondition` classification is implemented (`scripts/db/recovery.py`), but `INVALID_FORMAT` is defined and dispatched-on without any code path that produces it — the branch is currently unreachable. ADR-008 Decision Details #14 already resolves the keep-vs-remove question in favor of keeping the enum value and dispatch branch.
+- **Impact**: Leaving this unconfirmed risks an untested branch silently diverging from its intended (unreachable-by-design) behavior if the classification logic changes
+- **Required Action**: Owner decision on whether test coverage for the unreachable `INVALID_FORMAT` branch is required, or whether "verified unreachable by design per ADR-008 #14" is an acceptable resolution
 - **Status**: open
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-06
+- **Last Reviewed**: 2026-09-27
 - **Priority**: Medium
 - **Related NC**: None
-- **Resolution Target**: Confirm whether `_classify_error()` should be extended to produce `INVALID_FORMAT` cases, or whether the enum value and its dispatch branch should be removed as dead code.
+- **Resolution Target**: Confirm whether the unreachable `INVALID_FORMAT` branch needs dedicated test coverage, given ADR-008 #14 already settles that it should be kept rather than removed.
 - **Blocking**: No
 
 #### NC-027
@@ -451,13 +351,13 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Source File**: `crawler.py` / `config/crawler.toml`
 - **Section**: max_depth / max_pages operational limits
 - **Line Number**: ~61, 66
-- **Question**: Why is the crawl depth limited to 3 hops from the start URL, and why is the maximum pages per site limited to 200? What is the historical reason for these specific operational values?
-- **Evidence**: No rationale comment in `crawler.py` or `config/crawler.toml`; no ADR or governance entry found. `_max_depth` (line 61) and `_max_pages` (line 66) read from `config/crawler.toml` and stop BFS traversal at the limit, but no explanation exists for why 3 and 200 were chosen over any other values.
-- **Impact**: Operators cannot understand why crawlers stop after 3 hops or 200 pages per site; new developers may not realize these are operational limits rather than technical constraints
-- **Required Action**: Owner confirmation of the historical reason for these specific operational values; if resolved, update the crawler documentation accordingly
+- **Question**: Why is the crawl depth limited to 3 hops from the start URL, and why is the maximum pages per site limited to 200? What is the historical reason for these specific operational values? Additionally, why does the code's own fallback default for `max_pages` (500) differ from the deployed `config/crawler.toml` value (200)?
+- **Evidence**: No rationale comment in `crawler.py` or `config/crawler.toml`; no ADR or governance entry found. `_max_depth` (line 61) and `_max_pages` (line 66) read from `config/crawler.toml` and stop BFS traversal at the limit, but no explanation exists for why 3 and 200 were chosen over any other values. Additionally, `scripts/rag/ingestion/crawler.py:66` falls back to `cfg.get("max_pages", 500)` if the key is absent, while the deployed `config/crawler.toml:23` sets `max_pages = 200` — a code-default-vs-deployed-config mismatch. `config/crawler.toml:22` already carries an inline comment acknowledging this same discrepancy lacks measured justification.
+- **Impact**: Operators cannot understand why crawlers stop after 3 hops or 200 pages per site; new developers may not realize these are operational limits rather than technical constraints. The 500-vs-200 mismatch also means removing or misconfiguring the TOML key would silently change deployed behavior to the code's higher default without anyone noticing.
+- **Required Action**: Owner confirmation of the historical reason for these specific operational values, and confirmation of which `max_pages` value (500 or 200) is the intended operational limit; if resolved, update the crawler documentation and reconcile the code default with the deployed config accordingly
 - **Status**: open
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-14
+- **Last Reviewed**: 2026-09-27
 - **Priority**: Low
 - **Related NC**: None
 - **Resolution Target**: Next crawler operations review
