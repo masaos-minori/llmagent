@@ -37,6 +37,7 @@ Single-entry removal plus a one-item edit to the closing enumeration.
 ### Details
 
 - Confirmed current NC-037 entry (re-verified this cycle, lines 645-659) — note its own `Evidence` field cites a stale constant name (`HEALTH_CHECK_RETRY_DELAY_SEC`), already corrected in this Plan's Background/Problem; the removal itself is unaffected by that staleness.
+- CORRECTION (Step 4a re-verification, this cycle): `stale_detector.py` reported `line_out_of_bounds` (cited line 659 > current file length 653/654) — the file has shrunk from earlier batches in this same NC-cleanup effort (NC-023/024/025/031 removed above this entry), not from any change to NC-037 itself. Re-confirmed via Read: NC-037's entry, content unchanged, now sits at lines 483-498. User confirmed proceeding on this basis (content independently re-verified, not merely assumed).
 
 ## Compatibility considerations
 
@@ -69,15 +70,15 @@ N/A: documentation-only change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after row 1 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, manual + automated per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: documentation-only; `check_needs_confirmation_inventory.py` run instead |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-161958 | 20260927-161958 | Row 1 applied first (owner ruling: no-retry is confirmed intentional policy). stale_detector line_out_of_bounds correction recorded above (Step 4b) — proceeded with user confirmation after independent Read re-verification. Removed entry block and updated the closing NC-id enumeration |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-161958 | 20260927-161958 | N/A: documentation-only, manual + automated per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-161958 | 20260927-161958 | N/A: documentation-only; `check_needs_confirmation_inventory.py` run instead — exit 0, no NC-037 finding |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-161958 | 20260927-161958 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | `stale_detector.py` reported `line_out_of_bounds` for the cited NC-037 line range (659 > current file length) — cumulative drift from other batches' earlier removals in the same file, not a content change | Yes — content re-verified unchanged via Read; user confirmed proceeding | 20260927-161958 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
