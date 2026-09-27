@@ -437,31 +437,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next language-detection logic review
 - **Blocking**: No
 
-#### NC-031
-
-- **Source File**: `governance_02_documentation-metadata.md`
-- **Section**: Existing Metadata Fields (`related`)
-- **Line Number**: ~24
-- **Question**: Is the front-matter `related` field and the `## Related
-  Documents` body-section heading an intentional duality (front matter for
-  tooling, body section for human readers), or an unintentional drift where
-  one should be removed?
-- **Evidence**: Both exist in active use across the document set; no design
-  rationale was found in `docs/governance_01_documentation-policy.md` or
-  `docs/governance_02_documentation-metadata.md` explaining why both exist
-- **Impact**: If unintentional drift, maintaining two parallel
-  related-documents lists risks them diverging (one updated, the other left
-  stale)
-- **Required Action**: Owner decision on whether both should be kept (and if
-  so, whether one should generate the other), or one should be deprecated
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-03
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next governance metadata review
-- **Blocking**: No
-
 #### NC-033
 
 - **Source File**: `rag_02_03_ingestion_pipeline-chunksplitter.md`
@@ -564,7 +539,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG ingestion logging review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-024, NC-027, NC-028, NC-029, NC-031, NC-033, NC-034, NC-035, NC-036, NC-037, and NC-039.
+No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-024, NC-027, NC-028, NC-029, NC-033, NC-034, NC-035, NC-036, NC-037, and NC-039.
 
 ## Part 3: Canonical Source Conflict
 

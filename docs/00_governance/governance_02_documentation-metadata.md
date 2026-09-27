@@ -21,7 +21,12 @@ The following four metadata fields are required in every document's front matter
 - **title** — Document title
 - **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/10_adr/`) and security documents (`docs/00_security_*.md`) use `area: governance`, since both are cross-cutting governance/policy content rather than a distinct runtime area.
 - **tags** — Keywords describing the document content
-- **related** — Links to related documents
+- **related** — Links to related documents. Owner ruling (2026-09-27): this front-matter
+  list diverges from the body `## Related Documents` heading in existing documents
+  (confirmed drift, not intentional duality) — front matter `related:` is authoritative;
+  reconciling body headings to match it across existing documents is separate,
+  unstarted follow-up work, tracked in
+  `issues/20260927-160936_relateddocsdrift_reconcile-front-matter-related-field-with-body-related-documents-headings.md`
 - **category** — Not a valid front-matter key. Do not use this field.
 
 `keywords` is not a front-matter key. Every document instead uses a `## Keywords` body-section heading — see `tools/check_docs_structure.py`'s own check, which looks for that heading, not a front-matter key.
