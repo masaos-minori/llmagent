@@ -97,6 +97,7 @@ class Orchestrator:
         on_llm_wait_end: Callable[[], None] | None = None,
         tracer: Any = None,
         pause_on_critical_failure: bool = False,
+        workflow_engine: Any = None,
     ):
         self._ctx = ctx
         self._allowed_tools = allowed_tools
@@ -156,14 +157,15 @@ class Orchestrator:
             self._fallback_mode = True
             self._workflow_def = _FALLBACK_WORKFLOW_DEF
 
+        _engine = workflow_engine if workflow_engine is not None else WorkflowEngine(
+            self._workflow_def,
+            self._state_store,
+            tracer=tracer,
+        )
         self._workflow_adapter = WorkflowEngineAdapter(
             ctx,
             state_store=self._state_store,
-            workflow_engine=WorkflowEngine(
-                self._workflow_def,
-                self._state_store,
-                tracer=tracer,
-            ),
+            workflow_engine=_engine,
             conversation_manager=self._conversation_manager,
             llm_executor=self._llm_executor,
             diagnostic_store=self._diagnostic_store,

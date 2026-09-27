@@ -129,7 +129,7 @@ def _patch_workflow_loader():
 
 
 def _make_orchestrator(
-    ctx: MagicMock, on_error: Any = None, pause_on_critical_failure: bool = False
+    ctx: MagicMock, on_error: Any = None, pause_on_critical_failure: bool = False, workflow_engine: Any = None
 ) -> Orchestrator:
     on_first_turn = AsyncMock()
     orch = Orchestrator(
@@ -137,6 +137,7 @@ def _make_orchestrator(
         on_error=on_error,
         on_first_turn=on_first_turn,
         pause_on_critical_failure=pause_on_critical_failure,
+        workflow_engine=workflow_engine,
     )
     orch._diagnostic_store = MagicMock()
     ctx.diagnostics = orch._diagnostic_store  # keep ctx.diagnostics in sync with mock
@@ -170,7 +171,6 @@ class TestHandleTurnInvokesWorkflowEngine:
         the same call (that fixture patches WorkflowEngine but never asserts on it).
         """
         ctx = _make_ctx()
-        orch = _make_orchestrator(ctx)
 
         async def _engine_run(
             task: Any, plan_fn: Any, execute_fn: Any, verify_fn: Any
@@ -182,18 +182,13 @@ class TestHandleTurnInvokesWorkflowEngine:
         mock_engine_instance = MagicMock()
         mock_engine_instance.run = AsyncMock(side_effect=_engine_run)
 
-        with (
-            patch(
-                "agent.workflow_engine_adapter.WorkflowEngine",
-                return_value=mock_engine_instance,
-            ),
-            patch.object(
-                orch._llm_executor,
-                "handle_llm_turn",
-                AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
-            ),
+        orch = _make_orchestrator(ctx, workflow_engine=mock_engine_instance)
+        with patch.object(
+            orch._llm_executor,
+            "handle_llm_turn",
+            AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
         ):
-            await orch.handle_turn("hello")
+                await orch.handle_turn("hello")
 
         mock_engine_instance.run.assert_called_once()
 
@@ -205,7 +200,6 @@ class TestHandleTurnInvokesWorkflowEngine:
         normally and invoke _on_error with the timeout error instance."""
         ctx = _make_ctx()
         on_error = MagicMock()
-        orch = _make_orchestrator(ctx, on_error=on_error)
 
         async def _raise_timeout(task, plan_fn, execute_fn, verify_fn):
             raise WorkflowTimeoutError("stage timed out")
@@ -213,6 +207,7 @@ class TestHandleTurnInvokesWorkflowEngine:
         mock_engine = MagicMock()
         mock_engine.run = AsyncMock(side_effect=_raise_timeout)
 
+        orch = _make_orchestrator(ctx, on_error=on_error, workflow_engine=mock_engine)
         with (
             patch.object(
                 orch._workflow_adapter,
@@ -222,11 +217,8 @@ class TestHandleTurnInvokesWorkflowEngine:
             patch.object(orch._workflow_adapter, "activate_workflow"),
             patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore"),
-            patch(
-                "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
-            ),
         ):
-            await orch.handle_turn("hello")
+                await orch.handle_turn("hello")
 
         assert on_error.call_count == 1
         exc_arg = on_error.call_args[0][0]
