@@ -469,8 +469,12 @@ each integration is implemented):
 Not represented as an edge: no direct RAG ↔ Agent call path exists in current
 source (`scripts/agent/` contains no import of `scripts/rag/`) — RAG-related
 functionality, if any, is reached only through the generic `Agent → MCP` edge
-above. Whether `scripts/rag/` and `scripts/mcp_servers/rag_pipeline/` are the same
-or a different RAG implementation is unresolved and tracked as `NC-023`.
+above. `scripts/mcp_servers/rag_pipeline/` is an MCP-facing wrapper around
+`scripts/rag/`'s `RagPipeline` (confirmed via
+`rag_pipeline_service.py::RagPipelineMCPService.start()`'s direct
+import/instantiation of it, and confirmation that no other file under
+`scripts/mcp_servers/rag_pipeline/` duplicates RAG pipeline logic), reachable
+via the existing `Agent → MCP` edge with no separate node or edge needed.
 
 ## Deployment Management Graph
 

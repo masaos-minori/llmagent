@@ -361,30 +361,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Confirm whether `_classify_error()` should be extended to produce `INVALID_FORMAT` cases, or whether the enum value and its dispatch branch should be removed as dead code.
 - **Blocking**: No
 
-#### NC-023
-
-- **Source File**: `governance_01_documentation-policy.md`
-- **Section**: Software Runtime Dependency Graph
-- **Line Number**: ~306
-- **Question**: Are `scripts/rag/` and `scripts/mcp_servers/rag_pipeline/` the same
-  RAG implementation (one wrapping the other) or two independent implementations?
-- **Evidence**: Not investigated by `plans/done/20260902-191512_plan.md` (explicitly
-  Out-of-Scope there); the Software Runtime Dependency Graph's RAG node's exact
-  relationship to the MCP node's `rag_pipeline` server is undetermined as a result
-- **Impact**: Without resolving this, the Runtime Graph's RAG node scope is
-  ambiguous, and any future edge involving RAG cannot be confirmed as
-  direct-vs-indirect
-- **Required Action**: Owner or RAG-area-lead investigation comparing
-  `scripts/rag/` and `scripts/mcp_servers/rag_pipeline/`'s actual code and
-  responsibilities
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-03
-- **Priority**: Medium
-- **Related NC**: None
-- **Resolution Target**: Next RAG architecture review
-- **Blocking**: No
-
 #### NC-024
 
 - **Source File**: `governance_01_documentation-policy.md`
@@ -612,7 +588,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG ingestion logging review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-023, NC-024, NC-025, NC-027, NC-028, NC-029, NC-031, NC-033, NC-034, NC-035, NC-036, NC-037, and NC-039.
+No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-024, NC-025, NC-027, NC-028, NC-029, NC-031, NC-033, NC-034, NC-035, NC-036, NC-037, and NC-039.
 
 ## Part 3: Canonical Source Conflict
 
