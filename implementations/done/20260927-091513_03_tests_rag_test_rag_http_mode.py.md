@@ -69,10 +69,10 @@ N/A: test-only fixture values, not real credentials or endpoints.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: no new test needed |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs/00_index.md task-scope mapping for this test file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Added llm_url/embed_url to _make_pipeline cfg |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: no new test needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | All 4 tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: no docs/00_index.md task-scope mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
