@@ -72,10 +72,10 @@ N/A: documentation clarity change, no security-relevant behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, manual verification per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: documentation-only change; no code validation sequence applies |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-104658 | 20260927-104658 | Re-confirmed NC-036 entry unchanged before editing; note appended to Required Action field only |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-104658 | 20260927-104658 | N/A: documentation-only, manual verification per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-104658 | 20260927-104658 | `check_docs_content_policy.py`: pass. `check_docs_quality.py`: 3 pre-existing Lifecycle-similarity warnings at lines 699/733, unrelated to this edit (confirmed via `git show HEAD`, present before this change). `check_docs_structure.py`: pre-existing file-size-limit finding (45598 bytes pre-edit vs 24576 limit), unrelated to this edit — out of scope per `rules/ai-execution.md` Step-Level Failure Triage. `check_needs_confirmation_inventory.py`: N/A — tool expects filename `00_governance_03_...md`, actual file has no `00_` prefix; also inapplicable since no NC marker was added/resolved/removed, only an existing entry's field text extended |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-104658 | 20260927-104658 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
