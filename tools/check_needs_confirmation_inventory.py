@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """check_needs_confirmation_inventory.py — Verify the NC inventory stays in sync with docs/.
 
-docs/00_governance_03_issue-and-uncertainty-management.md Part 2 is meant to be the
-single, centralized place where every "Needs confirmation" item across
+docs/00_governance/governance_03_issue-and-uncertainty-management.md Part 2 is meant
+to be the single, centralized place where every "Needs confirmation" item across
 docs/ is tracked to resolution. Two failure modes were found by manual
 review (docs_review_governance.md):
 
@@ -16,7 +16,7 @@ review (docs_review_governance.md):
      cover.
 
 A third, self-contained check catches the inventory document contradicting
-itself: 00_governance_03 states its entries "must contain the following
+itself: governance_03 states its entries "must contain the following
 eleven fields" while actually enumerating a different number.
 
 Usage:
@@ -41,7 +41,7 @@ from tools._docs_consistency_lib import (
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
-INVENTORY_DOC_NAME = "00_governance_03_issue-and-uncertainty-management.md"
+INVENTORY_DOC_NAME = "governance_03_issue-and-uncertainty-management.md"
 INVENTORY_DOC_PATH = DOCS_DIR / "00_governance" / INVENTORY_DOC_NAME
 
 # Meta/governance docs that discuss the "Needs confirmation" label itself
@@ -52,9 +52,13 @@ INVENTORY_DOC_PATH = DOCS_DIR / "00_governance" / INVENTORY_DOC_NAME
 # filenames (00_governance_01_documentation-governance.md through
 # 00_governance_08_known-issues-migration-plan.md) that no longer exist —
 # those governance docs were since renamed/consolidated into the four files
-# that actually exist under docs/00_governance_*.md today. Only
-# 00_governance_03_issue-and-uncertainty-management.md (the inventory
-# document itself) happened to already match by coincidence.
+# that actually exist under docs/00_governance_*.md today.
+#
+# Corrected 2026-09-27: INVENTORY_DOC_NAME above still carried the old
+# "00_governance_03_..." filename after that same rename — it was never
+# actually a coincidental match, it was simply unchecked (no test resolves
+# INVENTORY_DOC_PATH against a real file); fixed to the same non-prefixed
+# name as this set.
 _GOVERNANCE_META_DOCS = frozenset(
     {
         "governance_00_document-guide.md",
