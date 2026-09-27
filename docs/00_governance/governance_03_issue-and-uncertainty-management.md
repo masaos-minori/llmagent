@@ -130,26 +130,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 
 
-#### EVENTBUS-006
-
-- **ID**: EVENTBUS-006
-- **Title**: Agent Cannot Subscribe to Event Bus SSE Streams
-- **Status**: deferred
-- **Severity**: Low
-- **Area**: EventBus
-- **Type**: design-gap
-- **Source**: Agent/EventBus integration layer
-- **Owner**: @eventbus-dev
-- **First Found**: 2026-09-03
-- **Target**: N/A: no current target document
-- **Related**: EVENTBUS-007
-- **Summary**: Agent integration is intentionally unimplemented; the Agent cannot subscribe to Event Bus SSE streams.
-- **Current Description**: Intentional deferral — Agent integration is not currently prioritized; this is not a defect.
-- **Observed Implementation**: Explicit in code — no Agent SSE client exists in the Event Bus client.
-- **Impact**: Limits real-time Agent workflows. Workaround: the Agent polls via `/replay` or uses MCP tools.
-- **Recommended Action**: Implement Agent SSE subscribe when this integration is prioritized.
-- **Resolution Target**: Next EventBus architecture review
-
 #### EVENTBUS-007
 
 - **ID**: EVENTBUS-007
@@ -162,7 +142,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: @eventbus-dev
 - **First Found**: 2026-09-03
 - **Target**: N/A: no current target document
-- **Related**: EVENTBUS-006
+- **Related**: None
 - **Summary**: Agent integration is intentionally unimplemented; the Agent cannot manage Event Bus topics.
 - **Current Description**: Intentional deferral — Agent integration is not currently prioritized; this is not a defect.
 - **Observed Implementation**: Explicit in code — no Agent topic-management path exists in the Event Bus client.
