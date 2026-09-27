@@ -23,6 +23,7 @@ from eventbus.auth import (
     attach_auth_middleware,  # noqa: PLC0415 — new module, REQ-002
     require_consumer_identity,
     require_role,
+    resolve_principal,
 )
 from eventbus.broker import EventBroker
 from eventbus.config import (
@@ -145,6 +146,22 @@ app = FastAPI(lifespan=lifespan)
 attach_auth_middleware(app)
 
 
+async def resolve_subscribe_identity(
+    request: Request,
+    consumer_id: str = Query(default=""),
+    topic: list[str] = Query(default=[]),
+    principal: Principal = Depends(resolve_principal),
+) -> Principal:
+    # require_consumer_identity enforces the caller's allowed_consumer_ids and
+    # allowed_topics; passing the real consumer_id and topic (rather than empty
+    # defaults) is what makes those allowlists take effect. principal is resolved
+    # here (not left as an unresolved Depends marker) so the direct call below
+    # does not raise.
+    return await require_consumer_identity(
+        request, consumer_id=consumer_id, topics=topic, principal=principal
+    )
+
+
 @app.get("/health")
 async def health(request: Request) -> JSONResponse:
     """Health check endpoint for the event bus service."""
@@ -185,7 +202,7 @@ async def subscribe(
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
     _principal: Principal = Depends(require_role(Role.CONSUMER)),
-    _identity: Principal = Depends(require_consumer_identity),
+    _identity: Principal = Depends(resolve_subscribe_identity),
 ) -> Any:
     """Subscribe to events matching the specified topics via SSE."""
     return await subscribe_route(

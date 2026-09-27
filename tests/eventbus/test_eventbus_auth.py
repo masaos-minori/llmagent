@@ -40,11 +40,13 @@ def _make_test_app(
     """Create a fresh FastAPI app with auth middleware registered."""
     from eventbus import app as eb_app
     from eventbus.auth import (
+        _TOKEN_PRINCIPAL_MAP,
         Principal,
         Role,
         attach_auth_middleware,
         require_consumer_identity,
         require_role,
+        resolve_principal,
     )
     from eventbus.config import EventBusConfig
 
@@ -81,7 +83,40 @@ def _make_test_app(
     finally:
         loop.close()
 
+    # _populate_token_maps() (run inside _init_local_state) leaves every token
+    # unrestricted (allowed_consumer_ids and allowed_topics are None). The
+    # identity/topic rejection tests in this module (TestSubscribeAuth,
+    # TestAuditRecordValidation) exercise require_consumer_identity and therefore
+    # need the consumer-token to carry a concrete allowlist; mirror the
+    # per-fixture overrides used by the other eventbus test modules. Restrict to
+    # the consumer IDs/topics these tests legitimately use so unauthorized
+    # consumers and disallowed topics still reject while valid subscribers pass.
+    _ct = getattr(cfg, "consumer_token", None)
+    if _ct and _ct in _TOKEN_PRINCIPAL_MAP:
+        _existing = _TOKEN_PRINCIPAL_MAP[_ct]
+        _TOKEN_PRINCIPAL_MAP[_ct] = Principal(
+            roles=_existing.roles,
+            allowed_consumer_ids=frozenset({"consumer_a", "consumer_b"}),
+            allowed_topics=frozenset({"test"}),
+            token_fingerprint=_existing.token_fingerprint,
+        )
+
     attach_auth_middleware(local_app)
+
+    async def resolve_subscribe_identity(
+        request: Request,
+        consumer_id: str = Query(default=""),
+        topic: list[str] = Query(default=[]),
+        principal: Principal = Depends(resolve_principal),
+    ) -> Principal:
+        # require_consumer_identity enforces the caller's allowed_consumer_ids
+        # and allowed_topics; passing the real consumer_id and topic (rather than
+        # empty defaults) is what makes those allowlists take effect. principal is
+        # resolved here (not left as an unresolved Depends marker) so the direct
+        # call below does not raise.
+        return await require_consumer_identity(
+            request, consumer_id=consumer_id, topics=topic, principal=principal
+        )
 
     @local_app.get("/health")
     async def health_check(request: Request) -> JSONResponse:
@@ -102,7 +137,7 @@ def _make_test_app(
         since_seq: int = Query(default=0, ge=0),
         consumer_id: str = Query(default=""),
         _principal: Principal = Depends(require_role(Role.CONSUMER)),
-        _identity: Principal = Depends(require_consumer_identity),
+        _identity: Principal = Depends(resolve_subscribe_identity),
     ) -> Any:
         return await eb_app.subscribe_route(
             request,
@@ -121,7 +156,7 @@ def _make_test_app(
         _principal: Principal = Depends(require_role(Role.OPERATOR)),
     ) -> dict[str, Any]:
         result: dict[str, Any] = await eb_app.dlq_list_route(
-            request, limit=limit, offset=offset, _principal=_principal
+            request, limit=limit, offset=offset
         )
         return result
 
@@ -151,7 +186,6 @@ def _make_test_app(
             fmt=fmt,
             limit=limit,
             offset=offset,
-            _principal=_principal,
         )
 
     @local_app.post("/events/{event_id}/ack")
@@ -659,9 +693,12 @@ class TestRequireConsumerIdentityTopicSemantics:
             allowed_topics=frozenset({"allowed-topic"}),
             token_fingerprint="test-fingerprint",
         )
+        request_mock = MagicMock()
+        request_mock.state.request_id = "test-request-id"
+        request_mock.url.path = "/subscribe"
         try:
             result = await require_consumer_identity(
-                MagicMock(),
+                request_mock,
                 consumer_id="",
                 topics=["allowed-topic"],
                 principal=principal_with_topics,
@@ -670,7 +707,7 @@ class TestRequireConsumerIdentityTopicSemantics:
 
             with pytest.raises(HTTPException) as exc_info:
                 await require_consumer_identity(
-                    MagicMock(),
+                    request_mock,
                     consumer_id="",
                     topics=["disallowed-topic"],
                     principal=principal_with_topics,
