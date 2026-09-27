@@ -76,16 +76,16 @@ New, uncalled-until-wired file — revert via `git revert` or deletion; row 1's 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement request parsing and validation (Procedure steps 1-3) | Pending | — | — | Not blocked — can proceed independently of row 3 |
-| 2 | Implement the authorization-update call (Procedure step 4) | Blocked | — | — | Depends on row 3's Blocker Log resolution |
-| 3 | Add or update tests per Validation plan | Blocked | — | — | Depends on step 2 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Blocked | — | — | Depends on step 2 |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no `docs/00_index.md` task-scope row maps this new file |
+| 1 | Implement request parsing and validation (Procedure steps 1-3) | Completed | 20260927-144037 | 20260927-144037 | Not blocked — can proceed independently of row 3 |
+| 2 | Implement the authorization-update call (Procedure step 4) | Completed | 20260927-144037 | 20260927-144037 | Depends on row 3's Blocker Log resolution |
+| 3 | Add or update tests per Validation plan | Completed | 20260927-144037 | 20260927-144037 | Depends on step 2 Covered by tests/eventbus/test_admin_topics_authorization.py (row 5) |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-144037 | 20260927-144037 | Depends on step 2 ruff/pyright/bandit clean. Row 3 unblocked (union-apply, per-token model confirmed) — implemented update_topics_authorization() calling _populate_token_maps() after mutating app.state.config |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-144037 | 20260927-144037 | N/A: no `docs/00_index.md` task-scope row maps this new file N/A: no docs/00_index.md task-scope row maps this new file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 2 | Depends on `scripts/eventbus/auth.py`'s (row 3) Blocked resolution of the per-token vs. per-request enforcement question | No | — |
+| 2 | Depends on `scripts/eventbus/auth.py`'s (row 3) Blocked resolution of the per-token vs. per-request enforcement question | Yes — row 3 resolved (union-apply, per-token) | 20260927-144037 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
