@@ -74,10 +74,10 @@ N/A: documentation clarity change, no security-relevant behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, manual verification per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: documentation-only change; no code validation sequence applies |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-104627 | 20260927-104627 | Re-confirmed `## Manual Checks` still at line 192 before editing; note inserted as planned, no renumbering |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-104627 | 20260927-104627 | N/A: documentation-only, manual verification per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-104627 | 20260927-104627 | N/A: documentation-only change; ran `check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py` per `routing.md` docs row instead — all passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-104627 | 20260927-104627 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
