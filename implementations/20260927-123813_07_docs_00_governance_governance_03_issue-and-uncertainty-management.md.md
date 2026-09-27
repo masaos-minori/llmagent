@@ -37,7 +37,7 @@ Single-entry removal, same convention as the EVENTBUS-005/006 procedures' equiva
 
 ### Details
 
-- EVENTBUS-007 was confirmed present at lines 173-191 as of this Plan's investigation — re-confirm exact current lines before editing.
+- EVENTBUS-007 was confirmed present at lines 173-191 as of this Plan's investigation — re-confirm exact current lines before editing. CORRECTION (Step 4a re-verification, this cycle): current source has EVENTBUS-007 at lines 133-151 (the original 173-191 range is stale — an unrelated prior edit removed NC-024 earlier in the same document, shifting all subsequent line numbers). Re-confirmed rows 1-6 are all `Completed` in their own `## Execution Status` tables, including row 3's Blocker resolution (union-apply, per-token model) — this row's precondition is satisfied.
 
 ## Compatibility considerations
 
@@ -70,15 +70,15 @@ N/A: documentation-only change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Cannot execute until rows 1-6 are Completed, which requires row 3's Blocker to resolve first |
-| 2 | Add or update tests per Validation plan | Blocked | — | — | N/A: documentation-only, manual + automated per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Blocked | — | — | N/A: documentation-only; `check_needs_confirmation_inventory.py` run instead |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Blocked | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-152210 | 20260927-152210 | EVENTBUS-007 entry (originally lines 133-151, re-confirmed pre-edit) removed; no EVENTBUS-005/006 Related-field cross-reference found to update |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-152210 | 20260927-152210 | N/A: documentation-only, manual + automated per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-152210 | 20260927-152210 | N/A: documentation-only. `check_needs_confirmation_inventory.py` failed for a pre-existing, unrelated reason (its hardcoded `INVENTORY_DOC_NAME` constant still says `00_governance_03_...md`, not the actual `governance_03_...md` filename — a drift that predates this cycle); `check_docs_quality.py` (0 errors), `check_docs_structure.py` (1 pre-existing, unrelated file-size-limit finding, present before this edit too — see Notes below), and `check_workitem_structure.py --file implementations/20260927-123813_07_....md` (no findings) all ran instead and confirm EVENTBUS-007 no longer present |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-152210 | 20260927-152210 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Transitively blocked by row 3 (`scripts/eventbus/auth.py`)'s unresolved enforcement-model question | No | — |
+| 1 | Transitively blocked by row 3 (`scripts/eventbus/auth.py`)'s unresolved enforcement-model question | Yes — row 3 resolved (union-apply, per-token) | 20260927-144037 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
