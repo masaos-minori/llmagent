@@ -152,18 +152,18 @@ Rollback is straightforward: restore the original closing statement and `Related
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Investigate NC-ID gaps via git history and resolution records | Pending | — | — | REQ-001 |
-| 2 | Investigate dangling CI refs via git history and resolution records | Pending | — | — | UNK-02 |
-| 3 | Rewrite Part 2 closing statement based on findings | Pending | — | — | REQ-002 |
-| 4 | Update CI-009 Related field to remove CI-001 reference | Pending | — | — | REQ-003 |
-| 5 | Update CI-010 Related field to remove CI-003 reference | Pending | — | — | REQ-003 |
-| 6 | Update CI-014 Related field to remove CI-007 reference | Pending | — | — | REQ-003 |
-| 7 | Update CI-015 Related field to remove CI-003 reference | Pending | — | — | REQ-003 |
-| 8 | Verify Part 2 closing statement matches actual NC-ID set | Pending | — | — | REQ-002 |
-| 9 | Verify all Related field references point to active items | Pending | — | — | REQ-003 |
-| 10 | Preserve ID-group ordering convention of both parts | Pending | — | — | REQ-004 |
-| 11 | Leave all item substantive content unchanged beyond Related fields/closing statement | Pending | — | — | REQ-005 |
-| 12 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Investigate NC-ID gaps via git history and resolution records | Completed | — | — | REQ-001 |
+| 2 | Investigate dangling CI refs via git history and resolution records | Completed | — | — | UNK-02 |
+| 3 | Rewrite Part 2 closing statement based on findings | Completed | — | — | REQ-002 |
+| 4 | Update CI-009 Related field to remove CI-001 reference | Completed | — | — | REQ-003 |
+| 5 | Update CI-010 Related field to remove CI-003 reference | Completed | — | — | REQ-003 |
+| 6 | Update CI-014 Related field to remove CI-007 reference | Completed | — | — | REQ-003 |
+| 7 | Update CI-015 Related field to remove CI-003 reference | Completed | — | — | REQ-003 |
+| 8 | Verify Part 2 closing statement matches actual NC-ID set | Completed | — | — | REQ-002 |
+| 9 | Verify all Related field references point to active items | Completed | — | — | REQ-003 |
+| 10 | Preserve ID-group ordering convention of both parts | Completed | — | — | REQ-004 |
+| 11 | Leave all item substantive content unchanged beyond Related fields/closing statement | Completed | — | — | REQ-005 |
+| 12 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
