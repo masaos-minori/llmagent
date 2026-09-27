@@ -122,10 +122,17 @@ class TestRequeueEdgeCases:
         assert new_row["redelivered_from"] == body["event_id"]
         assert new_row["cycle_failure_count"] == 0
 
-    def test_repeated_requeue_increments_dlq_requeue_count(
+    def test_second_requeue_of_same_event_rejected_after_first_redeliver(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """Repeated requeue of same event increments dlq_requeue_count each time."""
+        """Second requeue of the same original event_id is rejected (409).
+
+        The lineage model permits only one redeliver per original event_id, by
+        design (see dlq_route.py's dlq_requeue docstring: "the original row's
+        dlq_at is intentionally left set so only one redeliver succeeds per
+        original event") — this is a permanent, per-original-event rule, not a
+        guard scoped only to simultaneous concurrent requests.
+        """
         from eventbus.db import open_db
         from eventbus.dlq import sweep_orphans
 
@@ -133,7 +140,7 @@ class TestRequeueEdgeCases:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        # Promote to DLQ with delivery_failure_count >= max_retry so re-promotion works
+        # Promote to DLQ with delivery_failure_count >= max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
             "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
@@ -142,7 +149,8 @@ class TestRequeueEdgeCases:
         db.commit()
         sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
-        # First requeue — new row inserted, original row's dlq_requeue_count incremented
+        # First requeue — succeeds: new descendant row inserted, original
+        # row's dlq_requeue_count incremented
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
         data = resp.json()
@@ -153,37 +161,30 @@ class TestRequeueEdgeCases:
         ).fetchone()
         assert orig_row["dlq_requeue_count"] == 1
 
-        # Re-promote to DLQ before second requeue (delivery_failure_count >= max_retry so it will be promoted)
+        # The descendant inherits delivery_failure_count >= max_retry and its
+        # own dlq_at starts NULL, so it (not the original) becomes the next
+        # sweep's promotion candidate — the original's dlq_at is never
+        # cleared by redeliver_event, so it is never re-selected here.
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
         assert n == 1
 
-        # Second requeue — new row inserted again
+        # Second requeue of the SAME original event_id is rejected: a
+        # descendant with redelivered_from == this event_id already exists,
+        # so the lineage guard treats this original event as already
+        # redelivered, permanently.
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
-        assert resp.status_code == 200
-        data2 = resp.json()
-        assert "new_event_id" in data2
-        assert data2["new_event_id"] != data["new_event_id"]
-        orig_row2 = db.execute(
-            "SELECT dlq_requeue_count FROM events WHERE event_id = ?",
-            (body["event_id"],),
-        ).fetchone()
-        assert orig_row2["dlq_requeue_count"] == 2
+        assert resp.status_code == 409
 
-        # Re-promote to DLQ before third requeue
-        db = open_db(str(tmp_path / "eventbus.sqlite"))
-        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
-        assert n == 1
-
-        # Third requeue
-        resp = client.post(f"/dlq/{body['event_id']}/requeue")
-        assert resp.status_code == 200
-        assert _get_field(client, body["event_id"], "dlq_requeue_count") == 3
+        # dlq_requeue_count is not incremented further by the rejected attempt
+        assert _get_field(client, body["event_id"], "dlq_requeue_count") == 1
 
     def test_requeue_event_at_max_retry_then_re_promoted(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """Requeue of event at delivery_failure_count >= max_retry succeeds but re-promoted on next DLQ tick."""
+        """Requeue succeeds; the original event's dlq_at is never cleared (lineage
+        model), so the next DLQ tick promotes the new descendant event instead of
+        re-promoting the original."""
         from eventbus.db import open_db
         from eventbus.dlq import sweep_orphans
 
@@ -203,20 +204,28 @@ class TestRequeueEdgeCases:
         dlq_file_1 = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file_1.exists()
 
-        # Requeue — returns dlq_imminent warning
+        # Requeue — returns new_event_id/new_seq per the lineage model (no
+        # dlq_imminent field: that field was removed from the response)
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["dlq_imminent"] is True
+        assert "new_event_id" in data
 
-        # Verify dlq_at was cleared in DB
+        # The original row's dlq_at is intentionally left set by the lineage
+        # model (see dlq_route.py's dlq_requeue docstring) — it is not cleared
+        # on requeue, so only one redeliver ever succeeds per original event.
         dlq_at = _get_field(client, body["event_id"], "dlq_at")
-        assert dlq_at is None
+        assert dlq_at is not None
 
-        # Next DLQ loop tick should re-promote (delivery_failure_count still >= max_retry)
+        # Next DLQ loop tick promotes the new descendant (its inherited
+        # delivery_failure_count is still >= max_retry, and its own dlq_at
+        # starts NULL) — not the original, whose dlq_at was never cleared.
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
         assert n == 1
 
+        # This path coincides with dlq_file_1 above (same original event_id),
+        # which was never removed — it is not itself proof the descendant was
+        # promoted; that is what `n == 1` above already confirms.
         dlq_file_2 = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file_2.exists()

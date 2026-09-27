@@ -112,7 +112,7 @@ class TestDLQPROMotionSemantics:
     def test_requeue_returns_dlq_imminent_when_delivery_failure_count_gte_max_retry(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """Requeue of event at delivery_failure_count >= max_retry returns dlq_imminent warning."""
+        """Requeue of event at delivery_failure_count >= max_retry succeeds."""
         from eventbus.db import open_db
         from eventbus.dlq import sweep_orphans
 
@@ -129,13 +129,11 @@ class TestDLQPROMotionSemantics:
         db.commit()
         sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
-        # Requeue the event — should return dlq_imminent warning
+        # Requeue the event — succeeds (no dlq_imminent field: that field was
+        # removed from the response, since the original event's
+        # delivery_failure_count is no longer relevant after redelivery)
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
-        data = resp.json()
-        assert data["dlq_imminent"] is True, (
-            "dlq_imminent should be true when delivery_failure_count >= max_retry"
-        )
 
     def test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count(
         self, client: TestClient, tmp_path: Path

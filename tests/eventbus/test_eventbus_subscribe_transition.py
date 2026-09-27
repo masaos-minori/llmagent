@@ -297,7 +297,8 @@ class TestReconnectResumeSemantics:
             resp = client.post("/publish", json=body)
             assert resp.status_code == 200
 
-        # Subscribe with consumer_id — should get all 5 events
+        # First subscription intentionally disconnects early, after only 3 of
+        # the 5 events, so the stored consumer offset ends up at 3 (not 5).
         resp = client.get(
             "/subscribe?since_seq=0&topic=precedence&consumer_id=test-precedence",
             timeout=(5.0, 10.0),
@@ -308,23 +309,36 @@ class TestReconnectResumeSemantics:
             if line.startswith("id:"):
                 event_id = int(line.split(":")[1].strip())
                 event_ids_first.add(event_id)
-            if len(event_ids_first) == 5:
+            if len(event_ids_first) == 3:
                 break
-        assert len(event_ids_first) == 5, (
-            "First subscription should receive all 5 events"
+        assert len(event_ids_first) == 3, (
+            "First subscription should receive only 3 events before disconnecting"
         )
         resp.close()
 
-        # Verify via /replay that consumer offset was stored (should return all 5 events from seq=0)
+        # Sanity check via /replay that all 5 events were actually published
+        # (mirrors T-6's use of /replay above; the stored per-consumer offset
+        # itself is not exposed via any endpoint, so it cannot be read back
+        # directly here).
         resp = client.get("/replay?since_seq=0&format=json")
         assert resp.status_code == 200
         data = resp.json()
         total_events = data["total"]
         assert total_events == 5, f"Expected 5 total events, got {total_events}"
 
-        # Reconnect with same consumer_id BUT provide since_seq=3 — should override consumer offset
+        # Reconnect with the same consumer_id (stored offset == 3) but supply
+        # an explicit since_seq=1, which differs from the stored offset. If
+        # since_seq correctly takes precedence, the reconnect resumes after
+        # seq 1, re-delivering events 2 and 3 (already seen by the first
+        # subscription) — an intentional, expected re-delivery that proves the
+        # explicit parameter, not the stored offset, determined the resume
+        # point. If the stored offset were used instead (ignoring since_seq),
+        # the reconnect would resume after seq 3, delivering events 4 and 5
+        # instead — a different, distinguishable result, which is what makes
+        # this assertion a genuine test of precedence rather than a
+        # coincidental pass.
         resp = client.get(
-            "/subscribe?since_seq=3&topic=precedence&consumer_id=test-precedence",
+            "/subscribe?since_seq=1&topic=precedence&consumer_id=test-precedence",
             timeout=(5.0, 10.0),
         )
         assert resp.status_code == 200
@@ -336,13 +350,9 @@ class TestReconnectResumeSemantics:
             if len(event_ids_override) == 2:
                 break
 
-        # Should get events from seq=4 onwards (2 events: seq 4 and 5)
-        assert len(event_ids_override) == 2, (
-            f"Expected 2 events from seq=4+, got {len(event_ids_override)}"
-        )
-        # No overlap with first batch
-        assert event_ids_first.isdisjoint(event_ids_override), (
-            "No duplicate events between subscriptions"
+        assert event_ids_override == {2, 3}, (
+            "Expected since_seq=1 to override the stored offset and "
+            f"re-deliver events {{2, 3}}, got {event_ids_override}"
         )
 
 
