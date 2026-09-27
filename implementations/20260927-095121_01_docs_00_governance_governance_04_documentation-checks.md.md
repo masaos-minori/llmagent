@@ -31,7 +31,7 @@ In scope: the GV-021 row of the Governance Verification Matrix table and its cor
 2. Re-confirm via `grep -rln "check_docs_content_policy" .github/workflows/` that the tool is still not wired into any CI workflow (re-verify this specific finding at implementation time, since CI wiring could change independently of this Plan).
 3. In the Governance Verification Matrix table, change GV-021's `Status` cell from `Existing` to `Partial`.
 4. In the same row, change the `Follow-up` cell from `Promoted to default-on after corpus compliance` to an accurate description, e.g. `Not yet wired into CI (.github/workflows/); promote to default-on (PR-gated) once wired`.
-5. Locate GV-021's corresponding entry in the "Follow-up Work Needed" ordered list (below the Matrix table) and update its description to match the corrected Follow-up text — do not renumber unrelated entries.
+5. **Correction (Step 4a finding, re-verified at implementation time)**: GV-021 has no corresponding entry in the "Follow-up Work Needed" ordered list — `grep -n "GV-021" docs/00_governance/governance_04_documentation-checks.md` confirms it appears only in the Matrix table (line 310) and two prose mentions (lines 62, 171), not in the ordered list; item 8 (GV-020) is the list's last entry, with no item 9. Add a new item 9 for GV-021 after item 8, rather than updating a non-existent entry — do not renumber items 1-8.
 6. Do not modify the GV-020 row or its Follow-up Work Needed entry (confirmed accurate — no change).
 
 ### Method
@@ -82,10 +82,10 @@ N/A: documentation accuracy correction, no security-relevant behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, manual verification per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: documentation-only change; no code validation sequence applies |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-104525 | 20260927-104525 | Step 4a finding: GV-021 had no existing Follow-up Work Needed list entry to update — added new item 9 instead (procedure document corrected, see Procedure step 5); GV-021 row changed `Existing`→`Partial` |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-104525 | 20260927-104525 | N/A: documentation-only, manual verification per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-104525 | 20260927-104525 | N/A: documentation-only change; ran `check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py` per `routing.md` docs row instead — all passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-104525 | 20260927-104525 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
