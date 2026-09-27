@@ -126,7 +126,7 @@ def test_auth_token_non_string_raises():
 
 def test_auth_token_empty_string_raises():
     with pytest.raises(ValueError, match="auth_token"):
-        _http_cfg(auth_token="")
+        _http_cfg(auth_token="", startup_mode=StartupMode.PERSISTENT)
 
 
 def test_auth_token_env_ref_resolved(monkeypatch):

@@ -534,8 +534,7 @@ class TestCustomRoles:
         with pytest.raises(RuntimeError):
             repo.save("invalid_role", "content")
 
-    def test_default_roles_fallback(self) -> None:
-        repo = SessionMessageRepository(session_id=1)
+    def test_default_roles_fallback(self, repo: SessionMessageRepository) -> None:
         assert repo.get_valid_roles() == _DEFAULT_VALID_ROLES
         repo.save("user", "content")
 
