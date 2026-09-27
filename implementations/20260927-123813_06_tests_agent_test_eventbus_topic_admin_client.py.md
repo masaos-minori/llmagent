@@ -69,10 +69,10 @@ New file; revert via `git revert` or deletion.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on row 4 being implemented first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document IS the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-144037 | 20260927-144037 | Depends on row 4 being implemented first |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-144037 | 20260927-144037 | This document IS the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-144037 | 20260927-144037 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-144037 | 20260927-144037 | N/A: test-only file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
