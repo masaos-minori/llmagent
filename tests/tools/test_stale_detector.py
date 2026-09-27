@@ -14,6 +14,9 @@ from tools.stale_detector import (
     _check_import_refs,
     _check_line_refs,
     _check_symbol_refs,
+    _citation_bounds,
+    _find_scoped_path,
+    _load_scoped_source,
 )
 
 # ── StaleResult factory methods ──────────────────────────────────────────────
@@ -455,3 +458,133 @@ class TestCheckLineRefsFallbackHandling:
         )
         assert result.is_stale is True
         assert any(m["type"] == "line_out_of_bounds" for m in result.mismatches)
+
+
+# ── _citation_bounds ─────────────────────────────────────────────────────────
+
+
+class TestCitationBounds:
+    def test_bounds_stop_at_blank_line(self) -> None:
+        text = "intro\n\nfirst `a.py` paragraph.\n\nsecond `b.py` paragraph."
+        pos = text.index("second")
+        start, end = _citation_bounds(text, pos)
+        assert "a.py" not in text[start:end]
+        assert "b.py" in text[start:end]
+
+    def test_bounds_stop_at_numbered_list_item_boundary(self) -> None:
+        text = (
+            "### Procedure\n\n"
+            "1. See `scripts/agent/foo.py` for context.\n"
+            "2. Use `Symbol` here (confirmed via `bar.py::Symbol()`)."
+        )
+        pos = text.index("Symbol` here")
+        start, end = _citation_bounds(text, pos)
+        assert "foo.py" not in text[start:end]
+        assert "bar.py" in text[start:end]
+
+    def test_bounds_stop_at_bulleted_list_item_boundary(self) -> None:
+        text = "- `scripts/agent/foo.py` note.\n- Use `Symbol` (see `bar.py`)."
+        pos = text.index("Symbol` (see")
+        start, end = _citation_bounds(text, pos)
+        assert "foo.py" not in text[start:end]
+        assert "bar.py" in text[start:end]
+
+
+# ── _find_scoped_path ────────────────────────────────────────────────────────
+
+
+class TestFindScopedPathForwardFallback:
+    def test_prefers_preceding_path_over_following(self) -> None:
+        text = (
+            "`scripts/agent/before.py` and `Symbol` and later `scripts/agent/after.py`"
+        )
+        pos = text.index("`Symbol`") + 1
+        assert _find_scoped_path(text, pos, "dummy_target.py") == (
+            "scripts/agent/before.py"
+        )
+
+    def test_falls_back_to_following_path_when_none_precedes(self) -> None:
+        text = (
+            "`scripts/rag/`'s `RagPipeline` (confirmed via "
+            "`rag_pipeline_service.py::RagPipelineMCPService.start()`'s import)."
+        )
+        pos = text.index("`RagPipeline`") + 1
+        assert (
+            _find_scoped_path(text, pos, "dummy_target.py") == "rag_pipeline_service.py"
+        )
+
+    def test_does_not_cross_list_item_boundary_into_following_item(self) -> None:
+        """A citation in one Procedure step must not pick up a scoping path
+        that only appears in the next step (regression: this previously made
+        a target-file line citation in step 1 resolve against a file only
+        named in step 2, producing a false `line_out_of_bounds`)."""
+        text = (
+            "### Procedure\n\n"
+            "1. Re-confirm the wording at line 469-473 before editing.\n"
+            "2. Replace it, referencing `rag_pipeline_service.py::Method()`.\n"
+        )
+        pos = text.index("469-473")
+        assert _find_scoped_path(text, pos, "dummy_target.py") is None
+
+
+# ── _load_scoped_source ──────────────────────────────────────────────────────
+
+
+class TestLoadScopedSourceBasenameFallback:
+    def test_direct_path_still_resolves(self, tmp_path: Path) -> None:
+        (tmp_path / "sub").mkdir()
+        target = tmp_path / "sub" / "file.py"
+        target.write_text("content")
+        assert _load_scoped_source(tmp_path, "sub/file.py", {}) == "content"
+
+    def test_resolves_bare_filename_to_unique_match(self, tmp_path: Path) -> None:
+        nested = tmp_path / "scripts" / "mcp_servers" / "rag_pipeline"
+        nested.mkdir(parents=True)
+        (nested / "rag_pipeline_service.py").write_text("class RagPipeline: ...")
+        content = _load_scoped_source(tmp_path, "rag_pipeline_service.py", {})
+        assert content == "class RagPipeline: ..."
+
+    def test_ambiguous_basename_returns_none(self, tmp_path: Path) -> None:
+        (tmp_path / "a").mkdir()
+        (tmp_path / "b").mkdir()
+        (tmp_path / "a" / "dup.py").write_text("one")
+        (tmp_path / "b" / "dup.py").write_text("two")
+        assert _load_scoped_source(tmp_path, "dup.py", {}) is None
+
+    def test_noise_directory_matches_excluded(self, tmp_path: Path) -> None:
+        real = tmp_path / "scripts"
+        real.mkdir()
+        (real / "thing.py").write_text("real")
+        noise = tmp_path / ".venv" / "lib" / "site-packages"
+        noise.mkdir(parents=True)
+        (noise / "thing.py").write_text("vendored")
+        assert _load_scoped_source(tmp_path, "thing.py", {}) == "real"
+
+    def test_missing_file_returns_none_and_caches(self, tmp_path: Path) -> None:
+        cache: dict[str, str | None] = {}
+        assert _load_scoped_source(tmp_path, "nonexistent.py", cache) is None
+        assert cache["nonexistent.py"] is None
+
+
+# ── Integration: method-suffixed scoped citation resolves end-to-end ────────
+
+
+class TestScopedCitationWithMethodSuffix:
+    def test_symbol_defined_only_in_bare_named_scoped_file_is_not_flagged(
+        self, tmp_path: Path
+    ) -> None:
+        nested = tmp_path / "scripts" / "mcp_servers" / "rag_pipeline"
+        nested.mkdir(parents=True)
+        (nested / "rag_pipeline_service.py").write_text(
+            "from scripts.rag.pipeline import RagPipeline\n"
+        )
+        result = StaleResult.clean()
+        proc_text = (
+            "`scripts/rag/`'s `RagPipeline` (confirmed via "
+            "`rag_pipeline_service.py::RagPipelineMCPService.start()`'s import)."
+        )
+        source_content = "# governance doc text, no RagPipeline mention here"
+        _check_symbol_refs(
+            result, proc_text, source_content, tmp_path, "dummy_target.md", {}
+        )
+        assert result.is_stale is False

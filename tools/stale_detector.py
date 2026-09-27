@@ -95,17 +95,62 @@ _NON_SYMBOL_ALLOWLIST = frozenset(
 
 # A backtick-quoted relative .py/.md path other than a leading-slash absolute one
 # (see _TARGET_FILE_RE above), used to scope a nearby symbol/line citation.
-_SCOPED_PATH_RE = re.compile(r"`([\w./-]+\.(?:py|md))`")
+# An optional "::Symbol.method()"-style suffix is allowed inside the same
+# backtick span (e.g. `rag_pipeline_service.py::RagPipelineMCPService.start()`)
+# without being captured as part of the path.
+_SCOPED_PATH_RE = re.compile(r"`([\w./-]+\.(?:py|md))(?:::[^`]*)?`")
+
+# Directories to skip when resolving a bare filename citation to a unique
+# source file — build artifacts and vendored/virtualenv trees routinely
+# contain same-named files that would otherwise make the match ambiguous.
+_NOISE_DIR_NAMES = frozenset({".venv", ".tox", ".git", "__pycache__", "node_modules"})
+
+# Start-of-line marker for a numbered ("1. ") or bulleted ("- "/"* ") list item.
+# A citation's scoping is bounded by these in addition to blank lines: adjacent
+# numbered/bulleted Procedure steps are logically separate citations even
+# though Markdown puts no blank line between them.
+_LIST_ITEM_BOUNDARY_RE = re.compile(r"\n(?:\d+\.|[-*])\s")
+
+
+def _citation_bounds(proc_text: str, pos: int) -> tuple[int, int]:
+    """Return the (start, end) offsets of the citation unit containing `pos`:
+    bounded by the nearest blank line or list-item marker on either side."""
+    start = 0
+    blank_before = proc_text.rfind("\n\n", 0, pos)
+    if blank_before != -1:
+        start = max(start, blank_before + 2)
+    for m in _LIST_ITEM_BOUNDARY_RE.finditer(proc_text, 0, pos):
+        start = max(start, m.end())
+
+    end = len(proc_text)
+    blank_after = proc_text.find("\n\n", pos)
+    if blank_after != -1:
+        end = min(end, blank_after)
+    list_after = _LIST_ITEM_BOUNDARY_RE.search(proc_text, pos)
+    if list_after is not None:
+        end = min(end, list_after.start())
+    return start, end
 
 
 def _find_scoped_path(proc_text: str, pos: int, target_file: str) -> str | None:
-    """Return the nearest preceding backtick-quoted .py/.md path (other than
-    target_file) in the same paragraph as the citation at `pos`, or None."""
-    para_start = proc_text.rfind("\n\n", 0, pos)
-    para_start = 0 if para_start == -1 else para_start + 2
-    paragraph_before = proc_text[para_start:pos]
-    paths = _SCOPED_PATH_RE.findall(paragraph_before)
-    for path in reversed(paths):
+    """Return the backtick-quoted .py/.md path (other than target_file) that
+    scopes the citation at `pos`, searching the same citation unit (see
+    `_citation_bounds`).
+
+    Prefers the nearest *preceding* path; if none precedes the citation,
+    falls back to the nearest *following* one in the same unit — a symbol is
+    sometimes described with its scoping file named later in the same
+    sentence, e.g. "`scripts/rag/`'s `RagPipeline` (confirmed via
+    `rag_pipeline_service.py::RagPipelineMCPService.start()`...)"."""
+    unit_start, unit_end = _citation_bounds(proc_text, pos)
+
+    paths_before = _SCOPED_PATH_RE.findall(proc_text[unit_start:pos])
+    for path in reversed(paths_before):
+        if path != target_file:
+            return str(path)
+
+    for match in _SCOPED_PATH_RE.finditer(proc_text[pos:unit_end]):
+        path = match.group(1)
         if path != target_file:
             return str(path)
     return None
@@ -116,13 +161,31 @@ def _load_scoped_source(
     path: str,
     cache: dict[str, str | None],
 ) -> str | None:
-    """Read `path` relative to source_dir once, memoizing hits and misses."""
+    """Read `path` relative to source_dir once, memoizing hits and misses.
+
+    Falls back to a repository-wide search by basename when `path` does not
+    resolve directly — a citation sometimes names only the file (e.g.
+    `rag_pipeline_service.py`), not its full relative path. The fallback is
+    used only when it resolves to exactly one candidate outside known noise
+    directories (venvs, tox envs, vendored/build trees); an ambiguous or
+    absent basename match is treated the same as "not found" rather than
+    guessing.
+    """
     if path in cache:
         return cache[path]
     candidate = source_dir / path.lstrip("/")
     if not candidate.exists():
-        cache[path] = None
-        return None
+        basename = Path(path).name
+        candidates = [
+            p
+            for p in source_dir.rglob(basename)
+            if not _NOISE_DIR_NAMES & set(p.relative_to(source_dir).parts[:-1])
+        ]
+        if len(candidates) == 1:
+            candidate = candidates[0]
+        else:
+            cache[path] = None
+            return None
     content = candidate.read_text(encoding="utf-8")
     cache[path] = content
     return content
