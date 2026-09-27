@@ -74,10 +74,10 @@ N/A: documentation-only change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, automated + manual checks per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: documentation-only; docs checkers run instead |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-175244 | 20260927-175244 | Re-confirmed front-matter/body content via Read immediately before editing — no drift since procedure generation (verified via full re-scan). Removed 3 extra entries, added 0 missing entries. |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-175244 | 20260927-175244 | N/A: documentation-only, automated + manual checks per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-175244 | 20260927-175244 | N/A: documentation-only; docs checkers run instead — `check_docs_structure.py` exit 1 (300 pre-existing issues, byte-count-only diff on 2 already-oversized files, verified via before/after comparison — no new finding); `check_docs_quality.py` exit 0 (0 errors; 35 additional pre-existing-category warnings — sibling docs' now-identical Related Documents lists trigger more 'content similarity' hits, an expected, correct consequence of AC-1, not a defect) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-175244 | 20260927-175244 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
