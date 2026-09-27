@@ -70,10 +70,10 @@ New file; revert via `git revert` or deletion.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on row 1 being implemented first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document IS the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-141518 | 20260927-141518 | Depends on row 1 being implemented first Test file written and validated as part of the sibling procedure 01's cycle; 5/5 tests pass, covers event parsing, heartbeat handling, auth/consumer_id, reconnection, and max-attempts typed error |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-141518 | 20260927-141518 | This document IS the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-141518 | 20260927-141518 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-141518 | 20260927-141518 | N/A: test-only file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
