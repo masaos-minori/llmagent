@@ -130,26 +130,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 
 
-#### EVENTBUS-005
-
-- **ID**: EVENTBUS-005
-- **Title**: Agent Cannot Publish to Event Bus
-- **Status**: deferred
-- **Severity**: Low
-- **Area**: EventBus
-- **Type**: design-gap
-- **Source**: Agent/EventBus integration layer
-- **Owner**: @eventbus-dev
-- **First Found**: 2026-09-03
-- **Target**: N/A: no current target document
-- **Related**: EVENTBUS-006, EVENTBUS-007
-- **Summary**: Agent integration is intentionally unimplemented; the Agent cannot publish events to Event Bus.
-- **Current Description**: Intentional deferral — Agent integration is not currently prioritized; this is not a defect.
-- **Observed Implementation**: Explicit in code — no Agent publish path exists in the Event Bus client.
-- **Impact**: Limits Agent-driven workflows that would otherwise publish events. Workaround: direct MCP tool calls from the Agent.
-- **Recommended Action**: Implement Agent → Event Bus publish when this integration is prioritized.
-- **Resolution Target**: Next EventBus architecture review
-
 #### EVENTBUS-006
 
 - **ID**: EVENTBUS-006
@@ -162,7 +142,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: @eventbus-dev
 - **First Found**: 2026-09-03
 - **Target**: N/A: no current target document
-- **Related**: EVENTBUS-005, EVENTBUS-007
+- **Related**: EVENTBUS-007
 - **Summary**: Agent integration is intentionally unimplemented; the Agent cannot subscribe to Event Bus SSE streams.
 - **Current Description**: Intentional deferral — Agent integration is not currently prioritized; this is not a defect.
 - **Observed Implementation**: Explicit in code — no Agent SSE client exists in the Event Bus client.
@@ -182,7 +162,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: @eventbus-dev
 - **First Found**: 2026-09-03
 - **Target**: N/A: no current target document
-- **Related**: EVENTBUS-005, EVENTBUS-006
+- **Related**: EVENTBUS-006
 - **Summary**: Agent integration is intentionally unimplemented; the Agent cannot manage Event Bus topics.
 - **Current Description**: Intentional deferral — Agent integration is not currently prioritized; this is not a defect.
 - **Observed Implementation**: Explicit in code — no Agent topic-management path exists in the Event Bus client.

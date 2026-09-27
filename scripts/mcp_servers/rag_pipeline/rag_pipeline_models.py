@@ -135,6 +135,8 @@ def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> RagConfig:
             refiner_max_tokens=int(cfg.refiner_max_tokens),
             refiner_max_chars_per_chunk=int(cfg.refiner_max_chars_per_chunk),
             refiner_timeout=float(cfg.refiner_timeout),
+            llm_url=cfg.llm_url,
+            embed_url=cfg.embed_url,
         ),
     )
 

@@ -22,6 +22,7 @@ from agent.http_lifecycle import (
     HttpStartupError,
     StartupFailure,
 )
+from agent.http_lifecycle_stderr_log_manager import StderrLogManager
 from agent.lifecycle import LifecycleState, assert_valid_transition
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
@@ -94,17 +95,17 @@ def _make_test_cfg(
 
 
 def _patch_open_to_tmp(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    def patched_open(
-        self: HttpServerLifecycleManager,
+    def patched_open_log(
+        self: StderrLogManager,
         server_key: str,
         cfg: McpServerConfig | None = None,
     ) -> object:
         log_path = tmp_path / f"{server_key}.stderr.log"
         fh = log_path.open("ab")
-        self._stderr_log_manager._log_paths[server_key] = str(log_path)
+        self._log_paths[server_key] = str(log_path)
         return fh
 
-    monkeypatch.setattr(HttpServerLifecycleManager, "_open_stderr_log", patched_open)
+    monkeypatch.setattr(StderrLogManager, "open_log", patched_open_log)
 
 
 class TestEnsureReady:
@@ -272,7 +273,7 @@ class TestStartHttpSubprocess:
                 return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
-            patch.object(mgr._subprocess_mgr._http_mgr, "_terminate_with_timeout"),
+            patch.object(mgr._subprocess_mgr._http_mgr._process_terminator, "terminate_with_timeout"),
         ):
             client_instance, _ = _wire_http_client(MockClient)
             await mgr.start_http_subprocess("s", cfg)
@@ -332,7 +333,7 @@ class TestStartHttpSubprocess:
                 return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
-            patch.object(mgr._subprocess_mgr._http_mgr, "_terminate_with_timeout"),
+            patch.object(mgr._subprocess_mgr._http_mgr._process_terminator, "terminate_with_timeout"),
             pytest.raises(RuntimeError, match="did not become healthy"),
         ):
             client_instance, _ = _wire_http_client(MockClient)
@@ -518,7 +519,7 @@ class TestRestart:
 
 class TestHttpManagerRestart:
     """HttpServerLifecycleManager.restart() must keep the pgid available to
-    _terminate_with_timeout — popping it first would force a proc.pid fallback
+    _process_terminator.terminate_with_timeout — popping it first would force a proc.pid fallback
     even when the recorded pgid differs (e.g. start_new_session failed)."""
 
     @pytest.mark.asyncio
@@ -542,7 +543,7 @@ class TestHttpManagerRestart:
         async def fake_terminate(p: object, key: str, timeout: float = 3.0) -> None:
             seen_pgid[key] = orig_get(key, -1)
 
-        monkeypatch.setattr(mgr, "_terminate_with_timeout", fake_terminate)
+        monkeypatch.setattr(mgr._process_terminator, "terminate_with_timeout", fake_terminate)
 
         cfg = _make_test_cfg(
             cmd=["python", "-c", "import time; time.sleep(60)"],
@@ -845,7 +846,7 @@ class TestHttpLifecycleStderrLog:
             pass
 
         monkeypatch.setattr(mgr, "start", fake_start)
-        monkeypatch.setattr(mgr, "_terminate_with_timeout", AsyncMock())
+        monkeypatch.setattr(mgr._process_terminator, "terminate_with_timeout", AsyncMock())
         await mgr.restart("srv", _make_test_cfg())
         assert fh.closed
         assert "srv" not in mgr._stderr_files
@@ -862,7 +863,7 @@ class TestShutdownAllCleanup:
         mgr = HttpServerLifecycleManager()
         mgr._http_procs["srv1"] = _make_mock_proc(exit_code=None)
         mgr._http_procs["srv2"] = _make_mock_proc(exit_code=None)
-        mgr._terminate_with_timeout = AsyncMock()
+        mgr._process_terminator.terminate_with_timeout = AsyncMock()
 
         await mgr.shutdown_all()
 
@@ -873,12 +874,12 @@ class TestShutdownAllCleanup:
     async def test_shutdown_all_removes_exited_proc_without_terminate(self) -> None:
         mgr = HttpServerLifecycleManager()
         mgr._http_procs["exited"] = _make_mock_proc(exit_code=0)
-        mgr._terminate_with_timeout = AsyncMock()
+        mgr._process_terminator.terminate_with_timeout = AsyncMock()
 
         await mgr.shutdown_all()
 
         assert len(mgr._http_procs) == 0
-        mgr._terminate_with_timeout.assert_not_awaited()
+        mgr._process_terminator.terminate_with_timeout.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_shutdown_all_continues_after_terminate_error(self) -> None:
@@ -910,7 +911,7 @@ class TestShutdownAllCleanup:
     async def test_shutdown_all_twice_is_safe(self) -> None:
         mgr = HttpServerLifecycleManager()
         mgr._http_procs["srv"] = _make_mock_proc(exit_code=None)
-        mgr._terminate_with_timeout = AsyncMock()
+        mgr._process_terminator.terminate_with_timeout = AsyncMock()
 
         await mgr.shutdown_all()
         await mgr.shutdown_all()
@@ -964,7 +965,7 @@ def _make_running_proc(pid: int = 99999) -> MagicMock:
 
 
 class TestProcessGroupShutdown:
-    """_terminate_with_timeout() uses os.killpg(SIGTERM/SIGKILL) with proc fallback."""
+    """_process_terminator.terminate_with_timeout() uses os.killpg(SIGTERM/SIGKILL) with proc fallback."""
 
     @pytest.mark.asyncio
     async def test_terminate_uses_killpg_sigterm(
@@ -987,7 +988,7 @@ class TestProcessGroupShutdown:
         proc.poll = MagicMock(side_effect=lambda: 0 if killed else None)
         mgr._http_pgids["srv"] = 42
 
-        await mgr._terminate_with_timeout(proc, "srv", timeout=1.0)
+        await mgr._process_terminator.terminate_with_timeout(proc, "srv", timeout=1.0)
 
         assert (42, _signal.SIGTERM) in killed
         proc.terminate.assert_not_called()
@@ -1010,7 +1011,7 @@ class TestProcessGroupShutdown:
         proc.poll = MagicMock(side_effect=lambda: 0 if proc.terminate.called else None)
         mgr._http_pgids["srv"] = 42
 
-        await mgr._terminate_with_timeout(proc, "srv", timeout=1.0)
+        await mgr._process_terminator.terminate_with_timeout(proc, "srv", timeout=1.0)
 
         proc.terminate.assert_called_once()
 
@@ -1040,7 +1041,7 @@ class TestProcessGroupShutdown:
         )
         mgr._http_pgids["srv"] = 55
 
-        await mgr._terminate_with_timeout(proc, "srv", timeout=0.05)
+        await mgr._process_terminator.terminate_with_timeout(proc, "srv", timeout=0.05)
 
         assert any(sig == _signal.SIGKILL for _, sig in killed)
 
@@ -1048,7 +1049,7 @@ class TestProcessGroupShutdown:
     async def test_terminate_never_uses_thread_even_when_process_never_exits(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Regression test for issue 1-b: _terminate_with_timeout must not leak a
+        """Regression test for issue 1-b: _process_terminator.terminate_with_timeout must not leak a
         non-daemon ThreadPoolExecutor worker via asyncio.to_thread, even when the
         target process never exits (simulating an uninterruptible/D-state process).
         """
@@ -1072,7 +1073,7 @@ class TestProcessGroupShutdown:
         mgr._http_pgids["srv"] = 77
 
         # Small real timeouts so this test costs ~tens of ms, not the 3.0s production default.
-        await mgr._terminate_with_timeout(proc, "srv", timeout=0.02)
+        await mgr._process_terminator.terminate_with_timeout(proc, "srv", timeout=0.02)
 
         assert (77, _signal.SIGTERM) in killed
         assert (77, _signal.SIGKILL) in killed
@@ -1098,7 +1099,7 @@ class TestProcessGroupShutdown:
         proc = _make_mock_proc(exit_code=0)  # already exited
         mgr._http_pgids["srv"] = 42
 
-        await mgr._terminate_with_timeout(proc, "srv", timeout=1.0)
+        await mgr._process_terminator.terminate_with_timeout(proc, "srv", timeout=1.0)
 
         assert killed == []
         proc.terminate.assert_not_called()

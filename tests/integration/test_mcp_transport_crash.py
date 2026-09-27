@@ -148,7 +148,7 @@ async def test_d04_stdio_buffered_output_after_kill() -> None:
 @pytest.mark.asyncio
 async def test_d05_http_timeout_races_lifecycle_termination() -> None:
     """An in-flight ToolExecutor.execute() HTTP call and a concurrent
-    HttpServerLifecycleManager._terminate_with_timeout() call must both
+    HttpServerLifecycleManager._process_terminator.terminate_with_timeout() call must both
     resolve independently -- termination completes within its escalation
     window, and the in-flight call resolves to a TransportError, not a hang.
     """
@@ -198,7 +198,7 @@ async def test_d05_http_timeout_races_lifecycle_termination() -> None:
             mgr = HttpServerLifecycleManager()
             proc = _make_running_proc()
             terminate_task = asyncio.create_task(
-                mgr._terminate_with_timeout(proc, "d05_server", timeout=1.0)
+                mgr._process_terminator.terminate_with_timeout(proc, "d05_server", timeout=1.0)
             )
 
             result, _ = await asyncio.wait_for(

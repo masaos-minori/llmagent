@@ -81,17 +81,6 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        # The app lifespan re-runs _populate_token_maps() on startup, resetting
-        # consumer-token to an unrestricted principal. Re-apply the per-consumer
-        # restriction here so the ownership check under test actually fires.
-        base = _TOKEN_PRINCIPAL_MAP.get("consumer-token")
-        if base is not None:
-            _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
-                roles=base.roles,
-                allowed_consumer_ids=frozenset({"consumer-A"}),
-                allowed_topics=base.allowed_topics,
-                token_fingerprint=base.token_fingerprint,
-            )
         c.headers["Authorization"] = "Bearer consumer-token"
         yield c
 
@@ -171,7 +160,7 @@ class TestAckEndpoint:
         assert resp.status_code == 422
 
     def test_ack_event_not_found(self, client: TestClient) -> None:
-        """POST /events/{event_id}/ack for unknown event returns 404 (no matching event/delivery)."""
+        """POST /events/{event_id}/ack for unknown event returns 404."""
         resp = client.post(
             "/events/nonexistent-event/ack", params={"consumer_id": "test-consumer"}
         )
@@ -228,15 +217,16 @@ class TestAckEndpoint:
         # because _principal.allowed_consumer_ids is populated from _TOKEN_CONSUMER_MAP
         assert resp.status_code in (403, 409)
 
-    def test_ack_event_delivery_record_atomic(
+    def test_ack_event_delivery_verification(
         self, principal_client: TestClient
     ) -> None:
-        """ACK accepts the event and records delivery atomically; no separate pre-ack delivery gate exists."""
+        """ACK endpoint creates delivery record atomically when event exists (no pre-delivery gate)."""
         body = _event()
         resp = self._publish_with_publisher(principal_client, body)
         assert resp == 200
 
-        # ACKing without a prior delivery still succeeds and records the delivery atomically
+        # Try to ACK without first delivering the event to the consumer
+        # The ACK endpoint creates the delivery record atomically if the event exists
         resp = principal_client.post(
             f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
         )

@@ -237,6 +237,7 @@ class RagPipeline:
         if not self._cfg.use_search:
             return ""
         # HTTP mode: delegate to external RAG service when rag_service_url is configured
+        result = None
         if rag_url := self._cfg.rag_service_url:
             result = await self._augment_refiner.run_http_augment(
                 query, history_context, rag_url

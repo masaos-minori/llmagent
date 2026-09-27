@@ -36,6 +36,7 @@ async def _do_ack(
     _identity: Principal | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Common ack logic shared by /ack and /events/{event_id}/ack."""
+    logger.warning("DEBUG _do_ack: _principal=%r, _identity=%r", _principal, _identity)
     if not event_id:
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 

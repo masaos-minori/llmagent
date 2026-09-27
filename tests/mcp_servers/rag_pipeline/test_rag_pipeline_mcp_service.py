@@ -514,6 +514,8 @@ class TestServiceStart:
             use_rerank=True,
             top_k_search=5,
             top_k_rerank=10,
+            llm_url="http://llm.local",
+            embed_url="http://embed.local",
         )
         monkeypatch.setattr(models_module.RagPipelineConfig, "load", lambda: fake_cfg)
 
@@ -537,6 +539,8 @@ class TestServiceStart:
             use_rerank=True,
             top_k_search=5,
             top_k_rerank=10,
+            llm_url="http://llm.local",
+            embed_url="http://embed.local",
         )
         monkeypatch.setattr(models_module.RagPipelineConfig, "load", lambda: fake_cfg)
 

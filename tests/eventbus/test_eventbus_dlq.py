@@ -189,13 +189,13 @@ def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> Non
     client.post("/publish", json=ev)
 
     # First nack — delivery_failure_count becomes 1, below threshold of 2
-    r = client.post(f"/nack?event_id={ev['event_id']}")
+    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
     assert r.status_code == 200
     assert r.json()["delivery_failure_count"] == 1
     assert "dlq_promoted" not in r.json()
 
     # Second nack — delivery_failure_count becomes 2, hits threshold, inline promote
-    r = client.post(f"/nack?event_id={ev['event_id']}")
+    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
     assert r.status_code == 200
     assert r.json()["delivery_failure_count"] == 2
     assert r.json().get("dlq_promoted") is True
@@ -223,7 +223,7 @@ def test_inline_dlq_promotion_skipped_below_threshold(
     client.post("/publish", json=ev)
 
     # Nack once — below threshold of 2, no DLQ promotion
-    r = client.post(f"/nack?event_id={ev['event_id']}")
+    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
     assert r.status_code == 200
     assert r.json()["delivery_failure_count"] == 1
     assert "dlq_promoted" not in r.json()
@@ -239,7 +239,7 @@ def test_inline_dlq_promotion_skipped_below_threshold(
 
 
 def test_inline_dlq_promotion_not_found(client: TestClient) -> None:
-    r = client.post("/nack?event_id=nonexistent")
+    r = client.post("/nack?event_id=nonexistent&consumer_id=test-consumer")
     assert r.status_code == 404
     assert r.json()["detail"] == "event not found"
 
@@ -261,7 +261,7 @@ def test_nack_on_already_dlq_event_does_not_repromote(
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     # Nack an already-DLQ'd event — should return 409 Conflict, not increment count
-    r = client.post(f"/nack?event_id={ev['event_id']}")
+    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
     assert r.status_code == 409
     assert "event already in dead letter queue" in r.json()["detail"]
 

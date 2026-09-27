@@ -9,6 +9,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from eventbus.db import NackResult
+
 
 @pytest.fixture
 def db(tmp_path: Path) -> Any:
@@ -372,7 +374,7 @@ class TestNackEvent:
         db.commit()
 
         result = nack_event(db, ev["event_id"])
-        assert result == (1, 1)
+        assert result == NackResult(delivery_failure_count=1, cycle_failure_count=1)
 
         row = db.execute(
             "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
@@ -398,10 +400,10 @@ class TestNackEvent:
         db.commit()
 
         result1 = nack_event(db, ev["event_id"])
-        assert result1 == (1, 1)
+        assert result1 == NackResult(delivery_failure_count=1, cycle_failure_count=1)
 
         result2 = nack_event(db, ev["event_id"])
-        assert result2 == (2, 2)
+        assert result2 == NackResult(delivery_failure_count=2, cycle_failure_count=2)
 
         row = db.execute(
             "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
@@ -414,7 +416,7 @@ class TestNackEvent:
         from eventbus.db import nack_event
 
         result = nack_event(db, "nonexistent-event")
-        assert result == (-1, -1)
+        assert result == NackResult(delivery_failure_count=-1, cycle_failure_count=-1)
 
     def test_nack_event_principal_ownership_validation(
         self, principal_client: TestClient

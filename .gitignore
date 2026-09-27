@@ -1,6 +1,7 @@
 #
 memo*.md
 .*.swp
+.tmp*
 
 # Emacs
 *~

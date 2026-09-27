@@ -22,6 +22,8 @@ def _make_pipeline(rag_service_url: str = "http://rag.local") -> RagPipeline:
     cfg.rag_service_url = rag_service_url
     cfg.use_refiner = False
     cfg.use_search = True
+    cfg.llm_url = "http://llm.local"
+    cfg.embed_url = "http://embed.local"
     http_mock = MagicMock(spec=httpx.AsyncClient)
     pipeline = RagPipeline(http_mock, cfg)
     pipeline.last_fetch_result = None
