@@ -71,10 +71,10 @@ N/A: documentation-only change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Requires an owner decision before the exact edit can be made |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, automated checks per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: documentation-only; docs checkers run instead |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-155959 | 20260927-155959 | Owner decision obtained (via AskUserQuestion, since this document has no other reachable owner channel): a dedicated Configuration Ownership Map / API Consumer Map is needed, but building it is separate, unstarted follow-up work — recorded in the bullet, not built this cycle |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-155959 | 20260927-155959 | N/A: documentation-only, automated checks per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-155959 | 20260927-155959 | N/A: documentation-only; docs checkers run instead |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-155959 | 20260927-155959 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
