@@ -134,10 +134,10 @@ When referencing other documents:
 
 ### Link Format Examples
 
-Same area: `[Agent Guide](agent_01_system-overview_00_document-guide.md)`
-Cross area: `[RAG Specification](rag_01_system_overview_00_document-guide.md)`
+Same area: `[Agent Guide](<agent_01_system-overview_00_document-guide.md>)`
+Cross area: `[RAG Specification](<rag_01_system_overview_00_document-guide.md>)`
 ADR: `[ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md)`
-Internal anchor: `[Section](agent_01_system-overview_00_document-guide.md#workflow-engine)`
+Internal anchor: `[Section](<agent_01_system-overview_00_document-guide.md>#workflow-engine)`
 
 ## Markdown Syntax Rules
 

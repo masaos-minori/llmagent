@@ -58,7 +58,7 @@ PART2_STATUS_VALUES = {"open", "investigating", "deferred"}
 
 # ── Document structure constants ─────────────────────────────────────────────────
 
-GOVERNANCE_DOC_NAME = "00_governance_03_issue-and-uncertainty-management.md"
+GOVERNANCE_DOC_NAME = "governance_03_issue-and-uncertainty-management.md"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
 GOVERNANCE_DOC_PATH = DOCS_DIR / "00_governance" / GOVERNANCE_DOC_NAME

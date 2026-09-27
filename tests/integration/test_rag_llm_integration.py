@@ -218,11 +218,11 @@ def test_c07_tool_loop_guard_fires_on_dedup():
     failed: set[str] = set()
 
     # First call — no guard
-    result1 = guard.check_all(seen_calls, round_fp, failed, msg)
+    result1 = guard.check_all(seen_calls, round_fp, [], failed, msg)
     assert result1 is None
 
     # Second call with same tool+args — dedup fires (max_repeats=2)
-    result2 = guard.check_all(seen_calls, round_fp, failed, msg)
+    result2 = guard.check_all(seen_calls, round_fp, [], failed, msg)
     assert result2 is not None
     assert "Repeated" in result2
 
@@ -246,8 +246,8 @@ def test_c08_tool_loop_guard_allows_different_args():
     msg_a = _message_with_calls(call_a)
     msg_b = _message_with_calls(call_b)
 
-    assert guard.check_all(seen_calls, round_fp, failed, msg_a) is None
-    assert guard.check_all(seen_calls, round_fp, failed, msg_b) is None
+    assert guard.check_all(seen_calls, round_fp, [], failed, msg_a) is None
+    assert guard.check_all(seen_calls, round_fp, [], failed, msg_b) is None
 
 
 # ── TC-C09: LLM rate-limited (429) → retry; succeeds on 2nd attempt ──────────

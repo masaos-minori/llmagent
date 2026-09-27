@@ -54,3 +54,11 @@ No reference APIs exist in this directory. All files are policy/convention docum
 - `governance_02_documentation-metadata.md`
 - `governance_03_issue-and-uncertainty-management.md`
 - `governance_04_documentation-checks.md`
+
+## Keywords
+
+- governance
+- document-guide
+- metadata
+- reading-order
+- canonical-source-rule

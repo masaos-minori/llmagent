@@ -231,7 +231,7 @@ class TestCheckAll:
         state = _state()
         msg = _msg("write_file")
         result = guard.check_all(
-            state.seen_calls, state.round_fingerprints, state.failed_calls, msg
+            state.seen_calls, state.round_fingerprints, [], state.failed_calls, msg
         )
         assert result is None
 
@@ -241,13 +241,13 @@ class TestCheckAll:
         state = _state()
         msg = _msg("write_file")
         guard.check_all(
-            state.seen_calls, state.round_fingerprints, state.failed_calls, msg
+            state.seen_calls, state.round_fingerprints, [], state.failed_calls, msg
         )
         guard.check_all(
-            state.seen_calls, state.round_fingerprints, state.failed_calls, msg
+            state.seen_calls, state.round_fingerprints, [], state.failed_calls, msg
         )
         r3 = guard.check_all(
-            state.seen_calls, state.round_fingerprints, state.failed_calls, msg
+            state.seen_calls, state.round_fingerprints, [], state.failed_calls, msg
         )
         assert r3 is not None
         assert "Cyclic" in r3

@@ -192,42 +192,42 @@ Recency must never be used for any of the following:
 | Document | Authority | Status |
 |----------|-----------|--------|
 | docs/00_index.md | Primary | Active |
-| docs/architecture.md | Secondary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
+| docs/architecture.md | Secondary | (Needs Confirmation — path does not exist in repository, see plans/done/20260905-185329_plan.md) |
 
 ### Deployment
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/deployment_guide.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
-| deploy.sh | Operational | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
+| docs/deployment_guide.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/done/20260905-185329_plan.md) |
+| deploy.sh | Operational | (Needs Confirmation — path does not exist in repository, see plans/done/20260905-185329_plan.md) |
 
 ### RAG
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/rag/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
+| docs/rag/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/done/20260905-185329_plan.md) |
 | scripts/rag/embedding.py | Runtime | Active |
 
 ### MCP
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/mcp/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
+| docs/mcp/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/done/20260905-185329_plan.md) |
 | scripts/mcp_servers/*.py | Runtime | Active |
 
 ### Agent
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/agent/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
+| docs/agent/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/done/20260905-185329_plan.md) |
 | scripts/agent/*.py | Runtime | Active |
 
 ### EventBus
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/eventbus/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
+| docs/eventbus/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/done/20260905-185329_plan.md) |
 | scripts/eventbus/*.py | Runtime | Active |
 
 ### Shared/DB
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/shared/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/20260905-185329_plan.md) |
+| docs/shared/specification.md | Primary | (Needs Confirmation — path does not exist in repository, see plans/done/20260905-185329_plan.md) |
 | scripts/shared/*.py | Runtime | Active |
 
 ### Governance
@@ -237,6 +237,8 @@ Recency must never be used for any of the following:
 | docs/governance_02_documentation-metadata.md | Primary | Active |
 | docs/governance_03_issue-and-uncertainty-management.md | Primary | Active |
 | docs/00_governance_04_documentation-checks.md | Primary | Active |
+
+**Status column note:** The Status value reflects whether the referenced file exists in the repository, not authority level. Governance Primary entries show `Active` because those governance documents exist in `docs/00_governance/`. Overview Primary shows `Active` for `docs/00_index.md` (which exists) and `(Needs Confirmation — path does not exist in repository)` for `docs/architecture.md` (which does not). Areas whose Primary entries show `(Needs Confirmation — path does not exist in repository)` have paths that were expected to exist but do not; see `plans/done/20260905-185329_plan.md` for the list of such paths.
 
 ### Canonical Source Registry
 

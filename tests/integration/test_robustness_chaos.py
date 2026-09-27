@@ -69,8 +69,8 @@ class TestToolLoopGuardChaos:
         fp: list[str] = []
         failed: set[str] = set()
 
-        assert guard.check_all(seen, fp, failed, _msg(call)) is None
-        result = guard.check_all(seen, fp, failed, _msg(call))
+        assert guard.check_all(seen, fp, [], failed, _msg(call)) is None
+        result = guard.check_all(seen, fp, [], failed, _msg(call))
         assert result is not None
 
     def test_3a2_near_duplicate_different_args_not_blocked(self):
@@ -86,19 +86,19 @@ class TestToolLoopGuardChaos:
 
         assert (
             guard.check_all(
-                seen, fp, failed, _msg(_call("read_text_file", '{"path": "/a"}'))
+                seen, fp, [], failed, _msg(_call("read_text_file", '{"path": "/a"}'))
             )
             is None
         )
         assert (
             guard.check_all(
-                seen, fp, failed, _msg(_call("read_text_file", '{"path": "/b"}'))
+                seen, fp, [], failed, _msg(_call("read_text_file", '{"path": "/b"}'))
             )
             is None
         )
         assert (
             guard.check_all(
-                seen, fp, failed, _msg(_call("read_text_file", '{"path": "/c"}'))
+                seen, fp, [], failed, _msg(_call("read_text_file", '{"path": "/c"}'))
             )
             is None
         )
@@ -149,8 +149,8 @@ class TestToolLoopGuardChaos:
         failed: set[str] = set()
 
         # Fill to limit in "turn 1"
-        guard.check_all(seen, fp, failed, _msg(call))
-        guard.check_all(seen, fp, failed, _msg(call))
+        guard.check_all(seen, fp, [], failed, _msg(call))
+        guard.check_all(seen, fp, [], failed, _msg(call))
 
         # Start "turn 2" with fresh state
         seen2: dict[str, int] = {}
@@ -158,7 +158,7 @@ class TestToolLoopGuardChaos:
         failed2: set[str] = set()
 
         # First call with new state should succeed
-        assert guard.check_all(seen2, fp2, failed2, _msg(call)) is None
+        assert guard.check_all(seen2, fp2, [], failed2, _msg(call)) is None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -103,10 +103,10 @@ Revert the angle brackets around the placeholder filenames. No data loss risk.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document is the documentation update |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: documentation-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: this document is the documentation update |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

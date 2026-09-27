@@ -273,10 +273,10 @@ When referencing other documents:
 - For ADR references, use the ADR number format (ADR-001) rather than the filename
 
 **Link format examples:**
-- Same area: `[Agent Guide](agent_01_system-overview_00_document-guide.md)`
-- Cross area: `[RAG Specification](rag_01_system_overview_00_document-guide.md)`
+- Same area: `[Agent Guide](<agent_01_system-overview_00_document-guide.md>)`
+- Cross area: `[RAG Specification](<rag_01_system_overview_00_document-guide.md>)`
 - ADR: `[ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md)`
-- Internal anchor: `[Section](agent_01_system-overview_00_document-guide.md#workflow-engine)`
+- Internal anchor: `[Section](<agent_01_system-overview_00_document-guide.md>#workflow-engine)`
 
 ## Governance Verification Matrix
 
@@ -298,14 +298,14 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-008 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | Implement |
 | GV-009 | Needs Confirmation owner and deadline | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Existing | None |
-| GV-011 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
-| GV-012 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
+| GV-011 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Partial | Automate cross-document canonical source conflict detection (currently manual) |
+| GV-012 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Partial | Automate cross-document canonical source conflict detection (currently manual) |
 | GV-013 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Partial | Extend stale_patterns config |
 | GV-014 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | Optional: run cited tests in CI, not just verify path existence |
 | GV-015 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Existing | None |
-| GV-016 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
-| GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
-| GV-019 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
+| GV-016 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Partial | Automate auto-check implementation audit (currently manual) |
+| GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Partial | Automate glossary term classification validation (currently manual) |
+| GV-019 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Partial | Automate metadata field usage policy enforcement (currently manual) |
 | GV-020 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Implement the context-aware (retained-but-superseded) detection case; promote to default-on once the corpus is compliant |
 | GV-021 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py` | PR | Warning | Existing | Promoted to default-on after corpus compliance |
 | GV-022 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
@@ -316,41 +316,47 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 
 Rules marked "Missing" or "Partial" above need new inspection tools or processes:
 
-1. **GV-008**: Broaden to cover full issue inventory conformance scope (vocabulary, template, referential integrity)
-2. **GV-011, GV-012**: Implement cross-document canonical source conflict detection
-3. **GV-013**: Extend `stale_patterns` custom rule config to cover canonical document references
-4. **GV-014**: Resolved — `check_adr_invariant_matrix.py` (Invariant Matrix cited test-path
-   verification), `check_compat_shims.py`'s `ADR_PROHIBITED_PATTERNS` extension (per-ADR
-   prohibited-pattern registry), and `check_adr_reference.py` (scoped ADR-reference
-   requirement on matrix-named `scripts/*.py` files) ship the three staged checks this item
-   originally requested. Remaining, optional scope: actually running each cited test in CI
-   (this check only verifies the path exists), tracked as a future enhancement, not a gap in
+Note: Items 1-3 were previously listed for GV-001, GV-002, and GV-003. These items were completed (Status="Existing", Follow-up="None" in the Governance Verification Matrix) and removed without renumbering. Item 4 (GV-007) was removed because its follow-up work is complete (Status="Existing", Follow-up="None"). Item 5 (GV-008) was removed because `check_issue_inventory_conformance.py` covers all 5 areas: vocabulary conformance, template field-count, orphaned bullets, closing summary consistency, and referential integrity. Items 6-10 (GV-011, GV-012, GV-016, GV-018, GV-019) were updated: Matrix Status changed from `Missing` to `Partial` (manual review provides partial coverage), and Follow-up descriptions modified to clarify that automation is needed while manual process exists.
+
+1. **GV-011, GV-012**: Automate cross-document canonical source conflict detection (currently manual)
+2. **GV-013**: Extend `stale_patterns` custom rule config to cover canonical document references
+3. **GV-014**: Resolved — `check_adr_invariant_matrix.py` (Invariant Matrix cited test-path
+    verification), `check_compat_shims.py`'s `ADR_PROHIBITED_PATTERNS` extension (per-ADR
+    prohibited-pattern registry), and `check_adr_reference.py` (scoped ADR-reference
+    requirement on matrix-named `scripts/*.py` files) ship the three staged checks this item
+    originally requested. Remaining, optional scope: actually running each cited test in CI
+    (this check only verifies the path exists), tracked as a future enhancement, not a gap in
     the current implementation.
-5. **GV-016**: Audit auto-check implementations against documentation claims
-6. **GV-018**: Add glossary term classification validation
-7. **GV-019**: Add metadata field usage policy enforcement
+4. **GV-015**: Resolved — `docs/governance_01_documentation-policy.md`'s
+    Software Runtime Dependency Graph, Deployment Management Graph, Documentation
+    Reference Graph, and Governance Applicability Matrix sections separate the four
+    relation types the previous single graph conflated; closing reference:
+    `issues/done/20260902-102831_depgraph_area-dependency-graph-cycle-and-relationship-conflation.md`.
+5. **GV-016**: Automate auto-check implementation audit (currently manual)
+6. **GV-018**: Automate glossary term classification validation (currently manual)
+7. **GV-019**: Automate metadata field usage policy enforcement (currently manual)
 8. **GV-020**: Implement the `read_json_file`-style context-aware detection
-    case (a name retained in source but no longer the current production path);
-    promote `--check-removed-names` from opt-in to default-on once
-    `plans/done/20260903-090104_plan.md` (toolroutedoc)'s corpus fix lands, per
-    `check_compat_shims.py`'s own "report-only until compliant" convention.
-    **Extended 2026-09-04** (`plans/done/20260903-093353_plan.md`, REQ-007):
-    `_REMOVED_NAME_PATTERNS` now also flags `SecurityProfile.LOCAL`,
-    `security_profile="local"`, `allow_public_bind`, and an unconditionally-permitted
-    empty `auth_token`/`auth_token_env` as retired runtime-profile terms (all three
-    removed by `localremoval`/`loopbackonly`/`mcpauth`,
-    `plans/done/20260903-091417_plan.md`//).
-    `_is_historical_context`'s marker set was extended with Japanese equivalents
-    (解消/解決/廃止/撤廃/削除済み/確認済み) at the same time, since this repository's
-    docs mix English and Japanese prose and the English-only marker set previously
-    produced false positives on Japanese historical/resolved notes. An unrelated
-    "local" meaning (filesystem, Git, RAG, database, process, localhost paths) is
-    unaffected — the new patterns match only the specific retired identifiers above,
-    not the word "local" itself. Running `--check-removed-names` against the current
-    corpus after this extension found 14 pre-existing findings outside this Plan's own
-    scope (`docs/governance_03`, `00_security_02`, `06_eventbus_01`, ADR-006,
-    ADR-008, and others still describing `allow_public_bind` as current) — these are
-    tracked as a follow-up documentation-drift cleanup, not fixed by this Plan.
+     case (a name retained in source but no longer the current production path);
+     promote `--check-removed-names` from opt-in to default-on once
+     `plans/done/20260903-090104_plan.md` (toolroutedoc)'s corpus fix lands, per
+     `check_compat_shims.py`'s own "report-only until compliant" convention.
+     **Extended 2026-09-04** (`plans/done/20260903-093353_plan.md`, REQ-007):
+     `_REMOVED_NAME_PATTERNS` now also flags `SecurityProfile.LOCAL`,
+     `security_profile="local"`, `allow_public_bind`, and an unconditionally-permitted
+     empty `auth_token`/`auth_token_env` as retired runtime-profile terms (all three
+     removed by `localremoval`/`loopbackonly`/`mcpauth`,
+     `plans/done/20260903-091417_plan.md`//).
+     `_is_historical_context`'s marker set was extended with Japanese equivalents
+     (解消/解決/廃止/撤廃/削除済み/確認済み) at the same time, since this repository's
+     docs mix English and Japanese prose and the English-only marker set previously
+     produced false positives on Japanese historical/resolved notes. An unrelated
+     "local" meaning (filesystem, Git, RAG, database, process, localhost paths) is
+     unaffected — the new patterns match only the specific retired identifiers above,
+     not the word "local" itself. Running `--check-removed-names` against the current
+     corpus after this extension found 14 pre-existing findings outside this Plan's own
+     scope (`docs/governance_03`, `00_security_02`, `06_eventbus_01`, ADR-006,
+     ADR-008, and others still describing `allow_public_bind` as current) — these are
+     tracked as a follow-up documentation-drift cleanup, not fixed by this Plan.
 
 ## Change Impact Assessment
 

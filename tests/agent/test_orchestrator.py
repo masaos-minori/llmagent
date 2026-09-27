@@ -1118,7 +1118,7 @@ class TestToolLoopGuardHelpers:
         msg = MagicMock()
         msg.__getitem__ = lambda self, k: [] if k == "tool_calls" else None
         msg.get = lambda k, d=None: [] if k == "tool_calls" else d
-        result = ToolLoopGuard(ctx).check_all({}, [], set(), msg)
+        result = ToolLoopGuard(ctx).check_all({}, [], [], set(), msg)
         assert result is None
 
     def test_check_all_tool_guards_returns_on_cycle_guard_hit(self) -> None:
@@ -1130,12 +1130,12 @@ class TestToolLoopGuardHelpers:
         msg: dict = {"role": "assistant", "content": None, "tool_calls": tool_calls}
 
         fingerprints: list[str] = []
-        result1 = ToolLoopGuard(ctx).check_all({}, fingerprints, set(), msg)
+        result1 = ToolLoopGuard(ctx).check_all({}, fingerprints, [], set(), msg)
         assert result1 is None
         assert len(fingerprints) == 1
 
         # Second call with the same message → cycle guard fires
-        result2 = ToolLoopGuard(ctx).check_all({}, fingerprints, set(), msg)
+        result2 = ToolLoopGuard(ctx).check_all({}, fingerprints, [], set(), msg)
         assert result2 is not None
         assert "cycle" in result2.lower() or "cyclic" in result2.lower()
 
@@ -1152,7 +1152,7 @@ class TestToolLoopGuardHelpers:
         key = hashlib.md5(b"my_tool:{}", usedforsecurity=False).hexdigest()
         seen: dict[str, int] = {key: 1}
 
-        result = ToolLoopGuard(ctx).check_all(seen, [], set(), msg)
+        result = ToolLoopGuard(ctx).check_all(seen, [], [], set(), msg)
         assert result is not None
         assert "repeated" in result.lower() or "duplicate" in result.lower()
 

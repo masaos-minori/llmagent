@@ -35,7 +35,7 @@ from tools._docs_consistency_lib import (
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
-GRAPH_DOC_NAME = "00_governance_01_documentation-policy.md"
+GRAPH_DOC_NAME = "governance_01_documentation-policy.md"
 GRAPH_DOC_PATH = DOCS_DIR / "00_governance" / GRAPH_DOC_NAME
 TARGET_SECTION = "Software Runtime Dependency Graph"
 IN_SCOPE_NODES = frozenset({"Agent", "MCP", "RAG", "EventBus", "Shared/DB"})

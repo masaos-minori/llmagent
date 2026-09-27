@@ -549,11 +549,11 @@ class TestToolCallFlow:
         msg: dict = {"role": "assistant", "content": None, "tool_calls": tool_calls}
 
         fingerprints: list[str] = []
-        result1 = ToolLoopGuard(ctx).check_all({}, fingerprints, set(), msg)
+        result1 = ToolLoopGuard(ctx).check_all({}, fingerprints, [], set(), msg)
         assert result1 is None
         assert len(fingerprints) == 1
 
-        result2 = ToolLoopGuard(ctx).check_all({}, fingerprints, set(), msg)
+        result2 = ToolLoopGuard(ctx).check_all({}, fingerprints, [], set(), msg)
         assert result2 is not None
         assert "cycle" in result2.lower() or "cyclic" in result2.lower()
 
@@ -572,7 +572,7 @@ class TestToolCallFlow:
         key = hashlib.md5(b"my_tool:{}", usedforsecurity=False).hexdigest()
         seen: dict[str, int] = {key: 1}
 
-        result = ToolLoopGuard(ctx).check_all(seen, [], set(), msg)
+        result = ToolLoopGuard(ctx).check_all(seen, [], [], set(), msg)
         assert result is not None
         assert "repeated" in result.lower() or "duplicate" in result.lower()
 
