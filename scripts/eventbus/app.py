@@ -16,6 +16,9 @@ from fastapi.responses import JSONResponse
 
 from eventbus.ack_route import ack_event as ack_event_route
 from eventbus.ack_route import nack as nack_route
+from eventbus.admin_route import (
+    update_topics_authorization as update_topics_authorization_route,
+)
 from eventbus.auth import (
     Principal,
     Role,
@@ -268,6 +271,16 @@ async def nack(
     result: dict[str, Any] = await nack_route(
         request, event_id=event_id, consumer_id=consumer_id
     )
+    return result
+
+
+@app.post("/admin/topics/authorization")
+async def admin_topics_authorization(
+    request: Request,
+    _principal: Principal = Depends(require_role(Role.ADMIN)),
+) -> dict[str, Any]:
+    """Update consumer_authorization/topic_authorization at runtime."""
+    result: dict[str, Any] = await update_topics_authorization_route(request)
     return result
 
 

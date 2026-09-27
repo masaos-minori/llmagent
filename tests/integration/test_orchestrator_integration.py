@@ -848,6 +848,7 @@ class TestApprovalWorkflowWithRealDB:
     async def test_handle_turn_invokes_workflow_engine_run(self) -> None:
         """handle_turn always drives execution through WorkflowEngine.run()."""
         ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
 
         captured_calls: list[int] = []
 

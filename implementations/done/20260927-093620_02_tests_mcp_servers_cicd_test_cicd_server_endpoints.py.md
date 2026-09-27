@@ -71,9 +71,9 @@ N/A: test-reliability fix, no security-relevant behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Check for a shared cause with the sibling shell-server test | Pending | — | — | |
-| 2 | Bisect to find the minimal reproducing test combination | Pending | — | — | |
-| 3 | Fix the identified shared-state issue and verify consistent passing | Pending | — | — | |
+| 1 | Check for a shared cause with the sibling shell-server test | Completed | 20260927-151219 | 20260927-152000 | Root cause: `_duplicate_cache` in `dispatch.py` shared between MCP servers; both tests use empty `idempotency_key=""` causing cross-test cache collision |
+| 2 | Bisect to find the minimal reproducing test combination | Completed | 20260927-151500 | 20260927-151800 | Confirmed alternating failure pattern: cicd→shell or shell→cicd depending on execution order |
+| 3 | Fix the identified shared-state issue and verify consistent passing | Completed | 20260927-152000 | 20260927-152500 | Added unique `x-idempotency-key` headers to both tests; verified 50 consecutive runs pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

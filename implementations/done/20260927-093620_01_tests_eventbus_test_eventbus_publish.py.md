@@ -72,9 +72,9 @@ N/A: test-reliability fix, no security-relevant behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Bisect to find the minimal reproducing test combination | Pending | — | — | |
-| 2 | Fix the identified shared-state issue | Pending | — | — | |
-| 3 | Verify consistent passing across 5 reruns | Pending | — | — | |
+| 1 | Bisect to find the minimal reproducing test combination | Completed | 20260927-151219 | 20260927-151219 | Confirmed: `test_eventbus_route_helpers_metrics.py`'s client fixture unregisters ALL Prometheus collectors after each test, causing cross-test metric pollution |
+| 2 | Fix the identified shared-state issue | Completed | 20260927-151219 | 20260927-151219 | Added `_ensure_prometheus_counters_registered()` helper in `test_eventbus_publish.py` and `_ensure_route_helpers_metrics_registered()` helper in `conftest.py`; both publish tests and all three route_helpers metrics tests call the appropriate helper before checking metrics |
+| 3 | Verify consistent passing across 5 reruns | Completed | 20260927-151219 | 20260927-151219 | Verified 100 consecutive runs, all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

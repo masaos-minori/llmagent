@@ -116,24 +116,63 @@ def _populate_token_maps(config: Any) -> None:
             token_fingerprint=_fingerprint(config.auth_token),
         )
 
+    # consumer_authorization/topic_authorization apply as a blanket restriction
+    # on the CONSUMER-role token only: the config schema has no per-token
+    # consumer_id mapping, so every configured entry's union is granted to
+    # whichever single token holds the CONSUMER role (per owner decision:
+    # union-apply, not per-caller-distinct).
+    consumer_allowed_ids: frozenset[str] | None = None
+    consumer_allowed_topics: frozenset[str] | None = None
+    consumer_authorization = getattr(config, "consumer_authorization", None)
+    topic_authorization = getattr(config, "topic_authorization", None)
+    if consumer_authorization or topic_authorization:
+        ids: set[str] = set(consumer_authorization or {})
+        topics: set[str] = set()
+        for consumer_topics in (consumer_authorization or {}).values():
+            topics.update(consumer_topics)
+        for topic, consumer_ids in (topic_authorization or {}).items():
+            topics.add(topic)
+            ids.update(consumer_ids)
+        consumer_allowed_ids = frozenset(ids)
+        consumer_allowed_topics = frozenset(topics)
+
     # Each per-role token grants only its own role.
     for field, role in _PER_ROLE_TOKEN_FIELDS:
         token = getattr(config, field, None)
         if token:
+            role_allowed_ids = consumer_allowed_ids if role == Role.CONSUMER else None
+            role_allowed_topics = (
+                consumer_allowed_topics if role == Role.CONSUMER else None
+            )
             principal = _TOKEN_PRINCIPAL_MAP.get(token)
             if principal is None:
                 _TOKEN_PRINCIPAL_MAP[token] = Principal(
                     roles=frozenset({role}),
-                    allowed_consumer_ids=None,  # No consumer restriction
-                    allowed_topics=None,  # No topic restriction
+                    allowed_consumer_ids=role_allowed_ids,
+                    allowed_topics=role_allowed_topics,
                     token_fingerprint=_fingerprint(token),
                 )
             else:
-                # Merge: add role to existing principal
+                # Merge: add role to existing principal. allowed_ids/topics
+                # combine permissively across roles sharing one token — None
+                # (unrestricted) on either side wins, otherwise the union of
+                # both restrictions applies, matching the `roles` OR-merge
+                # immediately above.
+                merged_ids = (
+                    None
+                    if principal.allowed_consumer_ids is None
+                    or role_allowed_ids is None
+                    else principal.allowed_consumer_ids | role_allowed_ids
+                )
+                merged_topics = (
+                    None
+                    if principal.allowed_topics is None or role_allowed_topics is None
+                    else principal.allowed_topics | role_allowed_topics
+                )
                 _TOKEN_PRINCIPAL_MAP[token] = Principal(
                     roles=frozenset(principal.roles | {role}),
-                    allowed_consumer_ids=principal.allowed_consumer_ids,
-                    allowed_topics=principal.allowed_topics,
+                    allowed_consumer_ids=merged_ids,
+                    allowed_topics=merged_topics,
                     token_fingerprint=principal.token_fingerprint,
                 )
 

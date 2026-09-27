@@ -160,7 +160,7 @@ class TestCallToolEndpoint:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "shell_run", "args": {"command": "echo hi"}},
-            headers={"x-session-id": "sess-1", "x-request-id": "req-1"},
+            headers={"x-session-id": "sess-1", "x-request-id": "req-1", "x-idempotency-key": "shell-test-1"},
         )
         assert resp.status_code == 200
         body = resp.json()

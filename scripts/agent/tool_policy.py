@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 _EXEC_TOOLS: frozenset[str] = frozenset({"shell_run"})
 
 # Shell metacharacters/control operators — fail closed on any detection
-_METACHAR_RE = re.compile(r"[;|&]|&&|\|\||`|\$\(|<\(|>\(|>>|<<|[<>]|\n")
+_METACHAR_RE = re.compile(r"[;|&]|&&|\|\||`|\$\(|<\(|>\(|>>|<<|[<>]|[\r\n]")
 
 _UNSAFE_FLAGS: dict[str, set[str]] = {
     "find": {"-exec", "-delete", "-ok"},

@@ -76,9 +76,9 @@ N/A: none of these 3 fixes touch security-relevant behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-164316 | 20260927-164316 |  |
 | 2 | Add or update tests per Validation plan | Pending | — | — | N/A: fixing/investigating the existing 3 tests is itself the work |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A unless REQ-003 resolves to a documented contract change |
 
 ### Blocker Log

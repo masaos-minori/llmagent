@@ -788,23 +788,6 @@ class TestRunApprovalChecks:
             with pytest.raises(RuntimeError, match="no tools"):
                 await ctx.services_required.tools.execute("write_tool", {})
 
-    def test_regression_existing_agent_tests_pass(self) -> None:
-        """Regression test: existing Agent tests still pass after adding new coverage."""
-        result = subprocess.run(
-            [
-                "uv",
-                "run",
-                "pytest",
-                "tests/agent/test_tool_approval_preflight.py",
-                "-v",
-            ],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0, (
-            f"Regression failed:\n{result.stdout}\n{result.stderr}"
-        )
-
     @pytest.mark.asyncio
     async def test_approval_flow_preflight_gate_fires(self) -> None:
         """Preflight gate should fire during approval flow."""

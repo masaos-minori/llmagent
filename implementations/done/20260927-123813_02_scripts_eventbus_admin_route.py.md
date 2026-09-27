@@ -76,7 +76,7 @@ New, uncalled-until-wired file — revert via `git revert` or deletion; row 1's 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement request parsing and validation (Procedure steps 1-3) | Completed | 20260927-144037 | 20260927-144037 | Not blocked — can proceed independently of row 3 |
+| 1 | Implement request parsing and validation (Procedure steps 1-3) | Completed | 20260927-144037 | 20260927-144037 | Not blocked — can proceed independently of row 3 CORRECTION (found during row 5's integration testing): EventBusConfig is a frozen dataclass — the original implementation's direct attribute mutation (config.consumer_authorization = ...) raised FrozenInstanceError. Fixed to use dataclasses.replace() to build a new config instance and swap it into request.app.state.config, then call _populate_token_maps() on the new instance. Re-validated: ruff/pyright/lint-imports/bandit clean, 5/5 integration tests pass (row 5). |
 | 2 | Implement the authorization-update call (Procedure step 4) | Completed | 20260927-144037 | 20260927-144037 | Depends on row 3's Blocker Log resolution |
 | 3 | Add or update tests per Validation plan | Completed | 20260927-144037 | 20260927-144037 | Depends on step 2 Covered by tests/eventbus/test_admin_topics_authorization.py (row 5) |
 | 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-144037 | 20260927-144037 | Depends on step 2 ruff/pyright/bandit clean. Row 3 unblocked (union-apply, per-token model confirmed) — implemented update_topics_authorization() calling _populate_token_maps() after mutating app.state.config |

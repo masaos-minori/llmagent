@@ -106,6 +106,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx = MagicMock()
     ctx.cfg = cfg or _cfg()
     ctx.turn.current_turn_id = "test-turn-id"
+    ctx.turn.pending_approval_id = None
     ctx.services_required.audit_logger = None
     ctx.services_required.gateway = None
     ctx.services_required.runtime_tools = _default_runtime_tools()
@@ -348,7 +349,7 @@ class TestExecuteWithDag:
         )
         github_pc = _pc(
             "github_push_files",
-            {},
+            {"owner": "org", "repo": "repo"},
             spec=ToolSpec(
                 call_id="call_github_push_files",
                 name="github_push_files",

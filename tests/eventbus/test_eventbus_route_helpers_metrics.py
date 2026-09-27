@@ -105,6 +105,12 @@ class TestRunWithDbLockMetrics:
     def test_query_duration_metric_observed(self, client: Any, tmp_path: Path) -> None:
         """run_with_db_lock observes _db_query_duration histogram."""
 
+        # Ensure route_helpers metrics are registered (may have been
+        # unregistered by a prior test's cleanup).
+        from tests.eventbus.conftest import _ensure_route_helpers_metrics_registered
+
+        _ensure_route_helpers_metrics_registered()
+
         # Collect current metrics before calling
         before_text = generate_latest().decode()
         before_count = sum(
@@ -143,6 +149,12 @@ class TestRunWithDbLockMetrics:
 
     def test_lock_wait_time_metric_observed(self, client: Any, tmp_path: Path) -> None:
         """run_with_db_lock observes _db_lock_wait_time histogram."""
+
+        # Ensure route_helpers metrics are registered (may have been
+        # unregistered by a prior test's cleanup).
+        from tests.eventbus.conftest import _ensure_route_helpers_metrics_registered
+
+        _ensure_route_helpers_metrics_registered()
 
         # Capture before/after delta to avoid order-dependent failures
         before_text = generate_latest().decode()
@@ -185,6 +197,12 @@ class TestRunWithDbLockMetrics:
         self, client: Any, tmp_path: Path
     ) -> None:
         """_db_lock_contention increments when lock wait exceeds threshold."""
+
+        # Ensure route_helpers metrics are registered (may have been
+        # unregistered by a prior test's cleanup).
+        from tests.eventbus.conftest import _ensure_route_helpers_metrics_registered
+
+        _ensure_route_helpers_metrics_registered()
 
         # Capture before/after delta to avoid order-dependent failures
         before_text = generate_latest().decode()

@@ -131,6 +131,34 @@ def test_conflicting_content_retry_returns_409(client: TestClient) -> None:
     assert resp2.json()["detail"] == ERR_EVENT_CONFLICT
 
 
+def _ensure_prometheus_counters_registered() -> None:
+    """Ensure Prometheus counters used by these tests are registered.
+
+    Prevents cross-test metric pollution: if a prior test's cleanup
+    unregistered collectors (e.g. test_eventbus_route_helpers_metrics.py's
+    client fixture), this ensures they're present before checking metrics.
+    """
+    from prometheus_client import REGISTRY
+
+    import eventbus.publish_route
+
+    for counter in (
+        eventbus.publish_route._jsonl_append_failure_counter,
+        eventbus.publish_route._broker_notify_failure_counter,
+    ):
+        if counter not in REGISTRY._collector_to_names:
+            try:
+                REGISTRY.register(counter)
+            except ValueError:
+                pass
+
+    # Also ensure route_helpers metrics are registered (may have been
+    # unregistered by a prior test's cleanup).
+    from tests.eventbus.conftest import _ensure_route_helpers_metrics_registered
+
+    _ensure_route_helpers_metrics_registered()
+
+
 def test_jsonl_append_failure_increments_metric(
     client: TestClient, tmp_path: Path
 ) -> None:
@@ -149,6 +177,8 @@ def test_jsonl_append_failure_increments_metric(
 
     assert resp.status_code == 200
     assert resp.json()["event_id"] == ev["event_id"]
+
+    _ensure_prometheus_counters_registered()
 
     from prometheus_client import generate_latest
 
@@ -179,6 +209,8 @@ def test_broker_notify_failure_increments_metric(
 
     assert resp.status_code == 200
     assert resp.json()["event_id"] == ev["event_id"]
+
+    _ensure_prometheus_counters_registered()
 
     from prometheus_client import generate_latest
 
