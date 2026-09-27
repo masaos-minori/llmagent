@@ -191,6 +191,11 @@ python tools/check_adr_structure.py --format json
 
 ## Manual Checks
 
+Numbering continues from `## Automated Checks` above (items 1-8); items 15-16 were
+added to that section after items 9-14 below had already been assigned, so the full
+1-16 sequence appears across both sections in creation order, not strict document
+order.
+
 ### 9. Canonical Source Verification
 
 When conflicts arise between documentation and code/config, apply the precedence hierarchy defined in `governance_01_documentation-policy.md`:
@@ -307,7 +312,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Partial | Automate glossary term classification validation (currently manual) |
 | GV-019 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Partial | Automate metadata field usage policy enforcement (currently manual) |
 | GV-020 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Implement the context-aware (retained-but-superseded) detection case; promote to default-on once the corpus is compliant |
-| GV-021 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py` | PR | Warning | Existing | Promoted to default-on after corpus compliance |
+| GV-021 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py` | PR | Warning | Partial | Not yet wired into CI (`.github/workflows/`); promote to default-on (PR-gated) once wired |
 | GV-022 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-023 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
 | GV-024 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
@@ -357,6 +362,11 @@ Note: Items 1-3 were previously listed for GV-001, GV-002, and GV-003. These ite
      scope (`docs/governance_03`, `00_security_02`, `06_eventbus_01`, ADR-006,
      ADR-008, and others still describing `allow_public_bind` as current) — these are
      tracked as a follow-up documentation-drift cleanup, not fixed by this Plan.
+9. **GV-021**: `check_docs_content_policy.py` is not wired into any CI workflow
+     (`.github/workflows/` has no reference to it as of 2026-09-27) — its Warning
+     findings are report-only, produced by a local/manual run rather than enforced on
+     every PR. Promote it to default-on (PR-gated) once wired into CI; until then, the
+     Matrix Status is `Partial`, not `Existing`.
 
 ## Change Impact Assessment
 
