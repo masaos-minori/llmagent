@@ -144,6 +144,14 @@ class TestRunWithDbLockMetrics:
     def test_lock_wait_time_metric_observed(self, client: Any, tmp_path: Path) -> None:
         """run_with_db_lock observes _db_lock_wait_time histogram."""
 
+        # Capture before/after delta to avoid order-dependent failures
+        before_text = generate_latest().decode()
+        before_count_samples = [
+            line for line in before_text.splitlines()
+            if "eventbus_db_lock_wait_time_seconds_count" in line
+        ]
+        before_value = float(before_count_samples[-1].split(" ")[-1]) if before_count_samples else 0.0
+
         # Call run_with_db_lock
         async def _call():
             from eventbus.route_helpers import run_with_db_lock
@@ -163,17 +171,29 @@ class TestRunWithDbLockMetrics:
         assert result is True
 
         # Collect metrics after calling
-        text = generate_latest().decode()
-        lines = [
-            line for line in text.splitlines() if "eventbus_db_lock_wait_time" in line
+        after_text = generate_latest().decode()
+        after_count_samples = [
+            line for line in after_text.splitlines()
+            if "eventbus_db_lock_wait_time_seconds_count" in line
         ]
-        # Metric samples should exist
-        assert len(lines) > 0
+        after_value = float(after_count_samples[-1].split(" ")[-1]) if after_count_samples else 0.0
+        delta = after_value - before_value
+        # At least one new histogram sample should have been added
+        assert delta >= 1
 
     def test_lock_contention_counter_increments_on_slow_acquire(
         self, client: Any, tmp_path: Path
     ) -> None:
         """_db_lock_contention increments when lock wait exceeds threshold."""
+
+        # Capture before/after delta to avoid order-dependent failures
+        before_text = generate_latest().decode()
+        before_lines = [
+            line
+            for line in before_text.splitlines()
+            if "eventbus_db_lock_contention_total" in line
+        ]
+        before_value = float(before_lines[-1].split(" ")[-1]) if before_lines else 0.0
 
         # Call run_with_db_lock multiple times to potentially trigger contention
         async def _call():
@@ -199,7 +219,8 @@ class TestRunWithDbLockMetrics:
             for line in text_after.splitlines()
             if "eventbus_db_lock_contention_total" in line
         ]
-        count_after = int(lines_after[-1].split(" ")[-1]) if lines_after else 0
+        count_after = float(lines_after[-1].split(" ")[-1]) if lines_after else 0.0
+        delta = count_after - before_value
         # Counter may or may not have incremented depending on whether
         # lock wait exceeded the 1ms threshold — just verify it's a valid number
-        assert count_after >= 0
+        assert delta >= 0

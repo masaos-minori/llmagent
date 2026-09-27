@@ -343,6 +343,7 @@ class TestSetSessionId:
         cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:8000",
+            startup_mode=StartupMode.PERSISTENT,
             auth_token="test-token",
         )
         mock_http = AsyncMock(spec=httpx.AsyncClient)
@@ -368,6 +369,7 @@ class TestSetSessionId:
         cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:8000",
+            startup_mode=StartupMode.PERSISTENT,
             auth_token="test-token",
         )
         mock_http = MagicMock(spec=httpx.AsyncClient)

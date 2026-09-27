@@ -8,8 +8,6 @@ combination.
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 from agent.config_builders import build_agent_config
 
@@ -46,9 +44,8 @@ for _k in REMOVED_KEYS:
 def test_individual_removed_key_rejected(key: str, value: object) -> None:
     """Each individually-present removed key raises ValueError."""
     merged = {**_MIN_CFG_EQUIVALENT, key: value}
-    with patch("agent.config_builders.sys.exit"):
-        with pytest.raises(ValueError, match=key):
-            build_agent_config(merged)
+    with pytest.raises(ValueError, match=key):
+        build_agent_config(merged)
 
 
 def test_all_three_removed_keys_rejected() -> None:
@@ -56,6 +53,5 @@ def test_all_three_removed_keys_rejected() -> None:
     merged = {**_MIN_CFG_EQUIVALENT}
     for k in REMOVED_KEYS:
         merged[k] = True  # type: ignore[literal-required] — literal-required false positive on dynamic dict assignment in loop
-    with patch("agent.config_builders.sys.exit"):
-        with pytest.raises(ValueError):
-            build_agent_config(merged)
+    with pytest.raises(ValueError):
+        build_agent_config(merged)
