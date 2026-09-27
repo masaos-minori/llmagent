@@ -128,30 +128,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Add a lint rule or test that scans for direct `chunks_fts` references outside the FTS wrapper, or add integration tests that verify all FTS operations go through the wrapper.
 - **Resolution Target**: Next RAG architecture review
 
-
-
-#### EVENTBUS-007
-
-- **ID**: EVENTBUS-007
-- **Title**: Agent Cannot Manage Event Bus Topics
-- **Status**: deferred
-- **Severity**: Low
-- **Area**: EventBus
-- **Type**: design-gap
-- **Source**: Agent/EventBus integration layer
-- **Owner**: @eventbus-dev
-- **First Found**: 2026-09-03
-- **Target**: N/A: no current target document
-- **Related**: None
-- **Summary**: Agent integration is intentionally unimplemented; the Agent cannot manage Event Bus topics.
-- **Current Description**: Intentional deferral — Agent integration is not currently prioritized; this is not a defect.
-- **Observed Implementation**: Explicit in code — no Agent topic-management path exists in the Event Bus client.
-- **Impact**: Limits administrative workflows. Workaround: direct MCP tool calls for topic management.
-- **Recommended Action**: Implement Agent topic management when this integration is prioritized.
-- **Resolution Target**: Next EventBus architecture review
-
-
-
 **EventBus-specific verification (REQ-006)**: Verified by configuration test confirming `ConfigMissingError` is raised when a required config file is missing. The EventBus `load_config()` function (`scripts/eventbus/config.py`) validates required keys via `_REQUIRED_CONFIG_KEYS` and raises `ValueError` for missing keys — consistent with the fail-closed behavior described in CI-005.
 
 #### CI-008
