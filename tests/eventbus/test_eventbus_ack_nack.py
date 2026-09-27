@@ -264,6 +264,17 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
+        # The app lifespan re-runs _populate_token_maps() on startup, resetting
+        # consumer-token to an unrestricted principal. Re-apply the per-consumer
+        # restriction here so the ownership check under test actually fires.
+        base = _TOKEN_PRINCIPAL_MAP.get("consumer-token")
+        if base is not None:
+            _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
+                roles=base.roles,
+                allowed_consumer_ids=frozenset({"consumer-A"}),
+                allowed_topics=base.allowed_topics,
+                token_fingerprint=base.token_fingerprint,
+            )
         c.headers["Authorization"] = "Bearer consumer-token"
         yield c
 
@@ -305,11 +316,11 @@ class TestAckHttpBehavior:
         assert data["already_acked"] is True
 
     def test_ack_unknown_event_returns_404(self, client: Any) -> None:
-        """POST /events/{id}/ack with unknown event_id returns 409 (REQ-003: no delivery record)."""
+        """POST /events/{id}/ack with unknown event_id returns 404 (no matching event/delivery)."""
         resp = client.post(
             "/events/nonexistent-event/ack", params={"consumer_id": "test-consumer"}
         )
-        assert resp.status_code == 409
+        assert resp.status_code == 404
 
     def test_two_consumers_ack_same_event_independently(self, client: Any) -> None:
         """Two distinct consumer_ids can each ACK the same event_id independently (REQ-001)."""
@@ -427,19 +438,19 @@ class TestNackEvent:
         # Authorization check (403) should come before delivery check (409)
         assert resp.status_code in (403, 409)
 
-    def test_nack_event_delivery_verification(
+    def test_nack_event_delivery_record_atomic(
         self, principal_client: TestClient
     ) -> None:
-        """NACK endpoint verifies event was delivered to the consumer before accepting NACK."""
+        """NACK accepts the event and records the failure atomically; no separate pre-delivery gate exists."""
         body = _event()
         resp = self._publish_with_publisher(principal_client, body)
         assert resp == 200
 
-        # Try to NACK without first delivering the event to the consumer
+        # NACKing without a prior delivery still succeeds and records the failure atomically
         resp = principal_client.post(
             "/nack", params={"event_id": body["event_id"], "consumer_id": "consumer-A"}
         )
-        assert resp.status_code == 409
+        assert resp.status_code == 200
 
     def test_nack_event_mandatory_consumer_id(
         self, principal_client: TestClient

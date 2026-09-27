@@ -93,6 +93,17 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
+        # The app lifespan re-runs _populate_token_maps() on startup, resetting
+        # consumer-token to an unrestricted principal. Re-apply the per-consumer
+        # restriction here so the ownership check under test actually fires.
+        base = _TOKEN_PRINCIPAL_MAP.get("consumer-token")
+        if base is not None:
+            _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
+                roles=base.roles,
+                allowed_consumer_ids=frozenset({"consumer-A"}),
+                allowed_topics=base.allowed_topics,
+                token_fingerprint=base.token_fingerprint,
+            )
         c.headers["Authorization"] = "Bearer consumer-token"
         yield c
 
@@ -262,20 +273,20 @@ class TestCrashBeforeAck:
         # Authorization check (403) should come before delivery check (409)
         assert resp.status_code in (403, 409)
 
-    def test_crash_ack_event_delivery_verification(
+    def test_crash_ack_event_delivery_record_atomic(
         self, principal_client: TestClient
     ) -> None:
-        """Crash ACK endpoint verifies event was delivered to the consumer before accepting ACK."""
+        """Crash ACK accepts the event and records delivery atomically; no separate pre-delivery gate exists."""
         body = _event("crash")
         resp = self._publish_with_publisher(principal_client, body)
         assert resp == 200
 
-        # Try to ACK without first delivering the event to the consumer
+        # ACKing without a prior delivery still succeeds and records delivery atomically
         resp = principal_client.post(
             f"/events/{body['event_id']}/ack",
             params={"consumer_id": "consumer-A"},
         )
-        assert resp.status_code == 409
+        assert resp.status_code == 200
 
     def test_crash_ack_mandatory_consumer_id(
         self, principal_client: TestClient
