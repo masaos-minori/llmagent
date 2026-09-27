@@ -70,10 +70,10 @@ New, uncalled file — revert via `git revert` or deletion.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Client shape can be drafted now; final request/response confirmation depends on row 2 unblocking |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by `tests/agent/test_eventbus_topic_admin_client.py` (row 6) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no `docs/00_index.md` task-scope row maps this new file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-144037 | 20260927-144037 | Client shape can be drafted now; final request/response confirmation depends on row 2 unblocking |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-144037 | 20260927-144037 | Covered by `tests/agent/test_eventbus_topic_admin_client.py` (row 6) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-144037 | 20260927-144037 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-144037 | 20260927-144037 | N/A: no `docs/00_index.md` task-scope row maps this new file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
