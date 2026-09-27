@@ -42,8 +42,19 @@ Usage:
     python tools/generate_workitem.py --kind implementation-procedure \\
         --source-plan plans/20260901-105731_plan.md \\
         --target-file-path tools/manage_workitem_stage.py --seq 02
+    python tools/generate_workitem.py --kind implementation-procedure \\
+        --source-plan plans/20260901-105731_plan.md --all-rows
     python tools/generate_workitem.py --kind unknowns
     python tools/generate_workitem.py --kind risks --seq 01
+
+Batch mode (`--all-rows`, implementation-procedure only): generates one
+placeholder skeleton per row of the source Plan's own `## Implementation
+Target Files` table (per `templates/plan.md`), in row order, with `--seq`
+assigned from each row's 1-indexed position — replacing one call per row
+with a single invocation. Unlike single-file mode's reject-only collision
+handling, a row whose output path already exists is skipped (reported, not
+an error) so a batch can be safely re-run after a partial prior pass;
+processing continues with the remaining rows.
 """
 
 from __future__ import annotations
@@ -80,6 +91,9 @@ _PASS_TIMESTAMP_MARKER_TEMPLATE = (  # nosec B105 -- HTML comment marker text, n
     "<!-- tools/generate_workitem.py implementation-procedure-pass "
     "timestamp: {timestamp} -->\n"
 )
+_TARGET_FILES_HEADING = "## Implementation Target Files"
+_TABLE_ROW_RE = re.compile(r"^\|(.+)\|$")
+_TABLE_SEPARATOR_RE = re.compile(r"^[\s|:-]+$")
 
 
 class GenerationError(Exception):
@@ -212,6 +226,91 @@ def find_or_record_pass_timestamp(plan_path: Path, generated_timestamp: str) -> 
     return generated_timestamp
 
 
+def extract_target_file_rows(plan_content: str) -> list[str]:
+    """Return the `File Path` column values from *plan_content*'s own
+    `## Implementation Target Files` table, in row order, per
+    `templates/plan.md`.
+
+    Stops at the section's closing `## ` heading (e.g. `## Reference Files`).
+    Backtick-wrapped paths (the template's own convention) are unwrapped.
+    """
+    in_section = False
+    in_table = False
+    header_seen = False
+    rows: list[str] = []
+    for line in plan_content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            if in_section:
+                break
+            in_section = stripped == _TARGET_FILES_HEADING
+            continue
+        if not in_section:
+            continue
+        match = _TABLE_ROW_RE.match(stripped)
+        if not match:
+            continue
+        if not in_table:
+            in_table = True
+            continue  # header row (File Path | ...)
+        if _TABLE_SEPARATOR_RE.match(match.group(1)):
+            continue
+        if not header_seen:
+            header_seen = True
+        cell = match.group(1).split("|", 1)[0].strip()
+        rows.append(cell.strip("`"))
+    return rows
+
+
+def generate_all_rows(args: argparse.Namespace, timestamp: str) -> int:
+    """Batch mode for `--kind implementation-procedure --all-rows`: generate
+    one skeleton per row of the source Plan's `Implementation Target Files`
+    table. Returns the process exit code.
+    """
+    source_plan_path = _resolve_repo_path(args.source_plan)
+    if not source_plan_path.exists():
+        print(
+            f"error: --source-plan path does not exist: {args.source_plan}",
+            file=sys.stderr,
+        )
+        return 1
+
+    plan_content = source_plan_path.read_text(encoding="utf-8")
+    rows = extract_target_file_rows(plan_content)
+    if not rows:
+        print(
+            f"error: no rows found in {source_plan_path.relative_to(REPO_ROOT)}'s "
+            f"{_TARGET_FILES_HEADING} table",
+            file=sys.stderr,
+        )
+        return 1
+
+    pass_timestamp = find_or_record_pass_timestamp(source_plan_path, timestamp)
+    created = 0
+    skipped = 0
+    for index, target_file_path in enumerate(rows, start=1):
+        seq = f"{index:02d}"
+        try:
+            skeleton = extract_fenced_skeleton(TEMPLATE_IMPLEMENTATION_PROCEDURE)
+        except GenerationError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        output_path = implementation_procedure_output_path(
+            pass_timestamp, seq, target_file_path
+        )
+        collision = check_collision(output_path)
+        if collision is not None:
+            print(f"SKIP (exists): {collision.relative_to(REPO_ROOT)}")
+            skipped += 1
+            continue
+        output_path.write_text(skeleton, encoding="utf-8")
+        print(f"Created {output_path.relative_to(REPO_ROOT)}")
+        created += 1
+
+    print(f"Total created: {created}, skipped (already exist): {skipped}")
+    return 0
+
+
 def render_issue(args: argparse.Namespace, timestamp: str) -> tuple[str, Path]:
     _require(bool(args.id and args.title), "--kind issue requires --id and --title")
     skeleton = extract_fenced_skeleton(TEMPLATE_ISSUE)
@@ -230,7 +329,8 @@ def render_implementation_procedure(
     _require(
         bool(args.source_plan and args.target_file_path and args.seq),
         "--kind implementation-procedure requires --source-plan, "
-        "--target-file-path, and --seq",
+        "--target-file-path, and --seq (or --all-rows in place of "
+        "--target-file-path/--seq)",
     )
     source_plan_path = _resolve_repo_path(args.source_plan)
     _require(
@@ -307,6 +407,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "Step 6 — omit for the first attempt."
         ),
     )
+    parser.add_argument(
+        "--all-rows",
+        action="store_true",
+        help=(
+            "Implementation-procedure mode: generate one skeleton per row of "
+            "--source-plan's own Implementation Target Files table instead of "
+            "a single row named by --target-file-path/--seq. See this "
+            "module's docstring, Batch mode."
+        ),
+    )
     return parser
 
 
@@ -314,6 +424,18 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    if args.kind == "implementation-procedure" and args.all_rows:
+        try:
+            _require(bool(args.source_plan), "--all-rows requires --source-plan")
+            _require(
+                not (args.target_file_path or args.seq),
+                "--all-rows is mutually exclusive with --target-file-path/--seq",
+            )
+        except GenerationError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return generate_all_rows(args, timestamp)
 
     try:
         skeleton, output_path = _RENDERERS[args.kind](args, timestamp)

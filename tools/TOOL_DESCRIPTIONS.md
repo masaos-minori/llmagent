@@ -6,7 +6,7 @@
 
 本ファイル自体の内容ドリフトは `check_tool_descriptions_sync.py` で検出できる(`tools/*.py` とここでの言及の突合)。
 
-## 一覧 (54モジュール)
+## 一覧 (39モジュール)
 
 | ファイル | カテゴリ | 主な目的 |
 |---|---|---|
@@ -34,11 +34,9 @@
 | `check_conftest_integrity.py` | テスト関連 | conftest.pyの必須autouseフィクスチャ定義確認 |
 | `generate_mcp_inventory.py` | リファレンス生成 | エージェント設定からMCPサーバー一覧をJSON/CSV出力 |
 | `generate_reference_table.py` | リファレンス生成 | RAG/MCP/デプロイメント/Agent/EventBusのリファレンス表生成(Memory型は対象文書確定待ち) |
-| `generate_workitem.py` | ワークアイテム生成 | プレースホルダー付きワークアイテムスケルトン生成 |
+| `generate_workitem.py` | ワークアイテム生成 | プレースホルダー付きワークアイテムスケルトン生成。`--kind implementation-procedure --all-rows`でPlanの`Implementation Target Files`表の全行を一括生成可能(行ごとの既存ファイルはSKIPして継続) |
 | `manage_frontmatter.py` | フロントマッター管理 | Front Matter欠落検知・重複除去・area改名 |
 | `manage_workitem_stage.py` | ワークアイテム管理 | アーカイブ移動・ステータス更新・期限切れ検出 |
-| `merge_part_files.py` | ドキュメント整形 | `-partN.md`分割ファイルの統合 |
-| `fix_part_refs.py` | ドキュメント整形 | マージ後の壊れた `-part*.md` 参照の修正 |
 | `rename_mcp_modules.py` | リネーム補助 | MCPサーバーモジュールの一括リネーム |
 | `rename_doc.py` | リネーム補助 | `docs/*.md`の`git mv`と内部リンク更新 |
 | `fix_docstring_blank_line.py` | 整形補助 | D205違反(docstring空行)の一括修正 |
@@ -48,7 +46,6 @@
 | `check_tool_descriptions_sync.py` | 整合性チェッカー | 本ファイルと実際の`tools/*.py`の突合 |
 | `check_chunks_fts_invariant.py` | 整合性チェッカー | `scripts/`配下のPythonソースから、許可パス(`rag_maintenance_service.py::rebuild_fts()`、`scripts/db/schema_sql.py`)外の `chunks_fts` に対する直接INSERT/UPDATEを検出。`scripts/mcp_servers/mdq/` と `tests/` は除外 |
 | `check_skills_references.py` | 整合性チェッカー | `AGENTS.md`/`routing.md`/`skills/DESIGN.md`/`rules/*.md`/`skills/**/*.md`/`prompts/*.md`内のバッククォート付きファイル参照(`rules/`・`skills/`・`templates/`配下、または`AGENTS.md`/`routing.md`自身)の実在確認 |
-| `generate_impl_procedures.py` | ワークアイテム生成 | ドキュメント再編のPlanを対象に実手続書(implementations/)を生成。パスのslug化を含む |
 | `stale_detector.py` | 整合性チェッカー | 実装手順書が参照する行番号・シンボル名・インポート・`# Before:`ブロックが現ソースで存在するか正規表現で検証。1つでも不一致があればstaleと判定し実行を阻止。CLIは終了コード(staleなら1)で結果を返す |
 
 ## ドメイン別ドキュメント整合性チェッカー
@@ -92,8 +89,6 @@
 | `check_docs_structure.py` | `docs/*.md` の構造規約(ファイルサイズ、H1見出し数、Front Matter、Related Documents/Keywordsセクション、内部 `.md` リンクの到達可能性)を検証する。`uv run python tools/check_docs_structure.py [glob ...]`。`--schema [PATH]`(値省略時は`schemas/doc_front_matter.json`)でスキーマ駆動のFront Matter検証(必須フィールド・`area`/`status`のenum制約)を追加実行できる(デフォルトでは無効、既存動作に影響なし)。スキーマ本体は`tools/_front_matter_schema.py`経由で読み込み、未存在時は現行の必須4フィールドにフォールバックする |
 | `check_dependency_graph_cycles.py` | `docs/00_governance_01_documentation-policy.md`の`## Software Runtime Dependency Graph`節からエッジ一覧(`- A → B`形式)をパースし、Agent/MCP/RAG/EventBus/Shared-DBの5ノード間に循環が存在すれば非ゼロで終了する。`Confirmed edges`/`Needs Confirmation`双方のエッジを循環検出対象に含める |
 | `manage_frontmatter.py` | `add-missing` サブコマンドでFront Matter欠落を検知・追加(ファイル名から`area`を確信を持って推定できない場合は`overview`等へ推測せず`[AMBIGUOUS]`として報告のみに留める)、`dedupe-lists` サブコマンドでリストフィールドの重複エントリを除去、`rename-category-to-area` サブコマンド(新規)で`---`フェンス済みの有効なFront Matter内の`category:`キーを値そのままに`area:`へ改名(両キー併存時は改名せず報告のみ)。`AREA_PREFIX_MAP`の`06_eventbus`プレフィックス欠落バグ(実在しない`06_config`/`91_eventbus`が誤って登録され、実在する`06_eventbus_*.md`が`area: overview`に誤推定されていた)を2026-09-03に修正 |
-| `merge_part_files.py` | `docs/` 内の `-partN.md` 形式分割ファイルを統合する。`find_groups()` で単純ペア(2ファイル)と多パートシリーズ(3ファイル以上)の両方を検出し、それぞれ適切なマージ戦略を適用。`update_internal_refs_for_multi()` でマージ後の内部リンクを更新。 |
-| `fix_part_refs.py` | マージ後のドキュメント間で壊れた `-part*.md` 参照を修正する。8つの正規表現パターンでmarkdownリンクURL/テキスト、バッククォート、プレーンテキスト、アンカー、セクション名の各形式に対応。 |
 | `rename_mcp_modules.py` | `mcp_servers/<server>/` 配下のモジュール名を一括リネームするためのスクリプト。絶対インポート・相対インポート・patchターゲット・ドキュメント文字列の更新を自動処理。 |
 | `rename_doc.py` | `docs/*.md`(`docs/adr/*.md`含む)を`<old-path> <new-path>`引数で`git mv`し、`docs/`配下の全Markdownファイルを走査して該当ファイルへのMarkdownリンクパスを書き換える。オプションの`--old-title`/`--new-title`を両方指定した場合はリンクテキストも置換(非リンクのプレーンテキスト言及は書き換えず報告のみ)。書き込みは`docs/`配下に限定。`--apply`を付けない限り`--dry-run`相当(デフォルト)で変更内容の表示のみ。 |
 | `fix_docstring_blank_line.py` | D205(docstringサマリー行の直後に空行がない)を検出し、空行を挿入する一括修正スクリプト。三重引用符文字列の判定を堅牢にし、SQL文字列リテラルの誤検出を回避する。`--dir` でスキャン対象ディレクトリを指定可能。 |
@@ -141,29 +136,3 @@ docstringの追加・修正スクリプトは、正規表現によるソース�
 - **二重引用符の混在**: `"""` と `""""""` が混在する状態になる
 
 安全にdocstringを操作するには、`ast` モジュールを使った構文木ベースのアプローチが必要。現在の実装ではdocstringの**追加**は行わず、**既存docstringのフォーマット検証**のみを推奨。
-
-## 反復開発用一時スクリプト
-
-以下は同一テストファイルに対する反復開発中の一時スクリプトで、本来アーカイブまたは削除されるべきものだが、pre-commit フックの突合チェックに引っかかるため記載を残す。
-
-| ファイル | カテゴリ | 主な目的 |
-|---|---|---|
-| `apply_all_fixes.py` | 反復 v1 | テストフィクスチャに属性ヘルパーを追加 |
-| `apply_all_fixes_v2.py` | 反復 v2 | deepcopy ベースの単一化 + フィクスチャ更新 |
-| `apply_all_fixes_v3.py` | 反復 v3 | 行番号ベースの精密編集 |
-| `apply_all_fixes_v4.py` | 反復 v4 | 文字列ベースの精密編集 |
-| `apply_all_fixes_v5.py` | 反復 v5 | autouse フィクスチャ + モジュールレベルシングルトン置換 |
-| `apply_all_fixes_v6.py` | 反復 v6 | attrs のインプレイス変更 + セットアップ後のスナップショット |
-| `fix_test_file.py` | 反復 v7 | 不要なフィクスチャの削除と直接設定へ移行 |
-| `replace_class.py` | 反復 v8 | テストクラスのクリーン版への置換 |
-
-## 一時的な一発スクリプト
-
-以下は特定のリネーム・修正作業の一発スクリプトで、本来アーカイブまたは削除されるべきものだが、pre-commit フックの突合チェックにかかるため記載を残す。絶対パス(`/home/sugimoto/llmagent/`)のハードコードなど、汎用性を欠く実装。
-
-| ファイル | カテゴリ | 主な目的 |
-|---|---|---|
-| `rename_docs_prefix.py` | 一発リネーム | `docs/23_agent/` の `NN_agent_` プレフィックスを `agent_` へ一括リネームし、内部リンクを更新（Step1〜2構成） |
-| `rename_docs_prefix2.py`、`rename_docs_prefix3.py`、`rename_docs_prefix4.py`、`rename_docs_prefix5.py`、`rename_docs_prefix6.py`、`rename_docs_prefix7.py`、`rename_docs_prefix8.py` | 一発リネーム（反復） | 上記リネームを発現況別に複製した2〜8のスクリプト |
-| `fix_docs_links.py` | 一発修正 | `docs/` 内の壊れたバッククォート参照にサブディレクトリ接頭辞を追加 |
-| `fix_docs_links2.py` | 一発修正（反復） | 上記fix_docs_linksの一発修正版2 |
