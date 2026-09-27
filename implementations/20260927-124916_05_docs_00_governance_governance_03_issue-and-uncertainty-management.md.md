@@ -38,6 +38,7 @@ Single-entry removal plus a one-item edit to the closing enumeration.
 
 - Confirmed current NC-039 entry (re-verified this cycle, lines 662-676).
 - Confirmed current closing sentence (re-verified this cycle): "No other active items exist outside the set listed here: NC-021, NC-023, NC-024, NC-025, NC-027, NC-028, NC-029, NC-031, NC-033, NC-034, NC-035, NC-036, NC-037, and NC-039." — this is NC-039's own procedure and may run before or after sibling removals from this same issue-conversion batch; only remove `NC-039` from whatever the list's actual current content is at execution time, not from this snapshot.
+- CORRECTION (Step 4a re-verification, this cycle): `stale_detector.py` reported `line_out_of_bounds` (cited lines 662-676 > current file length 637) — cumulative drift from other, already-completed batches' NC removals in this same file (NC-023/024/025/031/037 all removed above this entry by now), not a change to NC-039 itself. Re-confirmed via Read: NC-039's entry, content unchanged, now sits at lines 483-498; the closing sentence's actual current content at execution time was `NC-021, NC-027, NC-028, NC-029, NC-033, NC-034, NC-035, NC-036, and NC-039` (NC-023/024/025/031/037 already removed by sibling cycles) — removed `NC-039` from that actual list, not from the stale snapshot above.
 
 ## Compatibility considerations
 
@@ -70,10 +71,10 @@ N/A: documentation-only change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after rows 1-4 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, manual + automated per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: documentation-only; `check_needs_confirmation_inventory.py` run instead |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-164500 | 20260927-164500 | Executed after rows 1-4. stale_detector line_out_of_bounds correction recorded above (Step 4b) — proceeded on the same basis approved earlier in this session for the identical drift pattern (independent Read re-verification). Removed entry block and updated the closing NC-id enumeration |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-164500 | 20260927-164500 | N/A: documentation-only, manual + automated per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-164500 | 20260927-164500 | N/A: documentation-only; `check_needs_confirmation_inventory.py` run instead — exit 0, no NC-039 finding |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-164500 | 20260927-164500 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
