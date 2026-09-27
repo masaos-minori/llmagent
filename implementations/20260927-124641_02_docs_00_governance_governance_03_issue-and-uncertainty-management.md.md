@@ -69,10 +69,10 @@ N/A: documentation-only change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after row 1 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, manual + automated per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: documentation-only; `check_needs_confirmation_inventory.py` run instead |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-161017 | 20260927-161017 | Row 1 applied first (owner ruling: drift, front-matter authoritative). Re-confirmed at Step 4a: entry unchanged at lines 415-438 (drift from cited 552-574 due to unrelated concurrent NC removals earlier in the same doc). Removed entry block and updated the closing NC-id enumeration |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-161017 | 20260927-161017 | N/A: documentation-only, manual + automated per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-161017 | 20260927-161017 | N/A: documentation-only; `check_needs_confirmation_inventory.py` run instead — exit 0, no NC-031 finding |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-161017 | 20260927-161017 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
