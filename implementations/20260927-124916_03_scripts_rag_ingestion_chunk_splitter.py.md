@@ -1,0 +1,101 @@
+## Goal
+
+Add `structured_log=True` to `scripts/rag/ingestion/chunk_splitter.py`'s `Logger` construction, if the owner rules JSON-lines output was intended (REQ-002, conditional).
+
+## Scope
+
+In scope: this one-line conditional change. Out of scope: `shared/logger.py` itself; the other two scripts (rows 2, 4).
+
+## Assumptions
+
+- The owner has ruled "enable" (row 1's decision) before this row executes.
+- No existing consumer of this script's current text-format log output would break from the format change (REQ-003).
+
+## Design decisions
+
+Add the flag at the existing `Logger()` construction call site — no other structural change.
+
+## Alternatives considered
+
+N/A: a single config-flag addition has no meaningful alternative.
+
+## Implementation
+
+### Target file
+
+`scripts/rag/ingestion/chunk_splitter.py`
+
+### Procedure
+
+1. Confirm the owner's ruling from row 1 is "enable" before proceeding.
+2. Check for any existing consumer of `chunk.log`'s current text-format output (REQ-003) before proceeding.
+3. Re-confirm the current `Logger` construction line (confirmed at line 40 as of this cycle) immediately before editing.
+4. Add `structured_log=True` as a keyword argument to the `Logger(...)` call.
+
+### Method
+
+Single keyword-argument addition to an existing constructor call.
+
+### Details
+
+- Confirmed current line (re-verified this cycle, line 40): `logger = Logger(__name__, "/opt/llm/logs/chunk.log")`.
+- After: `logger = Logger(__name__, "/opt/llm/logs/chunk.log", structured_log=True)`.
+
+## Compatibility considerations
+
+Changes this script's log output format from text to JSON-lines — REQ-003's consumer check is the safeguard.
+
+## Security considerations
+
+N/A: logging-format change only, same fields either way.
+
+## Rollback considerations
+
+`git revert` the commit, or remove the added keyword argument.
+
+## Validation plan
+
+| Target | Strategy | Command | Expected |
+|---|---|---|---|
+| `scripts/rag/ingestion/chunk_splitter.py` | Manual | Run the script and inspect `/opt/llm/logs/chunk.log` | Output parses as valid JSON-lines, including the expected context fields when present |
+| `scripts/rag/ingestion/chunk_splitter.py` | Static | `uv run ruff check scripts/rag/ingestion/chunk_splitter.py && uv run mypy scripts/rag/ingestion/chunk_splitter.py` | Pass |
+| Full suite | Regression | `uv run pytest -q` | No new failures |
+
+## Completion criteria
+
+- `chunk.log`'s output is valid JSON-lines including the previously-dropped context fields (AC-2).
+
+## Out of scope
+
+- `shared/logger.py` itself.
+- `crawler.py`/`ingester.py` (rows 2, 4).
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Conditional on the owner's row-1 ruling being "enable" |
+| 2 | Add or update tests per Validation plan | Pending | — | — | Manual JSON-lines output check per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Covered by row 1's `docs/21_rag/rag_05_3-logging.md` update |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: REQ-002, REQ-003
+- **Source issue**: issues/done/20260927-120057_nc039_decide-whether-rag-ingestion-scripts-should-adopt-structured-logging.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20260927-121739_plan.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20260927-124916
+- **Related target files**: scripts/rag/ingestion/chunk_splitter.py
