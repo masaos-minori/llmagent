@@ -70,10 +70,10 @@ N/A: test-only fix, no security-relevant behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: removing the stale assertion is itself the fix |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs/00_index.md task-scope mapping for this test file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-195500 | 20260927-195800 | Removed the stale dlq_imminent assertion and its comment; the existing 'assert resp.status_code == 200' remained as a meaningful post-removal assertion, so no new_event_id/new_seq assertion was added (not needed per the procedure's own conditional). Updated the docstring/comment to describe confirmed current behavior. Pre-execution stale_detector.py flagged 4 symbol_missing findings (new_event_id, new_seq x2) — confirmed via rg these do not appear in this test file; these are the procedure's own OPTIONAL fallback suggestion ('add if the test would otherwise have no meaningful assertion'), not a claim about current source, and that fallback was confirmed unneeded here — false positive, not a genuine staleness signal. |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-195800 | 20260927-195900 | N/A: removing the stale assertion is itself the fix N/A: removing the stale assertion is itself the fix |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-195900 | 20260927-200200 | ruff/mypy clean; bandit: 1 pre-existing Medium B608 in unrelated _get_field-style helper, unchanged by this cycle. Targeted file: 5/5 pass. Full repo suite run once: 5 failed/7999 passed/24 skipped — down from the pre-cycle 6 (this file's failure now fixed); remaining 5 are pre-existing/unrelated (test_orchestrator.py x3 concurrent WIP by another process, test_eventbus_ack_endpoint.py unrelated, test_check_docs_quality.py regression from the earlier, separate governance_03 commit ae00c05e). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-200200 | 20260927-200251 | N/A: no docs/00_index.md task-scope mapping for this test file N/A: no docs/00_index.md task-scope mapping for this test file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
