@@ -1,10 +1,10 @@
 ## Goal
 
-Fix `tests/eventbus/test_eventbus_auth.py`'s 5 failures across two independent clusters: (a) remove the unsupported `_principal` keyword argument from `_make_test_app`'s local `dlq_list`/`replay` route wrappers (REQ-001); (b) give the 3 `require_consumer_identity`-unit-testing tests a `request` stand-in with real string `.state.request_id`/`.url.path` values instead of a bare `MagicMock()` (REQ-002).
+Fix `tests/eventbus/test_eventbus_auth.py`'s 5 failures across three independent clusters: (a) remove the unsupported `_principal` keyword argument from `_make_test_app`'s local `dlq_list`/`replay` route wrappers (REQ-001); (b) give the `test_non_empty_topic_restriction_is_enforced_and_returned` unit test a `request` stand-in with real string `.state.request_id`/`.url.path` values instead of a bare `MagicMock()` (REQ-002); (c) wire `/subscribe`'s `require_consumer_identity` dependency to receive the real `consumer_id`/`topic` query args so the caller's identity/topic allowlists are actually enforced (REQ-003), and configure the consumer-token allowlist in `_make_test_app` so the two rejection tests exercise a non-empty allowlist.
 
 ## Scope
 
-In scope: `_make_test_app`'s `dlq_list`/`replay` wrappers and the 3 named tests' `request` stand-in, all in this file. Out of scope: `scripts/eventbus/dlq_route.py`'s `dlq_list()`, `scripts/eventbus/replay_route.py`'s `replay()`, `scripts/eventbus/auth.py`'s `require_consumer_identity`/`log_auth_failure`, and `scripts/eventbus/audit.py`'s `orjson.dumps` call — all confirmed already correct for real production call patterns.
+In scope: `_make_test_app`'s `dlq_list`/`replay` wrappers and the `test_non_empty_topic_restriction_is_enforced_and_returned` `request` stand-in (this file); the `/subscribe` route wrapper in `scripts/eventbus/app.py` so `require_consumer_identity` receives the real `consumer_id`/`topic`; and the consumer-token allowlist configured inside `_make_test_app`. Out of scope: `scripts/eventbus/dlq_route.py`'s `dlq_list()`, `scripts/eventbus/replay_route.py`'s `replay()`, `scripts/eventbus/auth.py`'s `require_consumer_identity`/`log_auth_failure` body, and `scripts/eventbus/audit.py`'s `orjson.dumps` call — all confirmed already correct; the failure was that `app.py`'s `/subscribe` dependency passed empty defaults so the (already-correct) allowlist checks never fired.
 
 ## Assumptions
 
@@ -68,15 +68,35 @@ N/A: test-only fixes, no security-relevant behavior change.
 - `scripts/eventbus/dlq_route.py`, `scripts/eventbus/replay_route.py`, `scripts/eventbus/auth.py`, `scripts/eventbus/audit.py` (all confirmed already correct).
 - Other eventbus test files tracked under separate Plans/issues.
 
+## Execution deviations
+
+The original plan scoped this as test-infrastructure only. Adversarial verification
+(Step 3) showed failures 4 and 5 (`test_consumer_identity_rejection_produces_structured_audit_record`,
+`test_topic_authorization_rejection_produces_structured_audit_record`) hang the SSE
+stream because `app.py`'s `/subscribe` declared `_identity = Depends(require_consumer_identity)`
+with no arguments, so `require_consumer_identity` received `consumer_id=""`/`topics=None`
+and never rejected. A test-only fix cannot make those two assertions pass: they assert a
+403 plus a structured audit record emitted by `require_consumer_identity`, which requires
+the real `consumer_id`/`topic`. Per the user's explicit directive ("4,5も全て通す本番修正まで行う"),
+REQ-003 added a production fix: a `resolve_subscribe_identity` dependency in both
+`scripts/eventbus/app.py` and this file's `_make_test_app` that forwards the actual
+`consumer_id`/`topic` query args (and resolves `principal` via `Depends(resolve_principal)`
+so the direct call does not raise). The consumer-token allowlist is set inside `_make_test_app`
+(`allowed_consumer_ids=frozenset({"consumer_a","consumer_b"})`, `allowed_topics=frozenset({"test"})`)
+mirroring the per-fixture overrides used by the other eventbus test modules. This expands the
+Target file / Scope to include `scripts/eventbus/app.py`. No other behavior changed; the full
+eventbus suite shows exactly these 5 fixes with zero new failures (remaining failures are
+pre-existing and unrelated).
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: fixing the existing 5 tests is itself the fix |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs/00_index.md task-scope mapping for this test file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260927-171739 | Removed _principal kwarg from dlq_list/replay wrappers (REQ-001) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260927-171739 | N/A: fixing the existing 5 tests is itself the fix Gave test_non_empty_topic_restriction_is_enforced_and_returned a shared string-valued request stand-in (REQ-002) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260927-171739 | ruff clean; pytest: 5 target failures fixed, zero new failures (other failures pre-existing). mypy has pre-existing tool_constants collision (unrelated) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260927-171739 | N/A: no docs/00_index.md task-scope mapping for this test file N/A: no docs/00_index.md task-scope mapping for this test file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
