@@ -66,6 +66,7 @@ Steps 1-2: assertion-value reconciliation following a Requirement-doc search. St
 ## Out of scope
 
 - `test_nack_event_increments_again`, `test_nack_event_increments_failure_count` (tracked under `eb002`'s own Plan/implementation procedure).
+- `test_nack_event_not_found` (`TestNackEvent`): unit test asserting `nack_event(db, "nonexistent-event") == (-1, -1)`; `nack_event` returns a `NackResult` object, not a plain tuple — assertion mismatch. Discovered during this cycle but not tracked under `eb001`/`eb002`; left unfixed. Requires a separate decision (fix the assertion to compare against `NackResult(-1, -1)`, or track as a distinct work item). Not addressed here per this document's scope.
 - `tests/eventbus/test_eventbus_ack_endpoint.py`, `tests/eventbus/test_eventbus_crash_ack.py` (each covered by its own implementation procedure document from this same Plan).
 
 ## Execution Status
@@ -73,10 +74,10 @@ Steps 1-2: assertion-value reconciliation following a Requirement-doc search. St
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: fixing/tracing the existing 3 tests is itself the work |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A unless REQ-003 resolves to a documented contract change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — |  |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: fixing/tracing the existing 3 tests is itself the work |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A unless REQ-003 resolves to a documented contract change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
