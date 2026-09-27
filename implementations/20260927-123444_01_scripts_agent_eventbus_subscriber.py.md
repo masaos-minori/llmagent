@@ -78,10 +78,10 @@ New, uncalled file — revert via `git revert` or deletion.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by the sibling procedure for `tests/agent/test_eventbus_subscriber.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no `docs/00_index.md` task-scope row maps this new file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-141518 | 20260927-141518 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-141518 | 20260927-141518 | Covered by the sibling procedure for `tests/agent/test_eventbus_subscriber.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-141518 | 20260927-141518 | ruff/pyright/lint-imports/bandit clean (mypy still blocked repo-wide by the same pre-existing tool_constants.py issue). Full suite: 38 pre-existing failures confirmed unrelated (none reference eventbus_subscriber; failure set differs from prior cycle's run, consistent with concurrent session's ongoing WIP), 7944 passed including this module's 5 new tests |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-141518 | 20260927-141518 | N/A: no `docs/00_index.md` task-scope row maps this new file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
