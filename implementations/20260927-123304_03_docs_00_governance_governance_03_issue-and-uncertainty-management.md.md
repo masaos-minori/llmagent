@@ -71,10 +71,10 @@ N/A: documentation-only change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute only after rows 1-2 are implemented and validated |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, manual + automated per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: documentation-only; `check_needs_confirmation_inventory.py` run instead |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-133459 | 20260927-133459 | Execute only after rows 1-2 are implemented and validated |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-133459 | 20260927-133459 | N/A: documentation-only, manual + automated per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-133459 | 20260927-133459 | N/A: documentation-only; `check_needs_confirmation_inventory.py` run instead check_needs_confirmation_inventory.py: N/A, tool expects stale pre-reorg filename (00_governance_03...md), same known mismatch as prior cycles this session; check_docs_quality.py/check_docs_structure.py: 3 Lifecycle-similarity warnings + 1 file-size-limit finding, both pre-existing and unrelated (confirmed identical in earlier NC-036 cycle this session). Manual grep confirms EVENTBUS-005 fully removed with zero dangling references |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-133459 | 20260927-133459 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
