@@ -505,23 +505,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG architecture review
 - **Blocking**: No
 
-#### NC-037
-
-- **Source File**: `docs/10_adr/ADR-004-environment-failure-handling-policy.md`
-- **Section**: Implementation Notes (MCP server retry policy)
-- **Line Number**: ~450 (pre-reclassification; now a cross-reference to this entry)
-- **Question**: Is the current single fixed-delay retry (`HEALTH_CHECK_RETRY_DELAY_SEC`) on MCP server unreachability an intentional simplicity choice, or is a configurable-attempt-count general Retry Policy still pending implementation?
-- **Evidence**: Neither this ADR's `## Rationale` nor its `## Known Deviations` sections state or acknowledge this design choice either way.
-- **Impact**: A future implementer might either leave the fixed retry alone (if intentional) or build unneeded complexity (if a general policy was never actually planned) without knowing which is correct.
-- **Required Action**: Owner/architect confirmation of whether a configurable Retry Policy was ever intended for MCP server health checks.
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-19
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next Agent/MCP health-check design review
-- **Blocking**: No
-
 #### NC-039
 
 - **Source File**: `docs/rag_05_3-logging.md`
@@ -539,7 +522,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG ingestion logging review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-024, NC-027, NC-028, NC-029, NC-033, NC-034, NC-035, NC-036, NC-037, and NC-039.
+No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-024, NC-027, NC-028, NC-029, NC-033, NC-034, NC-035, NC-036, and NC-039.
 
 ## Part 3: Canonical Source Conflict
 

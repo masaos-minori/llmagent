@@ -458,9 +458,11 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 起動検証結果の非永続化については`## Rationale`の「6. 起動検証結果の非永続化」を参照。
 
-MCPサーバー到達不能時の再試行方針（固定単発再試行が意図的な簡素化か、設定可能な汎用Retry Policyが
-未実装なだけかの区別）については`docs/governance_03_issue-and-uncertainty-management.md`の
-NC-037を参照。
+MCPサーバー到達不能時の再試行方針: 実際に経由する到達不能処理パス（`scripts/agent/services/mcp_health.py`、
+`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`ほか隣接ファイル）には再試行ロジックが
+存在せず、唯一の再試行実装（`scripts/agent/http_lifecycle_health_checker.py::HealthChecker.startup_poll()`）
+は呼び出し元が存在しない。オーナー確認（2026-09-27）: これらのパスにおける現状の無再試行動作は
+意図された確定方針である。
 
 この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
 
@@ -604,6 +606,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/shared/production_config_validator.py` — `ProductionConfigValidator.validate()`
 - `scripts/agent/services/mcp_tool_discovery.py` — `McpToolDiscoveryService.discover_all()`
 - `scripts/shared/mcp_health.py` — `McpServerHealthRegistry`
+- `scripts/agent/services/mcp_health.py` — `check_service_health()`
 - `config/agent.toml` — 設定ファイル
 - テスト — `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_startup.py`
 
