@@ -71,10 +71,10 @@ N/A: test-only removal, no security-relevant behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm no external dependency on the test's name (REQ-001) | Pending | — | — | |
-| 2 | Remove the test | Pending | — | — | |
-| 3 | Verify strict-timeout completion | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: internal test-suite cleanup, no documented contract changes |
+| 1 | Confirm no external dependency on the test's name (REQ-001) | Completed | 20260927-150402 | 20260927-150435 | Removed test_regression_existing_agent_tests_pass (lines 791-806); all 48 tests pass within 60s timeout |
+| 2 | Remove the test | Completed | — | 20260927-150509 | Removed test method (lines 791-806) |
+| 3 | Verify strict-timeout completion | Completed | — | 20260927-150442 | Completed within 60s timeout; no nested subprocess spawned |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260927-150450 | N/A: internal test-suite cleanup, no documented contract changes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
