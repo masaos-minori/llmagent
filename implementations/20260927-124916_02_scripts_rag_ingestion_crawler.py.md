@@ -75,10 +75,10 @@ N/A: a logging-format change, no new data exposure (the same fields are logged e
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Conditional on the owner's row-1 ruling being "enable" |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Manual JSON-lines output check per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Covered by row 1's `docs/21_rag/rag_05_3-logging.md` update |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-164500 | 20260927-164500 | Owner ruled "enable" (via AskUserQuestion), with mixed-format caveat acknowledged (crawl.log has no other writer, unaffected). REQ-003 consumer check: `rg` found no `tools/` or other reader of `crawl.log`. stale_detector `symbol_missing` findings for the 5 context-field names (Step 4a): confirmed via `rg` they are not referenced in `crawler.py` itself (they're injected globally via `shared/logger.py`'s `_ContextFilter`, set by callers elsewhere) — same scoping-limitation class as row 1's finding, not a content error |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-164500 | 20260927-164500 | Manual smoke-test of `Logger(structured_log=True)` end-to-end confirms valid JSON-lines output with all 5 context fields present; targeted suite `tests/rag/ingestion/` (165 tests) passes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-164500 | 20260927-164500 | ruff/bandit clean. mypy: 1 pre-existing unused-`type:ignore` finding at line 102, confirmed present before this edit too (git stash check) — unrelated. lint-imports: pre-existing unrelated `shared`→`agent` violation. Full suite: 14 failed (all eventbus/orchestrator/docs_quality, unrelated to this change), 7990 passed, 24 skipped |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-164500 | 20260927-164500 | Covered by row 1's `docs/21_rag/rag_05_3-logging.md` update |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
