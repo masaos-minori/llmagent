@@ -505,24 +505,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG architecture review
 - **Blocking**: No
 
-#### NC-039
-
-- **Source File**: `docs/rag_05_3-logging.md`
-- **Section**: Implementation Notes (JSON-lines structured logging)
-- **Line Number**: ~33 (pre-reclassification; now a cross-reference to this entry)
-- **Question**: Is it deliberate that `crawler.py`, `chunk_splitter.py`, and `ingester.py` never set `structured_log=True` (staying on text format), or was JSON-lines output intended for these scripts and never enabled?
-- **Evidence**: Neither this doc nor `shared/logger.py` states whether JSON-lines was intended for these 3 scripts.
-- **Impact**: Context fields (`turn_id`, `session_id`, `rag_query_id`, `workflow_id`, `task_id`) passed via `extra={...}` are silently dropped from these scripts' text-format output; if JSON logging was intended, this is a lost-observability gap, not a documented decision.
-- **Required Action**: Owner confirmation of whether these 3 ingestion scripts should adopt `structured_log=True`.
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-19
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next RAG ingestion logging review
-- **Blocking**: No
-
-No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-024, NC-027, NC-028, NC-029, NC-033, NC-034, NC-035, NC-036, and NC-039.
+No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-024, NC-027, NC-028, NC-029, NC-033, NC-034, NC-035, and NC-036.
 
 ## Part 3: Canonical Source Conflict
 

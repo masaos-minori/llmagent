@@ -28,9 +28,16 @@ availability choice, not a silent failure mode.
 
 ## Implementation Notes
 
-JSON-lines output is available (`structured_log=True`) but unused by these 3 scripts;
-whether this is a deliberate scope decision or unfinished work is tracked as
-`docs/governance_03_issue-and-uncertainty-management.md` NC-039.
+JSON-lines output (`structured_log=True`) was intended for these 3 scripts and is
+now enabled (2026-09-27) on `crawler.py`, `chunk_splitter.py`, and `ingester.py`,
+so previously-dropped context fields (`turn_id`, `session_id`, `rag_query_id`,
+`workflow_id`, `task_id`) are now included in their log output. `chunk.log` and
+`ingest.log` are also written by other, unchanged scripts in this scope
+(`chunk_japanese.py`; `chunk_grouping.py`, `document_manager.py`,
+`etag_manager.py`, `transaction_commit.py`, `embedding.py`, `file_routing.py`),
+so those two files now contain a mix of text-format and JSON-lines entries —
+an accepted, owner-confirmed consequence, not a defect. `crawl.log` is written
+only by `crawler.py` and is unaffected by this.
 
 ---
 

@@ -37,7 +37,7 @@ from sudachipy import tokenizer as sudachi_tok
 MIN_HEADING_LINES_FOR_MARKDOWN = 2
 MARKDOWN_HEADING_RE = r"^#{1,6}"
 
-logger = Logger(__name__, "/opt/llm/logs/chunk.log")
+logger = Logger(__name__, "/opt/llm/logs/chunk.log", structured_log=True)
 
 
 class ChunkMetadata(TypedDict, total=False):

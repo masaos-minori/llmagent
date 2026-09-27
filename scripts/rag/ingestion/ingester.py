@@ -29,7 +29,7 @@ from shared.config_loader import ConfigLoader
 from shared.llm_client import build_embed_url
 from shared.logger import Logger
 
-logger = Logger(__name__, "/opt/llm/logs/ingest.log")
+logger = Logger(__name__, "/opt/llm/logs/ingest.log", structured_log=True)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Type definitions

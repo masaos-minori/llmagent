@@ -33,7 +33,7 @@ from rag.ingestion.orchestrator import CrawlOrchestrator
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
-logger = Logger(__name__, "/opt/llm/logs/crawl.log")
+logger = Logger(__name__, "/opt/llm/logs/crawl.log", structured_log=True)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
