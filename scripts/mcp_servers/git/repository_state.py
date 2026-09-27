@@ -22,7 +22,6 @@ import git.exc
 from pydantic import GetCoreSchemaHandler
 from pydantic_core.core_schema import is_instance_schema
 
-from mcp_servers.dispatch import DispatchResult
 from mcp_servers.git.errors import GitServiceError
 
 # Alias for dispatch table signatures (same as dispatch.ToolArgs)
@@ -158,10 +157,11 @@ class RepositoryState:
         """
         if dry_run:
             return True, ""
-        ok, msg = self.check_dirty_worktree()
-        if not ok:
-            return ok, msg
-        return self.check_detached_head(allow_detached_head)
+        if self.is_dirty:
+            return False, "[DENIED] worktree has uncommitted changes (dirty worktree)"
+        if self.is_detached_head and not allow_detached_head:
+            return False, "[DENIED] repository is in a detached HEAD state"
+        return True, ""
 
     def verify_postcondition(
         self,
@@ -203,38 +203,6 @@ class RepositoryState:
             "protected_branch": self.protected_branch,
             "ref_valid": self.ref_valid,
         }
-
-    def structured_result(self, result: object) -> DispatchResult:
-        """Stage 9: Wrap raw result with RepositoryState metadata."""
-        return DispatchResult(output=str(result), is_error=False)
-
-    # ── Backward-compat delegation ──────────────────────────────────────────
-
-    def check_dirty_worktree(self) -> tuple[bool, str]:
-        """Delegate to is_dirty for backward compatibility."""
-        if self.is_dirty:
-            return False, "[DENIED] worktree has uncommitted changes (dirty worktree)"
-        return True, ""
-
-    def check_detached_head(self, allow_detached_head: bool) -> tuple[bool, str]:
-        """Delegate to is_detached_head for backward compatibility."""
-        if self.is_detached_head and not allow_detached_head:
-            return False, "[DENIED] repository is in a detached HEAD state"
-        return True, ""
-
-    def validate_protected(self, branch: str) -> tuple[bool, str]:
-        """Delegate to protected_branch for backward compatibility."""
-        if self.protected_branch:
-            return False, f"[DENIED] {branch!r} is a protected branch"
-        return True, ""
-
-    def validate_ref(self, ref: str) -> tuple[bool, str]:
-        """Delegate to ref_valid for backward compatibility."""
-        if not ref:
-            return True, ""
-        if not self.ref_valid:
-            return False, f"[DENIED] Ref {ref!r} looks like a CLI option"
-        return True, ""
 
 
 # ── WriteProtectionPipeline ─────────────────────────────────────────────────────

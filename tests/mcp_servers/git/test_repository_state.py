@@ -138,40 +138,10 @@ class TestSnapshotCapture:
 
 
 class TestGuardDelegation:
-    def test_check_dirty_worktree_delegates_to_state(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-        ok, err = state.check_dirty_worktree()
-        assert ok is True
-        assert err == ""
-
-    def test_check_detached_head_delegates_to_state(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-        ok, err = state.check_detached_head(allow_detached_head=False)
-        assert ok is True
-        assert err == ""
-
-    def test_validate_protected_delegates_to_state(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-        ok, err = state.validate_protected("main")
-        assert ok is True
-        assert err == ""
-
-    def test_validate_ref_delegates_to_state(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-        ok, err = state.validate_ref("HEAD")
-        assert ok is True
-        assert err == ""
-
     def test_validate_repo_delegates_to_state(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
         assert state.path == working_repo
         assert state.ref_valid is True
-
-    def test_structured_result_contains_state_fields(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-        result = state.structured_result("success")
-        assert hasattr(result, "output")
-        assert hasattr(result, "is_error")
 
     def test_verify_authorization_delegates_to_state(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
@@ -198,26 +168,6 @@ class TestGuardDelegation:
         state = RepositoryState.snapshot(working_repo)
         result = state.audit("success")
         assert isinstance(result, dict)
-
-    def test_legacy_check_dirty_worktree_delegates(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-        ok, err = state.check_dirty_worktree()
-        assert ok is True
-
-    def test_legacy_check_detached_head_delegates(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-        ok, err = state.check_detached_head(allow_detached_head=False)
-        assert ok is True
-
-    def test_legacy_validate_protected_delegates(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-        ok, err = state.validate_protected("main")
-        assert ok is True
-
-    def test_legacy_validate_ref_delegates(self, working_repo: str) -> None:
-        state = RepositoryState.snapshot(working_repo)
-        ok, err = state.validate_ref("HEAD")
-        assert ok is True
 
     def test_legacy_validate_repo_delegates(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
@@ -319,8 +269,7 @@ class TestVerifyPreconditionsDryRunAndDetachedHead:
 
 class TestGuardIntegration:
     def test_dirty_worktree_rejected(self, working_repo: str) -> None:
-        """Verify dirty worktree is rejected by pipeline."""
-        # Create a repo with a staged (dirty) file from the start
+        """Dirty worktree is rejected by verify_preconditions (Stage 5)."""
         repo_dir = Path(working_repo)
         repo = git.Repo(str(repo_dir))
         f = repo_dir / "DIRTY_FLAG.txt"
@@ -328,25 +277,29 @@ class TestGuardIntegration:
         repo.index.add([str(f)])
         state = RepositoryState.snapshot(str(repo_dir))
         assert state.is_dirty is True
-        ok, err = state.check_dirty_worktree()
+        ok, err = state.verify_preconditions("checkout")
         assert ok is False
-        assert "dirty" in err.lower() or "uncommitted" in err.lower()
+        assert "dirty worktree" in err.lower()
 
-    def test_detached_head_rejected(self, working_repo: str) -> None:
-        """Verify detached HEAD is rejected by pipeline."""
-        state = RepositoryState.snapshot(working_repo)
-        # Detached HEAD cannot be tested without actual git operations
-        # This test verifies the method exists and returns expected types
-        ok, err = state.check_detached_head(allow_detached_head=False)
-        assert isinstance(ok, bool)
-        assert isinstance(err, str)
+    def test_detached_head_rejected(self, detached_repo: str) -> None:
+        """Detached HEAD is rejected by verify_preconditions (Stage 5)."""
+        state = RepositoryState.snapshot(detached_repo)
+        ok, err = state.verify_preconditions("checkout", allow_detached_head=False)
+        assert ok is False
+        assert "detached head" in err.lower()
 
-    def test_protected_branch_rejected(self, working_repo: str) -> None:
-        """Verify protected branch is rejected by pipeline."""
-        state = RepositoryState.snapshot(working_repo)
-        ok, err = state.validate_protected("main")
-        assert isinstance(ok, bool)
-        assert isinstance(err, str)
+    def test_protected_branch_rejected(self) -> None:
+        """Protected branch is rejected by verify_authorization (Stage 3)."""
+        snap = MagicMock(spec=RepositoryState)
+        snap.protected_branch = True
+        snap.ref_valid = True
+        snap.verify_authorization.return_value = (
+            False,
+            "[DENIED] 'main' is a protected branch",
+        )
+        ok, err = snap.verify_authorization()
+        assert ok is False
+        assert "protected branch" in err.lower()
 
 
 # ── Audit log verification tests ─────────────────────────────────────────────
@@ -722,3 +675,25 @@ class TestStage3Authorization:
         )
         assert result.ok is False
         assert result.rejected_at_stage == "Stage 3"
+
+
+# ── Removed-member regression tests ────────────────────────────────────────
+
+
+class TestRemovedMembersAbsent:
+    """Regression: removed delegation methods must not exist after refactor.
+
+    These guard against reintroducing the dead backward-compat delegation
+    layer that this refactor eliminated.
+    """
+
+    def test_removed_methods_absent(self, working_repo: str) -> None:
+        state = RepositoryState.snapshot(working_repo)
+        for name in (
+            "check_dirty_worktree",
+            "check_detached_head",
+            "validate_protected",
+            "validate_ref",
+            "structured_result",
+        ):
+            assert not hasattr(state, name), f"{name} should have been removed"
