@@ -69,10 +69,10 @@ N/A: documentation-only change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, automated checks per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: documentation-only; docs checkers run instead |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this document's own target file IS the documentation being updated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-154441 | 20260927-154441 | Re-confirmed at Step 4a: sentence now at lines 476-480 (shifted from cited 469-473 by an unrelated concurrent edit elsewhere in the same doc); content unchanged. Confirmed via Read: `rag_pipeline_service.py::RagPipelineMCPService.start()` does `from rag.pipeline import RagPipeline` and instantiates it; no other file under `scripts/mcp_servers/rag_pipeline/` duplicates pipeline logic |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-154441 | 20260927-154441 | N/A: documentation-only, automated checks per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-154441 | 20260927-154441 | N/A: documentation-only; docs checkers run instead |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-154441 | 20260927-154441 | N/A: this document's own target file IS the documentation being updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
