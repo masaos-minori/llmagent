@@ -75,10 +75,10 @@ N/A: logging-format change only, same fields either way.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Conditional on the owner's row-1 ruling being "enable" |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Manual JSON-lines output check per Validation plan |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Covered by row 1's `docs/21_rag/rag_05_3-logging.md` update |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-164500 | 20260927-164500 | Owner ruled "enable" (via AskUserQuestion). REQ-003 consumer check: `chunk.log` is shared with 2 other writers (`chunk_japanese.py`, out of scope for this row) — no `tools/` reader found; owner accepted the resulting mixed-format consequence for this shared log file |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-164500 | 20260927-164500 | Manual smoke-test of `Logger(structured_log=True)` end-to-end confirms valid JSON-lines output with all 5 context fields present; targeted suite `tests/rag/ingestion/` (165 tests) passes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-164500 | 20260927-164500 | ruff/bandit clean. mypy: 1 pre-existing unused-`type:ignore` finding at line 197, confirmed present before this edit too (git stash check) — unrelated. lint-imports: pre-existing unrelated `shared`→`agent` violation. Full suite: 14 failed (all eventbus/orchestrator/docs_quality, unrelated to this change), 7990 passed, 24 skipped |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-164500 | 20260927-164500 | Covered by row 1's `docs/21_rag/rag_05_3-logging.md` update |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
