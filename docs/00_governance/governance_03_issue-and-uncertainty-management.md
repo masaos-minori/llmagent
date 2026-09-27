@@ -386,30 +386,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next governance area-scope review
 - **Blocking**: No
 
-#### NC-025
-
-- **Source File**: `governance_01_documentation-policy.md`
-- **Section**: Change Impact Rule
-- **Line Number**: ~198
-- **Question**: Is a Configuration Ownership Map or API Consumer Map needed for the
-  Change Impact Rule's configuration/API-change categories, beyond the existing
-  Canonical Source Precedence matrix?
-- **Evidence**: The Change Impact Rule directs configuration/API changes to the
-  existing Canonical Source Precedence matrix (Decision Target Canonical Source
-  Matrix) rather than a dedicated map; no such map exists anywhere in the repository
-- **Impact**: Without a dedicated map, configuration/API change-impact scoping
-  relies on the same general-purpose matrix used for all decision types, which may
-  be too coarse for large configuration surfaces
-- **Required Action**: Owner review of whether configuration/API change volume
-  justifies building a dedicated Configuration Ownership Map or API Consumer Map
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-03
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next governance tooling review
-- **Blocking**: No
-
 #### NC-027
 
 - **Source File**: `rag_02_03_ingestion_pipeline-chunksplitter.md`
@@ -588,7 +564,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG ingestion logging review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-024, NC-025, NC-027, NC-028, NC-029, NC-031, NC-033, NC-034, NC-035, NC-036, NC-037, and NC-039.
+No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-024, NC-027, NC-028, NC-029, NC-031, NC-033, NC-034, NC-035, NC-036, NC-037, and NC-039.
 
 ## Part 3: Canonical Source Conflict
 

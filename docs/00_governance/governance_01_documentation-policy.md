@@ -338,9 +338,10 @@ To determine which documents are affected by a change:
    - Documentation-only changes → Documentation Reference Graph
    - Governance-policy changes → Governance Applicability Matrix
    - Configuration or API changes → continue to use the existing Canonical Source
-     Precedence matrix (Decision Target Canonical Source Matrix); no separate
-     Configuration Ownership Map or API Consumer Map exists (tracked as a Needs
-     Confirmation entry in `docs/governance_03_issue-and-uncertainty-management.md`)
+     Precedence matrix (Decision Target Canonical Source Matrix) until a dedicated
+     map exists; owner decision (2026-09-27): a Configuration Ownership Map or API
+     Consumer Map is needed for per-key ownership traceability, but building it is
+     separate, unstarted follow-up work — not part of this change
 
    Map the change to the areas or components covered by the selected graph or matrix.
 3. List all documents in affected areas that reference the changed element
