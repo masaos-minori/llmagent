@@ -226,7 +226,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-03
 - **Target**: `docs/10_adr/ADR-002-config-isolation.md`
-- **Related**: ADR-002, CI-001
+- **Related**: ADR-002
 - **Summary**: ADR-002 states that config isolation must be enforced.
 - **Current Description**: This has been verified via code inspection (`restrict_to()` enforcement confirmed in `config_loader.py`), but there is no automated test covering this invariant.
 - **Observed Implementation**: Verified by code inspection only.
@@ -246,7 +246,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-03
 - **Target**: `docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md`
-- **Related**: ADR-003, CI-003, CI-015
+- **Related**: ADR-003, CI-015
 - **Summary**: ADR-003 states that `RuntimeToolRegistry` is the sole routing authority.
 - **Current Description**: This has been verified via code inspection (`resolve()` only looks up in `_runtime_registry`, never falls back to `ToolRegistry`), but there is no automated test covering this invariant.
 - **Observed Implementation**: Verified by code inspection only.
@@ -326,7 +326,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-15
 - **Target**: `docs/10_adr/ADR-009-rag-ft5-text-separation.md`
-- **Related**: ADR-009, CI-007
+- **Related**: ADR-009
 - **Summary**: ADR-009 states that `normalized_content` must not appear in LLM output.
 - **Current Description**: This has been verified via code inspection (`_format_chunks()` uses `c.content`, not `c.normalized_content`), but there is no automated test covering this invariant.
 - **Observed Implementation**: Verified by code inspection only.
@@ -346,7 +346,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
 - **First Found**: 2026-09-03
 - **Target**: `docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md`
-- **Related**: ADR-003, CI-003, CI-010
+- **Related**: ADR-003, CI-010
 - **Summary**: ADR-003 (formerly also stated in ADR-013 INV-05, merged 2026-08-31) states that duplicate tool names produce a FATAL outcome.
 - **Current Description**: This has been verified via code inspection (duplicate tool name produces a FATAL outcome, confirmed in `mcp_tool_discovery.py`), but there is no automated test covering this invariant.
 - **Observed Implementation**: Verified by code inspection only.
@@ -375,54 +375,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
 Note on CI-008 through CI-016 batching: These nine structurally identical "ADR invariant verified by code inspection, no automated test" entries are treated as one initiative. Their Area fields span Agent (CI-008, CI-016), Shared/DB (CI-009), MCP (CI-010, CI-013, CI-015), RAG (CI-011, CI-014), and EventBus (CI-012) — no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
-
-#### CI-017
-
-- **ID**: CI-017
-- **Title**: `docs/rag_04_04_dto-models_config.md`'s documented DTOs no longer exist — `scripts/rag/models_config.py` replaced by `RagConfigImpl`
-- **Status**: resolved
-- **Severity**: Medium
-- **Area**: RAG
-- **Type**: document-code-mismatch
-- **Source**: `scripts/rag/models_config.py`, `scripts/shared/types.py::RagConfig`
-- **Owner**: Unassigned
-- **First Found**: 2026-09-20
-- **Target**: `docs/rag_04_04_dto-models_config.md`
-- **Related**: N/A
-- **Summary**: The 7 dataclasses documented in `docs/rag_04_04_dto-models_config.md` (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) no longer exist in `scripts/rag/models_config.py`, which now defines only `RagConfigImpl`.
-- **Current Description**: The doc's main body still describes the 7 legacy per-stage config dataclasses as the runtime config contract.
-- **Observed Implementation**: `scripts/rag/models_config.py` defines only `RagConfigImpl` (a flat dataclass), actively used by `scripts/rag/pipeline.py` and 5 test files, implementing the `RagConfig` Protocol (`scripts/shared/types.py`), whose docstring no longer claims these files are "DTOs for the ingestion TOML format".
-- **Recommended Action**: Rewrite `docs/rag_04_04_dto-models_config.md` to document `RagConfigImpl` and the `RagConfig` Protocol instead of the removed per-stage config dataclasses.
-- **Resolution Target**: Follow-up issue created — `issues/20260926-072314_rewrite_dto_models_config_to_document_RagConfigImpl.md`
-- **Impact**: A reader of this doc would look for config classes that no longer exist and miss the actual runtime contract (`RagConfigImpl`/`RagConfig` Protocol).
-- **Recommended Action**: Rewrite `docs/rag_04_04_dto-models_config.md`'s main body to document `RagConfigImpl` and the `RagConfig` Protocol instead of the removed per-stage dataclasses.
-- **Resolution Target**: Next RAG documentation pass covering `scripts/rag/models_config.py`
-
-#### CI-018
-
-- **ID**: CI-018
-- **Title**: RAG exception hierarchy fragmented across `exceptions.py`/`llm_prompts.py`/`pipeline.py` with no recorded rationale
-- **Status**: resolved
-- **Severity**: Low
-- **Area**: RAG
-- **Type**: design-gap
-- **Source**: `scripts/rag/exceptions.py`, `scripts/rag/llm_prompts.py::RagRerankError`, `scripts/rag/pipeline.py::RagPipelineError`
-- **Owner**: Unassigned
-- **First Found**: 2026-09-19
-- **Target**: `docs/rag_05_4-error-handling-reference.md`
-- **Related**: N/A
-- **Summary**: `RagRerankError` and `RagPipelineError` are defined outside `scripts/rag/exceptions.py` and inherit from `RuntimeError` rather than the `RagLayerError` base class used by the other 7 rag-layer exceptions, with no ADR or design document recording a rationale for the split.
-- **Current Description**: The exception hierarchy is not unified under a single base class across the rag layer.
-- **Observed Implementation**: `RagRerankError` (llm_prompts.py), `RagExpansionError` (llm_prompts.py), and `RagPipelineError` (pipeline.py) all inherit from `RuntimeError` while the other 7 rag-layer exceptions inherit from `RagLayerError`.
-- **Recommended Action**: Move `RagRerankError`, `RagExpansionError`, and `RagPipelineError` to `exceptions.py` and change their base class to `RagLayerError`; update all imports and `except` clauses accordingly.
-- **Resolution Target**: Follow-up issue created — `issues/20260926-073329_unify_rag_exceptions_under_RagLayerError.md`
-- **Current Description**: The exception hierarchy is not unified under a single base class across the rag layer.
-- **Observed Implementation**: Confirmed via 3 independent refactoring commits: `5ac7b757 refactor(rag): Phase 1-3 — backward-compat removal, foundation files, dataclass migration` introduced `RagLayerError` and its 6 subclasses; `2ff62348 refactor(rag): split llm.py (413→42+260+245 lines) into prompts + client` introduced `RagRerankError`/`RagExpansionError` (`RuntimeError`-based); `c0477811 refactor(rag): pipeline/stages fail-fast — remove expand_queries_safe, except Exception fallbacks, add RagPipelineError` introduced `RagPipelineError` (`RuntimeError`-based). No ADR or design document records a rationale for keeping them separate.
-- **Impact**: Future unification would require touching every `except` clause across `scripts/rag/` that currently catches `RagRerankError`/`RagPipelineError`/`RagExpansionError`/`RuntimeError` by name — a cross-cutting change; until then, a caller could catch the wrong exception type or miss one to a base-class catch.
-- **Recommended Action**: Decide whether to unify `RagRerankError`/`RagPipelineError`/`RagExpansionError` under `RagLayerError` in a dedicated cross-cutting refactor, or document the split as an accepted permanent exception via ADR.
-- **Resolution Target**: Next RAG exception-hierarchy refactor or ADR decision
-
-
 
 ## Part 2: Needs Confirmation Inventory
 
@@ -724,7 +676,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG ingestion logging review
 - **Blocking**: No
 
-No other active items beyond NC-021 through NC-039 above.
+No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-023, NC-024, NC-025, NC-027, NC-028, NC-029, NC-031, NC-033, NC-034, NC-035, NC-036, NC-037, and NC-039.
 
 ## Part 3: Canonical Source Conflict
 

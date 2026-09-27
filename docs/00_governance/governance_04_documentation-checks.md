@@ -316,27 +316,20 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 
 Rules marked "Missing" or "Partial" above need new inspection tools or processes:
 
-4. **GV-007**: Implement Duplicate Related Link prohibition check
-5. **GV-008**: Broaden to cover full issue inventory conformance scope (vocabulary, template, referential integrity)
-6. **GV-009**: Implement Needs Confirmation owner and deadline validation
-7. **GV-011, GV-012**: Implement cross-document canonical source conflict detection
-8. **GV-013**: Extend `stale_patterns` custom rule config to cover canonical document references
-9. **GV-014**: Resolved — `check_adr_invariant_matrix.py` (Invariant Matrix cited test-path
+1. **GV-008**: Broaden to cover full issue inventory conformance scope (vocabulary, template, referential integrity)
+2. **GV-011, GV-012**: Implement cross-document canonical source conflict detection
+3. **GV-013**: Extend `stale_patterns` custom rule config to cover canonical document references
+4. **GV-014**: Resolved — `check_adr_invariant_matrix.py` (Invariant Matrix cited test-path
    verification), `check_compat_shims.py`'s `ADR_PROHIBITED_PATTERNS` extension (per-ADR
    prohibited-pattern registry), and `check_adr_reference.py` (scoped ADR-reference
    requirement on matrix-named `scripts/*.py` files) ship the three staged checks this item
    originally requested. Remaining, optional scope: actually running each cited test in CI
    (this check only verifies the path exists), tracked as a future enhancement, not a gap in
-   the current implementation.
-10. **GV-015**: Resolved — `docs/governance_01_documentation-policy.md`'s
-   Software Runtime Dependency Graph, Deployment Management Graph, Documentation
-   Reference Graph, and Governance Applicability Matrix sections separate the four
-   relation types the previous single graph conflated; closing reference:
-   `issues/done/20260902-102831_depgraph_area-dependency-graph-cycle-and-relationship-conflation.md`.
-11. **GV-016**: Audit auto-check implementations against documentation claims
-12. **GV-018**: Add glossary term classification validation
-13. **GV-019**: Add metadata field usage policy enforcement
-14. **GV-020**: Implement the `read_json_file`-style context-aware detection
+    the current implementation.
+5. **GV-016**: Audit auto-check implementations against documentation claims
+6. **GV-018**: Add glossary term classification validation
+7. **GV-019**: Add metadata field usage policy enforcement
+8. **GV-020**: Implement the `read_json_file`-style context-aware detection
     case (a name retained in source but no longer the current production path);
     promote `--check-removed-names` from opt-in to default-on once
     `plans/done/20260903-090104_plan.md` (toolroutedoc)'s corpus fix lands, per
