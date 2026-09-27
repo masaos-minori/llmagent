@@ -72,10 +72,10 @@ The `Depends(require_role(Role.ADMIN))` parameter (Procedure step 3) is not opti
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on row 2 (`admin_route.py`) existing to import from |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by `tests/eventbus/test_admin_topics_authorization.py` (row 5) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no `docs/00_index.md` task-scope row maps this specific route addition |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-144037 | 20260927-144037 | Depends on row 2 (`admin_route.py`) existing to import from |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-144037 | 20260927-144037 | Covered by `tests/eventbus/test_admin_topics_authorization.py` (row 5) Covered by tests/eventbus/test_admin_topics_authorization.py (row 5) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-144037 | 20260927-144037 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-144037 | 20260927-144037 | N/A: no `docs/00_index.md` task-scope row maps this specific route addition |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
