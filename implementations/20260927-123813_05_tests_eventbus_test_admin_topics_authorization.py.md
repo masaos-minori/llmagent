@@ -70,15 +70,15 @@ New file; revert via `git revert` or deletion.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Depends on rows 1-3, specifically row 3's Blocked resolution |
-| 2 | Add or update tests per Validation plan | Blocked | — | — | This document IS the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Blocked | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-144037 | 20260927-144037 | Depends on rows 1-3, specifically row 3's Blocked resolution Found and fixed a real bug during this row's testing: EventBusConfig is frozen (row 2's original direct-mutation approach raised FrozenInstanceError) — fixed via dataclasses.replace(). 5/5 tests pass: valid-admin-accepted, non-admin-403, missing-token-401, update-takes-effect (Principal reflects new authorization), invalid-body-422-without-corrupting-prior-valid-state |
+| 2 | Add or update tests per Validation plan | Completed | 20260927-144037 | 20260927-144037 | This document IS the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260927-144037 | 20260927-144037 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260927-144037 | 20260927-144037 | N/A: test-only file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on `scripts/eventbus/auth.py`'s (row 3) Blocked resolution | No | — |
+| 1 | Depends on `scripts/eventbus/auth.py`'s (row 3) Blocked resolution | Yes — row 3 resolved (union-apply, per-token) | 20260927-144037 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
