@@ -75,8 +75,8 @@ invariants (INV-016–020) may rely on Manual Review or Operational Procedure.
 | INV | ADR | Invariant | Type | Timing | Gate | Verification Status |
 |-----|-----|-----------|------|--------|------|---------------------|
 | INV-001 | ADR-001 | Workflow definition mandatory; missing workflow raises RuntimeError | Unit Test | CI | Blocking | Confirmed (`tests/agent/test_startup.py::test_aborts_on_missing_workflow_definition`, passing) |
-| INV-003 | ADR-002 | Config isolation enforced between environments | Unit Test | CI | Blocking | Confirmed in code (`config_loader.py` `restrict_to()`); test pending |
-| INV-005 | ADR-003 | RuntimeToolRegistry is the sole routing authority | Unit Test | CI | Blocking | Confirmed in code (`resolve()` never falls back to ToolRegistry); no test yet |
+| INV-003 | ADR-002 | Config isolation enforced between environments | Unit Test | CI | Blocking | Confirmed (automated test added); see tests/shared/test_config_loader.py::TestRestrictToIsolation |
+| INV-005 | ADR-003 | RuntimeToolRegistry is the sole routing authority | Unit Test | CI | Blocking | Confirmed (automated test added); see tests/shared/test_route_resolver.py::TestRoutingSourceIsolation |
 | INV-006 | ADR-007 | No stdio transport usage | Unit Test | CI | Blocking | Confirmed (no stdio transport code exists); no test yet |
 | INV-007 | ADR-005 | `chunks_vec` deleted before `documents` | Unit Test | CI | Blocking | Confirmed in code; no test yet |
 | INV-008 | ADR-009 | `normalized_content` must not appear in LLM output | Unit Test | CI | Blocking | Confirmed (`_format_chunks()` uses `c.content`); no test yet |

@@ -192,6 +192,22 @@ class TestRoutingSourceIsolation:
         with pytest.raises(ValueError, match="[Uu]nknown tool"):
             resolver.resolve("nonexistent_tool_xyz")
 
+    def test_resolve_rejects_ToolRegistry_fallback_when_runtime_registry_available(
+        self,
+    ) -> None:
+        """Even when ToolRegistry has a registration for a tool, resolve() must raise ValueError instead of falling back to it."""
+        from unittest.mock import patch
+
+        from shared.tool_registry import ToolRegistry
+
+        runtime_registry = _runtime_registry_for({"read_text_file": "file_read"})
+        resolver = ToolRouteResolver(runtime_registry=runtime_registry)
+
+        with patch.object(ToolRegistry, "get_server_for_tool") as registry_spy:
+            with pytest.raises(ValueError, match="[Uu]nknown tool"):
+                resolver.resolve("unknown_tool_xyz")
+            registry_spy.assert_not_called()
+
 
 class TestDuplicateToolRegistration:
     """Tests confirming ToolRegistry.register() rejects duplicate registrations."""

@@ -110,46 +110,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 **EventBus-specific verification (REQ-006)**: Verified by configuration test confirming `ConfigMissingError` is raised when a required config file is missing. The EventBus `load_config()` function (`scripts/eventbus/config.py`) validates required keys via `_REQUIRED_CONFIG_KEYS` and raises `ValueError` for missing keys — consistent with the fail-closed behavior described in CI-005.
 
-#### CI-009
-
-- **ID**: CI-009
-- **Title**: ADR-002 INV-01 — config isolation, verified but needs test coverage
-- **Status**: open
-- **Severity**: Medium
-- **Area**: Shared/DB
-- **Type**: operational-gap
-- **Source**: `scripts/shared/config_loader.py::restrict_to()`
-- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
-- **First Found**: 2026-09-03
-- **Target**: `docs/10_adr/ADR-002-config-isolation.md`
-- **Related**: ADR-002
-- **Summary**: ADR-002 states that config isolation must be enforced.
-- **Current Description**: This has been verified via code inspection (`restrict_to()` enforcement confirmed in `config_loader.py`), but there is no automated test covering this invariant.
-- **Observed Implementation**: Verified by code inspection only.
-- **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
-- **Recommended Action**: Add a unit test for config isolation enforcement.
-- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
-
-#### CI-010
-
-- **ID**: CI-010
-- **Title**: ADR-003 INV-01 — RuntimeToolRegistry routing authority, verified but needs test coverage
-- **Status**: open
-- **Severity**: Medium
-- **Area**: MCP
-- **Type**: operational-gap
-- **Source**: `scripts/shared/route_resolver.py::resolve()`
-- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
-- **First Found**: 2026-09-03
-- **Target**: `docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md`
-- **Related**: ADR-003
-- **Summary**: ADR-003 states that `RuntimeToolRegistry` is the sole routing authority.
-- **Current Description**: This has been verified via code inspection (`resolve()` only looks up in `_runtime_registry`, never falls back to `ToolRegistry`), but there is no automated test covering this invariant.
-- **Observed Implementation**: Verified by code inspection only.
-- **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
-- **Recommended Action**: Add a unit test for routing-authority enforcement.
-- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
-
 #### CI-012
 
 - **ID**: CI-012
@@ -210,7 +170,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Add a unit test asserting the required field behavior for unspecified criticality values, and/or a test asserting undefined-criticality components are never routed as non-required.
 - **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
-Note on CI-009, CI-010, CI-012, CI-014, CI-016 batching: These five structurally identical "ADR invariant verified by code inspection, no automated test" entries are treated as one initiative (originally nine members; CI-008, CI-011, CI-013, and CI-015 were removed once test coverage was added). Their Area fields span Shared/DB (CI-009), MCP (CI-010), EventBus (CI-012), RAG (CI-014), and Agent (CI-016) — one member per area — and no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
+Note on CI-012, CI-014, CI-016 batching: These three structurally identical "ADR invariant verified by code inspection, no automated test" entries are treated as one initiative (originally nine members; CI-008, CI-009, CI-010, CI-011, CI-013, and CI-015 were removed once test coverage was added). Their Area fields span EventBus (CI-012), RAG (CI-014), and Agent (CI-016) — one member per area — and no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
 
 ## Part 2: Needs Confirmation Inventory
 
