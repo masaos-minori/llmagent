@@ -110,26 +110,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 **EventBus-specific verification (REQ-006)**: Verified by configuration test confirming `ConfigMissingError` is raised when a required config file is missing. The EventBus `load_config()` function (`scripts/eventbus/config.py`) validates required keys via `_REQUIRED_CONFIG_KEYS` and raises `ValueError` for missing keys — consistent with the fail-closed behavior described in CI-005.
 
-#### CI-012
-
-- **ID**: CI-012
-- **Title**: ADR-006 INV-01 — EventBus offset monotonicity, verified but needs test coverage
-- **Status**: open
-- **Severity**: Medium
-- **Area**: EventBus
-- **Type**: operational-gap
-- **Source**: `scripts/eventbus/offsets.py::write_offset()`
-- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
-- **First Found**: 2026-09-03
-- **Target**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
-- **Related**: ADR-006, EVENTBUS-001
-- **Summary**: ADR-006 states that EventBus offsets must be monotonically increasing.
-- **Current Description**: This has been verified via code inspection (`seq > current` enforcement confirmed in `write_offset()`), but there is no automated test covering this invariant.
-- **Observed Implementation**: Verified by code inspection only.
-- **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
-- **Recommended Action**: Add a unit test for offset-monotonicity enforcement.
-- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
-
 #### CI-014
 
 - **ID**: CI-014
@@ -170,7 +150,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Add a unit test asserting the required field behavior for unspecified criticality values, and/or a test asserting undefined-criticality components are never routed as non-required.
 - **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
-Note on CI-012, CI-014, CI-016 batching: These three structurally identical "ADR invariant verified by code inspection, no automated test" entries are treated as one initiative (originally nine members; CI-008, CI-009, CI-010, CI-011, CI-013, and CI-015 were removed once test coverage was added). Their Area fields span EventBus (CI-012), RAG (CI-014), and Agent (CI-016) — one member per area — and no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
+Note on CI-014, CI-016 batching: These two structurally identical "ADR invariant verified by code inspection, no automated test" entries are treated as one initiative (originally nine members; CI-008, CI-009, CI-010, CI-011, CI-012, CI-013, and CI-015 were removed once test coverage was added). Their Area fields span RAG (CI-014) and Agent (CI-016) — one member per area — and no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
 
 ## Part 2: Needs Confirmation Inventory
 
