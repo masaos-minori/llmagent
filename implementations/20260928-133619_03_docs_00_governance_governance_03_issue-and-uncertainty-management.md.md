@@ -81,10 +81,10 @@ Removes the CI-016 subsection and updates the single batching-note paragraph. No
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260930-063317 | 20260930-063317 | End-state already achieved before this cycle: all CI subsections incl. CI-016 removed from Known Issues Part 1; batching note at L113 states all nine members removed, zero active remain. Deviation from completion criteria (remaining four members): actual state is zero remaining - a more complete resolution accumulated from prior batches. No file change made this cycle. |
+| 2 | Add or update tests per Validation plan | Completed | 20260930-063317 | 20260930-063317 | N/A: documentation-only change; no tests added. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260930-063317 | 20260930-063317 | Ran doc checkers: structure=All checks passed, content policy=No issues found, quality=pre-existing Lifecycle self-similarity warnings (unrelated to this task). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260930-063317 | 20260930-063317 | N/A: doc end-state already achieved by prior batches; no edit this cycle. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
