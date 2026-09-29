@@ -184,23 +184,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 ### Active Items
 
-#### NC-033
-
-- **Source File**: `rag_02_03_ingestion_pipeline-chunksplitter.md`
-- **Section**: lang Field Validation
-- **Line Number**: ~194
-- **Question**: Is `lang` field enforcement against `LanguageCode` values intended?
-- **Evidence**: The document states: "any non-empty string accepted; the en/ja value set (LanguageCode) is convention only — not enforced at parse time (Needs confirmation: whether enforcement is intended)"
-- **Impact**: If lang-field enforcement is actually intended but not implemented, downstream language-handling code could behave incorrectly without anyone flagging it as an open question
-- **Required Action**: Owner confirmation or investigation of scripts/rag/ validation logic for the lang field
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-14
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next ChunkSplitter specification review
-- **Blocking**: No
-
 #### NC-035
 
 - **Source File**: `crawler.py` / `config/crawler.toml`
@@ -235,7 +218,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG architecture review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-033, NC-035, and NC-036.
+No other active Needs Confirmation items exist outside the set listed here: NC-035 and NC-036.
 
 ## Part 3: Canonical Source Conflict
 
