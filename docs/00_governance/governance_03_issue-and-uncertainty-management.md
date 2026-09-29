@@ -218,23 +218,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next ChunkSplitter specification review
 - **Blocking**: No
 
-#### NC-034
-
-- **Source File**: `chunk_splitter.py` / `config/chunk_splitter.toml`
-- **Section**: min_chunk / max_chunk / chunk_overlap constants
-- **Line Number**: ~70-71, 168-169, 185-186
-- **Question**: Why is the minimum chunk size 40 characters, maximum chunk size 500 characters, and overlap 50 characters? What is the historical reason for these specific values?
-- **Evidence**: No rationale comment in `chunk_splitter.py` or `config/chunk_splitter.toml`; no ADR or governance entry found. `_min_chunk` (line 70), `_max_chunk` (line 71), and `_chunk_overlap` (line 74) enforce the constraint boundaries documented in `docs/rag_05_1-configuration-reference.md` line 39, but no explanation exists for why 40/500/50 were chosen over any other values.
-- **Impact**: Operators cannot understand why sub-40-char chunks are discarded as noise, why sections exceeding 500 chars are split further, or why overlap is set to 50 characters
-- **Required Action**: Owner confirmation of the historical reason for these specific values; if resolved, update the chunksplitter documentation accordingly
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-14
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next ChunkSplitter specification review
-- **Blocking**: No
-
 #### NC-035
 
 - **Source File**: `crawler.py` / `config/crawler.toml`
@@ -269,7 +252,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG architecture review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-033, NC-034, NC-035, and NC-036.
+No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-033, NC-035, and NC-036.
 
 ## Part 3: Canonical Source Conflict
 
