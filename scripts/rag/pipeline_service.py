@@ -174,7 +174,7 @@ async def call_rag_service(
             _log_retry(rag_url, attempt, e)
         except ValueError as e:
             logger.warning(
-                "RAG service parse error (%s), falling back to in-process: %s",
+                "RAG service parse error (%s), returning empty result: %s",
                 rag_url,
                 e,
             )
