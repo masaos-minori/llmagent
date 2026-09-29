@@ -286,6 +286,17 @@ class TestRequiredDefault:
         s = result["minimal"]
         assert s.required is True
 
+    def test_required_default_reflects_adr004_inv14(self) -> None:
+        """ADR-004 Decision #12/INV-14: unspecified criticality must default to required.
+
+        An undefined/undeterminable component criticality must never be assumed
+        non-required; the safe default is `required=True`.
+        """
+        cfg = McpServerConfig(
+            TransportType.HTTP, "http://127.0.0.1:8000", auth_token="test-token"
+        )
+        assert cfg.required is True
+
 
 def test_valid_string_transport_rejected() -> None:
     """'http' is a valid transport string value but not a TransportType instance — must be rejected."""
