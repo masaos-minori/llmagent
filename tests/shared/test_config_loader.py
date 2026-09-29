@@ -135,6 +135,31 @@ class TestRestrictToIsolation:
         assert result1["section"]["foo"] == 1
         assert result2["section"]["foo"] == 1
 
+    def test_restricted_load_with_directory_component_in_path(
+        self, tmp_path: Path
+    ) -> None:
+        """REQ-003: a restricted filename matches by basename even when the loaded
+        path carries a directory component, because _check_permission() extracts
+        Path(name).name."""
+        (tmp_path / "a.toml").write_text("[section]\nfoo = 1\n")
+        ConfigLoader.restrict_to("a.toml")
+        loader = ConfigLoader(config_dir=tmp_path)
+        result = loader.load("./a.toml")
+        assert result["section"]["foo"] == 1
+
+    def test_exact_basename_matching_rejects_partial_matches(
+        self, tmp_path: Path
+    ) -> None:
+        """REQ-001: restricting to 'a.toml' rejects 'a.toml.bak' even though its
+        name contains 'a.toml', confirming _check_permission() uses exact basename
+        matching rather than substring matching."""
+        (tmp_path / "a.toml").write_text("[section]\nfoo = 1\n")
+        (tmp_path / "a.toml.bak").write_text("[section]\nbar = 2\n")
+        ConfigLoader.restrict_to("a.toml")
+        loader = ConfigLoader(config_dir=tmp_path)
+        with pytest.raises(ConfigPermissionError, match="a.toml.bak"):
+            loader.load("a.toml.bak")
+
 
 class TestExtensionResolution:
     """Test extension resolution — missing extensions resolved correctly."""
