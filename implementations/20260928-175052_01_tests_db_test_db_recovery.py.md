@@ -88,13 +88,28 @@ Any change to `scripts/db/recovery.py` (`_classify_error()`, `DbCondition` enum,
 
 ## Execution Status
 
+**Note (added 20260929):** This document and its own source Plan
+(`plans/20260928-152012_plan.md`) were left unexecuted (all steps `Pending`)
+since generation on 20260928. Separately, this same Plan was found
+accidentally archived to `plans/done/` without ever having been executed (an
+unrelated session's `close-plan` auto-commit had swept it up as a side
+effect), corrected, and fully re-executed under a new pass-timestamp
+(`implementations/done/20260929-143826_01_....md.md`) — which added the
+identical `test_recover_invalid_format` function this document also
+describes. Re-reading current source confirms `tests/db/test_db_recovery.py`
+already contains exactly one `test_recover_invalid_format` function (no
+duplicate), matching this document's own Procedure/Method/Details exactly.
+No further action is needed under this document; its steps are marked
+Completed by evidence review, not by re-executing them (doing so would
+attempt to insert a duplicate function).
+
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_recover_invalid_format` to `tests/db/test_db_recovery.py` | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation removal is handled by the sibling implementation procedure for `docs/00_governance/governance_03_issue-and-uncertainty-management.md` |
+| 1 | Add `test_recover_invalid_format` to `tests/db/test_db_recovery.py` | Completed | 20260929-180700 | 20260929-180700 | Already present in current source, added via the re-executed pass (implementations/done/20260929-143826_01_....md.md) — confirmed via direct read, exactly one occurrence, no duplicate |
+| 2 | Add or update tests per Validation plan | Completed | 20260929-180700 | 20260929-180700 | N/A: this document's own Step 1 is the test addition itself |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260929-180700 | 20260929-180700 | Already run under the re-executed pass: targeted (38 passed), full suite (8003 passed, 24 skipped, 0 failed at that time) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260929-180700 | 20260929-180700 | N/A: documentation removal is handled by the sibling implementation procedure for `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (see seq 02 of this same orphaned pass, also being closed out with this note) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
