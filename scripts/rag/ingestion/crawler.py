@@ -63,7 +63,7 @@ class WebCrawler:
         self._fetch_retry: int = int(cfg["fetch_retry"])
         self._fetch_timeout: float = float(cfg.get("fetch_timeout", 15))
         self._concurrency: int = int(cfg.get("crawl_concurrency", 3))
-        self._max_pages: int = int(cfg.get("max_pages", 500))
+        self._max_pages: int = int(cfg.get("max_pages", 200))
         self._target_urls: list[tuple[str, str]] = parse_target_urls(cfg["target_urls"])
         # Skip links with rel="nofollow" when True
         self._skip_nofollow: bool = bool(cfg.get("skip_nofollow", False))

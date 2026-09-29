@@ -184,23 +184,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 ### Active Items
 
-#### NC-035
-
-- **Source File**: `crawler.py` / `config/crawler.toml`
-- **Section**: max_depth / max_pages operational limits
-- **Line Number**: ~61, 66
-- **Question**: Why is the crawl depth limited to 3 hops from the start URL, and why is the maximum pages per site limited to 200? What is the historical reason for these specific operational values? Additionally, why does the code's own fallback default for `max_pages` (500) differ from the deployed `config/crawler.toml` value (200)?
-- **Evidence**: No rationale comment in `crawler.py` or `config/crawler.toml`; no ADR or governance entry found. `_max_depth` (line 61) and `_max_pages` (line 66) read from `config/crawler.toml` and stop BFS traversal at the limit, but no explanation exists for why 3 and 200 were chosen over any other values. Additionally, `scripts/rag/ingestion/crawler.py:66` falls back to `cfg.get("max_pages", 500)` if the key is absent, while the deployed `config/crawler.toml:23` sets `max_pages = 200` — a code-default-vs-deployed-config mismatch. `config/crawler.toml:22` already carries an inline comment acknowledging this same discrepancy lacks measured justification.
-- **Impact**: Operators cannot understand why crawlers stop after 3 hops or 200 pages per site; new developers may not realize these are operational limits rather than technical constraints. The 500-vs-200 mismatch also means removing or misconfiguring the TOML key would silently change deployed behavior to the code's higher default without anyone noticing.
-- **Required Action**: Owner confirmation of the historical reason for these specific operational values, and confirmation of which `max_pages` value (500 or 200) is the intended operational limit; if resolved, update the crawler documentation and reconcile the code default with the deployed config accordingly
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-27
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next crawler operations review
-- **Blocking**: No
-
 #### NC-036
 
 - **Source File**: `scripts/rag/pipeline_service.py::call_rag_service()` / `ADR-010-rag-fallback.md`
@@ -218,7 +201,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG architecture review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-035 and NC-036.
+No other active Needs Confirmation items exist outside the set listed here: NC-036.
 
 ## Part 3: Canonical Source Conflict
 
