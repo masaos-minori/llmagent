@@ -146,8 +146,8 @@ closing summary line.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the NC-029 entry block and update the summary line per Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the applicable documentation checker(s) per Validation plan | Pending | — | — | |
+| 1 | Remove the NC-029 entry block and update the summary line per Implementation > Procedure/Method/Details | Completed | 20260929-140645 | 20260929-140645 | NC-029 block (lines 204-220) removed; summary line updated (NC-029 dropped from enumerated list); stale_detector clean |
+| 2 | Run the applicable documentation checker(s) per Validation plan | Completed | 20260929-140645 | 20260929-140645 | Doc checkers run — NC-029 confirmed absent from inventory output; file-size check now passes (below limit after 3 cumulative NC removals); pre-existing unrelated findings recorded (content-policy line 246 crawler item; quality-similarity warnings) — out of this Plan's scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
