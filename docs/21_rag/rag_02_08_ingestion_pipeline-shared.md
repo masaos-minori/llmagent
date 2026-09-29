@@ -90,7 +90,7 @@ English queries use regex tokenization `[a-zA-Z0-9]+`. The Sudachi tokenizer is 
 Token limit for FTS5 queries: 20 (defined by `_MAX_FTS_TOKENS` in `repository.py`).
 Tokens exceeding this limit are silently truncated to prevent query explosion. Double quotes (FTS5 metacharacters) and whitespace are removed from each token, and empty tokens are discarded. If no valid tokens remain, `'""'` (an empty FTS5 query) is returned.
 
-**[Needs Confirmation]:** There is currently no documented rationale within the project for this specific value (20) based on measurement or load testing. As it appears to be a heuristic setting, it should be re-validated during performance tuning.
+There is no recorded historical rationale or measurement/load-testing data for this value (20); it is accepted as a heuristic, with re-validation deferred to a future RAG query performance tuning pass.
 
 ---
 

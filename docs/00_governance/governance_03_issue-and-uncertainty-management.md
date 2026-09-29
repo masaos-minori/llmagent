@@ -201,23 +201,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Confirm whether the unreachable `INVALID_FORMAT` branch needs dedicated test coverage, given ADR-008 #14 already settles that it should be kept rather than removed.
 - **Blocking**: No
 
-#### NC-028
-
-- **Source File**: `rag_02_08_ingestion_pipeline-shared.md`
-- **Section**: FTS5 Query Token Limit
-- **Line Number**: ~132
-- **Question**: What is the rationale for the FTS5 query token limit of 20 (`_MAX_FTS_TOKENS` in `scripts/rag/repository.py`)? Is it based on measurement or load testing?
-- **Evidence**: The document already carries an inline marker: "There is currently no documented rationale within the project for this specific value (20) based on measurement or load testing. As it appears to be a heuristic setting, it should be re-validated during performance tuning."
-- **Impact**: An unvalidated limit risks silently truncating long queries (reducing search precision) if too low, or query explosion if raised without validation
-- **Required Action**: Re-validate this value against measurement or load testing during RAG query performance tuning
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-03
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next RAG query performance tuning pass
-- **Blocking**: No
-
 #### NC-029
 
 - **Source File**: `rag_02_09_ingestion_pipeline-shared-utilities.md`
@@ -303,7 +286,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG architecture review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-028, NC-029, NC-033, NC-034, NC-035, and NC-036.
+No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-029, NC-033, NC-034, NC-035, and NC-036.
 
 ## Part 3: Canonical Source Conflict
 
