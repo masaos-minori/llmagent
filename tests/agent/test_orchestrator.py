@@ -129,7 +129,10 @@ def _patch_workflow_loader():
 
 
 def _make_orchestrator(
-    ctx: MagicMock, on_error: Any = None, pause_on_critical_failure: bool = False, workflow_engine: Any = None
+    ctx: MagicMock,
+    on_error: Any = None,
+    pause_on_critical_failure: bool = False,
+    workflow_engine: Any = None,
 ) -> Orchestrator:
     on_first_turn = AsyncMock()
     orch = Orchestrator(
@@ -188,7 +191,7 @@ class TestHandleTurnInvokesWorkflowEngine:
             "handle_llm_turn",
             AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
         ):
-                await orch.handle_turn("hello")
+            await orch.handle_turn("hello")
 
         mock_engine_instance.run.assert_called_once()
 
@@ -218,7 +221,7 @@ class TestHandleTurnInvokesWorkflowEngine:
             patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore"),
         ):
-                await orch.handle_turn("hello")
+            await orch.handle_turn("hello")
 
         assert on_error.call_count == 1
         exc_arg = on_error.call_args[0][0]
@@ -1265,10 +1268,13 @@ class TestAllowedToolsOverride:
 
     @pytest.mark.asyncio
     async def test_original_config_restored_even_on_error(self) -> None:
-        """ctx.cfg.tool.allowed_tools is restored even when an exception propagates."""
+        """ctx.cfg.tool.allowed_tools is restored, and the halt is observable via
+        on_error, when the workflow engine halts the turn after retries are
+        exhausted."""
         ctx = _make_ctx()
         ctx.cfg.tool.allowed_tools = []
-        orch = Orchestrator(ctx, allowed_tools=["search_web"])
+        on_error = MagicMock()
+        orch = Orchestrator(ctx, allowed_tools=["search_web"], on_error=on_error)
         orch._diagnostic_store = MagicMock()
 
         async def _raise(*_: object, **__: object) -> None:
@@ -1277,10 +1283,14 @@ class TestAllowedToolsOverride:
         with patch.object(
             orch._conversation_manager, "handle_memory_injection", side_effect=_raise
         ):
-            with pytest.raises(RuntimeError):
-                await orch.handle_turn("test")
+            await orch.handle_turn("test")
 
         assert ctx.cfg.tool.allowed_tools == []
+        assert ctx.workflow.active is False
+        on_error.assert_called_once()
+        (halt_exc,), _ = on_error.call_args
+        assert isinstance(halt_exc, WorkflowHaltError)
+        assert isinstance(halt_exc.__cause__, RuntimeError)
 
 
 class TestHandleHistoryCompressionPersist:
