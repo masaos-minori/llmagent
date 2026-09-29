@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 from pathlib import Path
 from typing import Any
@@ -336,6 +337,54 @@ class TestFileOffsetMonotonicity:
 
         write_offset(str(tmp_path), "consumer_4", 1)
         assert read_offset(str(tmp_path), "consumer_4") == 1
+
+    def test_write_offset_rejects_non_increasing_write_with_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """write_offset() silently skips writes when seq < current and logs a warning."""
+        from eventbus.offsets import read_offset, write_offset
+
+        # Write a higher offset first
+        write_offset(str(tmp_path), "consumer_warn", 100)
+        assert read_offset(str(tmp_path), "consumer_warn") == 100
+
+        # Attempt to write a lower offset -- silently skipped with a warning
+        with caplog.at_level(logging.WARNING):
+            write_offset(str(tmp_path), "consumer_warn", 50)
+
+        # Offset should remain unchanged
+        assert read_offset(str(tmp_path), "consumer_warn") == 100
+
+        # A warning that the offset did not advance must have been logged
+        assert any(
+            "not advanced" in record.message.lower()
+            for record in caplog.records
+            if record.levelno >= logging.WARNING
+        )
+
+    def test_write_offset_rejects_equal_seq_write(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """write_offset() skips writes when seq == current and logs a warning."""
+        from eventbus.offsets import read_offset, write_offset
+
+        # Write an offset
+        write_offset(str(tmp_path), "consumer_eq", 42)
+        assert read_offset(str(tmp_path), "consumer_eq") == 42
+
+        # Same seq again -- silently skipped with a warning
+        with caplog.at_level(logging.WARNING):
+            write_offset(str(tmp_path), "consumer_eq", 42)
+
+        # Offset should remain unchanged
+        assert read_offset(str(tmp_path), "consumer_eq") == 42
+
+        # A warning that the offset did not advance must have been logged
+        assert any(
+            "not advanced" in record.message.lower()
+            for record in caplog.records
+            if record.levelno >= logging.WARNING
+        )
 
 
 class TestSqliteOffsetMonotonicity:
