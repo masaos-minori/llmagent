@@ -77,9 +77,9 @@ N/A: none of these 3 fixes touch security-relevant behavior.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260927-164316 | 20260927-164316 |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: fixing/investigating the existing 3 tests is itself the work |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A unless REQ-003 resolves to a documented contract change |
+| 2 | Add or update tests per Validation plan | Completed | 20260929-170352 | 20260929-170352 | N/A: fixing/investigating the existing 3 tests is itself the work N/A confirmed: fixing/investigating the existing 3 tests was itself the work (per original Notes); no separate new test needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260929-170353 | 20260929-170353 | Resumed cycle: adversarial verification confirmed all 3 requirements already resolved via prior work — REQ-001/002 via _make_orchestrator's workflow_engine= constructor-injection param (a cleaner approach than the with-block reordering originally proposed, per Alternatives considered); REQ-003 via this same session's separate agent007 fix (test now asserts on_error callback + ctx.workflow.active instead of pytest.raises(RuntimeError), matching the halt-swallowing resolution path). Targeted 3 tests: passed. Full file (87 tests): passed. ruff/bandit clean; pre-existing unrelated mypy module-resolution error and lint-imports shared->agent violation confirmed (same as earlier this session). Full suite (non-randomized): 8004 passed, 24 skipped, 0 failed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260929-170353 | 20260929-170353 | N/A unless REQ-003 resolves to a documented contract change N/A: test-only fix, no docs/00_index.md task-scope mapping applies; REQ-003 resolved without requiring a production/contract change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
