@@ -72,9 +72,9 @@ N/A: test-reliability fix, no security-relevant behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Check the `cicd` sibling document's finding for a shared cause | Pending | — | — | |
-| 2 | Bisect independently if no shared cause was found | Pending | — | — | |
-| 3 | Fix the identified shared-state issue and verify consistent passing | Pending | — | — | |
+| 1 | Check the `cicd` sibling document's finding for a shared cause | Completed | 20260927-151219 | 20260929-093247 | Shared cause confirmed via cicd sibling doc: _duplicate_cache collision in dispatch.py; both tests used empty idempotency_key='' -> cross-test cache collision under shared module-level dict |
+| 2 | Bisect independently if no shared cause was found | Completed | 20260929-093247 | 20260929-093247 | N/A: shared cause was found, so independent bisection was not required |
+| 3 | Fix the identified shared-state issue and verify consistent passing | Completed | 20260929-093247 | 20260929-093247 | Fix already applied & committed (unique x-idempotency-key headers on both cicd+shell tests); verified 5 consecutive runs of uv run pytest tests/mcp_servers/ -q all pass (1763 passed each) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
