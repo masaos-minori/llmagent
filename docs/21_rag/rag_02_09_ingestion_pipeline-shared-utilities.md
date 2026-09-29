@@ -44,7 +44,7 @@ This module exposes the following functions. Please refer to the source code for
 
 **Constants:**
 
-This module defines the following constants. Please refer to the source code for details. Specifically, the rationale for `MIN_TEXT_LENGTH_FOR_DETECTION = 100` is unconfirmed (Needs Confirmation).
+This module defines the following constants. Please refer to the source code for details. `MIN_TEXT_LENGTH_FOR_DETECTION = 100` has no recorded historical rationale and is accepted as a heuristic value as-is.
 
 **Prompt Injection Patterns:**
 

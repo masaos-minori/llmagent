@@ -201,23 +201,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Confirm whether the unreachable `INVALID_FORMAT` branch needs dedicated test coverage, given ADR-008 #14 already settles that it should be kept rather than removed.
 - **Blocking**: No
 
-#### NC-029
-
-- **Source File**: `rag_02_09_ingestion_pipeline-shared-utilities.md`
-- **Section**: Constants
-- **Line Number**: ~47
-- **Question**: What is the rationale for `MIN_TEXT_LENGTH_FOR_DETECTION = 100` (the minimum text length required for language detection)?
-- **Evidence**: The document already carries an inline marker: "the rationale for `MIN_TEXT_LENGTH_FOR_DETECTION = 100` is unconfirmed (Needs Confirmation)"; the constant is defined in `scripts/rag/utils.py` with no rationale comment
-- **Impact**: Changing this threshold without knowing its rationale risks unintended effects on language-detection accuracy for short texts
-- **Required Action**: Owner confirmation, or validate against the language-detection library's own empirical guidance
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-03
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next language-detection logic review
-- **Blocking**: No
-
 #### NC-033
 
 - **Source File**: `rag_02_03_ingestion_pipeline-chunksplitter.md`
@@ -286,7 +269,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG architecture review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-029, NC-033, NC-034, NC-035, and NC-036.
+No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-033, NC-034, NC-035, and NC-036.
 
 ## Part 3: Canonical Source Conflict
 
