@@ -110,27 +110,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 **EventBus-specific verification (REQ-006)**: Verified by configuration test confirming `ConfigMissingError` is raised when a required config file is missing. The EventBus `load_config()` function (`scripts/eventbus/config.py`) validates required keys via `_REQUIRED_CONFIG_KEYS` and raises `ValueError` for missing keys — consistent with the fail-closed behavior described in CI-005.
 
-#### CI-014
-
-- **ID**: CI-014
-- **Title**: ADR-009 INV-01 — `normalized_content` LLM-output prohibition, verified but needs test coverage
-- **Status**: open
-- **Severity**: Medium
-- **Area**: RAG
-- **Type**: operational-gap
-- **Source**: `_format_chunks()`
-- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
-- **First Found**: 2026-09-15
-- **Target**: `docs/10_adr/ADR-009-rag-ft5-text-separation.md`
-- **Related**: ADR-009
-- **Summary**: ADR-009 states that `normalized_content` must not appear in LLM output.
-- **Current Description**: This has been verified via code inspection (`_format_chunks()` uses `c.content`, not `c.normalized_content`), but there is no automated test covering this invariant.
-- **Observed Implementation**: Verified by code inspection only.
-- **Impact**: Without test coverage, regression of this invariant cannot be caught automatically.
-- **Recommended Action**: Add a unit test for the `normalized_content` prohibition.
-- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
-
-Note on CI-014 batching: This structurally identical "ADR invariant verified by code inspection, no automated test" entry is the sole remaining member of one initiative (originally nine members; CI-008, CI-009, CI-010, CI-011, CI-012, CI-013, CI-015, and CI-016 were removed once test coverage was added). Its Area field is RAG (CI-014), and no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
+Note on CI-014 batching: These "ADR invariant verified by code inspection, no automated test" entries formed one cross-cutting initiative of originally nine members. All nine have since been removed once test coverage was added (CI-008, CI-009, CI-010, CI-011, CI-012, CI-013, CI-014, CI-015, and CI-016); no active members remain. Their Area fields spanned Agent, Shared/DB, MCP, RAG, and EventBus, so no single existing RACI role was accountable for the cross-area ADR-invariant-test-suite initiative. This finding is recorded here; the cross-cutting-role vs. per-area-ownership decision stays open for any future similar initiative.
 
 ## Part 2: Needs Confirmation Inventory
 
