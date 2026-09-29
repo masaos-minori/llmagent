@@ -130,27 +130,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Add a unit test for the `normalized_content` prohibition.
 - **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
 
-#### CI-016
-
-- **ID**: CI-016
-- **Title**: ADR-004 Decision #12/INV-14 — undefined component criticality treatment relies on a safe default, verified but needs test coverage
-- **Status**: open
-- **Severity**: Medium
-- **Area**: Agent
-- **Type**: operational-gap
-- **Source**: `scripts/shared/mcp_config.py` (`required: bool = True` default), `scripts/agent/services/mcp_tool_discovery.py`
-- **Owner**: TODO(owner) — cross-area initiative, no single RACI role fits (see batching note)
-- **First Found**: 2026-09-15
-- **Target**: `docs/10_adr/ADR-004-environment-failure-handling-policy.md`
-- **Related**: ADR-004
-- **Summary**: ADR-004 Decision #12/INV-14 requires that undefined or undeterminable component criticality never be assumed non-required and be treated as an unresolved design/config error.
-- **Current Description**: `McpServerConfig.required` enforces a safety net for unspecified criticality values, preventing silent treatment as non-required. However, no automated test verifies this default-required safety net, and no distinct code path flags "criticality was never explicitly configured" as its own design/config error per Decision #12's literal wording — ADR-004's own Completion Checklist and Manual Review notes still list INV-14 as unverified/Manual-Review-only.
-- **Observed Implementation**: Verified by code inspection only (default value inspection); no automated test.
-- **Impact**: Without test coverage, a future change to the default value (e.g. `required: bool = False`) would silently violate INV-14 with no automated check to catch the regression.
-- **Recommended Action**: Add a unit test asserting the required field behavior for unspecified criticality values, and/or a test asserting undefined-criticality components are never routed as non-required.
-- **Resolution Target**: ADR-invariant test suite initiative — tracked as one cross-area effort, see batching note below
-
-Note on CI-014, CI-016 batching: These two structurally identical "ADR invariant verified by code inspection, no automated test" entries are treated as one initiative (originally nine members; CI-008, CI-009, CI-010, CI-011, CI-012, CI-013, and CI-015 were removed once test coverage was added). Their Area fields span RAG (CI-014) and Agent (CI-016) — one member per area — and no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
+Note on CI-014 batching: This structurally identical "ADR invariant verified by code inspection, no automated test" entry is the sole remaining member of one initiative (originally nine members; CI-008, CI-009, CI-010, CI-011, CI-012, CI-013, CI-015, and CI-016 were removed once test coverage was added). Its Area field is RAG (CI-014), and no single existing RACI role is accountable for a cross-area ADR-invariant-test-suite initiative. This Plan flags the decision for human determination: create a new cross-cutting role vs. revert to per-area ownership.
 
 ## Part 2: Needs Confirmation Inventory
 
