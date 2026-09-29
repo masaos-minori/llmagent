@@ -155,6 +155,22 @@ class _SubprocessLifecycleManager(LifecycleManagerProtocol):
         """Clean up resources for a removed MCP server. Delegates to HttpServerLifecycleManager."""
         return self._http_mgr._cleanup_server_resources(server_key)
 
+    def verify_running(self, server_key: str) -> bool:
+        """Return whether the HTTP subprocess server is running; delegates to HttpServerLifecycleManager."""
+        return self._http_mgr.verify_running(server_key)
+
+    async def verify_running_async(self, server_key: str, cfg: McpServerConfig) -> bool:
+        """Async /health liveness check for a server; delegates to HttpServerLifecycleManager."""
+        return await self._http_mgr.verify_running_async(server_key, cfg)
+
+    def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
+        """Return ProcessInfoSnapshot for a managed subprocess server, or None; delegates."""
+        return self._http_mgr.get_process_info(server_key)
+
+    def list_processes(self) -> list[ProcessInfoSnapshot]:
+        """Return ProcessInfoSnapshot list for all managed subprocess servers; delegates."""
+        return self._http_mgr.list_processes()
+
 
 _logger = logging.getLogger(__name__)
 
@@ -265,17 +281,18 @@ class _ServerLifecycleRouter:
             raise ServerCooldownError(
                 f"MCP server {server_key!r} is restarting. Try again in {max(0, remaining):.0f}s"
             )
-        os_alive = self._subprocess_mgr._http_mgr.verify_running(server_key)
+        os_alive = self._subprocess_mgr.verify_running(server_key)
         if not os_alive:
             _logger.info(
                 "Lifecycle: %r not running; starting via ensure_ready", server_key
             )
-            await self._run_lifecycle_transition(
-                server_key,
-                lambda: self._subprocess_mgr._http_mgr.start(server_key, cfg),
-            )
+
+            async def _start_server() -> None:
+                await self._subprocess_mgr.start_http_subprocess(server_key, cfg)
+
+            await self._run_lifecycle_transition(server_key, _start_server)
         else:
-            app_healthy = await self._subprocess_mgr._http_mgr.verify_running_async(
+            app_healthy = await self._subprocess_mgr.verify_running_async(
                 server_key, cfg
             )
             if not app_healthy:
@@ -284,13 +301,13 @@ class _ServerLifecycleRouter:
                 )
                 await self._run_lifecycle_transition(
                     server_key,
-                    lambda: self._subprocess_mgr._http_mgr.restart(server_key, cfg),
+                    lambda: self._subprocess_mgr.restart(server_key),
                 )
 
     async def shutdown_all(self) -> None:
         """Shut down all managed HTTP subprocess servers."""
         self._shutting_down = True
-        await self._subprocess_mgr._http_mgr.shutdown_all()
+        await self._subprocess_mgr.shutdown_all()
         for key in self._server_configs:
             self._set_state(key, LifecycleState.STOPPED)
 
@@ -309,13 +326,16 @@ class _ServerLifecycleRouter:
             return None
         if self._in_cooldown(server_key):
             return None
-        await self._run_lifecycle_transition(
-            server_key,
-            lambda: self._subprocess_mgr._http_mgr.start(
+        captured: subprocess.Popen[bytes] | None = None
+
+        async def _start() -> None:
+            nonlocal captured
+            captured = await self._subprocess_mgr.start_http_subprocess(
                 server_key, cfg, shutdown_event=shutdown_event
-            ),
-        )
-        return self._subprocess_mgr._http_mgr._http_procs.get(server_key)
+            )
+
+        await self._run_lifecycle_transition(server_key, _start)
+        return captured
 
     async def restart(self, server_key: str) -> None:
         """Restart a single HTTP subprocess MCP server."""
@@ -334,7 +354,7 @@ class _ServerLifecycleRouter:
         if self._in_cooldown(server_key):
             return
         await self._run_lifecycle_transition(
-            server_key, lambda: self._subprocess_mgr._http_mgr.restart(server_key, cfg)
+            server_key, lambda: self._subprocess_mgr.restart(server_key)
         )
 
     async def shutdown_idle(self) -> None:
@@ -349,23 +369,19 @@ class _ServerLifecycleRouter:
 
     def get_process_snapshot(self, server_key: str) -> dict | None:
         """Return process snapshot dict for a managed subprocess server, or None."""
-        snapshot: dict | None = self._subprocess_mgr._http_mgr.get_process_snapshot(
-            server_key
-        )
+        snapshot: dict | None = self._subprocess_mgr.get_process_snapshot(server_key)
         return snapshot
 
     def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
         """Return ProcessInfoSnapshot for a managed subprocess server, or None."""
-        info: ProcessInfoSnapshot | None = (
-            self._subprocess_mgr._http_mgr.get_process_info(server_key)
+        info: ProcessInfoSnapshot | None = self._subprocess_mgr.get_process_info(
+            server_key
         )
         return info
 
     def list_processes(self) -> list[ProcessInfoSnapshot]:
         """Return list of ProcessInfoSnapshot for all managed subprocess servers."""
-        processes: list[ProcessInfoSnapshot] = (
-            self._subprocess_mgr._http_mgr.list_processes()
-        )
+        processes: list[ProcessInfoSnapshot] = self._subprocess_mgr.list_processes()
         return processes
 
     def get_subprocess_server_configs(self) -> list[tuple[str, McpServerConfig]]:
@@ -379,7 +395,7 @@ class _ServerLifecycleRouter:
 
     def cleanup_server_resources(self, server_key: str) -> str:
         """Clean up resources for a removed MCP server. Delegates to HttpServerLifecycleManager."""
-        return self._subprocess_mgr._http_mgr._cleanup_server_resources(server_key)
+        return self._subprocess_mgr.cleanup_server_resources(server_key)
 
 
 def _build_audit_logger(ctx: AgentContext) -> Logger:
