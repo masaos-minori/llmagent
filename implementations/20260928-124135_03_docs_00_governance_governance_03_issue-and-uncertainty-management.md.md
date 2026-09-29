@@ -80,10 +80,10 @@ Any other CI entry; Part 2 Needs Confirmation Inventory; cross-cutting ownership
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260929-230703 | 20260929-230703 | Applied two in-place edits per Procedure: removed #### CI-014 subsection (actual lines 113-133, not 173-191); rewrote batching note to reflect zero remaining members (user-confirmed rewrite). |
+| 2 | Add or update tests per Validation plan | Completed | 20260929-230703 | 20260929-230703 | N/A: documentation-only; validation plan uses manual verification. CI-014 test confirmed present and passing from a prior cycle. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260929-230703 | 20260929-230703 | Doc-only validation: check_docs_quality/structure/content_policy passed for governance_03. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260929-230703 | 20260929-230703 | Primary deliverable; see Step 1 notes. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
