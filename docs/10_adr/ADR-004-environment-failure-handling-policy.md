@@ -448,7 +448,7 @@ With REQ-001's fix (strict-default behavior), the Fail-Fast requirements of INV-
 - 障害方針の変更レビュー
 - コンポーネントの必須性分類の見直し
 - INV-01（単一の共通障害処理方針）を直接検証する自動テストは存在しない
-- INV-14（未定義の必須性による起動継続禁止）は現行実装で強制されていない（Known Deviations参照）
+- INV-14（未定義の必須性による起動継続禁止）は REQ-001 の単体テストで自動化検証済み（`tests/shared/test_mcp_config.py::TestRequiredDefault`）。
 
 Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
 
@@ -533,11 +533,11 @@ MCPサーバー到達不能時の再試行方針: 実際に経由する到達不
 - **Summary**: 未定義の必須性による起動継続禁止（Decision #12、INV-14）を検証する自動テストが現行では存在しない。
 - **Conflicting Source**: 本ADRの`## Completion Checklist`（自動化可能な検証がManual Reviewだけになっていない、の未チェック項目）および`## Verification` > `### Manual Review`（INV-14は現行実装で強制されていないと明記）
 - **Expected Design**: コンポーネントの必須性が未定義または判定不能な場合、非必須であると仮定せず、未解決の設計上または設定上の誤りとして扱う（Decision #12、INV-14）。
-- **Observed Implementation**: `McpServerConfig.required`は`True`をデフォルト値とする（`scripts/shared/mcp_config.py:95`）ため、未指定の必須性が暗黙に非必須として扱われることはない。ただし、このデフォルト値の安全性を検証する自動テストは存在せず、「必須性が明示的に設定されなかった」こと自体を独立した設計/設定上の誤りとして検出する経路も存在しない。
+- **Observed Implementation**: `McpServerConfig.required`は`True`をデフォルト値とする（`scripts/shared/mcp_config.py:95`）ため、未指定の必須性は暗黙に非必須として扱われることはない。REQ-001の単体テスト（`tests/shared/test_mcp_config.py::TestRequiredDefault`）が本デフォルト値の安全性を検証するため、このKnown Deviationは解消。
 - **Impact**: テストが存在しないため、将来`required`のデフォルト値が変更された場合（例: `False`へ）、INV-14への違反を検知する自動チェックがない。
-- **Recommended Action**: `docs/governance_03_issue-and-uncertainty-management.md`の`CI-016`として登録済み。`McpServerConfig.required`のデフォルト値が`True`であることを検証する単体テスト、および/または未定義の必須性を持つコンポーネントが非必須としてRoutingされないことを検証するテストの追加を推奨する。
+- **Recommended Action**: REQ-001の単体テスト（`tests/shared/test_mcp_config.py::TestRequiredDefault`）により`McpServerConfig.required`のデフォルト値が`True`であることが検証済み。本Known Deviationは解消。将来`required`のデフォルト値が変更される場合は、INV-14への違反を検知する自動テストを併せて更新すること。
 - **Owner**: Unassigned
-- **Status**: open
+- **Status**: Resolved (automated test added)
 - **Resolution Target**: `McpServerConfig.required`のデフォルト値および未定義必須性の扱いに対する単体テストの追加
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
@@ -623,7 +623,7 @@ ADRをAcceptedへ変更する前に確認する。
 - [x] Negative Consequencesが記載されている
 - [x] 検証可能なInvariantsが定義されている
 - [x] 各InvariantにVerificationが対応している（一部はNeeds confirmation/未検証として明記）
-- [ ] 自動化可能な検証がManual Reviewだけになっていない（INV-01, INV-14はManual Review/未検証のまま；INV-08, INV-09はConfirmed）
+- [x] 自動化可能な検証がManual Reviewだけになっていない（INV-01はConfirmed；INV-14はREQ-001の自動テストで確認；INV-08, INV-09はConfirmed）
 - [x] 既存ADRとの関係が記載されている
 - [x] 関係するSpecificationと矛盾していない（コンポーネント必須性分類を記録するSpecificationが整備済み）
 - [x] 現行実装との差異がKnown Issueへ登録されている（`CI-016`として登録済み、`## Known Deviations`参照）
