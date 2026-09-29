@@ -110,8 +110,8 @@ Confirmation item.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the marker sentence in the target file per Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the applicable documentation checker(s) per Validation plan | Pending | — | — | |
+| 1 | Replace the marker sentence in the target file per Implementation > Procedure/Method/Details | Completed | 20260929-140504 | 20260929-140504 | Marker sentence replaced; stale_detector clean |
+| 2 | Run the applicable documentation checker(s) per Validation plan | Completed | 20260929-140504 | 20260929-140504 | check_docs_quality.py / check_docs_structure.py / check_docs_content_policy.py / check_needs_confirmation_inventory.py all run; no finding for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
