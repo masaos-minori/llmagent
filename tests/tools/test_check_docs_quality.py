@@ -30,7 +30,6 @@ EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
         "00_governance/governance_01_documentation-policy.md:'MCP' <-> 'Shared/DB'",
         "00_governance/governance_01_documentation-policy.md:'Agent' <-> 'Shared/DB'",
         "00_governance/governance_01_documentation-policy.md:'EventBus' <-> 'Shared/DB'",
-        "00_governance/governance_03_issue-and-uncertainty-management.md:'CI-009' <-> 'CI-012'",
         "00_governance/governance_03_issue-and-uncertainty-management.md:'Lifecycle' <-> 'Lifecycle'",
         "00_governance/governance_03_issue-and-uncertainty-management.md:'Lifecycle' <-> 'Lifecycle'",
         "00_governance/governance_03_issue-and-uncertainty-management.md:'Lifecycle' <-> 'Lifecycle'",
