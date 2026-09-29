@@ -160,6 +160,19 @@ class TestFormatChunksDesign2:
         assert content in result
         assert normalized not in result
 
+    def test_real_normalized_content_attribute_excluded(self) -> None:
+        """TEST-DESIGN2-03: an input object carrying a distinct normalized_content
+        attribute never has that value emitted by _format_chunks."""
+        chunk = SimpleNamespace(
+            content="検索結果",
+            normalized_content="けんさく けっか",
+            url="http://example.com",
+            title="",
+        )
+        result = _augment_format_chunks([chunk])
+        assert "検索結果" in result
+        assert "けんさく けっか" not in result
+
 
 # ── RagPipelineError (rag/pipeline.py) ─────────────────────────────────────────
 
