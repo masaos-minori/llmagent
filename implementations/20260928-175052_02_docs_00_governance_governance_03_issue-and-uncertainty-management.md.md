@@ -81,13 +81,25 @@ Any change to `scripts/db/recovery.py`, `tests/db/test_db_recovery.py`, other go
 
 ## Execution Status
 
+**Note (added 20260929):** This document and its own source Plan
+(`plans/20260928-152012_plan.md`) were left unexecuted (all steps `Pending`)
+since generation on 20260928. That Plan was separately found accidentally
+archived without ever having been executed, corrected, and fully re-executed
+under a new pass-timestamp
+(`implementations/done/20260929-143826_02_....md.md`), which removed the
+identical NC-021 entry this document also describes. Re-reading current
+source confirms the `#### NC-021` heading is absent from
+`docs/00_governance/governance_03_issue-and-uncertainty-management.md`, and
+the closing summary line no longer lists `NC-021`. No further action is
+needed under this document.
+
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | N/A: code/test change is handled by the sibling implementation procedure for `tests/db/test_db_recovery.py` |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: no tests added by this doc-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | N/A: no code changed; documentation checkers (below) apply instead |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Actual work: remove NC-021 entry and update summary line |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260929-180700 | 20260929-180700 | N/A: code/test change is handled by the sibling implementation procedure for `tests/db/test_db_recovery.py` |
+| 2 | Add or update tests per Validation plan | Completed | 20260929-180700 | 20260929-180700 | N/A: no tests added by this doc-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260929-180700 | 20260929-180700 | N/A: no code changed; documentation checkers applied instead, already run under the re-executed pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260929-180700 | 20260929-180700 | Already applied via the re-executed pass — confirmed via direct read: `#### NC-021` heading absent, summary line no longer lists NC-021 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
