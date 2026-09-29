@@ -184,23 +184,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 ### Active Items
 
-#### NC-021
-
-- **Source File**: `~~db_07_db_api_and_operations-recovery-and-reference~~ (deleted).md`
-- **Section**: 9.3 Integrity-result model (target design)
-- **Line Number**: ~39
-- **Question**: ADR-008 (Decision Details #14, merged from former ADR-011) already settles that `INVALID_FORMAT` is kept as a defined-but-currently-unreachable classification, not removed as dead code — the remaining open question is narrower: should a test be added to cover this branch (e.g. via a fixture that triggers it), or is "verified unreachable by design" sufficient?
-- **Evidence**: The structured six-state `DbCondition` classification is implemented (`scripts/db/recovery.py`), but `INVALID_FORMAT` is defined and dispatched-on without any code path that produces it — the branch is currently unreachable. ADR-008 Decision Details #14 already resolves the keep-vs-remove question in favor of keeping the enum value and dispatch branch.
-- **Impact**: Leaving this unconfirmed risks an untested branch silently diverging from its intended (unreachable-by-design) behavior if the classification logic changes
-- **Required Action**: Owner decision on whether test coverage for the unreachable `INVALID_FORMAT` branch is required, or whether "verified unreachable by design per ADR-008 #14" is an acceptable resolution
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-27
-- **Priority**: Medium
-- **Related NC**: None
-- **Resolution Target**: Confirm whether the unreachable `INVALID_FORMAT` branch needs dedicated test coverage, given ADR-008 #14 already settles that it should be kept rather than removed.
-- **Blocking**: No
-
 #### NC-033
 
 - **Source File**: `rag_02_03_ingestion_pipeline-chunksplitter.md`
@@ -252,7 +235,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG architecture review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-033, NC-035, and NC-036.
+No other active Needs Confirmation items exist outside the set listed here: NC-033, NC-035, and NC-036.
 
 ## Part 3: Canonical Source Conflict
 

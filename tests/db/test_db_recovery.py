@@ -106,6 +106,18 @@ def test_recover_permission_failure(mock_db_cfg, mock_sqlite_helper):
         assert result.detail and "permission_failure" in result.detail
 
 
+def test_recover_invalid_format(mock_db_cfg, mock_sqlite_helper):
+    with patch(
+        "scripts.db.recovery._run_integrity_check",
+        return_value=(DbCondition.INVALID_FORMAT, "invalid database format"),
+    ):
+        result = recover_corruption(target="rag")
+
+        assert result.success is False
+        assert result.action == "error"
+        assert result.detail and "invalid_format" in result.detail
+
+
 def test_recover_no_backup(mock_db_cfg, mock_sqlite_helper):
     with patch(
         "scripts.db.recovery._run_integrity_check",
