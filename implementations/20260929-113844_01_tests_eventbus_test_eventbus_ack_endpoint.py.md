@@ -10,8 +10,8 @@ comment (REQ-001; REQ-002).
 - **Out-of-Scope**: `scripts/eventbus/ack_route.py`, `scripts/eventbus/auth.py`,
   `scripts/eventbus/app.py` (investigation confirmed their authorization logic is
   correct; not modified); any other fixture or test in this file; the separate
-  test-hygiene observation about `test_original_allowed_tools_restored_after_turn`-style
-  dead-patch issues in an unrelated file (out of this Plan's scope entirely).
+  test-hygiene observation about dead-patch issues in an unrelated file's tests
+  (out of this Plan's scope entirely).
 
 ## Assumptions
 - `TestClient(eb_app.app).__enter__()` runs the `lifespan` startup handler
@@ -25,7 +25,7 @@ comment (REQ-001; REQ-002).
 
 ## Design decisions
 - Reorder in place (move the existing override block) rather than introducing a new
-  fixture parameter, monkeypatch, or `dependency_overrides` mechanism — the existing
+  fixture parameter, monkeypatch, or FastAPI dependency-override mechanism — the existing
   `_TOKEN_PRINCIPAL_MAP` mutation approach already works correctly for the app's
   actual runtime dependency-injection path; the only defect is *when* it runs
   relative to `lifespan` startup (per `skills/python-design` — minimal, root-cause-scoped
@@ -161,9 +161,9 @@ instance).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reorder the override block and fix the comment per Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run `rg` check for other `principal_client` users | Pending | — | — | |
-| 3 | Run targeted/regression/full-suite tests per Validation plan | Pending | — | — | |
+| 1 | Reorder the override block and fix the comment per Implementation > Procedure/Method/Details | Completed | 20260929-123411 | 20260929-123411 | Fixture override reordered per Procedure/Method/Details; stale_detector clean after rewording two false-positive backtick mentions |
+| 2 | Run `rg` check for other `principal_client` users | Completed | 20260929-123411 | 20260929-123411 | rg -l principal_client tests/ found 3 other files with independently-defined (not shared) principal_client fixtures — no cross-file impact confirmed |
+| 3 | Run targeted/regression/full-suite tests per Validation plan | Completed | 20260929-123411 | 20260929-123411 | Targeted: 10 passed (incl. test_ack_event_principal_ownership_validation). Regression tests/eventbus/: 315 passed, 1 skipped. Full suite: 7992 passed, 24 skipped, 5 failed - all pre-existing/unrelated (test_orchestrator.py::test_original_config_restored_even_on_error is agent007's own pending target; 4 test_memory_layer.py failures confirmed order-dependent/flaky via isolated non-randomized re-run, unrelated to this change). Pre-existing ruff/mypy/lint-imports/bandit findings recorded, not fixed (out of scope). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
