@@ -37,7 +37,7 @@ source:
 
 **Module-level Constants**
 
-This module defines the following constants. See source code for details. Note that the rationale for `MIN_HEADING_LINES_FOR_MARKDOWN = 2` is unconfirmed (Needs Confirmation).
+This module defines the following constants. See source code for details. `MIN_HEADING_LINES_FOR_MARKDOWN = 2` has no recorded historical rationale — traced through git history to the repository's initial commit with no explanatory commit message, ADR, or code comment found — and is accepted as an established heuristic, to be re-validated empirically if it becomes a concern.
 
 **Typed dict**
 

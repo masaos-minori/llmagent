@@ -201,23 +201,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Confirm whether the unreachable `INVALID_FORMAT` branch needs dedicated test coverage, given ADR-008 #14 already settles that it should be kept rather than removed.
 - **Blocking**: No
 
-#### NC-027
-
-- **Source File**: `rag_02_03_ingestion_pipeline-chunksplitter.md`
-- **Section**: 3. ChunkSplitter (`scripts/rag/ingestion/chunk_splitter.py`) — Module-level Constants
-- **Line Number**: ~40
-- **Question**: What is the rationale for `MIN_HEADING_LINES_FOR_MARKDOWN = 2` (the minimum heading-line count threshold used to decide Markdown heading-based chunking)?
-- **Evidence**: The document already carries an inline marker: "the rationale for `MIN_HEADING_LINES_FOR_MARKDOWN = 2` is unconfirmed (Needs Confirmation)"; the constant is defined in `scripts/rag/ingestion/chunk_splitter.py` with no rationale comment
-- **Impact**: Changing this value without knowing its rationale risks unintended changes to heading-based chunk splitting, e.g. short Markdown sections being split incorrectly
-- **Required Action**: Owner confirmation, or investigate how this value was originally derived (test cases, empirical validation)
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-09-03
-- **Priority**: Low
-- **Related NC**: None
-- **Resolution Target**: Next ChunkSplitter specification review
-- **Blocking**: No
-
 #### NC-028
 
 - **Source File**: `rag_02_08_ingestion_pipeline-shared.md`
@@ -320,7 +303,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target**: Next RAG architecture review
 - **Blocking**: No
 
-No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-027, NC-028, NC-029, NC-033, NC-034, NC-035, and NC-036.
+No other active Needs Confirmation items exist outside the set listed here: NC-021, NC-028, NC-029, NC-033, NC-034, NC-035, and NC-036.
 
 ## Part 3: Canonical Source Conflict
 
