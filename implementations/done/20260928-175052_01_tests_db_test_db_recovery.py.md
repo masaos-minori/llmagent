@@ -106,10 +106,10 @@ attempt to insert a duplicate function).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_recover_invalid_format` to `tests/db/test_db_recovery.py` | Completed | 20260929-180700 | 20260929-180700 | Already present in current source, added via the re-executed pass (implementations/done/20260929-143826_01_....md.md) — confirmed via direct read, exactly one occurrence, no duplicate |
-| 2 | Add or update tests per Validation plan | Completed | 20260929-180700 | 20260929-180700 | N/A: this document's own Step 1 is the test addition itself |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260929-180700 | 20260929-180700 | Already run under the re-executed pass: targeted (38 passed), full suite (8003 passed, 24 skipped, 0 failed at that time) |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260929-180700 | 20260929-180700 | N/A: documentation removal is handled by the sibling implementation procedure for `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (see seq 02 of this same orphaned pass, also being closed out with this note) |
+| 1 | Add `test_recover_invalid_format` to `tests/db/test_db_recovery.py` | Completed | 20260929-234614 | 20260929-234614 | Redundant duplicate of implementations/done/20260929-143826_01_tests_db_test_db_recovery.py.md. End-state verified independently: test present at tests/db/test_db_recovery.py:109 (matches spec; message string unasserted per proc L60), passes. Full suite this cycle: 8005 passed, 24 skipped, 0 failed. Never executed as its own cycle. |
+| 2 | Add or update tests per Validation plan | Completed | 20260929-234614 | 20260929-234614 | Covered by Step 1 and sibling 143826_01. Targeted: test_recover_invalid_format passes. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260929-234614 | 20260929-234614 | Full suite this cycle: 8005 passed, 24 skipped, 0 failed (809.7s). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260929-234614 | 20260929-234614 | N/A: documentation removal is handled by the sibling implementation procedure for `docs/00_governance/governance_03_issue-and-uncertainty-management.md` N/A: documentation removal handled by sibling implementation procedure for docs/00_governance/governance_03_issue-and-uncertainty-management.md (143826_02). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
