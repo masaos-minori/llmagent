@@ -6,6 +6,7 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -306,6 +307,19 @@ def _make_doc_file(
                 self.rel_path = tmp_name
 
     return FakeDocFile(content, path)
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_tmp_test_doc() -> Iterator[None]:
+    """Remove the .tmp_test_doc.md scratch file left by _make_doc_file after each test.
+
+    _make_doc_file writes a scratch markdown file to the repo root when called
+    without an explicit path (the check functions read it back from disk). This
+    autouse fixture deletes the file once the test body finishes, so it never
+    lingers in the working tree between or across test runs.
+    """
+    yield
+    (_ROOT_DIR / ".tmp_test_doc.md").unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
