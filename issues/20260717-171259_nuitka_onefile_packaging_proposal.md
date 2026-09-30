@@ -6,6 +6,11 @@ deploy 時に本エージェント本体および各 MCP サーバーを Nuitka 
 `/opt/llm/` への配布方式を現行の `rsync` + `uv run` から単一バイナリ配布に切り替えたい。
 本書は実装前の方針検討結果をまとめたものであり、コード変更は未着手。
 
+> **最終検証（2026-09-30）**: 記載事実を現行コードで敵対的に検証し、ドリフトを文中に反映済み。
+> 主要項目（エントリポイント・MCPサーバー構成10・plugin廃止・sqlite-vec/sudachi・現行deploy）は
+> 現状と一致。`cmd` の `--no-sync` フラグとサーバー実ファイル名 `<server>_server.py` は検証後に
+> 更新（元々は記載欠落／`server.py` 仮説）。
+
 ## 状態: 提案（未着手）
 
 ## 背景・目的
@@ -61,10 +66,13 @@ plugin 機構（`scripts/shared/plugin_registry.py` による `plugins/` 配下�
 | mdq | `[mcp_servers.mdq]` | 標準ライブラリ + SQLite |
 
 全て `transport = "http"`, `startup_mode = "subprocess"`,
-`cmd = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/.../server.py"]`
-という構成で、`scripts/agent/http_lifecycle.py` の `HttpServerLifecycleManager` が
-`subprocess` で個別プロセスとして起動する。HTTP 越しの独立プロセスであるため、
-`cmd` をバイナリパスに差し替えるだけで移行できる。
+`cmd = ["uv", "run", "--no-sync", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/<server>/<server>_server.py"]`
+という構成（`--no-sync` は実行時の uv sync オーバーヘッド抑制のため全定義に付与）。
+サーバー実ファイルは `<server>_server.py`（例: `shell/shell_server.py`, `mdq/mdq_server.py`）
+だが、`file_delete` セクションの実ファイルは `delete_server.py`（セクション名と異なる）。
+`scripts/agent/http_lifecycle.py` の `HttpServerLifecycleManager` が `subprocess` で
+個別プロセスとして起動する。HTTP 越しの独立プロセスであるため、`cmd` をバイナリパスに
+差し替えるだけで移行できる。
 
 ### 動的ロード機構（確認対象）
 
@@ -85,10 +93,11 @@ plugin 機構（`scripts/shared/plugin_registry.py` による `plugins/` 配下�
   変更する必要があり、現在も組み込み辞書指定方式（`dict="core"`）のままである。
   `sudachipy.Dictionary()` に外部辞書パスを渡す API 仕様の確認が実装時に必要
   （未検証）。
-- **`config/`**: `scripts/agent/config_builders.py:50` と
-  `scripts/shared/config_loader.py:74` がいずれも `__file__` 基準の相対パスで
-  解決している。onefile 展開後の一時ディレクトリでは崩れるため、実行ファイル隣接
-  ディレクトリまたは環境変数（例: `LLMAGENT_CONFIG_DIR`）基準に変更する必要がある。
+- **`config/`**: `scripts/agent/config_builders.py:59` （`__file__` 基準で
+  `_CONFIG_DIR` を解決）と `scripts/shared/config_loader.py:74`（`__file__` 基準で
+  `repo_root` を解決）がいずれも `__file__` 基準の相対パスで解決している。onefile
+  展開後の一時ディレクトリでは崩れるため、実行ファイル隣接ディレクトリまたは環境変数
+  （例: `LLMAGENT_CONFIG_DIR`）基準に変更する必要がある。
 
 ### 現行デプロイ方式
 
