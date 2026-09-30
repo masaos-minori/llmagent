@@ -143,7 +143,7 @@ Git MCP returns free-form strings, not stable codes: `[DENIED] git-mcp is config
 
 ### Audit
 
-Every `/v1/call_tool` invocation is recorded via the shared `_audit_log()` helper (tool name, outcome, timestamp, session/request id). **Needs confirmation:** the call site passes `req.args.get("repo", "")` as the audit `target`, but Git MCP's own input schema uses the key `repo_path`, not `repo` — read from code, this looks like the audit `target` field is always empty for git-mcp calls; this has not been confirmed by capturing a live log line. Pre-operation and post-operation git state (branch, HEAD, conflict status) are not part of the audit record regardless. `audit_log_path` in `GitConfig` is present but unused — no code path writes to it (see the 2026-07-13 note above, which remains accurate).
+Every `/v1/call_tool` invocation is recorded via the shared `_audit_log()` helper (tool name, outcome, timestamp, session/request id). On a successful call, `target` is the resolved canonical repository path, also recorded separately as `canonical_target`; on a validation, path-containment, or precondition rejection, `target` is empty but the raw caller-supplied value is recorded as `requested_target`. Pre-operation and post-operation git state (branch, HEAD, conflict status) are not part of the audit record regardless. `audit_log_path` in `GitConfig` is present but unused — no code path writes to it (see the 2026-07-13 note above, which remains accurate).
 
 ## Related Documents
 
