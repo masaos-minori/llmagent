@@ -99,8 +99,8 @@ Revert the inserted block (or `git checkout -- tests/integration/test_ingestion_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add chunk-file precondition to `test_ingester_handles_embedding_failure` | Pending | — | — | REQ-001 |
-| 2 | Run isolation-check, full-file, and full-suite validation | Pending | — | — | REQ-001, AC-1 |
+| 1 | Add chunk-file precondition to `test_ingester_handles_embedding_failure` | Completed | 20260930-141925 | 20260930-141925 | REQ-001 REQ-001; isolated+full-file pass; ruff+mypy clean; full-suite 12 fails are pre-existing/unrelated (reproduced on clean tree) |
+| 2 | Run isolation-check, full-file, and full-suite validation | Completed | 20260930-141925 | 20260930-141925 | REQ-001, AC-1 REQ-001, AC-1; isolation pass w/o leftover; full file 6 passed; full-suite 12 fails pre-existing/unrelated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
