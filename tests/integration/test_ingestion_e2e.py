@@ -99,6 +99,14 @@ class TestFullIngestionPipeline:
 
         ingester = RagIngester(mock_cfg)
 
+        # Establish the ingest_all() chunk-file precondition explicitly (was previously
+        # met only incidentally by a leftover file from test_ingester_processes_chunk_files).
+        chunk_dir = Path("/tmp/crawl-test-chunks/chunk")
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+        (chunk_dir / "dummy-001.json").write_text(
+            '{"url":"http://example.com","lang":"en","content":"test content"}'
+        )
+
         # Mock _process_url_groups to fail
         with patch.object(ingester, "_process_url_groups") as mock_process:
             mock_process.side_effect = Exception("Embedding API unavailable")
