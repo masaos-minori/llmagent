@@ -46,6 +46,7 @@ Usage:
         --source-plan plans/20260901-105731_plan.md --all-rows
     python tools/generate_workitem.py --kind unknowns
     python tools/generate_workitem.py --kind risks --seq 01
+    python tools/generate_workitem.py --kind plan --estimate-tokens
 
 Batch mode (`--all-rows`, implementation-procedure only): generates one
 placeholder skeleton per row of the source Plan's own `## Implementation
@@ -95,6 +96,12 @@ _TARGET_FILES_HEADING = "## Implementation Target Files"
 _TABLE_ROW_RE = re.compile(r"^\|(.+)\|$")
 _TABLE_SEPARATOR_RE = re.compile(r"^[\s|:-]+$")
 
+# Rough character-to-token ratio for the lightweight `--estimate-tokens` pre-flight.
+# Not a tokenizer: ~4 characters per token is the common approximation for mixed
+# English/Japanese text. Used only to warn before a single oversized write.
+_CHARS_PER_TOKEN = 4
+DEFAULT_MAX_OUTPUT_TOKENS = 16000
+
 
 class GenerationError(Exception):
     """Raised when a validation check fails before any file would be written."""
@@ -130,6 +137,16 @@ def extract_fenced_skeleton(template_path: Path) -> str:
             return "\n".join(lines[start_index + 1 : index]) + "\n"
 
     raise GenerationError(f"no closing ``` fence found in {template_path}")
+
+
+def estimate_tokens(text: str) -> int:
+    """Return a rough token estimate for *text* (~4 chars/token).
+
+    Used by `--estimate-tokens` as a low-cost pre-flight. This is a lower bound
+    on the final document: the skeleton holds only placeholder structure, so the
+    filled document always contains more tokens than this reports.
+    """
+    return len(text) // _CHARS_PER_TOKEN
 
 
 def slugify_title(title: str) -> str:
@@ -417,7 +434,64 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "module's docstring, Batch mode."
         ),
     )
+    parser.add_argument(
+        "--estimate-tokens",
+        action="store_true",
+        help=(
+            "Pre-flight: print a rough token estimate of the skeleton and exit "
+            "without writing. The count is a lower bound (skeleton only); use it "
+            "to decide whether to fill the document in chunks. See "
+            "rules/ai-execution.md 'Generation Output Limits'."
+        ),
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_MAX_OUTPUT_TOKENS,
+        metavar="MAX",
+        help=(
+            "Output-token limit for --estimate-tokens (default "
+            f"{DEFAULT_MAX_OUTPUT_TOKENS}). The model caps output tokens per "
+            "single response; a single oversized call truncates or aborts."
+        ),
+    )
     return parser
+
+
+def _report_estimate(skeleton: str, kind: str, limit: int) -> int:
+    """Print a token estimate for *skeleton* against *limit*, then exit.
+
+    Pre-flight helper for `--estimate-tokens`: never writes a file. The count is
+    a lower bound (skeleton only), so even an "OK" verdict still warrants chunked
+    filling for large documents. Returns the process exit code.
+    """
+    if limit <= 0:
+        print(
+            f"error: --limit must be a positive integer, got {limit}",
+            file=sys.stderr,
+        )
+        return 1
+    estimated = estimate_tokens(skeleton)
+    print(f"kind: {kind}")
+    print(f"estimated tokens (skeleton, lower bound): {estimated}")
+    print(f"output token limit: {limit}")
+    if estimated >= limit:
+        print(
+            f"WARN: skeleton alone ({estimated}) meets/exceeds the {limit}-token "
+            "limit; fill the document in chunks.",
+        )
+    elif estimated >= int(limit * 0.5):
+        print(
+            f"NOTE: skeleton is {estimated}/{limit} tokens; leave headroom for "
+            "filled content and fill in chunks.",
+        )
+    else:
+        print(
+            "OK: skeleton is well under the limit; still fill large documents "
+            "in chunks.",
+        )
+    print("see rules/ai-execution.md 'Generation Output Limits'")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -448,6 +522,9 @@ def main(argv: list[str] | None = None) -> int:
     except GenerationError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+
+    if args.estimate_tokens:
+        return _report_estimate(skeleton, args.kind, args.limit)
 
     output_path.write_text(skeleton, encoding="utf-8")
     print(f"Created {output_path.relative_to(REPO_ROOT)}")

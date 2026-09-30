@@ -132,6 +132,26 @@ record-and-continue) has been taken.
 have been batched where independent, and no unchanged command was re-run against the
 same input.
 
+## Generation Output Limits (Base)
+
+Applies to any workflow that generates a whole document through one or more
+`write`/`edit` calls (issue, plan, implementation procedure, unknowns/risks, or
+similar). The cap here is the model's maximum output tokens per single response;
+a single oversized call truncates or aborts regardless of input context. Default
+limit is `16000` tokens.
+
+- Before generating a whole document, estimate its size. Run
+  `tools/generate_workitem.py --estimate-tokens --limit <max>` (default
+  `16000`) as a pre-flight; the reported count is a lower bound (skeleton only),
+  so leave headroom for the substantive content that replaces placeholders.
+- Fill large documents in chunks: scaffold the structure once, then replace each
+  section body with targeted edits rather than one full-file rewrite.
+- Treat an empty or truncated `write` result as a failure: verify the target
+  file is non-empty and complete (Repository Tool Usage item 8) and retry with a
+  smaller chunk. Do not proceed on a half-written file.
+- Prefer many small per-file documents over one large document so each turn
+  stays within the limit.
+
 ## Reasoning and Planning
 
 - Act directly on simple tasks instead of producing a long plan.
