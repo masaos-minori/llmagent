@@ -15,7 +15,6 @@ all concern-specific work to six modules with zero pure-delegation wrappers:
 - ShutdownCoordinator: coordinated shutdown of all managed processes
 
 Custom logic retained in this class:
-- _read_stderr_tail: seek/read/decode implementation for stderr log tailing
 - _wait_exited: asyncio-aware proc.poll() polling loop with timeout
 - MCPSERVER_HEALTH_TIMEOUT: global constant for httpx.AsyncClient timeout
 """
@@ -50,7 +49,6 @@ logger = logging.getLogger(__name__)
 
 MCPSERVER_HEALTH_TIMEOUT: float = 5.0
 _TERMINATE_POLL_INTERVAL_SEC: float = 0.05
-_STDERR_TAIL_BYTES: int = 64 * 1024
 HEALTH_POLL_INTERVAL_SEC: float = 0.5
 TERMINATE_TIMEOUT_SEC: float = 5.0
 RESTART_TERMINATE_TIMEOUT_SEC: float = 3.0
@@ -91,20 +89,6 @@ class HttpServerLifecycleManager:
         self._http_pgids: dict[str, int] = {}
         self._stderr_files: dict[str, IO[bytes]] = {}
         self._last_health_check: dict[str, float] = {}
-
-    def _read_stderr_tail(self, server_key: str) -> str:
-        """Read the last N bytes from a server's stderr log file."""
-        log_path = self._stderr_log_manager.get_log_path(server_key)
-        if not log_path:
-            return ""
-        try:
-            with open(log_path, "rb") as f:
-                f.seek(0, 2)
-                size = f.tell()
-                f.seek(max(0, size - _STDERR_TAIL_BYTES))
-                return f.read().decode(errors="replace")
-        except OSError:
-            return ""
 
     async def _wait_exited(self, proc: subprocess.Popen[bytes], timeout: float) -> bool:
         """Poll proc.poll() (non-blocking) until it exits or timeout elapses.
@@ -163,7 +147,9 @@ class HttpServerLifecycleManager:
 
     def _cleanup_server_resources(self, server_key: str) -> str:
         """Read stderr tail, close stderr file handle, and remove tracking data for a server."""
-        stderr_content = self._read_stderr_tail(server_key)
+        stderr_content = self._stderr_log_manager.read_tail(server_key).decode(
+            errors="replace"
+        )
         self._clear_server_tracking_data(server_key)
         return stderr_content
 

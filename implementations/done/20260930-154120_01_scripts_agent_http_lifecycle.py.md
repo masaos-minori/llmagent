@@ -99,15 +99,15 @@ The docstring edit removes only the `_read_stderr_tail` bullet; keep the `_wait_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by second implementation procedure document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Only in-code module docstring (REQ-003) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260930-221206 | Four edits applied to scripts/agent/http_lifecycle.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260930-221206 | Covered by second implementation procedure document |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260930-221206 | ruff format+check clean; bandit clean; mypy + lint-imports fail identically on HEAD baseline (pre-existing systemic, not a regression). Stale detector reported false positives from single-file-scope limitation; every cited construct verified present in current source via rg before editing. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260930-221206 | Only in-code module docstring bullet removed (REQ-003); no docs/ change required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | Stale detector reported symbol_missing for `_read_stderr_tail`, `_STDERR_TAIL_BYTES`, `read_tail`, `StderrLogManager`; these are false positives from the detector's single-file-scope limitation (symbols live in the dependency module `http_lifecycle_stderr_log_manager.py` or got scoped there). Verified present in current source via `rg` before editing; procedure is not stale. | N/A: false positive, not a blocker | 20260930-221206 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

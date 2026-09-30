@@ -903,9 +903,9 @@ class TestErrorRecovery:
             patch.object(asyncio, "sleep", return_value=None),
         ):
             with patch.object(
-                type(mgr),
-                "_read_stderr_tail",
-                new=MagicMock(return_value="error output here"),
+                mgr._stderr_log_manager,
+                "read_tail",
+                new=MagicMock(return_value=b"error output here"),
             ):
                 with pytest.raises(HttpStartupError) as exc_info:
                     await mgr.start("test", cfg)
@@ -940,9 +940,9 @@ class TestErrorRecovery:
             patch.object(asyncio, "sleep", return_value=None),
         ):
             with patch.object(
-                type(mgr),
-                "_read_stderr_tail",
-                new=MagicMock(return_value="timeout stderr"),
+                mgr._stderr_log_manager,
+                "read_tail",
+                new=MagicMock(return_value=b"timeout stderr"),
             ):
                 with patch.object(
                     mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
@@ -1030,7 +1030,9 @@ class TestErrorRecovery:
             patch.object(asyncio, "sleep", return_value=None),
         ):
             with patch.object(
-                type(mgr), "_read_stderr_tail", new=MagicMock(return_value="")
+                mgr._stderr_log_manager,
+                "read_tail",
+                new=MagicMock(return_value=b""),
             ):
                 with patch.object(
                     mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()

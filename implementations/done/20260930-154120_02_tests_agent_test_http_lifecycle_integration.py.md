@@ -104,10 +104,10 @@ Preserve every `assert` unchanged; the decoded bytes still appear in `failure.st
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Retargeting replaces existing patches; no new tests added |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20260930-221206 | Three patch sites retargeted in tests/agent/test_http_lifecycle_integration.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20260930-221206 | Retargeting replaces existing patches; no new tests added |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20260930-221206 | Integration suite 48 passed; full affected lifecycle suites 71 + 219 passed, 3 skipped (pre-existing factory.py coroutine warning). Retargeting safe only after the first impl doc inlined the delegation (applied same cycle). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20260930-221206 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
