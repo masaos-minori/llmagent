@@ -42,11 +42,6 @@ The value of this document is navigation logic — human-curated guidance on whi
 - Recommended reading order for humans: Overview → Runtime Architecture → Turn Processing Flow → State/Persistence → LLM/Streaming → Tool Execution/Approval → CLI/Commands → Configuration → Data Layer → Operations/Observability → Extension Points → Memory → Reference API.
 - The canonical query routing table maps questions to chapters; use it to find the right chapter before searching code.
 
-## Known Limitations
-
-- [NC-001](../00_governance/governance_03_issue-and-uncertainty-management.md): UTF8_PARTIAL_DECODE_ERROR and PREMATURE_EOF distinction
-- [NC-004](../00_governance/governance_03_issue-and-uncertainty-management.md): Distance measurement cosine/L2 determination impossibility
-
 ## Related Docs
 
 ### Governance

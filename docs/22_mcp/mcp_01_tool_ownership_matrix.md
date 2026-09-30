@@ -171,10 +171,6 @@ High-risk tools require explicit approval before execution. The approval flow fo
 - RAG operations
 - CI/CD operations
 
-## Unconfirmed Items
-
-- [NC-003](../00_governance/governance_03_issue-and-uncertainty-management.md): Tool capability naming convention enforcement
-
 ## Related Documents
 
 - [MCP Documentation Guide](mcp_00_document-guide.md)

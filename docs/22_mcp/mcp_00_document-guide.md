@@ -148,12 +148,6 @@ Old MCP source files were kept during the documentation restructuring phase (pla
 
 - The known issues from the former section 13 have all been transferred to `mcp_90`.
 
-## Unconfirmed Items
-
-- [NC-002](../00_governance/governance_03_issue-and-uncertainty-management.md): Reason for unused ResultSource field
-- [NC-005](../00_governance/governance_03_issue-and-uncertainty-management.md): Dead code detection for AuditLogRecord/ApprovalDecision (resolved)
-- [NC-006](../00_governance/governance_03_issue-and-uncertainty-management.md): Future usability of result_source field
-
 *Note: This section only lists major files defined in the routing table and files explicitly referenced in the text.*
 
 ## Related ADRs
