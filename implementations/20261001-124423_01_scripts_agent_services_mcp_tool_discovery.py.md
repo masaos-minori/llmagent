@@ -34,7 +34,7 @@ Remove the dead method `_fetch_server_tools()` (and the helper `_validate_and_no
 
 1. Confirm no external caller exists for `_fetch_server_tools()` and `_validate_and_normalize_entry()`.
 2. Delete `_fetch_server_tools()` method definition (lines 342–432).
-3. Delete `_validate_and_normalize_entry()` method definition (lines 434–498).
+3. Delete `_validate_and_normalize_entry()` method definition (lines 434–503; ends at `return entry, None` on line 503, before `_detect_duplicates` at line 505).
 4. Run `ruff format` + `ruff check`; remove any newly-unused imports.
 5. Run `mypy` and `bandit` on the file; confirm clean.
 6. Re-run the existing discovery unit suite (`tests/agent/services/test_mcp_tool_discovery.py`, 79 tests) end-to-end against `discover_all()`.
@@ -76,7 +76,7 @@ Remove lines 342–432 inclusive. This is the entire method body including docst
 
 **Step 3: Delete `_validate_and_normalize_entry()`**
 
-Remove lines 434–498 inclusive. After Step 2, this method has no remaining callers. Verify again with `rg '_validate_and_normalize_entry' scripts/ tests/ docs/` — should show zero matches.
+Remove lines 434–503 inclusive (method body ends at `return entry, None` on line 503). After Step 2, this method has no remaining callers. Verify again with `rg '_validate_and_normalize_entry' scripts/ tests/ docs/` — should show zero matches.
 
 **Step 4: Fix unused imports**
 
@@ -141,10 +141,10 @@ Run `uv run pytest tests/agent/test_startup.py tests/agent/shared/test_startup_v
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | In Progress | 20261001-124529 | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261001-124529 | 20261001-155911 | Deleted `_fetch_server_tools()` (lines 342-432) and `_validate_and_normalize_entry()` (lines 434-503) from `McpToolDiscoveryService`; caller recheck shows zero remaining references; AST parse OK |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261001-155911 | No new tests required (dead-method deletion); existing suite covers `discover_all()` regression |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261001-155911 | `ruff format`/`ruff check` clean; `bandit` clean; `mypy` fails on a PRE-EXISTING `tool_constants` duplicate-module-path config error (verified against HEAD, unrelated to this change); 79 discovery + 52 startup/pipeline tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261001-155911 | N/A: no `docs/00_index.md` task-scope mapping for `scripts/agent/services/mcp_tool_discovery.py` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
