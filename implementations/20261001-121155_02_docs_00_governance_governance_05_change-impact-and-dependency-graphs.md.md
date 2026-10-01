@@ -67,10 +67,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create front matter, H1, Purpose | Pending | — | — | |
-| 2 | Copy the 8 sections verbatim; apply the one relocation edit | Pending | — | — | |
-| 3 | Add Related Documents and Keywords | Pending | — | — | |
-| 4 | Run Validation plan including byte comparison | Pending | — | — | |
+| 1 | Create front matter, H1, Purpose | Completed | 20261001-151934 | 20261001-130000 |  |
+| 2 | Copy the 8 sections verbatim; apply the one relocation edit | Completed | 20261001-151934 | 20261001-152101 |  |
+| 3 | Add Related Documents and Keywords | Completed | 20261001-151934 | 20261001-152101 |  |
+| 4 | Run Validation plan including byte comparison | Completed | — | 20261001-152200 | Changed governance_05 new doc. Byte comparison identical except the listed link edit. Transient similarity warnings remain until seq 01 Part B. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
