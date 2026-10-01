@@ -56,8 +56,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the path in the detailed-table row | Pending | — | — | |
-| 2 | Run the sync check | Pending | — | — | |
+| 1 | Replace the path in the detailed-table row | Completed | 20261001-155000 | 20261001-155030 | Changed tools/TOOL_DESCRIPTIONS.md one path. Docs N/A: no task-scope row. |
+| 2 | Run the sync check | Completed | 20261001-155000 | 20261001-155030 | Sync check passed. Final full suite run follows seq 05. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
