@@ -64,9 +64,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the change in Implementation > Details | Pending | — | — | |
-| 2 | Run the Validation plan and compare with the Plan Design baseline | Pending | — | — | |
-| 3 | Self-review meaning and record result in Notes | Pending | — | — | |
+| 1 | Apply the change in Implementation > Details | Completed | 20261001-135420 | 20261001-135420 |  |
+| 2 | Run the Validation plan and compare with the Plan Design baseline | Completed | 20261001-135420 | 20261001-135420 |  |
+| 3 | Self-review meaning and record result in Notes | Completed | 20261001-135420 | 20261001-135420 | Rule 3 reworded with the procedure's proposed wording (only line 112 changed); item 6 untouched; all checks unchanged vs batch baseline; docs_quality targeted tests unchanged; full suite deferred to batch end per user decision; docs-mapping step N/A (the changed file is itself the doc) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
