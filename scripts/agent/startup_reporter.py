@@ -91,13 +91,18 @@ class ReadinessReporter:
         lines.append(
             f"  RAG consistency: {'OK' if rag_counts['OK'] else 'WARN'} ({rag_counts['FATAL']} fatal, {rag_counts['WARNING']} warnings)"
         )
-        unreachable_count = sum(
-            1
-            for o in pipeline.outcomes
-            if o.source == "mcp_tool_discovery" and "unreachable" in o.message.lower()
+        # Compute unavailable_servers early; used for both the unreachable count
+        # and the detailed excluded-tools list below.
+        unavailable_servers: frozenset[str] = frozenset()
+        runtime_tools = (
+            self._ctx.services_required.runtime_tools
+            if self._ctx.services_required
+            else None
         )
-        if unreachable_count > 0:
-            lines.append(f"  Unreachable servers: {unreachable_count}")
+        if runtime_tools is not None:
+            unavailable_servers = runtime_tools.unavailable_servers
+        if unavailable_servers:
+            lines.append(f"  Unreachable servers: {len(unavailable_servers)}")
         degraded_keys = []
         registry = (
             self._ctx.services_required.health_registry
@@ -112,14 +117,6 @@ class ReadinessReporter:
             ]
         if degraded_keys:
             lines.append(f"  Degraded servers: {', '.join(degraded_keys)}")
-        unavailable_servers: frozenset[str] = frozenset()
-        runtime_tools = (
-            self._ctx.services_required.runtime_tools
-            if self._ctx.services_required
-            else None
-        )
-        if runtime_tools is not None:
-            unavailable_servers = runtime_tools.unavailable_servers
         if unavailable_servers:
             parts = []
             for key in sorted(unavailable_servers):

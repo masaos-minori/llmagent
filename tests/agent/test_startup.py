@@ -701,6 +701,61 @@ class TestStartupMemoryFailures:
         assert "srv1" in warn_call
         assert "srv2" in warn_call
 
+    @pytest.mark.asyncio
+    async def test_report_readiness_shows_unreachable_count_from_structured_data(
+        self,
+    ) -> None:
+        """REQ-001: Unreachable server count comes from runtime_tools.unavailable_servers,
+        not from substring matching on outcome messages."""
+        srv1_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9999",
+            required=True,
+            auth_token="test-token",
+        )
+        ctx = MagicMock()
+        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
+        ctx.cfg.mcp.mcp_servers = {"srv1": srv1_cfg}
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.lifecycle = AsyncMock()
+        view = MagicMock()
+        view.write_warning = MagicMock()
+        startup = StartupOrchestrator(ctx, view)
+        runtime_tools_mock = MagicMock()
+        runtime_tools_mock.unavailable_servers = frozenset({"srv1"})
+        ctx.services_required.runtime_tools = runtime_tools_mock
+        pipeline = MagicMock()
+        pipeline.outcomes = []
+        startup._report_readiness(pipeline)
+        warn_call = str(view.write_warning.call_args[0][0])
+        assert "Unreachable servers: 1" in warn_call
+
+    @pytest.mark.asyncio
+    async def test_report_readiness_no_unreachable_when_empty(self) -> None:
+        """REQ-001: No 'Unreachable servers' line when unavailable_servers is empty."""
+        srv1_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9999",
+            required=True,
+            auth_token="test-token",
+        )
+        ctx = MagicMock()
+        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
+        ctx.cfg.mcp.mcp_servers = {"srv1": srv1_cfg}
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.lifecycle = AsyncMock()
+        view = MagicMock()
+        view.write_warning = MagicMock()
+        startup = StartupOrchestrator(ctx, view)
+        runtime_tools_mock = MagicMock()
+        runtime_tools_mock.unavailable_servers = frozenset()
+        ctx.services_required.runtime_tools = runtime_tools_mock
+        pipeline = MagicMock()
+        pipeline.outcomes = []
+        startup._report_readiness(pipeline)
+        warn_call = str(view.write_warning.call_args[0][0])
+        assert "Unreachable servers:" not in warn_call
+
 
 # ── build_agent_config() error path ────────────────────────────────────────────
 
