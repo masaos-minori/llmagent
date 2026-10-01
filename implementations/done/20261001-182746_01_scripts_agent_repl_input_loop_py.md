@@ -111,8 +111,8 @@ Cancel the pending `input_coro` on the shutdown-during-input path in `ReplInputL
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Read `_read_input`/`_shutdown_watcher`; confirm shutdown-done branch and `input_coro` ownership; verify wiring via `repl.py` | In Progress | 20261001-182959 | — | REQ-001, REQ-002 |
-| 2 | Add guarded `input_coro` cancellation on shutdown-done path; fix stale comment | Pending | — | — | REQ-001, REQ-002 |
-| 3 | Run validation sequence (`rules/toolchain.md`): ruff/mypy/bandit/radon/pytest/diff-cover | Pending | — | — | REQ-001, REQ-002 |
+| 2 | Add guarded `input_coro` cancellation on shutdown-done path; fix stale comment | Completed | — | 20261001-211156 | REQ-001, REQ-002 |
+| 3 | Run validation sequence (`rules/toolchain.md`): ruff/mypy/bandit/radon/pytest/diff-cover | Completed | — | 20261001-211156 | REQ-001, REQ-002 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
