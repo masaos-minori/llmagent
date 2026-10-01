@@ -69,10 +69,9 @@ Provides guidance on determining which chapters to open as the entry point for t
 
 ---
 
-## Canonical Source Rules
+## Canonical Sources
 
-- The per-server `04_mcp-*.md` files are the canonical sources for server-specific specifications. Their content is now in `mcp_04`.
-- If there is a discrepancy between old and new files, trust the newly restructured files.
+Canonical sources for this area are defined in the [Canonical Source Registry](../00_governance/governance_01_documentation-policy.md#canonical-source-registry). This area guide does not maintain an independent mapping.
 
 ---
 

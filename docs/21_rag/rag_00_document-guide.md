@@ -52,20 +52,9 @@ Read this file first to determine which chapter you should open.
 
 ---
 
-## Canonical Source Rules
+## Canonical Sources
 
-Only the restructured documents listed in the following file index are valid sources of specification.
-
-| Domain | Canonical Source |
-|---|---|
-| System purpose, ingestion/query pipeline overview | `rag_01_system_overview.md` |
-| File formats (JSON structure, field names) | `rag_02_01_ingestion_pipeline-overview.md`, `rag_04_01_dto-models_data.md` |
-| Query pipeline behavior (stages, RRF, reranking, HTTP mode) | `rag_03_01_query_pipeline-overview.md` |
-| Configuration parameters and operational commands | `rag_05_1-configuration-reference.md` |
-| Known bugs, specification contradictions, unresolved issues | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
-| Established design invariants and regression test gaps | `rag_91_design_notes.md`, `rag_91_design_notes.md` |
-
-**Conflict Resolution**: If a contradiction is detected during review or implementation changes, modify the canonical file as defined by the Canonical Source Rule and add an entry to `docs/governance_03_issue-and-uncertainty-management.md` Part 1 (Area: RAG) with the detection date and details. For local checks, use `python tools/check_docs_consistency.py [target files...]`.
+Canonical sources for this area are defined in the [Canonical Source Registry](../00_governance/governance_01_documentation-policy.md#canonical-source-registry). This area guide does not maintain an independent mapping.
 
 ---
 

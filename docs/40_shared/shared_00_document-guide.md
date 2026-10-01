@@ -56,11 +56,9 @@ Refer to [governance_03_issue-and-uncertainty-management.md](../00_governance/go
 
 ---
 
-## Canonical Source Rules
+## Canonical Sources
 
-- ~~~~~~~~~~~~~~~~~~~~~~~~`06_spec_shared.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~~~~~`07_ref-sqlite.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~~~~~`07_spec_db.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~~~~~`90_shared.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) are legacy source files that have been deleted; their content now resides within the restructured `shared_02_*` through `shared_05_*` files. DB layer files moved to `41_db/`: `shared_04_*` → `db_01-*`, `shared_05_*` → `db_04-*`.
-- If contents conflict between source files, trust the new restructured files (see `shared_90` for all discrepancies).
-- `docs/10_adr/ADR-008-sqlite-4db-separation.md`'s Recovery Policy Matrix is the canonical source for persistence-domain recovery policy, superseding any per-domain policy prose duplicated elsewhere.
+Canonical sources for this area are defined in the [Canonical Source Registry](../00_governance/governance_01_documentation-policy.md#canonical-source-registry). This area guide does not maintain an independent mapping.
 
 ---
 
