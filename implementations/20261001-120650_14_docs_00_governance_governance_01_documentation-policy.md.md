@@ -67,10 +67,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm prerequisite gate (langadr001 Steps 2-16 Completed) | Pending | — | — | |
-| 2 | Apply the change in Implementation > Details | Pending | — | — | |
-| 3 | Run the Validation plan and compare with the Plan Design baseline | Pending | — | — | |
-| 4 | Self-review meaning and record result in Notes | Pending | — | — | |
+| 1 | Confirm prerequisite gate (langadr001 Steps 2-16 Completed) | Completed | 20261001-142055 | 20261001-142055 |  |
+| 2 | Apply the change in Implementation > Details | Completed | 20261001-142055 | 20261001-142055 |  |
+| 3 | Run the Validation plan and compare with the Plan Design baseline | Completed | 20261001-142055 | 20261001-142055 |  |
+| 4 | Self-review meaning and record result in Notes | Completed | 20261001-142055 | 20261001-142055 | Lines 389-391: three Japanese boilerplate quotes replaced with the translated ADR boilerplate copied verbatim (each sentence found by grep -F in 6-14 ADRs; written as plain sentences because the second contains double quotes); old English glosses dropped per procedure; size finding only shrank (31309->31109); quality findings unchanged; full suite deferred to batch end per user decision; docs-mapping step N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
