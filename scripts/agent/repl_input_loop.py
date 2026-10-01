@@ -160,8 +160,13 @@ class ReplInputLoop:
                 input_coro.cancel()
                 shutdown_coro.cancel()
                 raise
-            # Cancellation handled by shutdown watcher — do not cancel here
+            # _read_input performs cancellation on the shutdown-done branch
             if shutdown_done or shutdown_coro in done:
+                input_coro.cancel()
+                try:
+                    await input_coro
+                except asyncio.CancelledError:
+                    pass
                 self._abort_input()
                 return None
             try:
