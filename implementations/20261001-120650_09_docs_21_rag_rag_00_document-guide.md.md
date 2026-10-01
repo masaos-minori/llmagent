@@ -66,10 +66,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm prerequisite gate (langadr001 Steps 2-16 Completed) | Pending | — | — | |
-| 2 | Apply the change in Implementation > Details | Pending | — | — | |
-| 3 | Run the Validation plan and compare with the Plan Design baseline | Pending | — | — | |
-| 4 | Self-review meaning and record result in Notes | Pending | — | — | |
+| 1 | Confirm prerequisite gate (langadr001 Steps 2-16 Completed) | Completed | 20261001-141226 | 20261001-141226 |  |
+| 2 | Apply the change in Implementation > Details | Completed | 20261001-141226 | 20261001-141226 |  |
+| 3 | Run the Validation plan and compare with the Plan Design baseline | Completed | 20261001-141226 | 20261001-141226 |  |
+| 4 | Self-review meaning and record result in Notes | Completed | 20261001-141226 | 20261001-141226 | ADR-005/008/009/010 descriptions replaced programmatically with the translated ADR H1 titles (lines 134-137 only); one cross-file similarity finding with rag_91 disappeared (rag_91 not yet translated; no new findings); all other checks unchanged vs batch baseline; targeted tests unchanged; full suite deferred to batch end per user decision; docs-mapping step N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
