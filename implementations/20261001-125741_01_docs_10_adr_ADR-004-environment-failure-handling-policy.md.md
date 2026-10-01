@@ -10,14 +10,14 @@ Update the ADR-004 Verification Matrix row for INV-15/INV-16 ("no fallback anywh
 ## Assumptions
 
 - The ADR-010-sanctioned fallback is confined to the RAG pipeline (`call_rag_service()` → None → in-process RAG); no other Accepted ADR currently defines a fallback, so INV-16's "ADR-010 is the sole authority" holds today.
-- "Fallback" in INV-15 refers to ADR-004 Decision #26/#27's narrow concept (substituting a Destination when a component becomes unavailable), not to generic defensive patterns (`except` fallthrough, default values, `_or_default`) that appear throughout the codebase.
+- "Fallback" in INV-15 refers to ADR-004 Decision #26/#27's narrow concept (substituting a Destination when a component becomes unavailable), not to generic defensive patterns (`except` fallthrough, default values, default-value helper functions) that appear throughout the codebase.
 - The repo's existing ADR-matrix checker (`check_adr_invariant_matrix.py`) is a sufficient automated grounding of a matrix row's cited test node IDs.
 - The owner has decided the REQ-005 automated-guard branch (recorded as resolved UNK-01); the Manual-Review portion (REQ-003) stands regardless.
 
 ## Design decisions
 
 - Hybrid mechanism: split coverage along what is mechanically verifiable versus what requires judgment.
-  - Mechanically verifiable subset is the `call_rag_service()` return/reason contract for auth and parse errors, pinned by existing tests (`test_401_no_fallback`, `test_403_no_fallback`, `test_json_parse_error_does_not_call_set_fallback_reason`). The marker-lock guard (separate procedure document, REQ-005) covers marker uniqueness.
+  - Mechanically verifiable subset is the `call_rag_service()` return/reason contract for auth and parse errors, pinned by existing tests (`tests/rag/test_rag_pipeline_service.py::test_401_no_fallback`, `tests/rag/test_rag_pipeline_service.py::test_403_no_fallback`, `tests/rag/test_rag_pipeline_service.py::test_json_parse_error_does_not_call_set_fallback_reason`). The marker-lock guard (separate procedure document, REQ-005) covers marker uniqueness.
   - Whole-codebase assertion ("no other ADR-004-scope fallback exists") requires review activity; documented as Manual Review with cadence and owner reference.
 - Matrix Status becomes a precise hybrid statement rather than a single value: the covered subset is `Confirmed` (existing tests), and the cross-cutting remainder is covered by a documented Manual Review with a cadence.
 
@@ -36,8 +36,8 @@ Update the ADR-004 Verification Matrix row for INV-15/INV-16 ("no fallback anywh
 
 1. Read `docs/10_adr/ADR-010-rag-fallback.md` and enumerate its defined fallback scenarios (conditions, destination, full-pipeline re-execution, result-source tracking).
 2. Search `scripts/` for every fallback code path and classify each as ADR-010-sanctioned or ADR-004-scope-requiring-an-Accepted-ADR.
-3. Cite the existing RAG tests (`test_401_no_fallback`, `test_403_no_fallback`, `test_json_parse_error_does_not_call_set_fallback_reason`) in the ADR-004 INV-15/INV-16 matrix row as a contract pin for the mechanically-verifiable subset. Note (verified against source in this pass): these tests pin only `call_rag_service()`'s contract — 401/403 make one request, record an `http_auth_error:` reason and return `None`; a JSON parse error returns an empty string with no reason. They do NOT show that in-process RAG is skipped: the RAG pipeline runs in-process search whenever the HTTP augment returns `None`, including 401/403. The matrix row must word the citation as a contract pin, not as proof of "no fallback", and must not claim 401/403 do not fall back. The ADR text must not contain source line numbers or implementation counts (`skills/DESIGN.md` Shared Vocabulary).
-4. Document a Manual Review checklist item for the whole-codebase "no other ADR-004-scope fallback exists" assertion, with re-review cadence and an owner-reference placeholder pointing to the open `governance_03` decision, and state why automation alone does not cover this cross-cutting invariant.
+3. Cite the existing RAG tests (`tests/rag/test_rag_pipeline_service.py::test_401_no_fallback`, `tests/rag/test_rag_pipeline_service.py::test_403_no_fallback`, `tests/rag/test_rag_pipeline_service.py::test_json_parse_error_does_not_call_set_fallback_reason`) in the ADR-004 INV-15/INV-16 matrix row as a contract pin for the mechanically-verifiable subset. Note (verified against source in this pass): these tests pin only `call_rag_service()`'s contract — 401/403 make one request, record an `http_auth_error:` reason and return `None`; a JSON parse error returns an empty string with no reason. They do NOT show that in-process RAG is skipped: the RAG pipeline runs in-process search whenever the HTTP augment returns `None`, including 401/403. The matrix row must word the citation as a contract pin, not as proof of "no fallback", and must not claim 401/403 do not fall back. The ADR text must not contain source line numbers or implementation counts (`skills/DESIGN.md` Shared Vocabulary).
+4. Document a Manual Review checklist item for the whole-codebase "no other ADR-004-scope fallback exists" assertion, with re-review cadence and an owner-reference placeholder pointing to the open `docs/00_governance/governance_03_issue-and-uncertainty-management.md` decision, and state why automation alone does not cover this cross-cutting invariant.
 5. Update the matrix row's Status so it is no longer `Needs confirmation` and reflects the hybrid outcome (Confirmed for the subset + documented Manual Review for the remainder).
 6. Run `uv run python tools/check_adr_invariant_matrix.py` and confirm zero findings, so the matrix row's cited test node IDs are verified to exist.
 7. Run `uv run python tools/check_docs_structure.py docs/10_adr/ADR-004-environment-failure-handling-policy.md` and `uv run python tools/check_docs_content_policy.py` to confirm the ADR doc still passes structural/quality rules after the edit.
@@ -64,7 +64,7 @@ Replace the Status line with a hybrid statement that cites:
 
 Example status text:
 ```
-**Status**: Confirmed for the mechanically-verifiable subset (`call_rag_service()` contract pinned by `test_401_no_fallback`, `test_403_no_fallback`, `test_json_parse_error_does_not_call_set_fallback_reason`); cross-cutting remainder covered by a documented Manual Review with re-review cadence (see below).
+**Status**: Confirmed for the mechanically-verifiable subset (`call_rag_service()` contract pinned by `tests/rag/test_rag_pipeline_service.py::test_401_no_fallback`, `tests/rag/test_rag_pipeline_service.py::test_403_no_fallback`, `tests/rag/test_rag_pipeline_service.py::test_json_parse_error_does_not_call_set_fallback_reason`); cross-cutting remainder covered by a documented Manual Review with re-review cadence (see below).
 ```
 
 Add a new subsection under the matrix row documenting the Manual Review procedure:
@@ -84,7 +84,7 @@ Add a new subsection under the matrix row documenting the Manual Review procedur
 
 **Owner**: [Placeholder — pending CI-014 resolution; see `docs/00_governance/governance_03_issue-and-uncertainty-management.md`]
 
-**Why automation alone was not chosen**: The word "fallback" appears throughout `scripts/`, overwhelmingly as defensive patterns (bare-except fallthrough, default-value substitution, `_or_default`) that are NOT ADR-004-scope fallbacks. Any pattern-based automated detector would produce unmanageable false positives.
+**Why automation alone was not chosen**: The word "fallback" appears throughout `scripts/`, overwhelmingly as defensive patterns (bare-except fallthrough, default-value substitution, default-value helper functions) that are NOT ADR-004-scope fallbacks. Any pattern-based automated detector would produce unmanageable false positives.
 ```
 
 ### Details
@@ -102,17 +102,17 @@ Compare these against ADR-010's actual text. Plan UNK-03: determine whether ADR-
 **Step 2: Classify all fallback code paths in `scripts/`**
 
 Run `rg 'fallback' scripts/` and classify each occurrence:
-- `scripts/rag/http_augment.py`: `in_process_fallback` — ADR-010-sanctioned (HTTP error → local RAG)
+- `scripts/rag/http_augment.py`: `scripts/rag/http_augment.py::in_process_fallback` — ADR-010-sanctioned (HTTP error → local RAG)
 - `scripts/rag/augment.py`: `ResultSource.FALLBACK` assignment in `AugmentRefiner.run_http_augment()` — ADR-010-sanctioned (sets marker)
 - `scripts/rag/pipeline.py`: fall-through to in-process search on `None` — ADR-010-sanctioned decision point
-- Other occurrences: defensive patterns (bare-except, `_or_default`) — NOT ADR-004-scope fallbacks
+- Other occurrences: defensive patterns (bare-except, default-value helper functions) — NOT ADR-004-scope fallbacks
 
 **Step 3: Cite existing RAG no-fallback tests**
 
 The following existing tests pin `call_rag_service()`'s contract (they do not prove absence of in-process fallback):
-- `test_401_no_fallback`: HTTP 401 → one request, `http_auth_error:` reason recorded, `None` returned
-- `test_403_no_fallback`: HTTP 403 → same contract as 401
-- `test_json_parse_error_does_not_call_set_fallback_reason`: JSON parse error → empty string returned, no reason recorded
+- `tests/rag/test_rag_pipeline_service.py::test_401_no_fallback`: HTTP 401 → one request, `http_auth_error:` reason recorded, `None` returned
+- `tests/rag/test_rag_pipeline_service.py::test_403_no_fallback`: HTTP 403 → same contract as 401
+- `tests/rag/test_rag_pipeline_service.py::test_json_parse_error_does_not_call_set_fallback_reason`: JSON parse error → empty string returned, no reason recorded
 
 Cite them as such; the cross-cutting "no other fallback" claim stays with the Manual Review.
 
@@ -175,10 +175,10 @@ Run `uv run python tools/check_docs_structure.py docs/10_adr/ADR-004-environment
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261001-172654 | 20261001-172654 | stale check: clean after wording fix; changed: docs/10_adr/ADR-004-environment-failure-handling-policy.md, issues/20261001-165722_fbaud001_fallback-like-paths-without-accepted-adr-definition.md |
+| 2 | Add or update tests per Validation plan | Completed | 20261001-172654 | 20261001-172654 | N/A: no test change in this procedure; tests/rag/test_rag_pipeline_service.py 16 passed; full suite 8006 passed once for both cycles (1 pre-existing failure in tests/tools/test_check_docs_quality.py deselected) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261001-172654 | 20261001-172654 | check_adr_invariant_matrix: pass; pre-existing: check_docs_structure size limit, check_docs_content_policy warning |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261001-172654 | 20261001-172654 | docs edit is the deliverable; check_docs_quality/japanese pass; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
