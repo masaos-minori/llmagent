@@ -64,10 +64,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm prerequisite gate (langadr001 Steps 2-16 Completed) | Pending | — | — | |
-| 2 | Apply the change in Implementation > Details | Pending | — | — | |
-| 3 | Run the Validation plan and compare with the Plan Design baseline | Pending | — | — | |
-| 4 | Self-review meaning and record result in Notes | Pending | — | — | |
+| 1 | Confirm prerequisite gate (langadr001 Steps 2-16 Completed) | Completed | 20261001-142043 | 20261001-142043 |  |
+| 2 | Apply the change in Implementation > Details | Completed | 20261001-142043 | 20261001-142043 |  |
+| 3 | Run the Validation plan and compare with the Plan Design baseline | Completed | 20261001-142043 | 20261001-142043 |  |
+| 4 | Self-review meaning and record result in Notes | Completed | 20261001-142043 | 20261001-142043 | Line 232: Japanese ADR-008 quote replaced with the translated ADR-008 Assumptions text 'Target environment: a single host, multiple processes' (verbatim; grep -F matches ADR-008 line 54); pre-existing source line-number reference left unchanged (out of scope); no new findings vs batch baseline; targeted tests unchanged; full suite deferred to batch end per user decision; docs-mapping step N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
