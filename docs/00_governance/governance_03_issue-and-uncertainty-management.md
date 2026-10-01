@@ -104,6 +104,11 @@ them, are preserved here rather than lost:
 
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
+| ID | Title | Status | Severity | Area | Type | Source | Owner | First Found | Summary | Related |
+|----|-------|--------|----------|------|------|--------|-------|-------------|---------|---------|
+| DESIGN-001 | Hand-maintained `## Area Canonical Maps` table competes with Registry | open | Medium | Governance | design-gap | docs/00_governance/governance_01_documentation-policy.md | Unassigned | 2026-10-01 | The `## Area Canonical Maps` table in the Policy duplicates Registry information; canonical authority is ambiguous | REQ-001 |
+| DESIGN-002 | Inline Needs Confirmation markers in Policy contradict central Inventory | open | Medium | Governance | document-document-mismatch | docs/00_governance/governance_01_documentation-policy.md | Unassigned | 2026-10-01 | Policy contains inline Needs Confirmation markers while the central Inventory states no active items remain | REQ-003 |
+
 
 **Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
 
@@ -144,7 +149,12 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 ### Active Items
 
-No other active Needs Confirmation items remain open.
+| Item ID | Title | Category | Priority | Evidence | Required Decision |
+|---------|-------|----------|----------|----------|-------------------|
+| NC-001 | RAG canonical source not identified | Missing-canonical-source | Medium | No `*specification*` file exists under `docs/`; no close equivalent in `docs/21_rag/` | Determine whether a specification document should exist for RAG |
+| NC-002 | MCP canonical source not identified | Missing-canonical-source | Medium | No `*specification*` file exists under `docs/`; no close equivalent in `docs/22_mcp/` | Determine whether a specification document should exist for MCP |
+| NC-003 | Agent canonical source not identified | Missing-canonical-source | Medium | No `*specification*` file exists under `docs/`; no close equivalent in `docs/23_agent/` | Determine whether a specification document should exist for Agent |
+| NC-004 | Shared/DB canonical source not identified | Missing-canonical-source | Medium | No `*specification*` file exists under `docs/`; no close equivalent in `docs/40_shared/` or `docs/41_db/` | Determine whether a specification document should exist for Shared/DB |
 
 ## Part 3: Canonical Source Conflict
 
@@ -179,6 +189,10 @@ Evidence is required before any discrepancy is reclassified or removed; a docume
 ### Current-Specification-Only Policy Reference
 
 Resolved-item handling for Canonical Source Conflict follows the existing Current-Specification-Only Policy: resolved entries are removed from the active inventory, not retained with a closed-out status.
+
+### Active Items
+
+No other active Canonical Source Conflict items remain open.
 
 ## Part 4: Configuration Drift
 
