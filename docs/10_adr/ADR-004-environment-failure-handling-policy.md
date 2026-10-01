@@ -419,11 +419,11 @@ With REQ-001's fix (strict-default behavior), the Fail-Fast requirements of INV-
   - **Blocking**: No
   - **Status**: Confirmed (file-mcp only)
 
-- **Test**: Fallback does not occur outside the situations defined by ADR-010
+- **Test**: Fallback does not occur outside the situations defined by ADR-010 (`tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_401_no_fallback`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_403_no_fallback`, `tests/rag/test_rag_pipeline_service.py::TestFallbackReasonCallback::test_json_parse_error_does_not_call_set_fallback_reason`, `tests/rag/test_rag_pipeline_service.py::TestFallbackMarkerLockGuard`)
   - **Verifies**: INV-15, INV-16
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: Needs confirmation (not individually re-run in this task)
+  - **Status**: Confirmed for the mechanically verifiable subset — the first three tests pin the return and reason contract of the external RAG call for authentication errors and JSON parse errors, and `TestFallbackMarkerLockGuard` fails when the ADR-010 fallback markers are produced outside their sanctioned RAG modules. The whole-codebase assertion that no other ADR-004-scope fallback exists cannot be robustly automated and is verified by the documented Manual Review item below.
 
 ### Startup Validation
 
@@ -449,6 +449,12 @@ With REQ-001's fix (strict-default behavior), the Fail-Fast requirements of INV-
 - Review of component mandatoriness classification
 - No automated test directly verifies INV-01 (a single common failure handling policy)
 - INV-14 (no startup continuation with undefined mandatoriness) is verified by automation in the REQ-001 unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`).
+- INV-15/INV-16 cross-cutting audit (no ADR-004-scope fallback exists outside ADR-010):
+  - **Why not automated**: the word "fallback" appears throughout production code, mostly in defensive patterns (default-value substitution, best-effort cleanup, classification of unexpected errors) that are not Destination substitution, so any pattern-based detector would produce unmanageable false positives. Only the ADR-010 marker uniqueness is automated (`TestFallbackMarkerLockGuard`).
+  - **Procedure**: search the production sources for fallback paths, classify each as (a) the ADR-010 external-RAG-to-in-process-RAG fallback or (b) an ADR-004-scope fallback that requires an Accepted ADR (Decision 26), and file a follow-up issue for any path that fits neither.
+  - **Baseline classification**: ADR-010 is the only Accepted ADR that defines a fallback. It treats HTTP errors (including 401/403), timeouts, and connection errors as fallback conditions, and treats empty results and parse errors as non-fallback. Two paths are not defined by any Accepted ADR and are tracked in `issues/20261001-165722_fbaud001_fallback-like-paths-without-accepted-adr-definition.md`: continuing in a sentinel-workflow mode when the Workflow loader fails (`scripts/agent/orchestrator.py`, relevant to INV-03) and degrading memory retrieval from vector to FTS-only search (`scripts/agent/memory/retriever.py`).
+  - **Cadence**: at each release review, and whenever a change introduces a new fallback or Destination substitution.
+  - **Owner**: not yet assigned; the cross-cutting ownership decision remains open in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`.
 
 Register any Invariant without Verification as an unverified item in an Issue.
 

@@ -4,9 +4,14 @@ Unit tests for rag/pipeline_service.py — call_rag_service canonical path.
 
 from __future__ import annotations
 
+import ast
+import inspect
+from pathlib import Path
+
 import httpx
 import orjson
 import pytest
+import rag
 import respx
 from rag.models_data import TwoStageFetchResult
 from rag.pipeline_service import call_rag_service
@@ -342,3 +347,50 @@ class TestAuthErrorHandling:
         assert route.call_count == 1
         assert len(reasons) == 1
         assert reasons[0].startswith("http_client_error:")
+
+
+# ── ADR-010 fallback marker lock ───────────────────────────────────────────────
+
+
+class TestFallbackMarkerLockGuard:
+    """ADR-010 fallback markers must stay inside their sanctioned RAG modules."""
+
+    _SCRIPTS_ROOT = Path(inspect.getfile(rag)).resolve().parent.parent
+    _FALLBACK_SOURCE_FILES = {"rag/augment.py"}
+    _IN_PROCESS_FALLBACK_FILES = {"rag/http_augment.py"}
+
+    def _production_trees(self) -> dict[str, ast.Module]:
+        return {
+            path.relative_to(self._SCRIPTS_ROOT).as_posix(): ast.parse(
+                path.read_text(encoding="utf-8")
+            )
+            for path in self._SCRIPTS_ROOT.rglob("*.py")
+            if "__pycache__" not in path.parts
+        }
+
+    def test_result_source_fallback_only_in_sanctioned_module(self) -> None:
+        found = {
+            name
+            for name, tree in self._production_trees().items()
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Attribute)
+            and node.attr == "FALLBACK"
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "ResultSource"
+        }
+        assert found == self._FALLBACK_SOURCE_FILES, (
+            f"unexpected: {sorted(found - self._FALLBACK_SOURCE_FILES)}, "
+            f"missing: {sorted(self._FALLBACK_SOURCE_FILES - found)}"
+        )
+
+    def test_in_process_fallback_literal_only_in_sanctioned_module(self) -> None:
+        found = {
+            name
+            for name, tree in self._production_trees().items()
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and node.value == "in_process_fallback"
+        }
+        assert found == self._IN_PROCESS_FALLBACK_FILES, (
+            f"unexpected: {sorted(found - self._IN_PROCESS_FALLBACK_FILES)}, "
+            f"missing: {sorted(self._IN_PROCESS_FALLBACK_FILES - found)}"
+        )
