@@ -95,10 +95,10 @@ Other sections of this doc unrelated to the freshness edge-case error handling.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261001-220406 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261001-220406 | N/A: documentation change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261001-220406 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — |  |
 
 ### Blocker Log
 
