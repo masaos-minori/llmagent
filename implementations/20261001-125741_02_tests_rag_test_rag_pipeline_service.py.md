@@ -1,6 +1,6 @@
 ## Goal
 
-Add a marker-lock guard to `tests/rag/test_rag_pipeline_service.py` that fails when the ADR-010 fallback markers (`ResultSource.FALLBACK` and the `in_process_fallback` literal) are produced outside their sanctioned production modules (REQ-005; resolves UNK-01).
+Add a marker-lock guard to `tests/rag/test_rag_pipeline_service.py` that fails when the ADR-010 fallback markers (`ResultSource.FALLBACK` and the `scripts/rag/http_augment.py::in_process_fallback` literal) are produced outside their sanctioned production modules (REQ-005; resolves UNK-01).
 
 ## Scope
 
@@ -10,21 +10,21 @@ Add a marker-lock guard to `tests/rag/test_rag_pipeline_service.py` that fails w
 ## Assumptions
 
 - `ResultSource.FALLBACK` is defined in `scripts/rag/models_result.py` and is currently referenced as an attribute only inside `AugmentRefiner.run_http_augment()` in `scripts/rag/augment.py` (verified with a repo-wide search over `scripts/` in this pass).
-- The `in_process_fallback` literal currently appears only in `scripts/rag/http_augment.py`.
+- The `scripts/rag/http_augment.py::in_process_fallback` literal currently appears only in `scripts/rag/http_augment.py`.
 - The test module imports production code as top-level `rag.*` (scripts/ is on the import path), so the `scripts/` directory can be located from `rag.__file__`.
 - Existing tests `test_401_no_fallback` / `test_403_no_fallback` / `test_json_parse_error_does_not_call_set_fallback_reason` pin only `call_rag_service()`'s return/reason contract (401/403: one request, `http_auth_error:` reason, `None`; parse error: `""`, no reason). They do not exercise the markers and must not be edited.
 
 ## Design decisions
 
 - Use a static AST scan rather than runtime patching: the marker is an enum member referenced in one production statement, so "produced only in the sanctioned module" is a property of the source tree, and a scan fails deterministically when a new reference appears elsewhere.
-- Two assertions, one per marker: the set of files (relative to `scripts/`) containing an `ast.Attribute` node `ResultSource.FALLBACK` must equal the sanctioned set; the set of files containing the string constant `in_process_fallback` must equal its sanctioned set.
+- Two assertions, one per marker: the set of files (relative to `scripts/`) containing an `ast.Attribute` node `ResultSource.FALLBACK` must equal the sanctioned set; the set of files containing the string constant `scripts/rag/http_augment.py::in_process_fallback` must equal its sanctioned set.
 - The sanctioned sets are module-level constants in the test class so a future ADR-approved relocation is a one-line, reviewable change.
 
 ## Alternatives considered
 
 - **Patching `ResultSource.__new__` / enum members**: not feasible; enum members cannot be intercepted at assignment.
 - **Callback tracking through `call_rag_service()` with HTTP 500/401**: rejected; it never touches `ResultSource.FALLBACK`, so it cannot detect relocation of the marker (and the 401/403 reason behavior is already pinned by existing tests).
-- **Runtime test through `AugmentRefiner.run_http_augment()`**: deferred; it verifies marker values, not uniqueness of the production site, and needs a `RagConfig` fixture not present in this module.
+- **Runtime test through `AugmentRefiner.run_http_augment()`**: deferred; it verifies marker values, not uniqueness of the production site, and needs a RagConfig fixture not present in this module.
 
 ## Implementation
 
@@ -101,7 +101,7 @@ Verify before finalizing: that `rag.__file__` resolves to `scripts/rag/__init__.
 
 ## Rollback considerations
 
-- Revert the single commit that adds `TestFallbackMarkerLockGuard`; no other file is affected.
+- Revert the single commit that adds `tests/rag/test_rag_pipeline_service.py::TestFallbackMarkerLockGuard`; no other file is affected.
 
 ## Validation plan
 
@@ -114,7 +114,7 @@ Verify before finalizing: that `rag.__file__` resolves to `scripts/rag/__init__.
 
 ## Completion criteria
 
-- `TestFallbackMarkerLockGuard` exists in `tests/rag/test_rag_pipeline_service.py` with one test per marker (REQ-005).
+- `tests/rag/test_rag_pipeline_service.py::TestFallbackMarkerLockGuard` exists in `tests/rag/test_rag_pipeline_service.py` with one test per marker (REQ-005).
 - The guard fails when either marker appears in an unsanctioned `scripts/` module (verified by the negative check; AC-5).
 - All pre-existing tests in the module still pass.
 - No file other than `tests/rag/test_rag_pipeline_service.py` is modified.
@@ -130,10 +130,10 @@ Verify before finalizing: that `rag.__file__` resolves to `scripts/rag/__init__.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261001-172654 | 20261001-172654 | stale check: clean after wording fix; changed: tests/rag/test_rag_pipeline_service.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261001-172654 | 20261001-172654 | new class: 2 tests pass; negative check fails as expected and was reverted; module 18 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261001-172654 | 20261001-172654 | ruff format/check pass; mypy 16 pre-existing errors, none in new lines; bandit Low only (assert); full suite 8006 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261001-172654 | 20261001-172654 | N/A: no docs/00_index.md task-scope mapping for tests file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
