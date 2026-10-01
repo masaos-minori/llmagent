@@ -1,30 +1,30 @@
 ## Goal
 
-Add a marker-lock guard in `tests/rag/test_rag_pipeline_service.py` that asserts `ResultSource.FALLBACK` / `in_process_fallback` arises only via the sanctioned RAG augment path (`call_rag_service()` → None → in-process RAG), resolving UNK-01.
+Add a marker-lock guard to `tests/rag/test_rag_pipeline_service.py` that fails when the ADR-010 fallback markers (`ResultSource.FALLBACK` and the `in_process_fallback` literal) are produced outside their sanctioned production modules (REQ-005; resolves UNK-01).
 
 ## Scope
 
-- **In-Scope**: Add a new test (or modify existing test) in `tests/rag/test_rag_pipeline_service.py` that verifies `ResultSource.FALLBACK` is never set outside the sanctioned augment path.
-- **Out-of-Scope**: Changing any fallback behavior itself; modifying other test files beyond running existing tests; adding new source files.
+- **In-Scope**: Add one new test class to `tests/rag/test_rag_pipeline_service.py` that statically scans production sources under `scripts/` for the two markers.
+- **Out-of-Scope**: Changing any fallback behavior; modifying other test files or any source file; judging whether the current 401/403 handling is correct (UNK-03).
 
 ## Assumptions
 
-- The sanctioned augment path is: `call_rag_service()` → `HttpAugment.run()` → `result.result is None` → `result_source = ResultSource.FALLBACK` in `augment.py` line 87.
-- `in_process_fallback` in `http_augment.py` is the internal mechanism name for the same concept (HTTP error → local RAG).
-- The existing tests (`test_401_no_fallback`, `test_403_no_fallback`, `test_json_parse_error_does_not_call_set_fallback_reason`) already cover the negative case (non-transport errors do NOT trigger fallback).
-- A marker-lock guard should prevent future regressions where `ResultSource.FALLBACK` could be set by an unauthorized code path.
+- `ResultSource.FALLBACK` is defined in `scripts/rag/models_result.py` and is currently referenced as an attribute only inside `AugmentRefiner.run_http_augment()` in `scripts/rag/augment.py` (verified with a repo-wide search over `scripts/` in this pass).
+- The `in_process_fallback` literal currently appears only in `scripts/rag/http_augment.py`.
+- The test module imports production code as top-level `rag.*` (scripts/ is on the import path), so the `scripts/` directory can be located from `rag.__file__`.
+- Existing tests `test_401_no_fallback` / `test_403_no_fallback` / `test_json_parse_error_does_not_call_set_fallback_reason` pin only `call_rag_service()`'s return/reason contract (401/403: one request, `http_auth_error:` reason, `None`; parse error: `""`, no reason). They do not exercise the markers and must not be edited.
 
 ## Design decisions
 
-- Add a new test method `test_fallback_marker_only_via_sanctioned_path` that uses monkeypatching to intercept any attempt to set `ResultSource.FALLBACK` outside the sanctioned augment path.
-- The test patches `scripts/rag/augment.py`'s `ResultSource.FALLBACK` assignment site and verifies it only occurs within the expected call chain.
-- Alternative approach considered: patching `_set_fallback_reason` callback to track all invocations and verifying they only come from the sanctioned path. This was chosen instead because it directly validates the observable outcome (the marker being set) rather than relying on callback tracking.
+- Use a static AST scan rather than runtime patching: the marker is an enum member referenced in one production statement, so "produced only in the sanctioned module" is a property of the source tree, and a scan fails deterministically when a new reference appears elsewhere.
+- Two assertions, one per marker: the set of files (relative to `scripts/`) containing an `ast.Attribute` node `ResultSource.FALLBACK` must equal the sanctioned set; the set of files containing the string constant `in_process_fallback` must equal its sanctioned set.
+- The sanctioned sets are module-level constants in the test class so a future ADR-approved relocation is a one-line, reviewable change.
 
 ## Alternatives considered
 
-- **Callback tracking**: Patch `_set_fallback_reason` and verify it's only called from the sanctioned path. Less direct because it tracks the symptom (callback invocation) rather than the root cause (marker assignment).
-- **Monkeypatching `ResultSource` enum**: Not feasible because `ResultSource` is an enum; cannot override its member assignments.
-- **Integration-level test**: Run the full pipeline with a mock RAG service and verify the marker is set correctly. Too broad; the unit-level marker-lock guard is more precise.
+- **Patching `ResultSource.__new__` / enum members**: not feasible; enum members cannot be intercepted at assignment.
+- **Callback tracking through `call_rag_service()` with HTTP 500/401**: rejected; it never touches `ResultSource.FALLBACK`, so it cannot detect relocation of the marker (and the 401/403 reason behavior is already pinned by existing tests).
+- **Runtime test through `AugmentRefiner.run_http_augment()`**: deferred; it verifies marker values, not uniqueness of the production site, and needs a `RagConfig` fixture not present in this module.
 
 ## Implementation
 
@@ -34,229 +34,96 @@ Add a marker-lock guard in `tests/rag/test_rag_pipeline_service.py` that asserts
 
 ### Procedure
 
-1. Identify the exact location where `ResultSource.FALLBACK` is assigned in the production code (`scripts/rag/augment.py` line 87).
-2. Create a new test method that monkeypatches the assignment site or the surrounding logic to verify it only occurs within the sanctioned augment path.
-3. Ensure the test covers both the positive case (in-process RAG fallback IS triggered for transport errors like HTTP 5xx and connection timeouts) and the negative case (in-process RAG fallback is NOT triggered for non-transport errors such as HTTP 401/403 authentication errors and JSON parse errors). Note: for 401/403, `ResultSource.FALLBACK` IS set via `augment.py` line 87 (because `result.result is None`), but in-process RAG does NOT execute because `http_augment.py` line 141-148 checks `status_code in (401, 403)` before calling `_set_fallback_reason`. The test must distinguish between these two scenarios.
-4. Run existing tests to confirm no regression.
+1. Re-confirm with `rg -n "ResultSource\.FALLBACK" scripts/` and `rg -n "in_process_fallback" scripts/` that the sanctioned sets are `{rag/augment.py}` and `{rag/http_augment.py}`.
+2. Add `import ast` and `from pathlib import Path` at the top of the module (alongside the existing imports) and `import rag` for locating `scripts/`.
+3. Append `class TestFallbackMarkerLockGuard` at the end of the module, following the existing class-per-concern layout.
+4. Run the new class, then the whole module.
 
 ### Method
 
-#### Current state
-
-`scripts/rag/augment.py` line 87:
-```python
-if result.result is not None:
-    result_source = ResultSource.REMOTE
-else:
-    result_source = ResultSource.FALLBACK
-```
-
-This is the ONLY place in the repository where `ResultSource.FALLBACK` is assigned (confirmed by grep).
-
-#### Required changes
-
-Add a new test method in `tests/rag/test_rag_pipeline_service.py`:
+Add at module end (adapt names to the module's existing import style; keep type annotations, as `mypy` covers tests per `rules/toolchain.md`):
 
 ```python
 class TestFallbackMarkerLockGuard:
-    """Verify ResultSource.FALLBACK/in_process_fallback arises only via sanctioned augment path."""
+    """ADR-010 markers must stay inside their sanctioned production modules."""
 
-    @pytest.mark.asyncio
-    @respx.mock
-    async def test_fallback_marker_only_via_sanctioned_path(self) -> None:
-        """ResultSource.FALLBACK must only be set through call_rag_service() -> HttpAugment.run()."""
-        # Arrange: simulate an HTTP error that triggers fallback
-        respx.post(f"{RAG_URL}/v1/call_tool").mock(
-            return_value=httpx.Response(500, text="Internal Server Error")
-        )
-        
-        # Track whether fallback marker was set
-        fallback_marker_set = False
-        
-        # Monkeypatch the assignment site to detect unauthorized access
-        original_augment_module = importlib.import_module("scripts.rag.augment")
-        original_result_source = original_augment_module.ResultSource.FALLBACK
-        
-        def patched_fallback_assignment(value):
-            nonlocal fallback_marker_set
-            # Verify we're in the sanctioned path by checking the call stack
-            import traceback
-            stack = traceback.extract_stack()
-            # Check that the caller is within scripts/rag/augment.py
-            callers = [frame.filename for frame in stack]
-            sanctioned_path_found = any(
-                "scripts/rag/augment.py" in f for f in callers
+    _SCRIPTS_ROOT = Path(rag.__file__).resolve().parent.parent
+    _FALLBACK_SOURCE_FILES = {"rag/augment.py"}
+    _IN_PROCESS_FALLBACK_FILES = {"rag/http_augment.py"}
+
+    def _production_trees(self) -> dict[str, ast.Module]:
+        return {
+            path.relative_to(self._SCRIPTS_ROOT).as_posix(): ast.parse(
+                path.read_text(encoding="utf-8")
             )
-            assert sanctioned_path_found, (
-                f"ResultSource.FALLBACK assignment detected outside sanctioned path. "
-                f"Callers: {callers}"
-            )
-            fallback_marker_set = True
-            return value
-        
-        # Apply patch
-        with unittest.mock.patch.object(
-            original_augment_module.ResultSource,
-            "__new__",
-            side_effect=lambda cls, value, *args, **kwargs: (
-                patched_fallback_assignment(value) if value == "FALLBACK" else original_result_source.__class__.__new__(cls, value, *args, **kwargs)
-            ),
-        ):
-            async with httpx.AsyncClient() as client:
-                result, status, latency = await call_rag_service(
-                    client,
-                    RAG_URL,
-                    "q",
-                    "",
-                    set_fetch_result=_noop_fetch,
-                    set_fallback_reason=_noop_fallback_reason,
-                )
-        
-        # Assert: fallback marker was set (positive case)
-        assert fallback_marker_set, "ResultSource.FALLBACK was not set despite HTTP error"
-        assert result == ""  # Fallback returns empty string
-        assert status == 500  # Original HTTP error status
+            for path in self._SCRIPTS_ROOT.rglob("*.py")
+            if "__pycache__" not in path.parts
+        }
+
+    def test_result_source_fallback_only_in_sanctioned_module(self) -> None:
+        found = {
+            name
+            for name, tree in self._production_trees().items()
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Attribute)
+            and node.attr == "FALLBACK"
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "ResultSource"
+        }
+        assert found == self._FALLBACK_SOURCE_FILES
+
+    def test_in_process_fallback_literal_only_in_sanctioned_module(self) -> None:
+        found = {
+            name
+            for name, tree in self._production_trees().items()
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and node.value == "in_process_fallback"
+        }
+        assert found == self._IN_PROCESS_FALLBACK_FILES
 ```
 
-Alternative simpler approach using callback tracking:
-
-```python
-class TestFallbackMarkerLockGuard:
-    """Verify ResultSource.FALLBACK/in_process_fallback arises only via sanctioned augment path."""
-
-    @pytest.mark.asyncio
-    @respx.mock
-    async def test_fallback_marker_only_via_sanctioned_path(self) -> None:
-        """ResultSource.FALLBACK must only be set through call_rag_service() -> HttpAugment.run()."""
-        # Arrange: simulate an HTTP error that triggers fallback
-        respx.post(f"{RAG_URL}/v1/call_tool").mock(
-            return_value=httpx.Response(500, text="Internal Server Error")
-        )
-        
-        # Track fallback reason callbacks — these are only invoked from the sanctioned path
-        fallback_reasons: list[str] = []
-        
-        async with httpx.AsyncClient() as client:
-            result, status, latency = await call_rag_service(
-                client,
-                RAG_URL,
-                "q",
-                "",
-                set_fetch_result=_noop_fetch,
-                set_fallback_reason=fallback_reasons.append,
-            )
-        
-        # Assert: fallback was triggered (positive case)
-        assert len(fallback_reasons) > 0, (
-            "Expected fallback to be triggered for HTTP 500, but no fallback reason was recorded. "
-            "This may indicate ResultSource.FALLBACK is not being set correctly."
-        )
-        assert result == ""  # Fallback returns empty string
-        assert status == 500  # Original HTTP error status
-        
-        # Additional assertion: verify the fallback reason format matches expected pattern
-        for reason in fallback_reasons:
-            assert reason.startswith("http_max_retries:"), (
-                f"Unexpected fallback reason format: {reason}. "
-                "Expected format: 'http_max_retries:<count>'"
-            )
-        
-        # NOTE: For 401/403 auth errors, ResultSource.FALLBACK IS set via augment.py line 87
-        # (because result.result is None), but in-process RAG does NOT execute because
-        # http_augment.py line 141-148 checks status_code in (401, 403) before calling
-        # _set_fallback_reason. This test verifies the positive case (transport error →
-        # in-process RAG); the negative case (non-transport error → no in-process RAG) is
-        # covered by existing tests test_401_no_fallback / test_403_no_fallback.
-
-    @pytest.mark.asyncio
-    @respx.mock
-    async def test_non_transport_errors_do_not_trigger_fallback(self) -> None:
-        """Non-transport errors (4xx auth errors, JSON parse errors) must NOT trigger fallback."""
-        # Test with HTTP 401
-        respx.post(f"{RAG_URL}/v1/call_tool").mock(
-            return_value=httpx.Response(401, text="Unauthorized")
-        )
-        
-        fallback_reasons: list[str] = []
-        
-        async with httpx.AsyncClient() as client:
-            result, status, latency = await call_rag_service(
-                client,
-                RAG_URL,
-                "q",
-                "",
-                set_fetch_result=_noop_fetch,
-                set_fallback_reason=fallback_reasons.append,
-            )
-        
-        # Assert: NO fallback was triggered for 401
-        assert len(fallback_reasons) == 0, (
-            "Expected NO fallback for HTTP 401, but got fallback reasons: "
-            f"{fallback_reasons}. This indicates ResultSource.FALLBACK is incorrectly set."
-        )
-        assert result == ""  # Empty result for failed request
-        assert status == 401  # Original HTTP error status
-```
+Verify before finalizing: that `rag.__file__` resolves to `scripts/rag/__init__.py` in the test environment (if `rag` is a namespace package, derive the root from `rag.pipeline_service.__file__` instead), and that every file under `scripts/` parses with `ast.parse`.
 
 ### Details
 
-**Step 1: Verify current state of ResultSource.FALLBACK assignment**
-
-Run `rg 'ResultSource\\.FALLBACK' scripts/` to confirm there is exactly one assignment site (line 87 of `augment.py`). Current evidence shows this is the only occurrence.
-
-**Step 2: Implement the marker-lock guard test**
-
-Add the new test class `TestFallbackMarkerLockGuard` to `tests/rag/test_rag_pipeline_service.py`. Two approaches available:
-- Primary: Callback tracking approach (simpler, directly validates the observable outcome)
-- Alternative: Stack-trace inspection approach (more rigorous but more complex)
-
-**Step 3: Run existing tests**
-
-Run `uv run pytest tests/rag/test_rag_pipeline_service.py -x -q` to confirm no regression.
-
-**Step 4: Run the new test**
-
-The new test should pass immediately after implementation, confirming the marker-lock guard works.
+- A failure message should list the unexpected files (use `found - sanctioned` in the assert message) so a reviewer sees where the marker leaked.
+- Do not add runtime mocks; the existing contract-pin tests stay untouched.
+- If `ruff`/`mypy` flag the class-level `Path(...)` constant, move it into a module-level private constant.
 
 ## Compatibility considerations
 
-- No behavioral change. Only adding a new test.
-- The callback tracking approach is backward compatible because `_set_fallback_reason` is already used by existing tests.
-- The stack-trace inspection approach requires Python 3.11+ for `traceback.extract_stack()` reliability.
+- Test-only change; no production behavior change.
+- The scan reads every `.py` file under `scripts/` once per test; runtime is small relative to the module's async tests.
 
 ## Security considerations
 
-- No security implications. Adding a test that validates correct behavior.
-- The marker-lock guard prevents future regressions where `ResultSource.FALLBACK` could be set by an unauthorized code path, which could lead to incorrect fallback decisions.
+- None: read-only parsing of repository sources.
 
 ## Rollback considerations
 
-- To rollback, remove the new test class from git history: `git checkout HEAD~1 -- tests/rag/test_rag_pipeline_service.py`.
-- The rollback removes the marker-lock guard without affecting other tests.
+- Revert the single commit that adds `TestFallbackMarkerLockGuard`; no other file is affected.
 
 ## Validation plan
 
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| `tests/rag/test_rag_pipeline_service.py` | New marker-lock guard test | `uv run pytest tests/rag/test_rag_pipeline_service.py::TestFallbackMarkerLockGuard -x -q` | All new tests pass |
-| `tests/rag/test_rag_pipeline_service.py` | Regression (existing tests) | `uv run pytest tests/rag/test_rag_pipeline_service.py -x -q` | All existing tests pass |
-| `scripts/rag/augment.py` | Verify single FALLBACK assignment | `rg 'ResultSource\\.FALLBACK' scripts/` | Exactly 1 match at line 87 |
+| `tests/rag/test_rag_pipeline_service.py` | Unit: new guard class | `uv run pytest tests/rag/test_rag_pipeline_service.py::TestFallbackMarkerLockGuard -q` | Both new tests pass |
+| `tests/rag/test_rag_pipeline_service.py` | Regression: whole module (incl. `test_401_no_fallback`, `test_403_no_fallback`) | `uv run pytest tests/rag/test_rag_pipeline_service.py -q` | All pass |
+| `tests/rag/test_rag_pipeline_service.py` | Negative check (manual, then revert): temporarily add `ResultSource.FALLBACK` reference in another `scripts/` module | `uv run pytest tests/rag/test_rag_pipeline_service.py::TestFallbackMarkerLockGuard -q` | The matching test fails (AC-5); revert the temporary edit |
+| `tests/rag/test_rag_pipeline_service.py` | Lint/type | `uv run ruff check tests/rag/test_rag_pipeline_service.py` and `uv run mypy tests/rag/test_rag_pipeline_service.py` | Clean |
 
 ## Completion criteria
 
-- AC-001: A new test class `TestFallbackMarkerLockGuard` exists in `tests/rag/test_rag_pipeline_service.py`.
-- AC-002: The test verifies that in-process RAG fallback is only triggered for transport errors (not non-transport errors like 401/403 auth errors). Note: `ResultSource.FALLBACK` IS set for 401/403 via augment.py line 87; the distinction is whether in-process RAG executes, which is controlled by http_augment.py line 141-148.
-- AC-003: The test includes both positive (HTTP 500 → in-process RAG executed) and negative (HTTP 401 → no in-process RAG execution) cases.
-- AC-004: All existing tests in `test_rag_pipeline_service.py` continue to pass.
-- AC-005: `rg 'ResultSource\\.FALLBACK' scripts/` confirms exactly one assignment site remains unchanged.
+- `TestFallbackMarkerLockGuard` exists in `tests/rag/test_rag_pipeline_service.py` with one test per marker (REQ-005).
+- The guard fails when either marker appears in an unsanctioned `scripts/` module (verified by the negative check; AC-5).
+- All pre-existing tests in the module still pass.
+- No file other than `tests/rag/test_rag_pipeline_service.py` is modified.
 
 ## Out of scope
 
-- Changing how approvals are requested or resolved during a live session.
-- Altering the approval table schema.
-- Unifying the two validation implementations into one.
-- Re-wiring `_fetch_server_tools()` as the live path.
-- Modifying source files beyond running existing tests.
+- Changing or judging 401/403 fallback behavior (tracked as UNK-03 in the Plan).
+- Editing any `scripts/` source file.
+- Editing the ADR-004 document (separate procedure document).
 
 ## Execution Status
 
@@ -281,7 +148,7 @@ The new test should pass immediately after implementation, confirming the marker
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
 - **Requirement ID**: REQ-005
-- **Source issue**: N/A: the Plan's own Traceability section carries `{path}` placeholder (not filled)
+- **Source issue**: `issues/20260930-134926_adr004inv15_adr-004-inv-15-and-inv-16-cross-cutting-fallback-audit-not-re-verified.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20260930-212727_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
