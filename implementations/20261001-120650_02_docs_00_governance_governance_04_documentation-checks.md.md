@@ -63,9 +63,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the change in Implementation > Details | Pending | — | — | |
-| 2 | Run the Validation plan and compare with the Plan Design baseline | Pending | — | — | |
-| 3 | Self-review meaning and record result in Notes | Pending | — | — | |
+| 1 | Apply the change in Implementation > Details | Completed | 20261001-135630 | 20261001-135630 |  |
+| 2 | Run the Validation plan and compare with the Plan Design baseline | Completed | 20261001-135630 | 20261001-135630 |  |
+| 3 | Self-review meaning and record result in Notes | Completed | 20261001-135630 | 20261001-135630 | Japanese marker list replaced by a reference to tools/check_compat_shims.py _HISTORICAL_CONTEXT_MARKERS (lines 355-357 reflowed; surrounding note unchanged); no Japanese left; compat incl. --check-removed-names unchanged (English 'removed' marker at line 352 still in range); all checks unchanged vs batch baseline; full suite deferred to batch end per user decision; docs-mapping step N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
