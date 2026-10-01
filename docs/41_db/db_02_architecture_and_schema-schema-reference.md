@@ -46,7 +46,7 @@ Initialized by `create_workflow_schema()`, used by `agent/workflow/state_store.p
 
 ## 8. eventbus.sqlite Schema
 
-Independent persistence domain per [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) INV-04: `eventbus.sqlite` is the system of record for Event, Offset, Delivery, and DLQ state. Schema authority: `scripts/db/schema_sql.py::build_eventbus_schema_sql()` (bootstrap DDL) and `scripts/eventbus/db.py` (incremental migration at service startup — see [db_03_architecture_and_schema-migration-and-scaling.md](db_03_architecture_and_schema-migration-and-scaling.md) section 8b). Table/column detail: [eventbus_07_persistence_schema_and_replay.md](../24_eventbus/eventbus_07_persistence_schema_and_replay.md).
+Independent persistence domain per [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) INV-04: `eventbus.sqlite` is the system of record for Event, Offset, Delivery, and DLQ state. Schema authority: `scripts/db/schema_sql.py::build_eventbus_schema_sql()` (bootstrap DDL, Decision Target `eventbus.persistence-schema.bootstrap-ddl`) and `scripts/eventbus/db.py` (incremental migration at service startup, Decision Target `eventbus.persistence-schema.incremental-migration`). Table/column detail: [eventbus_07_persistence_schema_and_replay.md](../24_eventbus/eventbus_07_persistence_schema_and_replay.md).
 
 ---
 
