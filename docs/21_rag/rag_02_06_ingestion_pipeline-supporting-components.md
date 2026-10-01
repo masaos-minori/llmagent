@@ -46,10 +46,10 @@ For exhaustive detail, see `scripts/rag/ingestion/etag_manager.py` (ETagManager 
 - **Invalid incoming timestamp:** if the incoming `fetched_at` fails to parse,
   `_is_stale_update()` raises `ValueError(f"Invalid incoming timestamp: {value}")`.
 - **Invalid stored timestamp:** if the stored `fetched_at` fails to parse,
-  `_is_stale_update()` raises `ValueError(f"Invalid stored timestamp: {value}")`. Both
-  cases raise the same `ValueError` type — the message text is the only current
-  distinguishing mechanism; no separate exception classes exist for the two cases
-  (Needs confirmation: whether distinct exception types are intended in the future).
+  `_is_stale_update()` raises `InvalidStoredTimestampError(f"Invalid stored timestamp: {value}")`.
+  An invalid incoming `fetched_at` raises `InvalidIncomingTimestampError`; an invalid
+  stored `fetched_at` raises `InvalidStoredTimestampError`. Both subclass
+  `ValueError`; the message text (`Invalid incoming timestamp: …` vs `Invalid stored timestamp: …`) still distinguishes the two at the call site.
 - **Equal timestamps:** the staleness check is a strict `new_dt < stored_dt` — an
   incoming `fetched_at` equal to the stored value is **not** treated as stale, so the
   update proceeds.

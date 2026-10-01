@@ -12,6 +12,14 @@ from shared.logger import Logger
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
 
 
+class InvalidIncomingTimestampError(ValueError):
+    """Raised when the incoming fetched_at timestamp fails to parse."""
+
+
+class InvalidStoredTimestampError(ValueError):
+    """Raised when a stored fetched_at timestamp fails to parse."""
+
+
 class ETagManager:
     """Manages ETag/Last-Modified updates for existing documents."""
 
@@ -57,7 +65,9 @@ class ETagManager:
             if new_dt.tzinfo is None:
                 new_dt = new_dt.replace(tzinfo=UTC)
         except ValueError:
-            raise ValueError(f"Invalid incoming timestamp: {new_fetched_at}")
+            raise InvalidIncomingTimestampError(
+                f"Invalid incoming timestamp: {new_fetched_at}"
+            )
 
         # Fetch stored timestamp
         rows = self._db.fetchall(
@@ -73,7 +83,9 @@ class ETagManager:
             if stored_dt.tzinfo is None:
                 stored_dt = stored_dt.replace(tzinfo=UTC)
         except ValueError:
-            raise ValueError(f"Invalid stored timestamp: {stored_fetched_at}")
+            raise InvalidStoredTimestampError(
+                f"Invalid stored timestamp: {stored_fetched_at}"
+            )
 
         return new_dt < stored_dt
 
