@@ -62,9 +62,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the change in Implementation > Details | Pending | — | — | |
-| 2 | Run the Validation plan and compare with the Plan Design baseline | Pending | — | — | |
-| 3 | Self-review meaning and record result in Notes | Pending | — | — | |
+| 1 | Apply the change in Implementation > Details | Completed | 20261001-135914 | 20261001-135914 |  |
+| 2 | Run the Validation plan and compare with the Plan Design baseline | Completed | 20261001-135914 | 20261001-135914 |  |
+| 3 | Self-review meaning and record result in Notes | Completed | 20261001-135914 | 20261001-135914 | Line 20 -> 'No confirmed deviations.' (same wording as docs/10_adr/adr-index.md); only the pre-existing 'missing Keywords' structure finding remains; ADR checkers 'No issues found'; full suite deferred to batch end per user decision; docs-mapping step N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
