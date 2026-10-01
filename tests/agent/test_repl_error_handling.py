@@ -1,9 +1,13 @@
+import builtins
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from agent.cli_view import CLIView
+from agent.commands.registry import CommandRegistry
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
+from agent.orchestrator import Orchestrator
+from agent.repl_input_loop import ReplInputLoop
 from agent.session_persister import SessionPersister
 
 
@@ -73,3 +77,42 @@ async def test_repl_handles_diagnostic_save_error():
     )
     # Verify that the REPL didn't crash (it reached the end of the loop)
     assert True
+
+
+@pytest.mark.asyncio
+async def test_repl_contains_non_runtime_error_turn_exception(monkeypatch):
+    """Verifies that a non-RuntimeError turn exception is contained by _repl_loop:
+    surfaced through the view and the loop stays responsive instead of escaping."""
+    ctx = MagicMock(spec=AgentContext)
+    ctx.conv = MagicMock()
+    ctx.conv.shutdown_requested = False
+    ctx.conv.is_processing = False
+    ctx.conv.memory_disabled = False
+    ctx.conv.memory_warning_shown = False
+    ctx.stats = MagicMock()
+    ctx.stats.stat_partial_completions = 0
+
+    view = MagicMock(spec=CLIView)
+    loop = ReplInputLoop(ctx, view, shutdown_event=None)
+    loop._cmds = MagicMock(spec=CommandRegistry)
+    loop._orchestrator = MagicMock(spec=Orchestrator)
+    loop._orchestrator.handle_turn = AsyncMock(side_effect=ValueError("boom"))
+
+    calls = {"n": 0}
+
+    def fake_input(prompt=""):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return "hello"
+        raise EOFError
+
+    monkeypatch.setattr(builtins, "input", fake_input)
+
+    await loop._repl_loop()
+
+    # The ValueError must not escape the loop; it was surfaced through the view ...
+    view.write_fatal.assert_called_once()
+    args, _ = view.write_fatal.call_args
+    assert "ValueError" in args[0]
+    # ... and the loop consumed exactly one line then exited cleanly on EOF.
+    assert calls["n"] == 2

@@ -120,6 +120,14 @@ class ReplInputLoop:
             f"Graceful shutdown timed out after {self._GRACEFUL_TIMEOUT_S}s"
         )
 
+    def _surface_turn_error(self, exc: Exception) -> None:
+        """Surface an unexpected per-turn error through the CLI view.
+
+        Called from _repl_loop when a turn raises a non-shutdown, non-timeout
+        exception, so the operator sees the failure and the loop stays usable.
+        """
+        self._view.write_fatal(f"{exc.__class__.__name__}: {exc}")
+
     async def _read_input(self, loop: asyncio.AbstractEventLoop) -> str | None:
         """Read a single input line, handling EOF/keyboard interrupt and multiline continuation."""
         shutdown_event = self._shutdown_event
@@ -290,6 +298,8 @@ class ReplInputLoop:
                     self._log_graceful_shutdown_timeout()
                     break
                 raise
+            except Exception as exc:  # noqa: BLE001 — contain unexpected per-turn errors so the interactive session stays usable after a failing turn
+                self._surface_turn_error(exc)
             finally:
                 self._turn_active = False
                 ctx.conv.is_processing = False
