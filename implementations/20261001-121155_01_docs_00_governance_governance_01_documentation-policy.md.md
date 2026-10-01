@@ -74,11 +74,11 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Part A: remove 9 duplicate sentences (Plan Step 2) | Pending | — | — | |
-| 2 | Save the 8 moved section bodies for byte comparison | Pending | — | — | |
-| 3 | Confirm seq 02 and seq 06 Completed | Pending | — | — | |
-| 4 | Part B: remove 8 sections; add pointer, Purpose, Related Documents, Keywords edits (Plan Step 5) | Pending | — | — | |
-| 5 | Run Validation plan and record size | Pending | — | — | |
+| 1 | Part A: remove 9 duplicate sentences (Plan Step 2) | Completed | 20261001-155100 | 20261001-155524 | Changed docs/00_governance/governance_01_documentation-policy.md. Actual starting size was 31109 bytes, not 31309. |
+| 2 | Save the 8 moved section bodies for byte comparison | Completed | 20261001-155100 | 20261001-155524 | Moved bodies saved to scratch and byte compared in seq 02 |
+| 3 | Confirm seq 02 and seq 06 Completed | Completed | 20261001-155100 | 20261001-155524 | seq 02 and seq 06 Completed and archived |
+| 4 | Part B: remove 8 sections; add pointer, Purpose, Related Documents, Keywords edits (Plan Step 5) | Completed | 20261001-155100 | 20261001-155524 |  |
+| 5 | Run Validation plan and record size | Completed | 20261001-155100 | 20261001-155524 | Size 23638 bytes. Structure, graph cycle, quality and content policy checks show no new finding. test_check_docs_quality full tree failure is pre-existing and identical on master. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
