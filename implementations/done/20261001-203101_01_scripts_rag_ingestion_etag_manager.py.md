@@ -146,9 +146,9 @@ Empty-string `new_fetched_at` handling (unchanged).
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261001-215231 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261001-215231 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261001-215231 |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: doc edits are rows 2-3 |
 
 ### Blocker Log
