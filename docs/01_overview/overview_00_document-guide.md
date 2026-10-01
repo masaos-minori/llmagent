@@ -41,6 +41,10 @@ source:
 - Added YAML Front Matter including title/category/tags/related documents/keywords to each file
 - This file is the system-wide overview index. Refer to the following catalogs for each detailed document set
 
+## Canonical Sources
+
+Canonical sources for this area are defined in the [Canonical Source Registry](../00_governance/governance_01_documentation-policy.md#canonical-source-registry). This area guide does not maintain an independent mapping.
+
 ## Related Documents
 
 - `overview-arch-01-process.md`

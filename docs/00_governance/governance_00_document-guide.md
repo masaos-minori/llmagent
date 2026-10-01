@@ -34,9 +34,9 @@ These documents describe the documentation policies, metadata conventions, issue
 | Quality checks & validation procedures | `governance_04` |
 | Change impact, RACI model, dependency graphs | `governance_05` |
 
-## Canonical Source Rule
+## Canonical Sources
 
-See [Documentation Policy](governance_01_documentation-policy.md) for all cross-cutting documentation rules.
+Canonical sources for this area are defined in the [Canonical Source Registry](governance_01_documentation-policy.md#canonical-source-registry). This area guide does not maintain an independent mapping.
 
 ## Known Issues / Deferred Items
 
