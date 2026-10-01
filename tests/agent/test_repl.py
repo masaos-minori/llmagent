@@ -399,6 +399,51 @@ class TestReplLoop:
 
         repl._orchestrator.handle_turn.assert_called_once_with("hello world")
 
+    @pytest.mark.asyncio
+    async def test_shutdown_during_input_cancels_input_coro(self) -> None:
+        """Assert input_coro is cancelled when shutdown fires during an in-progress input read.
+
+        Regression test for the fix that adds explicit cancellation of the pending
+        input coroutine on the shutdown-done branch of _read_input.
+        """
+        repl = _make_bare_repl()
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
+
+        # Replace the pre-set shutdown event so we can control its timing
+        new_shutdown_event = asyncio.Event()
+        repl._shutdown_event = new_shutdown_event
+        repl._input_loop._shutdown_event = new_shutdown_event
+
+        # Capture the input_coro reference before _abort_input clears it
+        captured_coro: list[asyncio.Task[str] | None] = []
+        original_abort = repl._input_loop._abort_input
+
+        def capture_abort() -> None:
+            coro = repl._input_loop._input_coro
+            if coro is not None:
+                captured_coro.append(coro)
+            original_abort()
+
+        repl._input_loop._abort_input = capture_abort
+
+        # Fire shutdown event while input is blocked
+        async def fire_shutdown() -> None:
+            await asyncio.sleep(0.05)
+            new_shutdown_event.set()
+
+        asyncio.ensure_future(fire_shutdown())
+
+        with patch("builtins.input", side_effect=lambda p: (time.sleep(5), "never")[1]):
+            result = await asyncio.wait_for(
+                repl._input_loop.run(mock_banner, mock_persister), timeout=5.0
+            )
+
+        # Assert input_coro was cancelled and read returned None
+        assert len(captured_coro) == 1
+        assert captured_coro[0].cancelled(), "input_coro should be cancelled"
+        assert result is None
+
 
 class TestPersistSessionDiagnostics:
     """Tests for SessionPersister.persist_session_diagnostics()."""

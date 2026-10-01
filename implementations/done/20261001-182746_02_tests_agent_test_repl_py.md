@@ -97,8 +97,8 @@ Add a regression test asserting that a shutdown fired during an in-progress inpu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add regression test for shutdown-during-input cancellation to `test_repl.py` | In Progress | 20261001-182959 | — | REQ-003 |
-| 2 | Run validation sequence (`rules/toolchain.md`): ruff/mypy/bandit/pytest/diff-cover | Pending | — | — | REQ-003 |
+| 1 | Add regression test for shutdown-during-input cancellation to `test_repl.py` | Completed | 20261001-182959 | 20261001-212028 | REQ-003 |
+| 2 | Run validation sequence (`rules/toolchain.md`): ruff/mypy/bandit/pytest/diff-cover | Completed | — | 20261001-212028 | REQ-003 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
