@@ -109,7 +109,7 @@ Topics explicitly excluded from this document:
 
 1. **Proper nouns**: Always capitalize CamelCase terms (EventBus, ToolRegistry, WorkflowEngine).
 2. **Abbreviations**: Always use uppercase form (MQ, NC, DLQ, ACK, DTO, etc.).
-3. **Bilingual text**: Use English preferred form with Japanese alternative in parentheses on first occurrence.
+3. **Bilingual text**: Do not add non-English alternatives; all `docs/` text is English per `skills/DESIGN.md` Output language. Alternative forms are the English variants listed in the Terminology Glossary.
 4. **Hyphenation**: Use hyphens for compound adjectives (at-least-once delivery, fail-closed mode).
 5. **Plurals**: Plural forms are acceptable when referring to multiple items (Known Issues, Needs Confirmations).
 6. **First occurrence**: On first use in a document, include both preferred and alternative forms: "Needs Confirmation (Requires Confirmation)".

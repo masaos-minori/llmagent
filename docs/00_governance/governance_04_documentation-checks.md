@@ -352,8 +352,9 @@ Note: Items 1-3 were previously listed for GV-001, GV-002, and GV-003. These ite
      removed by `localremoval`/`loopbackonly`/`mcpauth`,
      `plans/done/20260903-091417_plan.md`//).
      `_is_historical_context`'s marker set was extended with Japanese equivalents
-     (解消/解決/廃止/撤廃/削除済み/確認済み) at the same time, since this repository's
-     docs mix English and Japanese prose and the English-only marker set previously
+     (defined in `tools/check_compat_shims.py` `_HISTORICAL_CONTEXT_MARKERS`) at the
+     same time, since this repository's docs mix English and Japanese prose and the
+     English-only marker set previously
      produced false positives on Japanese historical/resolved notes. An unrelated
      "local" meaning (filesystem, Git, RAG, database, process, localhost paths) is
      unaffected — the new patterns match only the specific retired identifiers above,

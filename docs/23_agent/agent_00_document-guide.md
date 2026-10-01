@@ -51,10 +51,10 @@ The value of this document is navigation logic — human-curated guidance on whi
 - [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
 
 ### Related ADRs
-- [ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md) — Workflow Engine必須化
-- [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
-- [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
-- [ADR-007](../10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — HTTP MCP採用とstdio非サポート
+- [ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md) — Mandatory Workflow Engine
+- [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistry as the Sole Routing Authority
+- [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) — Failure Handling Policy Across Environments
+- [ADR-007](../10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — Adoption of HTTP MCP and Non-Support of stdio
 
 ### Query Routing Table
 

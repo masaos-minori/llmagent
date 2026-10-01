@@ -386,9 +386,9 @@ changed decision affects.
 All ADRs must use these section headers in order: Context (Problem, Constraints), Assumptions, Decision, Rationale, Alternatives Considered, Consequences (Positive/Negative), Invariants, Verification, Implementation Notes, Known Deviations, Review Triggers, Approval, Related Documents, Completion Checklist.
 
 Duplicate notes shared across all ADRs:
-- "この章は設計判断の根拠にしない" (Do not use this chapter as the basis for design decisions)
-- "該当しない場合は「対象外」と記載する" (If not applicable, write "Not applicable")
-- "ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する" (Do not unconditionally align ADR text to current implementation; manage discrepancies via Known Issues)
+- This chapter is not a basis for design decisions.
+- If not applicable, write "Not applicable".
+- Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 The ADR list, dependency graph, and invariant verification matrix are maintained in
 `adr-index.md`, not here.

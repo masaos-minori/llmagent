@@ -84,10 +84,10 @@ Provides guidance on determining which chapters to open as the entry point for t
 | [mcp_01_system_overview.md](mcp_01_system_overview.md) | System Overview |
 | [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ownership_matrix.md) | Tool Ownership Matrix |
 | [mcp_02_service_boundaries.md](mcp_02_service_boundaries.md) | Service Boundary Definitions |
-| [mcp_02_01](mcp_02_01_endpoints-and-transport.md) 〜 [_02](mcp_02_02_startup-modes-and-health.md)/[_03](mcp_02_03_audit-logging-and-errors.md) | Protocol and Transport (3 parts) |
-| [mcp_03_01](mcp_03_01_dispatch-and-routing.md) 〜 [_02](mcp_03_02_tool-registry.md)/[_03a](mcp_03_03_transport-and-health.md)/[_03b](mcp_03_03_transport-and-health.md)/[_04](mcp_03_04_tool-call-tracing-and-watchdog.md)/[_05](mcp_03_05_lifecycle-and-new-server.md)/[_06](mcp_03_06_tool-runtime-availability-metadata.md) | Routing and Lifecycle (7 parts) |
-| [mcp_04_01](mcp_04_01_web-search-file-read-github.md) 〜 [_02](mcp_04_02_file-write-file-delete-shell.md)/[_03](mcp_04_03_rag-pipeline-and-cicd.md)/[_04](mcp_04_04_mdq.md)/[_05](mcp_04_05_git.md) | Server Catalog (5 parts, _04=mdq. browser-mcp was merged into web-search-mcp under _01 on 2026-07-20; old _06 was deleted) |
-| [mcp_05_01](mcp_05_01_access-control-and-allowlists.md) 〜 [_02](mcp_05_02_auth-profiles-and-sandboxing.md)/[_03](mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)/[_04](mcp_05_04_mdq-rag-boundary.md)/[_05](mcp_05_05_mdq-enforcement-and-lockdown.md) | Security Model (5 parts) |
+| [mcp_02_01](mcp_02_01_endpoints-and-transport.md) to [_02](mcp_02_02_startup-modes-and-health.md)/[_03](mcp_02_03_audit-logging-and-errors.md) | Protocol and Transport (3 parts) |
+| [mcp_03_01](mcp_03_01_dispatch-and-routing.md) to [_02](mcp_03_02_tool-registry.md)/[_03a](mcp_03_03_transport-and-health.md)/[_03b](mcp_03_03_transport-and-health.md)/[_04](mcp_03_04_tool-call-tracing-and-watchdog.md)/[_05](mcp_03_05_lifecycle-and-new-server.md)/[_06](mcp_03_06_tool-runtime-availability-metadata.md) | Routing and Lifecycle (7 parts) |
+| [mcp_04_01](mcp_04_01_web-search-file-read-github.md) to [_02](mcp_04_02_file-write-file-delete-shell.md)/[_03](mcp_04_03_rag-pipeline-and-cicd.md)/[_04](mcp_04_04_mdq.md)/[_05](mcp_04_05_git.md) | Server Catalog (5 parts, _04=mdq. browser-mcp was merged into web-search-mcp under _01 on 2026-07-20; old _06 was deleted) |
+| [mcp_05_01](mcp_05_01_access-control-and-allowlists.md) to [_02](mcp_05_02_auth-profiles-and-sandboxing.md)/[_03](mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)/[_04](mcp_05_04_mdq-rag-boundary.md)/[_05](mcp_05_05_mdq-enforcement-and-lockdown.md) | Security Model (5 parts) |
 | [mcp_06_01_purpose.md](mcp_06_01_purpose.md) | Config Purpose |
 | [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md) | Config Inventory |
 | [mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md](mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md) | McpServerConfig Fields |
@@ -152,9 +152,9 @@ Old MCP source files were kept during the documentation restructuring phase (pla
 
 ## Related ADRs
 
-- [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
-- [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) — 環境における障害処理方針
-- [ADR-007](../10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — HTTP MCP採用とstdio非サポート
+- [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistry as the Sole Routing Authority
+- [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) — Failure Handling Policy Across Environments
+- [ADR-007](../10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — Adoption of HTTP MCP and Non-Support of stdio
 - [ADR-012](../10_adr/ADR-012-git-mcp-server-side-write-enforcement.md) — Git MCP Server-Side Write Enforcement
 
 ## Related Documents

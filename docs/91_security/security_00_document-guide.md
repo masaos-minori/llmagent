@@ -48,8 +48,8 @@ No reference APIs exist in this directory. All files are security policy/archite
 
 ## Related ADRs
 
-- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
-- [ADR-013](../10_adr/ADR-013-eventbus-authentication-authorization.md) — EventBus認証認可
+- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
+- [ADR-013](../10_adr/ADR-013-eventbus-authentication-authorization.md) — EventBus Authentication and Authorization
 - [ADR-015](../10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
 
 ## Related Documents

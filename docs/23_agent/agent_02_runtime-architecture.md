@@ -53,8 +53,8 @@ Describes the primary runtime components, their dependencies, and responsibility
 
 ## Preflight Gate Coverage
 
-`check_preflight()` の呼び出しサイトとそのテストカバレッジを文書化する。
-未テストの実行経路はゲートを迂回する可能性があるため、すべての経路にテストまたは正当化が必要。
+Document the call sites of `check_preflight()` and their test coverage.
+Because an untested execution path may bypass the gate, every path requires a test or a justification.
 
 ### Enumerated Call Sites
 

@@ -26,9 +26,9 @@ Migrated to [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.m
 
 ## Related Documents
 
-- [ADR-010: RAGの外部実行失敗時のインプロセスフォールバック](../10_adr/ADR-010-rag-fallback.md)
-- [ADR-009: RAGのFTS5検索用テキストとLLM提示用テキスト分離](../10_adr/ADR-009-rag-ft5-text-separation.md)
-- [ADR-005: RAGの正本と派生インデックスの関係](../10_adr/ADR-005-rag-source-derived-index-relationships.md)
+- [ADR-010: In-Process Fallback When External RAG Execution Fails](../10_adr/ADR-010-rag-fallback.md)
+- [ADR-009: Separating RAG FTS5 Search Text from LLM Presentation Text](../10_adr/ADR-009-rag-ft5-text-separation.md)
+- [ADR-005: Relationship Between RAG Canonical Data and Derived Indexes](../10_adr/ADR-005-rag-source-derived-index-relationships.md)
 
 ## Keywords
 

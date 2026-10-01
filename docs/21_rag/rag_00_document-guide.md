@@ -131,10 +131,10 @@ Cross-cutting documentation rules and policies:
 
 ## Related ADRs
 
-- [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md) — RAGの正本と派生インデックスの関係
-- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
-- [ADR-009](../10_adr/ADR-009-rag-ft5-text-separation.md) — RAGのFTS5検索用テキストとLLM提示用テキスト分離
-- [ADR-010](../10_adr/ADR-010-rag-fallback.md) — RAGの外部実行失敗時のインプロセスフォールバック
+- [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md) — Relationship Between RAG Canonical Data and Derived Indexes
+- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
+- [ADR-009](../10_adr/ADR-009-rag-ft5-text-separation.md) — Separating RAG FTS5 Search Text from LLM Presentation Text
+- [ADR-010](../10_adr/ADR-010-rag-fallback.md) — In-Process Fallback When External RAG Execution Fails
 
 ## Keywords
 

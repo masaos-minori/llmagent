@@ -229,7 +229,7 @@ Each constraint below states what happens when violated and whether enforcement 
 
 **Crawl Depth / Max Pages Per Site** — Operational limits enforced by stopping BFS traversal at the limit. Neither constitutes a "violation" in the sense of an error — exceeding the limit simply ends the crawl for that site. Values are read from `config/crawler.toml` (`crawler.py` lines 61, 66).
 
-**Database** — An architectural assumption per `ADR-008` (Assumptions section: "対象環境：単一Host、複数プロセス"; Rationale section: Operability/Performance/Data Integrity/Correctness, lines 91-101). Not per-request enforced code; reconsidering it requires the ADR's own "Reconsideration Conditions".
+**Database** — An architectural assumption per `ADR-008` (Assumptions section: "Target environment: a single host, multiple processes"; Rationale section: Operability/Performance/Data Integrity/Correctness, lines 91-101). Not per-request enforced code; reconsidering it requires the ADR's own "Reconsideration Conditions".
 
 ---
 

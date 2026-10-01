@@ -17,7 +17,7 @@ This directory contains all Architecture Decision Records (ADRs). Each ADR captu
 
 ## Known Deviations
 
-確認済みの差異なし
+No confirmed deviations.
 
 ## Reading Order
 

@@ -60,8 +60,8 @@ Cross-cutting documentation rules and policies:
 
 ## Related ADRs
 
-- [ADR-006](../10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md) — EventBusのSQLite永続化とSSE配信方式
-- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
+- [ADR-006](../10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md) — EventBus SQLite Persistence and SSE Delivery
+- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
 
 ## Related Documents
 
