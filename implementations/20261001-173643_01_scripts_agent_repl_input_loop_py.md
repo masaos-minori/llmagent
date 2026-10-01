@@ -102,9 +102,9 @@ Contain a non-`RuntimeError`, non-`TimeoutError` exception escaping a turn so th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read reference files; confirm exception-propagation path; lock loop-layer containment | Pending | — | — | REQ-001 |
-| 2 | Add per-turn exception safety net around the turn-dispatch await in `_repl_loop` | Pending | — | — | REQ-001 |
-| 3 | Run validation sequence (`rules/toolchain.md`): ruff/mypy/lint-imports/bandit/radon/pytest/diff-cover | Pending | — | — | REQ-001 |
+| 1 | Read reference files; confirm exception-propagation path; lock loop-layer containment | Completed | 20261001-193738 | 20261001-193738 | REQ-001 Reference files confirmed; propagation path locked to _repl_loop layer |
+| 2 | Add per-turn exception safety net around the turn-dispatch await in `_repl_loop` | Completed | 20261001-193738 | 20261001-193738 | REQ-001 Added _surface_turn_error helper + except Exception handler; _repl_loop stays grade D (radon 29) |
+| 3 | Run validation sequence (`rules/toolchain.md`): ruff/mypy/lint-imports/bandit/radon/pytest/diff-cover | Completed | 20261001-193738 | 20261001-193738 | REQ-001 ruff clean; mypy clean via --no-namespace-packages; bandit clean; radon D; pytest 0 new failures (6 pre-existing DB-setup); diff-cover 100% on changed lines; negative control fails vs pre-fix |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
