@@ -5,7 +5,7 @@ Each scenario builds its own minimal fixture under an isolated `tmp_path`
 subdirectory and calls the tool's functions directly, matching
 tests/tools/test_check_needs_confirmation_inventory.py's tmp_path-fixture
 pattern. TestRealGraphIntegration is the exception: it reads the actual current
-docs/00_governance_01_documentation-policy.md, per REQ-008's requirement to
+docs/00_governance/governance_05_change-impact-and-dependency-graphs.md, per REQ-008's requirement to
 exercise the parser against the real current graph text, not only synthetic
 fixtures.
 """
@@ -167,7 +167,8 @@ class TestMainIntegration:
 
 
 class TestRealGraphIntegration:
-    """Exercises the parser against docs/00_governance_01_documentation-policy.md's
+    """Exercises the parser against
+    docs/00_governance/governance_05_change-impact-and-dependency-graphs.md's
     actual current content. Depends on plans/done/20260902-191512_plan.md's seq 01
     implementation-procedure having already been applied (the '## Software
     Runtime Dependency Graph' section must exist); if run before that edit, this

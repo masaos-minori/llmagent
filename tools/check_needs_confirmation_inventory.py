@@ -66,6 +66,7 @@ _GOVERNANCE_META_DOCS = frozenset(
         "governance_02_documentation-metadata.md",
         "governance_03_issue-and-uncertainty-management.md",
         "governance_04_documentation-checks.md",
+        "governance_05_change-impact-and-dependency-graphs.md",
     }
 )
 

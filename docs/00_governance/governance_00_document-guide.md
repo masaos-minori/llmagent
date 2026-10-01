@@ -22,6 +22,7 @@ These documents describe the documentation policies, metadata conventions, issue
 | Documentation Metadata | `governance_02_documentation-metadata.md` |
 | Issue and Uncertainty Management | `governance_03_issue-and-uncertainty-management.md` |
 | Documentation Checks | `governance_04_documentation-checks.md` |
+| Change Impact and Dependency Graphs | `governance_05_change-impact-and-dependency-graphs.md` |
 
 ## AI Query Routing
 
@@ -31,6 +32,7 @@ These documents describe the documentation policies, metadata conventions, issue
 | Metadata definitions & naming conventions | `governance_02` |
 | Known issues, inconsistencies, uncertainties | `governance_03` |
 | Quality checks & validation procedures | `governance_04` |
+| Change impact, RACI model, dependency graphs | `governance_05` |
 
 ## Canonical Source Rule
 

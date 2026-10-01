@@ -241,19 +241,19 @@ See [Policy's ADR Section Header Standardization](governance_01_documentation-po
 
 Canonical source: the dependency-graph taxonomy (Software Runtime Dependency Graph,
 Deployment Management Graph, Documentation Reference Graph, Governance Applicability
-Matrix) is defined in `docs/governance_01_documentation-policy.md` — see that
+Matrix) is defined in `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` — see that
 document's sections by these names. This document does not duplicate the edge list.
 
 **Automated** (Software Runtime Dependency Graph only): `tools/check_dependency_graph_cycles.py`
 parses the Software Runtime Dependency Graph's edge list from
-`docs/governance_01_documentation-policy.md` and fails if a cycle exists among its
+`docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` and fails if a cycle exists among its
 5 in-scope nodes (Agent, MCP, RAG, EventBus, Shared/DB). Wired into
 `.github/workflows/governance-docs-consistency.yml`.
 
 **Manual** (all other relation types): the Deployment Management Graph, Documentation
 Reference Graph, and Governance Applicability Matrix are not cycle-checked by any
 tool — see each section's own cycle-tolerance statement in
-`docs/governance_01_documentation-policy.md` — and remain subject to human review
+`docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` — and remain subject to human review
 only.
 
 ### 13. Merge Condition Validation
@@ -332,7 +332,7 @@ Note: Items 1-3 were previously listed for GV-001, GV-002, and GV-003. These ite
     originally requested. Remaining, optional scope: actually running each cited test in CI
     (this check only verifies the path exists), tracked as a future enhancement, not a gap in
     the current implementation.
-4. **GV-015**: Resolved — `docs/governance_01_documentation-policy.md`'s
+4. **GV-015**: Resolved — `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`'s
     Software Runtime Dependency Graph, Deployment Management Graph, Documentation
     Reference Graph, and Governance Applicability Matrix sections separate the four
     relation types the previous single graph conflated; closing reference:
@@ -371,7 +371,7 @@ Note: Items 1-3 were previously listed for GV-001, GV-002, and GV-003. These ite
 
 ## Change Impact Assessment
 
-See [Policy's Change Impact Rule and Change-Impact Matrix](governance_01_documentation-policy.md#change-impact-rule)
+See [Change Impact Rule and Change-Impact Matrix](governance_05_change-impact-and-dependency-graphs.md#change-impact-rule)
 for the full procedure and matrix determining which documents are
 affected by a change.
 

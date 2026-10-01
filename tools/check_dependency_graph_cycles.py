@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_dependency_graph_cycles.py — Detect cycles in the Software Runtime Dependency Graph.
 
-docs/00_governance_01_documentation-policy.md's `## Software Runtime Dependency
+docs/00_governance/governance_05_change-impact-and-dependency-graphs.md's `## Software Runtime Dependency
 Graph` section declares "Cycles prohibited" for its 5 in-scope nodes (Agent, MCP,
 RAG, EventBus, Shared/DB). No automated check previously verified this invariant —
 the graph's predecessor (`## Area Dependency Graph`) stated the same invariant
@@ -35,7 +35,7 @@ from tools._docs_consistency_lib import (
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
-GRAPH_DOC_NAME = "governance_01_documentation-policy.md"
+GRAPH_DOC_NAME = "governance_05_change-impact-and-dependency-graphs.md"
 GRAPH_DOC_PATH = DOCS_DIR / "00_governance" / GRAPH_DOC_NAME
 TARGET_SECTION = "Software Runtime Dependency Graph"
 IN_SCOPE_NODES = frozenset({"Agent", "MCP", "RAG", "EventBus", "Shared/DB"})
