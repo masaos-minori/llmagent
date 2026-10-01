@@ -22,6 +22,7 @@ from tools.check_canonical_source_conflicts import (
     BlockingStatus,
     RegistryEntry,
     Severity,
+    _wrap_validation_errors,
     detect_all_conflicts,
     detect_area_guide_contradiction,
     detect_authoritative_terms_in_non_canonical,
@@ -465,3 +466,60 @@ class TestDetectEmptyArea:
         entry = _entry(area="test-area")
         conflicts = detect_empty_area([entry])
         assert conflicts == []
+
+
+# -----------------------------------------------------------------------
+# Regression tests for _wrap_validation_errors cross-product bug
+# -----------------------------------------------------------------------
+
+
+class TestWrapValidationErrorsCrossProduct:
+    """Regression tests for _wrap_validation_errors cross-product bug."""
+
+    def test_single_exempt_entry_no_false_positive(self) -> None:
+        """A single exempt single-path entry must not produce cross-product findings.
+
+        Note: the validator may emit a spurious "multiple source_paths (1)" error
+        for runtime-behavior entries — this is a separate bug. Our fix ensures
+        the error is attributed only to the matching entry, not duplicated across
+        all entries.
+        """
+        entry = _entry(
+            decision_target="eventbus.core-behavior",
+            claim_type="runtime-behavior",
+            source_paths=["scripts/eventbus/"],
+        )
+        errors = [
+            "multiple source_paths (1) for claim_type 'runtime-behavior' "
+            "on entry targeting 'eventbus.core-behavior': "
+            "only 'runtime-behavior' allows multiple sources"
+        ]
+        conflicts = _wrap_validation_errors(errors, [entry])
+        # After fix: exactly one finding for the matching entry only
+        assert len(conflicts) == 1
+        assert conflicts[0].code == "CANONICAL-006"
+
+    def test_multi_entries_multi_errors_no_cross_product(self) -> None:
+        """Multiple entries x multiple errors must not produce cross-product findings."""
+        entry_a = _entry(
+            decision_target="eventbus.core-behavior",
+            claim_type="runtime-behavior",
+            source_paths=["scripts/eventbus/"],
+        )
+        entry_b = _entry(
+            decision_target="eventbus.persistence-schema",
+            claim_type="database-schema",
+            source_paths=["scripts/db/schema_sql.py", "scripts/eventbus/db.py"],
+        )
+        errors = [
+            "multiple source_paths (2) for claim_type 'database-schema' "
+            "on entry targeting 'eventbus.persistence-schema': "
+            "only 'runtime-behavior' allows multiple sources"
+        ]
+        conflicts = _wrap_validation_errors(errors, [entry_a, entry_b])
+        assert len(conflicts) == 1
+        assert conflicts[0].code == "CANONICAL-006"
+        assert conflicts[0].affected_files == [
+            "scripts/db/schema_sql.py",
+            "scripts/eventbus/db.py",
+        ]

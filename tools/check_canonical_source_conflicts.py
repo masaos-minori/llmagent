@@ -724,10 +724,23 @@ def detect_authoritative_terms_in_non_canonical(
 def _wrap_validation_errors(
     errors: list[str], entries: Sequence[RegistryEntry]
 ) -> list[CanonicalConflict]:
-    """Convert M-01-04 validation errors into findings with CANONICAL-XXX codes."""
+    """Convert M-01-04 validation errors into findings with CANONICAL-XXX codes.
+
+    Each validation error string carries the Decision Target of the entry that
+    caused it (e.g., "multiple source_paths (2) for claim_type 'database-schema'
+    on entry targeting 'eventbus.persistence-schema': only 'runtime-behavior'
+    allows multiple sources"). This function matches each error to its owning
+    entry by checking whether the error text contains the entry's decision_target.
+
+    Returns exactly one finding per (error, entry) pair where the error refers
+    to that specific entry — no cross-product duplication.
+    """
     conflicts: list[CanonicalConflict] = []
     for entry in entries:
         for err in errors:
+            # Skip errors that don't refer to this entry
+            if entry.decision_target and entry.decision_target not in err:
+                continue
             if "empty decision_target" in err:
                 conflicts.append(
                     CanonicalConflict(
