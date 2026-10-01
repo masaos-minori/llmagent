@@ -36,7 +36,7 @@ Add a marker-lock guard in `tests/rag/test_rag_pipeline_service.py` that asserts
 
 1. Identify the exact location where `ResultSource.FALLBACK` is assigned in the production code (`scripts/rag/augment.py` line 87).
 2. Create a new test method that monkeypatches the assignment site or the surrounding logic to verify it only occurs within the sanctioned augment path.
-3. Ensure the test covers both the positive case (fallback IS triggered when expected) and the negative case (fallback is NOT triggered for non-transport errors).
+3. Ensure the test covers both the positive case (in-process RAG fallback IS triggered for transport errors like HTTP 5xx and connection timeouts) and the negative case (in-process RAG fallback is NOT triggered for non-transport errors such as HTTP 401/403 authentication errors and JSON parse errors). Note: for 401/403, `ResultSource.FALLBACK` IS set via `augment.py` line 87 (because `result.result is None`), but in-process RAG does NOT execute because `http_augment.py` line 141-148 checks `status_code in (401, 403)` before calling `_set_fallback_reason`. The test must distinguish between these two scenarios.
 4. Run existing tests to confirm no regression.
 
 ### Method
@@ -160,6 +160,13 @@ class TestFallbackMarkerLockGuard:
                 f"Unexpected fallback reason format: {reason}. "
                 "Expected format: 'http_max_retries:<count>'"
             )
+        
+        # NOTE: For 401/403 auth errors, ResultSource.FALLBACK IS set via augment.py line 87
+        # (because result.result is None), but in-process RAG does NOT execute because
+        # http_augment.py line 141-148 checks status_code in (401, 403) before calling
+        # _set_fallback_reason. This test verifies the positive case (transport error →
+        # in-process RAG); the negative case (non-transport error → no in-process RAG) is
+        # covered by existing tests test_401_no_fallback / test_403_no_fallback.
 
     @pytest.mark.asyncio
     @respx.mock
@@ -238,8 +245,8 @@ The new test should pass immediately after implementation, confirming the marker
 ## Completion criteria
 
 - AC-001: A new test class `TestFallbackMarkerLockGuard` exists in `tests/rag/test_rag_pipeline_service.py`.
-- AC-002: The test verifies that `ResultSource.FALLBACK` is only set through the sanctioned augment path (callback tracking or stack-trace inspection).
-- AC-003: The test includes both positive (HTTP 500 → fallback triggered) and negative (HTTP 401 → no fallback) cases.
+- AC-002: The test verifies that in-process RAG fallback is only triggered for transport errors (not non-transport errors like 401/403 auth errors). Note: `ResultSource.FALLBACK` IS set for 401/403 via augment.py line 87; the distinction is whether in-process RAG executes, which is controlled by http_augment.py line 141-148.
+- AC-003: The test includes both positive (HTTP 500 → in-process RAG executed) and negative (HTTP 401 → no in-process RAG execution) cases.
 - AC-004: All existing tests in `test_rag_pipeline_service.py` continue to pass.
 - AC-005: `rg 'ResultSource\\.FALLBACK' scripts/` confirms exactly one assignment site remains unchanged.
 
