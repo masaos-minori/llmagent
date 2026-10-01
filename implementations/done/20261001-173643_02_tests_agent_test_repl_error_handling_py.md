@@ -97,8 +97,8 @@ Add a regression test asserting that when a turn raises a non-`RuntimeError` exc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add regression test for non-`RuntimeError` turn exception to `test_repl_error_handling.py` | Pending | — | — | REQ-002 |
-| 2 | Run validation sequence (`rules/toolchain.md`): ruff/mypy/bandit/pytest/diff-cover | Pending | — | — | REQ-002 |
+| 1 | Add regression test for non-`RuntimeError` turn exception to `test_repl_error_handling.py` | Completed | 20261001-193738 | 20261001-193738 | REQ-002 Regression test added; negative control confirmed (fails vs pre-fix loop) |
+| 2 | Run validation sequence (`rules/toolchain.md`): ruff/mypy/bandit/pytest/diff-cover | Completed | 20261001-193738 | 20261001-193738 | REQ-002 ruff clean; new test passes; existing diagnostic-save-error test still passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
