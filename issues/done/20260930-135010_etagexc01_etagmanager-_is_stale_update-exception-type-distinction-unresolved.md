@@ -96,6 +96,41 @@ option (b) is confirmed, search for every call site before changing the exceptio
 type, and keep new types as `ValueError` subclasses unless every call site is
 updated in the same change.
 
+## Adversarial Verification
+Verified against source on 2026-10-01. Findings recorded here to inform the owner
+decision; this section makes no decision itself.
+
+- **Core claim holds.** `_is_stale_update()` raises plain `ValueError` at both sites
+  (`etag_manager.py:60` "Invalid incoming timestamp", `:76` "Invalid stored
+  timestamp"); message text is the only distinguishing mechanism. No separate
+  exception classes exist. Issue target files are correct.
+- **Call path is linear and terminal.** Exactly one chain reaches the raise sites:
+  `ingester._process_url_groups` -> `ingest_url_group` ->
+  `DocumentManager.handle_existing_document` -> `_update_etag` ->
+  `ETagManager.update` -> `_is_stale_update`. The single handler for either
+  `ValueError` is `ingester.py:377`: `except (OSError, RuntimeError, ValueError):
+  logger.exception(...)` followed by `IngestUrlResult.unexpected_failure(url)`. It
+  never inspects the exception type or message.
+- **Implication for the "Problem" framing.** No caller parses the message and none
+  branches on type today; the sole handler discards the distinction entirely. The
+  problem statement describes a hypothetical distinguishing caller that does not
+  exist. Option (b) therefore changes **no observable runtime behavior**: the
+  exception still dies in the same generic catch. Its only effect would be enabling
+  *future* callers to distinguish. This reframes the decision as a forward-looking
+  API-design choice, not a bug fix.
+- **Option (b) migration burden is ~zero.** Only `document_manager.py:112` calls
+  `.update()`, and the terminal handler stays compatible regardless (a
+  `ValueError` subclass still matches `except ValueError`). The "Constraints" worry
+  about auditing every `except ValueError` site is correct in principle but has no
+  practical surface here.
+- **Test gap if (b) is chosen.** `test_invalid_timestamp_raises_value_error` covers
+  the incoming-timestamp site (stored=`"not-a-date"`). The stored-timestamp site
+  (valid incoming, corrupt stored value) is not individually covered; satisfying
+  the acceptance criterion "unit test covers both raise sites individually" requires
+  a new test.
+- **Structural check.** `check_workitem_structure.py --file <this>` reports No
+  findings.
+
 ## Traceability
 - **Workflow phase**: issue-creator
 - **Source issue**: N/A: this document is the issue

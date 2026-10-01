@@ -61,6 +61,45 @@ Whether the workflow engine ever allows more than one task to be `pending_approv
 ## AI Implementation Instruction
 Do not guess the intended model. Determine whether multiple simultaneous pending approvals are possible; if uncertain, implement the minimal safe behavior (do not drop pending approvals) and flag the decision for owner confirmation.
 
+## Adversarial Verification
+Verified against source + live SQLite on 2026-10-01. Findings recorded here to
+inform the owner decision; this section makes no decision itself.
+
+- **Main issue is real.** `recover()` acts on `results[0]` only
+  (`startup_approval_recovery.py:47`) while `find_all_pending_approvals()` returns
+  ALL globally pending approvals ordered newest-first
+  (`approval_ops.py:198-223`). Recovery runs at startup via
+  `StartupOrchestrator._recover_pending_approvals()` (`startup.py:131`). DB rows
+  for the non-wired approvals are left untouched and stay `pending`; the current
+  session exposes only the latest. The core claim holds.
+- **Test gap confirmed.** `test_startup_recovery_shows_last_of_multiple_pending_approvals`
+  asserts only that the newest approval is wired up; it does not assert anything
+  about the fate of the other pending approvals. A new test must cover that gap.
+- **`expires_at` has exactly one producer.** `request_approval()`
+  (`workflow_engine.py:166,198,225`) writes it as `datetime.now(UTC)+24h).isoformat()`
+  -> always a `+00:00` UTC string. No other writer exists; schema column is TEXT.
+- **Secondary Finding (TTL leak) does NOT reproduce — treat as false positive.**
+  - Claimed mechanism ("ASCII comparison treats `+` > `Z`") is factually wrong:
+    `+` is ASCII 43, `Z` is ASCII 90, so `+` < `Z`.
+  - Empirical SQLite test across the boundary (same-second, 1s/2s before now,
+    1s/future, `Z`-suffix) shows expired `+00:00` values are correctly excluded;
+    zero mismatches. For same-timezone UTC values, lexicographic comparison of
+    `YYYY-MM-DDTHH:MM:SS<suffix>` matches chronological order; the suffix
+    difference (`+` vs `Z`) only matters at an identical second-prefix, where
+    `+`(43) < `Z`(90) correctly classifies the `+00:00` value as <= now.
+  - Conclusion: `is_expired()` (Python instant compare) and
+    `find_all_pending_approvals()` (SQL string compare) AGREE on every value the
+    system actually produces. This is a LATENT risk that would only appear if a
+    non-UTC offset (e.g. `+05:30`) were ever written; no such producer exists.
+    Do not spend implementation effort "fixing" a bug that does not manifest.
+- **Dynamic-field caveat is overstated.** `ctx.workflow.approval_pending`
+  (`context.py:244`), `ctx.turn.pending_approval_id` (`:190`), and
+  `ctx.turn.pending_approval_task_id` (`:192`) are all real dataclass fields with
+  defaults; every `AgentContext` has them by construction. Using `MagicMock` in
+  unit tests is a testing convenience, not evidence of absence. The
+  "verify before assuming they exist on all code paths" caution is weakly
+  supported.
+
 ## Traceability
 - **Workflow phase**: issue-creator
 - **Source issue**: N/A: this document is the issue
