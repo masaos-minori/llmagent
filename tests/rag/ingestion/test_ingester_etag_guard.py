@@ -7,7 +7,11 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from rag.ingestion.etag_manager import ETagManager
+from rag.ingestion.etag_manager import (
+    ETagManager,
+    InvalidIncomingTimestampError,
+    InvalidStoredTimestampError,
+)
 
 
 def _make_etag_mgr(
@@ -98,3 +102,20 @@ class TestUpdateEtagGuard(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             etag_mgr.update("etag-invalid", "Mon, 01 Jun 2026", "2026-06-01T10:00:00")
+
+    def test_invalid_incoming_raises_incoming_subclass(self) -> None:
+        """Invalid incoming fetched_at raises InvalidIncomingTimestampError."""
+        etag_mgr, db = _make_etag_mgr("2026-06-10T10:00:00")
+
+        with self.assertRaises(InvalidIncomingTimestampError):
+            etag_mgr.update("etag-x", "Mon, 01 Jun 2026", "not-a-date")
+        assert isinstance(
+            InvalidIncomingTimestampError("x"), InvalidIncomingTimestampError
+        )
+
+    def test_invalid_stored_raises_stored_subclass(self) -> None:
+        """Invalid stored fetched_at raises InvalidStoredTimestampError."""
+        etag_mgr, db = _make_etag_mgr("not-a-date")
+
+        with self.assertRaises(InvalidStoredTimestampError):
+            etag_mgr.update("etag-x", "Mon, 01 Jun 2026", "2026-06-01T10:00:00")
