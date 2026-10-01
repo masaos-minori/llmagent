@@ -8,6 +8,7 @@ Extracted from scripts/agent/startup.py (REQ-003).
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from agent.context import AgentContext
@@ -125,7 +126,11 @@ class StartupValidationPipeline:
 
         # 6. RAG consistency
         try:
-            rag_check = RagMaintenanceService().consistency()
+            loop = asyncio.get_running_loop()
+            rag_check = await loop.run_in_executor(
+                None,
+                lambda: RagMaintenanceService().consistency(),
+            )
             if rag_check.is_consistent:
                 pipeline.add_ok("rag_consistency")
             else:
