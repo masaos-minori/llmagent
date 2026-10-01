@@ -1,5 +1,5 @@
 ---
-title: "ADR-004: 環境における障害処理方針"
+title: "ADR-004: Failure Handling Policy Across Environments"
 area: governance
 tags:
   - system
@@ -14,7 +14,7 @@ related:
   - ADR-010-rag-fallback.md
 ---
 
-# ADR-004: 環境における障害処理方針
+# ADR-004: Failure Handling Policy Across Environments
 
 ## Keywords
 <placeholder>
@@ -25,184 +25,184 @@ Accepted
 
 ## Summary
 
-本ADRは、システムが稼働するすべての環境に対して単一の共通障害処理方針を定義する。環境名（Local、Development、Test、Productionなど、環境を区別するために用いられるいかなる名称も含む）は、起動検証、認証、認可、Allowlist強制、承認制御、Tool所有権要件、Routing要件、リソーススコープ検証、DB整合性要件、Workflow要件を変更しない。障害を「安全性・整合性障害」と「可用性障害」に分類し、安全性・整合性障害は常に起動時Fail-Fastまたは実行時Fail-Closedとする。必須コンポーネントの利用不能は起動を中止させるが、非必須コンポーネントの可用性障害に限り、そのコンポーネントを無効化したうえで部分的可用性の状態として起動継続を許可する。Fallbackは、他のAccepted ADRが発生条件・移行先・適格性・制限・結果の意味・観測可能性を明示的に定義する場合に限り許可される。ADR-010が定義するRAGフォールバックはこの唯一の例外である。
+This ADR defines a single common failure handling policy for every environment in which the system runs. Environment names (including any name used to distinguish environments, such as Local, Development, Test, or Production) do not change startup validation, authentication, authorization, Allowlist enforcement, approval control, Tool ownership requirements, Routing requirements, resource-scope validation, DB integrity requirements, or Workflow requirements. Failures are classified into "safety/integrity failures" and "availability failures", and safety/integrity failures are always Fail-Fast at startup or Fail-Closed at runtime. Unavailability of a mandatory component aborts startup, but only for an availability failure of a non-mandatory component is startup allowed to continue in a partial-availability state after that component is disabled. Fallback is permitted only when another Accepted ADR explicitly defines the trigger, destination, eligibility, restrictions, result semantics, and observability. The RAG fallback defined by ADR-010 is the only such exception.
 
 ## Context
 
 ### Problem
 
-環境名によって起動検証やFail-Fast／Fail-Closedの境界が変わってはならない。一方で、すべての依存コンポーネントを一律に起動必須として扱うと、コア処理に影響しない周辺コンポーネントの一時的な利用不能が全体の起動を妨げる。安全性・整合性に関わる障害は常に確実にFail-Fast／Fail-Closedとしつつ、コアの安全性・整合性を損なわないコンポーネントの可用性障害については、明示的な基準に基づいて起動継続を許可する必要がある。
+Environment names must not change startup validation or the Fail-Fast/Fail-Closed boundaries. On the other hand, treating every dependency component uniformly as mandatory for startup lets a temporary unavailability of a peripheral component that does not affect core processing block startup as a whole. Failures related to safety and integrity must always be reliably Fail-Fast/Fail-Closed, while for availability failures of components that do not compromise core safety and integrity, continuing startup must be permitted on the basis of explicit criteria.
 
 ### Constraints
 
-- 単一ホスト、単一プロセスでの実行を前提とする
-- デプロイ環境では起動前にワークフロー定義ファイルが存在することを確認する必要がある
-- 外部Protocol、Library、Serviceによる制約はない
-- セキュリティ要件：すべての副作用のある操作は追跡可能でなければならない
-- データ整合性：承認状態はプロセス境界を超えて永続化する必要がある
-- 環境名の選択や構成変更によって、安全性、検証、認証、認可、承認、Routing、データ整合性の要件が緩和されてはならない
+- Execution on a single host in a single process is assumed
+- In the deployment environment, the existence of the workflow definition file must be confirmed before startup
+- There are no constraints from external protocols, libraries, or services
+- Security requirement: every operation with side effects must be traceable
+- Data integrity: approval state must persist across process boundaries
+- Safety, validation, authentication, authorization, approval, Routing, and data integrity requirements must not be relaxed by choosing an environment name or changing the configuration
 
 ### Assumptions
 
-- 対象環境：単一Host、単一Agentプロセス
-- 想定規模：同時実行数は限定的
-- 信頼境界：Agentプロセス内でのみ権限を付与する
-- 外部依存先：なし（ワークフロー定義はローカルファイル）
-- 前提が崩れた場合に再評価が必要な事項：複数Host構成、分散実行、外部ワークフローエンジン統合
+- Target environment: a single host, a single Agent process
+- Expected scale: limited concurrency
+- Trust boundary: privileges are granted only within the Agent process
+- External dependencies: none (the workflow definition is a local file)
+- Items to re-evaluate if the assumptions no longer hold: multi-host configuration, distributed execution, integration with an external workflow engine
 
 ## Decision
 
-### Group 1: 環境共通ポリシー
+### Group 1: Common Policy Across Environments
 
-1. システムは、稼働するすべての環境に対して単一の共通障害処理方針を用いる。環境ごとに異なる障害処理方針を定義しない。
-2. 対象環境: システムが稼働するすべての環境。環境ごとの障害処理方針の差異は設けない。
-3. 環境名は、起動検証、認証、認可、Allowlist強制、承認制御、Tool所有権要件、Routing要件、リソーススコープ検証、DB整合性要件、Workflow要件、Fail-Fast条件、Fail-Closed条件のいずれも変更しない。
+1. The system uses a single common failure handling policy for every environment in which it runs. No environment-specific failure handling policies are defined.
+2. Target environments: every environment in which the system runs. There are no environment-specific differences in failure handling policy.
+3. Environment names change none of the following: startup validation, authentication, authorization, Allowlist enforcement, approval control, Tool ownership requirements, Routing requirements, resource-scope validation, DB integrity requirements, Workflow requirements, Fail-Fast conditions, or Fail-Closed conditions.
 
-### Group 2: 障害分類
+### Group 2: Failure Classification
 
-4. 障害を「安全性・整合性障害」と「可用性障害」の2種類に分類する。この分類は、障害が起動全体に及ぶか特定コンポーネントに限定されるかという影響境界を判断するために用いるものであり、安全性または整合性要件を緩和する目的には用いない。
-5. 安全性・整合性障害には、少なくとも次を含む: Tool所有権の重複、Workflow定義の欠落、Workflow定義の不正、必須DB Schemaの不整合、Config Isolation違反、認証設定の不正、認可設定の不正、Allowlist設定の不正、Safety Tier設定の不正、必須Secretの欠落、Tool引数Schemaの不正、リソーススコープ定義の不正、承認制御を確立できない状態、RuntimeToolRegistryの初期化失敗、Tool所有権の一意性を決定できない状態、安全なRouting先を決定できない状態、実行前提条件を検証できない状態、データ整合性障害。
-6. 安全性・整合性障害は、次のいずれにも変換してはならない: 部分的可用性、警告のみでの継続、コンポーネント無効化後の実行継続、Fallback、成功扱いのNo-op。
-7. 可用性障害には、MCPサーバーの利用不能、Embeddingサービスの利用不能、外部検索の利用不能、外部RAGサービスの利用不能、Observability出力先の利用不能、その他の依存先到達性の障害を含み得る。
-8. 可用性障害は、それだけでは起動継続を許可しない。起動継続が許可されるのは、次のすべてを満たす場合に限る: 対象コンポーネントが非必須として明示的に分類されている、障害が当該コンポーネントに局所化されている、影響を受けるすべての機能を安全に無効化できる、いかなる安全性・整合性制御も緩和されない、結果として生じる部分的可用性の状態が観測可能である。
+4. Failures are classified into two kinds: "safety/integrity failures" and "availability failures". This classification is used to decide the impact boundary, that is, whether a failure affects startup as a whole or is limited to a specific component; it is not used to relax safety or integrity requirements.
+5. Safety/integrity failures include at least the following: duplicate Tool ownership, missing Workflow definition, invalid Workflow definition, inconsistency of the required DB Schema, Config Isolation violations, invalid authentication configuration, invalid authorization configuration, invalid Allowlist configuration, invalid Safety Tier configuration, missing required Secrets, invalid Tool argument Schemas, invalid resource-scope definitions, a state in which approval control cannot be established, initialization failure of RuntimeToolRegistry, a state in which Tool ownership uniqueness cannot be determined, a state in which a safe Routing destination cannot be determined, a state in which execution preconditions cannot be verified, and data integrity failures.
+6. Safety/integrity failures must not be converted into any of the following: partial availability, continuing with a warning only, continuing execution after disabling a component, Fallback, or a No-op treated as success.
+7. Availability failures may include unavailability of an MCP server, the Embedding service, external search, or an external RAG service, unavailability of an Observability output destination, and other dependency reachability failures.
+8. An availability failure alone does not permit startup to continue. Continuing startup is permitted only when all of the following hold: the target component is explicitly classified as non-mandatory, the failure is localized to that component, every affected function can be safely disabled, no safety or integrity control is relaxed, and the resulting partial-availability state is observable.
 
-### Group 3: コンポーネント必須性分類
+### Group 3: Component Mandatoriness Classification
 
-9. **必須コンポーネントの分類基準**: 次のいずれかに該当する場合、そのコンポーネントを必須として分類する。
-   - システムのコア処理の開始または完了に必要である。
-   - 認証、認可、承認、Routing、監査可能性、Config Isolation、永続化、データ整合性を確立する。
-   - その欠落が操作の安全な拒否を妨げる。
-   - その欠落が誤った成功結果を引き起こし得る。
-   - コア処理に必要な正本状態を所有する。
-   - あるAccepted ADRがそれを明示的に必須と定めている。
-   - その障害を他の必須コンポーネントから安全に分離できない。
-10. **非必須コンポーネントの分類基準**: 次のすべてが真である場合に限り、そのコンポーネントを非必須として分類できる。
-    - その欠落が安全なコア処理を妨げない。
-    - その欠落が認証、認可、承認、Routing、監査、Config Isolation、データ整合性のいずれの制御も迂回しない。
-    - その障害を既知の機能集合へ局所化できる。
-    - 関連する機能とToolを確実に無効化できる。
-    - 当該機能を対象とする呼び出しをFail-Closedで拒否できる。
-    - 無効化状態と影響を観測できる。
-    - 他の必須コンポーネントが安全かつ内部的に整合した状態を維持する。
-    - いかなるFallbackも、あるAccepted ADRによって明示的に定義されている。
-11. 起動が技術的に可能であるという理由だけで、あるコンポーネントを非必須として扱ってはならない。
-12. コンポーネントの必須性が未定義または判定不能な場合: 当該コンポーネントを非必須であると仮定しない。未定義の分類を起動継続の根拠として用いない。これを未解決の設計上または設定上の誤りとして扱う。該当する場合は、現行のKnown Issueを記録または参照する。
-13. **分類の責任分担**: 本ADRは分類基準と障害処理契約を定義する。各コンポーネントの承認済み分類は、該当するStartup、Agent、またはMCPのSpecificationが記録する。設定は、承認済みSpecificationが許容する範囲内でのみ実効値を提供する。起動検証は、実効分類を起動継続の判断に用いる前に、それを検証する。設定だけで、承認済みのアーキテクチャまたはSpecification変更なしに、必須コンポーネントを非必須へ弱めることはできない。
+9. **Criteria for mandatory components**: a component is classified as mandatory if any of the following applies.
+   - It is required to start or complete the system's core processing.
+   - It establishes authentication, authorization, approval, Routing, auditability, Config Isolation, persistence, or data integrity.
+   - Its absence prevents operations from being safely rejected.
+   - Its absence could cause an incorrect success result.
+   - It owns canonical state required for core processing.
+   - An Accepted ADR explicitly defines it as mandatory.
+   - Its failure cannot be safely isolated from other mandatory components.
+10. **Criteria for non-mandatory components**: a component may be classified as non-mandatory only if all of the following are true.
+    - Its absence does not prevent safe core processing.
+    - Its absence bypasses none of the authentication, authorization, approval, Routing, audit, Config Isolation, or data integrity controls.
+    - Its failure can be localized to a known set of functions.
+    - The related functions and Tools can be reliably disabled.
+    - Calls targeting the function can be rejected Fail-Closed.
+    - The disabled state and its impact are observable.
+    - The other mandatory components remain safe and internally consistent.
+    - Any Fallback is explicitly defined by an Accepted ADR.
+11. A component must not be treated as non-mandatory merely because startup is technically possible.
+12. When a component's mandatoriness is undefined or cannot be determined: do not assume the component is non-mandatory. Do not use an undefined classification as grounds for continuing startup. Treat it as an unresolved design or configuration error. Where applicable, record or reference the current Known Issue.
+13. **Division of classification responsibility**: this ADR defines the classification criteria and the failure handling contract. The approved classification of each component is recorded by the applicable Startup, Agent, or MCP Specification. Configuration provides effective values only within the range the approved Specification permits. Startup validation verifies the effective classification before using it to decide whether startup continues. Configuration alone cannot weaken a mandatory component to non-mandatory without an approved architecture or Specification change.
 
-### Group 4: 起動時Fail-Fast境界
+### Group 4: Startup Fail-Fast Boundary
 
-14. 次の条件は起動時にFail-Fastとする（起動を中止する）。
-    - Workflow定義の欠落
-    - Workflow定義の不正
-    - 必須DB接続の失敗
-    - 必須DB Schemaの不整合
-    - RuntimeToolRegistryの初期化失敗
-    - Tool所有権の重複（Live Toolの重複所有）
-    - 必須MCPサーバーの利用不能
-    - 認証設定の不正
-    - 認可設定の不正
-    - Allowlist設定の不正
-    - Safety Tier設定の不正
-    - 必須Secretの欠落
-    - Config Isolation違反
-    - 承認制御を確立できない状態
-    - 環境設定検証の失敗
-    - 起動継続の判断が依存するコンポーネント必須性を決定できない状態
+14. The following conditions are Fail-Fast at startup (startup is aborted).
+    - Missing Workflow definition
+    - Invalid Workflow definition
+    - Connection failure of a required DB
+    - Inconsistency of the required DB Schema
+    - Initialization failure of RuntimeToolRegistry
+    - Duplicate Tool ownership (duplicate ownership of a Live Tool)
+    - Unavailability of a required MCP server
+    - Invalid authentication configuration
+    - Invalid authorization configuration
+    - Invalid Allowlist configuration
+    - Invalid Safety Tier configuration
+    - Missing required Secret
+    - Config Isolation violation
+    - A state in which approval control cannot be established
+    - Failure of environment configuration validation
+    - A state in which the component mandatoriness that the startup-continuation decision depends on cannot be determined
 
-    すべての依存先障害が起動を停止させるわけではない。可用性障害であり、かつ対象コンポーネントが非必須として明示的に分類されている場合は、Decision #7に従い起動継続を許可し得る。現行の承認済みSpecificationで確認されない限り、すべてのMCPサーバーが必須であるとはみなさない。
+    Not every dependency failure stops startup. If it is an availability failure and the target component is explicitly classified as non-mandatory, continuing startup may be permitted according to Decision #7. Unless confirmed by the currently approved Specification, not every MCP server is assumed to be mandatory.
 
-### Group 5: 実行時Fail-Closed境界
+### Group 5: Runtime Fail-Closed Boundary
 
-15. 次の条件は実行時にFail-Closedとする（当該処理を拒否する）。
-    - 不明なTool
-    - 無効化されたTool
-    - 利用不能なTool
-    - Tool所有権の曖昧性
-    - Tool引数の不正
-    - 必須承認の欠落
-    - 認証または認可の失敗
-    - リソーススコープ検証の失敗
-    - Allowlist検証の失敗
-    - 実行前提条件を検証できない状態
-    - 安全な実行先を決定できない状態
-    - 無効化された非必須コンポーネントを対象とする要求
-16. 拒否された操作は、失敗または拒否の結果を返さなければならない。成功扱いのNo-opへ変換してはならない。名前推測によるRoutingを行ってはならない。静的Registryへフォールバックしてはならない。あるAccepted ADRが明示的に許可しない限り、別のToolへリダイレクトしてはならない。観測可能な理由を記録しなければならない。
+15. The following conditions are Fail-Closed at runtime (the processing is rejected).
+    - Unknown Tool
+    - Disabled Tool
+    - Unavailable Tool
+    - Ambiguous Tool ownership
+    - Invalid Tool arguments
+    - Missing required approval
+    - Authentication or authorization failure
+    - Resource-scope validation failure
+    - Allowlist validation failure
+    - A state in which execution preconditions cannot be verified
+    - A state in which a safe execution destination cannot be determined
+    - A request targeting a disabled non-mandatory component
+16. A rejected operation must return a failure or rejection result. It must not be converted into a No-op treated as success. Routing by name inference must not be performed. It must not fall back to the static Registry. Unless an Accepted ADR explicitly permits it, it must not be redirected to another Tool. An observable reason must be recorded.
 
-### Group 6: 必須コンポーネントの挙動
+### Group 6: Behavior of Mandatory Components
 
-17. 必須コンポーネントが利用不能な場合: 起動を中止する。障害と理由を観測可能にする。当該コンポーネントを静かに無効化しない。あるAccepted ADRが明示的に許可しない限りFallbackを行わない。
+17. When a mandatory component is unavailable: abort startup. Make the failure and its reason observable. Do not silently disable the component. Do not perform Fallback unless an Accepted ADR explicitly permits it.
 
-### Group 7: 非必須コンポーネントの挙動
+### Group 7: Behavior of Non-Mandatory Components
 
-18. 非必須コンポーネントに可用性障害が生じた場合: 当該コンポーネントを無効化する。部分的可用性の状態でシステムの起動継続を許可する。当該コンポーネントのToolおよび機能を実行可能な公開対象から除外する。当該Toolまたは機能を対象とする新規呼び出しを拒否する。無効化状態を報告する。障害理由を報告する。影響を受ける機能を報告する。起動継続を許可した理由を報告する。現行の承認済みDiagnosticsおよび運用Observability機構を通じて状態を公開する。システムを完全に利用可能であるとは報告しない。
-19. 同一コンポーネントに安全性・整合性障害が生じている場合、起動継続は禁止される。非必須として分類されていることは、安全性・整合性障害に対する免除にはならない。
+18. When an availability failure occurs in a non-mandatory component: disable the component. Permit the system to continue startup in a partial-availability state. Exclude the component's Tools and functions from the executable exposure set. Reject new calls targeting those Tools or functions. Report the disabled state. Report the failure reason. Report the affected functions. Report the reason startup was permitted to continue. Expose the state through the currently approved Diagnostics and operational Observability mechanisms. Do not report the system as fully available.
+19. If a safety/integrity failure occurs in the same component, continuing startup is prohibited. Being classified as non-mandatory is not an exemption from safety/integrity failures.
 
-### Group 8: 部分的可用性の観測可能性
+### Group 8: Observability of Partial Availability
 
-20. 無効化状態、障害理由、影響を受ける機能、および起動継続の判断は、現行の承認済みDiagnostics、Health Check、およびログを通じて観測可能でなければならない。部分的可用性の状態にあるシステムを、完全に利用可能であると報告してはならない。
+20. The disabled state, the failure reason, the affected functions, and the startup-continuation decision must be observable through the currently approved Diagnostics, Health Checks, and logs. A system in a partial-availability state must not be reported as fully available.
 
-### Group 9: Tool可視性と実行境界
+### Group 9: Tool Visibility and Execution Boundary
 
-21. 無効化されたコンポーネントに関連付けられたToolは: LLMへ実行可能として提示してはならない。新規呼び出しに対してRouting可能であってはならない。実行可能であってはならない。観測可能な無効化理由を持たなければならない。
-22. `RuntimeToolRegistry`、Tool所有権、Routing、静的可用性、Dynamic Health、LLM可視性、承認状態の分離、実行適格性、ReloadおよびRediscovery挙動については、引き続きADR-003が権威である。本ADRは、これらの概念がコンポーネントの必須性分類とどう関わるかという障害処理上の帰結のみを定義し、ADR-003の決定を再定義しない。
-23. 静的`ToolRegistry`または`tool_names`によるDrift検証、静的RegistryへのRoutingフォールバック、名前推測によるRoutingを再導入しない。
-24. コンポーネントが起動時の分類（非必須・可用性障害により無効化）によって利用不能である場合と、起動後にDynamic Healthにより動的に利用不能となった場合を区別する。前者はADR-003の「静的可用性」に関わる状態であり、LLM可視性とRouting適格性に影響する。後者はADR-003の「Dynamic Health」に関わる状態であり、実行時の成否にのみ影響し、LLM可視性を自動的に変更しない。ADR-003が定めるこの区別を本ADRにおいて統合・崩壊させない。
+21. Tools associated with a disabled component: must not be presented to the LLM as executable; must not be Routable for new calls; must not be executable; and must have an observable disable reason.
+22. ADR-003 remains the authority for `RuntimeToolRegistry`, Tool ownership, Routing, static availability, Dynamic Health, LLM visibility, separation of approval state, execution eligibility, and Reload and Rediscovery behavior. This ADR defines only the failure-handling consequences of how these concepts relate to component mandatoriness classification and does not redefine ADR-003's decisions.
+23. Drift validation using the static `ToolRegistry` or `tool_names`, Routing fallback to the static Registry, and Routing by name inference are not reintroduced.
+24. Distinguish between a component that is unavailable because of its startup classification (disabled due to a non-mandatory availability failure) and one that became dynamically unavailable after startup due to Dynamic Health. The former is a state related to ADR-003's "static availability" and affects LLM visibility and Routing eligibility. The latter is a state related to ADR-003's "Dynamic Health", affects only runtime success or failure, and does not automatically change LLM visibility. This ADR does not merge or collapse this distinction defined by ADR-003.
 
-### Group 10: Fallback境界
+### Group 10: Fallback Boundary
 
-25. Fallbackはデフォルトで禁止される。
-26. Fallbackは、あるAccepted ADRが次のすべてを明示的に定義する場合に限り許可される: 発生条件（Failure Trigger）、Fallback先（Destination）、適格条件（Eligibility Conditions）、制限（Restrictions）、結果の意味（Result Semantics）、観測可能性要件（Observability Requirements）。
-27. ADR-010は、承認済みの外部RAG→インプロセスRAGフォールバックの唯一の権威である。ADR-010は、そのRAG関連条件についてのみFallbackを許可し、一般的なFail-Open挙動を許可するものではない。通常の空RAG結果は、自動的にFallbackの契機とはならない。安全性・整合性障害は、可用性Fallbackの契機としてはならない。Fallbackは、認証、認可、承認、Allowlist、Routing、データ整合性のいずれの制御も迂回してはならない。
+25. Fallback is prohibited by default.
+26. Fallback is permitted only when an Accepted ADR explicitly defines all of the following: the trigger (Failure Trigger), the Fallback destination (Destination), the eligibility conditions (Eligibility Conditions), the restrictions (Restrictions), the result semantics (Result Semantics), and the observability requirements (Observability Requirements).
+27. ADR-010 is the sole authority for the approved external-RAG-to-in-process-RAG fallback. ADR-010 permits Fallback only for its RAG-related conditions and does not permit general Fail-Open behavior. An ordinary empty RAG result does not automatically trigger Fallback. A safety/integrity failure must not trigger an availability Fallback. Fallback must not bypass any of the authentication, authorization, approval, Allowlist, Routing, or data integrity controls.
 
 ### Scope
 
-- **対象コンポーネント**: `StartupOrchestrator`, `McpToolDiscoveryService`, `ProductionConfigValidator`, `McpServerHealthRegistry`
-- **対象プロセス**: Agentプロセス全体
-- **対象データ**: 起動チェック結果、MCPサーバー状態、Tool所有権情報、承認状態
-- **対象環境**: システムが稼働するすべての環境。環境ごとの障害処理方針の差異は設けない。
-- **対象APIまたは処理経路**: `StartupOrchestrator.run()`, `McpToolDiscoveryService.discover_all()`, `ProductionConfigValidator.validate()`
+- **Target components**: `StartupOrchestrator`, `McpToolDiscoveryService`, `ProductionConfigValidator`, `McpServerHealthRegistry`
+- **Target processes**: the entire Agent process
+- **Target data**: startup check results, MCP server state, Tool ownership information, approval state
+- **Target environments**: every environment in which the system runs. There are no environment-specific differences in failure handling policy.
+- **Target APIs or processing paths**: `StartupOrchestrator.run()`, `McpToolDiscoveryService.discover_all()`, `ProductionConfigValidator.validate()`
 
 ### Out of Scope
 
-- 個別のMCPサーバーの障害検知詳細
-- OTel出力先の障害検知詳細
-- Health Checkや起動前検証など、Startup Orchestrator自身の前提確認
-- 既存のStartupCheckStatus（OK/WARNING/FATAL/SKIPPED）の削除
-- 既存のpipeline.add_fatal()/add_warning()の削除
-- 個別コンポーネントの必須／非必須の具体的な割り当て（該当するSpecificationが定義する）
-- 新しい設定キーまたは設定モデルの導入
-- ADR-003が定義するRuntimeToolRegistry、Routing、可用性概念の再設計
-- ADR-010が定義するRAG Fallbackの変更
+- Details of failure detection for individual MCP servers
+- Details of failure detection for OTel output destinations
+- The Startup Orchestrator's own precondition checks, such as Health Checks and pre-startup validation
+- Removal of the existing StartupCheckStatus (OK/WARNING/FATAL/SKIPPED)
+- Removal of the existing pipeline.add_fatal()/add_warning()
+- The concrete mandatory/non-mandatory assignment of individual components (defined by the applicable Specification)
+- Introduction of new configuration keys or configuration models
+- Redesign of RuntimeToolRegistry, Routing, and availability concepts defined by ADR-003
+- Changes to the RAG Fallback defined by ADR-010
 
 ## Rationale
 
-### 1. 最重要の採用理由 — Security
+### 1. Primary Reason for Adoption — Security
 
-安全性・整合性障害は常にFail-Fast（起動時）またはFail-Closed（実行時）とする。環境名の選択によってSecurity Controlが迂回されないようにするため。
+Safety/integrity failures are always Fail-Fast (at startup) or Fail-Closed (at runtime), so that Security Controls are not bypassed by the choice of environment name.
 
-### 2. 第2の採用理由 — Data Integrity
+### 2. Second Reason for Adoption — Data Integrity
 
-必須コンポーネントの利用不能を無条件に起動中止とすることで、正本状態の所有者やConfig Isolation・承認制御の確立者が欠けたまま処理が進行することを防ぐ。
+Aborting startup unconditionally when a mandatory component is unavailable prevents processing from proceeding while the owner of canonical state or the component that establishes Config Isolation and approval control is missing.
 
-### 3. 第3の採用理由 — Predictability
+### 3. Third Reason for Adoption — Predictability
 
-環境ごとに異なる障害処理方針を持たないことで、どの環境でも同じ条件が同じ結果（Fail-Fast/Fail-Closed/継続）を生むことを保証し、運用者の予測可能性を高める。
+Not having environment-specific failure handling policies guarantees that the same conditions produce the same results (Fail-Fast/Fail-Closed/continue) in every environment, which increases predictability for operators.
 
-### 4. 第4の採用理由 — Availability
+### 4. Fourth Reason for Adoption — Availability
 
-非必須コンポーネントの可用性障害まで一律に起動全体を中止すると、コアの安全性・整合性に影響しない機能まで不必要に停止する。明示的な基準の下でのみ部分的可用性を認めることで、必要な可用性を確保する。
+Uniformly aborting all of startup even for availability failures of non-mandatory components needlessly stops functions that do not affect core safety and integrity. Permitting partial availability only under explicit criteria secures the necessary availability.
 
-### 5. 第5の採用理由 — Operability
+### 5. Fifth Reason for Adoption — Operability
 
-コンポーネントの無効化・部分的可用性の理由を明示的に観測可能とすることで、利用不能な機能があたかも利用可能であるかのように見える状態を防ぎ、障害対応を容易にする。
+Making the reasons for component disabling and partial availability explicitly observable prevents unavailable functions from appearing available and makes incident response easier.
 
-「現行コードがこの方式で実装されているため」だけを採用理由にしない。
+Do not use "the current code is implemented this way" as the sole reason for adoption.
 
-### 6. 起動検証結果の非永続化
+### 6. Non-Persistence of Startup Validation Results
 
-`StartupOrchestrator`が構築する起動検証結果は、プロセス起動ごとに再構築されるメモリ上の集約であり、
-意図的に永続化しない。過去の起動履歴を保持することは本Decisionのスコープに含まれず、各起動時点での
-判定のみが有効である。
+The startup validation results built by `StartupOrchestrator` are an in-memory aggregate rebuilt at every process startup,
+and are intentionally not persisted. Keeping a history of past startups is outside the scope of this Decision; only the
+decision at each startup is valid.
 
 ## Alternatives Considered
 
@@ -210,154 +210,154 @@ Accepted
 
 #### Description
 
-Local、Development、Productionなど、環境ごとに異なる障害処理方針（Fail-Fast条件やFail-Open許容範囲）を定義する。
+Define environment-specific failure handling policies (Fail-Fast conditions and the permitted extent of Fail-Open) for Local, Development, Production, and so on.
 
 #### Advantages
 
-- 開発時の摩擦を減らせる
+- Less friction during development
 
 #### Disadvantages
 
-- 環境ごとの挙動差異が、意図しない安全性の緩和を生み得る
-- どの環境でどの保証が成立するかの予測が困難になる
+- Behavioral differences between environments can lead to unintended relaxation of safety
+- It becomes hard to predict which guarantees hold in which environment
 
 #### Reason for Rejection
 
-SecurityとPredictabilityを優先し、環境名によって保証が変わらない単一の共通方針を採用した。
+Prioritizing Security and Predictability, a single common policy whose guarantees do not change with the environment name was adopted.
 
 #### Reconsideration Conditions
 
-- 開発時の摩擦がAvailability上の重大な障害となる場合
+- Friction during development becomes a serious Availability problem
 
 ### Alternative B: Treat every dependency as required
 
 #### Description
 
-すべての依存コンポーネントを一律必須として扱い、いずれかが利用不能な場合は常に起動を中止する。
+Treat every dependency component uniformly as mandatory and always abort startup when any of them is unavailable.
 
 #### Advantages
 
-- 単純なルール
-- 分類ミスのリスクがない
+- Simple rule
+- No risk of misclassification
 
 #### Disadvantages
 
-- コア処理に影響しない周辺コンポーネントの一時的な障害でも起動全体が止まる
-- 運用上の柔軟性が失われる
+- Even a temporary failure of a peripheral component that does not affect core processing stops startup as a whole
+- Operational flexibility is lost
 
 #### Reason for Rejection
 
-Availabilityを優先し、コアの安全性・整合性に影響しないコンポーネントについては明示的な基準の下で部分的可用性を認めることとした。
+Prioritizing Availability, partial availability was permitted under explicit criteria for components that do not affect core safety and integrity.
 
 #### Reconsideration Conditions
 
-- 分類基準の運用コストが実際の可用性向上を上回ると判明した場合
+- The operational cost of the classification criteria turns out to exceed the actual availability improvement
 
 ### Alternative C: Continue startup after any dependency failure
 
 #### Description
 
-依存コンポーネントの種別を問わず、いかなる障害でも起動継続を許可する。
+Permit startup to continue on any failure, regardless of the kind of dependency component.
 
 #### Advantages
 
-- 起動の中断が最小化される
+- Startup interruptions are minimized
 
 #### Disadvantages
 
-- 安全性・整合性障害まで継続を許すことになり、Security上のリスクが著しく高い
+- It would allow continuing even through safety/integrity failures, which carries a significantly high Security risk
 
 #### Reason for Rejection
 
-Securityを最優先し、安全性・整合性障害は常にFail-Fast／Fail-Closedとする。
+Security is the top priority, and safety/integrity failures are always Fail-Fast/Fail-Closed.
 
 #### Reconsideration Conditions
 
-- 該当なし（安全性・整合性障害への継続許可は再検討しない）
+- Not applicable (permitting continuation through safety/integrity failures is not reconsidered)
 
 ### Alternative D: Allow only explicitly classified non-required components to be disabled
 
 #### Description
 
-本ADRが採用する方式。非必須として明示的に分類されたコンポーネントのみ、可用性障害時に無効化のうえ起動継続を許可する。
+The approach adopted by this ADR. Only components explicitly classified as non-mandatory are disabled on an availability failure, and startup is permitted to continue.
 
 #### Advantages
 
-- 分類基準が明示的であるため、恣意的な継続判断を防げる
-- 安全性・整合性障害とは独立して扱える
+- Because the classification criteria are explicit, arbitrary continuation decisions are prevented
+- It can be handled independently of safety/integrity failures
 
 #### Disadvantages
 
-- 各コンポーネントの分類を維持するコストが発生する
-- 分類の誤りが、必要な起動中止を妨げるか、または利用可能な機能を不必要に無効化する可能性がある
+- There is a cost to maintaining the classification of each component
+- A misclassification could either prevent a necessary startup abort or needlessly disable an available function
 
 #### Reason for Rejection
 
-不採用ではなく、本ADRの採用方式である。比較対象として記載する。
+Not rejected; this is the approach adopted by this ADR. It is listed for comparison.
 
 ### Alternative E: Dynamic failure policy based on real-time risk assessment
 
 #### Description
 
-リアルタイムのリスク評価に基づいて障害方針を動的に変更する。
+Change the failure policy dynamically based on real-time risk assessment.
 
 #### Advantages
 
-- より柔軟な障害対応
+- More flexible failure response
 
 #### Disadvantages
 
-- 複雑な実装が必要
-- リアルタイム評価の誤判定リスク
-- 予測不可能な振る舞い
+- Requires a complex implementation
+- Risk of misjudgment in real-time assessment
+- Unpredictable behavior
 
 #### Reason for Rejection
 
-PredictabilityとMaintainabilityを優先し、静的な分類基準で十分であると判断したため不採用とした。
+Rejected to prioritize Predictability and Maintainability, because static classification criteria were judged sufficient.
 
 #### Reconsideration Conditions
 
-- リアルタイムリスク評価の精度が実証され、運用コストが許容範囲を超える場合
+- The accuracy of real-time risk assessment is proven and the operational cost exceeds an acceptable level
 
 ## Consequences
 
 ### Positive Consequences
 
-- 単一の一貫した障害処理方針が全環境に適用される
-- 環境名による安全性の緩和が発生しない
-- 起動および実行の境界が予測可能になる
-- 非必須コンポーネントのみが利用不能な場合、起動継続が可能になる
-- 利用不能な機能が実行可能な公開対象から明示的に除外される
-- 部分的可用性の状態が観測可能になる
-- Fallbackが許可される条件が、他のAccepted ADRによる明示的な定義に限定される
+- A single consistent failure handling policy applies to all environments
+- No relaxation of safety occurs through environment names
+- Startup and execution boundaries become predictable
+- When only non-mandatory components are unavailable, startup can continue
+- Unavailable functions are explicitly excluded from the executable exposure set
+- The partial-availability state becomes observable
+- The conditions under which Fallback is permitted are limited to explicit definitions by other Accepted ADRs
 
 ### Negative Consequences
 
-- コンポーネントの必須性を定義し維持する必要がある
-- 分類の誤りは、不要な起動中止、または必須機能の不適切な無効化のいずれかを引き起こし得る
-- 部分的可用性の実現にはDiagnostics、Health Check、ログの対応が必要になる
-- 起動検証がより包括的になる
-- すべての環境が同じ安全性要件を満たす必要がある
-- 運用者は、可用性障害と安全性・整合性障害を区別して対応する必要がある
+- Component mandatoriness must be defined and maintained
+- A misclassification can cause either an unnecessary startup abort or inappropriate disabling of a mandatory function
+- Achieving partial availability requires support in Diagnostics, Health Checks, and logs
+- Startup validation becomes more comprehensive
+- Every environment must meet the same safety requirements
+- Operators must distinguish availability failures from safety/integrity failures when responding
 
 ## Invariants
 
-- INV-01: システムは、稼働するすべての環境に対して単一の共通障害処理方針を用いる。
-- INV-02: 環境名は、安全性または検証要件を緩和しない。
-- INV-03: Workflow定義が欠落または不正な場合、起動を中止する。
-- INV-04: Tool所有権の重複が発生した場合、起動を中止する。
-- INV-05: 必須DBの接続失敗またはSchema不整合が発生した場合、起動を中止する。
-- INV-06: RuntimeToolRegistryの初期化に失敗した場合、起動を中止する。
-- INV-07: 認証、認可、Allowlist、Safety Tier、Config Isolation、承認制御確立の失敗は、いずれも起動時にFail-Closed（Fail-Fast）とする。
-- INV-08: 必須コンポーネントが利用不能な場合、起動を中止する。
-- INV-09: 非必須コンポーネントは、可用性障害の場合に限り無効化できる。
-- INV-10: 安全性・整合性障害は、部分的可用性に変換されない。
-- INV-11: 無効化されたコンポーネントに関連するToolは、LLMへ実行可能として提示されない。
-- INV-12: 無効化されたコンポーネントに関連するToolは実行できない。
-- INV-13: 部分的可用性の状態とその理由は観測可能である。
-- INV-14: コンポーネントの必須性が未定義の場合、起動継続を許可しない。
-- INV-15: Fallbackは、他のAccepted ADRが明示的に定義する場合に限り許可される。
-- INV-16: ADR-010は、承認済みRAG Fallbackの権威であり続ける。
+- INV-01: The system uses a single common failure handling policy for every environment in which it runs.
+- INV-02: Environment names do not relax safety or validation requirements.
+- INV-03: If the Workflow definition is missing or invalid, startup is aborted.
+- INV-04: If duplicate Tool ownership occurs, startup is aborted.
+- INV-05: If a required DB connection fails or its Schema is inconsistent, startup is aborted.
+- INV-06: If RuntimeToolRegistry initialization fails, startup is aborted.
+- INV-07: Failures of authentication, authorization, Allowlist, Safety Tier, Config Isolation, or establishing approval control are all Fail-Closed (Fail-Fast) at startup.
+- INV-08: If a mandatory component is unavailable, startup is aborted.
+- INV-09: A non-mandatory component can be disabled only in the case of an availability failure.
+- INV-10: Safety/integrity failures are not converted into partial availability.
+- INV-11: Tools related to a disabled component are not presented to the LLM as executable.
+- INV-12: Tools related to a disabled component cannot be executed.
+- INV-13: The partial-availability state and its reason are observable.
+- INV-14: If a component's mandatoriness is undefined, startup is not permitted to continue.
+- INV-15: Fallback is permitted only when another Accepted ADR explicitly defines it.
+- INV-16: ADR-010 remains the authority for the approved RAG Fallback.
 
 ## Alignment with INV-01/INV-02
 
@@ -371,102 +371,102 @@ With REQ-001's fix (strict-default behavior), the Fail-Fast requirements of INV-
 
 ### Automated Tests
 
-- **Test**: Workflow定義の欠落・不正で起動が失敗すること（`tests/agent/test_startup.py::test_aborts_on_missing_workflow_definition`、`tests/agent/test_repl_health.py`の`check_workflow_definition()`関連テスト）
+- **Test**: Startup fails when the Workflow definition is missing or invalid (`tests/agent/test_startup.py::test_aborts_on_missing_workflow_definition`, tests related to `check_workflow_definition()` in `tests/agent/test_repl_health.py`)
   - **Verifies**: INV-03
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: Confirmed（実行してPass確認済み）
+  - **Status**: Confirmed (executed and confirmed to pass)
 
-- **Test**: 必須DB Schema不整合で起動が失敗すること（`tests/agent/test_startup.py::test_aborts_on_missing_workflow_schema`）
+- **Test**: Startup fails when the required DB Schema is inconsistent (`tests/agent/test_startup.py::test_aborts_on_missing_workflow_schema`)
   - **Verifies**: INV-05
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: Confirmed（実行してPass確認済み）
+  - **Status**: Confirmed (executed and confirmed to pass)
 
-- **Test**: Tool所有権重複で起動が失敗すること（ADR-003 Verification参照）
+- **Test**: Startup fails on duplicate Tool ownership (see ADR-003 Verification)
   - **Verifies**: INV-04
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: Confirmed（ADR-003側で管理・検証）
+  - **Status**: Confirmed (managed and verified on the ADR-003 side)
 
-- **Test**: RuntimeToolRegistry初期化失敗、必須DB接続失敗、認証/認可/Allowlist/Safety Tier/Config Isolation/承認制御確立の失敗が起動を中止させること
+- **Test**: Initialization failure of RuntimeToolRegistry, failure of a required DB connection, and failures of authentication/authorization/Allowlist/Safety Tier/Config Isolation/establishing approval control abort startup
   - **Verifies**: INV-06, INV-07
   - **Type**: Integration
   - **Blocking**: Yes
    - **Status**: Confirmed — `tests/agent/test_startup.py::test_falsy_own_config_file_raises` verifies Config Isolation fail-closed (REQ-003); `tests/shared/test_config_loader.py::test_unknown_top_level_key_rejected` verifies unknown-key rejection (REQ-004). Note: individual scenario tests for each condition are covered by these new tests rather than the general FATAL/WARNING aggregation test.
 
-- **Test**: 必須コンポーネント（必須MCPサーバー等）の利用不能が起動を中止させること
+- **Test**: Unavailability of a mandatory component (such as a required MCP server) aborts startup
   - **Verifies**: INV-08
   - **Type**: Integration
   - **Blocking**: Yes
-   - **Status**: Confirmed（実行してPass確認済み）— `tests/agent/services/test_mcp_tool_discovery.py`の`TestDiscoverAllUnreachableServers`クラスが`is_required`分岐を直接検証する
+   - **Status**: Confirmed (executed and confirmed to pass) — the `TestDiscoverAllUnreachableServers` class in `tests/agent/services/test_mcp_tool_discovery.py` directly verifies the `is_required` branch
 
-- **Test**: 非必須コンポーネントの可用性障害が起動継続を許可し、当該コンポーネントが無効化されること
+- **Test**: An availability failure of a non-mandatory component permits startup to continue and disables that component
   - **Verifies**: INV-09
   - **Type**: Integration
   - **Blocking**: Yes
-   - **Status**: Confirmed（実行してPass確認済み）— 同じ`TestDiscoverAllUnreachableServers`クラスが非必須コンポーネント分類に紐づく専用シナリオを直接検証する
+   - **Status**: Confirmed (executed and confirmed to pass) — the same `TestDiscoverAllUnreachableServers` class directly verifies dedicated scenarios tied to non-mandatory component classification
 
-- **Test**: 安全性・整合性障害が部分的可用性に変換されないこと
+- **Test**: Safety/integrity failures are not converted into partial availability
   - **Verifies**: INV-10
   - **Type**: Regression
   - **Blocking**: Yes
-  - **Status**: Confirmed in code structure（`scripts/agent/startup.py`のWorkflow/Schema/Tool所有権チェックは`is_required`分岐を経由せず常にFATAL経路を通る）；この構造を直接横断的に検証する専用テストはない
+  - **Status**: Confirmed in code structure (the Workflow/Schema/Tool-ownership checks in `scripts/agent/startup.py` always take the FATAL path without going through the `is_required` branch); no dedicated test directly verifies this structure across the board
 
-- **Test**: 無効化されたコンポーネントに関連するToolが呼び出し拒否されること（`tests/mcp_servers/file/test_call_tool_validation.py`、file-mcpのみを対象とした限定的な検証）
+- **Test**: Calls to Tools related to a disabled component are rejected (`tests/mcp_servers/file/test_call_tool_validation.py`, a limited verification covering file-mcp only)
   - **Verifies**: INV-11, INV-12
   - **Type**: Unit
   - **Blocking**: No
-  - **Status**: Confirmed（file-mcp限定）
+  - **Status**: Confirmed (file-mcp only)
 
-- **Test**: ADR-010で定義される場面以外でFallbackが発生しないこと
+- **Test**: Fallback does not occur outside the situations defined by ADR-010
   - **Verifies**: INV-15, INV-16
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: Needs confirmation（本タスクでは個別に再実行していない）
+  - **Status**: Needs confirmation (not individually re-run in this task)
 
 ### Startup Validation
 
-- 環境設定の検証（環境名によらず同一の検証項目を適用する）
-- 各コンポーネントの実効必須性分類の検証
-- 障害分類に基づく起動継続可否の判定
+- Validation of environment configuration (the same validation items apply regardless of environment name)
+- Validation of each component's effective mandatoriness classification
+- Decision on whether startup can continue based on failure classification
 
 ### Deployment Validation
 
-- デプロイ前後に障害処理方針の設定を確認
-- Fail-Fastが必須コンポーネントに対して有効になっていることを確認
+- Check the failure handling policy configuration before and after deployment
+- Confirm that Fail-Fast is effective for mandatory components
 
 ### Runtime Monitoring
 
-- Health Check：MCPサーバーのヘルスチェック
-- Metrics：無効化されたコンポーネント・Toolの数
-- Logs：障害分類の結果、起動継続理由、無効化理由
-- Alert条件：安全性・整合性障害
+- Health Check: MCP server health checks
+- Metrics: number of disabled components and Tools
+- Logs: failure classification results, startup-continuation reasons, disable reasons
+- Alert conditions: safety/integrity failures
 
 ### Manual Review
 
-- 障害方針の変更レビュー
-- コンポーネントの必須性分類の見直し
-- INV-01（単一の共通障害処理方針）を直接検証する自動テストは存在しない
-- INV-14（未定義の必須性による起動継続禁止）は REQ-001 の単体テストで自動化検証済み（`tests/shared/test_mcp_config.py::TestRequiredDefault`）。
+- Review of changes to the failure policy
+- Review of component mandatoriness classification
+- No automated test directly verifies INV-01 (a single common failure handling policy)
+- INV-14 (no startup continuation with undefined mandatoriness) is verified by automation in the REQ-001 unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`).
 
-Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
+Register any Invariant without Verification as an unverified item in an Issue.
 
 ## Implementation Notes
 
-現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
+Briefly describe how the current implementation realizes the Decision.
 
-起動検証結果の非永続化については`## Rationale`の「6. 起動検証結果の非永続化」を参照。
+For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in `## Rationale`.
 
-MCPサーバー到達不能時の再試行方針: 実際に経由する到達不能処理パス（`scripts/agent/services/mcp_health.py`、
-`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`ほか隣接ファイル）には再試行ロジックが
-存在せず、唯一の再試行実装（`scripts/agent/http_lifecycle_health_checker.py::HealthChecker.startup_poll()`）
-は呼び出し元が存在しない。オーナー確認（2026-09-27）: これらのパスにおける現状の無再試行動作は
-意図された確定方針である。
+Retry policy when an MCP server is unreachable: the unreachable-handling paths actually taken (`scripts/agent/services/mcp_health.py`,
+`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`, and adjacent files) contain no retry logic,
+and the only retry implementation (`scripts/agent/http_lifecycle_health_checker.py::HealthChecker.startup_poll()`)
+has no callers. Owner confirmation (2026-09-27): the current no-retry behavior on these paths
+is the intended, settled policy.
 
-この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
+This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
-行番号は記載せず、File PathとSymbol名で参照する。
+Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
@@ -474,12 +474,12 @@ MCPサーバー到達不能時の再試行方針: 実際に経由する到達不
 
 - **Known Issue**: ADR-004-D1-profile-config-model-still-present
 - **Type**: Design Deviation (Resolved)
-- **Summary**: `scripts/shared/mcp_config.py`の`McpServerConfig`と`scripts/agent/services/mcp_tool_discovery.py`は、`security_profile`（環境）の値に基づいて`required_in_production`／`required_in_local`のいずれを参照するか分岐していた。
-- **Conflicting Source**: Decision Group 3（必須性の決定は環境非依存であるべき）
-- **Expected Design**: コンポーネントの必須性の決定は環境非依存でなければならない（Decision Group 3）。
-- **Observed Implementation**: 修正前は`security_profile`の値により`required_in_production`／`required_in_local`のいずれかを参照する分岐が存在した。
-- **Impact**: INV-01, INV-02, INV-09, INV-10, INV-14 → 解消済み。
-- **Recommended Action**: **解決（2026-09-04確認）**: `plans/done/20260903-091417_plan.md`（`localremoval`）により`SecurityProfile.LOCAL`自体が削除され、`SecurityProfile`は`PRODUCTION`のみを保持するenumとなった（`scripts/shared/mcp_config.py`確認済み）。`required_in_production`/`required_in_local`の環境分岐は解消され、必須性の決定が環境非依存となった。クロスプロファイル等価テストという概念自体が`SecurityProfile.LOCAL`の削除により不要化したため、当該残課題はNot Applicableとして解消。
+- **Summary**: `McpServerConfig` in `scripts/shared/mcp_config.py` and `scripts/agent/services/mcp_tool_discovery.py` branched on the value of `security_profile` (the environment) to decide whether to reference `required_in_production` or `required_in_local`.
+- **Conflicting Source**: Decision Group 3 (mandatoriness decisions should be environment-independent)
+- **Expected Design**: Component mandatoriness decisions must be environment-independent (Decision Group 3).
+- **Observed Implementation**: Before the fix, a branch existed that referenced either `required_in_production` or `required_in_local` depending on the value of `security_profile`.
+- **Impact**: INV-01, INV-02, INV-09, INV-10, INV-14 → resolved.
+- **Recommended Action**: **Resolved (confirmed 2026-09-04)**: `plans/done/20260903-091417_plan.md` (`localremoval`) removed `SecurityProfile.LOCAL` itself, and `SecurityProfile` became an enum that holds only `PRODUCTION` (confirmed in `scripts/shared/mcp_config.py`). The environment branch between `required_in_production`/`required_in_local` was resolved, and mandatoriness decisions became environment-independent. Because the very concept of a cross-profile equivalence test became unnecessary with the removal of `SecurityProfile.LOCAL`, the remaining item was resolved as Not Applicable.
 - **Owner**: TBD
 - **Status**: Resolved (2026-09-04)
 - **Resolution Target**: N/A: already resolved
@@ -488,12 +488,12 @@ MCPサーバー到達不能時の再試行方針: 実際に経由する到達不
 
 - **Known Issue**: ADR-004-D2-production-config-validator-severity-downgrade
 - **Type**: Design Deviation (Resolved)
-- **Summary**: `scripts/shared/production_config_validator.py`の`is_production`条件によるstrictモード違反の警告への格下げ（`docs/10_adr/adr-index.md` INV-010で指摘された、D1とは別個の逸脱）。
+- **Summary**: Downgrading strict-mode violations to warnings under the `is_production` condition in `scripts/shared/production_config_validator.py` (a deviation separate from D1, pointed out in `docs/10_adr/adr-index.md` INV-010).
 - **Conflicting Source**: `docs/10_adr/adr-index.md` INV-010
-- **Expected Design**: Production-grade検証はすべての環境で無条件に適用されるべきである。
-- **Observed Implementation**: 修正前は`is_production`条件によりstrictモード違反が警告へ格下げされていた。
-- **Impact**: Production-grade検証の一貫性に影響していた。
-- **Recommended Action**: **解決（2026-09-04確認）**: `plans/done/20260903-091417_plan.md` REQ-004により`is_production`条件分岐が削除され（`scripts/shared/production_config_validator.py`確認済み、該当分岐は現存しない）、Production-grade検証がすべての環境で無条件に適用されるようになった。
+- **Expected Design**: Production-grade validation should apply unconditionally in every environment.
+- **Observed Implementation**: Before the fix, strict-mode violations were downgraded to warnings under the `is_production` condition.
+- **Impact**: It affected the consistency of Production-grade validation.
+- **Recommended Action**: **Resolved (confirmed 2026-09-04)**: REQ-004 of `plans/done/20260903-091417_plan.md` removed the `is_production` conditional branch (confirmed in `scripts/shared/production_config_validator.py`; the branch no longer exists), and Production-grade validation now applies unconditionally in every environment.
 - **Owner**: TBD
 - **Status**: Resolved (2026-09-04)
 - **Resolution Target**: N/A: already resolved
@@ -502,12 +502,12 @@ MCPサーバー到達不能時の再試行方針: 実際に経由する到達不
 
 - **Known Issue**: N/A: not registered as a governance Known Issue — see Recommended Action
 - **Type**: Resolved Gap
-- **Summary**: 非必須コンポーネントの可用性障害による起動継続（Decision #18、INV-09）を検証する自動テストの整備状況。
+- **Summary**: Status of automated tests that verify startup continuation on an availability failure of a non-mandatory component (Decision #18, INV-09).
 - **Conflicting Source**: N/A: not a conflict — this entry records confirmation, not a discrepancy.
-- **Expected Design**: 非必須コンポーネントの可用性障害は、明示的な基準を満たす場合に限り起動継続を許可する（Decision #18、INV-09）。
-- **Observed Implementation**: `tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers` にて既に検証済み（本ADRの`## Verification`セクション参照、Status: Confirmed）。
+- **Expected Design**: An availability failure of a non-mandatory component permits startup to continue only when explicit criteria are met (Decision #18, INV-09).
+- **Observed Implementation**: Already verified in `tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers` (see this ADR's `## Verification` section, Status: Confirmed).
 - **Impact**: N/A: not an active discrepancy.
-- **Recommended Action**: 既にこのADR自身の`## Verification`セクションでConfirmedと記録されているため、新規のガバナンスKnown Issueは登録しない。
+- **Recommended Action**: Because this is already recorded as Confirmed in this ADR's own `## Verification` section, no new governance Known Issue is registered.
 - **Owner**: N/A: not applicable — no active issue to own
 - **Status**: Resolved
 - **Resolution Target**: N/A: already resolved
@@ -521,7 +521,7 @@ MCPサーバー到達不能時の再試行方針: 実際に経由する到達不
 - **Expected Design**: Production validation cannot succeed without an authoritative tool set; registry failures must produce actionable errors; unknown security profiles must fail during configuration construction.
 - **Observed Implementation**: REQ-001–REQ-005 completed: `_resolve_known_tools()` now raises `ValueError`/`ImportError` instead of silently skipping; `validate()` coerces/rejects unknown `SecurityProfile` values; `build_agent_config()` injects `known_tools` explicitly; `audit_security_defaults()` uses specific exception handling.
 - **Impact**: N/A: not an active discrepancy.
-- **Recommended Action**: 既にこのADR自身の`## Known Deviations`セクションでResolvedと記録されているため、新規のガバナンスKnown Issueは登録しない。
+- **Recommended Action**: Because this is already recorded as Resolved in this ADR's own `## Known Deviations` section, no new governance Known Issue is registered.
 - **Owner**: N/A: not applicable — no active issue to own
 - **Status**: Resolved
 - **Resolution Target**: N/A: already resolved
@@ -530,33 +530,33 @@ MCPサーバー到達不能時の再試行方針: 実際に経由する到達不
 
 - **Known Issue**: CI-016
 - **Type**: operational-gap
-- **Summary**: 未定義の必須性による起動継続禁止（Decision #12、INV-14）を検証する自動テストが現行では存在しない。
-- **Conflicting Source**: 本ADRの`## Completion Checklist`（自動化可能な検証がManual Reviewだけになっていない、の未チェック項目）および`## Verification` > `### Manual Review`（INV-14は現行実装で強制されていないと明記）
-- **Expected Design**: コンポーネントの必須性が未定義または判定不能な場合、非必須であると仮定せず、未解決の設計上または設定上の誤りとして扱う（Decision #12、INV-14）。
-- **Observed Implementation**: `McpServerConfig.required`は`True`をデフォルト値とする（`scripts/shared/mcp_config.py:95`）ため、未指定の必須性は暗黙に非必須として扱われることはない。REQ-001の単体テスト（`tests/shared/test_mcp_config.py::TestRequiredDefault`）が本デフォルト値の安全性を検証するため、このKnown Deviationは解消。
-- **Impact**: テストが存在しないため、将来`required`のデフォルト値が変更された場合（例: `False`へ）、INV-14への違反を検知する自動チェックがない。
-- **Recommended Action**: REQ-001の単体テスト（`tests/shared/test_mcp_config.py::TestRequiredDefault`）により`McpServerConfig.required`のデフォルト値が`True`であることが検証済み。本Known Deviationは解消。将来`required`のデフォルト値が変更される場合は、INV-14への違反を検知する自動テストを併せて更新すること。
+- **Summary**: No automated test currently verifies the prohibition on continuing startup with undefined mandatoriness (Decision #12, INV-14).
+- **Conflicting Source**: This ADR's `## Completion Checklist` (the unchecked item "automatable verification does not rely only on Manual Review") and `## Verification` > `### Manual Review` (which stated that INV-14 was not enforced by the current implementation)
+- **Expected Design**: When a component's mandatoriness is undefined or cannot be determined, do not assume it is non-mandatory; treat it as an unresolved design or configuration error (Decision #12, INV-14).
+- **Observed Implementation**: `McpServerConfig.required` defaults to `True` (`scripts/shared/mcp_config.py:95`), so unspecified mandatoriness is never implicitly treated as non-mandatory. The REQ-001 unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`) verifies the safety of this default, so this Known Deviation is resolved.
+- **Impact**: Without a test, if the default value of `required` were changed in the future (for example, to `False`), there would be no automated check to detect a violation of INV-14.
+- **Recommended Action**: The REQ-001 unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`) verifies that the default value of `McpServerConfig.required` is `True`. This Known Deviation is resolved. If the default value of `required` is changed in the future, update the automated test that detects violations of INV-14 at the same time.
 - **Owner**: Unassigned
 - **Status**: Resolved (automated test added)
-- **Resolution Target**: `McpServerConfig.required`のデフォルト値および未定義必須性の扱いに対する単体テストの追加
+- **Resolution Target**: Adding unit tests for the default value of `McpServerConfig.required` and for the handling of undefined mandatoriness
 
-ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
-**改訂記録（2026-09-04）**: 2026-09-03のアーキテクチャオーナー承認に基づき、`SecurityProfile.LOCAL`を完全に撤廃し、Production-grade検証をすべての通常起動で無条件化する方針を確定（新規ADRによる置き換えではなく、本ADRを直接改訂）。関連する4計画（`plans/done/20260903-091417_plan.md`「localremoval」、`plans/done/20260903-091921_plan.md`「loopbackonly」、`plans/done/20260903-092407_plan.md`「mcpauth」、`plans/done/20260903-092746_plan.md`「localcleanup」）がすべて実装完了したことを確認し、上記Known Deviationsの該当2件を解消済みとして更新した。Decision Group 1の「単一の共通障害処理方針」記述はこの改訂以前から既に環境非依存の記述だったため、Decision本文自体の書き換えは不要だった。
+**Revision record (2026-09-04)**: Based on the architecture owner's approval on 2026-09-03, the policy of fully removing `SecurityProfile.LOCAL` and making Production-grade validation unconditional for every normal startup was finalized (this ADR was revised directly rather than replaced by a new ADR). After confirming that all four related plans (`plans/done/20260903-091417_plan.md` "localremoval", `plans/done/20260903-091921_plan.md` "loopbackonly", `plans/done/20260903-092407_plan.md` "mcpauth", `plans/done/20260903-092746_plan.md` "localcleanup") were fully implemented, the two corresponding Known Deviations above were updated as resolved. The "single common failure handling policy" wording in Decision Group 1 was already environment-independent before this revision, so the Decision body itself did not need rewriting.
 
 ## Review Triggers
 
-次の条件が発生した場合、このADRを再評価する。
+Re-evaluate this ADR when any of the following conditions occurs.
 
-- 運用規模または同時実行数が大きく変化した場合
-- 単一Hostから複数Hostまたは分散構成へ変更する場合
-- Security要件、監査要件が変更された場合
-- 性能目標またはResource制約が変更された場合
-- 外部Protocolまたは採用Libraryが変更、廃止された場合
-- 障害実績により前提が妥当でないと判明した場合
-- 代替案の不採用理由が成立しなくなった場合
-- コンポーネントの必須性分類ロジックが環境非依存へ改修された場合
-- Fallbackを許可する新しいAccepted ADRが追加された場合
+- The operational scale or concurrency changes significantly
+- The deployment changes from a single host to multiple hosts or a distributed configuration
+- Security or audit requirements change
+- Performance targets or resource constraints change
+- An external protocol or adopted library is changed or discontinued
+- Failure history shows that the assumptions are no longer valid
+- The reasons for rejecting an alternative no longer hold
+- Component mandatoriness classification logic is changed to be environment-independent
+- A new Accepted ADR that permits Fallback is added
 
 ## Approval
 
@@ -564,40 +564,40 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - Architecture Owner
 - Affected Component Owner
-- Security Reviewer: セキュリティ影響がある場合
-- Operations Reviewer: 運用、監視、復旧へ影響する場合
-- Data Owner: データ所有権、Schema、保持へ影響する場合
+- Security Reviewer: when there is a security impact
+- Operations Reviewer: when operations, monitoring, or recovery are affected
+- Data Owner: when data ownership, schema, or retention are affected
 
 ### Approval Record
 
-- **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
-- **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
+- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
-本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
+This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
 ## Related Documents
 
 ### Related ADRs
 
-- ADR-001: Workflow Engine必須化 — Workflow定義の欠落・不正はFail-Fast
-- ADR-002: プロセス単位の設定所有権とConfig Isolation — Config Isolation違反はFail-Fast
-- ADR-003: RuntimeToolRegistryを唯一のルーティング権威とする — RuntimeToolRegistry初期化失敗はFail-Fast、Tool可視性・Routing・Dynamic Healthの権威
-- ADR-010: RAGの外部実行失敗時のインプロセスフォールバック — 本ADRが許可する唯一のFallback
+- ADR-001: Mandatory Workflow Engine — a missing or invalid Workflow definition is Fail-Fast
+- ADR-002: Per-Process Configuration Ownership and Config Isolation — a Config Isolation violation is Fail-Fast
+- ADR-003: RuntimeToolRegistry as the Sole Routing Authority — initialization failure of RuntimeToolRegistry is Fail-Fast; authority for Tool visibility, Routing, and Dynamic Health
+- ADR-010: In-Process Fallback When External RAG Execution Fails — the only Fallback this ADR permits
 
 ### Specifications
 
-- [Deployment Guide](../90_deployment/deployment_01_deployment.md) — デプロイメント時のワークフロー検証
-- [MCP Configuration / Approval / Observability](../23_agent/agent_08_04_configuration-mcp-approval-obs.md#component-criticality-classification) — MCPサーバーの必須／非必須分類記録(Decision Group 3)
+- [Deployment Guide](../90_deployment/deployment_01_deployment.md) — workflow validation during deployment
+- [MCP Configuration / Approval / Observability](../23_agent/agent_08_04_configuration-mcp-approval-obs.md#component-criticality-classification) — record of MCP server mandatory/non-mandatory classification (Decision Group 3)
 <!-- TODO: Document 'agent_03_03_turn-processing-flow-workflow-engine.md' was deleted -->
 
 ### Operations
 
-- [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — 障害対応手順
+- [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — incident response procedure
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — ADR-004関連のKnown Issue（CI-016）
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — ADR-004-related Known Issue (CI-016)
 
 ### Implementation References
 
@@ -607,26 +607,26 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/agent/services/mcp_tool_discovery.py` — `McpToolDiscoveryService.discover_all()`
 - `scripts/shared/mcp_health.py` — `McpServerHealthRegistry`
 - `scripts/agent/services/mcp_health.py` — `check_service_health()`
-- `config/agent.toml` — 設定ファイル
-- テスト — `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_startup.py`
+- `config/agent.toml` — configuration file
+- Tests — `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_startup.py`
 
 ## Completion Checklist
 
-ADRをAcceptedへ変更する前に確認する。
+Confirm the following before changing the ADR to Accepted.
 
-- [x] 解決する問題が明確である
-- [x] Decisionが1つの主要な設計判断に絞られている
-- [x] Decisionが必須、禁止、正本、Fallback条件などの明確な表現で記載されている
-- [x] 採用理由が現在の実装以外の観点で説明されている
-- [x] 実質的な代替案と不採用理由が記載されている
-- [x] Positive Consequencesが記載されている
-- [x] Negative Consequencesが記載されている
-- [x] 検証可能なInvariantsが定義されている
-- [x] 各InvariantにVerificationが対応している（一部はNeeds confirmation/未検証として明記）
-- [x] 自動化可能な検証がManual Reviewだけになっていない（INV-01はConfirmed；INV-14はREQ-001の自動テストで確認；INV-08, INV-09はConfirmed）
-- [x] 既存ADRとの関係が記載されている
-- [x] 関係するSpecificationと矛盾していない（コンポーネント必須性分類を記録するSpecificationが整備済み）
-- [x] 現行実装との差異がKnown Issueへ登録されている（`CI-016`として登録済み、`## Known Deviations`参照）
-- [x] Ownerと必要なReviewerが定義されている（`docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
-- [x] Review Triggersが記載されている
-- [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）
+- [x] The problem to solve is clear
+- [x] The Decision is narrowed to one primary design decision
+- [x] The Decision is stated in clear terms such as mandatory, prohibited, canonical, or Fallback conditions
+- [x] The reasons for adoption are explained from perspectives other than the current implementation
+- [x] Substantive alternatives and the reasons for rejecting them are recorded
+- [x] Positive Consequences are recorded
+- [x] Negative Consequences are recorded
+- [x] Verifiable Invariants are defined
+- [x] Each Invariant has a corresponding Verification (some are explicitly marked as Needs confirmation/unverified)
+- [x] Automatable verification does not rely only on Manual Review (INV-01 is Confirmed; INV-14 is confirmed by the REQ-001 automated test; INV-08 and INV-09 are Confirmed)
+- [x] The relationship with existing ADRs is recorded
+- [x] The ADR does not contradict related Specifications (a Specification recording component mandatoriness classification is in place)
+- [x] Discrepancies with the current implementation are registered as Known Issues (registered as `CI-016`; see `## Known Deviations`)
+- [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
+- [x] Review Triggers are recorded
+- [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)

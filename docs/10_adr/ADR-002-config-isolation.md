@@ -1,5 +1,5 @@
 ---
-title: "ADR-002: プロセス単位の設定所有権とConfig Isolation"
+title: "ADR-002: Per-Process Configuration Ownership and Config Isolation"
 area: governance
 tags:
   - system
@@ -13,7 +13,7 @@ supersedes: []
 superseded_by: null
 ---
 
-# ADR-002: プロセス単位の設定所有権とConfig Isolation
+# ADR-002: Per-Process Configuration Ownership and Config Isolation
 
 ## Keywords
 <placeholder>
@@ -22,62 +22,62 @@ superseded_by: null
 
 Accepted
 
-使用可能なStatusは次のとおりとする。
+The available Status values are as follows.
 
-- `Proposed`: 提案中、レビューまたは承認前
-- `Accepted`: 採用済みであり、現行設計として有効
-- `Rejected`: 検討したが不採用
-- `Deprecated`: 現在は推奨しないが、一部に残存
-- `Superseded`: 後継ADRによって置換済み
+- `Proposed`: Under proposal; before review or approval
+- `Accepted`: Adopted and effective as the current design
+- `Rejected`: Considered but not adopted
+- `Deprecated`: No longer recommended, but partially remaining
+- `Superseded`: Replaced by a successor ADR
 
-Accepted後に判断内容を変更する場合は本文を直接変更せず、新しいADRを作成して本ADRをSupersededへ変更する。
+To change the decision after acceptance, do not edit the body directly; create a new ADR and change this ADR to Superseded.
 
 ## Summary
 
-Agent、各MCPサーバー、RAGインジェクションプロセス、EventBusが自身の設定ファイルを所有し、許可された設定ファイルだけを読む設計を正典化する。共通設定ファイルの新設を禁止し、値の重複を独立プロセスの明示的な依存先指定として許容する。Secretの最小公開と環境変数のPrefix/Allowlist適用により、プロセス境界を超えた設定漏洩を防ぐ。
+This ADR canonicalizes the design in which the Agent, each MCP server, the RAG ingestion processes, and the EventBus own their own configuration files and read only the configuration files they are permitted to read. Creating a new shared configuration file is prohibited, and duplicated values are permitted as explicit dependency declarations of independent processes. Minimal exposure of Secrets and Prefix/Allowlist rules for environment variables prevent configuration leakage across process boundaries.
 
 ## Context
 
 ### Problem
 
-複数のプロセス（Agent、MCPサーバー、crawler、ingester、chunk_splitter、eventbus）が同じ設定ファイルを読み込むと、設定の所有権が不明確になり、Secretの過剰な公開や設定の相互依存が発生する。また、共通設定ファイルの新設により、設定の分散管理が複雑化し、設定変更時の影響範囲が把握できなくなる。
+When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, eventbus) read the same configuration file, configuration ownership becomes unclear, and excessive Secret exposure and configuration interdependence arise. In addition, creating a new shared configuration file complicates distributed configuration management and makes the impact scope of a configuration change impossible to grasp.
 
 ### Constraints
 
-- 単一ホスト、複数プロセスでの実行を前提とする
-- デプロイ環境では起動前に各プロセスの設定ファイルが存在することを確認する必要がある
-- セキュリティ要件：Secretは必要なプロセスだけへ公開しなければならない
-- データ整合性：各プロセスの設定は独立して管理されなければならない
-- 運用要件：設定変更時の影響範囲と再起動対象を所有プロセス単位で判断できること
+- Execution on a single host with multiple processes is assumed
+- In the deployment environment, the existence of each process's configuration file must be confirmed before startup
+- Security requirement: Secrets must be exposed only to the processes that need them
+- Data integrity: each process's configuration must be managed independently
+- Operational requirement: the impact scope and restart targets of a configuration change must be determinable per owning process
 
 ### Assumptions
 
-- 対象環境：単一Host、複数プロセス
-- 想定規模：同時実行数は限定的
-- 信頼境界：各プロセス内でのみ権限を付与する
-- 外部依存先：なし（設定ファイルはローカルファイル）
-- 前提が崩れた場合に再評価が必要な事項：複数Host構成、分散実行、外部設定ストア統合
+- Target environment: a single host, multiple processes
+- Expected scale: limited concurrency
+- Trust boundary: privileges are granted only within each process
+- External dependencies: none (configuration files are local files)
+- Items to re-evaluate if the assumptions no longer hold: multi-host configuration, distributed execution, integration with an external configuration store
 
 ## Decision
 
 ### Decision Details
 
-1. Agentは`config/agent.toml`のみを読み込む。
-2. 各MCPサーバーは`config/<key>_mcp_server.toml`のみを読み込む。
-3. crawlerは`config/crawler.toml`のみを読み込む。
-4. chunk_splitterは`config/chunk_splitter.toml`のみを読み込む。
-5. ingesterは`config/ingester.toml`のみを読み込む。
-6. EventBusは`config/eventbus.toml`のみを読み込む。
-7. AgentはMCPサーバー内部設定を解釈しない。
-8. MCPサーバーは`agent.toml`を参照しない。
-9. 共通Config Loaderの利用は許可するが、プロセスごとに許可ファイルを限定し、許可外ファイルの読込をRuntime Errorとする。
+1. The Agent reads only `config/agent.toml`.
+2. Each MCP server reads only `config/<key>_mcp_server.toml`.
+3. The crawler reads only `config/crawler.toml`.
+4. chunk_splitter reads only `config/chunk_splitter.toml`.
+5. The ingester reads only `config/ingester.toml`.
+6. The EventBus reads only `config/eventbus.toml`.
+7. The Agent does not interpret MCP-server-internal configuration.
+8. MCP servers do not reference `agent.toml`.
+9. Using a shared Config Loader is permitted, but the permitted files are restricted per process, and reading a non-permitted file is a Runtime Error.
     *Note: EventBus is an exception — it loads config via tomllib directly (see CI-001).*
-10. 共通設定ファイルを新設しない。
-11. DBパス、URL、Timeoutなどの値が複数設定に重複することを、独立プロセスの明示的な依存先指定として許容する。
-12. 同名キーが複数ファイルにあっても、別の設定契約として扱う。
-13. Secretは必要なプロセスだけへ公開する。環境変数にもPrefixまたはAllowlistを設ける。
-14. 設定変更時の影響範囲と再起動対象を所有プロセス単位で判断する。
-15. Module Import時に設定を暗黙読込しない。
+10. No new shared configuration file is created.
+11. Duplication of values such as DB paths, URLs, and Timeouts across multiple configurations is permitted as explicit dependency declarations of independent processes.
+12. Even when a key with the same name exists in multiple files, each is treated as a separate configuration contract.
+13. Secrets are exposed only to the processes that need them. Environment variables also have a Prefix or an Allowlist.
+14. The impact scope and restart targets of a configuration change are determined per owning process.
+15. Configuration is not implicitly loaded at module import time.
 
 ## Per-Process Required Files and Keys
 
@@ -92,35 +92,35 @@ Agent、各MCPサーバー、RAGインジェクションプロセス、EventBus�
 
 ### Scope
 
-- **対象コンポーネント**: `ConfigLoader`, `MCPServer`, `Orchestrator`
-- **対象プロセス**: Agentプロセス、各MCPサーバープロセス、crawlerプロセス、ingesterプロセス、chunk_splitterプロセス、eventbusプロセス
-- **対象データ**: 設定ファイル、環境変数、Secret
-- **対象Environment Profile**: すべての環境（local/dev/production）
-- **対象APIまたは処理経路**: `ConfigLoader.restrict_to()`, `ConfigLoader.load()`, `MCPServer.run_http()`
+- **Target components**: `ConfigLoader`, `MCPServer`, `Orchestrator`
+- **Target processes**: the Agent process, each MCP server process, the crawler process, the ingester process, the chunk_splitter process, the eventbus process
+- **Target data**: configuration files, environment variables, Secrets
+- **Target Environment Profile**: all environments (local/dev/production)
+- **Target APIs or processing paths**: `ConfigLoader.restrict_to()`, `ConfigLoader.load()`, `MCPServer.run_http()`
 
 ### Out of Scope
 
-- 個別の設定ファイルスキーマの詳細
-- 環境変数の詳細なPrefix/Allowlist設計
-- EventBus統合の設定読み込み方法の詳細
-- ランタイム動作の変更
-- 監視・メトリクス設計（別ADRで扱う）
+- Details of individual configuration file schemas
+- Detailed Prefix/Allowlist design for environment variables
+- Details of how the EventBus integration loads its configuration
+- Changes to runtime behavior
+- Monitoring and metrics design (handled by a separate ADR)
 
 ## Rationale
 
-### 1. 最重要の採用理由 — Security
+### 1. Primary Reason for Adoption — Security
 
-Secretの最小公開により、プロセス境界を超えた設定漏洩を防ぐ。各プロセスが自身の設定ファイルだけを読み込むことで、他プロセスのSecretへのアクセスを物理的に遮断する。
+Minimal exposure of Secrets prevents configuration leakage across process boundaries. Because each process reads only its own configuration file, access to other processes' Secrets is physically blocked.
 
-### 2. 第2の採用理由 — Operability
+### 2. Second Reason for Adoption — Operability
 
-設定変更時の影響範囲と再起動対象を所有プロセス単位で明確にできる。共通設定ファイルがないため、設定変更が他のプロセスに予期せぬ影響を与えることはない。
+The impact scope and restart targets of a configuration change can be made clear per owning process. Because there is no shared configuration file, a configuration change does not unexpectedly affect other processes.
 
-### 3. 第3の採用理由 — Data Integrity
+### 3. Third Reason for Adoption — Data Integrity
 
-各プロセスの設定は独立して管理されるため、設定の競合や上書きによるデータ破損を防ぐ。同名キーが異なる意味を持つことを明確にすることで、意図しない設定の共有を防ぐ。
+Because each process's configuration is managed independently, data corruption from configuration conflicts or overwrites is prevented. Making it explicit that same-named keys can have different meanings prevents unintended sharing of configuration.
 
-「現行コードがこの方式で実装されているため」だけを採用理由にしない。
+Do not use "the current code is implemented this way" as the sole reason for adoption.
 
 ## Alternatives Considered
 
@@ -128,112 +128,112 @@ Secretの最小公開により、プロセス境界を超えた設定漏洩を�
 
 #### Description
 
-全プロセスが共通の設定ファイルを読み込み、必要な値だけを参照する。
+All processes read a shared configuration file and reference only the values they need.
 
 #### Advantages
 
-- 設定の一元管理
-- 同じ値の重複を回避できる
+- Centralized configuration management
+- Duplication of the same values can be avoided
 
 #### Disadvantages
 
-- Secretの過剰な公開
-- 設定の相互依存
-- 設定変更時の影響範囲の不明確さ
-- 設定ファイルの肥大化
+- Excessive exposure of Secrets
+- Configuration interdependence
+- Unclear impact scope of configuration changes
+- Bloated configuration files
 
 #### Reason for Rejection
 
-SecurityとOperabilityを優先し、共通設定ファイルによるSecretの過剰な公開と設定の相互依存を防ぐため不採用とした。
+Rejected to prioritize Security and Operability and to prevent the excessive Secret exposure and configuration interdependence caused by a shared configuration file.
 
 #### Reconsideration Conditions
 
-- 運用規模が拡大し、設定の一元管理が必要となる場合
-- 外部設定ストアの導入により、Secretの分離が可能となる場合
+- The operational scale grows and centralized configuration management becomes necessary
+- Introducing an external configuration store makes Secret separation possible
 
 ### Alternative B: Dynamic config resolution at runtime
 
 #### Description
 
-プロセス起動時に動的に設定ファイルを検索し、存在する設定ファイルを自動的に読み込む。
+Search for configuration files dynamically at process startup and automatically read whichever configuration files exist.
 
 #### Advantages
 
-- フレキシブルな設定管理
-- 設定ファイルの追加が容易
+- Flexible configuration management
+- Configuration files are easy to add
 
 #### Disadvantages
 
-- 設定の所有権が不明確
-- 意図しない設定の読み込み
-- 設定変更時の影響範囲の不明確さ
+- Unclear configuration ownership
+- Unintended configuration loading
+- Unclear impact scope of configuration changes
 
 #### Reason for Rejection
 
-Data Integrityを優先し、設定の所有権を明確にするため不採用とした。
+Rejected to prioritize Data Integrity and make configuration ownership clear.
 
 #### Reconsideration Conditions
 
-- 設定ファイルの動的生成が必要となる場合
-- クラウド環境での設定管理が必要となる場合
+- Dynamic generation of configuration files becomes necessary
+- Configuration management in a cloud environment becomes necessary
 
 ### Alternative C: No config isolation enforcement
 
 #### Description
 
-プロセス間の設定分離を強制せず、各プロセスが自由に設定ファイルを読み込む。
+Do not enforce configuration separation between processes; each process reads configuration files freely.
 
 #### Advantages
 
-- シンプルな構造
-- 低複雑性
+- Simple structure
+- Low complexity
 
 #### Disadvantages
 
-- Secretの過剰な公開
-- 設定の相互依存
-- 設定変更時の影響範囲の不明確さ
-- セキュリティリスク
+- Excessive exposure of Secrets
+- Configuration interdependence
+- Unclear impact scope of configuration changes
+- Security risk
 
 #### Reason for Rejection
 
-Securityを優先し、プロセス境界を超えた設定漏洩を防ぐため不採用とした。
+Rejected to prioritize Security and prevent configuration leakage across process boundaries.
 
 #### Reconsideration Conditions
 
-- 信頼境界が大幅に変更される場合
-- 単一プロセス構成へ移行する場合
+- The trust boundary changes significantly
+- The system moves to a single-process configuration
 
 ## Consequences
 
 ### Positive Consequences
 
-- Secretの最小公開が確保される
-- 設定変更時の影響範囲が明確になる
-- 各プロセスの設定が独立して管理される
-- MCPサーバーがAgentの設定に依存しない
-- 設定ファイルの所有権が明確になる
+- Minimal exposure of Secrets is ensured
+- The impact scope of a configuration change becomes clear
+- Each process's configuration is managed independently
+- MCP servers do not depend on the Agent's configuration
+- Configuration file ownership becomes clear
 
 ### Negative Consequences
 
-- 同じ値の重複記述が必要になる
-- 設定ファイルの数が増加する
-- 移行期間中の二重経路の必要性
-- 設定ファイルの一貫性管理の負荷
+- The same values must be written in multiple places
+- The number of configuration files increases
+- Dual paths are needed during the migration period
+- Overhead of keeping configuration files consistent
 
 ### Operational Consequences
 
-- 起動時に各プロセスの設定ファイルが存在することを確認する必要がある
-- 設定変更時は所有プロセスの再起動が必要
-- 障害対応時に設定ファイルの調査が必要
+- The existence of each process's configuration file must be confirmed at startup
+- A configuration change requires restarting the owning process
+- Incident response requires investigating configuration files
 
 ### Security Consequences
 
-- 信頼境界：各プロセス内でのみ権限を付与する
-- 認証、認可：設定ファイルに基づく権限判定
-- Secretの取扱い：最小公開原則に従う
-- Fail-Closed：設定ファイル欠落時は起動中止
-- Audit Log：設定読み込みイベントの記録
+- Trust boundary: privileges are granted only within each process
+- Authentication and authorization: permission decisions based on configuration files
+- Secret handling: follow the principle of minimal exposure
+- Fail-Closed: abort startup when a configuration file is missing
+- Audit Log: record configuration loading events
 
 ## Per-Process Required Files and Keys
 
@@ -248,122 +248,122 @@ Securityを優先し、プロセス境界を超えた設定漏洩を防ぐため
 
 ## Invariants
 
-- INV-01: 各プロセスは許可された設定ファイルだけを読み込む。
-- INV-02: 許可外設定ファイルへのアクセスは拒否される。
-- INV-03: MCPサーバーはagent.tomlなしで単体起動できる。
-- INV-04: AgentへMCP固有Secretを渡さずに起動できる。
+- INV-01: Each process reads only its permitted configuration files.
+- INV-02: Access to non-permitted configuration files is rejected.
+- INV-03: An MCP server can start standalone without agent.toml.
+- INV-04: The Agent can start without being given MCP-specific Secrets.
 
 ## Exceptions
 
-なし
+None
 
-### 補足: 制限は無条件
+### Note: The Restriction Is Unconditional
 
-`AGENT_RESTRICT_CONFIG`環境変数は廃止済み。すべてのプロセスエントリポイントは常に`ConfigLoader.restrict_to("agent.toml")`を呼び出す。この環境変数を設定しても無視され、許可外ファイルの読み込みは常に拒否される。
+The `AGENT_RESTRICT_CONFIG` environment variable has been removed (legacy). Every process entry point always calls `ConfigLoader.restrict_to("agent.toml")`. Setting this environment variable is ignored, and reading a non-permitted file is always rejected.
 
 ## Failure Policy
 
 ### Fail-Fast Conditions
 
-- 各プロセスの設定ファイルが欠落している場合
-- 設定ファイルが不正である場合
+- A process's configuration file is missing
+- A configuration file is invalid
 
 ### Fail-Open or Degraded Conditions
 
-- ローカル開発環境では、設定ファイルの軽微な検証エラーは警告として記録される
+- In the local development environment, minor configuration-file validation errors are recorded as warnings
 
 ### Retry Policy
 
-- Retry対象：設定ファイル読み込み失敗
-- Retry回数：`retry_policy.max_attempts`（デフォルト3回）
-- Backoff：固定間隔（デフォルト1秒）
-- RetryしないError：設定ファイルの構文エラー
+- Retry target: configuration file loading failures
+- Retry count: `retry_policy.max_attempts` (default 3)
+- Backoff: fixed interval (default 1 second)
+- Errors not retried: configuration file syntax errors
 
 ### Fallback Policy
 
-- Fallback対象：なし
-- Fallback先：なし
-- Fallbackを禁止する条件：設定ファイル欠落時
-- Fallback理由の記録先：監査ログ
+- Fallback targets: none
+- Fallback destination: none
+- Conditions that prohibit Fallback: a missing configuration file
+- Where Fallback reasons are recorded: audit log
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ## Data Ownership and Persistence
 
-- **System of Record**: 各プロセスの設定ファイル（TOML形式）
-- **Derived Data**: 再生成可能な派生データ（設定ファイルのSHA256チェックサム）
-- **Ownership**: 各プロセス（設定ファイルの所有）
-- **Persistence**: ファイルシステム（`config/`ディレクトリ）
-- **Transaction Boundary**: 設定ファイル読み込み単位
-- **Recovery Source**: 設定ファイル（手動復旧）
-- **Deletion Rule**: 設定ファイル削除時は関連するプロセスの再起動が必要
+- **System of Record**: each process's configuration files (TOML format)
+- **Derived Data**: regenerable derived data (SHA256 checksums of configuration files)
+- **Ownership**: each process (owner of its configuration files)
+- **Persistence**: file system (`config/` directory)
+- **Transaction Boundary**: per configuration-file load
+- **Recovery Source**: configuration files (manual recovery)
+- **Deletion Rule**: deleting a configuration file requires restarting the related processes
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ## Verification
 
 ### Automated Tests
 
-- **Test**: 各プロセスが許可された設定ファイルだけを読み込めること
+- **Test**: Each process can read only its permitted configuration files
   - **Verifies**: INV-01
   - **Type**: Integration
   - **Blocking**: Yes
 - **Status**: - **Status**: Confirmed — `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error` verifies Config Isolation fail-closed (REQ-003); `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to` verifies ConfigLoader.restrict_to call path (REQ-003)
   - **Citation**: - **Citation**: `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys`, `tests/mcp_servers/test_config_isolation_fail_closed.py` ebf063b9 (docs: add REQ-005 per-process required files and keys table to ADR-002)
 
-- **Test**: 許可外設定ファイルへのアクセスが拒否されること
+- **Test**: Access to non-permitted configuration files is rejected
   - **Verifies**: INV-02
   - **Type**: Regression
   - **Blocking**: Yes
 - **Status**: - **Status**: Confirmed — `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys` verifies unknown-key rejection in production config validation (REQ-004)
   - **Citation**: - **Citation**: `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorSecurityProfileEnum`, `tests/mcp_servers/test_config_isolation_fail_closed.py` ebf063b9 (docs: add REQ-005 per-process required files and keys table to ADR-002)
 
-- **Test**: MCPサーバーがagent.tomlなしで単体起動できること
+- **Test**: An MCP server can start standalone without agent.toml
   - **Verifies**: INV-03
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: AgentへMCP固有Secretを渡さずに起動できること
+- **Test**: The Agent can start without being given MCP-specific Secrets
   - **Verifies**: INV-04
   - **Type**: Integration
   - **Blocking**: Yes
 
 ### Startup Validation
 
-- 各プロセスの設定ファイルが存在するか
-- 設定ファイルが有効か（parseable TOML、必須フィールド）
+- Whether each process's configuration file exists
+- Whether configuration files are valid (parseable TOML, required fields)
 
 ### Deployment Validation
 
-- デプロイ前後に各プロセスの設定ファイルのSHA256チェックサムを確認
-- デプロイ後の設定ファイルがソースと一致するか
+- Check the SHA256 checksum of each process's configuration file before and after deployment
+- Whether the deployed configuration files match the source
 
 ### Runtime Monitoring
 
-- Health Check：設定ファイルの読み込み成功確認
-- Metrics：設定ファイル読み込みイベント
-- Logs：設定読み込みイベント、エラーイベント
-- Alert条件：設定ファイル読み込み失敗、設定ファイルの構文エラー
-- Degraded条件：設定ファイルの軽微な検証エラー（ローカル開発環境）
+- Health Check: confirmation that configuration files loaded successfully
+- Metrics: configuration file loading events
+- Logs: configuration loading events, error events
+- Alert conditions: configuration file loading failure, configuration file syntax error
+- Degraded condition: minor configuration-file validation errors (local development environment)
 
 ### Manual Review
 
-- 設定ファイルの変更レビュー
-- デプロイメント前の設定ファイル検証
+- Review of configuration file changes
+- Configuration file validation before deployment
 
-Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
+Register any Invariant without Verification as an unverified item in an Issue.
 
 ## Implementation Notes
 
-現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
+Briefly describe how the current implementation realizes the Decision.
 
-この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
+This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
-行番号は記載せず、File PathとSymbol名で参照する。
+Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-ADRと現行実装、設定、テスト、文書に差異がある場合に記載する。
+Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
 ### CI-001: EventBus does NOT use ConfigLoader at all
 
@@ -381,21 +381,21 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 
 ## Review Triggers
 
-次の条件が発生した場合、このADRを再評価する。
+Re-evaluate this ADR when any of the following conditions occurs.
 
-- 運用規模または同時実行数が大きく変化した場合
-- 単一Hostから複数Hostまたは分散構成へ変更する場合
-- Security要件、監査要件が変更された場合
-- 性能目標またはResource制約が変更された場合
-- 外部Protocolまたは採用Libraryが変更、廃止された場合
-- 障害実績により前提またはFailure Policyが妥当でないと判明した場合
-- 代替案の不採用理由が成立しなくなった場合
+- The operational scale or concurrency changes significantly
+- The deployment changes from a single host to multiple hosts or a distributed configuration
+- Security or audit requirements change
+- Performance targets or resource constraints change
+- An external protocol or adopted library is changed or discontinued
+- Failure history shows that the assumptions or the Failure Policy are no longer valid
+- The reasons for rejecting an alternative no longer hold
 
-このADR固有の見直し条件を追加すること。
+Add review conditions specific to this ADR.
 
-- 設定ファイルの形式が大幅に変更された場合
-- 共通設定ファイルの新設が必要となった場合
-- 永続化ストレージがファイル以外へ移行された場合
+- The configuration file format changes significantly
+- A new shared configuration file becomes necessary
+- Persistent storage moves to something other than files
 
 ## Approval
 
@@ -403,51 +403,51 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 
 - Architecture Owner
 - Affected Component Owner
-- Security Reviewer: セキュリティ影響がある場合
-- Operations Reviewer: 運用、監視、復旧へ影響する場合
-- Data Owner: データ所有権、Schema、保持へ影響する場合
+- Security Reviewer: when there is a security impact
+- Operations Reviewer: when operations, monitoring, or recovery are affected
+- Data Owner: when data ownership, schema, or retention are affected
 
 ### Approval Record
 
-- **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
-- **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
+- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
-本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
+This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
 ## Related Documents
 
 ### Related ADRs
 
-- ADR-001: Workflow Engine必須化
+- ADR-001: Mandatory Workflow Engine
 
 ### Specifications
 
-- [Configuration Loading](../23_agent/agent_08_01_configuration-loading-agent-config.md) — Agent設定読み込みの詳細
-- [MCP Configuration File Inventory](../22_mcp/mcp_06_02_configuration-file-inventory.md) — MCP設定ファイル一覧
+- [Configuration Loading](../23_agent/agent_08_01_configuration-loading-agent-config.md) — details of Agent configuration loading
+- [MCP Configuration File Inventory](../22_mcp/mcp_06_02_configuration-file-inventory.md) — list of MCP configuration files
 
 ### Operations
 
-- [Runtime and Execution - Config and Logging](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md) — ランタイム設定とロギング
+- [Runtime and Execution - Config and Logging](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md) — runtime configuration and logging
 
 ### Known Issues
 
-- なし
+- None
 
 ### Implementation References
 
 - `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`
 - `scripts/mcp_servers/server.py` — `MCPServer.run_http()`
-- `scripts/rag/ingestion/crawler.py` — `crawler`プロセスの設定読み込み
-- `scripts/rag/ingestion/chunk_splitter.py` — `chunk_splitter`プロセスの設定読み込み
-- `scripts/rag/ingestion/ingester.py` — `ingester`プロセスの設定読み込み
-- `config/agent.toml` — Agent設定ファイル
-- `config/*_mcp_server.toml` — MCPサーバー設定ファイル
-- `config/crawler.toml` — crawler設定ファイル
-- `config/chunk_splitter.toml` — chunk_splitter設定ファイル
-- `config/ingester.toml` — ingester設定ファイル
-- `config/eventbus.toml` — EventBus設定ファイル
-- テスト — `tests/shared/test_config_loader.py`, `tests/agent/test_config_permission_cross_server.py`
+- `scripts/rag/ingestion/crawler.py` — configuration loading for the `crawler` process
+- `scripts/rag/ingestion/chunk_splitter.py` — configuration loading for the `chunk_splitter` process
+- `scripts/rag/ingestion/ingester.py` — configuration loading for the `ingester` process
+- `config/agent.toml` — Agent configuration file
+- `config/*_mcp_server.toml` — MCP server configuration files
+- `config/crawler.toml` — crawler configuration file
+- `config/chunk_splitter.toml` — chunk_splitter configuration file
+- `config/ingester.toml` — ingester configuration file
+- `config/eventbus.toml` — EventBus configuration file
+- Tests — `tests/shared/test_config_loader.py`, `tests/agent/test_config_permission_cross_server.py`
 
 ## Impact of REQ-001
 
@@ -463,25 +463,25 @@ REQ-005 adds a per-process required-file/required-key/empty-allowed-key table to
 
 ## Completion Checklist
 
-ADRをAcceptedへ変更する前に確認する。
+Confirm the following before changing the ADR to Accepted.
 
-- [x] 解決する問題が明確である
-- [x] Decisionが1つの主要な設計判断に絞られている
-- [x] Decisionが必須、禁止、正本、Fallback条件などの明確な表現で記載されている
-- [x] 採用理由が現在の実装以外の観点で説明されている
-- [x] 実質的な代替案と不採用理由が記載されている
-- [x] Positive Consequencesが記載されている
-- [x] Negative Consequencesが記載されている
-- [x] Securityへの影響が評価されている
-- [x] Operations、Monitoring、Recoveryへの影響が評価されている
-- [x] 検証可能なInvariantsが定義されている
-- [x] Exceptionsまたは適用対象外が明確である
-- [x] 各InvariantにVerificationが対応している
-- [x] 自動化可能な検証がManual Reviewだけになっていない
-- [x] Migrationまたは移行不要の理由が記載されている
-- [x] 既存ADRとの関係が記載されている
-- [x] 関係するSpecificationと矛盾していない
-- [ ] 現行実装との差異がKnown Issueへ登録されている
-- [ ] Ownerと必要なReviewerが定義されている
-- [ ] Review Triggersが記載されている
-- [ ] ADR索引と関係領域のDocument Guideへ登録されている
+- [x] The problem to solve is clear
+- [x] The Decision is narrowed to one primary design decision
+- [x] The Decision is stated in clear terms such as mandatory, prohibited, canonical, or Fallback conditions
+- [x] The reasons for adoption are explained from perspectives other than the current implementation
+- [x] Substantive alternatives and the reasons for rejecting them are recorded
+- [x] Positive Consequences are recorded
+- [x] Negative Consequences are recorded
+- [x] The impact on Security has been evaluated
+- [x] The impact on Operations, Monitoring, and Recovery has been evaluated
+- [x] Verifiable Invariants are defined
+- [x] Exceptions or out-of-scope cases are clear
+- [x] Each Invariant has a corresponding Verification
+- [x] Automatable verification does not rely only on Manual Review
+- [x] Migration, or the reason no migration is needed, is recorded
+- [x] The relationship with existing ADRs is recorded
+- [x] The ADR does not contradict related Specifications
+- [ ] Discrepancies with the current implementation are registered as Known Issues
+- [ ] The Owner and required Reviewers are defined
+- [ ] Review Triggers are recorded
+- [ ] The ADR is registered in the ADR index and the Document Guides of related areas

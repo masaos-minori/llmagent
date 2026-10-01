@@ -18,12 +18,12 @@ related:
 
 Accepted
 
-使用可能なStatusは次のとおりとする。
+The available Status values are as follows.
 
-- `Proposed`: 提案中、レビューまたは承認前
-- `Accepted`: 採用済みであり、現行設計として有効
+- `Proposed`: Under proposal; before review or approval
+- `Accepted`: Adopted and effective as the current design
 
-Accepted後に現在の判断を変更する場合は、本ADR本文を直接更新する。同じ変更の中で、影響を受けるSpecification、Reference、Operations文書および検証要件を更新する。
+To change the current decision after acceptance, update this ADR body directly. In the same change, update the affected Specification, Reference, and Operations documents and the verification requirements.
 
 ## Summary
 
@@ -114,13 +114,13 @@ Run the corresponding `tools/generate_reference_table.py --type <domain>` genera
 Agent (`docs/agent_13_reference-api.md`) and EventBus (`docs/eventbus_10_reference_api.md`)
 have both been migrated to generated Reference-class status under Option B.
 
-この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
+This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
 ## Known Deviations
 
-対象外 — no existing Reference-class document has yet been migrated to generated status under this decision.
+Not applicable — no existing Reference-class document has yet been migrated to generated status under this decision.
 
-ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 ## Review Triggers
 
@@ -148,21 +148,21 @@ This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance E
 
 ## Completion Checklist
 
-ADRをAcceptedへ変更する前に確認する。
+Confirm the following before changing the ADR to Accepted.
 
-- [x] 解決する問題が明確である
-- [x] Decisionが1つの主要な設計判断に絞られている
-- [x] Decisionが必須、禁止、正本、Fallback条件などの明確な表現で記載されている
-- [x] 採用理由が現在の実装以外の観点で説明されている
-- [x] 実質的な代替案と不採用理由が記載されている
-- [x] Positive Consequencesが記載されている
-- [x] Negative Consequencesが記載されている
-- [ ] Securityへの影響が評価されている（対象外 — 本ADRはガバナンス文書の分類方針のみを扱い、コードやランタイムに影響しない）
-- [ ] Operations、Monitoring、Recoveryへの影響が評価されている（対象外 — 同上）
-- [x] 検証可能なInvariantsが定義されている
-- [x] Exceptionsまたは適用対象外が明確である
-- [x] 各InvariantにVerificationが対応している
-- [x] 自動化可能な検証がManual Reviewだけになっていない（現時点では自動検証なし。将来のCI統合はReview Triggers対象）
-- [x] 現行実装との差異がKnown Issueへ登録されている（対象なし、Known Deviations参照）
-- [x] Ownerと必要なReviewerが定義されている（Approval Record参照 — Named Approval Recordによりレビュー実施済み）
-- [x] Review Triggersが記載されている
+- [x] The problem to solve is clear
+- [x] The Decision is narrowed to one primary design decision
+- [x] The Decision is stated in clear terms such as mandatory, prohibited, canonical, or Fallback conditions
+- [x] The reasons for adoption are explained from perspectives other than the current implementation
+- [x] Substantive alternatives and the reasons for rejecting them are recorded
+- [x] Positive Consequences are recorded
+- [x] Negative Consequences are recorded
+- [ ] The impact on Security has been evaluated (Not applicable — this ADR covers only the classification policy for governance documents and does not affect code or runtime)
+- [ ] The impact on Operations, Monitoring, and Recovery has been evaluated (Not applicable — same as above)
+- [x] Verifiable Invariants are defined
+- [x] Exceptions or out-of-scope cases are clear
+- [x] Each Invariant has a corresponding Verification
+- [x] Automatable verification does not rely only on Manual Review (no automated verification at present; future CI integration is a Review Trigger)
+- [x] Discrepancies with the current implementation are registered as Known Issues (none applicable; see Known Deviations)
+- [x] The Owner and required Reviewers are defined (see Approval Record — review completed through a Named Approval Record)
+- [x] Review Triggers are recorded

@@ -1,5 +1,5 @@
 ---
-title: "ADR-010: RAGの外部実行失敗時のインプロセスフォールバック"
+title: "ADR-010: In-Process Fallback When External RAG Execution Fails"
 area: governance
 tags:
   - rag
@@ -13,7 +13,7 @@ supersedes: []
 superseded_by: null
 ---
 
-# ADR-010: RAGの外部実行失敗時のインプロセスフォールバック
+# ADR-010: In-Process Fallback When External RAG Execution Fails
 
 ## Keywords
 <placeholder>
@@ -22,89 +22,89 @@ superseded_by: null
 
 Accepted
 
-使用可能なStatusは次のとおりとする。
+The available Status values are as follows.
 
-- `Proposed`: 提案中、レビューまたは承認前
-- `Accepted`: 採用済みであり、現行設計として有効
-- `Rejected`: 検討したが不採用
-- `Deprecated`: 現在は推奨しないが、一部に残存
-- `Superseded`: 後継ADRによって置換済み
+- `Proposed`: Under proposal; before review or approval
+- `Accepted`: Adopted and effective as the current design
+- `Rejected`: Considered but not adopted
+- `Deprecated`: No longer recommended, but partially remaining
+- `Superseded`: Replaced by a successor ADR
 
-Accepted後に判断内容を変更する場合は本文を直接変更せず、新しいADRを作成して本ADRをSupersededへ変更する。
+To change the decision after acceptance, do not edit the body directly; create a new ADR and change this ADR to Superseded.
 
 ## Summary
 
-RAGパイプラインの外部サービス実行失敗時に、インプロセスローカルRAGへ自動フォールバックする判断を正典化する。`rag_service_url`の有無で実行モードを切り替え、HTTPエラーと空結果を区別し、冪等な再実行を可能にする。DESIGN-1をADRへ移管する。
+This ADR canonicalizes the decision to fall back automatically to the in-process local RAG when execution of the RAG pipeline's external service fails. The execution mode is switched by whether `rag_service_url` is set, HTTP errors are distinguished from empty results, and idempotent re-execution is made possible. DESIGN-1 is transferred to this ADR.
 
 ## Context
 
 ### Problem
 
-RAGパイプラインは外部RAGサービスへの依存が高く、ネットワーク障害やサービス停止時に検索機能全体が停止する。また、空結果と技術的失敗の区別が明確でないため、適切なリカバリーが困難である。
+The RAG pipeline depends heavily on the external RAG service, so a network failure or a service outage stops the whole search function. In addition, because the distinction between an empty result and a technical failure is unclear, appropriate recovery is difficult.
 
 ### Constraints
 
-- 単一Host、複数プロセスでの実行を前提とする
-- デプロイ環境では起動前に各DBファイルが存在することを確認する必要がある
-- sqlite-vec拡張を使用するため、標準的なFK制約の一部が制限される
-- 日本語と英語/コードで異なるトークナイザ方式を使用する
+- Execution on a single host with multiple processes is assumed
+- In the deployment environment, the existence of each DB file must be confirmed before startup
+- Because the sqlite-vec extension is used, some standard FK constraints are restricted
+- Different tokenizer approaches are used for Japanese and for English/code
 
 ### Assumptions
 
-- 対象環境：単一Host、複数プロセス
-- 想定規模：同時実行数は限定的
-- 信頼境界：各DB内でのみ権限を付与する
-- 外部依存先：なし（SQLiteはローカルファイル）
-- 前提が崩れた場合に再評価が必要な事項：複数Host構成、分散実行、外部イベントストア統合
+- Target environment: a single host, multiple processes
+- Expected scale: limited concurrency
+- Trust boundary: privileges are granted only within each DB
+- External dependencies: none (SQLite is a local file)
+- Items to re-evaluate if the assumptions no longer hold: multi-host configuration, distributed execution, integration with an external event store
 
 ## Decision
 
 ### Decision Details
 
-1. `rag_service_url`が設定されている場合、外部RAGサービスへHTTP POSTする。
-2. `rag_service_url`が未設定の場合、インプロセスローカルRAGを実行する。
-3. HTTP呼び出しは`call_rag_service()`で実行し、`timeout=10.0`で各試行を制御する。
-4. HTTPエラー（401, 403, 4xx, 5xx）と空結果（`""`）を区別する。
-5. 空結果は有効な結果として扱い、フォールバックをトリガーしない。
-6. 技術的失敗（タイムアウト、接続エラー、HTTPエラー）のみをフォールバック条件とする。
-7. フォールバック時はMQE → KNN/BM25 → RRF → Rerank → Augmentの全パイプラインを再実行する。
-8. 結果ソース（Remote/Local/Fallback）を追跡し、メトリクス・ログに記録する。
-9. 解析エラーはログに記録し、空結果として扱う。
-10. ローカルDBアクセスは`rag.sqlite`のみを使用する。
-11. 外部RAGとローカルRAGのコーパス差異を明記し、結果の一貫性を保証しないことを記載する。
-12. `remote_nonempty`, `remote_empty`, `in_process_fallback`, `ResultSource`, `HttpResultKind`の用語を定義する。
+1. When `rag_service_url` is set, an HTTP POST is sent to the external RAG service.
+2. When `rag_service_url` is not set, the in-process local RAG is executed.
+3. The HTTP call is made by `call_rag_service()`, and each attempt is controlled by `timeout=10.0`.
+4. HTTP errors (401, 403, 4xx, 5xx) are distinguished from empty results (`""`).
+5. An empty result is treated as a valid result and does not trigger fallback.
+6. Only technical failures (timeouts, connection errors, HTTP errors) are fallback conditions.
+7. On fallback, the whole pipeline MQE → KNN/BM25 → RRF → Rerank → Augment is re-executed.
+8. The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
+9. Parse errors are logged and treated as empty results.
+10. Local DB access uses only `rag.sqlite`.
+11. The corpus difference between the external RAG and the local RAG is documented, stating that result consistency is not guaranteed.
+12. The terms `remote_nonempty`, `remote_empty`, `in_process_fallback`, `ResultSource`, and `HttpResultKind` are defined.
 
 ### Scope
 
-- **対象コンポーネント**: `RagPipeline`, `call_rag_service()`, `AugmentStage`
-- **対象プロセス**: Agentプロセス、ingesterプロセス
-- **対象データ**: `rag.sqlite`, `session.sqlite`
-- **対象Environment Profile**: すべての環境（local/dev/production）
-- **対象APIまたは処理経路**: `RagPipeline.augment()`, `call_rag_service()`, `AugmentStage.run()`
+- **Target components**: `RagPipeline`, `call_rag_service()`, `AugmentStage`
+- **Target processes**: the Agent process and the ingester process
+- **Target data**: `rag.sqlite`, `session.sqlite`
+- **Target Environment Profile**: all environments (local/dev/production)
+- **Target APIs or processing paths**: `RagPipeline.augment()`, `call_rag_service()`, `AugmentStage.run()`
 
 ### Out of Scope
 
-- 個別のHTTPステータスコードの詳細なハンドリング
-- リトライポリシーの詳細なパラメータ
-- メトリクスの収集方法
-- ログの出力形式
-- コーパス同期のプロトコル
+- Detailed handling of individual HTTP status codes
+- Detailed parameters of the retry policy
+- How metrics are collected
+- Log output format
+- Corpus synchronization protocol
 
 ## Rationale
 
-### 1. 最重要の採用理由 — Availability
+### 1. Primary Reason for Adoption — Availability
 
-外部RAGサービスの障害時に検索機能が停止すると、ユーザー体験が大きく損なわれる。インプロセスフォールバックにより、可用性を維持できる。
+If the search function stops when the external RAG service fails, the user experience suffers greatly. In-process fallback maintains availability.
 
-### 2. 第2の採用理由 — Error Classification
+### 2. Second Reason for Adoption — Error Classification
 
-空結果と技術的失敗を区別することで、不要なフォールバックを防ぐ。空結果は「検索したが該当なし」であり、技術的失敗は「検索できなかった」という意味が異なる。
+Distinguishing empty results from technical failures prevents unnecessary fallback. The meanings differ: an empty result means "searched but nothing matched", while a technical failure means "could not search".
 
-### 3. 第3の採用理由 — Observability
+### 3. Third Reason for Adoption — Observability
 
-結果ソースを追跡することで、どの経路で結果が取得されたかを把握でき、デバッグと運用に役立つ。
+Tracking the result source makes it possible to know which path produced the result, which helps debugging and operations.
 
-「現行コードがこの方式で実装されているため」だけを採用理由にしない。
+Do not use "the current code is implemented this way" as the sole reason for adoption.
 
 ## Alternatives Considered
 
@@ -112,259 +112,259 @@ RAGパイプラインは外部RAGサービスへの依存が高く、ネット�
 
 #### Description
 
-外部RAGサービスが失敗した場合、エラーを返す。
+Return an error when the external RAG service fails.
 
 #### Advantages
 
-- シンプルな実装
-- 結果の一貫性が確保される
+- Simple implementation
+- Result consistency is ensured
 
 #### Disadvantages
 
-- 可用性が低下する
-- ユーザー体験が悪化する
+- Availability decreases
+- The user experience deteriorates
 
 #### Reason for Rejection
 
-Availabilityを優先し、外部サービスの障害時も検索機能を維持するため不採用とした。
+Rejected to prioritize Availability and keep the search function working even when the external service fails.
 
 #### Reconsideration Conditions
 
-- 結果の一貫性が必須となる場合
-- フォールバックによる混乱が生じる場合
+- Result consistency becomes mandatory
+- Fallback causes confusion
 
 ### Alternative B: Fallback Only on Specific Errors
 
 #### Description
 
-特定のHTTPステータスコード（例：5xx）のみをフォールバック条件とする。
+Make only specific HTTP status codes (for example, 5xx) fallback conditions.
 
 #### Advantages
 
-- 意図せぬフォールバックを防ぐ
-- 結果の一貫性が向上する
+- Prevents unintended fallback
+- Improves result consistency
 
 #### Disadvantages
 
-- ネットワーク障害などの他のエラーに対応できない
-- 複雑なルールが必要になる
+- Cannot handle other errors such as network failures
+- Requires complex rules
 
 #### Reason for Rejection
 
-Availabilityを優先し、すべての技術的失敗に対応するため不採用とした。
+Rejected to prioritize Availability and handle every technical failure.
 
 #### Reconsideration Conditions
 
-- 特定のエラーのみをフォールバック条件とする必要がある場合
-- 結果の一貫性が重要となる場合
+- It becomes necessary to make only specific errors fallback conditions
+- Result consistency becomes important
 
 ### Alternative C: Separate Corpus for Local
 
 #### Description
 
-ローカルRAGと外部RAGで異なるコーパスを使用する。
+Use different corpora for the local RAG and the external RAG.
 
 #### Advantages
 
-- 結果の一貫性が確保される
-- コーパスの独立性が向上する
+- Result consistency is ensured
+- Corpus independence improves
 
 #### Disadvantages
 
-- コーパスの同期が複雑になる
-- データの冗長性が増加する
+- Corpus synchronization becomes complex
+- Data redundancy increases
 
 #### Reason for Rejection
 
-Availabilityを優先し、コーパスの同期コストを回避するため不採用とした。
+Rejected to prioritize Availability and avoid the cost of corpus synchronization.
 
 #### Reconsideration Conditions
 
-- 結果の一貫性が必須となる場合
-- コーパスの同期コストが許容範囲内となる場合
+- Result consistency becomes mandatory
+- The cost of corpus synchronization becomes acceptable
 
 ## Consequences
 
 ### Positive Consequences
 
-- 外部RAGサービスの障害時も検索機能が継続する
-- 空結果と技術的失敗の区別が可能になる
-- 結果ソースを追跡できる
-- デバッグと運用が容易になる
+- The search function continues even when the external RAG service fails
+- Empty results can be distinguished from technical failures
+- The result source can be tracked
+- Debugging and operations become easier
 
 ### Negative Consequences
 
-- フォールバック時のパフォーマンスが低下する可能性がある
-- 結果の一貫性が保証されない
-- コーパスの同期コストが発生する
-- 複雑なエラー分類が必要になる
+- Performance may degrade during fallback
+- Result consistency is not guaranteed
+- Corpus synchronization costs arise
+- Complex error classification is required
 
 ### Operational Consequences
 
-- 起動時にフォールバック状態が確認される
-- 障害発生時に手動コマンドが必要
-- メトリクスとログの確認が必要
+- The fallback state is checked at startup
+- Manual commands are required when a failure occurs
+- Metrics and logs must be checked
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ### Security Consequences
 
-- 信頼境界：各DB内でのみ権限を付与する
-- 認証、認可：設定ファイルに基づく権限判定
-- Secretの取扱い：最小公開原則に従う
-- Fail-Closed：設定ファイル欠落時は起動中止
-- Audit Log：設定読み込みイベントの記録
+- Trust boundary: privileges are granted only within each DB
+- Authentication and authorization: permission decisions based on configuration files
+- Secret handling: follow the principle of minimal exposure
+- Fail-Closed: abort startup when a configuration file is missing
+- Audit Log: record configuration loading events
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ## Invariants
 
-- INV-01: `rag_service_url`の有無で実行モードを切り替える。
-- INV-02: HTTP呼び出しは`timeout=10.0`で各試行を制御する。
-- INV-03: 空結果は有効な結果として扱い、フォールバックをトリガーしない。
-- INV-04: 技術的失敗（タイムアウト、接続エラー、HTTPエラー）のみをフォールバック条件とする。
-- INV-05: フォールバック時はMQE → KNN/BM25 → RRF → Rerank → Augmentの全パイプラインを再実行する。
-- INV-06: 結果ソース（Remote/Local/Fallback）を追跡し、メトリクス・ログに記録する。
-- INV-07: 解析エラーはログに記録し、空結果として扱う。
-- INV-08: ローカルDBアクセスは`rag.sqlite`のみを使用する。
-- INV-09: 外部RAGとローカルRAGのコーパス差異を明記し、結果の一貫性を保証しないことを記載する。
-- INV-10: `remote_nonempty`, `remote_empty`, `in_process_fallback`, `ResultSource`, `HttpResultKind`の用語を定義する。
+- INV-01: The execution mode is switched by whether `rag_service_url` is set.
+- INV-02: Each HTTP call attempt is controlled by `timeout=10.0`.
+- INV-03: An empty result is treated as a valid result and does not trigger fallback.
+- INV-04: Only technical failures (timeouts, connection errors, HTTP errors) are fallback conditions.
+- INV-05: On fallback, the whole pipeline MQE → KNN/BM25 → RRF → Rerank → Augment is re-executed.
+- INV-06: The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
+- INV-07: Parse errors are logged and treated as empty results.
+- INV-08: Local DB access uses only `rag.sqlite`.
+- INV-09: The corpus difference between the external RAG and the local RAG is documented, stating that result consistency is not guaranteed.
+- INV-10: The terms `remote_nonempty`, `remote_empty`, `in_process_fallback`, `ResultSource`, and `HttpResultKind` are defined.
 
 ## Exceptions
 
-なし
+None
 
 ## Failure Policy
 
 ### Fail-Fast Conditions
 
-- `rag.sqlite`の接続失敗時（RAG機能停止）
-- `session.sqlite`の接続失敗時（セッション機能停止）
-- ローカルRAGのパイプライン実行失敗時
+- When the `rag.sqlite` connection fails (RAG functionality stops)
+- When the `session.sqlite` connection fails (session functionality stops)
+- When local RAG pipeline execution fails
 
 ### Fail-Open or Degraded Conditions
 
-- ローカル開発環境では、軽微な整合性不一致は警告として記録される
-- localプロファイルでは、Health Check失敗はwarningとして記録され、特定サーバーが無効化される
+- In the local development environment, minor consistency mismatches are recorded as warnings
+- In the local profile, a Health Check failure is recorded as a warning and the specific server is disabled
 
 ### Retry Policy
 
-- Retry対象：インジェクション失敗
-- Retry回数：`retry_policy.max_attempts`（デフォルト3回）
-- Backoff：固定間隔（デフォルト1秒）
-- RetryしないError：整合性チェックの不一致
+- Retry target: ingestion failures
+- Retry count: `retry_policy.max_attempts` (default 3)
+- Backoff: fixed interval (default 1 second)
+- Errors not retried: consistency-check mismatches
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ### Fallback Policy
 
-- Fallback対象：技術的失敗
-- Fallback先：インプロセスローカルRAG
-- Fallbackを禁止する条件：整合性チェックの不一致
-- Fallback理由の記録先：監査ログ
+- Fallback target: technical failures
+- Fallback destination: the in-process local RAG
+- Conditions that prohibit Fallback: consistency-check mismatches
+- Where Fallback reasons are recorded: audit log
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ## Data Ownership and Persistence
 
-- **System of Record**: `rag.sqlite`（ローカル・リモート両RAGモードで共有）
-- **Derived Data**: 再生成可能な派生データ（FTS5、Vector Index）
-- **Ownership**: RAGチーム（正本の所有）
-- **Persistence**: ファイルシステム（`/opt/llm/db/`ディレクトリ）
-- **Transaction Boundary**: DB単位
-- **Recovery Source**: 各DBの手動復旧
-- **Deletion Rule**: 各DBの削除は独立して実行する
+- **System of Record**: `rag.sqlite` (shared by both the local and remote RAG modes)
+- **Derived Data**: regenerable derived data (FTS5, Vector Index)
+- **Ownership**: RAG team (owner of the canonical data)
+- **Persistence**: file system (`/opt/llm/db/` directory)
+- **Transaction Boundary**: per DB
+- **Recovery Source**: manual recovery of each DB
+- **Deletion Rule**: each DB is deleted independently
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ## Verification
 
 ### Automated Tests
 
-- **Test**: 外部RAGサービスが失敗したときにインプロセスローカルRAGへフォールバックすること
+- **Test**: Falls back to the in-process local RAG when the external RAG service fails
   - **Verifies**: INV-04
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: 空結果が有効な結果として扱われること
+- **Test**: An empty result is treated as a valid result
   - **Verifies**: INV-03
   - **Type**: Regression
   - **Blocking**: Yes
 
-- **Test**: 結果ソースが正しく追跡されること
+- **Test**: The result source is tracked correctly
   - **Verifies**: INV-06
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: フォールバック時のパイプラインが冪等に再実行されること
+- **Test**: The pipeline is re-executed idempotently on fallback
   - **Verifies**: INV-05
   - **Type**: Integration
   - **Blocking**: Yes
 
 ### Startup Validation
 
-- 起動時にフォールバック状態が確認される
-- 設定ファイルが有効か（parseable TOML、必須フィールド）
+- The fallback state is checked at startup
+- Whether configuration files are valid (parseable TOML, required fields)
 
 ### Deployment Validation
 
-- デプロイ前後にフォールバック状態の確認
-- デプロイ後の整合性チェックがPASSすること
+- Check the fallback state before and after deployment
+- The post-deployment consistency check passes
 
 ### Runtime Monitoring
 
-- Health Check：フォールバック状態
-- Metrics：フォールバック回数、結果ソース分布
-- Logs：フォールバックイベント、エラーイベント
-- Alert条件：`fallback_count > threshold`
-- Degraded条件：依存関係の障害
+- Health Check: fallback state
+- Metrics: fallback count, distribution of result sources
+- Logs: fallback events, error events
+- Alert conditions: `fallback_count > threshold`
+- Degraded condition: failure of a dependency
 
 ### Manual Review
 
-- デプロイメント前のフォールバック状態検証
+- Fallback state verification before deployment
 
-Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
+Register any Invariant without Verification as an unverified item in an Issue.
 
 ## Implementation Notes
 
-現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
+Briefly describe how the current implementation realizes the Decision.
 
 See Related Documents > Implementation References for the current file/symbol list.
 
-この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
+This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
-行番号は記載せず、File PathとSymbol名で参照する。
+Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-ADRと現行実装、設定、テスト、文書に差異がある場合に記載する。
+Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-- **Known Issue**: DESIGN-1 — 外部RAGとローカルRAGのコーパス差異が明記されていない。結果の一貫性が保証されないため、ユーザーが予期せぬ結果を得る可能性がある。
+- **Known Issue**: DESIGN-1 — The corpus difference between the external RAG and the local RAG is not documented. Because result consistency is not guaranteed, users may get unexpected results.
 - **Type**: Architectural Limitation
-- **Summary**: 外部RAGとローカルRAGのコーパス差異が明記されていない
-- **Impact**: ユーザーが予期せぬ結果を得る可能性がある
-- **Resolution Target**: ドキュメントでコーパス差異を明記する
+- **Summary**: The corpus difference between the external RAG and the local RAG is not documented
+- **Impact**: Users may get unexpected results
+- **Resolution Target**: Document the corpus difference
 
-ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 ## Review Triggers
 
-次の条件が発生した場合、このADRを再評価する。
+Re-evaluate this ADR when any of the following conditions occurs.
 
-- 運用規模または同時実行数が大きく変化した場合
-- 単一Hostから複数Hostまたは分散構成へ変更する場合
-- Security要件、監査要件が変更された場合
-- 性能目標またはResource制約が変更された場合
-- 外部Protocolまたは採用Libraryが変更、廃止された場合
-- 障害実績により前提またはFailure Policyが妥当でないと判明した場合
-- 代替案の不採用理由が成立しなくなった場合
+- The operational scale or concurrency changes significantly
+- The deployment changes from a single host to multiple hosts or a distributed configuration
+- Security or audit requirements change
+- Performance targets or resource constraints change
+- An external protocol or adopted library is changed or discontinued
+- Failure history shows that the assumptions or the Failure Policy are no longer valid
+- The reasons for rejecting an alternative no longer hold
 
-このADR固有の見直し条件を追加すること。
+Add review conditions specific to this ADR.
 
-- sqlite-vecがFK制約をサポートする場合
-- FTS5が標準的なDELETEをサポートする場合
-- 共通設定ファイルの新設が必要となった場合
-- 永続化ストレージがファイル以外へ移行された場合
+- sqlite-vec supports FK constraints
+- FTS5 supports standard DELETE
+- A new shared configuration file becomes necessary
+- Persistent storage moves to something other than files
 
 ## Approval
 
@@ -372,33 +372,33 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - Architecture Owner
 - Affected Component Owner
-- Security Reviewer: セキュリティ影響がある場合
-- Operations Reviewer: 運用、監視、復旧へ影響する場合
-- Data Owner: データ所有権、Schema、保持へ影響する場合
+- Security Reviewer: when there is a security impact
+- Operations Reviewer: when operations, monitoring, or recovery are affected
+- Data Owner: when data ownership, schema, or retention are affected
 
 ### Approval Record
 
-- **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
-- **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
+- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
-本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
+This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
 ## Related Documents
 
 ### Related ADRs
 
-- ADR-002: プロセス単位の設定所有権とConfig Isolation
-- ADR-005: RAGの正本と派生インデックスの関係
+- ADR-002: Per-Process Configuration Ownership and Config Isolation
+- ADR-005: Relationship Between RAG Canonical Data and Derived Indexes
 
 ### Specifications
 
-- [RAG Query Pipeline](rag_05_9-rag-query-pipeline.md) — クエリパイプライン
-- [RAG Augment Stage](rag_05_10_augment-stage.md) — Augmentステージ
-- [RAG Error Handling Reference](../21_rag/rag_05_4-error-handling-reference.md) — エラーハンドリング
-- [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — 設定参照
-- [RAG Design Notes](../21_rag/rag_91_design_notes.md) — DESIGN-1ノート
-- [DB Schema Reference](../41_db/db_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
+- [RAG Query Pipeline](rag_05_9-rag-query-pipeline.md) — query pipeline
+- [RAG Augment Stage](rag_05_10_augment-stage.md) — Augment stage
+- [RAG Error Handling Reference](../21_rag/rag_05_4-error-handling-reference.md) — error handling
+- [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — configuration reference
+- [RAG Design Notes](../21_rag/rag_91_design_notes.md) — DESIGN-1 notes
+- [DB Schema Reference](../41_db/db_02_db_architecture_and_schema-schema-reference.md) — DB schema reference
 
 ### Operations
 
@@ -408,7 +408,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- なし
+- None
 
 ### Implementation References
 
@@ -417,30 +417,30 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`
 - `scripts/rag/stages/augment.py` — `AugmentStage.run()`
 - `rag.sqlite` — `documents`, `chunks`, `chunks_fts`, `chunks_vec`
-- トリガー — `chunks_ai`, `chunks_au`, `chunks_ad`
-- テスト — `tests/test_rag_pipeline.py`, `tests/test_rag_pipeline_stage.py`
+- Triggers — `chunks_ai`, `chunks_au`, `chunks_ad`
+- Tests — `tests/test_rag_pipeline.py`, `tests/test_rag_pipeline_stage.py`
 
 ## Completion Checklist
 
-ADRをAcceptedへ変更する前に確認する。
+Confirm the following before changing the ADR to Accepted.
 
-- [x] 解決する問題が明確である
-- [x] Decisionが1つの主要な設計判断に絞られている
-- [x] Decisionが必須、禁止、正本、Fallback条件などの明確な表現で記載されている
-- [x] 採用理由が現在の実装以外の観点で説明されている
-- [x] 実質的な代替案と不採用理由が記載されている
-- [x] Positive Consequencesが記載されている
-- [x] Negative Consequencesが記載されている
-- [x] Securityへの影響が評価されている
-- [x] Operations、Monitoring、Recoveryへの影響が評価されている
-- [x] 検証可能なInvariantsが定義されている
-- [x] Exceptionsまたは適用対象外が明確である
-- [x] 各InvariantにVerificationが対応している
-- [x] 自動化可能な検証がManual Reviewだけになっていない
-- [x] Migrationまたは移行不要の理由が記載されている
-- [x] 既存ADRとの関係が記載されている
-- [x] 関係するSpecificationと矛盾していない
-- [ ] 現行実装との差異がKnown Issueへ登録されている
-- [ ] Ownerと必要なReviewerが定義されている
-- [ ] Review Triggersが記載されている
-- [ ] ADR索引と関係領域のDocument Guideへ登録されている
+- [x] The problem to solve is clear
+- [x] The Decision is narrowed to one primary design decision
+- [x] The Decision is stated in clear terms such as mandatory, prohibited, canonical, or Fallback conditions
+- [x] The reasons for adoption are explained from perspectives other than the current implementation
+- [x] Substantive alternatives and the reasons for rejecting them are recorded
+- [x] Positive Consequences are recorded
+- [x] Negative Consequences are recorded
+- [x] The impact on Security has been evaluated
+- [x] The impact on Operations, Monitoring, and Recovery has been evaluated
+- [x] Verifiable Invariants are defined
+- [x] Exceptions or out-of-scope cases are clear
+- [x] Each Invariant has a corresponding Verification
+- [x] Automatable verification does not rely only on Manual Review
+- [x] Migration, or the reason no migration is needed, is recorded
+- [x] The relationship with existing ADRs is recorded
+- [x] The ADR does not contradict related Specifications
+- [ ] Discrepancies with the current implementation are registered as Known Issues
+- [ ] The Owner and required Reviewers are defined
+- [ ] Review Triggers are recorded
+- [ ] The ADR is registered in the ADR index and the Document Guides of related areas

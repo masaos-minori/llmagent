@@ -21,12 +21,12 @@ related:
 
 Accepted
 
-使用可能なStatusは次のとおりとする。
+The available Status values are as follows.
 
-- `Proposed`: 提案中、レビューまたは承認前
-- `Accepted`: 採用済みであり、現行設計として有効
+- `Proposed`: Under proposal; before review or approval
+- `Accepted`: Adopted and effective as the current design
 
-Accepted後に現在の判断を変更する場合は、本ADR本文を直接更新する。同じ変更の中で、影響を受けるSpecification、Reference、Operations文書および検証要件を更新する。
+To change the current decision after acceptance, update this ADR body directly. In the same change, update the affected Specification, Reference, and Operations documents and the verification requirements.
 
 ## Summary
 
@@ -272,15 +272,15 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 See Related Documents > Implementation References for the current file/symbol list.
 
-この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
+This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
-行番号は記載せず、File PathとSymbol名で参照する。
+Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
 `docs/governance_03_issue-and-uncertainty-management.md`'s EVENTBUS-008 (No Production Authentication Model for Event Bus HTTP API, High severity, resolved 2026-09-14) and CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, resolved 2026-09-15) are both resolved. Residual gaps from EVENTBUS-008 (token with no configured consumer_id allowlist entry has consumer-identity validation skipped — fail-open) are tracked separately in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`.
 
-ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 ## Review Triggers
 
@@ -297,11 +297,11 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Approval Record
 
-- **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
-- **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
+- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
-本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
+This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
 ## Related Documents
 
@@ -324,7 +324,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/mcp_servers/audit.py` — `AuditRecord` (precedent pattern)
 - `scripts/eventbus/app.py` — middleware registration
 - `scripts/eventbus/config.py` — fail-closed validation
-- テスト — `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`
+- Tests — `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`
 
 ## Keywords
 
@@ -337,22 +337,22 @@ four-role-model
 
 ## Completion Checklist
 
-ADRをAcceptedへ変更する前に確認する。
+Confirm the following before changing the ADR to Accepted.
 
-- [x] 解決する問題が明確である
-- [x] Decisionが1つの主要な設計判断に絞られている
-- [x] Decisionが必須、禁止、正本、Fallback条件などの明確な表現で記載されている
-- [x] 採用理由が現在の実装以外の観点で説明されている
-- [x] 実質的な代替案と不採用理由が記載されている
-- [x] Positive Consequencesが記載されている
-- [x] Negative Consequencesが記載されている
-- [x] Securityへの影響が評価されている
-- [x] Operations、Monitoring、Recoveryへの影響が評価されている
-- [x] 検証可能なInvariantsが定義されている
-- [x] Exceptionsまたは適用対象外が明確である
-- [x] 各InvariantにVerificationが対応している
-- [x] 自動化可能な検証がManual Reviewだけになっていない
-- [x] 現行実装との差異がKnown Issueへ登録されている
-- [x] Ownerと必要なReviewerが定義されている（`docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
-- [x] Review Triggersが記載されている
-- [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）
+- [x] The problem to solve is clear
+- [x] The Decision is narrowed to one primary design decision
+- [x] The Decision is stated in clear terms such as mandatory, prohibited, canonical, or Fallback conditions
+- [x] The reasons for adoption are explained from perspectives other than the current implementation
+- [x] Substantive alternatives and the reasons for rejecting them are recorded
+- [x] Positive Consequences are recorded
+- [x] Negative Consequences are recorded
+- [x] The impact on Security has been evaluated
+- [x] The impact on Operations, Monitoring, and Recovery has been evaluated
+- [x] Verifiable Invariants are defined
+- [x] Exceptions or out-of-scope cases are clear
+- [x] Each Invariant has a corresponding Verification
+- [x] Automatable verification does not rely only on Manual Review
+- [x] Discrepancies with the current implementation are registered as Known Issues
+- [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
+- [x] Review Triggers are recorded
+- [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)

@@ -1,5 +1,5 @@
 ---
-title: "ADR-001: Workflow Engine必須化"
+title: "ADR-001: Mandatory Workflow Engine"
 area: governance
 tags:
   - system
@@ -11,7 +11,7 @@ related:
   - ADR-014-agent-control-plane-responsibility-boundaries.md
 ---
 
-# ADR-001: Workflow Engine必須化
+# ADR-001: Mandatory Workflow Engine
 
 ## Keywords
 <placeholder>
@@ -22,77 +22,77 @@ Accepted
 
 ## Summary
 
-Agentの実行状態、承認、再試行、検証、永続化、再起動後の復元を共通の状態モデルで管理するため、Workflow EngineをAgent実行の必須基盤とする。Agentによる外部状態変更、Tool実行、複数ステップ処理、承認を必要とする操作はすべてWorkflow Engineの管理下で実行する。Workflow無効化モードおよびWorkflowを迂回する直接実行経路は設けない。
+To manage the Agent's execution state, approvals, retries, verification, persistence, and post-restart recovery with a common state model, the Workflow Engine is the mandatory foundation for Agent execution. Every operation by the Agent that changes external state, executes a Tool, involves multiple steps, or requires approval runs under the management of the Workflow Engine. There is no workflow-disable mode and no direct execution path that bypasses the workflow.
 
 ## Context
 
 ### Problem
 
-このシステムはLLMが計画したタスクを実行する。一部のツールには副作用があり、一部の操作には承認が必要であり、ツール実行は観測可能かつ回復可能でなければならない。LLMからツールへの直接パスは監査と回復を困難にする。
+This system executes tasks planned by the LLM. Some tools have side effects, some operations require approval, and tool execution must be observable and recoverable. A direct path from the LLM to tools makes auditing and recovery difficult.
 
 ### Constraints
 
-- 単一ホスト、単一プロセスでの実行を前提とする
-- デプロイ環境では起動前にワークフロー定義ファイルが存在することを確認する必要がある
-- 外部Protocol、Library、Serviceによる制約はない
-- セキュリティ要件：すべての副作用のある操作は追跡可能でなければならない
-- データ整合性：承認状態はプロセス境界を超えて永続化する必要がある
+- Execution on a single host in a single process is assumed
+- In the deployment environment, the existence of the workflow definition file must be confirmed before startup
+- There are no constraints from external protocols, libraries, or services
+- Security requirement: every operation with side effects must be traceable
+- Data integrity: approval state must persist across process boundaries
 
 ## Assumptions
 
-- 対象環境：単一Host、単一Agentプロセス
-- 想定規模：同時実行数は限定的
-- 信頼境界：Agentプロセス内でのみ権限を付与する
-- 外部依存先：なし（ワークフロー定義はローカルファイル）
-- 前提が崩れた場合に再評価が必要な事項：複数Host構成、分散実行、外部ワークフローエンジン統合
+- Target environment: a single host, a single Agent process
+- Expected scale: limited concurrency
+- Trust boundary: privileges are granted only within the Agent process
+- External dependencies: none (the workflow definition is a local file)
+- Items to re-evaluate if the assumptions no longer hold: multi-host configuration, distributed execution, integration with an external workflow engine
 
 ## Decision
 
 ### Decision Details
 
-1. WorkflowEngineは必須である。ワークフロー定義ファイルはデプロイ必須成果物である。欠落または検証失敗時はAgent起動を中止する。
-2. Agentによる外部状態変更、Tool実行、複数ステップ処理、承認を必要とする操作はすべてWorkflow Engineの管理下で実行する。
-3. Workflow無効化モードを設けない。
-4. Workflowを迂回する直接実行経路を設けない。
-5. すべてのAgent処理は、単純な質問応答を含め、Workflow Engineの管理下に置かれる。処理が単純であることは、Workflow Engineを迂回する理由にはならない。
-6. 基本状態を`plan -> execute -> approval -> verify -> complete/failed`として定義する。承認不要時はapprovalを省略できるが、Workflow管理自体は省略しない。
-7. 実行成功と検証成功を区別する。
-8. Health Checkや起動前検証など、Workflow Engine自身の前提確認は適用対象外とする。
-9. Workflow状態（Task、Attempt、承認、処理済みEvent、Artifact）は`workflow.sqlite`に永続化される。Taskを削除する場合は、関連するAttempt、処理済みEvent、Artifact、承認をCascade削除する。
+1. The WorkflowEngine is mandatory. The workflow definition file is a mandatory deployment artifact. If it is missing or fails validation, Agent startup is aborted.
+2. Every operation by the Agent that changes external state, executes a Tool, involves multiple steps, or requires approval runs under the management of the Workflow Engine.
+3. There is no workflow-disable mode.
+4. There is no direct execution path that bypasses the workflow.
+5. All Agent processing, including simple question answering, is placed under the management of the Workflow Engine. Simplicity of processing is not a reason to bypass the Workflow Engine.
+6. The basic states are defined as `plan -> execute -> approval -> verify -> complete/failed`. When approval is not required, approval may be skipped, but workflow management itself is never skipped.
+7. Execution success and verification success are distinguished.
+8. The Workflow Engine's own precondition checks, such as Health Checks and pre-startup validation, are out of scope.
+9. Workflow state (Task, Attempt, approval, processed Event, Artifact) is persisted in `workflow.sqlite`. When a Task is deleted, its related Attempts, processed Events, Artifacts, and approvals are deleted by Cascade.
 
 ### Scope
 
-- **対象コンポーネント**: `Orchestrator`, `WorkflowEngine`, `WorkflowLoader`, `StateStore`
-- **対象プロセス**: Agentプロセス全体
-- **対象データ**: タスク状態、承認状態、イベント処理記録、アティファクト
-- **対象Environment Profile**: production（唯一サポートされる実行モード）
-- **対象APIまたは処理経路**: `handle_turn()`, `WorkflowEngine.run()`, `request_approval()`
+- **Target components**: `Orchestrator`, `WorkflowEngine`, `WorkflowLoader`, `StateStore`
+- **Target processes**: the entire Agent process
+- **Target data**: task state, approval state, event-processing records, artifacts
+- **Target Environment Profile**: production (the only supported execution mode)
+- **Target APIs or processing paths**: `handle_turn()`, `WorkflowEngine.run()`, `request_approval()`
 
 ### Out of Scope
 
-- 個別のワークフローステージ定義の詳細
-- 承認ポリシーのリデザイン
-- EventBus統合の導入
-- ランタイム動作の変更
-- ワークフロー定義ファイルのスキーマ設計
-- 監視・メトリクス設計
-- Production全体の障害方針（ADR-004が扱う）
+- Details of individual workflow stage definitions
+- Redesign of the approval policy
+- Introduction of EventBus integration
+- Changes to runtime behavior
+- Schema design of the workflow definition file
+- Monitoring and metrics design
+- The overall production failure policy (handled by ADR-004)
 
 ## Rationale
 
-### 1. 最重要の採用理由 — Correctness
+### 1. Primary Reason for Adoption — Correctness
 
-すべての副作用のある操作を追跡可能にし、承認状態をプロセス境界を超えて永続化する必要がある。直接実行経路は監査と回復を困難にする。
+Every operation with side effects must be traceable, and approval state must persist across process boundaries. A direct execution path makes auditing and recovery difficult.
 
-### 2. 第2の採用理由 — Recoverability
+### 2. Second Reason for Adoption — Recoverability
 
-部分タスク完了の検査と復旧には、永続化されたタスクおよび試行状態が必要である。ワークフロー管理がない場合、中断後の再開が不可能になる。
+Inspecting and recovering partially completed tasks requires persisted task and attempt state. Without workflow management, resuming after an interruption is impossible.
 
-### 3. 第3の採用理由 — Operability
+### 3. Third Reason for Adoption — Operability
 
-ツール実行はLLM会話状態にのみ依存すべきではない。ワークフロー管理により、実行パターンを一貫して予測可能にし、障害対応を簡素化する。
+Tool execution should not depend solely on the LLM conversation state. Workflow management makes execution patterns consistently predictable and simplifies incident response.
 
-「現行コードがこの方式で実装されているため」だけを採用理由にしない。
+Do not use "the current code is implemented this way" as the sole reason for adoption.
 
 ## Alternatives Considered
 
@@ -100,234 +100,234 @@ Agentの実行状態、承認、再試行、検証、永続化、再起動後の
 
 #### Description
 
-LLMからツールへの直接パスを許可し、ワークフロー管理を省略する。
+Allow a direct path from the LLM to tools and skip workflow management.
 
 #### Advantages
 
-- シンプルな構造
-- 低リスク操作のオーバーヘッド削減
+- Simple structure
+- Reduced overhead for low-risk operations
 
 #### Disadvantages
 
-- 監査と回復が困難になる
-- 承認/再試行ロジックに対する永続状態がない
-- 部分タスク完了の検査が不可能
+- Auditing and recovery become difficult
+- No persistent state for approval/retry logic
+- Partially completed tasks cannot be inspected
 
 #### Reason for Rejection
 
-CorrectnessとRecoverabilityを優先し、監査可能性と回復性を確保するため。
+To prioritize Correctness and Recoverability and to ensure auditability and recoverability.
 
 #### Reconsideration Conditions
 
-- 監査要件が大幅に緩和される場合
-- 回復性が不要となる場合
+- Audit requirements are significantly relaxed
+- Recoverability is no longer needed
 
 ### Alternative B: Optional workflow mode
 
 #### Description
 
-ワークフローモードをオプションとし、環境ごとに有効/無効を切り替え可能にする。
+Make workflow mode optional and allow enabling/disabling it per environment.
 
 #### Advantages
 
-- 開発の簡素化
-- 柔軟なデプロイメントオプション
+- Simpler development
+- Flexible deployment options
 
 #### Disadvantages
 
-- ワークフロー有効/無効間で振る舞いの不一致
-- オペレーターが実行パターンを予測できない
-- 監査トレイルと承認追跡が無効化時も必要
+- Inconsistent behavior between workflow-enabled and workflow-disabled modes
+- Operators cannot predict execution patterns
+- Audit trails and approval tracking are still needed when disabled
 
 #### Reason for Rejection
 
-OperabilityとData Integrityを優先し、環境固有のルールが混乱を引き起こすため不採用とした。
+Rejected to prioritize Operability and Data Integrity, because environment-specific rules cause confusion.
 
 #### Reconsideration Conditions
 
-- 運用規模が拡大し、ワークフロー管理のオーバーヘッドが許容範囲を超える場合
+- The operational scale grows and the overhead of workflow management exceeds an acceptable level
 
 ### Alternative C: Fallback execution when workflow definition is missing
 
 #### Description
 
-ワークフロー定義が欠落している場合、直接実行へフォールバックする。
+Fall back to direct execution when the workflow definition is missing.
 
 #### Advantages
 
-- 設定エラーの静かな軽減
-- 移行期間の柔軟性
+- Silent mitigation of configuration errors
+- Flexibility during a migration period
 
 #### Disadvantages
 
-- 設定エラーを隠蔽する
-- 起動失敗により即時フィードバックを提供しない
+- Hides configuration errors
+- Does not provide immediate feedback through a startup failure
 
 #### Reason for Rejection
 
-Fail-Fast原則を優先し、構成エラーを即時検出するため不採用とした。
+Rejected to prioritize the Fail-Fast principle and detect configuration errors immediately.
 
 #### Reconsideration Conditions
 
-- 大規模な移行期間が必要で、段階的展開が必須となる場合
+- A long migration period is required and a phased rollout becomes mandatory
 
 ### Alternative D: Ad-hoc per-tool approval without workflow state
 
 #### Description
 
-ワークフロー状態を使用せず、ツールレベルのアドホック承認のみで管理する。
+Manage approvals only through ad-hoc tool-level approval, without workflow state.
 
 #### Advantages
 
-- 単純な承認フロー
-- 低複雑性
+- Simple approval flow
+- Low complexity
 
 #### Disadvantages
 
-- 承認状態がプロセス再起動後も持続しない
-- どの承認がどの試行に適用されるかを追跡できない
-- バッチ結果検証ができない
+- Approval state does not survive a process restart
+- It cannot be tracked which approval applies to which attempt
+- Batch result verification is not possible
 
 #### Reason for Rejection
 
-RecoverabilityとData Integrityを優先し、プロセス境界を超えた状態永続化が必要であるため不採用とした。
+Rejected to prioritize Recoverability and Data Integrity, because state must persist across process boundaries.
 
 #### Reconsideration Conditions
 
-- 承認要件が大幅に簡素化され、バッチ検証が不要となる場合
+- Approval requirements are greatly simplified and batch verification is no longer needed
 
 ## Consequences
 
 ### Positive Consequences
 
-- すべての副作用のある操作を追跡可能
-- 承認状態がプロセス境界を超えて永続化
-- 再試行と冪等性挙動が中央で管理
-- 部分タスク完了が検査可能
-- 復旧に必要な永続タスクおよび試行状態がある
-- ワークフロー失敗がプラットフォーム失敗として扱われる
-- ワークフローイベント、承認イベント、エラーイベントがログに記録される
+- Every operation with side effects is traceable
+- Approval state persists across process boundaries
+- Retry and idempotency behavior are managed centrally
+- Partially completed tasks can be inspected
+- Persistent task and attempt state required for recovery is available
+- Workflow failures are treated as platform failures
+- Workflow events, approval events, and error events are logged
 
 ### Negative Consequences
 
-- デプロイメントにワークフロー定義ファイルが必要
-- 起動時にワークフローアーティファクトが不足すると失敗
-- ワークフロースキーマがサービス起動前に初期化される必要がある
-- シンプルなチャットとツールベースのタスクが同じ実行制御プレーンを共有
-- 起動時にワークフロー定義ファイルとDB Schemaの整合性確認が必要になり、障害対応時にはワークフロー状態の調査が必要になる
+- Deployment requires the workflow definition file
+- Startup fails when workflow artifacts are missing
+- The workflow schema must be initialized before service startup
+- Simple chat and tool-based tasks share the same execution control plane
+- Startup requires checking consistency between the workflow definition file and the DB Schema, and incident response requires investigating workflow state
 
 ## Invariants
 
-- INV-01: ワークフロー定義ファイルが欠落している場合、Agentの起動を中止する。
-- INV-02: Workflow Engineを迂回する外部状態変更経路は存在しない。
-- INV-03: 実行成功と検証成功は区別され、それぞれ独立して検証される。
-- INV-04: 承認待ち状態は再起動後に復元される。
-- INV-05: ワークフロー定義ファイルの検証失敗時は起動を中止する。
-- INV-06: 必須DB Schema不整合時は起動を中止する。
-- INV-07: プロセス起動時、中断されたAttemptは`recover_stale_attempts()`により`failed`として復旧される。
-- INV-08: 各stage実行は`{task_id}:{stage_id}:{attempt}`の決定論的キーで冪等性が保証され、同一キーでの重複開始は`begin_stage_if_new()`により拒否される。attemptはretryごとに増分されるため、retryは別レコードとして扱われる（同一attempt番号内の重複開始のみが拒否対象）。
+- INV-01: If the workflow definition file is missing, Agent startup is aborted.
+- INV-02: No external state-change path bypasses the Workflow Engine.
+- INV-03: Execution success and verification success are distinguished and verified independently.
+- INV-04: Pending-approval state is restored after a restart.
+- INV-05: If the workflow definition file fails validation, startup is aborted.
+- INV-06: If the required DB Schema is inconsistent, startup is aborted.
+- INV-07: At process startup, interrupted Attempts are recovered as `failed` by `recover_stale_attempts()`.
+- INV-08: Each stage execution is guaranteed idempotent by the deterministic key `{task_id}:{stage_id}:{attempt}`, and a duplicate start with the same key is rejected by `begin_stage_if_new()`. Because the attempt number is incremented on each retry, a retry is treated as a separate record (only a duplicate start within the same attempt number is rejected).
 
 ## Verification
 
 ### Automated Tests
 
-- **Test**: ワークフロー定義欠落時の起動失敗テスト
+- **Test**: Startup-failure test when the workflow definition is missing
   - **Verifies**: INV-01
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: ワークフロー定義不正時の起動失敗テスト
+- **Test**: Startup-failure test when the workflow definition is invalid
   - **Verifies**: INV-05
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: 必須DB Schema不整合時の起動失敗テスト
+- **Test**: Startup-failure test when the required DB Schema is inconsistent
   - **Verifies**: INV-06
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: 承認待ち状態の再起動後復元テスト（`test_startup_recovered_approval_can_resume`）
+- **Test**: Test that pending-approval state is restored after a restart (`test_startup_recovered_approval_can_resume`)
   - **Verifies**: INV-04
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: Workflow Engine迂回の外部状態変更経路不存在テスト
+- **Test**: Test that no external state-change path bypasses the Workflow Engine
   - **Verifies**: INV-02
   - **Type**: Regression
   - **Blocking**: Yes
 
-- **Test**: `test_execute_success_verify_failure_marks_task_failed`（execute成功後にverifyが失敗した場合、タスク状態が`completed`ではなく`failed`になることを確認）
+- **Test**: `test_execute_success_verify_failure_marks_task_failed` (confirms that when verify fails after a successful execute, the task state becomes `failed`, not `completed`)
   - **Verifies**: INV-03
   - **Type**: Unit
   - **Blocking**: Yes
 
-- **Test**: `recover_stale_attempts()`の楽観的ロック・復旧挙動テスト（`tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`）
+- **Test**: Optimistic-locking and recovery behavior test for `recover_stale_attempts()` (`tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`)
   - **Verifies**: INV-07
   - **Type**: Unit
   - **Blocking**: Yes
 
-- **Test**: `test_begin_stage_if_new_idempotent`（同一event_idでの`begin_stage_if_new()`二重開始が拒否されることを確認、`tests/agent/workflow/test_workflow_stage_persistence.py`, passing）
+- **Test**: `test_begin_stage_if_new_idempotent` (confirms that a double start of `begin_stage_if_new()` with the same event_id is rejected, `tests/agent/workflow/test_workflow_stage_persistence.py`, passing)
   - **Verifies**: INV-08
   - **Type**: Unit
   - **Blocking**: Yes
 
 ### Startup Validation
 
-- ワークフロー定義ファイルが存在するか
-- ワークフロー定義が有効か（parseable JSON、必須フィールド、ステージ、リトライポリシー）
-- 必須DBテーブルが存在するか
-- DBスキーマバージョンが一致するか
+- Whether the workflow definition file exists
+- Whether the workflow definition is valid (parseable JSON, required fields, stages, retry policy)
+- Whether the required DB tables exist
+- Whether the DB schema version matches
 
 ### Deployment Validation
 
-- デプロイ前後にワークフロー定義ファイルのSHA256チェックサムを確認
-- デプロイ後のワークフロー定義がソースと一致するか
+- Check the SHA256 checksum of the workflow definition file before and after deployment
+- Whether the deployed workflow definition matches the source
 
 ### Runtime Monitoring
 
-- Health Check：ワークフローエンジン自体のヘルスチェックは適用対象外
-- Metrics：ワークフローステータス、承認状態、試行状態
-- Logs：ワークフローイベント、承認イベント、エラーイベント
-- Alert条件：ワークフロー失敗、承認タイムアウト、Schema不整合
+- Health Check: health checks of the workflow engine itself are out of scope
+- Metrics: workflow status, approval state, attempt state
+- Logs: workflow events, approval events, error events
+- Alert conditions: workflow failure, approval timeout, Schema inconsistency
 
 ### Manual Review
 
-- ワークフロー定義の変更レビュー
-- 承認ポリシーの変更レビュー
-- デプロイメント前のワークフロー定義検証
+- Review of changes to the workflow definition
+- Review of changes to the approval policy
+- Workflow definition validation before deployment
 
-Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
+Register any Invariant without Verification as an unverified item in an Issue.
 
 ## Implementation Notes
 
-現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
+Briefly describe how the current implementation realizes the Decision.
 
 See Related Documents > Implementation References for the current file/symbol list.
 
-この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
+This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
-行番号は記載せず、File PathとSymbol名で参照する。
+Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-確認済みの差異なし
+No confirmed deviations.
 
-ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 ## Review Triggers
 
-次の条件が発生した場合、このADRを再評価する。
+Re-evaluate this ADR when any of the following conditions occurs.
 
-- 運用規模または同時実行数が大きく変化した場合
-- 単一Hostから複数Hostまたは分散構成へ変更する場合
-- Security要件、監査要件が変更された場合
-- 性能目標またはResource制約が変更された場合
-- 外部Protocolまたは採用Libraryが変更、廃止された場合
-- 障害実績により前提が妥当でないと判明した場合
-- 代替案の不採用理由が成立しなくなった場合
-- ワークフロー定義ファイルの形式が大幅に変更された場合
-- 承認モデルが根本的に変更された場合
-- 永続化ストレージがSQLite以外へ移行された場合
+- The operational scale or concurrency changes significantly
+- The deployment changes from a single host to multiple hosts or a distributed configuration
+- Security or audit requirements change
+- Performance targets or resource constraints change
+- An external protocol or adopted library is changed or discontinued
+- Failure history shows that the assumptions are no longer valid
+- The reasons for rejecting an alternative no longer hold
+- The format of the workflow definition file changes significantly
+- The approval model changes fundamentally
+- Persistent storage moves to something other than SQLite
 
 ## Approval
 
@@ -335,32 +335,32 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - Architecture Owner
 - Affected Component Owner
-- Security Reviewer: セキュリティ影響がある場合
-- Operations Reviewer: 運用、監視、復旧へ影響する場合
-- Data Owner: データ所有権、Schema、保持へ影響する場合
+- Security Reviewer: when there is a security impact
+- Operations Reviewer: when operations, monitoring, or recovery are affected
+- Data Owner: when data ownership, schema, or retention are affected
 
 ### Approval Record
 
-- **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
-- **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
+- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
-本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
+This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
 ## Related Documents
 
 ### Specifications
 
-- [Deployment Guide](../90_deployment/deployment_01_deployment.md) — デプロイメント時のワークフロー検証
+- [Deployment Guide](../90_deployment/deployment_01_deployment.md) — workflow validation during deployment
 <!-- TODO: Document 'agent_03_03_turn-processing-flow-workflow-engine.md' was deleted -->
 
 ### Operations
 
-- [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — 障害対応手順
+- [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — incident response procedure
 
 ### Known Issues
 
-- なし
+- None
 
 ### Implementation References
 
@@ -369,25 +369,25 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/agent/workflow/workflow_loader.py` — `WorkflowLoader.load()`
 - `scripts/agent/workflow/state_store.py` — `StateStore.recover_stale_attempts()`
 - `scripts/agent/workflow/idempotency_ops.py` — `begin_stage_if_new()`
-- `config/workflows/default.json` — ワークフロー定義ファイル
-- テスト — `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`
+- `config/workflows/default.json` — workflow definition file
+- Tests — `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`
 
 ## Completion Checklist
 
-ADRをAcceptedへ変更する前に確認する。
+Confirm the following before changing the ADR to Accepted.
 
-- [x] 解決する問題が明確である
-- [x] Decisionが1つの主要な設計判断に絞られている
-- [x] Decisionが必須、禁止、正本、Fallback条件などの明確な表現で記載されている
-- [x] 採用理由が現在の実装以外の観点で説明されている
-- [x] 実質的な代替案と不採用理由が記載されている
-- [x] Positive Consequencesが記載されている
-- [x] Negative Consequencesが記載されている
-- [x] 検証可能なInvariantsが定義されている
-- [x] 各InvariantにVerificationが対応している
-- [x] 自動化可能な検証がManual Reviewだけになっていない
-- [x] 関係するSpecificationと矛盾していない
-- [x] 現行実装との差異がKnown Issueへ登録されている
-- [x] Ownerと必要なReviewerが定義されている（`docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standardが定めるタスクレベル承認判断を受理証跡とする。個別のApproval Record［承認者・承認日・承認参照］は作成していない）
-- [x] Review Triggersが記載されている
-- [ ] ADR索引と関係領域のDocument Guideへ登録されている（別途確認が必要）
+- [x] The problem to solve is clear
+- [x] The Decision is narrowed to one primary design decision
+- [x] The Decision is stated in clear terms such as mandatory, prohibited, canonical, or Fallback conditions
+- [x] The reasons for adoption are explained from perspectives other than the current implementation
+- [x] Substantive alternatives and the reasons for rejecting them are recorded
+- [x] Positive Consequences are recorded
+- [x] Negative Consequences are recorded
+- [x] Verifiable Invariants are defined
+- [x] Each Invariant has a corresponding Verification
+- [x] Automatable verification does not rely only on Manual Review
+- [x] The ADR does not contradict related Specifications
+- [x] Discrepancies with the current implementation are registered as Known Issues
+- [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
+- [x] Review Triggers are recorded
+- [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)

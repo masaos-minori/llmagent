@@ -1,5 +1,5 @@
 ---
-title: "ADR-009: RAGのFTS5検索用テキストとLLM提示用テキスト分離"
+title: "ADR-009: Separating RAG FTS5 Search Text from LLM Presentation Text"
 area: governance
 tags:
   - rag
@@ -13,7 +13,7 @@ supersedes: []
 superseded_by: null
 ---
 
-# ADR-009: RAGのFTS5検索用テキストとLLM提示用テキスト分離
+# ADR-009: Separating RAG FTS5 Search Text from LLM Presentation Text
 
 ## Keywords
 <placeholder>
@@ -22,88 +22,88 @@ superseded_by: null
 
 Accepted
 
-使用可能なStatusは次のとおりとする。
+The available Status values are as follows.
 
-- `Proposed`: 提案中、レビューまたは承認前
-- `Accepted`: 採用済みであり、現行設計として有効
-- `Rejected`: 検討したが不採用
-- `Deprecated`: 現在は推奨しないが、一部に残存
-- `Superseded`: 後継ADRによって置換済み
+- `Proposed`: Under proposal; before review or approval
+- `Accepted`: Adopted and effective as the current design
+- `Rejected`: Considered but not adopted
+- `Deprecated`: No longer recommended, but partially remaining
+- `Superseded`: Replaced by a successor ADR
 
-Accepted後に判断内容を変更する場合は本文を直接変更せず、新しいADRを作成して本ADRをSupersededへ変更する。
+To change the decision after acceptance, do not edit the body directly; create a new ADR and change this ADR to Superseded.
 
 ## Summary
 
-検索品質のための正規化テキストと、LLMへ提示する可読な元テキストを分離し、それぞれの用途を不変条件として固定する。`chunks.content`をLLM向けテキストの正本とし、`chunks.normalized_content`をFTS5 Indexにのみ使用する派生データとして定義する。DESIGN-2をADRへ移管する。
+Normalized text for search quality is separated from the readable original text presented to the LLM, and the purpose of each is fixed as an invariant. `chunks.content` is defined as the canonical source of LLM-facing text, and `chunks.normalized_content` as derived data used only for the FTS5 Index. DESIGN-2 is transferred to this ADR.
 
 ## Context
 
 ### Problem
 
-日本語のBM25検索では形態素解析による正規化が必要だが、LLMへ提示する文脈には元の可読なテキストを使用する必要がある。両方のテキストを同じフィールドで管理すると、検索品質とLLMの理解可能性のトレードオフが生じる。
+Japanese BM25 search requires normalization by morphological analysis, but the context presented to the LLM must use the original readable text. Managing both texts in the same field creates a trade-off between search quality and LLM comprehensibility.
 
 ### Constraints
 
-- 単一SQLiteデータベース内で複数のテーブルが共存する
-- `chunks_fts`はFTS5仮想テーブルであり、標準的なFK制約をサポートしない
-- sqlite-vec拡張を使用するため、標準的なFK制約の一部が制限される
-- 日本語と英語/コードで異なるトークナイザ方式を使用する
+- Multiple tables coexist in a single SQLite database
+- `chunks_fts` is an FTS5 virtual table and does not support standard FK constraints
+- Because the sqlite-vec extension is used, some standard FK constraints are restricted
+- Different tokenizer approaches are used for Japanese and for English/code
 
 ### Assumptions
 
-- 対象環境：単一Host、単一SQLite
-- 想定規模：同時実行数は限定的
-- 信頼境界：SQLite内でのみ権限を付与する
-- 外部依存先：なし（SQLiteはローカルファイル）
-- 前提が崩れた場合に再評価が必要な事項：複数DB構成、分散実行、外部インデックスストア統合
+- Target environment: a single host, a single SQLite database
+- Expected scale: limited concurrency
+- Trust boundary: privileges are granted only within SQLite
+- External dependencies: none (SQLite is a local file)
+- Items to re-evaluate if the assumptions no longer hold: multi-DB configuration, distributed execution, integration with an external index store
 
 ## Decision
 
 ### Decision Details
 
-1. `chunks.content`は元の可読テキストであり、LLM Contextに使用する唯一のテキストである。
-2. `chunks.normalized_content`は検索用に正規化したテキストであり、FTS5 Indexにのみ使用する。
-3. FTS5は`COALESCE(normalized_content, content)`をIndex化する。
-4. 日本語はSudachiなどによる正規化値を使用できる。
-5. 英語、コード、正規化対象外は`normalized_content = NULL`とし、`content`へFallbackする。
-6. 正規化失敗時も`content`を保持する。
-7. `normalized_content`から元テキストを復元しない。
-8. FTS Triggerと手動再構築で同じテキスト選択規則を使用する。
-9. Tokenizerや正規化方式の変更がLLM向け元テキストを変更しない。
-10. Markdown見出しチャンクなど、日本語正規化を行わないケースの挙動を明記する。
-11. AugmentStageは`content`のみを出力し、`normalized_content`をLLM Contextへ出力しない。
+1. `chunks.content` is the original readable text and the only text used for the LLM Context.
+2. `chunks.normalized_content` is text normalized for search and is used only for the FTS5 Index.
+3. FTS5 indexes `COALESCE(normalized_content, content)`.
+4. Japanese text can use values normalized by Sudachi or similar tools.
+5. For English, code, and text not subject to normalization, `normalized_content = NULL`, falling back to `content`.
+6. `content` is kept even when normalization fails.
+7. The original text is not restored from `normalized_content`.
+8. The FTS Trigger and manual rebuilds use the same text-selection rule.
+9. Changes to the Tokenizer or normalization method do not change the original LLM-facing text.
+10. Document the behavior for cases where Japanese normalization is not performed, such as Markdown heading chunks.
+11. AugmentStage outputs only `content` and does not output `normalized_content` to the LLM Context.
 
 ### Scope
 
-- **対象コンポーネント**: `ChunkJapaneseMixin`, `AugmentStage`, `RagRepository`, `RagMaintenanceService`
-- **対象プロセス**: Agentプロセス、ingesterプロセス
-- **対象データ**: `chunks`テーブル、`chunks_fts`仮想テーブル
-- **対象Environment Profile**: すべての環境（local/dev/production）
-- **対象APIまたは処理経路**: `AugmentStage.run()`, `_format_chunks()`, `RagRepository.rebuild_fts()`
+- **Target components**: `ChunkJapaneseMixin`, `AugmentStage`, `RagRepository`, `RagMaintenanceService`
+- **Target processes**: the Agent process and the ingester process
+- **Target data**: the `chunks` table, the `chunks_fts` virtual table
+- **Target Environment Profile**: all environments (local/dev/production)
+- **Target APIs or processing paths**: `AugmentStage.run()`, `_format_chunks()`, `RagRepository.rebuild_fts()`
 
 ### Out of Scope
 
-- 個別のTokenizerの詳細な設定
-- Sudachiの辞書選択基準
-- ベクトル埋め込みモデルの選択基準
-- FTS5のトークナイザ設定の詳細
-- 検索結果のランキングアルゴリズム
+- Detailed configuration of individual Tokenizers
+- Selection criteria for Sudachi dictionaries
+- Selection criteria for the vector embedding model
+- Details of the FTS5 tokenizer configuration
+- Ranking algorithm for search results
 
 ## Rationale
 
-### 1. 最重要の採用理由 — Search Quality
+### 1. Primary Reason for Adoption — Search Quality
 
-日本語のBM25検索では形態素解析による正規化が必要であり、元のテキストのままでは検索精度が低下する。正規化されたテキストをFTS5にインデックスすることで、検索品質が向上する。
+Japanese BM25 search requires normalization by morphological analysis, and search accuracy drops if the original text is used as is. Indexing the normalized text in FTS5 improves search quality.
 
-### 2. 第2の採用理由 — LLM Usability
+### 2. Second Reason for Adoption — LLM Usability
 
-LLMへ提示する文脈には元の可読なテキストを使用する必要がある。正規化されたテキストをLLMへ提示すると、意味が失われ、LLMの理解可能性が低下する。
+The context presented to the LLM must use the original readable text. Presenting normalized text to the LLM loses meaning and reduces the LLM's comprehension.
 
-### 3. 第3の採用理由 — Data Integrity
+### 3. Third Reason for Adoption — Data Integrity
 
-正規化失敗時も`content`を保持することで、データの欠落を防ぐ。`normalized_content`から元テキストを復元できないため、`content`が常に信頼できる情報源となる。
+Keeping `content` even when normalization fails prevents data loss. Because the original text cannot be restored from `normalized_content`, `content` is always a reliable source of information.
 
-「現行コードがこの方式で実装されているため」だけを採用理由にしない。
+Do not use "the current code is implemented this way" as the sole reason for adoption.
 
 ## Alternatives Considered
 
@@ -111,210 +111,210 @@ LLMへ提示する文脈には元の可読なテキストを使用する必要�
 
 #### Description
 
-`content`のみを保持し、FTS5にもLLMにも同じテキストを使用する。
+Keep only `content` and use the same text for both FTS5 and the LLM.
 
 #### Advantages
 
-- シンプルな構造
-- データの冗長性がない
+- Simple structure
+- No data redundancy
 
 #### Disadvantages
 
-- 日本語検索の精度が低下する
-- 正規化と可読性のトレードオフがある
+- Lower Japanese search accuracy
+- A trade-off between normalization and readability
 
 #### Reason for Rejection
 
-Search QualityとLLM Usabilityを優先し、両方の要件を満たすため不採用とした。
+Rejected to prioritize Search Quality and LLM Usability and satisfy both requirements.
 
 #### Reconsideration Conditions
 
-- 日本語検索が必要なくなる場合
-- 正規化が不要となる場合
+- Japanese search is no longer needed
+- Normalization becomes unnecessary
 
 ### Alternative B: Normalize Both Fields
 
 #### Description
 
-`content`も正規化し、FTS5とLLMに同じ正規化テキストを使用する。
+Normalize `content` as well and use the same normalized text for FTS5 and the LLM.
 
 #### Advantages
 
-- シンプルな構造
-- データの一貫性が確保される
+- Simple structure
+- Data consistency is ensured
 
 #### Disadvantages
 
-- LLMの理解可能性が低下する
-- 元の可読テキストが失われる
+- Lower LLM comprehension
+- The original readable text is lost
 
 #### Reason for Rejection
 
-LLM Usabilityを優先し、LLMの理解可能性を保つため不採用とした。
+Rejected to prioritize LLM Usability and preserve LLM comprehension.
 
 #### Reconsideration Conditions
 
-- LLMが正規化テキストを理解可能である場合
-- 元の可読テキストが必要なくなる場合
+- The LLM can understand normalized text
+- The original readable text is no longer needed
 
 ### Alternative C: No COALESCE Fallback
 
 #### Description
 
-`normalized_content`がNULLの場合、FTS5検索をスキップする。
+Skip FTS5 search when `normalized_content` is NULL.
 
 #### Advantages
 
-- シンプルな実装
-- エラーが発生しない
+- Simple implementation
+- No errors occur
 
 #### Disadvantages
 
-- 英語/コードの検索ができない
-- 検索品質が不均一になる
+- English/code cannot be searched
+- Search quality becomes uneven
 
 #### Reason for Rejection
 
-Search Qualityを優先し、すべての言語の検索を可能にするため不採用とした。
+Rejected to prioritize Search Quality and enable search in all languages.
 
 #### Reconsideration Conditions
 
-- 英語/コードの検索が必要なくなる場合
-- 正規化が必須となる場合
+- English/code search is no longer needed
+- Normalization becomes mandatory
 
 ## Consequences
 
 ### Positive Consequences
 
-- 日本語検索の精度が向上する
-- LLMへの文脈提示品質が向上する
-- 正規化失敗時のデータ欠落が防止される
-- Tokenizerや正規化方式の変更がLLM向け元テキストに影響しない
+- Japanese search accuracy improves
+- The quality of context presented to the LLM improves
+- Data loss on normalization failure is prevented
+- Changes to the Tokenizer or normalization method do not affect the original LLM-facing text
 
 ### Negative Consequences
 
-- データの冗長性が増加する
-- 正規化パイプラインの複雑さが追加される
-- FTS5とLLMのテキストが異なるため、デバッグが困難になる
+- Data redundancy increases
+- The normalization pipeline adds complexity
+- Debugging becomes harder because FTS5 and the LLM use different text
 
 ### Operational Consequences
 
-- 起動時に整合性チェックが実行される
-- 不一致の修復には手動コマンドが必要
-- 再構築は`/session rag-rebuild-fts`または`ingester.py --force`で実行
+- A consistency check runs at startup
+- Repairing a mismatch requires a manual command
+- Rebuild with `/session rag-rebuild-fts` or `ingester.py --force`
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ### Security Consequences
 
-- 信頼境界：SQLite内でのみ権限を付与する
-- 認証、認可：設定ファイルに基づく権限判定
-- Secretの取扱い：最小公開原則に従う
-- Fail-Closed：設定ファイル欠落時は起動中止
-- Audit Log：設定読み込みイベントの記録
+- Trust boundary: privileges are granted only within SQLite
+- Authentication and authorization: permission decisions based on configuration files
+- Secret handling: follow the principle of minimal exposure
+- Fail-Closed: abort startup when a configuration file is missing
+- Audit Log: record configuration loading events
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ## Invariants
 
-- INV-01: `chunks.content`はLLM Contextに使用する唯一のテキストである。
-- INV-02: `chunks.normalized_content`はFTS5 Indexにのみ使用する。
-- INV-03: FTS5は`COALESCE(normalized_content, content)`をIndex化する。
-- INV-04: 英語、コード、正規化対象外は`normalized_content = NULL`とし、`content`へFallbackする。
-- INV-05: 正規化失敗時も`content`を保持する。
-- INV-06: `normalized_content`から元テキストを復元しない。
-- INV-07: FTS Triggerと手動再構築で同じテキスト選択規則を使用する。
-- INV-08: Tokenizerや正規化方式の変更がLLM向け元テキストを変更しない。
-- INV-09: Markdown見出しチャンクなど、日本語正規化を行わないケースの挙動を明記する。
-- INV-10: AugmentStageは`content`のみを出力し、`normalized_content`をLLM Contextへ出力しない。
+- INV-01: `chunks.content` is the only text used for the LLM Context.
+- INV-02: `chunks.normalized_content` is used only for the FTS5 Index.
+- INV-03: FTS5 indexes `COALESCE(normalized_content, content)`.
+- INV-04: For English, code, and text not subject to normalization, `normalized_content = NULL`, falling back to `content`.
+- INV-05: `content` is kept even when normalization fails.
+- INV-06: The original text is not restored from `normalized_content`.
+- INV-07: The FTS Trigger and manual rebuilds use the same text-selection rule.
+- INV-08: Changes to the Tokenizer or normalization method do not change the original LLM-facing text.
+- INV-09: The behavior for cases where Japanese normalization is not performed, such as Markdown heading chunks, is documented.
+- INV-10: AugmentStage outputs only `content` and does not output `normalized_content` to the LLM Context.
 
-INV-09の挙動: Markdown見出しチャンク（および日本語正規化対象外のその他のテキスト、
-`_is_markdown_source()`分岐で判定）は、取り込み時に`normalized_content = NULL`となる
-（`scripts/rag/ingestion/chunk_splitter.py::_build_text_triples()`）。FTS5はINV-04が
-定義する英語・コードチャンクと同じ`COALESCE(normalized_content, content)`規則により
-`content`へFallbackする。
+Behavior for INV-09: Markdown heading chunks (and other text not subject to Japanese normalization,
+determined by the `_is_markdown_source()` branch) get `normalized_content = NULL` at ingestion
+(`scripts/rag/ingestion/chunk_splitter.py::_build_text_triples()`). By the same
+`COALESCE(normalized_content, content)` rule as the English and code chunks defined by INV-04, FTS5
+falls back to `content`.
 
 ## Exceptions
 
-なし
+None
 
 ## Failure Policy
 
 ### Fail-Fast Conditions
 
-- 正規化失敗時（`normalized_content`の生成エラー）
-- FTS Triggerの同期失敗時
+- When normalization fails (an error generating `normalized_content`)
+- When FTS Trigger synchronization fails
 
 ### Fail-Open or Degraded Conditions
 
-- ローカル開発環境では、軽微な整合性不一致は警告として記録される
-- localプロファイルでは、Health Check失敗はwarningとして記録され、特定サーバーが無効化される
+- In the local development environment, minor consistency mismatches are recorded as warnings
+- In the local profile, a Health Check failure is recorded as a warning and the specific server is disabled
 
 ### Retry Policy
 
-- Retry対象：インジェクション失敗
-- Retry回数：`retry_policy.max_attempts`（デフォルト3回）
-- Backoff：固定間隔（デフォルト1秒）
-- RetryしないError：整合性チェックの不一致
+- Retry target: ingestion failures
+- Retry count: `retry_policy.max_attempts` (default 3)
+- Backoff: fixed interval (default 1 second)
+- Errors not retried: consistency-check mismatches
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ### Fallback Policy
 
-- Fallback対象：正規化失敗
-- Fallback先：`content`へFallback
-- Fallbackを禁止する条件：整合性チェックの不一致
-- Fallback理由の記録先：監査ログ
+- Fallback target: normalization failure
+- Fallback destination: fall back to `content`
+- Conditions that prohibit Fallback: consistency-check mismatches
+- Where Fallback reasons are recorded: audit log
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ## Data Ownership and Persistence
 
-- **System of Record**: `chunks`テーブル（`content` + `normalized_content`）
-- **Derived Data**: `chunks_fts`仮想テーブル
-- **Ownership**: RAGチーム（正本の所有）
-- **Persistence**: SQLiteファイルシステム
-- **Transaction Boundary**: チャンク単位
-- **Recovery Source**: 正本（`content` + `normalized_content`）
-- **Deletion Rule**: `chunks_vec` → `documents`（CASCADEで`chunks`、Triggerで`chunks_fts`）
+- **System of Record**: the `chunks` table (`content` + `normalized_content`)
+- **Derived Data**: the `chunks_fts` virtual table
+- **Ownership**: RAG team (owner of the canonical data)
+- **Persistence**: SQLite file system
+- **Transaction Boundary**: per chunk
+- **Recovery Source**: canonical data (`content` + `normalized_content`)
+- **Deletion Rule**: `chunks_vec` → `documents` (`chunks` via CASCADE, `chunks_fts` via Trigger)
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ## Verification
 
 ### Automated Tests
 
-- **Test**: 日本語のFTS5に正規化テキストが登録されること
+- **Test**: Normalized text is registered in FTS5 for Japanese
   - **Verifies**: INV-03
   - **Type**: Integration
   - **Blocking**: Yes
   - **Implementation**: `tests/rag/test_fts_fallback.py::TestEnglishFtsFallback`
 
-- **Test**: LLM Contextに元テキストが使用されること
+- **Test**: The original text is used for the LLM Context
   - **Verifies**: INV-01
   - **Type**: Integration
   - **Blocking**: Yes
   - **Implementation**: `tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_content_appears_in_output`
 
-- **Test**: 英語とコードでは`content`がFTS5に使用されること
+- **Test**: For English and code, `content` is used for FTS5
   - **Verifies**: INV-04
   - **Type**: Integration
   - **Blocking**: Yes
   - **Implementation**: `tests/rag/test_fts_fallback.py::TestCodeFtsFallback::test_code_search_returns_original_content`
 
-- **Test**: FTS再構築後も同じIndex内容になること
+- **Test**: The Index content is the same after an FTS rebuild
   - **Verifies**: INV-07
   - **Type**: Regression
   - **Blocking**: Yes
   - **Implementation**: `tests/rag/test_fts_sync.py::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`
 
-- **Test**: `normalized_content`がRAG Context Blockへ混入しないこと
+- **Test**: `normalized_content` does not leak into the RAG Context Block
   - **Verifies**: INV-02
   - **Type**: Integration
   - **Blocking**: Yes
   - **Implementation**: `tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_normalized_content_does_not_appear`
 
-- **Test**: AugmentStageが`content`のみを出力すること
+- **Test**: AugmentStage outputs only `content`
   - **Verifies**: INV-10
   - **Type**: Integration
   - **Blocking**: Yes
@@ -322,76 +322,76 @@ INV-09の挙動: Markdown見出しチャンク（および日本語正規化対�
 
 ### Startup Validation
 
-- 起動時に`check_rag_consistency()`が実行される
-- 不一致がある場合に警告が記録される
+- `check_rag_consistency()` runs at startup
+- A warning is recorded when there is a mismatch
 
 ### Deployment Validation
 
-- デプロイ前後に整合性チェックの結果を確認
-- デプロイ後の整合性チェックがPASSすること
+- Check the consistency-check results before and after deployment
+- The post-deployment consistency check passes
 
 ### Runtime Monitoring
 
-- Health Check：整合性チェックの結果
-- Metrics：`fts_gap`、`fts_orphan_count`
-- Logs：整合性チェックイベント、エラーイベント
-- Alert条件：`fts_orphan_count > 0`
-- Degraded条件：`fts_gap > 0`
+- Health Check: consistency-check results
+- Metrics: `fts_gap`, `fts_orphan_count`
+- Logs: consistency-check events, error events
+- Alert conditions: `fts_orphan_count > 0`
+- Degraded condition: `fts_gap > 0`
 
 ### Manual Review
 
-- 整合性チェックの不一致の調査
-- デプロイメント前の整合性チェック検証
+- Investigation of consistency-check mismatches
+- Consistency-check verification before deployment
 
-Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
+Register any Invariant without Verification as an unverified item in an Issue.
 
 ## Implementation Notes
 
-現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
+Briefly describe how the current implementation realizes the Decision.
 
 See Related Documents > Implementation References for the current file/symbol list.
 
-この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
+This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
-行番号は記載せず、File PathとSymbol名で参照する。
+Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-ADRと現行実装、設定、テスト、文書に差異がある場合に記載する。
+Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-- **Known Issue**: DESIGN-2 — `chunks_fts`は`chunks`から派生しているが、直接INSERT/UPDATEは禁止されている。ただし、アプリケーションコードが`chunks_fts`を直接操作する経路がないことを保証するテストは存在しない。
+- **Known Issue**: DESIGN-2 — `chunks_fts` is derived from `chunks`, and direct INSERT/UPDATE is prohibited. However, no test guarantees that there is no path in application code that manipulates `chunks_fts` directly.
 - **Type**: Architectural Limitation
-- **Summary**: `chunks_fts`の直接操作禁止を保証するテストが存在しない
-- **Impact**: 意図せぬ`chunks_fts`の更新が発生する可能性がある
-- **Resolution Target**: テストで直接操作を検出する
+- **Summary**: No test guarantees the prohibition on directly manipulating `chunks_fts`
+- **Impact**: An unintended update of `chunks_fts` could occur
+- **Resolution Target**: Detect direct manipulation with a test
 - **Status**: Resolved — `tools/check_chunks_fts_invariant.py` enforces the invariant via CI pipeline (`lint-chunks-ft` tox environment)
 - **Whitelist**: 
   - `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()` — sanctioned `/session rag-rebuild-fts` command path
   - `scripts/db/schema_sql.py` — schema initialization SQL (executed once during setup, not runtime)
 - **Excluded**: `scripts/mcp_servers/mdq/` — targets separate database `/opt/llm/db/mdq.sqlite`, out of ADR-009 scope
-- **Enforcement**: `tools/check_chunks_fts_invariant.py` で直接INSERT/UPDATEを検出（CI統合済み）
-  - Whitelist: `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()`（AST関数コンテキスト検出）、`scripts/db/schema_sql.py`（CREATE TRIGGERブロック内のINSERTはランタイム書き込みではないため除外）、`scripts/mcp_servers/mdq/`（別DB `/opt/llm/db/mdq.sqlite` を対象）
+- **Enforcement**: `tools/check_chunks_fts_invariant.py` detects direct INSERT/UPDATE (integrated into CI)
+  - Whitelist: `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()` (AST function-context detection), `scripts/db/schema_sql.py` (INSERTs inside CREATE TRIGGER blocks are excluded because they are not runtime writes), `scripts/mcp_servers/mdq/` (targets a separate DB, `/opt/llm/db/mdq.sqlite`)
 
-ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 ## Review Triggers
 
-次の条件が発生した場合、このADRを再評価する。
+Re-evaluate this ADR when any of the following conditions occurs.
 
-- 運用規模または同時実行数が大きく変化した場合
-- 単一Hostから複数Hostまたは分散構成へ変更する場合
-- Security要件、監査要件が変更された場合
-- 性能目標またはResource制約が変更された場合
-- 外部Protocolまたは採用Libraryが変更、廃止された場合
-- 障害実績により前提またはFailure Policyが妥当でないと判明した場合
-- 代替案の不採用理由が成立しなくなった場合
+- The operational scale or concurrency changes significantly
+- The deployment changes from a single host to multiple hosts or a distributed configuration
+- Security or audit requirements change
+- Performance targets or resource constraints change
+- An external protocol or adopted library is changed or discontinued
+- Failure history shows that the assumptions or the Failure Policy are no longer valid
+- The reasons for rejecting an alternative no longer hold
 
-このADR固有の見直し条件を追加すること。
+Add review conditions specific to this ADR.
 
-- sqlite-vecがFK制約をサポートする場合
-- FTS5が標準的なDELETEをサポートする場合
-- 共通設定ファイルの新設が必要となった場合
-- 永続化ストレージがファイル以外へ移行された場合
+- sqlite-vec supports FK constraints
+- FTS5 supports standard DELETE
+- A new shared configuration file becomes necessary
+- Persistent storage moves to something other than files
 
 ## Approval
 
@@ -399,36 +399,36 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - Architecture Owner
 - Affected Component Owner
-- Security Reviewer: セキュリティ影響がある場合
-- Operations Reviewer: 運用、監視、復旧へ影響する場合
-- Data Owner: データ所有権、Schema、保持へ影響する場合
+- Security Reviewer: when there is a security impact
+- Operations Reviewer: when operations, monitoring, or recovery are affected
+- Data Owner: when data ownership, schema, or retention are affected
 
 ### Approval Record
 
-- **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
-- **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
+- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
-本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
+This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
 ## Related Documents
 
 ### Related ADRs
 
-- ADR-002: プロセス単位の設定所有権とConfig Isolation
-- ADR-005: RAGの正本と派生インデックスの関係
+- ADR-002: Per-Process Configuration Ownership and Config Isolation
+- ADR-005: Relationship Between RAG Canonical Data and Derived Indexes
 
 ### Specifications
 
-- [RAG Data Model](../21_rag/rag_04_01_dto-models_data.md) — データモデル定義
-- [RAG Consistency Checks](../21_rag/rag_05_7-rag-index-consistency-checks.md) — 整合性チェック手順
-- [RAG MCP Internal Operations](../21_rag/rag_05_8-rag-mcp-internal-operations-direct-db-access.md) — MCP内部操作
-- [DB Schema Reference](../41_db/db_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
-- [Ingestion Pipeline Overview](../21_rag/rag_02_01_ingestion_pipeline-overview.md) — インジェクション概要
-- [Ingestion Pipeline - Ingester](../21_rag/rag_02_04_ingestion_pipeline-ingester.md) — Ingester詳細
-- [Ingestion Pipeline - Crawler](../21_rag/rag_02_02_ingestion_pipeline-crawler.md) — Crawler詳細
-- [Ingestion Pipeline - ChunkSplitter](../21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md) — ChunkSplitter詳細
-- [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — 設定参照
+- [RAG Data Model](../21_rag/rag_04_01_dto-models_data.md) — data model definitions
+- [RAG Consistency Checks](../21_rag/rag_05_7-rag-index-consistency-checks.md) — consistency-check procedure
+- [RAG MCP Internal Operations](../21_rag/rag_05_8-rag-mcp-internal-operations-direct-db-access.md) — MCP internal operations
+- [DB Schema Reference](../41_db/db_02_db_architecture_and_schema-schema-reference.md) — DB schema reference
+- [Ingestion Pipeline Overview](../21_rag/rag_02_01_ingestion_pipeline-overview.md) — ingestion overview
+- [Ingestion Pipeline - Ingester](../21_rag/rag_02_04_ingestion_pipeline-ingester.md) — Ingester details
+- [Ingestion Pipeline - Crawler](../21_rag/rag_02_02_ingestion_pipeline-crawler.md) — Crawler details
+- [Ingestion Pipeline - ChunkSplitter](../21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md) — ChunkSplitter details
+- [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — configuration reference
 
 ### Operations
 
@@ -436,7 +436,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- なし
+- None
 
 ### Implementation References
 
@@ -444,35 +444,35 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/agent/services/rag_maintenance_service.py` — `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`
 - `scripts/db/maintenance.py` — `check_rag_consistency()`
 - `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`
-- `documents`テーブル — `url` UNIQUE, `title`, `lang`, `fetched_at`, `etag`, `last_modified`, `chunking_strategy`
-- `chunks`テーブル — `content`, `normalized_content`, `chunk_index`, `chunk_type`, `doc_id` FK
-- `chunks_fts`仮想テーブル — FTS5トリガー同期
-- `chunks_vec`仮想テーブル — sqlite-vec KNNインデックス
-- トリガー — `chunks_ai`, `chunks_au`, `chunks_ad`
-- テスト — `tests/test_rag_index_integrity.py`（TEST-DESIGN3-01〜05）
-- テスト — `tests/test_fts_fallback.py`
+- `documents` table — `url` UNIQUE, `title`, `lang`, `fetched_at`, `etag`, `last_modified`, `chunking_strategy`
+- `chunks` table — `content`, `normalized_content`, `chunk_index`, `chunk_type`, `doc_id` FK
+- `chunks_fts` virtual table — FTS5 trigger synchronization
+- `chunks_vec` virtual table — sqlite-vec KNN index
+- Triggers — `chunks_ai`, `chunks_au`, `chunks_ad`
+- Tests — `tests/test_rag_index_integrity.py` (TEST-DESIGN3-01 to 05)
+- Tests — `tests/test_fts_fallback.py`
 
 ## Completion Checklist
 
-ADRをAcceptedへ変更する前に確認する。
+Confirm the following before changing the ADR to Accepted.
 
-- [x] 解決する問題が明確である
-- [x] Decisionが1つの主要な設計判断に絞られている
-- [x] Decisionが必須、禁止、正本、Fallback条件などの明確な表現で記載されている
-- [x] 採用理由が現在の実装以外の観点で説明されている
-- [x] 実質的な代替案と不採用理由が記載されている
-- [x] Positive Consequencesが記載されている
-- [x] Negative Consequencesが記載されている
-- [x] Securityへの影響が評価されている
-- [x] Operations、Monitoring、Recoveryへの影響が評価されている
-- [x] 検証可能なInvariantsが定義されている
-- [x] Exceptionsまたは適用対象外が明確である
-- [x] 各InvariantにVerificationが対応している
-- [x] 自動化可能な検証がManual Reviewだけになっていない
-- [x] Migrationまたは移行不要の理由が記載されている
-- [x] 既存ADRとの関係が記載されている
-- [x] 関係するSpecificationと矛盾していない
-- [ ] 現行実装との差異がKnown Issueへ登録されている
-- [ ] Ownerと必要なReviewerが定義されている
-- [ ] Review Triggersが記載されている
-- [ ] ADR索引と関係領域のDocument Guideへ登録されている
+- [x] The problem to solve is clear
+- [x] The Decision is narrowed to one primary design decision
+- [x] The Decision is stated in clear terms such as mandatory, prohibited, canonical, or Fallback conditions
+- [x] The reasons for adoption are explained from perspectives other than the current implementation
+- [x] Substantive alternatives and the reasons for rejecting them are recorded
+- [x] Positive Consequences are recorded
+- [x] Negative Consequences are recorded
+- [x] The impact on Security has been evaluated
+- [x] The impact on Operations, Monitoring, and Recovery has been evaluated
+- [x] Verifiable Invariants are defined
+- [x] Exceptions or out-of-scope cases are clear
+- [x] Each Invariant has a corresponding Verification
+- [x] Automatable verification does not rely only on Manual Review
+- [x] Migration, or the reason no migration is needed, is recorded
+- [x] The relationship with existing ADRs is recorded
+- [x] The ADR does not contradict related Specifications
+- [ ] Discrepancies with the current implementation are registered as Known Issues
+- [ ] The Owner and required Reviewers are defined
+- [ ] Review Triggers are recorded
+- [ ] The ADR is registered in the ADR index and the Document Guides of related areas

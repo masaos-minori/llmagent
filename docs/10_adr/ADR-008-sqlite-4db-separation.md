@@ -1,5 +1,5 @@
 ---
-title: "ADR-008: SQLiteを4DBへ分離する"
+title: "ADR-008: Separating SQLite into Four Databases"
 area: governance
 tags:
   - system
@@ -11,7 +11,7 @@ related:
   - ADR-002-config-isolation.md
 ---
 
-# ADR-008: SQLiteを4DBへ分離する
+# ADR-008: Separating SQLite into Four Databases
 
 ## Keywords
 <placeholder>
@@ -20,43 +20,43 @@ related:
 
 Accepted
 
-使用可能なStatusは次のとおりとする。
+The available Status values are as follows.
 
-- `Proposed`: 提案中、レビューまたは承認前
-- `Accepted`: 採用済みであり、現行設計として有効
+- `Proposed`: Under proposal; before review or approval
+- `Accepted`: Adopted and effective as the current design
 
-Accepted後に現在の判断を変更する場合は、本ADR本文を直接更新する。同じ変更の中で、影響を受けるSpecification、Reference、Operations文書および検証要件を更新する。
+To change the current decision after acceptance, update this ADR body directly. In the same change, update the affected Specification, Reference, and Operations documents and the verification requirements.
 
 ## Summary
 
-更新頻度、障害範囲、保持期間、復旧方法が異なるデータを4つのSQLite DBへ分離する判断を正典化する。`rag.sqlite`、`session.sqlite`、`workflow.sqlite`、`eventbus.sqlite`の責務を定義し、DB間Transactionを使用しないことと整合性確保方法を説明する。sqlite-vecの適用範囲を限定し、DBごとのBackup、Recovery、保持方針を整理する。あわせて、物理的破損からの復旧が満たすべき安全境界（障害分類、バックアップ候補の独立検証、Atomicな置換、Dry Runの無変更保証、永続化ドメインごとの復旧方針）を正典化する。
+This ADR canonicalizes the decision to separate data with different update frequencies, failure scopes, retention periods, and recovery methods into four SQLite DBs. It defines the responsibilities of `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, and `eventbus.sqlite`, and explains that cross-DB Transactions are not used and how consistency is ensured. It limits the scope of sqlite-vec and organizes the Backup, Recovery, and retention policy per DB. It also canonicalizes the safety boundary that recovery from physical corruption must satisfy (failure classification, independent verification of backup candidates, Atomic replacement, a no-change guarantee for Dry Run, and a recovery policy per persistence domain).
 
 ## Context
 
 ### Problem
 
-RAGインデックス、セッション状態、ワークフロー状態、イベントバス状態はそれぞれ異なる更新頻度、ロック競合特性、障害範囲、保持期間、復旧方法を持つ。単一DBで管理すると、WAL競合によるパフォーマンス劣化、障害の伝播、バックアップの複雑化が生じる。
+The RAG index, session state, workflow state, and event bus state each have different update frequencies, lock contention characteristics, failure scopes, retention periods, and recovery methods. Managing them in a single DB causes performance degradation from WAL contention, failure propagation, and more complex backups.
 
-また、複数のSQLiteファイルに分離した状態でも、復旧機構自体に明示的な安全契約がなければ危険である。DBが開けない原因（物理的破損か、一時的なロック競合か）を区別できない復旧機構は、実際には壊れていないDBに対しても実行され得るため、復旧機構が存在しない場合より危険になり得る。検証されていないバックアップからの復元や、対象DBを非Atomicに上書きする実装は、単一ファイルの破損インシデントを、破損した原本と正常なバックアップの両方を失うリスクへ変える。
+In addition, even when separated into multiple SQLite files, it is dangerous if the recovery mechanism itself has no explicit safety contract. A recovery mechanism that cannot distinguish why a DB cannot be opened (physical corruption or temporary lock contention) may run even against a DB that is not actually broken, so it can be more dangerous than having no recovery mechanism at all. An implementation that restores from an unverified backup or overwrites the target DB non-Atomically turns a single-file corruption incident into the risk of losing both the corrupted original and a good backup.
 
 ### Constraints
 
-- 単一Host、複数プロセスでの実行を前提とする
-- デプロイ環境では起動前に各DBファイルが存在することを確認する必要がある
-- sqlite-vec拡張は`rag.sqlite`だけにロードする必要がある
-- DB間で物理外部キー、SQL JOIN、分散Transactionを前提としない
-- WorkflowまたはEventBusの永続化失敗をログだけで成功扱いにしない
-- operator-restoreは現在、手動かつ運用者起動のCLI操作であり、起動時の自動処理ではない
-- マイグレーション機構は存在せず、Schema変更にはDB全体の再作成を要する（本ADRの対象外）
+- Execution on a single host with multiple processes is assumed
+- In the deployment environment, the existence of each DB file must be confirmed before startup
+- The sqlite-vec extension must be loaded only into `rag.sqlite`
+- Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed
+- A persistence failure in Workflow or EventBus is not treated as success with only a log entry
+- operator-restore is currently a manual, operator-initiated CLI operation, not an automatic process at startup
+- No migration mechanism exists; a Schema change requires recreating the whole DB (out of scope for this ADR)
 
 ### Assumptions
 
-- 対象環境：単一Host、複数プロセス
-- 想定規模：同時実行数は限定的
-- 信頼境界：各DB内でのみ権限を付与する
-- 外部依存先：なし（SQLiteはローカルファイル）
-- バックアップは定期的なファイルコピー（`rotate_all_dbs()`）であり、継続的に検証されたSnapshotではない
-- 前提が崩れた場合に再評価が必要な事項：複数Host構成、分散実行、外部イベントストア統合、レプリケーション型ストレージへの移行
+- Target environment: a single host, multiple processes
+- Expected scale: limited concurrency
+- Trust boundary: privileges are granted only within each DB
+- External dependencies: none (SQLite is a local file)
+- Backups are periodic file copies (`rotate_all_dbs()`), not continuously verified Snapshots
+- Items to re-evaluate if the assumptions no longer hold: multi-host configuration, distributed execution, integration with an external event store, migration to replicated storage
 
 ## Decision
 
@@ -97,64 +97,64 @@ For any future persistence domain not covered by this matrix, the default policy
 
 ### Decision Details
 
-1. `rag.sqlite`: documents、chunks、FTS5、Vector Indexの正本。RAGチームが所有。
-2. `session.sqlite`: Agent Session、Message、会話状態の正本。Agentチームが所有。
-3. `workflow.sqlite`: Task、Attempt、Approval、Artifact、処理済みEventの正本。Workflowチームが所有。
-4. `eventbus.sqlite`: Event、Offset、Delivery、DLQの正本。EventBusチームが所有。
-5. DB分離理由として、書込特性、ロック競合、障害分離、保持期間、復旧方法、拡張ロード範囲の違いを記載する。
-6. DB間で物理外部キー、SQL JOIN、分散Transactionを前提としない。
-7. DB間関連付けにはSession ID、Workflow ID、Event IDなどの論理IDを使用する。
-8. DB間整合性はEvent、冪等処理、状態照合で保証する。
-9. sqlite-vecは`rag.sqlite`だけにロードする。
-10. 各DBに独立したBackup、Recovery、WAL Checkpoint、Health Check、保持期間を定義する。
-11. RAGは再構築可能、Sessionは履歴保持、Workflowは再開と監査、EventBusは未処理EventとOffsetを重視する。
-12. WorkflowまたはEventBusの永続化失敗をログだけで成功扱いにしない。
-13. DB横断Transactionが困難になるトレードオフより、ロック競合回避、障害分離、復旧単純化を優先する理由を記載する。
-14. physical-recoveryは、アクションを選択する前にDB状態（healthy / confirmed corruption / lock contention / permission failure / invalid format / unknown）を分類しなければならない。Lock ContentionおよびPermission Failureを物理的破損として分類してはならない。
-15. リストア候補のバックアップは、対象DBを置き換える前に、それ自体の整合性を独立して検証しなければならない。
-16. リストアは候補を一時的な場所へStageし、検証したうえで、現行設計でサポートされる範囲においてのみ対象DBをAtomicに置換する。対象DBは、候補が検証に合格する前に上書きしてはならない。
-17. Unknownまたは分類不能な障害は、対象DBを保持し、自動リストアではなく運用者の介入を要求する。
-18. Dry Runは、いかなる分類結果であっても対象DBを移動、置換、Truncate、削除、書き換えしてはならない。
-19. 破損したDBは、置換を行う前に診断用として退避コピーを作成する。退避コピーの保持および削除は運用者の手動判断に委ねる。自動削除は行わない。
-20. 復旧方針は永続化ドメインごとに明示的に定義する。`rag.sqlite`は正本（`chunks`テーブル等）から再構築可能なため再構築による復旧を許容し、`session.sqlite`はバックアップからの復元を許容する。`workflow.sqlite`と`eventbus.sqlite`は自動リストアを禁止し、復旧は運用者による手動対応のみとする（サイレントな再初期化は行わない）。
+1. `rag.sqlite`: the canonical store for documents, chunks, FTS5, and the Vector Index. Owned by the RAG team.
+2. `session.sqlite`: the canonical store for Agent Sessions, Messages, and conversation state. Owned by the Agent team.
+3. `workflow.sqlite`: the canonical store for Tasks, Attempts, Approvals, Artifacts, and processed Events. Owned by the Workflow team.
+4. `eventbus.sqlite`: the canonical store for Events, Offsets, Delivery, and the DLQ. Owned by the EventBus team.
+5. As the reasons for DB separation, record the differences in write characteristics, lock contention, failure isolation, retention periods, recovery methods, and extension-loading scope.
+6. Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
+7. Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
+8. Cross-DB consistency is guaranteed by Events, idempotent processing, and state reconciliation.
+9. sqlite-vec is loaded only into `rag.sqlite`.
+10. Each DB defines its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period.
+11. RAG emphasizes rebuildability, Session emphasizes history retention, Workflow emphasizes resumption and auditing, and EventBus emphasizes unprocessed Events and Offsets.
+12. A persistence failure in Workflow or EventBus is not treated as success with only a log entry.
+13. Record the reasons for prioritizing avoidance of lock contention, failure isolation, and simpler recovery over the trade-off that cross-DB Transactions become difficult.
+14. physical-recovery must classify the DB state (healthy / confirmed corruption / lock contention / permission failure / invalid format / unknown) before choosing an action. Lock Contention and Permission Failure must not be classified as physical corruption.
+15. A backup that is a restore candidate must have its own integrity verified independently before it replaces the target DB.
+16. A restore Stages the candidate in a temporary location, verifies it, and then replaces the target DB Atomically only to the extent supported by the current design. The target DB must not be overwritten before the candidate passes verification.
+17. An Unknown or unclassifiable failure preserves the target DB and requires operator intervention instead of an automatic restore.
+18. Dry Run must not move, replace, Truncate, delete, or rewrite the target DB for any classification result.
+19. Before replacement, a corrupted DB is set aside as a diagnostic copy. Retention and deletion of the set-aside copy are left to the operator's manual judgment. No automatic deletion is performed.
+20. The recovery policy is defined explicitly per persistence domain. `rag.sqlite` can be rebuilt from its canonical data (the `chunks` table and so on), so recovery by rebuilding is permitted; `session.sqlite` permits restoring from a backup. `workflow.sqlite` and `eventbus.sqlite` prohibit automatic restore, and recovery is manual operator handling only (no silent re-initialization).
 
 ### Scope
 
-- **対象コンポーネント**: `DbConfig`, `SQLiteHelper`, `create_schema()`, `db/recovery.py`, `db/maintenance.py`
-- **対象プロセス**: Agentプロセス、ingesterプロセス、EventBusプロセス
-- **対象データ**: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`
-- **対象Environment Profile**: すべての環境（local/dev/production）
-- **対象APIまたは処理経路**: `DbConfig.rag_db_path`, `DbConfig.session_db_path`, `DbConfig.workflow_db_path`, `DbConfig.eventbus_db_path`, `recover_corruption()`
+- **Target components**: `DbConfig`, `SQLiteHelper`, `create_schema()`, `db/recovery.py`, `db/maintenance.py`
+- **Target processes**: the Agent process, the ingester process, the EventBus process
+- **Target data**: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`
+- **Target Environment Profile**: all environments (local/dev/production)
+- **Target APIs or processing paths**: `DbConfig.rag_db_path`, `DbConfig.session_db_path`, `DbConfig.workflow_db_path`, `DbConfig.eventbus_db_path`, `recover_corruption()`
 
 ### Out of Scope
 
-- 個別のDBスキーマの詳細
-- WAL Checkpointの詳細なパラメータ
-- Backupツールやスクリプトの実装
-- operator-restoreの自動（無人）起動化（現在は運用者起動のみであり、自動化は別途の判断を要する）
-- マイグレーション、Schemaバージョニング戦略
-- 継続的なバックアップ検証、レプリケーション設計
-- 監視・メトリクス設計（別ADRで扱う）
+- Details of individual DB schemas
+- Detailed WAL Checkpoint parameters
+- Implementation of Backup tools and scripts
+- Automatic (unattended) triggering of operator-restore (currently operator-initiated only; automation requires a separate decision)
+- Migration and Schema versioning strategy
+- Continuous backup verification and replication design
+- Monitoring and metrics design (handled by a separate ADR)
 
 ## Rationale
 
-### 1. 最重要の採用理由 — Operability
+### 1. Primary Reason for Adoption — Operability
 
-各DBが独立して初期化、接続、Checkpoint、Recoveryできるため、障害範囲が局所化される。1DBの破損が他DBの初期化、復旧を要求しない。
+Because each DB can be initialized, connected, Checkpointed, and Recovered independently, the failure scope is localized. Corruption of one DB does not require initialization or recovery of the other DBs.
 
-### 2. 第2の採用理由 — Performance
+### 2. Second Reason for Adoption — Performance
 
-更新頻度の異なるデータが同じDBにある場合、WAL競合によりパフォーマンスが劣化する。RAGは高書込・高読込、SessionはAppend-heavy、Workflowは低頻度だがトランザクション重要、EventBusはリアルタイム配信が優先される。これらの特性が異なるため、分離することでロック競合を回避できる。
+When data with different update frequencies is in the same DB, WAL contention degrades performance. RAG is write-heavy and read-heavy, Session is append-heavy, Workflow is low-frequency but transaction-critical, and EventBus prioritizes real-time delivery. Because these characteristics differ, separation avoids lock contention.
 
-### 3. 第3の採用理由 — Data Integrity
+### 3. Third Reason for Adoption — Data Integrity
 
-各DBに独立したBackup、Recovery、WAL Checkpoint、Health Check、保持期間を定義できる。RAGは再構築可能、Sessionは履歴保持、Workflowは再開と監査、EventBusは未処理EventとOffsetを重視するという違いに対応できる。検証されていないバックアップからの復元や非Atomicな上書きは、破損した原本と正常なバックアップの両方を失うリスクに変えるため、候補の独立検証とAtomicな置換を要件とする。
+Each DB can define its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period. This accommodates the differences: RAG emphasizes rebuildability, Session history retention, Workflow resumption and auditing, and EventBus unprocessed Events and Offsets. Because restoring from an unverified backup or a non-Atomic overwrite turns an incident into the risk of losing both the corrupted original and a good backup, independent verification of the candidate and Atomic replacement are required.
 
-### 4. 第4の採用理由 — Correctness（Recovery Safety）
+### 4. Fourth Reason for Adoption — Correctness (Recovery Safety)
 
-破損と一時的なロックを区別できない復旧機構は、実際には壊れていないDBに対して実行され得るため、復旧機構が存在しない場合より危険である。`workflow`/`eventbus`ドメインの復旧方針が未定義のままだと、それらのドメインで実際に障害が起きた際に運用者が取るべき行動が存在しないため、本ADRはこの方針を明示的に定める。
+A recovery mechanism that cannot distinguish corruption from a temporary lock may run even against a DB that is not actually broken, so it is more dangerous than having no recovery mechanism at all. If the recovery policy for the `workflow`/`eventbus` domains were left undefined, there would be no action for operators to take when a failure actually occurs in those domains, so this ADR defines that policy explicitly.
 
-「現行コードがこの方式で実装されているため」だけを採用理由にしない。
+Do not use "the current code is implemented this way" as the sole reason for adoption.
 
 ## Alternatives Considered
 
@@ -162,339 +162,339 @@ For any future persistence domain not covered by this matrix, the default policy
 
 #### Description
 
-すべてのデータを単一SQLite DBで管理する。
+Manage all data in a single SQLite DB.
 
 #### Advantages
 
-- シンプルな構造
-- DB間JOINが可能
-- トランザクションが容易
+- Simple structure
+- JOINs across DBs are possible
+- Transactions are easy
 
 #### Disadvantages
 
-- WAL競合によるパフォーマンス劣化
-- 障害の伝播
-- バックアップの複雑化
-- 保持期間の統一が必要
+- Performance degradation from WAL contention
+- Failure propagation
+- More complex backups
+- Retention periods must be unified
 
 #### Reason for Rejection
 
-OperabilityとPerformanceを優先し、ロック競合と障害の伝播を防ぐため不採用とした。
+Rejected to prioritize Operability and Performance and prevent lock contention and failure propagation.
 
 #### Reconsideration Conditions
 
-- 同時実行数が非常に少ない場合
-- DB間JOINが必要となる場合
+- Concurrency is very low
+- JOINs across DBs become necessary
 
 ### Alternative B: No sqlite-vec extension
 
 #### Description
 
-ベクトル検索にsqlite-vecを使用しない。
+Do not use sqlite-vec for vector search.
 
 #### Advantages
 
-- sqlite-vecの依存関係がない
-- 標準的なSQLiteのみで管理できる
+- No dependency on sqlite-vec
+- Can be managed with standard SQLite only
 
 #### Disadvantages
 
-- ベクトル検索のパフォーマンスが劣る
-- KNN検索が実現できない
-- 埋め込み検索の精度が低下
+- Inferior vector search performance
+- KNN search cannot be achieved
+- Lower embedding search accuracy
 
 #### Reason for Rejection
 
-Performanceを優先し、高精度なKNN検索を実現するため不採用とした。
+Rejected to prioritize Performance and achieve high-accuracy KNN search.
 
 #### Reconsideration Conditions
 
-- sqlite-vecが標準的なSQLite拡張としてサポートされる場合
-- ベクトル検索が必要なくなる場合
+- sqlite-vec becomes supported as a standard SQLite extension
+- Vector search is no longer needed
 
 ### Alternative C: Cross-database Transactions
 
 #### Description
 
-DB間のトランザクションを可能にする。
+Allow transactions across DBs.
 
 #### Advantages
 
-- 一貫性が確保される
-- 複合クエリが可能
+- Consistency is ensured
+- Composite queries are possible
 
 #### Disadvantages
 
-- 実装が複雑になる
-- パフォーマンスが劣化する
-- 障害範囲が拡大する
+- The implementation becomes complex
+- Performance degrades
+- The failure scope expands
 
 #### Reason for Rejection
 
-Operabilityを優先し、障害範囲の局所化のため不採用とした。
+Rejected to prioritize Operability and keep the failure scope localized.
 
 #### Reconsideration Conditions
 
-- DB間の一貫性が必須となる場合
-- 複合トランザクションが必要となる場合
+- Consistency across DBs becomes mandatory
+- Composite transactions become necessary
 
 ### Alternative D: Treat every DB-open failure as corruption and always restore from backup
 
 #### Description
 
-DBオープン失敗を常に破損として扱い、常にバックアップから復元する。
+Always treat a DB open failure as corruption and always restore from a backup.
 
 #### Advantages
 
-- 単一のコード経路で単純
+- Simple, with a single code path
 
 #### Disadvantages
 
-- 一時的なLock/Permission障害に対しても不要にリストアが実行される
-- 実際には一時的な状態だった場合に、直近の書き込みを失うリスクがある
+- A restore runs needlessly even for temporary Lock/Permission failures
+- If the state was actually temporary, there is a risk of losing recent writes
 
 #### Reason for Rejection
 
-分類の不変条件（Lock ContentionとPermission FailureをCorruptionとして扱わない）に違反するため不採用とした。
+Rejected because it violates the classification invariant (Lock Contention and Permission Failure are not treated as Corruption).
 
 #### Reconsideration Conditions
 
-- 該当なし
+- Not applicable
 
 ### Alternative E: Leave workflow/eventbus unrecoverable by policy, permanently
 
 #### Description
 
-`workflow.sqlite`/`eventbus.sqlite`を恒久的に復旧不能として扱う。
+Treat `workflow.sqlite`/`eventbus.sqlite` as permanently unrecoverable.
 
 #### Advantages
 
-- 実装作業が不要
+- No implementation work required
 
 #### Disadvantages
 
-- 未告知の恒久的なギャップとなり、運用者が`rag`/`session`と同様に復旧できると誤解する可能性がある
+- It becomes an unannounced permanent gap, and operators may mistakenly believe they can recover it like `rag`/`session`
 
 #### Reason for Rejection
 
-復旧不能とするか運用者による手動復旧手順を用意するかは明示的な決定であるべきであり、本ADRでは後者（運用者による手動復旧）を採用したため不採用とした。
+Whether to make them unrecoverable or to provide a manual operator recovery procedure should be an explicit decision; this ADR adopts the latter (manual operator recovery), so this alternative was rejected.
 
 #### Reconsideration Conditions
 
-- 該当なし
+- Not applicable
 
 ## Consequences
 
 ### Positive Consequences
 
-- 各DBの独立性が確保される
-- 障害範囲が局所化される
-- バックアップが容易になる
-- 保持期間の個別管理が可能になる
-- sqlite-vecの適用範囲が限定される
-- physical-recovery操作が明文化された安全性契約に対して監査可能になる
-- バックアップの破損や部分的リストアが、稼働中（たとえ破損していても）のDBを置き換える前に検出される
+- The independence of each DB is ensured
+- The failure scope is localized
+- Backups become easier
+- Retention periods can be managed individually
+- The scope of sqlite-vec is limited
+- physical-recovery operations become auditable against an explicitly documented safety contract
+- Backup corruption or a partial restore is detected before it replaces a live DB (even a corrupted one)
 
 ### Negative Consequences
 
-- DB間JOINができない
-- 複合トランザクションが必要になる
-- バックアップのスクリプティングが必要
-- 障害対応時に複数のDBを確認する必要がある
-- physical-recoveryが、候補の検証・Stage・再検証・Atomic置換という、単純な単一コピー実装より多い手順を要する
+- JOINs across DBs are not possible
+- Composite transactions become necessary
+- Backup scripting is required
+- Incident response requires checking multiple DBs
+- physical-recovery requires more steps (verifying, Staging, re-verifying, and Atomically replacing the candidate) than a simple single-copy implementation
 
 ### Operational Consequences
 
-- 起動時に各DBの接続が確認される
-- 設定変更時は所有DBの再起動が必要
-- 障害対応時にDBごとの復旧手順が必要
-- `workflow.sqlite`/`eventbus.sqlite`の物理的破損時は自動リストアが行われないため、運用者が手動で復旧対応を行う必要がある
-- 退避された破損DBコピーの削除は運用者の手動判断に委ねる（自動削除は行わない）
+- Each DB's connection is confirmed at startup
+- A configuration change requires restarting the owning DB
+- Incident response requires a recovery procedure per DB
+- Because no automatic restore is performed when `workflow.sqlite`/`eventbus.sqlite` is physically corrupted, operators must handle recovery manually
+- Deletion of set-aside corrupted DB copies is left to the operator's manual judgment (no automatic deletion)
 
 ### Security Consequences
 
-- 信頼境界：各DB内でのみ権限を付与する
-- 認証、認可：設定ファイルに基づく権限判定
-- Secretの取扱い：最小公開原則に従う
-- Fail-Closed：設定ファイル欠落時は起動中止
-- physical-recovery操作のError MessageおよびAudit Recordは、行レベルのDB内容を含めてはならない（Pathおよび例外テキストのみ）
-- Audit Log：設定読み込みイベントの記録
+- Trust boundary: privileges are granted only within each DB
+- Authentication and authorization: permission decisions based on configuration files
+- Secret handling: follow the principle of minimal exposure
+- Fail-Closed: abort startup when a configuration file is missing
+- Error Messages and Audit Records of physical-recovery operations must not include row-level DB content (Paths and exception text only)
+- Audit Log: record configuration loading events
 
 ## Invariants
 
-- INV-01: `rag.sqlite`はdocuments、chunks、FTS5、Vector Indexの正本である。
-- INV-02: `session.sqlite`はAgent Session、Message、会話状態の正本である。
-- INV-03: `workflow.sqlite`はTask、Attempt、Approval、Artifact、処理済みEventの正本である。
-- INV-04: `eventbus.sqlite`はEvent、Offset、Delivery、DLQの正本である。
-- INV-05: DB間で物理外部キー、SQL JOIN、分散Transactionを前提としない。
-- INV-06: DB間関連付けにはSession ID、Workflow ID、Event IDなどの論理IDを使用する。
-- INV-07: DB間整合性はEvent、冪等処理、状態照合で保証する。
-- INV-08: sqlite-vecは`rag.sqlite`だけにロードする。
-- INV-09: 各DBに独立したBackup、Recovery、WAL Checkpoint、Health Check、保持期間を定義する。
-- INV-10: WorkflowまたはEventBusの永続化失敗をログだけで成功扱いにしない。
-- INV-11: 1DBの破損が他DBの初期化、復旧を要求しない。
-- INV-12: DB間処理が冪等に再実行できる。
-- INV-13: physical-recoveryアクションは、DB状態の分類（healthy / corruption / lock contention / permission failure / invalid format / unknown）の後にのみ選択する。Lock ContentionおよびPermission Failureを物理的破損として分類してはならない。
-- INV-14: リストア候補のバックアップは、対象DBを置き換える前に独立して検証されなければならない。
-- INV-15: 対象DBは、候補が検証に合格する前に上書きしてはならない。置換は、現行設計でサポートされる範囲でAtomicに行う。
-- INV-16: Dry Runは、いかなる分類結果であっても対象DBを移動、置換、Truncate、削除、書き換えしてはならない。
-- INV-17: Unknownまたは分類不能な障害は、対象DBを保持し、自動リストアではなく運用者の介入を要求する。
-- INV-18: `workflow.sqlite`と`eventbus.sqlite`に対する自動リストアは禁止する。復旧は運用者による手動対応のみとし、`rag.sqlite`（再構築）・`session.sqlite`（バックアップ復元）とは異なる方針を明示的に適用する。
+- INV-01: `rag.sqlite` is the canonical store for documents, chunks, FTS5, and the Vector Index.
+- INV-02: `session.sqlite` is the canonical store for Agent Sessions, Messages, and conversation state.
+- INV-03: `workflow.sqlite` is the canonical store for Tasks, Attempts, Approvals, Artifacts, and processed Events.
+- INV-04: `eventbus.sqlite` is the canonical store for Events, Offsets, Delivery, and the DLQ.
+- INV-05: Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
+- INV-06: Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
+- INV-07: Cross-DB consistency is guaranteed by Events, idempotent processing, and state reconciliation.
+- INV-08: sqlite-vec is loaded only into `rag.sqlite`.
+- INV-09: Each DB defines its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period.
+- INV-10: A persistence failure in Workflow or EventBus is not treated as success with only a log entry.
+- INV-11: Corruption of one DB does not require initialization or recovery of the other DBs.
+- INV-12: Cross-DB processing can be re-executed idempotently.
+- INV-13: A physical-recovery action is chosen only after classifying the DB state (healthy / corruption / lock contention / permission failure / invalid format / unknown). Lock Contention and Permission Failure must not be classified as physical corruption.
+- INV-14: A backup that is a restore candidate must be verified independently before it replaces the target DB.
+- INV-15: The target DB must not be overwritten before the candidate passes verification. Replacement is done Atomically to the extent supported by the current design.
+- INV-16: Dry Run must not move, replace, Truncate, delete, or rewrite the target DB for any classification result.
+- INV-17: An Unknown or unclassifiable failure preserves the target DB and requires operator intervention instead of an automatic restore.
+- INV-18: Automatic restore of `workflow.sqlite` and `eventbus.sqlite` is prohibited. Recovery is manual operator handling only, explicitly applying a policy different from `rag.sqlite` (rebuild) and `session.sqlite` (restore from backup).
 
 ## Exceptions
 
-なし
+None
 
 ## Failure Policy
 
 ### Fail-Fast Conditions
 
-- `rag.sqlite`の接続失敗時（RAG機能停止）
-- `session.sqlite`の接続失敗時（セッション機能停止）
-- `workflow.sqlite`の接続失敗時（ワークフロー機能停止）
-- `eventbus.sqlite`の接続失敗時（イベント配信停止）
-- リストア候補のバックアップが独立検証に失敗した場合
-- Unknownまたは分類不能な整合性チェック失敗の場合
+- When the `rag.sqlite` connection fails (RAG functionality stops)
+- When the `session.sqlite` connection fails (session functionality stops)
+- When the `workflow.sqlite` connection fails (workflow functionality stops)
+- When the `eventbus.sqlite` connection fails (event delivery stops)
+- When a backup that is a restore candidate fails independent verification
+- When an integrity check fails in an Unknown or unclassifiable way
 
 ### Fail-Open or Degraded Conditions
 
-該当なし。physical-recoveryはFail-Closedドメインとして設計する。判断に迷う場合は状態を保持し、自動的に動作するのではなく運用者の対応を要求する。
+Not applicable. physical-recovery is designed as a Fail-Closed domain. When in doubt, it preserves the state and requires operator action instead of acting automatically.
 
 ### Retry Policy
 
-- Retry対象：インジェクション失敗
-- Retry回数：`retry_policy.max_attempts`（デフォルト3回）
-- Backoff：固定間隔（デフォルト1秒）
-- RetryしないError：整合性チェックの不一致
-- operator-restoreは運用者起動による単発の試行であり、自動リトライループは存在しない
+- Retry target: ingestion failures
+- Retry count: `retry_policy.max_attempts` (default 3)
+- Backoff: fixed interval (default 1 second)
+- Errors not retried: consistency-check mismatches
+- operator-restore is a single, operator-initiated attempt; there is no automatic retry loop
 
 ### Fallback Policy
 
-- Fallback対象：なし
-- Fallback先：なし
-- Fallbackを禁止する条件：整合性チェックの不一致
-- Fallback理由の記録先：監査ログ
+- Fallback targets: none
+- Fallback destination: none
+- Conditions that prohibit Fallback: consistency-check mismatches
+- Where Fallback reasons are recorded: audit log
 
 ## Data Ownership and Persistence
 
-- **System of Record**: 4つのSQLite DB（`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`）
-- **Derived Data**: 再生成可能な派生データ（FTS5、Vector Index）
-- **Ownership**: RAGチーム、Agentチーム、Workflowチーム、EventBusチーム
-- **Persistence**: ファイルシステム（`/opt/llm/db/`ディレクトリ）
-- **Transaction Boundary**: DB単位
-- **Recovery Source**: `rag.sqlite`/`session.sqlite`は運用者供給の検証済みバックアップファイル。`workflow.sqlite`/`eventbus.sqlite`は自動リストア対象外であり、運用者による手動対応。
-- **Deletion Rule**: 各DBの削除は独立して実行する。診断用に退避された破損DBコピー（`*_corrupt_<timestamp>.sqlite`）の削除は運用者の手動判断に委ね、自動削除は行わない。
+- **System of Record**: the four SQLite DBs (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`)
+- **Derived Data**: regenerable derived data (FTS5, Vector Index)
+- **Ownership**: the RAG team, the Agent team, the Workflow team, the EventBus team
+- **Persistence**: file system (`/opt/llm/db/` directory)
+- **Transaction Boundary**: per DB
+- **Recovery Source**: for `rag.sqlite`/`session.sqlite`, verified backup files supplied by the operator. `workflow.sqlite`/`eventbus.sqlite` are not subject to automatic restore and are handled manually by the operator.
+- **Deletion Rule**: each DB is deleted independently. Deletion of corrupted DB copies set aside for diagnosis (`*_corrupt_<timestamp>.sqlite`) is left to the operator's manual judgment; no automatic deletion is performed.
 
 ## Verification
 
 ### Automated Tests
 
-- **Test**: 各DBが独立して初期化、接続、Checkpoint、Recoveryできること
+- **Test**: Each DB can be initialized, connected, Checkpointed, and Recovered independently
   - **Verifies**: INV-01, INV-02, INV-03, INV-04
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: sqlite-vecが`rag.sqlite`以外へロードされないこと
+- **Test**: sqlite-vec is not loaded into anything other than `rag.sqlite`
   - **Verifies**: INV-08
   - **Type**: Regression
   - **Blocking**: Yes
 
-- **Test**: 1DBの破損が他DBの初期化、復旧を要求しないこと
+- **Test**: Corruption of one DB does not require initialization or recovery of the other DBs
   - **Verifies**: INV-11
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: DB間処理が冪等に再実行できること
+- **Test**: Cross-DB processing can be re-executed idempotently
   - **Verifies**: INV-12
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: Lock Contentionパスが物理的破損として分類されないこと
+- **Test**: The Lock Contention path is not classified as physical corruption
   - **Verifies**: INV-13
   - **Type**: Regression
   - **Blocking**: Yes
 
-- **Test**: Dry Runが、いかなる分類結果においても対象DBをByte-identicalに保つこと
+- **Test**: Dry Run keeps the target DB Byte-identical for every classification result
   - **Verifies**: INV-16
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: `workflow`/`eventbus`を指定した`recover_corruption()`呼び出しが自動リストアを行わないこと
+- **Test**: A `recover_corruption()` call specifying `workflow`/`eventbus` does not perform an automatic restore
   - **Verifies**: INV-18
   - **Type**: Integration
   - **Blocking**: Yes
 
 ### Startup Validation
 
-- 起動時に各DBの接続が確認される
-- 設定ファイルが有効か（parseable TOML、必須フィールド）
+- Each DB's connection is confirmed at startup
+- Whether configuration files are valid (parseable TOML, required fields)
 
 ### Deployment Validation
 
-- デプロイ前後に各DB Schemaの確認
-- デプロイ後の整合性チェックがPASSすること
+- Check each DB Schema before and after deployment
+- The post-deployment consistency check passes
 
 ### Runtime Monitoring
 
-- Health Check：各DBの接続状態
-- Metrics：各DBの接続数、WALモード、チェックポイント回数
-- Logs：DB接続イベント、エラーイベント
-- Alert条件：`db_unavailable`
-- Degraded条件：依存関係の障害
+- Health Check: connection state of each DB
+- Metrics: number of connections, WAL mode, and checkpoint count per DB
+- Logs: DB connection events, error events
+- Alert conditions: `db_unavailable`
+- Degraded condition: failure of a dependency
 
 ### Manual Review
 
-- デプロイメント前のDB Schema検証
-- `workflow.sqlite`/`eventbus.sqlite`向けの運用者手動復旧手順（具体的な作業手順書）は本ADRでは未整備であり、別途Runbookとして整備する必要がある
+- DB Schema verification before deployment
+- A manual operator recovery procedure for `workflow.sqlite`/`eventbus.sqlite` (a concrete runbook) is not yet in place in this ADR and must be prepared separately as a Runbook
 
-Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
+Register any Invariant without Verification as an unverified item in an Issue.
 
 ## Implementation Notes
 
-現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
+Briefly describe how the current implementation realizes the Decision.
 
-この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
+This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
-行番号は記載せず、File PathとSymbol名で参照する。
+Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-ADRと現行実装、設定、テスト、文書に差異がある場合に記載する。
+Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-- **Known Issue（2026-09-04更新）**: EVENTBUS-008 — Production deployment requires an authentication model. `allow_public_bind`（旧・回避策）は完全に撤廃済み（`plans/done/20260903-091921_plan.md`）——`EventBusConfig.__post_init__()`が`127.0.0.1`/`::1`以外のhostを無条件に`ValueError`で拒否するため、公開バインド自体が設定不可能になった。ただし、認証ミドルウェア自体は依然として未実装であり、loopbackまたはSSHトンネル経由の同一Host内アクセスには認証層が存在しない状態が残る。
+- **Known Issue (updated 2026-09-04)**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed (`plans/done/20260903-091921_plan.md`): `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. However, the authentication middleware itself is still not implemented, and same-host access via loopback or an SSH tunnel still has no authentication layer.
   - **Type**: Security Gap
-  - **Summary**: EventBusの認証モデルが未実装(公開バインド自体は撤廃済み)
-  - **Impact**: 同一Host内/SSHトンネル経由のアクセスに認証層がない(外部への直接公開は設定上不可能)
-  - **Resolution Target**: 認証の実装が必要
+  - **Summary**: The EventBus authentication model is not implemented (a public bind itself has been removed)
+  - **Impact**: Access within the same host or via an SSH tunnel has no authentication layer (direct external exposure cannot be configured)
+  - **Resolution Target**: Authentication must be implemented
 
-- **Resolved Issue**: `recover_corruption()`（`scripts/db/recovery.py`）は、Unknown分類（`DbCondition.UNKNOWN`）をCorruption分類と同一に扱い、`rag`/`session`に対しては自動的にバックアップからのリストアを試みる。これはINV-17（Unknownまたは分類不能な障害は対象DBを保持し運用者の介入を要求する）を現時点では満たしていない。
+- **Resolved Issue**: `recover_corruption()` (`scripts/db/recovery.py`) treats the Unknown classification (`DbCondition.UNKNOWN`) the same as the Corruption classification and, for `rag`/`session`, automatically attempts to restore from a backup. At present this does not satisfy INV-17 (an Unknown or unclassifiable failure preserves the target DB and requires operator intervention).
   - **Type**: Resolved
-  - **Summary**: Unknown分類がCorruptionと同一挙動になっていたが、`preserved_operator_intervention_required`アクションでDB保持・運用者介入要求を実装した
-  - **Impact**: 分類不能な整合性チェック失敗であっても、`rag`/`session`では自動的にリストアが実行され得る
-  - **Resolution**: `implementations/20260902-064946_01_scripts_db_recovery_py.md` で実装済み；ユニットテストおよびインテグレーションテストで検証済み
-  - **解決済み**: REQ-001〜REQ-003により、`recover_corruption()`に`DbCondition.UNKNOWN`専用の分岐を追加し、`action="preserved_operator_intervention_required"`を返して対象DBを保持し運用者介入を要求するようになった（`_restore_from_backup()`は呼び出されない）。これによりINV-17を満たす。**影響**: INV-17 → 解消済み。
+  - **Summary**: The Unknown classification behaved identically to Corruption; preserving the DB and requiring operator intervention was implemented through the `preserved_operator_intervention_required` action
+  - **Impact**: Even an unclassifiable integrity-check failure could trigger an automatic restore for `rag`/`session`
+  - **Resolution**: Implemented in `implementations/20260902-064946_01_scripts_db_recovery_py.md`; verified by unit tests and integration tests
+  - **Resolved (details)**: Through REQ-001 to REQ-003, a dedicated branch for `DbCondition.UNKNOWN` was added to `recover_corruption()`, which now returns `action="preserved_operator_intervention_required"` to preserve the target DB and require operator intervention (`_restore_from_backup()` is not called). This satisfies INV-17. **Impact**: INV-17 → resolved.
 
-ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 ## Review Triggers
 
-次の条件が発生した場合、このADRを再評価する。
+Re-evaluate this ADR when any of the following conditions occurs.
 
-- 運用規模または同時実行数が大きく変化した場合
-- 単一Hostから複数Hostまたは分散構成へ変更する場合
-- Security要件、監査要件が変更された場合
-- 性能目標またはResource制約が変更された場合
-- 外部Protocolまたは採用Libraryが変更、廃止された場合
-- 障害実績により前提またはFailure Policyが妥当でないと判明した場合
-- 代替案の不採用理由が成立しなくなった場合
-- sqlite-vecがFK制約をサポートする場合
-- FTS5が標準的なDELETEをサポートする場合
-- 共通設定ファイルの新設が必要となった場合
-- 永続化ストレージがファイル以外へ移行された場合
-- マイグレーション機構またはレプリケーション型ストレージ基盤が導入された場合
-- バックアップ戦略が定期ファイルコピーから別方式へ変更された場合
-- operator-restoreトリガーが提案された場合
-- `workflow.sqlite`/`eventbus.sqlite`の復旧方針を手動対応から自動化された経路へ変更する場合
+- The operational scale or concurrency changes significantly
+- The deployment changes from a single host to multiple hosts or a distributed configuration
+- Security or audit requirements change
+- Performance targets or resource constraints change
+- An external protocol or adopted library is changed or discontinued
+- Failure history shows that the assumptions or the Failure Policy are no longer valid
+- The reasons for rejecting an alternative no longer hold
+- sqlite-vec supports FK constraints
+- FTS5 supports standard DELETE
+- A new shared configuration file becomes necessary
+- Persistent storage moves to something other than files
+- A migration mechanism or a replicated storage foundation is introduced
+- The backup strategy changes from periodic file copies to another method
+- An operator-restore trigger is proposed
+- The recovery policy for `workflow.sqlite`/`eventbus.sqlite` changes from manual handling to an automated path
 
 ## Approval
 
@@ -502,48 +502,48 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - Architecture Owner
 - Affected Component Owner
-- Security Reviewer: セキュリティ影響がある場合
-- Operations Reviewer: 運用、監視、復旧へ影響する場合
-- Data Owner: データ所有権、Schema、保持へ影響する場合
+- Security Reviewer: when there is a security impact
+- Operations Reviewer: when operations, monitoring, or recovery are affected
+- Data Owner: when data ownership, schema, or retention are affected
 
 ### Approval Record
 
-- **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
-- **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
+- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
-本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
+This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
 ## Related Documents
 
 ### Related ADRs
 
-- ADR-002: プロセス単位の設定所有権とConfig Isolation
-- ADR-005: RAGの正本と派生インデックスの関係
-- ADR-006: EventBusのSQLite永続化とSSE配信方式
+- ADR-002: Per-Process Configuration Ownership and Config Isolation
+- ADR-005: Relationship Between RAG Canonical Data and Derived Indexes
+- ADR-006: EventBus SQLite Persistence and SSE Delivery
 
 ### Specifications
 
-- [DB Architecture and Schema](../41_db/db_02_db_architecture_and_schema-schema-reference.md) — DBスキーマ参照
-- [DB API and Operations — Recovery and Reference](../41_db/db_07_db_api_and_operations-recovery-and-reference.md) — リカバリAPIとOperations参照
-- [RAG Persistence](rag_04_02_rag-persistence.md) — RAG永続化
-- [RAG Recovery](rag_04_03_rag-recovery.md) — RAG復旧
-- [Agent Session Persistence](agent_04_01_agent-session-persistence.md) — セッション永続化
-- [EventBus Persistence Schema and Replay](../24_eventbus/eventbus_07_persistence_schema_and_replay.md) — EventBus永続化スキーマ
-- [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
+- [DB Architecture and Schema](../41_db/db_02_db_architecture_and_schema-schema-reference.md) — DB schema reference
+- [DB API and Operations — Recovery and Reference](../41_db/db_07_db_api_and_operations-recovery-and-reference.md) — recovery API and Operations reference
+- [RAG Persistence](rag_04_02_rag-persistence.md) — RAG persistence
+- [RAG Recovery](rag_04_03_rag-recovery.md) — RAG recovery
+- [Agent Session Persistence](agent_04_01_agent-session-persistence.md) — session persistence
+- [EventBus Persistence Schema and Replay](../24_eventbus/eventbus_07_persistence_schema_and_replay.md) — EventBus persistence schema
+- [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md) — DLQ offsets and delivery semantics
 
 ### Operations
 
-- [Operations and Observability](../23_agent/agent_10_01_operations-and-observability-startup-and-health.md) — 運用と観測
-- [Manual Recovery: workflow.sqlite / eventbus.sqlite](../23_agent/agent_10_01_operations-and-observability-startup-and-health.md#manual-recovery-workflowsqlite-eventbussqlite) — workflow.sqlite / eventbus.sqliteの手動復旧手順
+- [Operations and Observability](../23_agent/agent_10_01_operations-and-observability-startup-and-health.md) — operations and observability
+- [Manual Recovery: workflow.sqlite / eventbus.sqlite](../23_agent/agent_10_01_operations-and-observability-startup-and-health.md#manual-recovery-workflowsqlite-eventbussqlite) — manual recovery procedure for workflow.sqlite / eventbus.sqlite
 
 ### Known Issues
 
 <!-- TODO: Document 'rag_04_02_rag-persistence.md' was deleted -->
 <!-- TODO: Document 'rag_04_03_rag-recovery.md' was deleted -->
 <!-- TODO: Document '05_agent_04_01_agent-session-persistence.md' was deleted -->
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus既知の問題
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — SHARED-003（workflow/eventbus復旧手続きの実務Runbook整備済み、resolved）、CI-002（本ADRの現行内容と対応しない旧記述の疑い）
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus known issues
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — SHARED-003 (practical runbook for the workflow/eventbus recovery procedure is in place, resolved), CI-002 (suspected legacy wording that does not correspond to this ADR's current content)
 
 ### Implementation References
 
@@ -556,28 +556,28 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `session.sqlite` — `sessions`, `messages`, `memories`, `memories_vec`
 - `workflow.sqlite` — `tasks`, `attempts`, `artifacts`, `approvals`
 - `eventbus.sqlite` — `events`
-- テスト — `tests/test_db_*.py`, `tests/db/test_db_maintenance.py`, `tests/integration/test_session_recovery.py`
+- Tests — `tests/test_db_*.py`, `tests/db/test_db_maintenance.py`, `tests/integration/test_session_recovery.py`
 
 ## Completion Checklist
 
-ADRをAcceptedへ変更する前に確認する。
+Confirm the following before changing the ADR to Accepted.
 
-- [x] 解決する問題が明確である
-- [x] Decisionが1つの主要な設計判断に絞られている
-- [x] Decisionが必須、禁止、正本、Fallback条件などの明確な表現で記載されている
-- [x] 採用理由が現在の実装以外の観点で説明されている
-- [x] 実質的な代替案と不採用理由が記載されている
-- [x] Positive Consequencesが記載されている
-- [x] Negative Consequencesが記載されている
-- [x] Securityへの影響が評価されている
-- [x] Operations、Monitoring、Recoveryへの影響が評価されている
-- [x] 検証可能なInvariantsが定義されている
-- [x] Exceptionsまたは適用対象外が明確である
-- [x] 各InvariantにVerificationが対応している
-- [x] 自動化可能な検証がManual Reviewだけになっていない
-- [x] 既存ADRとの関係が記載されている
-- [x] 関係するSpecificationと矛盾していない
-- [x] 現行実装との差異がKnown Issueへ登録されている
-- [ ] Ownerと必要なReviewerが定義されている
-- [x] Review Triggersが記載されている
-- [x] ADR索引と関係領域のDocument Guideへ登録されている
+- [x] The problem to solve is clear
+- [x] The Decision is narrowed to one primary design decision
+- [x] The Decision is stated in clear terms such as mandatory, prohibited, canonical, or Fallback conditions
+- [x] The reasons for adoption are explained from perspectives other than the current implementation
+- [x] Substantive alternatives and the reasons for rejecting them are recorded
+- [x] Positive Consequences are recorded
+- [x] Negative Consequences are recorded
+- [x] The impact on Security has been evaluated
+- [x] The impact on Operations, Monitoring, and Recovery has been evaluated
+- [x] Verifiable Invariants are defined
+- [x] Exceptions or out-of-scope cases are clear
+- [x] Each Invariant has a corresponding Verification
+- [x] Automatable verification does not rely only on Manual Review
+- [x] The relationship with existing ADRs is recorded
+- [x] The ADR does not contradict related Specifications
+- [x] Discrepancies with the current implementation are registered as Known Issues
+- [ ] The Owner and required Reviewers are defined
+- [x] Review Triggers are recorded
+- [x] The ADR is registered in the ADR index and the Document Guides of related areas

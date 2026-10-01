@@ -1,5 +1,5 @@
 ---
-title: "ADR-007: HTTP MCP採用とstdio非サポート"
+title: "ADR-007: Adoption of HTTP MCP and Non-Support of stdio"
 area: governance
 tags:
   - mcp
@@ -13,7 +13,7 @@ supersedes: []
 superseded_by: null
 ---
 
-# ADR-007: HTTP MCP採用とstdio非サポート
+# ADR-007: Adoption of HTTP MCP and Non-Support of stdio
 
 ## Keywords
 <placeholder>
@@ -22,87 +22,87 @@ superseded_by: null
 
 Accepted
 
-使用可能なStatusは次のとおりとする。
+The available Status values are as follows.
 
-- `Proposed`: 提案中、レビューまたは承認前
-- `Accepted`: 採用済みであり、現行設計として有効
-- `Rejected`: 検討したが不採用
-- `Deprecated`: 現在は推奨しないが、一部に残存
-- `Superseded`: 後継ADRによって置換済み
+- `Proposed`: Under proposal; before review or approval
+- `Accepted`: Adopted and effective as the current design
+- `Rejected`: Considered but not adopted
+- `Deprecated`: No longer recommended, but partially remaining
+- `Superseded`: Replaced by a successor ADR
 
-Accepted後に判断内容を変更する場合は本文を直接変更せず、新しいADRを作成して本ADRをSupersededへ変更する。
+To change the decision after acceptance, do not edit the body directly; create a new ADR and change this ADR to Superseded.
 
 ## Summary
 
-AgentとMCPサーバー間の正式なTransportをHTTPへ統一し、stdioを使用しない判断とその運用、安全上の条件を正典化する。subprocess起動とTool Transportを区別し、Timeout、Retry、Health Checkの責務を定義する。Remote公開時の認証、TLS要件を記載する。stdioの残存参照を除去またはDeprecated化する。
+This ADR unifies the official Transport between the Agent and MCP servers on HTTP and canonicalizes the decision not to use stdio, together with its operation and safety conditions. It distinguishes subprocess startup from the Tool Transport and defines the responsibilities for Timeout, Retry, and Health Check. It records the authentication and TLS requirements for remote exposure. Remaining references to stdio are removed or marked Deprecated.
 
 ## Context
 
 ### Problem
 
-MCP（Model Context Protocol）では標準的にstdio Transportが使用されるが、本プロジェクトではAgentとMCPサーバー間の通信にHTTP Transportを採用する。stdioを使用しない判断とその運用、安全上の条件を明確にする必要がある。また、subprocess起動の場合でも、起動後のTool通信はHTTPで行うことを区別する必要がある。
+MCP (Model Context Protocol) normally uses the stdio Transport, but this project adopts the HTTP Transport for communication between the Agent and MCP servers. The decision not to use stdio, together with its operation and safety conditions, must be made clear. It must also be distinguished that even with subprocess startup, Tool communication after startup is done over HTTP.
 
 ### Constraints
 
-- 単一ホスト、複数プロセスでの実行を前提とする
-- デプロイ環境では起動前に各MCPサーバーの設定ファイルが存在することを確認する必要がある
-- セキュリティ要件：Secretは必要なプロセスだけへ公開しなければならない
-- データ整合性：各MCPサーバーの設定は独立して管理されなければならない
-- 運用要件：設定変更時の影響範囲と再起動対象を所有プロセス単位で判断できること
+- Execution on a single host with multiple processes is assumed
+- In the deployment environment, the existence of each MCP server's configuration file must be confirmed before startup
+- Security requirement: Secrets must be exposed only to the processes that need them
+- Data integrity: each MCP server's configuration must be managed independently
+- Operational requirement: the impact scope and restart targets of a configuration change must be determinable per owning process
 
 ### Assumptions
 
-- 対象環境：単一Host、複数プロセス
-- 想定規模：同時実行数は限定的
-- 信頼境界：各プロセス内でのみ権限を付与する
-- 外部依存先：なし（設定ファイルはローカルファイル）
-- 前提が崩れた場合に再評価が必要な事項：複数Host構成、分散実行、外部設定ストア統合
+- Target environment: a single host, multiple processes
+- Expected scale: limited concurrency
+- Trust boundary: privileges are granted only within each process
+- External dependencies: none (configuration files are local files)
+- Items to re-evaluate if the assumptions no longer hold: multi-host configuration, distributed execution, integration with an external configuration store
 
 ## Decision
 
 ### Decision Details
 
-1. MCPサーバーは独立プロセスとしてHTTP Endpointを公開することをDecisionとする。
-2. Agentは共通HTTP TransportでTool Discovery、Health Check、Tool Callを実行する。
-3. subprocess起動の場合でも、起動後のTool通信はHTTPとする。
-4. AgentはMCP Tool通信にstdin/stdoutを使用しない。
-5. stdio TransportへのFallbackを設けない。
-6. 設定Schemaや文書にstdioが残る場合は削除またはDeprecated化をする。
-7. 接続Timeout、応答Timeout、Retry、Semaphore、Circuit Breaker、構造化エラー、ログを共通Transport層で扱う。
-8. MCPサーバーをAgentと独立して起動、停止、Health Check、監視できる。
-9. localhost以外へ公開する場合は認証とTLSを必須とする。
-10. HTTPのSerialization、Socket通信コストより、障害分離、運用監視、独立配備、別ホスト配置を優先する理由を記載する。
+1. The Decision is that MCP servers expose HTTP Endpoints as independent processes.
+2. The Agent performs Tool Discovery, Health Checks, and Tool Calls through a common HTTP Transport.
+3. Even with subprocess startup, Tool communication after startup is over HTTP.
+4. The Agent does not use stdin/stdout for MCP Tool communication.
+5. There is no Fallback to the stdio Transport.
+6. Where stdio remains in configuration Schemas or documents, it is removed or marked Deprecated.
+7. Connection Timeout, response Timeout, Retry, Semaphore, Circuit Breaker, structured errors, and logging are handled in the common Transport layer.
+8. MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent.
+9. Exposure beyond localhost requires authentication and TLS.
+10. Record the reasons for prioritizing fault isolation, operational monitoring, independent deployment, and placement on separate hosts over the cost of HTTP Serialization and Socket communication.
 
 ### Scope
 
-- **対象コンポーネント**: `HttpTransport`, `MCPServer`, `ToolTransportInvoker`, `McpServerHealthRegistry`
-- **対象プロセス**: Agentプロセス、各MCPサーバープロセス
-- **対象データ**: MCP設定ファイル、認証トークン
-- **対象Environment Profile**: すべての環境（local/dev/production）
-- **対象APIまたは処理経路**: `POST /v1/call_tool`, `GET /v1/tools`, `GET /health`
+- **Target components**: `HttpTransport`, `MCPServer`, `ToolTransportInvoker`, `McpServerHealthRegistry`
+- **Target processes**: the Agent process and each MCP server process
+- **Target data**: MCP configuration files, authentication tokens
+- **Target Environment Profile**: all environments (local/dev/production)
+- **Target APIs or processing paths**: `POST /v1/call_tool`, `GET /v1/tools`, `GET /health`
 
 ### Out of Scope
 
-- セキュリティ認証の詳細な実装（別ADRで扱う）
-- メトリクス収集の詳細な設定
-- ロギングの詳細なフォーマット
-- パフォーマンスベンチマークの閾値
+- Detailed implementation of security authentication (handled by a separate ADR)
+- Detailed configuration of metrics collection
+- Detailed logging format
+- Performance benchmark thresholds
 
 ## Rationale
 
-### 1. 最重要の採用理由 — Operability
+### 1. Primary Reason for Adoption — Operability
 
-HTTPにより、MCPサーバーをAgentと独立して起動、停止、Health Check、監視できる。障害分離が可能になり、運用監視が容易になる。
+With HTTP, MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent. Fault isolation becomes possible and operational monitoring becomes easier.
 
-### 2. 第2の採用理由 — Security
+### 2. Second Reason for Adoption — Security
 
-HTTPにより、認証（Bearer Token）とTLSによるセキュリティ制御が可能になる。stdioではこれらの制御が困難である。
+With HTTP, security controls through authentication (Bearer Token) and TLS become possible. These controls are difficult with stdio.
 
-### 3. 第3の採用理由 — Portability
+### 3. Third Reason for Adoption — Portability
 
-HTTPにより、別ホスト配置が可能になる。MCPサーバーを別Hostにデプロイしても、同じプロトコルで通信できる。
+With HTTP, placement on separate hosts becomes possible. Even if an MCP server is deployed on a separate host, it can communicate with the same protocol.
 
-「現行コードがこの方式で実装されているため」だけを採用理由にしない。
+Do not use "the current code is implemented this way" as the sole reason for adoption.
 
 ## Alternatives Considered
 
@@ -110,270 +110,270 @@ HTTPにより、別ホスト配置が可能になる。MCPサーバーを別Host
 
 #### Description
 
-stdio Transportを公式にサポートし、AgentとMCPサーバー間の通信にstdin/stdoutを使用する。
+Officially support the stdio Transport and use stdin/stdout for communication between the Agent and MCP servers.
 
 #### Advantages
 
-- MCP標準のプロトコル
-- シンプルな実装
-- ローカルプロセス間通信に適す
+- The MCP standard protocol
+- Simple implementation
+- Suitable for local inter-process communication
 
 #### Disadvantages
 
-- 障害分離ができない
-- 運用監視が困難
-- 認証とTLSが困難
-- 別ホスト配置ができない
-- 独立配備ができない
+- No fault isolation
+- Operational monitoring is difficult
+- Authentication and TLS are difficult
+- No placement on separate hosts
+- No independent deployment
 
 #### Reason for Rejection
 
-OperabilityとSecurityを優先し、障害分離と運用監視の可能性を防ぐため不採用とした。
+Rejected to prioritize Operability and Security, because it would rule out fault isolation and operational monitoring.
 
 #### Reconsideration Conditions
 
-- ローカル開発環境のみで使用する場合
-- 障害分離が必要ない場合
+- It is used only in the local development environment
+- Fault isolation is not needed
 
 ### Alternative B: No subprocess startup mode
 
 #### Description
 
-subprocess起動モードを廃止し、すべてをexternal persistent modeとする。
+Abolish the subprocess startup mode and make everything external persistent mode.
 
 #### Advantages
 
-- シンプルな構造
-- 依存関係が少ない
+- Simple structure
+- Few dependencies
 
 #### Disadvantages
 
-- 自動起動ができなくなる
-- 手動管理が必要
-- 障害復旧が遅れる
+- Automatic startup is no longer possible
+- Manual management is required
+- Failure recovery is delayed
 
 #### Reason for Rejection
 
-Operabilityを優先し、自動起動と自動再起動の可能性を防ぐため不採用とした。
+Rejected to prioritize Operability, because it would rule out automatic startup and automatic restart.
 
 #### Reconsideration Conditions
 
-- 手動管理が許容される場合
-- 自動起動が必要ない場合
+- Manual management is acceptable
+- Automatic startup is not needed
 
 ### Alternative C: No authentication for remote exposure
 
 #### Description
 
-認証を実装せず、Firewall制限のみで外部公開を防止する。
+Do not implement authentication; prevent external exposure with Firewall restrictions only.
 
 #### Advantages
 
-- シンプルな実装
-- 低オーバーヘッド
+- Simple implementation
+- Low overhead
 
 #### Disadvantages
 
-- セキュリティリスク
-- 認証なしでアクセス可能
-- 監査が困難
+- Security risk
+- Accessible without authentication
+- Auditing is difficult
 
 #### Reason for Rejection
 
-Securityを優先し、認証なしのアクセスを防ぐため不採用とした。
+Rejected to prioritize Security and prevent unauthenticated access.
 
 #### Reconsideration Conditions
 
-- Firewall制限が十分に堅牢である場合
-- 認証なしのアクセスが許容される場合
+- Firewall restrictions are sufficiently robust
+- Unauthenticated access is acceptable
 
 ## Consequences
 
 ### Positive Consequences
 
-- MCPサーバーの独立したライフサイクル管理が可能になる
-- 障害分離が確保される
-- 運用監視が容易になる
-- 認証とTLSによるセキュリティ制御が可能になる
-- 別ホスト配置が可能になる
-- 独立配備が可能になる
+- Independent lifecycle management of MCP servers becomes possible
+- Fault isolation is ensured
+- Operational monitoring becomes easier
+- Security controls through authentication and TLS become possible
+- Placement on separate hosts becomes possible
+- Independent deployment becomes possible
 
 ### Negative Consequences
 
-- HTTPのSerializationオーバーヘッド
-- Socket通信コスト
-- 認証の実装が必要になる
-- TLSの設定が必要になる
+- HTTP Serialization overhead
+- Socket communication cost
+- Authentication must be implemented
+- TLS configuration is required
 
 ### Operational Consequences
 
-- 起動時に各MCPサーバーの設定ファイルが存在することを確認する必要がある
-- 設定変更時は所有プロセスの再起動が必要
-- 障害対応時に設定ファイルの調査が必要
+- The existence of each MCP server's configuration file must be confirmed at startup
+- A configuration change requires restarting the owning process
+- Incident response requires investigating configuration files
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ### Security Consequences
 
-- 信頼境界：各プロセス内でのみ権限を付与する
-- 認証、認可：設定ファイルに基づく権限判定
-- Secretの取扱い：最小公開原則に従う
-- Fail-Closed：設定ファイル欠落時は起動中止
-- Audit Log：設定読み込みイベントの記録
+- Trust boundary: privileges are granted only within each process
+- Authentication and authorization: permission decisions based on configuration files
+- Secret handling: follow the principle of minimal exposure
+- Fail-Closed: abort startup when a configuration file is missing
+- Audit Log: record configuration loading events
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ## Invariants
 
-- INV-01: MCPサーバーは独立プロセスとしてHTTP Endpointを公開する。
-- INV-02: Agentは共通HTTP TransportでTool Discovery、Health Check、Tool Callを実行する。
-- INV-03: subprocess起動の場合でも、起動後のTool通信はHTTPとする。
-- INV-04: AgentはMCP Tool通信にstdin/stdoutを使用しない。
-- INV-05: stdio TransportへのFallbackを設けない。
-- INV-06: 設定Schemaや文書にstdioが残る場合は削除またはDeprecated化をする。
-- INV-07: 接続Timeout、応答Timeout、Retry、Semaphore、Circuit Breaker、構造化エラー、ログを共通Transport層で扱う。
-- INV-08: MCPサーバーをAgentと独立して起動、停止、Health Check、監視できる。
-- INV-09: localhost以外へ公開する場合は認証とTLSを必須とする。
-- INV-10: HTTPのSerialization、Socket通信コストより、障害分離、運用監視、独立配備、別ホスト配置を優先する。
-- INV-11: McpServerHealthRegistryが管理するMCPサーバーの死活状態（HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN）の名称は、Transport層外の複数の呼び出し元が直接比較するため、暗黙に変更しない。
+- INV-01: MCP servers expose HTTP Endpoints as independent processes.
+- INV-02: The Agent performs Tool Discovery, Health Checks, and Tool Calls through a common HTTP Transport.
+- INV-03: Even with subprocess startup, Tool communication after startup is over HTTP.
+- INV-04: The Agent does not use stdin/stdout for MCP Tool communication.
+- INV-05: There is no Fallback to the stdio Transport.
+- INV-06: Where stdio remains in configuration Schemas or documents, it is removed or marked Deprecated.
+- INV-07: Connection Timeout, response Timeout, Retry, Semaphore, Circuit Breaker, structured errors, and logging are handled in the common Transport layer.
+- INV-08: MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent.
+- INV-09: Exposure beyond localhost requires authentication and TLS.
+- INV-10: Fault isolation, operational monitoring, independent deployment, and placement on separate hosts take priority over the cost of HTTP Serialization and Socket communication.
+- INV-11: The names of the MCP server liveness states managed by McpServerHealthRegistry (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN) are not changed implicitly, because multiple callers outside the Transport layer compare them directly.
 
 ## Exceptions
 
-なし
+None
 
 ## Failure Policy
 
 ### Fail-Fast Conditions
 
-- MCPサーバーのHealth Check失敗時
-- 認証トークンの検証失敗時
-- TLS証明書の検証失敗時
+- When an MCP server Health Check fails
+- When authentication token validation fails
+- When TLS certificate validation fails
 
 ### Fail-Open or Degraded Conditions
 
-- ローカル開発環境では、軽微な整合性不一致は警告として記録される
-- localプロファイルでは、Health Check失敗はwarningとして記録され、特定サーバーが無効化される
+- In the local development environment, minor consistency mismatches are recorded as warnings
+- In the local profile, a Health Check failure is recorded as a warning and the specific server is disabled
 
 ### Retry Policy
 
-- Retry対象：HTTP 429/502/503/504
-- Retry回数：最大3回
-- Backoff：減少型遅延（4s, 2s, 1s）※指数関数的バックオフではない
-- RetryしないError：タイムアウト、他のHTTPステータスコード
+- Retry target: HTTP 429/502/503/504
+- Retry count: up to 3
+- Backoff: decreasing delay (4s, 2s, 1s); note that this is not exponential backoff
+- Errors not retried: timeouts, other HTTP status codes
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ### Fallback Policy
 
-- Fallback対象：なし
-- Fallback先：なし
-- Fallbackを禁止する条件：stdioへのフォールバック
-- Fallback理由の記録先：監査ログ
+- Fallback targets: none
+- Fallback destination: none
+- Conditions that prohibit Fallback: falling back to stdio
+- Where Fallback reasons are recorded: audit log
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ## Data Ownership and Persistence
 
-- **System of Record**: MCP設定ファイル（TOML形式）
-- **Derived Data**: 再生成可能な派生データ（設定ファイルのSHA256チェックサム）
-- **Ownership**: MCPチーム（設定ファイルの所有）
-- **Persistence**: ファイルシステム（`config/`ディレクトリ）
-- **Transaction Boundary**: 設定ファイル読み込み単位
-- **Recovery Source**: 設定ファイル（手動復旧）
-- **Deletion Rule**: 設定ファイル削除時は関連するプロセスの再起動が必要
+- **System of Record**: MCP configuration files (TOML format)
+- **Derived Data**: regenerable derived data (SHA256 checksums of configuration files)
+- **Ownership**: MCP team (owner of the configuration files)
+- **Persistence**: file system (`config/` directory)
+- **Transaction Boundary**: per configuration-file load
+- **Recovery Source**: configuration files (manual recovery)
+- **Deletion Rule**: deleting a configuration file requires restarting the related processes
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ## Verification
 
 ### Automated Tests
 
-- **Test**: subprocess起動後の通信がHTTPで行われること
+- **Test**: Communication after subprocess startup happens over HTTP
   - **Verifies**: INV-03
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: Tool Call TimeoutとTransport Errorが共通エラーへ変換されること
+- **Test**: Tool Call Timeouts and Transport Errors are converted into common errors
   - **Verifies**: INV-07
   - **Type**: Regression
   - **Blocking**: Yes
 
-- **Test**: Health CheckがAgent外からも利用できること
+- **Test**: Health Checks are also usable from outside the Agent
   - **Verifies**: INV-08
   - **Type**: Integration
   - **Blocking**: Yes
 
-- **Test**: stdioを実行時Transportとして参照する経路がないこと
+- **Test**: No path references stdio as a runtime Transport
   - **Verifies**: INV-04
   - **Type**: Regression
   - **Blocking**: Yes
 
-- **Test**: Circuit Breakerの状態遷移（DEGRADED/UNAVAILABLE閾値到達、HALF_OPENクールダウン、HALF_OPEN失敗時のUNAVAILABLE復帰）が仕様通りであること（`tests/shared/test_mcp_health.py`）
+- **Test**: Circuit Breaker state transitions (reaching the DEGRADED/UNAVAILABLE thresholds, the HALF_OPEN cooldown, returning to UNAVAILABLE on a HALF_OPEN failure) behave as specified (`tests/shared/test_mcp_health.py`)
   - **Verifies**: INV-11
   - **Type**: Unit
   - **Blocking**: Yes
 
 ### Startup Validation
 
-- 起動時にDB接続が確認される
-- 設定ファイルが有効か（parseable TOML、必須フィールド）
+- DB connectivity is confirmed at startup
+- Whether configuration files are valid (parseable TOML, required fields)
 
 ### Deployment Validation
 
-- デプロイ前後にDB Schemaの確認
-- デプロイ後の整合性チェックがPASSすること
+- Check the DB Schema before and after deployment
+- The post-deployment consistency check passes
 
 ### Runtime Monitoring
 
-- Health Check：DB接続状態、DLQタスク状態、Brokerキューバックログ、Slow Consumer検出
-- Metrics：Event publish count, ACK count, NACK count, DLQ promotion count
-- Logs：Event publishイベント、ACKイベント、NACKイベント、DLQイベント
-- Alert条件：`db_unavailable`, `dlq_task_stopped`, `broker_queue_backlog_high`, `slow_consumers_detected`
-- Degraded条件：依存関係の障害
+- Health Check: DB connection state, DLQ task state, Broker queue backlog, Slow Consumer detection
+- Metrics: Event publish count, ACK count, NACK count, DLQ promotion count
+- Logs: Event publish events, ACK events, NACK events, DLQ events
+- Alert conditions: `db_unavailable`, `dlq_task_stopped`, `broker_queue_backlog_high`, `slow_consumers_detected`
+- Degraded condition: failure of a dependency
 
-該当しない場合は「対象外」と記載する。
+If not applicable, write "Not applicable".
 
 ### Manual Review
 
-- DLQ昇格の調査
-- デプロイメント前のDB Schema検証
+- Investigation of DLQ promotions
+- DB Schema verification before deployment
 
-Verificationが存在しないInvariantは、未検証事項としてIssue登録する。
+Register any Invariant without Verification as an unverified item in an Issue.
 
 ## Implementation Notes
 
-現在の実装がDecisionをどのように実現しているかを簡潔に記載する。
+Briefly describe how the current implementation realizes the Decision.
 
-この章は設計判断の根拠にしない。詳細なAPI、Class、Function一覧はImplementation Referenceへ記載する。
+This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
-行番号は記載せず、File PathとSymbol名で参照する。
+Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-ADRと現行実装、設定、テスト、文書に差異がある場合に記載する。
+Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-現時点で記載すべき差異はない（MCP-001、MCP-002はいずれも解決済み）。
+There are currently no deviations to record (MCP-001 and MCP-002 have both been resolved).
 
-ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 ## Review Triggers
 
-次の条件が発生した場合、このADRを再評価する。
+Re-evaluate this ADR when any of the following conditions occurs.
 
-- 運用規模または同時実行数が大きく変化した場合
-- 単一Hostから複数Hostまたは分散構成へ変更する場合
-- Security要件、監査要件が変更された場合
-- 性能目標またはResource制約が変更された場合
-- 外部Protocolまたは採用Libraryが変更、廃止された場合
-- 障害実績により前提またはFailure Policyが妥当でないと判明した場合
-- 代替案の不採用理由が成立しなくなった場合
+- The operational scale or concurrency changes significantly
+- The deployment changes from a single host to multiple hosts or a distributed configuration
+- Security or audit requirements change
+- Performance targets or resource constraints change
+- An external protocol or adopted library is changed or discontinued
+- Failure history shows that the assumptions or the Failure Policy are no longer valid
+- The reasons for rejecting an alternative no longer hold
 
-このADR固有の見直し条件を追加すること。
+Add review conditions specific to this ADR.
 
-- MCP標準がstdio以外のTransportを公式サポートする場合
-- TLS/mTLSの実装が必要となった場合
-- 永続化ストレージがファイル以外へ移行された場合
-- 障害分離が必要なくなった場合
+- The MCP standard officially supports Transports other than stdio
+- TLS/mTLS implementation becomes necessary
+- Persistent storage moves to something other than files
+- Fault isolation is no longer needed
 
 ## Approval
 
@@ -381,36 +381,36 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 - Architecture Owner
 - Affected Component Owner
-- Security Reviewer: セキュリティ影響がある場合
-- Operations Reviewer: 運用、監視、復旧へ影響する場合
-- Data Owner: データ所有権、Schema、保持へ影響する場合
+- Security Reviewer: when there is a security impact
+- Operations Reviewer: when operations, monitoring, or recovery are affected
+- Data Owner: when data ownership, schema, or retention are affected
 
 ### Approval Record
 
-- **Approved By**: タスクレベル承認判断(リポジトリ管理者。個別レビュアー名は記録しない)
-- **Approval Date**: 記録なし(タスクレベル承認判断のため個別の承認日は記録しない)
+- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
-本ADRの`Accepted`ステータスは、上記ガバナンス文書が定めるタスクレベル承認判断を受理証跡とする。個別レビュアー名・承認日による正式なApproval Recordは作成していない。
+This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
 ## Related Documents
 
 ### Related ADRs
 
-- ADR-002: プロセス単位の設定所有権とConfig Isolation
+- ADR-002: Per-Process Configuration Ownership and Config Isolation
 
 ### Specifications
 
-- [MCP System Overview](../22_mcp/mcp_01_system_overview.md) — MCPアーキテクチャ概要
-- [Endpoints and Transport](../22_mcp/mcp_02_01_endpoints-and-transport.md) — エンドポイントとTransport
-- [Startup Modes and Health](../22_mcp/mcp_02_02_startup-modes-and-health.md) — 起動モードとヘルス
-- [Dispatch and Routing](../22_mcp/mcp_03_01_dispatch-and-routing.md) — ディスパッチとルーティング
-- [Transport and Health](../22_mcp/mcp_03_03_transport-and-health.md) — Transportとヘルス
-- [Tool Call Tracing and Watchdog](../22_mcp/mcp_03_04_tool-call-tracing-and-watchdog.md) — ツール呼び出し追跡とウォッチドッグ
-- [Lifecycle and New Server](../22_mcp/mcp_03_05_lifecycle-and-new-server.md) — ライフサイクル
-- [Configuration File Inventory](../22_mcp/mcp_06_02_configuration-file-inventory.md) — 設定ファイル一覧
-- [Long-running HTTP Operation Startup Mode/Subprocess](../22_mcp/mcp_06_05_long-running-http-operation-startup_modesubprocess.md) — HTTP操作起動モード
-- [New MCP Server Addition Checklist](../22_mcp/mcp_06_15_new-mcp-server-addition-checklist.md) — MCPサーバー追加チェックリスト
+- [MCP System Overview](../22_mcp/mcp_01_system_overview.md) — MCP architecture overview
+- [Endpoints and Transport](../22_mcp/mcp_02_01_endpoints-and-transport.md) — endpoints and Transport
+- [Startup Modes and Health](../22_mcp/mcp_02_02_startup-modes-and-health.md) — startup modes and health
+- [Dispatch and Routing](../22_mcp/mcp_03_01_dispatch-and-routing.md) — dispatch and routing
+- [Transport and Health](../22_mcp/mcp_03_03_transport-and-health.md) — Transport and health
+- [Tool Call Tracing and Watchdog](../22_mcp/mcp_03_04_tool-call-tracing-and-watchdog.md) — tool call tracing and watchdog
+- [Lifecycle and New Server](../22_mcp/mcp_03_05_lifecycle-and-new-server.md) — lifecycle
+- [Configuration File Inventory](../22_mcp/mcp_06_02_configuration-file-inventory.md) — list of configuration files
+- [Long-running HTTP Operation Startup Mode/Subprocess](../22_mcp/mcp_06_05_long-running-http-operation-startup_modesubprocess.md) — startup modes for HTTP operation
+- [New MCP Server Addition Checklist](../22_mcp/mcp_06_15_new-mcp-server-addition-checklist.md) — checklist for adding an MCP server
 
 ### Operations
 
@@ -418,7 +418,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — MCP既知の問題
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — MCP known issues
 
 ### Implementation References
 
@@ -426,31 +426,31 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 - `scripts/shared/http_transport.py` — `HttpTransport.call_tool()`
 - `scripts/shared/tool_transport_invoker.py` — `ToolTransportInvoker.invoke()`
 - `scripts/shared/mcp_health.py` — `McpServerHealthRegistry.record_failure()`
-- `config/*_mcp_server.toml` — MCPサーバー設定ファイル、認証トークン（環境変数またはシークレットファイル）
-- HTTPエンドポイント — `POST /v1/call_tool`, `GET /v1/tools`, `GET /health`
-- テスト — `tests/test_mcp_*.py`
+- `config/*_mcp_server.toml` — MCP server configuration files, authentication tokens (environment variables or secret files)
+- HTTP endpoints — `POST /v1/call_tool`, `GET /v1/tools`, `GET /health`
+- Tests — `tests/test_mcp_*.py`
 
 ## Completion Checklist
 
-ADRをAcceptedへ変更する前に確認する。
+Confirm the following before changing the ADR to Accepted.
 
-- [x] 解決する問題が明確である
-- [x] Decisionが1つの主要な設計判断に絞られている
-- [x] Decisionが必須、禁止、正本、Fallback条件などの明確な表現で記載されている
-- [x] 採用理由が現在の実装以外の観点で説明されている
-- [x] 実質的な代替案と不採用理由が記載されている
-- [x] Positive Consequencesが記載されている
-- [x] Negative Consequencesが記載されている
-- [x] Securityへの影響が評価されている
-- [x] Operations、Monitoring、Recoveryへの影響が評価されている
-- [x] 検証可能なInvariantsが定義されている
-- [x] Exceptionsまたは適用対象外が明確である
-- [x] 各InvariantにVerificationが対応している
-- [x] 自動化可能な検証がManual Reviewだけになっていない
-- [x] Migrationまたは移行不要の理由が記載されている
-- [x] 既存ADRとの関係が記載されている
-- [x] 関係するSpecificationと矛盾していない
-- [ ] 現行実装との差異がKnown Issueへ登録されている
-- [ ] Ownerと必要なReviewerが定義されている
-- [ ] Review Triggersが記載されている
-- [ ] ADR索引と関係領域のDocument Guideへ登録されている
+- [x] The problem to solve is clear
+- [x] The Decision is narrowed to one primary design decision
+- [x] The Decision is stated in clear terms such as mandatory, prohibited, canonical, or Fallback conditions
+- [x] The reasons for adoption are explained from perspectives other than the current implementation
+- [x] Substantive alternatives and the reasons for rejecting them are recorded
+- [x] Positive Consequences are recorded
+- [x] Negative Consequences are recorded
+- [x] The impact on Security has been evaluated
+- [x] The impact on Operations, Monitoring, and Recovery has been evaluated
+- [x] Verifiable Invariants are defined
+- [x] Exceptions or out-of-scope cases are clear
+- [x] Each Invariant has a corresponding Verification
+- [x] Automatable verification does not rely only on Manual Review
+- [x] Migration, or the reason no migration is needed, is recorded
+- [x] The relationship with existing ADRs is recorded
+- [x] The ADR does not contradict related Specifications
+- [ ] Discrepancies with the current implementation are registered as Known Issues
+- [ ] The Owner and required Reviewers are defined
+- [ ] Review Triggers are recorded
+- [ ] The ADR is registered in the ADR index and the Document Guides of related areas
