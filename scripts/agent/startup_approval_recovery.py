@@ -43,7 +43,7 @@ class ApprovalRecovery:
                 "No pending approvals found; existing approvals may have expired"
             )
             return
-        # Recover the most recent pending approval first
+        # Wire up the most recent approval (first in DESC order) for immediate action
         task_id, approval = results[0]
         ctx.workflow.approval_pending = True
         ctx.turn.pending_approval_id = approval.approval_id
@@ -54,15 +54,25 @@ class ApprovalRecovery:
                 task_id,
             )
         ctx.turn.pending_approval_task_id = task_id
-        logger.warning(
-            "Recovered %d pending approval(s); showing last: task=%s approval=%s reason=%s",
+        # List all pending approvals for resolution
+        lines = []
+        for i, (tid, appr) in enumerate(results, start=1):
+            lines.append(
+                f"  [{i}] task={tid} approval={appr.approval_id} reason={appr.reason}"
+            )
+        logger.info(
+            "Recovered %d pending approval(s); wired up: task=%s approval=%s reason=%s",
             len(results),
             task_id,
             approval.approval_id,
             approval.reason or "none",
         )
+        logger.info("All pending approvals:")
+        for line in lines:
+            logger.info(line)
         self._view.write_warning(
             f"{OutputTag.WORKFLOW} Pending approval from previous session — "
-            f"{len(results)} pending approval(s); last: task={task_id} approval={approval.approval_id} reason={approval.reason or 'none'}.\n"
-            f"Use /approve {approval.approval_id} [reason] or /reject {approval.approval_id} [reason]."
+            f"{len(results)} pending approval(s); wired up: task={task_id} approval={approval.approval_id} reason={approval.reason or 'none'}.\n"
+            f"All pending approvals:\n" + "\n".join(lines) + "\n"
+            "Use /approve <approval_id> [reason] or /reject <approval_id> [reason]."
         )

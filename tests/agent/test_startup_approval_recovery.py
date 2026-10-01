@@ -464,7 +464,63 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         assert ctx.workflow.approval_pending is True
         assert ctx.turn.pending_approval_id == "approval-new"
         assert ctx.turn.pending_approval_task_id == "task-new"
-        assert len(view.write_warning.call_args[0][0]) > 0
+        # All pending approvals should be accounted for in the warning message
+        warning_text = str(view.write_warning.call_args[0][0])
+        assert "approval-old" in warning_text or "approval-new" in warning_text
+        assert "All pending approvals:" in warning_text
+
+    @pytest.mark.asyncio
+    async def test_startup_recovery_multi_pending_accounts_for_all_approvals(
+        self,
+    ) -> None:
+        """When multiple pending approvals exist, all are accounted for
+        (not just the newest one wired up)."""
+        ctx = MagicMock()
+        ctx.workflow = MagicMock()
+        ctx.workflow.approval_pending = False
+        ctx.turn = MagicMock()
+        ctx.turn.pending_approval_id = None
+        view = MagicMock()
+
+        startup = StartupOrchestrator(ctx, view)
+
+        approval_c = MagicMock()
+        approval_c.approval_id = "approval-c"
+        approval_c.reason = "reason-c"
+
+        approval_b = MagicMock()
+        approval_b.approval_id = "approval-b"
+        approval_b.reason = "reason-b"
+
+        approval_a = MagicMock()
+        approval_a.approval_id = "approval-a"
+        approval_a.reason = "reason-a"
+
+        mock_store = MagicMock()
+
+        with (
+            patch(
+                "agent.workflow.approval_ops.find_all_pending_approvals",
+                return_value=[
+                    ("task-333", approval_c),
+                    ("task-222", approval_b),
+                    ("task-111", approval_a),
+                ],
+            ),
+            patch("agent.workflow.state_store.StateStore", return_value=mock_store),
+        ):
+            await startup._recover_pending_approvals()
+
+        # Only the newest should be wired up
+        assert ctx.workflow.approval_pending is True
+        assert ctx.turn.pending_approval_id == "approval-c"
+        assert ctx.turn.pending_approval_task_id == "task-333"
+
+        # All three should be accounted for in the warning message
+        warning_text = str(view.write_warning.call_args[0][0])
+        assert "approval-a" in warning_text
+        assert "approval-b" in warning_text
+        assert "approval-c" in warning_text
 
     @pytest.mark.asyncio
     async def test_startup_recovery_selects_newest_not_oldest_pending_approval(
@@ -550,11 +606,11 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         assert "approval-123" in warning_text, (
             f"Expected approval_id in warning, got: {warning_text}"
         )
-        assert "/approve approval-123" in warning_text, (
-            f"Expected /approve command with approval_id in warning, got: {warning_text}"
+        assert "/approve <approval_id>" in warning_text, (
+            f"Expected /approve placeholder in warning, got: {warning_text}"
         )
-        assert "/reject approval-123" in warning_text, (
-            f"Expected /reject command with approval_id in warning, got: {warning_text}"
+        assert "/reject <approval_id>" in warning_text, (
+            f"Expected /reject placeholder in warning, got: {warning_text}"
         )
 
     @pytest.mark.asyncio
