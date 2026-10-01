@@ -68,11 +68,11 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Part A: replace full-width range separators | Pending | — | — | |
-| 2 | Confirm prerequisite gate for Part B | Pending | — | — | |
-| 3 | Part B: replace ADR titles | Pending | — | — | |
-| 4 | Run the Validation plan and compare with the Plan Design baseline | Pending | — | — | |
-| 5 | Self-review meaning and record result in Notes | Pending | — | — | |
+| 1 | Part A: replace full-width range separators | Completed | 20261001-140033 | 20261001-140033 |  |
+| 2 | Confirm prerequisite gate for Part B | Completed | 20261001-140033 | 20261001-140033 |  |
+| 3 | Part B: replace ADR titles | Completed | 20261001-140033 | 20261001-140033 |  |
+| 4 | Run the Validation plan and compare with the Plan Design baseline | Completed | 20261001-140033 | 20261001-140033 |  |
+| 5 | Self-review meaning and record result in Notes | Completed | 20261001-140033 | 20261001-140033 | Part A: 4 ' 〜 ' range separators -> ' to ' (lines 87-90, link labels/targets unchanged); Part B (langadr001 gate satisfied): ADR-003/004/007 descriptions replaced programmatically with the ADR H1 titles (lines 155-157); baseline compat lines (5) unchanged; all checks unchanged vs batch baseline; full suite deferred to batch end per user decision; docs-mapping step N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
