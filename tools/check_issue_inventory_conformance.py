@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """tools/check_issue_inventory_conformance.py
 
-Conformance checker for docs/00_governance_03_issue-and-uncertainty-management.md.
+Conformance checker for docs/00_governance/governance_03_issue-and-uncertainty-management.md.
 
 Validates:
   (a) Vocabulary conformance — Status/Type/Severity/Area/Owner against defined value sets

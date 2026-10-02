@@ -9,7 +9,7 @@ such named source file contain an inline reference to the row's ADR ID
 (e.g. `ADR-004`) somewhere in its text — so a reader opening the file can
 find which ADR it implements, and this check can later be extended to a
 smaller, well-scoped "ADR-vs-code" audit rather than a repository-wide
-mandate (per docs/00_governance_04_documentation-checks.md GV-014
+mandate (per docs/00_governance/governance_04_documentation-checks.md GV-014
 Implementation intent §3: scoped to matrix-named files only).
 
 Scope is intentionally narrow: only a `scripts/<path>.py` cell with no `::`

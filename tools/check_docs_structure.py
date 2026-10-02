@@ -30,7 +30,7 @@ DOCS_DIR = ROOT_DIR / "docs"
 # redesign added ~2900 bytes of required content (four scoped relation-type
 # sections), leaving no realistic headroom under the old limit. 24576 covers
 # that need with margin while still catching genuinely oversized files (e.g.
-# docs/00_governance_03_issue-and-uncertainty-management.md at ~46KB remains
+# docs/00_governance/governance_03_issue-and-uncertainty-management.md at ~46KB remains
 # correctly flagged).
 MAX_SIZE = 24576
 

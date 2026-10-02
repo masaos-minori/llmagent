@@ -51,7 +51,7 @@ ADR_DIR = DOCS_DIR / "10_adr"
 #
 # The five area-specific `*_90_inconsistencies_and_known_issues.md` files this
 # suffix originally matched were consolidated into
-# `docs/00_governance_03_issue-and-uncertainty-management.md` Part 1 and
+# `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1 and
 # deleted on 2026-09-03 (see that document's own Part 1 Consolidation Note) --
 # the suffix match below now finds nothing on its own and is kept only as a
 # harmless no-op in case a future per-area file reappears; the governance
@@ -65,7 +65,7 @@ _GOVERNANCE_KNOWN_ISSUES_PATH = (
 
 # Matches both the legacy per-area heading ("### MCP-004: Some title") and the
 # consolidated governance document's heading ("#### RAG-003", no title on the
-# same line) -- see docs/00_governance_03_issue-and-uncertainty-management.md
+# same line) -- see docs/00_governance/governance_03_issue-and-uncertainty-management.md
 # Part 1's Entry Template.
 _CANONICAL_ID_HEADER_RE = re.compile(r"^#{3,4} ([A-Z]+-\d+)(?::|\s*$)")
 # The governance document's Part 2 ("Needs Confirmation Inventory") also uses
@@ -134,7 +134,7 @@ class AdrReference:
 
 def discover_canonical_docs() -> list[DocFile]:
     """All docs/*_90_inconsistencies_and_known_issues.md files, plus the
-    consolidated `docs/00_governance_03_issue-and-uncertainty-management.md`
+    consolidated `docs/00_governance/governance_03_issue-and-uncertainty-management.md`
     (the current real canonical source — see the module-level comment above
     `_CANONICAL_SUFFIX`)."""
     result: list[DocFile] = []

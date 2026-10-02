@@ -6,7 +6,7 @@ implementation-detail content a `docs/*.md` document should not contain: full
 file trees, per-file descriptions embedded in a tree or table, class/function/
 method index tables, implementation-location mappings, and literal port
 numbers. This is a report-only (Warning) check — it never blocks CI; see
-`docs/00_governance_04_documentation-checks.md`'s Governance Verification
+`docs/00_governance/governance_04_documentation-checks.md`'s Governance Verification
 Matrix for its registered entry.
 
 Scans the full `docs/` tree recursively (including `docs/adr/`,
@@ -316,7 +316,7 @@ def check_default_value_restatement(files: list[DocFile]) -> list[Issue]:
 
     Conservative: skips a line carrying a rationale marker (e.g. "because"),
     since explaining *why* a default was chosen is retain-category content,
-    not a mechanical restatement — see `docs/00_governance_02_documentation-metadata.md`'s
+    not a mechanical restatement — see `docs/00_governance/governance_02_documentation-metadata.md`'s
     Guidelines.
     """
     issues: list[Issue] = []

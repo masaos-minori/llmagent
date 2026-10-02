@@ -4,7 +4,7 @@
 Two checks, both operating over every file under docs/adr/*.md:
 
 (a) `## Known Deviations` heading presence (ERROR). Every ADR must carry this
-    heading per docs/00_governance_04_documentation-checks.md's "ADR Section
+    heading per docs/00_governance/governance_04_documentation-checks.md's "ADR Section
     Header Compliance" manual check — a missing heading is a structural gap a
     future ADR author can easily forget.
 (b) Implementation Notes vs Implementation References drift (WARNING). A

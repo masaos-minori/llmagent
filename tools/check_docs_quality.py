@@ -513,8 +513,8 @@ def check_content_similarity(docs_dir: Path, files: list[DocFile]) -> list[Issue
     threshold. Also flags sections across different documents whose body text
     overlaps above the same threshold (e.g. a governance rule copied
     verbatim into a second document — see
-    docs/00_governance_01_documentation-policy.md's 'Merge Conditions' vs.
-    docs/00_governance_04_documentation-checks.md's 'Merge Condition
+    docs/00_governance/governance_01_documentation-policy.md's 'Merge Conditions' vs.
+    docs/00_governance/governance_04_documentation-checks.md's 'Merge Condition
     Validation' for a confirmed real-world example)."""
     issues: list[Issue] = []
     for doc in files:
