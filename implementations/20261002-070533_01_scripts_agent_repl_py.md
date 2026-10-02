@@ -161,10 +161,10 @@ companion procedure document (seq 02); here we only assert the success-path test
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the `hasattr` collection and termination loop from `repl.py`'s startup-failure handler | Pending | — | — | Per Implementation > Procedure/Method/Details |
-| 2 | Confirm success-path test still passes (failure-path rewrite is companion doc seq 02) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs in scope |
+| 1 | Remove the `hasattr` collection and termination loop from `repl.py`'s startup-failure handler | Completed | 20261002-114635 | 20261002-114635 | Per Implementation > Procedure/Method/Details |
+| 2 | Confirm success-path test still passes (failure-path rewrite is companion doc seq 02) | Completed | 20261002-114635 | 20261002-114635 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261002-114635 | 20261002-114635 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261002-114635 | 20261002-114635 | N/A: no docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
