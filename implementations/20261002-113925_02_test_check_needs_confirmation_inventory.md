@@ -124,8 +124,8 @@ class TestGovernanceDocMarkerClassification:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add TestGovernanceDocMarkerClassification class | Pending | — | — | REQ-003 |
-| 2 | Validate: run tests | Pending | — | — | REQ-003 |
+| 1 | Add TestGovernanceDocMarkerClassification class | Completed | 20261002-155928 | 20261002-155928 | REQ-003 |
+| 2 | Validate: run tests | Completed | 20261002-155928 | 20261002-155928 | REQ-003 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

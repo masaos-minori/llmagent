@@ -121,14 +121,14 @@ A helper function `_is_definitional_mention(line, rel_path)` will implement the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Inspect governance docs and classify marker forms | Pending | — | — | REQ-001 |
-| 2 | Implement conditional exemption logic in check_untracked_inline_markers() | Pending | — | — | REQ-001, REQ-002 |
-| 3 | Add regression tests for definitional vs. marker distinction | Pending | — | — | REQ-003 |
-| 4 | Record exit-status decision for untracked-marker warnings | Pending | — | — | REQ-004 |
-| 5 | Validate: format, lint, type-check, security scan | Pending | — | — | REQ-001 |
-| 6 | Validate: run tests | Pending | — | — | REQ-003 |
-| 7 | Validate: smoke run on live docs/ | Pending | — | — | REQ-002 |
-| 8 | Validate: check_tool_descriptions_sync.py | Pending | — | — | REQ-004 |
+| 1 | Inspect governance docs and classify marker forms | Completed | 20261002-155917 | 20261002-155917 | REQ-001 |
+| 2 | Implement conditional exemption logic in check_untracked_inline_markers() | Completed | 20261002-155917 | 20261002-155917 | REQ-001, REQ-002 |
+| 3 | Add regression tests for definitional vs. marker distinction | Completed | 20261002-155917 | 20261002-155917 | REQ-003 |
+| 4 | Record exit-status decision for untracked-marker warnings | Completed | 20261002-155917 | 20261002-155917 | REQ-004 |
+| 5 | Validate: format, lint, type-check, security scan | Completed | 20261002-155917 | 20261002-155917 | REQ-001 |
+| 6 | Validate: run tests | Completed | 20261002-155917 | 20261002-155917 | REQ-003 |
+| 7 | Validate: smoke run on live docs/ | Completed | 20261002-155917 | 20261002-155917 | REQ-002 |
+| 8 | Validate: check_tool_descriptions_sync.py | Completed | 20261002-155917 | 20261002-155917 | REQ-004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
