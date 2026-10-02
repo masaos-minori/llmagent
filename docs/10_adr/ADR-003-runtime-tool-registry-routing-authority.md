@@ -469,8 +469,6 @@ Re-evaluate this ADR when any of the following conditions occurs.
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — CI-003 (verification of the whole Reload execution flow not yet complete), CI-015 (tests for detecting duplicate Tool ownership not yet in place)
-
 ### Implementation References
 
 - `scripts/shared/runtime_tool_registry.py::RuntimeToolRegistry`

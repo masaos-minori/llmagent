@@ -543,7 +543,6 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 <!-- TODO: Document 'rag_04_03_rag-recovery.md' was deleted -->
 <!-- TODO: Document '05_agent_04_01_agent-session-persistence.md' was deleted -->
 - [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus known issues
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — SHARED-003 (practical runbook for the workflow/eventbus recovery procedure is in place, resolved), CI-002 (suspected legacy wording that does not correspond to this ADR's current content)
 
 ### Implementation References
 
