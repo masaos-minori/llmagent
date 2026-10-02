@@ -1264,7 +1264,9 @@ class TestAgentREPLRunSubprocessTermination:
 
     @pytest.mark.asyncio
     async def test_run_terminates_subprocesses_on_failure(self) -> None:
-        """When startup fails, .terminate() MUST be called on any spawned subprocesses."""
+        """When startup fails, subprocess termination is delegated to
+        Lifecycle.shutdown_all() via StartupOrchestrator; repl.py no longer
+        terminates processes directly."""
         import subprocess
 
         fake_proc = MagicMock(spec=subprocess.Popen)
@@ -1276,14 +1278,16 @@ class TestAgentREPLRunSubprocessTermination:
 
         with patch("agent.repl.StartupOrchestrator") as MockStartup:
             mock_startup_instance = MagicMock()
-            mock_startup_instance.run = AsyncMock(
-                side_effect=RuntimeError("startup failed")
-            )
-            mock_startup_instance._spawned_subprocesses = [fake_proc]
+
+            async def _run_then_rollback(*_args, **_kwargs) -> None:
+                await repl._ctx.services.lifecycle.shutdown_all()
+                raise RuntimeError("startup failed")
+
+            mock_startup_instance.run = AsyncMock(side_effect=_run_then_rollback)
             MockStartup.return_value = mock_startup_instance
             repl._shutdown_event = asyncio.Event()
             repl._view.read_multiline = AsyncMock(return_value="")
             with pytest.raises(RuntimeError, match="startup failed"):
                 await repl.run()
 
-        fake_proc.terminate.assert_called_once()
+        repl._ctx.services.lifecycle.shutdown_all.assert_awaited()

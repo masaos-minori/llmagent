@@ -125,12 +125,6 @@ class AgentREPL:
             self._cmds, self._orchestrator, _spawned_subprocesses = await startup.run()
         except Exception as e:
             self._view.write_fatal(f"Startup failed: {e}")
-            all_procs = _spawned_subprocesses
-            if hasattr(startup, "_spawned_subprocesses"):
-                all_procs = list(all_procs) + list(startup._spawned_subprocesses)
-            for proc in all_procs:
-                if proc.poll() is None:
-                    proc.terminate()
             raise
         finally:
             await self._shutdown.close_resources()
