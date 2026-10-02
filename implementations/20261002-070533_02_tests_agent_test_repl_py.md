@@ -172,10 +172,10 @@ a bare `mypy` skips `tests/` (its `files` scope is `scripts/`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the failure-path test to assert `shutdown_all()`-based termination | Pending | — | — | Per Implementation > Procedure/Method/Details |
-| 2 | Confirm success-path test still passes | Pending | — | — | Unchanged per scope |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs in scope |
+| 1 | Rewrite the failure-path test to assert `shutdown_all()`-based termination | Completed | 20261002-115415 | 20261002-115415 | Per Implementation > Procedure/Method/Details |
+| 2 | Confirm success-path test still passes | Completed | 20261002-115415 | 20261002-115415 | Unchanged per scope |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261002-115415 | 20261002-115415 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261002-115415 | 20261002-115415 | N/A: no docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
