@@ -134,3 +134,37 @@ class TestMissingNcFields:
         assert len(issues) == 2
         assert any("Assigned To" in i.message for i in issues)
         assert any("Resolution Target" in i.message for i in issues)
+
+
+class TestGovernanceDocMarkerClassification:
+    """Verify that the governance doc exemption distinguishes definitional
+    mentions from unresolved-item markers."""
+
+    def test_definitional_mention_not_reported(self, tmp_path: Path) -> None:
+        """A governance doc discussing the 'Needs confirmation' label itself
+        must not be flagged as having an untracked marker."""
+        docs_dir = tmp_path / "docs"
+        _write(
+            docs_dir,
+            "governance_01_documentation-policy.md",
+            "The Needs confirmation label indicates an item requiring review.\n"
+            "See the Needs confirmation Inventory for details.\n",
+        )
+        files = discover_md_files(docs_dir, prefix="")
+        issues = check_untracked_inline_markers(docs_dir, files, entries=[])
+        assert issues == []
+
+    def test_status_cell_marker_reported(self, tmp_path: Path) -> None:
+        """A governance doc with a status-cell marker (Needs Confirmation in
+        a table cell) must be flagged as an untracked marker."""
+        docs_dir = tmp_path / "docs"
+        _write(
+            docs_dir,
+            "governance_01_documentation-policy.md",
+            "| Field | Value |\n| --- | --- |\n| Status | Needs Confirmation |\n",
+        )
+        files = discover_md_files(docs_dir, prefix="")
+        issues = check_untracked_inline_markers(docs_dir, files, entries=[])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+        assert "untracked" in issues[0].message.lower()

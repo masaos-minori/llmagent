@@ -63,7 +63,7 @@ longer applicable to the current system.
 
 ### Review Cadence
 
-Part 1 entries are reviewed quarterly, consistent with the cadence documented for Part 2 Needs Confirmation items and "Proposed" ADRs in `docs/governance_01_documentation-policy.md` line 521.
+Part 1 entries are reviewed quarterly, consistent with the cadence documented for Part 2 Needs Confirmation items and "Proposed" ADRs in `docs/00_governance/governance_01_documentation-policy.md` line 521.
 
 ### Consolidation Note
 
@@ -241,10 +241,10 @@ The following resolution criteria apply across all four parts of this document:
 ## Temporary Exception Process
 
 Applies to any automated check finding classified `Warning` (not `Blocking`) in
-`docs/governance_04_documentation-checks.md`'s Governance Verification Matrix
+`docs/00_governance/governance_04_documentation-checks.md`'s Governance Verification Matrix
 — for example, `GV-020`'s removed-name reintroduction findings. A `Warning`
 finding does not block merge by itself, but leaving it neither fixed nor formally
-excepted is not a complete review (see `docs/governance_04_documentation-checks.md`
+excepted is not a complete review (see `docs/00_governance/governance_04_documentation-checks.md`
 `### 13. Merge Condition Validation`).
 
 ### Exception Record Fields
@@ -267,7 +267,7 @@ For example: `<!-- exception: GV-020 — read_json_file mention is a historical
 comparison, not a current-spec claim — @agent-lead — expires 2026-12-01 -->`
 
 An exception past its expiration date is treated as an unexplained finding (see
-`docs/governance_04_documentation-checks.md`
+`docs/00_governance/governance_04_documentation-checks.md`
 `### 13. Merge Condition Validation`) — not as still-covered.
 
 ## Non-Goals

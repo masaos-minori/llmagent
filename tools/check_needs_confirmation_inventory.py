@@ -81,6 +81,45 @@ _STATUS_RE = re.compile(r"\*\*Status\*\*:\s*(\S+)")
 _ASSIGNED_TO_RE = re.compile(r"\*\*Assigned To\*\*:\s*(\S+)")
 _RESOLUTION_TARGET_RE = re.compile(r"\*\*Resolution Target\*\*:\s*(.+)$")
 
+_DEFINITIONAL_PHRASES = [
+    r"(?:defines|refers\s+to|see|indicates|means|describes)\s+(?:the\s+)?(?:label|term|phrase|concept)",
+    r"(?:the\s+)?(?:label|term|phrase|concept)\s+(?:is|refers\s+to|means|indicates|describes)",
+    r"(?:known\s+as|also\s+kown\s+as|called|titled)\s+[\"']?needs\s+confirmation[\"']?",
+    r"(?:discusses|mentions|references|cites)\s+(?:the\s+)?(?:label|term|phrase|concept)",
+]
+_DEFINITIONAL_RE = re.compile("|".join(_DEFINITIONAL_PHRASES), re.IGNORECASE)
+
+_TABLE_CELL_STATUS_RE = re.compile(
+    r"\|\s*(?:status|ステータス)\s*\|\s*(?:needs\s+confirmation)\s*\|", re.IGNORECASE
+)
+_PARENTHESIZED_RE = re.compile(r"\(\s*needs\s+confirmation\s*\)", re.IGNORECASE)
+
+
+def _is_definitional_mention(line: str, rel_path: str) -> bool:
+    """Return True if the line contains a definitional/discussion use of 'Needs Confirmation'
+    rather than an unresolved-item marker.
+
+    Classification rules:
+    - Prose references to the label itself (e.g., "defines the term 'Needs Confirmation'")
+      → definitional (exempt)
+    - Table cell status values (e.g., "| Status | Needs Confirmation |")
+      → unresolved-item marker (report)
+    - Parenthesized annotations (e.g., "(Needs Confirmation)")
+      → unresolved-item marker (report)
+    """
+    # If it matches a definitional phrase pattern, it's exempt
+    if _DEFINITIONAL_RE.search(line):
+        return True
+    # If it looks like a table cell status value, it's a marker (not definitional)
+    if _TABLE_CELL_STATUS_RE.search(line):
+        return False
+    # If it's a parenthesized annotation, it's a marker (not definitional)
+    if _PARENTHESIZED_RE.search(line):
+        return False
+    # Default: treat as definitional to avoid false positives
+    return True
+
+
 _NUMBER_WORDS = {
     "one": 1,
     "two": 2,
@@ -220,7 +259,24 @@ def check_untracked_inline_markers(
     issues: list[Issue] = []
     for doc in files:
         if doc.rel_path in _GOVERNANCE_META_DOCS:
-            continue
+            # Only process governance docs for unresolved-item markers
+            for line_no, line in enumerate(doc.lines, start=1):
+                if _INLINE_MARKER_RE.search(line):
+                    if _is_definitional_mention(line, doc.rel_path):
+                        continue  # Skip definitional mentions
+                    # Report unresolved-item marker
+                    issues.append(
+                        Issue(
+                            file=doc.rel_path,
+                            line_no=line_no,
+                            severity="WARNING",
+                            message=(
+                                f"inline 'Needs confirmation' marker has no matching "
+                                f"entry in {INVENTORY_DOC_NAME} (untracked item)"
+                            ),
+                        )
+                    )
+            continue  # Already processed this doc
         for line_no, line in enumerate(doc.lines, start=1):
             if _INLINE_MARKER_RE.search(line) and doc.rel_path not in tracked_files:
                 issues.append(

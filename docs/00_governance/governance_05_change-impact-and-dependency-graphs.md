@@ -78,7 +78,7 @@ function.
 
 **Cycles prohibited**: no circular dependencies are allowed among these 6 nodes.
 Enforced automatically by `tools/check_dependency_graph_cycles.py` (see
-`docs/00_governance_04_documentation-checks.md` "12. Area Dependency Graph
+`docs/00_governance/governance_04_documentation-checks.md` "12. Area Dependency Graph
 Validation").
 
 Security node: `scripts/shared/security/` (`HighRiskToolPolicy`, `SecurityMode`,
