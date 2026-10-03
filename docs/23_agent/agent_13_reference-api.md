@@ -1,5 +1,5 @@
 ---
-title: "Agent Reference API — Part 1"
+title: "Agent Reference API"
 area: agent
 tags:
   - agent
@@ -8,7 +8,7 @@ related:
   - agent_02_runtime-architecture.md
   - agent_14_reference-api-generated.md
 ---
-# Agent Reference API — Part 1
+# Agent Reference API
 
 ## Keywords
 <placeholder>
@@ -36,7 +36,7 @@ The API reference focuses on "what the API is" and "how it works." "Why this API
 
 - Detailed API references exist only in the Canonical Source defined by the Canonical Source Rule.
 - Duplication of API/type/method details in other chapters is prohibited (Canonical Source Rule).
-- Incomplete implementation changes must be explicitly marked with a `Needs Confirmation` flag.
+- Incomplete implementation changes must be tracked per [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md).
 
 ## Operational Notes
 
@@ -47,7 +47,6 @@ The API reference focuses on "what the API is" and "how it works." "Why this API
 ## Known Limitations
 
 - Some callees involve indirect dependencies (e.g., `factory.build_agent_context()` is called via `StartupOrchestrator`).
-- Differences between legacy documentation and current code are explicitly marked with `Needs Confirmation` flags.
 
 ## Related Docs
 
@@ -137,45 +136,7 @@ Full details: [mcp_03_01_dispatch-and-routing.md Reliable source of routing info
 
 ---
 
-## Agent Reference API — Part 2
-
-## Purpose
-
-A concise per-module API reference including roles, primary public APIs, callers, callees, relevant configurations, and failure behavior. For full method signatures, refer to the respective chapters linked below.
-
-## Design Intent
-
-The API reference focuses on "what the API is" and "how it works." "Why this API was designed this way" is within the scope of design documentation.
-
-## Responsibility Boundary
-
-- **Owned by this file:** Function signatures, parameter types, return values, error conditions.
-- **Not owned by this file:** Component context, data flow, runtime behavior.
-
-## Key Constraints
-
-- Detailed API references exist only in the Canonical Source defined by the Canonical Source Rule.
-- Duplication of API/type/method details in other chapters is prohibited (Canonical Source Rule).
-- Incomplete implementation changes must be explicitly marked with a `Needs Confirmation` flag.
-
-## Operational Notes
-
-- REPL loop driver calls are always in `await` format.
-- Different fallback behaviors exist for different error types upon failure.
-- The memory layer is optional and designed to be safely guarded when `ctx.services.memory is None`.
-
-## Known Limitations
-
-- Some callees involve indirect dependencies.
-- Differences between legacy documentation and current code are explicitly marked with `Needs Confirmation` flags.
-
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_13_reference-api.md`
-- `agent_14_reference-api-generated.md` (generated class/function index)
-
----
+## HistoryManager (`agent/history.py`)
 
 ## HistoryManager (`agent/history.py`)
 

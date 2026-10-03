@@ -26,16 +26,14 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ## Responsibility Boundary
 
-- **In scope**: Chapter structure overview, question-to-chapter navigation mapping, Canonical Source Rule definition, handling of Known Issues / Deprecated Items / Needs Confirmation entries.
+- **In scope**: Chapter structure overview, question-to-chapter navigation mapping, Canonical Source Rule definition, handling of Known Issues / Deprecated Items here; uncertainty items tracked per [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md).
 - **Out of scope**: Detailed file indexes, keyword lists duplicatable by code search, implementation diff memos ("confirmed at file X line Y").
 
 ## Key Constraints
 
 - When a fact is mechanically derivable from code, point to the source rather than transcribing it.
-- Unrecoverable design rationales must be explicitly marked `Needs Confirmation` rather than silently dropped.
-- Do not modify other documents in the `agent_*.md` set.
-- Do not add new content beyond what exists in the current document.
-- Do not change the doc set directory structure.
+- Unrecoverable design rationales must not be silently dropped; their disposition follows [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md).
+- Changes to the doc set directory structure must go through the governance process.
 
 ## Operational Notes
 

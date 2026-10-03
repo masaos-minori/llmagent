@@ -63,7 +63,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
 GOVERNANCE_DOC_PATH = DOCS_DIR / "00_governance" / GOVERNANCE_DOC_NAME
 REMOVAL_PLACEHOLDER_RE = re.compile(r"do not create a `#### ([A-Z]+-\d+)` heading")
-FIELD_BULLET_RE = re.compile(r"- \*\*([^*]+)\*\*: ")
+FIELD_BULLET_RE = re.compile(r"- \*\*([^*]+):\*\*| - \*\*([^*]+)\*\*: ")
 HEADING_RE = re.compile(r"^#### (.+)$")
 CLOSING_SUMMARY_RE = re.compile(
     r"No other active .* beyond (\S+)(?: through (\S+))? above\."
@@ -117,7 +117,7 @@ def parse_entries(doc: DocFile) -> list[Entry]:
             # Parse field bullet
             field_match = FIELD_BULLET_RE.match(line.strip())
             if field_match:
-                field_name = field_match.group(1).strip()
+                field_name = (field_match.group(1) or field_match.group(2)).strip()
                 field_value = line.strip()[field_match.end() :].strip()
                 current_entry.fields[field_name] = field_value
                 current_entry = replace(current_entry, line_end=line_no)

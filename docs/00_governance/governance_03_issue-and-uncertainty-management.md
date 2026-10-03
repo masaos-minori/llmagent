@@ -156,6 +156,23 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 | NC-003 | Agent canonical source not identified | Missing-canonical-source | Medium | No `*specification*` file exists under `docs/`; no close equivalent in `docs/23_agent/` | Determine whether a specification document should exist for Agent |
 | NC-004 | Shared/DB canonical source not identified | Missing-canonical-source | Medium | No `*specification*` file exists under `docs/`; no close equivalent in `docs/40_shared/` or `docs/41_db/` | Determine whether a specification document should exist for Shared/DB |
 
+#### NC-040
+- **ID:** NC-040
+- **Source File:** `rag_05_5-constraints-reference.md`
+- **Section:** Constraints reference table, `chunking_strategy` row
+- **Line Number:** 30
+- **Question:** Whether a closed value set is intended for `chunking_strategy` (currently any non-empty string is accepted at parse time)
+- **Evidence:** `rag_05_5:30` inline "(Needs confirmation: whether a closed value set is intended)" marker; prior issue `20260913-183004` and plan `20260913-203130` recorded the same question; `_validate_str` does not enforce a closed value set
+- **Impact:** Without resolution, the `"text"`/`"heading"` convention may be silently treated as a requirement rather than a convention
+- **Required Action:** Determine whether a closed value set is intended; if yes, implement enforcement in `_validate_str`
+- **Status:** open
+- **Assigned To:** Unknown (owner genuinely unassigned anywhere in the repo; `Unknown` is distinct from `Unassigned` which triggers a warning)
+- **Last Reviewed:** 2026-10-02
+- **Priority:** Medium
+- **Related NC:** None
+- **Resolution Target:** Owner decision on closed value set intent; optional follow-up issue if a value set is determined
+- **Blocking:** No
+
 ## Part 3: Canonical Source Conflict
 
 ### Purpose

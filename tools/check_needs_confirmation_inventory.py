@@ -74,12 +74,14 @@ _INLINE_MARKER_RE = re.compile(r"needs confirmation", re.IGNORECASE)
 _NC_ENTRY_RE = re.compile(r"^#### (NC-\d+)\s*$")
 _PART2_HEADER_RE = re.compile(r"^## Part 2:")
 _SECTION_HEADER_RE = re.compile(r"^## ")
-_SOURCE_FILE_RE = re.compile(r"\*\*Source File\*\*:\s*`([^`]+)`")
-_ASSIGNED_TO_RE = re.compile(r"\*\*Assigned To\*\*:\s*(\S+)")
-_RESOLUTION_TARGET_RE = re.compile(r"\*\*Resolution Target\*\*:\s*(.+)$")
-_STATUS_RE = re.compile(r"\*\*Status\*\*:\s*(\S+)")
-_ASSIGNED_TO_RE = re.compile(r"\*\*Assigned To\*\*:\s*(\S+)")
-_RESOLUTION_TARGET_RE = re.compile(r"\*\*Resolution Target\*\*:\s*(.+)$")
+_SOURCE_FILE_RE = re.compile(
+    r"(?:\*\*Source File:\*\*|\*\*Source File\*\*:)\s*`([^`]+)`"
+)
+_STATUS_RE = re.compile(r"(?:\*\*Status:\*\*|\*\*Status\*\*:)\s*(\S+)")
+_ASSIGNED_TO_RE = re.compile(r"(?:\*\*Assigned To:\*\*|\*\*Assigned To\*\*:)\s*(\S+)")
+_RESOLUTION_TARGET_RE = re.compile(
+    r"(?:\*\*Resolution Target:\*\*|\*\*Resolution Target\*\*:)\s*(.+)$"
+)
 
 _DEFINITIONAL_PHRASES = [
     r"(?:defines|refers\s+to|see|indicates|means|describes)\s+(?:the\s+)?(?:label|term|phrase|concept)",
@@ -172,7 +174,7 @@ def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
     current_status: str | None = None
     current_assigned_to: str | None = None
     current_resolution_target: str | None = None
-    in_part2 = True
+    in_part2 = False
 
     def flush() -> None:
         if current_id is not None:
