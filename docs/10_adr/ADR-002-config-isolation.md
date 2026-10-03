@@ -16,21 +16,6 @@ superseded_by: null
 # ADR-002: Per-Process Configuration Ownership and Config Isolation
 
 ## Keywords
-<placeholder>
-
-## Status
-
-Accepted
-
-The available Status values are as follows.
-
-- `Proposed`: Under proposal; before review or approval
-- `Accepted`: Adopted and effective as the current design
-- `Rejected`: Considered but not adopted
-- `Deprecated`: No longer recommended, but partially remaining
-- `Superseded`: Replaced by a successor ADR
-
-To change the decision after acceptance, do not edit the body directly; create a new ADR and change this ADR to Superseded.
 
 ## Summary
 
@@ -78,17 +63,6 @@ When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, 
 13. Secrets are exposed only to the processes that need them. Environment variables also have a Prefix or an Allowlist.
 14. The impact scope and restart targets of a configuration change are determined per owning process.
 15. Configuration is not implicitly loaded at module import time.
-
-## Per-Process Required Files and Keys
-
-| Process | Required Config File(s) | Required Keys | Empty-Allowed Keys |
-|---|---|---|---|
-| Agent | `agent.toml` | All keys consumed by `AgentConfig` dataclass and its 9 sub-configs (`LLMConfig`, `RAGConfig`, `ToolConfig`, `MemoryConfig`, `MCPConfig`, `ApprovalConfig`, `ObservabilityConfig`, `DiagnosticsConfig`, `MessageRoleConfig`) | Keys with non-empty defaults in dataclass definitions (see `scripts/agent/config_dataclasses.py`) |
-| MCP Server (each) | `<name>_mcp_server.toml` | `security_profile`, `security_lockdown_enabled`, `mcp_servers.<name>` (server-specific entry) | `mcp_servers.<name>.env`, `mcp_servers.<name>.allowlist`, `mcp_servers.<name>.denylist`, `mcp_servers.<name>.headers` |
-| Crawler | `crawler_mcp_server.toml` | `security_profile`, `security_lockdown_enabled`, `mcp_servers.crawler` | `mcp_servers.crawler.env`, `mcp_servers.crawler.allowlist`, `mcp_servers.crawler.denylist`, `mcp_servers.crawler.headers` |
-| Chunk Splitter | `chunk_splitter_mcp_server.toml` | `security_profile`, `security_lockdown_enabled`, `mcp_servers.chunk_splitter` | `mcp_servers.chunk_splitter.env`, `mcp_servers.chunk_splitter.allowlist`, `mcp_servers.chunk_splitter.denylist`, `mcp_servers.chunk_splitter.headers` |
-| Ingester | `ingester_mcp_server.toml` | `security_profile`, `security_lockdown_enabled`, `mcp_servers.ingester` | `mcp_servers.ingester.env`, `mcp_servers.ingester.allowlist`, `mcp_servers.ingester.denylist`, `mcp_servers.ingester.headers` |
-| EventBus | *N/A* (does not use ConfigLoader) | *N/A* | *N/A* |
 
 ### Scope
 
@@ -286,8 +260,6 @@ The `AGENT_RESTRICT_CONFIG` environment variable has been removed (legacy). Ever
 - Conditions that prohibit Fallback: a missing configuration file
 - Where Fallback reasons are recorded: audit log
 
-If not applicable, write "Not applicable".
-
 ## Data Ownership and Persistence
 
 - **System of Record**: each process's configuration files (TOML format)
@@ -297,8 +269,6 @@ If not applicable, write "Not applicable".
 - **Transaction Boundary**: per configuration-file load
 - **Recovery Source**: configuration files (manual recovery)
 - **Deletion Rule**: deleting a configuration file requires restarting the related processes
-
-If not applicable, write "Not applicable".
 
 ## Verification
 

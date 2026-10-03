@@ -14,36 +14,28 @@ related:
 # ADR-008: Separating SQLite into Four Databases
 
 ## Keywords
-<placeholder>
 
 ## Status
 
 Accepted
 
-The available Status values are as follows.
-
-- `Proposed`: Under proposal; before review or approval
-- `Accepted`: Adopted and effective as the current design
-
-To change the current decision after acceptance, update this ADR body directly. In the same change, update the affected Specification, Reference, and Operations documents and the verification requirements.
-
 ## Summary
 
-This ADR canonicalizes the decision to separate data with different update frequencies, failure scopes, retention periods, and recovery methods into four SQLite DBs. It defines the responsibilities of `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, and `eventbus.sqlite`, and explains that cross-DB Transactions are not used and how consistency is ensured. It limits the scope of sqlite-vec and organizes the Backup, Recovery, and retention policy per DB. It also canonicalizes the safety boundary that recovery from physical corruption must satisfy (failure classification, independent verification of backup candidates, Atomic replacement, a no-change guarantee for Dry Run, and a recovery policy per persistence domain).
+This ADR canonicalizes the decision to separate data with different update frequencies, failure scopes, retention periods, and recovery methods into four SQLite DBs. It defines the responsibilities of `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, and `eventbus.sqlite`, and explains that cross-DB Transactions are not used and how consistency is ensured. It limits the scope of sqlite-vec and organizes the Backup, Recovery, and retention policy per DB. It also canonicalizes the safety boundary for recovery from physical corruption (failure classification, independent verification of backup candidates, Atomic replacement, a no-change guarantee for Dry Run, and a recovery policy per persistence domain).
 
 ## Context
 
 ### Problem
 
-The RAG index, session state, workflow state, and event bus state each have different update frequencies, lock contention characteristics, failure scopes, retention periods, and recovery methods. Managing them in a single DB causes performance degradation from WAL contention, failure propagation, and more complex backups.
+The RAG index, session state, workflow state, and event bus state differ in update frequency, lock contention, failure scope, retention period, and recovery method. Single-DB management causes WAL contention, failure propagation, and complex backups.
 
-In addition, even when separated into multiple SQLite files, it is dangerous if the recovery mechanism itself has no explicit safety contract. A recovery mechanism that cannot distinguish why a DB cannot be opened (physical corruption or temporary lock contention) may run even against a DB that is not actually broken, so it can be more dangerous than having no recovery mechanism at all. An implementation that restores from an unverified backup or overwrites the target DB non-Atomically turns a single-file corruption incident into the risk of losing both the corrupted original and a good backup.
+When separated into multiple SQLite files, a recovery mechanism without an explicit safety contract is dangerous. One that cannot distinguish physical corruption from temporary lock contention may run against a DB that is not actually broken—more dangerous than no recovery at all. Restoring from an unverified backup or non-atomic DB overwrite turns a single-file corruption into loss of both original and backup.
 
 ### Constraints
 
-- Execution on a single host with multiple processes is assumed
-- In the deployment environment, the existence of each DB file must be confirmed before startup
-- The sqlite-vec extension must be loaded only into `rag.sqlite`
+- Single host with multiple processes execution
+- Each DB file existence confirmed before startup in the deployment environment
+- sqlite-vec extension loaded only into `rag.sqlite`
 - Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed
 - A persistence failure in Workflow or EventBus is not treated as success with only a log entry
 - operator-restore is currently a manual, operator-initiated CLI operation, not an automatic process at startup
@@ -51,12 +43,12 @@ In addition, even when separated into multiple SQLite files, it is dangerous if 
 
 ### Assumptions
 
-- Target environment: a single host, multiple processes
-- Expected scale: limited concurrency
-- Trust boundary: privileges are granted only within each DB
-- External dependencies: none (SQLite is a local file)
+- Single host, multiple processes
+- Limited concurrency
+- Privileges granted only within each DB
+- No external dependencies (SQLite is a local file)
 - Backups are periodic file copies (`rotate_all_dbs()`), not continuously verified Snapshots
-- Items to re-evaluate if the assumptions no longer hold: multi-host configuration, distributed execution, integration with an external event store, migration to replicated storage
+- Re-evaluate if assumptions no longer hold: multi-host configuration, distributed execution, integration with an external event store, migration to replicated storage
 
 ## Decision
 
@@ -80,7 +72,7 @@ In addition, even when separated into multiple SQLite files, it is dangerous if 
 | Owning component | RAG team | Agent team | Workflow team | EventBus team |
 | Required service stop scope | RAG process | Agent process | Workflow process | EventBus process |
 | Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | `_run_integrity_check()` | `_run_integrity_check()` |
-| Supported recovery source | verified backup file supplied by operator | verified backup file supplied by operator | none (automatic restore prohibited per Decision Detail #20) | none (automatic restore prohibited per Decision Detail #20) |
+| Supported recovery source | verified backup from operator | verified backup from operator | none (auto-restore prohibited per Decision Detail #20) | none (auto-restore prohibited per Decision Detail #20) |
 | Automatic restore allowed or prohibited | allowed (per Decision Detail #11) | allowed (per Decision Detail #11) | prohibited (INV-18) | prohibited (INV-18) |
 | Manual restore allowed or prohibited | allowed | allowed | operator intervention only | operator intervention only |
 | Operator approval requirement | required for manual restore | required for manual restore | required (manual operation only) | required (manual operation only) |
@@ -93,30 +85,30 @@ In addition, even when separated into multiple SQLite files, it is dangerous if 
 | Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) |
 | Data-loss disclosure requirement | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported |
 
-For any future persistence domain not covered by this matrix, the default policy is fail-closed: no automatic restore is permitted until an approved architectural decision defines its recovery policy.
+Future persistence domains: default policy is fail-closed—no automatic restore until an approved architectural decision defines its recovery policy.
 
 ### Decision Details
 
-1. `rag.sqlite`: the canonical store for documents, chunks, FTS5, and the Vector Index. Owned by the RAG team.
-2. `session.sqlite`: the canonical store for Agent Sessions, Messages, and conversation state. Owned by the Agent team.
-3. `workflow.sqlite`: the canonical store for Tasks, Attempts, Approvals, Artifacts, and processed Events. Owned by the Workflow team.
-4. `eventbus.sqlite`: the canonical store for Events, Offsets, Delivery, and the DLQ. Owned by the EventBus team.
-5. As the reasons for DB separation, record the differences in write characteristics, lock contention, failure isolation, retention periods, recovery methods, and extension-loading scope.
+1. `rag.sqlite`: canonical store for documents, chunks, FTS5, and the Vector Index. Owned by the RAG team.
+2. `session.sqlite`: canonical store for Agent Sessions, Messages, and conversation state. Owned by the Agent team.
+3. `workflow.sqlite`: canonical store for Tasks, Attempts, Approvals, Artifacts, and processed Events. Owned by the Workflow team.
+4. `eventbus.sqlite`: canonical store for Events, Offsets, Delivery, and the DLQ. Owned by the EventBus team.
+5. Reasons for DB separation: differences in write characteristics, lock contention, failure isolation, retention periods, recovery methods, and extension-loading scope.
 6. Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 7. Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
 8. Cross-DB consistency is guaranteed by Events, idempotent processing, and state reconciliation.
 9. sqlite-vec is loaded only into `rag.sqlite`.
 10. Each DB defines its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period.
-11. RAG emphasizes rebuildability, Session emphasizes history retention, Workflow emphasizes resumption and auditing, and EventBus emphasizes unprocessed Events and Offsets.
+11. RAG: rebuildability; Session: history retention; Workflow: resumption and auditing; EventBus: unprocessed Events and Offsets.
 12. A persistence failure in Workflow or EventBus is not treated as success with only a log entry.
-13. Record the reasons for prioritizing avoidance of lock contention, failure isolation, and simpler recovery over the trade-off that cross-DB Transactions become difficult.
-14. physical-recovery must classify the DB state (healthy / confirmed corruption / lock contention / permission failure / invalid format / unknown) before choosing an action. Lock Contention and Permission Failure must not be classified as physical corruption.
+13. Prioritize avoiding lock contention, failure isolation, and simpler recovery over cross-DB Transaction difficulty.
+14. Physical recovery must classify DB state (healthy/corruption/lock contention/permission failure/invalid format/unknown) before acting. Lock Contention and Permission Failure must not be classified as physical corruption.
 15. A backup that is a restore candidate must have its own integrity verified independently before it replaces the target DB.
-16. A restore Stages the candidate in a temporary location, verifies it, and then replaces the target DB Atomically only to the extent supported by the current design. The target DB must not be overwritten before the candidate passes verification.
+16. Restore stages candidate in temporary location, verifies it, then atomically replaces target DB per current design limits. Target DB must not be overwritten before candidate passes verification.
 17. An Unknown or unclassifiable failure preserves the target DB and requires operator intervention instead of an automatic restore.
 18. Dry Run must not move, replace, Truncate, delete, or rewrite the target DB for any classification result.
-19. Before replacement, a corrupted DB is set aside as a diagnostic copy. Retention and deletion of the set-aside copy are left to the operator's manual judgment. No automatic deletion is performed.
-20. The recovery policy is defined explicitly per persistence domain. `rag.sqlite` can be rebuilt from its canonical data (the `chunks` table and so on), so recovery by rebuilding is permitted; `session.sqlite` permits restoring from a backup. `workflow.sqlite` and `eventbus.sqlite` prohibit automatic restore, and recovery is manual operator handling only (no silent re-initialization).
+19. Corrupted DB is set aside as diagnostic copy before replacement. Retention/deletion left to operator manual judgment; no automatic deletion.
+20. Recovery policy defined per persistence domain: `rag.sqlite` rebuilt from canonical data (`chunks` table); `session.sqlite` restored from backup; `workflow.sqlite` and `eventbus.sqlite` prohibit automatic restore—manual operator handling only (no silent re-initialization).
 
 ### Scope
 
@@ -154,8 +146,6 @@ Each DB can define its own Backup, Recovery, WAL Checkpoint, Health Check, and r
 
 A recovery mechanism that cannot distinguish corruption from a temporary lock may run even against a DB that is not actually broken, so it is more dangerous than having no recovery mechanism at all. If the recovery policy for the `workflow`/`eventbus` domains were left undefined, there would be no action for operators to take when a failure actually occurs in those domains, so this ADR defines that policy explicitly.
 
-Do not use "the current code is implemented this way" as the sole reason for adoption.
-
 ## Alternatives Considered
 
 ### Alternative A: Single SQLite Database
@@ -179,7 +169,7 @@ Manage all data in a single SQLite DB.
 
 #### Reason for Rejection
 
-Rejected to prioritize Operability and Performance and prevent lock contention and failure propagation.
+Operability and Performance require preventing lock contention and failure propagation.
 
 #### Reconsideration Conditions
 
@@ -205,7 +195,7 @@ Do not use sqlite-vec for vector search.
 
 #### Reason for Rejection
 
-Rejected to prioritize Performance and achieve high-accuracy KNN search.
+Performance requires high-accuracy KNN search via sqlite-vec.
 
 #### Reconsideration Conditions
 
@@ -231,7 +221,7 @@ Allow transactions across DBs.
 
 #### Reason for Rejection
 
-Rejected to prioritize Operability and keep the failure scope localized.
+Operability requires keeping the failure scope localized.
 
 #### Reconsideration Conditions
 
@@ -306,14 +296,14 @@ Whether to make them unrecoverable or to provide a manual operator recovery proc
 ### Operational Consequences
 
 - Each DB's connection is confirmed at startup
-- A configuration change requires restarting the owning DB
+- Configuration changes require restarting the owning DB
 - Incident response requires a recovery procedure per DB
-- Because no automatic restore is performed when `workflow.sqlite`/`eventbus.sqlite` is physically corrupted, operators must handle recovery manually
+- No automatic restore for `workflow.sqlite`/`eventbus.sqlite` physical corruption; operators must handle recovery manually
 - Deletion of set-aside corrupted DB copies is left to the operator's manual judgment (no automatic deletion)
 
 ### Security Consequences
 
-- Trust boundary: privileges are granted only within each DB
+- Trust boundary: privileges granted only within each DB
 - Authentication and authorization: permission decisions based on configuration files
 - Secret handling: follow the principle of minimal exposure
 - Fail-Closed: abort startup when a configuration file is missing
@@ -341,20 +331,16 @@ Whether to make them unrecoverable or to provide a manual operator recovery proc
 - INV-17: An Unknown or unclassifiable failure preserves the target DB and requires operator intervention instead of an automatic restore.
 - INV-18: Automatic restore of `workflow.sqlite` and `eventbus.sqlite` is prohibited. Recovery is manual operator handling only, explicitly applying a policy different from `rag.sqlite` (rebuild) and `session.sqlite` (restore from backup).
 
-## Exceptions
-
-None
-
 ## Failure Policy
 
 ### Fail-Fast Conditions
 
-- When the `rag.sqlite` connection fails (RAG functionality stops)
-- When the `session.sqlite` connection fails (session functionality stops)
-- When the `workflow.sqlite` connection fails (workflow functionality stops)
-- When the `eventbus.sqlite` connection fails (event delivery stops)
-- When a backup that is a restore candidate fails independent verification
-- When an integrity check fails in an Unknown or unclassifiable way
+- `rag.sqlite` connection failure (RAG functionality stops)
+- `session.sqlite` connection failure (session functionality stops)
+- `workflow.sqlite` connection failure (workflow functionality stops)
+- `eventbus.sqlite` connection failure (event delivery stops)
+- Backup restore candidate fails independent verification
+- Integrity check fails in an Unknown or unclassifiable way
 
 ### Fail-Open or Degraded Conditions
 
@@ -366,7 +352,7 @@ Not applicable. physical-recovery is designed as a Fail-Closed domain. When in d
 - Retry count: `retry_policy.max_attempts` (default 3)
 - Backoff: fixed interval (default 1 second)
 - Errors not retried: consistency-check mismatches
-- operator-restore is a single, operator-initiated attempt; there is no automatic retry loop
+- operator-restore is a single, operator-initiated attempt; no automatic retry loop
 
 ### Fallback Policy
 
@@ -449,17 +435,7 @@ Not applicable. physical-recovery is designed as a Fail-Closed domain. When in d
 
 Register any Invariant without Verification as an unverified item in an Issue.
 
-## Implementation Notes
-
-Briefly describe how the current implementation realizes the Decision.
-
-This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
-
-Do not record line numbers; reference by File Path and Symbol name.
-
 ## Known Deviations
-
-Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
 - **Known Issue (updated 2026-09-04)**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed (`plans/done/20260903-091921_plan.md`): `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. However, the authentication middleware itself is still not implemented, and same-host access via loopback or an SSH tunnel still has no authentication layer.
   - **Type**: Security Gap
@@ -474,11 +450,7 @@ Record any discrepancy between this ADR and the current implementation, configur
   - **Resolution**: Implemented in `implementations/20260902-064946_01_scripts_db_recovery_py.md`; verified by unit tests and integration tests
   - **Resolved (details)**: Through REQ-001 to REQ-003, a dedicated branch for `DbCondition.UNKNOWN` was added to `recover_corruption()`, which now returns `action="preserved_operator_intervention_required"` to preserve the target DB and require operator intervention (`_restore_from_backup()` is not called). This satisfies INV-17. **Impact**: INV-17 → resolved.
 
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
-
 ## Review Triggers
-
-Re-evaluate this ADR when any of the following conditions occurs.
 
 - The operational scale or concurrency changes significantly
 - The deployment changes from a single host to multiple hosts or a distributed configuration
@@ -524,37 +496,34 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Specifications
 
-- [DB Architecture and Schema](../41_db/db_02_db_architecture_and_schema-schema-reference.md) — DB schema reference
-- [DB API and Operations — Recovery and Reference](../41_db/db_07_db_api_and_operations-recovery-and-reference.md) — recovery API and Operations reference
-- [RAG Persistence](rag_04_02_rag-persistence.md) — RAG persistence
-- [RAG Recovery](rag_04_03_rag-recovery.md) — RAG recovery
-- [Agent Session Persistence](agent_04_01_agent-session-persistence.md) — session persistence
-- [EventBus Persistence Schema and Replay](../24_eventbus/eventbus_07_persistence_schema_and_replay.md) — EventBus persistence schema
-- [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md) — DLQ offsets and delivery semantics
+- [DB Architecture and Schema](../41_db/db_02_db_architecture_and_schema-schema-reference.md)
+- [DB API and Operations — Recovery and Reference](../41_db/db_07_db_api_and_operations-recovery-and-reference.md)
+- [RAG Persistence](rag_04_02_rag-persistence.md)
+- [RAG Recovery](rag_04_03_rag-recovery.md)
+- [Agent Session Persistence](agent_04_01_agent-session-persistence.md)
+- [EventBus Persistence Schema and Replay](../24_eventbus/eventbus_07_persistence_schema_and_replay.md)
+- [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md)
 
 ### Operations
 
-- [Operations and Observability](../23_agent/agent_10_01_operations-and-observability-startup-and-health.md) — operations and observability
-- [Manual Recovery: workflow.sqlite / eventbus.sqlite](../23_agent/agent_10_01_operations-and-observability-startup-and-health.md#manual-recovery-workflowsqlite-eventbussqlite) — manual recovery procedure for workflow.sqlite / eventbus.sqlite
+- [Operations and Observability](../23_agent/agent_10_01_operations-and-observability-startup-and-health.md)
+- [Manual Recovery: workflow.sqlite / eventbus.sqlite](../23_agent/agent_10_01_operations-and-observability-startup-and-health.md#manual-recovery-workflowsqlite-eventbussqlite)
 
 ### Known Issues
 
-<!-- TODO: Document 'rag_04_02_rag-persistence.md' was deleted -->
-<!-- TODO: Document 'rag_04_03_rag-recovery.md' was deleted -->
-<!-- TODO: Document '05_agent_04_01_agent-session-persistence.md' was deleted -->
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus known issues
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md)
 
 ### Implementation References
 
-- `scripts/db/config.py` — `DbConfig` frozen dataclass
-- `scripts/db/helper.py` — `SQLiteHelper.__init__()`, `load_vec()`
-- `scripts/db/create_schema.py` — `create_schema()`
-- `scripts/db/maintenance.py` — `check_rag_consistency()`
-- `scripts/db/recovery.py` — `recover_corruption()`, `_classify_error()`, `_run_integrity_check()`, `_restore_from_backup()`
-- `rag.sqlite` — `documents`, `chunks`, `chunks_fts`, `chunks_vec`
-- `session.sqlite` — `sessions`, `messages`, `memories`, `memories_vec`
-- `workflow.sqlite` — `tasks`, `attempts`, `artifacts`, `approvals`
-- `eventbus.sqlite` — `events`
+- `scripts/db/config.py` (`DbConfig`)
+- `scripts/db/helper.py` (`SQLiteHelper.__init__()`, `load_vec()`)
+- `scripts/db/create_schema.py` (`create_schema()`)
+- `scripts/db/maintenance.py` (`check_rag_consistency()`)
+- `scripts/db/recovery.py` (`recover_corruption()`, `_classify_error()`, `_run_integrity_check()`, `_restore_from_backup()`)
+- `rag.sqlite` (`documents`, `chunks`, `chunks_fts`, `chunks_vec`)
+- `session.sqlite` (`sessions`, `messages`, `memories`, `memories_vec`)
+- `workflow.sqlite` (`tasks`, `attempts`, `artifacts`, `approvals`)
+- `eventbus.sqlite` (`events`)
 - Tests — `tests/test_db_*.py`, `tests/db/test_db_maintenance.py`, `tests/integration/test_session_recovery.py`
 
 ## Completion Checklist

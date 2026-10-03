@@ -15,18 +15,10 @@ related:
 # ADR-003: RuntimeToolRegistry as the Sole Routing Authority
 
 ## Keywords
-<placeholder>
 
 ## Status
 
 Accepted
-
-The available Status values are as follows.
-
-- `Proposed`: Under proposal; before review or approval
-- `Accepted`: Adopted and effective as the current design
-
-To change the current decision after acceptance, update this ADR body directly. In the same change, update the affected Specification, Reference, and Operations documents and the verification requirements.
 
 ## Summary
 
@@ -129,8 +121,6 @@ Because the Routing authority is limited to one, it is always clear which path's
 
 A single "enabled/disabled" concept that actually carries several different meanings causes code to reference the wrong concept and leads to documentation describing processing stages as filtering when they actually do not. Explicitly distinguishing "static availability vs. Dynamic Health" and "Approval vs. disabled state" prevents the cheap and likely mistake of writing a Dynamic Health-driven feature into the same field as LLM visibility.
 
-Do not use "the current code is implemented this way" as the sole reason for adoption.
-
 ## Alternatives Considered
 
 ### Alternative A: Dual routing authority (ToolRegistry + RuntimeToolRegistry)
@@ -230,7 +220,7 @@ Merge static availability and Dynamic Health into a single `enabled` signal.
 
 #### Reason for Rejection
 
-Because the current separation (static controls visibility, Dynamic controls runtime success or failure) is already the safer design, the separation is kept and made explicit.
+The current separation is the safer design.
 
 #### Reconsideration Conditions
 
@@ -253,7 +243,7 @@ Represent the approval-required state as part of the disabled-Tool mechanism.
 
 #### Reason for Rejection
 
-Rejected because it confuses call-time Policy decisions with per-Tool availability flags. Separating the two is both the already implemented reality and the correct model.
+Confuses call-time Policy decisions with per-Tool availability flags.
 
 ## Consequences
 
@@ -402,23 +392,11 @@ Not applicable
 
 ## Implementation Notes
 
-Briefly describe how the current implementation realizes the Decision.
-
-See Related Documents > Implementation References for the current file/symbol list.
-
-This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
-
-Do not record line numbers; reference by File Path and Symbol name.
-
 ## Known Deviations
 
 No confirmed deviations.
 
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues. For the implementation verification status of whether the whole Reload execution flow updates only Policy-derived fields, see the corresponding Shared/DB Known Issues item.
-
 ## Review Triggers
-
-Re-evaluate this ADR when any of the following conditions occurs.
 
 - The operational scale or concurrency changes significantly
 - The deployment changes from a single host to multiple hosts or a distributed configuration
