@@ -98,10 +98,10 @@ Simple revert via `git checkout -- docs/10_adr/ADR-002-config-isolation.md`. No 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Documentation-only; no test changes required |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation updates needed beyond this procedure |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261003-130124 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261003-130130 | Documentation-only; no test changes required |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261003-130130 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261003-130131 | N/A: no documentation updates needed beyond this procedure |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
