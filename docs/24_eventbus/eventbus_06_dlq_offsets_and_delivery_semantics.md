@@ -102,7 +102,7 @@ No `acked_at` check in `nack_event`. Even if already ACKed, NACK succeeds and `d
 
 Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/ack?consumer_id={consumer_id}`. They do not advance automatically during streaming. Idempotent duplicate ACKs do not update the offset.
 
-**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. If ACKs are not received in `seq` order, an unacknowledged lower `seq` is not re-acquired on resume (tracked as EVENTBUS-001).
+**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. A Consumer that resumes with a persistent `consumer_id` must therefore ACK in `seq` order: an unacknowledged lower `seq` is not re-acquired on resume once a higher `seq` has been acknowledged. The no-loss guarantee on resume applies only to Consumers that ACK in `seq` order (see ADR-006).
 
 ### Resume Behavior
 
@@ -221,7 +221,7 @@ Each consumer's last-committed offset is stored in a per-consumer SQLite table (
 
 Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/ack?consumer_id={consumer_id}`. They do not advance automatically during streaming. Idempotent duplicate ACKs do not update the offset.
 
-**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. If ACKs are not received in `seq` order, an unacknowledged lower `seq` is not re-acquired on resume (tracked as EVENTBUS-001).
+**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. A Consumer that resumes with a persistent `consumer_id` must therefore ACK in `seq` order: an unacknowledged lower `seq` is not re-acquired on resume once a higher `seq` has been acknowledged. The no-loss guarantee on resume applies only to Consumers that ACK in `seq` order (see ADR-006).
 
 ### Resuming on Reconnection
 
@@ -369,7 +369,7 @@ No `acked_at` check in `nack_event`. Even if already ACKed, NACK succeeds and `d
 
 Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/ack?consumer_id={consumer_id}`. They do not advance automatically during streaming. Idempotent duplicate ACKs do not update the offset.
 
-**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. If ACKs are not received in `seq` order, an unacknowledged lower `seq` is not re-acquired on resume (tracked as EVENTBUS-001).
+**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. A Consumer that resumes with a persistent `consumer_id` must therefore ACK in `seq` order: an unacknowledged lower `seq` is not re-acquired on resume once a higher `seq` has been acknowledged. The no-loss guarantee on resume applies only to Consumers that ACK in `seq` order (see ADR-006).
 
 ### Resume Behavior
 

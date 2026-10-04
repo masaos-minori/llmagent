@@ -107,6 +107,8 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | ID | Title | Status | Severity | Area | Type | Source | Owner | First Found | Summary | Related |
 |----|-------|--------|----------|------|------|--------|-------|-------------|---------|---------|
 
+No active Known Issue items remain.
+
 
 **Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
 
@@ -114,19 +116,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 **EventBus-specific verification (REQ-006)**: Verified by configuration test confirming `ConfigMissingError` is raised when a required config file is missing. The EventBus `load_config()` function (`scripts/eventbus/config.py`) validates required keys via `_REQUIRED_CONFIG_KEYS` and raises `ValueError` for missing keys — consistent with the fail-closed behavior described in CI-005.
 
 Note on CI-014 batching: These "ADR invariant verified by code inspection, no automated test" entries formed one cross-cutting initiative of originally nine members. All nine have since been removed once test coverage was added (CI-008, CI-009, CI-010, CI-011, CI-012, CI-013, CI-014, CI-015, and CI-016); no active members remain. Their Area fields spanned Agent, Shared/DB, MCP, RAG, and EventBus, so no single existing RACI role was accountable for the cross-area ADR-invariant-test-suite initiative. This finding is recorded here; the cross-cutting-role vs. per-area-ownership decision stays open for any future similar initiative.
-
-### EVENTBUS-001: Out-of-Order ACK Skips Lower-seq Events on Resume
-
-- **Status**: open
-- **Severity**: High
-- **Area**: EventBus
-- **Type**: design-gap
-- **Source**: docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md
-- **Owner**: Unassigned
-- **First Found**: 2026-10-03
-- **Summary**: Offset monotonicity itself is guaranteed (the offset never moves backward), but the offset is a high-water mark of acknowledged seq values; with out-of-order ACKs an unacknowledged lower seq is skipped on resume, in tension with the at-least-once baseline
-- **Related**: eventbus_06_dlq_offsets_and_delivery_semantics.md; issues/20261004-095313_eventbus001_eventbus-out-of-order-ack-skips-lower-seq-events-on-resume.md
-- **Resolution Target**: Record a design decision in ADR-006 (ordered ACK as a consumer obligation, or a resume position that never skips unacknowledged events) and align the documentation
 
 ## Part 2: Needs Confirmation Inventory
 
@@ -162,6 +151,8 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 | Item ID | Title | Category | Priority | Evidence | Required Decision |
 |---------|-------|----------|----------|----------|-------------------|
+
+No active Needs Confirmation items remain.
 
 ## Part 3: Canonical Source Conflict
 

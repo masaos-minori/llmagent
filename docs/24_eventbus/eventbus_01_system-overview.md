@@ -59,12 +59,7 @@ These items are also documented as Deferred Items in `docs/governance_03_issue-a
 
 ## Known Issues
 
-### EVENTBUS-001: Out-of-Order ACK Skips Lower-seq Events on Resume
-
-- **Status**: open
-- **Related**: eventbus_06_dlq_offsets_and_delivery_semantics.md
-
-The offset never moves backward, but it is the highest acknowledged `seq` (a high-water mark). If ACKs are not received in `seq` order, an unacknowledged lower `seq` is not re-acquired on resume. The entry is tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1); see `eventbus_06_dlq_offsets_and_delivery_semantics.md` for the offset semantics.
+Known issues for this area are tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus). Offset and resume semantics, including the ACK-order obligation, are described in `eventbus_06_dlq_offsets_and_delivery_semantics.md`.
 
 ## Related Documents
 
