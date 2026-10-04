@@ -163,9 +163,9 @@ Note: the integration suite drives `start()` through mocked `time.monotonic` / `
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run integration suite as behavior-lock baseline | Pending | — | — | |
-| 2 | Remove outer AsyncClient in start(); drop client param + docstring | Pending | — | — | |
-| 3 | Run ruff/mypy, re-run integration suite, diff-cover | Pending | — | — | |
+| 1 | Run integration suite as behavior-lock baseline | Completed | 20261005-083104 | 20261005-083404 |  |
+| 2 | Remove outer AsyncClient in start(); drop client param + docstring | Completed | 20261005-083404 | 20261005-083704 |  |
+| 3 | Run ruff/mypy, re-run integration suite, diff-cover | Completed | 20261005-083704 | 20261005-084004 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
