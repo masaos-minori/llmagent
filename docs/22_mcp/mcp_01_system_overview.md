@@ -8,6 +8,13 @@ tags:
   - architecture
 related:
   - mcp_00_document-guide.md
+  - mcp_02_01_endpoints-and-transport.md
+  - mcp_02_03_audit-logging-and-errors.md
+  - mcp_03_01_dispatch-and-routing.md
+  - mcp_04_01_web-search-file-read-github.md
+  - mcp_05_01_access-control-and-allowlists.md
+  - mcp_06_02_configuration-file-inventory.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # MCP System Overview
@@ -157,7 +164,7 @@ MCP server processes (mcp_servers/<name>/server.py)
 
 ---
 
-## Related Chapters
+## Chapter Map
 
 | Topic | File |
 |---|---|
@@ -180,7 +187,3 @@ architecture
 health-registry
 half-open
 circuit-breaker
-
-## Related Documents
-
-- `mcp_00_document-guide.md`

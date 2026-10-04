@@ -115,17 +115,6 @@ All MCP servers' `list_tools()` handlers accept `include_disabled` and `disabled
 
 First-class `RuntimeTool.disabled_reason` field — see "Field Mapping: /v1/tools ↔ RuntimeTool" above (still deferred future work, unrelated to `include_disabled`/`disabled_code`).
 
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_03_02_tool-registry.md`
-- `mcp_04_01_web-search-file-read-github.md`
-- `mcp_04_02_file-write-file-delete-shell.md`
-- `mcp_04_03_rag-pipeline-and-cicd.md`
-- `mcp_04_05_git.md`
-- `agent_08_04_configuration-mcp-approval-obs.md`
-- `governance_03_issue-and-uncertainty-management.md`
-
 ## Keywords
 
 - mcp

@@ -10,7 +10,7 @@ related:
   - mcp_00_document-guide.md
   - mcp_02_01_endpoints-and-transport.md
   - mcp_02_02_startup-modes-and-health.md
-  - ../91_security/security_01_architecture-and-trust-boundaries.md
+  - security_01_architecture-and-trust-boundaries.md
 ---
 
 # MCP Protocol and Transport: Audit Logs and Error Formats
@@ -88,13 +88,6 @@ result = await dispatch_tool(dispatch_table, name, args)
 - Other exceptions are propagated to the caller
 
 **Disabled call handling:** When a tool is disabled, the MCP server returns a response with `is_error=True` and includes the concrete reason in the result field. This follows the standard error response format but specifically indicates the tool is disabled rather than encountering a runtime error.
-
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `../mcp_02_01_endpoints-and-transport.md`
-- `../mcp_02_02_startup-modes-and-health.md`
-- `../../91_security/security_01_architecture-and-trust-boundaries.md` — System architecture / trust boundaries / threat modeling / authentication & authorization / auditing / local vs production / Fail-open/Fail-closed / prompt injection responsibility boundaries
 
 ## Keywords
 

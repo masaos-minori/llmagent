@@ -80,11 +80,6 @@ Instead, the path authorization based on `allowed_dirs` (default `[]`) serves as
 |---|---|---|---|
 | `allowed_dirs` (mdq-mcp) | `[]` | `[]` = All path access denied (fail-closed); however, not subject to startup audit (Explicit in code) | Explicitly enumerate directories allowed for reading |
 
-## Related Documents
-
-- `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `mcp_05_04_mdq-rag-boundary.md`
-
 ## Keywords
 
 mcp

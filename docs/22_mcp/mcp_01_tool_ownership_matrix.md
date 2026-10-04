@@ -9,12 +9,10 @@ tags:
 related:
   - mcp_00_document-guide.md
   - mcp_04_01_web-search-file-read-github.md
+  - mcp_02_service_boundaries.md
 ---
 
 # MCP Tool Ownership Matrix
-
-## Related Documents
-<placeholder>
 
 ## Tool-to-MCP Server Mapping
 
@@ -170,12 +168,6 @@ High-risk tools require explicit approval before execution. The approval flow fo
 - Local file operations
 - RAG operations
 - CI/CD operations
-
-## Related Documents
-
-- [MCP Documentation Guide](mcp_00_document-guide.md)
-- [MCP Service Boundaries](mcp_02_service_boundaries.md)
-- [Web Search, File Read, GitHub](mcp_04_01_web-search-file-read-github.md)
 
 ## Keywords
 

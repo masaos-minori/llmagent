@@ -6,6 +6,8 @@ tags:
   - tool-schema
   - export-policy
 related:
+  - mcp_00_document-guide.md
+  - mcp_03_02_tool-registry.md
 ---
 # MCP Tool Schema Export Policy
 
@@ -48,11 +50,6 @@ After all migrations are complete:
 - Only `mdq/mdq_tools.py` explicitly defines the element type of `TOOL_LIST` as `MCPToolSchema` (`TypedDict` with `status` and optional fields like `is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys`). In `mdq/mdq_server.py`, it is assigned to `MCPServer.mcp_tools` (`list[dict[str, Any]]`) via `mcp_tools = cast(list[dict[str, Any]], TOOL_LIST)`. Although `TypedDict` allows `NotRequired`, actual `TOOL_LIST` entries for all tools explicitly declare these 4 fields, making them mandatory under the Schema 2.0 contract at the point of discovery by `agent/services/mcp_tool_discovery.py` (missing fields cause individual tools to be excluded from the registry). Other servers use `list[dict[str, Any]]` or `list[dict]` at the time of `TOOL_LIST` declaration and do not require casting. (Basis: Explicit in code)
 - Each server's `server.py` imports `TOOL_LIST` from `tools.py` and assigns it to the `mcp_tools` class attribute of the `MCPServer` subclass. `MCPServer.list_tools()` returns a list of tool names for the agent, while `list_tools_with_server_key()` returns tool definitions with an added `server_key`; the latter is used for the `/v1/tools` endpoint and tool discovery during startup (`scripts/mcp_servers/server.py`). Some `server.py` files for `file.read_tools`, `file.write_tools`, and `file.delete_tools` convert `TOOL_LIST` directly to include the `server_key` within the `/v1/tools` handler instead of using `list_tools_with_server_key()` (e.g., `scripts/mcp_servers/file/read_server.py`). (Basis: Explicit in code)
 - The `description` and `input_schema` fields of `ToolDefinition` in `shared/tool_registry.py` are reserved for future use and are explicitly not set in `_populate_default_registry()`. It is explicitly stated in code comments that LLM tool schemas (description, inputSchema) originate from the `TOOL_LIST` in each server's `tools.py`, not from this registry. This is consistent with this document. (Basis: Explicit in code)
-
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_03_02_tool-registry.md`
 
 ## Keywords
 

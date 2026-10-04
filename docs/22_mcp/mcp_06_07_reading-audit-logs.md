@@ -130,11 +130,6 @@ grep '"tool":"shell_run"' /opt/llm/logs/audit.log
 ---
 
 
-## Related Documents
-
-- [MCP Documentation Guide](mcp_00_document-guide.md)
-- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
-
 ## Keywords
 
 configuration

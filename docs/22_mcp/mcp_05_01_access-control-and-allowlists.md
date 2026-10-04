@@ -12,7 +12,7 @@ related:
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - mcp_05_04_mdq-rag-boundary.md
   - mcp_05_05_mdq-enforcement-and-lockdown.md
-  - ../91_security/security_02_high-risk-tool-common-policy.md
+  - security_02_high-risk-tool-common-policy.md
 ---
 
 # MCP Security and Safety Model: Access Control, Paths, Repos and Allowlists
@@ -226,15 +226,6 @@ These warnings occur in two independent layers: the Agent layer and the cicd-mcp
   Message: `DENY-ALL detected: cicd.workflow_allowlist is empty. cicd-mcp will reject ALL workflow trigger requests.`
 - **cicd-mcp Server Layer (cicd-mcp server process)**: In `scripts/mcp_servers/cicd/cicd_service_guards.py::CiCdGuards.__init__`, if `workflow_allowlist` is empty, a warning is recorded to the server log stream via the `mcp_servers.cicd.cicd_service_guards` logger.
   Message: `cicd-mcp: workflow_allowlist is empty — all workflow triggers will be denied`
-
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `../mcp_05_02_auth-profiles-and-sandboxing.md`
-- `../mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `../mcp_05_04_mdq-rag-boundary.md`
-- `../mcp_05_05_mdq-enforcement-and-lockdown.md`
-- `../91_security/security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
 
 ## Keywords
 

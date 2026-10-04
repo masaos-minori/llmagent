@@ -167,14 +167,6 @@ See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for 
 
 Drift detection only; not used for routing. See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between routing authority and drift detection.
 
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_03_02_tool-registry.md`
-- `mcp_03_03_transport-and-health.md`
-- `mcp_03_04_tool-call-tracing-and-watchdog.md`
-- `mcp_03_05_lifecycle-and-new-server.md`
-
 ## Keywords
 
 mcp

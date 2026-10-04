@@ -168,12 +168,6 @@ if __name__ == "__main__":
 
 ---
 
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_02_02_startup-modes-and-health.md`
-- `mcp_02_03_audit-logging-and-errors.md`
-
 ## Keywords
 
 mcp

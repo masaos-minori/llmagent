@@ -95,15 +95,6 @@ AgentREPL.run()
 
 `HttpServerLifecycleManager.shutdown_all()` (`agent/http_lifecycle.py`) temporarily swaps the signal handler to `_absorb_sigint_during_shutdown()` during cleanup, absorbing subsequent SIGINTs as WARNING logs (since calling `signal.signal()` from outside the main thread would raise a `ValueError`, it continues without guards). This is intended to prevent orphan subprocesses if a user presses Ctrl-C twice while waiting for connections to close. The original handler is restored once cleanup is complete. (Explicit in code)
 
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_03_01_dispatch-and-routing.md`
-- `mcp_03_02_tool-registry.md`
-- `mcp_03_03_transport-and-health.md`
-- `mcp_03_05_lifecycle-and-new-server.md`
-- `mcp_06_12_watchdog-configuration-monitoring.md`
-
 ## Keywords
 
 mcp

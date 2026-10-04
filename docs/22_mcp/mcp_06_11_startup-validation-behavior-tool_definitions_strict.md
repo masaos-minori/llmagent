@@ -6,6 +6,7 @@ tags:
   - startup
   - validation
 related:
+  - mcp_06_02_configuration-file-inventory.md
 ---
 # Startup Validation Behavior (`tool_definitions_strict`)
 
@@ -62,10 +63,6 @@ This difference exists because development tooling is designed to be more forgiv
 ---
 
 
-
-## Related Documents
-
-- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 
 ## Keywords
 

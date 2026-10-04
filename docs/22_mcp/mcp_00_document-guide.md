@@ -134,18 +134,6 @@ None currently known. Open items are tracked in `governance_03_issue-and-uncerta
 - [ADR-007](../10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — Adoption of HTTP MCP and Non-Support of stdio
 - [ADR-012](../10_adr/ADR-012-git-mcp-server-side-write-enforcement.md) — Git MCP Server-Side Write Enforcement
 
-## Related Documents
-
-- `mcp_06_02_configuration-file-inventory.md`
-- `mcp_01_system_overview.md`
-- `mcp_02_01_endpoints-and-transport.md`
-- `mcp_03_01_dispatch-and-routing.md`
-- `mcp_04_01_web-search-file-read-github.md`
-- `mcp_05_01_access-control-and-allowlists.md`
-- `mcp_07_tool_schema_export_policy.md`
-- `mcp_08_tool_capability_naming_convention.md`
-- `governance_03_issue-and-uncertainty-management.md`
-
 ## Keywords
 
 mcp

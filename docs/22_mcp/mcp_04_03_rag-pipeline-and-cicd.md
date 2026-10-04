@@ -100,14 +100,6 @@ The git-mcp server's `enabled`/`disabled_reason` calculation logic ("workflow_al
 
 ---
 
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_04_01_web-search-file-read-github.md`
-- `mcp_04_02_file-write-file-delete-shell.md`
-- `mcp_04_04_mdq.md`
-- `mcp_04_05_git.md`
-
 ## Keywords
 
 mcp

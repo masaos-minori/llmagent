@@ -38,10 +38,6 @@ field's values are filtered through a denylist that rejects `LD_PRELOAD`,
 
 ---
 
-## Related Documents
-
-- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
-
 ## Keywords
 
 configuration

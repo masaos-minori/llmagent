@@ -6,6 +6,10 @@ tags:
   - tool-naming
   - convention
 related:
+  - mcp_00_document-guide.md
+  - mcp_03_02_tool-registry.md
+  - mcp_07_tool_schema_export_policy.md
+  - mcp_03_06_tool-runtime-availability-metadata.md
 ---
 # MCP Tool Capability Naming Convention
 
@@ -82,13 +86,6 @@ Requirement examples:
 ## Status
 
 This is a proposed standard convention. Currently, no MCP servers in production environments have formally adopted this naming convention.
-
-## Related Documents
-
-- [mcp_00_document-guide.md](mcp_00_document-guide.md) — MCP Documentation Guide
-- [mcp_03_02_tool-registry.md](mcp_03_02_tool-registry.md) — ToolRegistry Ownership & Routing
-- [mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md) — Canonical Name for TOOL_LIST Exports
-- [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Capability Field
 
 ## Keywords
 
