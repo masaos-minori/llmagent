@@ -5,7 +5,7 @@ Related Documents/Keywords sections, and internal .md link reachability.
 Usage:
     uv run python tools/check_docs_structure.py [glob ...]
     uv run python tools/check_docs_structure.py docs/05_agent_*.md --area agent
-    uv run python tools/check_docs_structure.py docs/*.md docs/adr/*.md --schema schemas/doc_front_matter.json
+    uv run python tools/check_docs_structure.py docs/*.md docs/10_adr/*.md --schema schemas/doc_front_matter.json
 """
 
 from __future__ import annotations
@@ -393,7 +393,7 @@ def main() -> int:
             for issue in issues:
                 print(issue)
 
-    adr_files = [f for f in files if "docs/adr/" in str(f)]
+    adr_files = [f for f in files if "docs/10_adr/" in str(f)]
     if adr_files:
         unique_issues = check_unique_adr_ids(adr_files)
         if unique_issues:

@@ -9,7 +9,7 @@ numbers. This is a report-only (Warning) check — it never blocks CI; see
 `docs/00_governance/governance_04_documentation-checks.md`'s Governance Verification
 Matrix for its registered entry.
 
-Scans the full `docs/` tree recursively (including `docs/adr/`,
+Scans the full `docs/` tree recursively (including `docs/10_adr/`,
 `docs/databases/`, etc.) — deliberately does not reuse
 `tools/_docs_consistency_lib.py`'s `discover_md_files()`, which globs
 non-recursively and requires a domain `prefix`.

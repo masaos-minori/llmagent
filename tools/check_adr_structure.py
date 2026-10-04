@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""check_adr_structure.py — Structural checks for docs/adr/*.md.
+"""check_adr_structure.py — Structural checks for docs/10_adr/*.md.
 
-Two checks, both operating over every file under docs/adr/*.md:
+Two checks, both operating over every file under docs/10_adr/*.md:
 
 (a) `## Known Deviations` heading presence (ERROR). Every ADR must carry this
     heading per docs/00_governance/governance_04_documentation-checks.md's "ADR Section
@@ -148,7 +148,7 @@ def render_json(issues: list[Issue]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Check docs/adr/*.md for a missing '## Known Deviations' heading "
+            "Check docs/10_adr/*.md for a missing '## Known Deviations' heading "
             "(ERROR) and Implementation Notes vs Implementation References "
             "file/symbol drift (WARNING)."
         )

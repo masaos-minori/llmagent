@@ -79,14 +79,12 @@ DEFAULT_AREAS: dict[str, list[str]] = {
 }
 
 GOVERNANCE_TITLES: dict[str, str] = {
-    "00_governance_01_documentation-governance.md": "Documentation Governance",
-    "00_governance_02_canonical-source-rule.md": "Canonical Source Rule",
-    "00_governance_03_evidence-labels.md": "Evidence Labels",
-    "00_governance_04_known-issues-template.md": "Known Issues Template",
-    "00_governance_05_deprecated-items.md": "Deprecated Items",
-    "00_governance_06_ai-reading-metadata.md": "AI Reading Metadata",
-    "00_governance_07_needs-confirmation-inventory.md": "Needs Confirmation Inventory",
-    "00_governance_08_known-issues-migration-plan.md": "Known Issues Migration Plan",
+    "governance_00_document-guide.md": "Governance: Document Guide",
+    "governance_01_documentation-policy.md": "Documentation Policy",
+    "governance_02_documentation-metadata.md": "Documentation Metadata",
+    "governance_03_issue-and-uncertainty-management.md": "Issue and Uncertainty Management",
+    "governance_04_documentation-checks.md": "Documentation Checks",
+    "governance_05_change-impact-and-dependency-graphs.md": "Change Impact and Dependency Graphs",
 }
 
 # ---------------------------------------------------------------------------

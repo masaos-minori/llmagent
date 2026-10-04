@@ -58,7 +58,7 @@ ADR_DIR = DOCS_DIR / "10_adr"
 # document is the current, real canonical source and is always included
 # explicitly, independent of the suffix.
 _CANONICAL_SUFFIX = "_90_inconsistencies_and_known_issues.md"
-_GOVERNANCE_KNOWN_ISSUES_DOC = "00_governance_03_issue-and-uncertainty-management.md"
+_GOVERNANCE_KNOWN_ISSUES_DOC = "governance_03_issue-and-uncertainty-management.md"
 _GOVERNANCE_KNOWN_ISSUES_PATH = (
     DOCS_DIR / "00_governance" / _GOVERNANCE_KNOWN_ISSUES_DOC
 )
@@ -147,7 +147,10 @@ def discover_canonical_docs() -> list[DocFile]:
         if p.name.endswith(_CANONICAL_SUFFIX):
             content = p.read_text(encoding="utf-8")
             result.append(DocFile(path=p, rel_path=p.name, lines=content.splitlines()))
-    # Add the governance document explicitly.
+    # Add the governance document explicitly, unless the subfolder scan above
+    # already found it (it lives under docs/00_governance/).
+    if any(doc.path == _GOVERNANCE_KNOWN_ISSUES_PATH for doc in result):
+        return result
     try:
         content = _GOVERNANCE_KNOWN_ISSUES_PATH.read_text(encoding="utf-8")
         result.append(
@@ -163,7 +166,7 @@ def discover_canonical_docs() -> list[DocFile]:
 
 
 def discover_adr_docs() -> list[DocFile]:
-    """All docs/adr/*.md files."""
+    """All docs/10_adr/*.md files."""
     return discover_md_files(ADR_DIR, prefix="")
 
 

@@ -100,8 +100,6 @@ ADR_PROHIBITED_PATTERNS: dict[str, tuple[str, str]] = {
 
 # Allowlist: files that are permitted to contain these patterns (archive/migration notes only)
 DEFAULT_ALLOWLIST = {
-    # Migration notes that document historical changes
-    ROOT_DIR / "docs" / "03_rag_00_document-guide.md",  # documents removed rag.llm stub
     # Test file intentionally referencing the removed re-export stub
     ROOT_DIR / "tests" / "agent" / "test_rag_get_cfg.py",
     # Test files with assertions about absence of removed compatibility patterns
@@ -119,26 +117,16 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "tests" / "agent" / "commands" / "test_removed_commands.py",
     ROOT_DIR / "tests" / "db" / "test_create_schema.py",
     # Docs documenting removed features (POST /v1/search, /mcp install, /note, /db aliases)
-    ROOT_DIR / "docs" / "04_mcp_00_document-guide.md",
-    ROOT_DIR / "docs" / "05_agent_90_inconsistencies_and_known_issues.md",
+    ROOT_DIR / "docs" / "22_mcp" / "mcp_00_document-guide.md",
     # Migration notes doc (split from the former 05_agent_07_cli-and-commands.md) documenting removed /note and /db aliases
-    ROOT_DIR / "docs" / "05_agent_07_07_cli-and-commands-migration-notes.md",
-    # Doc documenting verification task for deleted commands
-    ROOT_DIR / "docs" / "05_agent_00_document-guide.md",
-    # Docs documenting deleted source files (07_ref-sqlite.md, 07_spec_db.md) and stale issue IDs (DESIGN-01/02)
-    ROOT_DIR / "docs" / "90_shared_00_document-guide.md",
+    ROOT_DIR / "docs" / "23_agent" / "agent_07_07_cli-and-commands-migration-notes.md",
     # Doc (split from the former 90_shared_04_db_architecture_and_schema.md) documenting the deleted workflow_schema.py entry point
     ROOT_DIR
     / "docs"
-    / "90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md",
-    # Doc recording removed direct-execution-fallback behavior as a deprecated item
-    ROOT_DIR / "docs" / "00_governance_05_deprecated-items.md",
+    / "41_db"
+    / "db_03_architecture_and_schema-migration-and-scaling.md",
     # Doc explicitly stating the absence of a compatibility shim (negation, not a leftover)
-    ROOT_DIR / "docs" / "04_mcp_03_06_tool-runtime-availability-metadata.md",
-    # ADR documenting verification of deprecated items (similar purpose to deprecated-items.md)
-    ROOT_DIR / "docs" / "adr_task15_summary.md",
-    # ADR documenting verification of deprecated items
-    ROOT_DIR / "docs" / "adr_verification_matrix.md",
+    ROOT_DIR / "docs" / "22_mcp" / "mcp_03_06_tool-runtime-availability-metadata.md",
     # Test files using the test-only _reset_registry_for_testing helper as intended (not production misuse)
     ROOT_DIR / "tests" / "conftest.py",
     ROOT_DIR / "tests" / "agent" / "services" / "test_mcp_tool_discovery.py",
@@ -157,7 +145,7 @@ DEFAULT_ALLOWLIST = {
     # Test file that verifies _MCP_TOOLS is absent (contains the pattern as a check target)
     ROOT_DIR / "tests" / "mcp_servers" / "test_mcp_tool_schema_exports.py",
     # Doc that documents the _MCP_TOOLS → TOOL_LIST migration policy
-    ROOT_DIR / "docs" / "04_mcp_07_tool_schema_export_policy.md",
+    ROOT_DIR / "docs" / "22_mcp" / "mcp_07_tool_schema_export_policy.md",
     # Definition site of test-only reset helper (not a misuse)
     ROOT_DIR / "scripts" / "shared" / "tool_registry.py",
 }

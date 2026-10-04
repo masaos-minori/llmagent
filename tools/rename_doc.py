@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """tools/rename_doc.py
 
-Rename a `docs/*.md` file (including `docs/adr/*.md`) via `git mv` and rewrite
+Rename a `docs/*.md` file (including `docs/10_adr/*.md`) via `git mv` and rewrite
 every Markdown-link path across `docs/` pointing at the old path, preserving
 each referencing file's existing link style (bare filename vs. `../`-prefixed).
 

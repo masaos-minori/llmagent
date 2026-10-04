@@ -324,7 +324,7 @@ def _resolve_doc_mention(mention: str) -> Path | None:
         adr_match = re.match(r"ADR-(\d+)", mention)
         if adr_match is None:
             return None
-        candidates = sorted(ROOT_DIR.glob(f"docs/adr/ADR-{adr_match.group(1)}-*.md"))
+        candidates = sorted(ROOT_DIR.glob(f"docs/10_adr/ADR-{adr_match.group(1)}-*.md"))
         return candidates[0] if candidates else None
 
     candidate = ROOT_DIR / mention
@@ -482,7 +482,7 @@ def find_stale_targets(documents: list[WorkItemDocument]) -> list[dict[str, str]
             if resolved is None:
                 continue
             # Two distinct textual mentions (e.g. `ADR-008` and the full
-            # `docs/adr/ADR-008-....md` path) commonly resolve to the same
+            # `docs/10_adr/ADR-008-....md` path) commonly resolve to the same
             # file within one document — report each target once, not once
             # per spelling.
             if resolved in reported_targets:
