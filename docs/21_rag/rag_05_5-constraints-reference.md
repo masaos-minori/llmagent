@@ -27,7 +27,7 @@ source:
 | `url` non-empty requirement | Required non-empty string for both crawl and chunk artifacts (`_validate_str`); no fallback |
 | `content` non-empty requirement | Chunk artifacts: required non-empty string (`_validate_str`), no exception. Crawl artifacts: empty string allowed only when `code_blocks` is non-empty (cross-field rule) |
 | `lang` validation scope | Any non-empty string accepted at parse time (`_validate_str`); no enum or closed value set is enforced. |
-| `chunking_strategy` validation scope | Any non-empty string accepted at parse time (`_validate_str`); the `"text"`/`"heading"` value set is a convention only, not enforced in code (Needs confirmation: whether a closed value set is intended) |
+| `chunking_strategy` validation scope | Any non-empty string accepted at parse time (`_validate_str`); the `"text"`/`"heading"` value set is a convention only and is intentionally not enforced. The value is persisted as document metadata and checked for consistency within a URL group; it is not used for dispatch, so a new strategy needs no parse-time change |
 
 **Evidence:**
 - CJK threshold, character count threshold, chunk size/overlap, embedding dims/endianness: Explicit in code (`scripts/rag/ingestion/crawler_utils.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/utils.py:floats_to_blob`, `config/agent.toml`, `config/ingester.toml`).
