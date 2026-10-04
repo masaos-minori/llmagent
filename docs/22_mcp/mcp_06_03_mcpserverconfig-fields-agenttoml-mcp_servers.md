@@ -22,7 +22,7 @@ below), are defined in `scripts/shared/mcp_config.py::McpServerConfig`. The `env
 field's values are filtered through a denylist that rejects `LD_PRELOAD`,
 `LD_LIBRARY_PATH`, and `PYTHONPATH`.
 
-**About `tool_names`:** Not used for routing decisions. It is metadata for drift validation (see `docs/mcp_03_01_dispatch-and-routing.md`), used by `validate_tool_names_match()` in `scripts/shared/tool_routing_validation.py`. There are three states: field omitted (default `[]`), explicit empty list `[]`, or a list with values. In all cases, validation is skipped via `if not cfg.tool_names: continue`.
+**About `tool_names`:** Not used for routing decisions. It is metadata for drift validation (see `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`), used by `validate_tool_names_match()` in `scripts/shared/tool_routing_validation.py`. There are three states: field omitted (default `[]`), explicit empty list `[]`, or a list with values. In all cases, validation is skipped via `if not cfg.tool_names: continue`.
 
 **About `role`:** A human-readable label for operators, displayed in the `ROLE` column of `/mcp status` output. It is for display only and is never referenced by routing or dispatch logic.
 

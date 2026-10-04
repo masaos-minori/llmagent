@@ -128,7 +128,7 @@ config/crawler.toml [target_urls]
 
 **5 Logical Stages executed per agent turn**
 
-Stages: MQE → Search → Fusion → Rerank → Augmentation. For details on each stage, see `docs/rag_03_02_query_pipeline-rag-pipeline-class.md` through `docs/rag_03_05_query_pipeline-augment-stages.md`.
+Stages: MQE → Search → Fusion → Rerank → Augmentation. For details on each stage, see `docs/21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md` through `docs/21_rag/rag_03_05_query_pipeline-augment-stages.md`.
 
 - **MQE**: Query expansion via LLM — generates related queries to broaden retrieval scope.
 - **Search**: Hybrid retrieval — combines vector similarity search with FTS5 full-text search.
@@ -219,7 +219,7 @@ Each constraint below states what happens when violated and whether enforcement 
 
 **Language Detection** — Enforced programmatically in `detect_lang()` (`crawler_utils.py` lines 130-141): text under 100 characters returns `None` (falls back to hint language); CJK ratio ≥ 0.10 triggers `ja`, otherwise `en`. No error is raised — the fallback path handles short-text edge cases gracefully.
 
-**Chunk Size** — Enforced programmatically in `chunk_splitter.py`: sub-minimum chunks (< 40 chars) are discarded as noise (confirmed at lines 168-169: `if len(section) >= self._min_chunk`); over-maximum sections (> 500 chars) are split further via sentence-level chunking (line 174: `self._chunk_english(section)`). See `docs/rag_05_1-configuration-reference.md` line 39 for the discard-on-noise policy.
+**Chunk Size** — Enforced programmatically in `chunk_splitter.py`: sub-minimum chunks (< 40 chars) are discarded as noise (confirmed at lines 168-169: `if len(section) >= self._min_chunk`); over-maximum sections (> 500 chars) are split further via sentence-level chunking (line 174: `self._chunk_english(section)`). See `docs/21_rag/rag_05_1-configuration-reference.md` line 39 for the discard-on-noise policy.
 
 **Chunk Overlap** — A configured value applied programmatically via sliding-window logic in `merge_text_items()` (`chunk_splitter.py` lines 185-186). There is no "violation" concept — any config value is accepted and applied without validation.
 
@@ -245,7 +245,7 @@ The interaction flow is: MCP client → `rag_pipeline_server.py` (HTTP routing) 
 
 Note: External (HTTP-delegated) and local (in-process) RAG execution modes currently read the same corpus database (`rag_db_path`). Both `config/agent.toml` (line 7: `rag_db_path = "/opt/llm/db/rag.sqlite"`) and `config/rag_pipeline_mcp_server.toml` (line 13: `rag_db_path = "/opt/llm/db/rag.sqlite"`) are configured identically. This is a configuration convention, not an enforced invariant — a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` would silently diverge, undetected by any current automated check.
 
-For details on responsibilities of these components, please refer to `docs/rag_03_01_query_pipeline-overview.md`.
+For details on responsibilities of these components, please refer to `docs/21_rag/rag_03_01_query_pipeline-overview.md`.
 
 ## Related Chapters
 

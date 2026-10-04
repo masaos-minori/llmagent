@@ -18,16 +18,16 @@ These documents describe the deployment process, environment setup, and operatio
 
 | Category | File |
 |---|---|
-| Deployment Guide | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) |
+| Deployment Guide | `deployment_01_deployment.md` |
 
 ## AI Query Routing
 
 | Question | Rule |
 |---|---|
-| Environment setup & provisioning | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) |
-| DB initialization | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) §3 |
-| Service configuration | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) §4 |
-| Monitoring & health checks | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`02_deployment.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) §5 |
+| Environment setup & provisioning | `deployment_01_deployment.md` §1 |
+| DB initialization | `deployment_01_deployment.md` §3 |
+| Service configuration | `deployment_01_deployment.md` §2 |
+| Monitoring & health checks | `deployment_01_deployment.md` §2.4 |
 
 ## Canonical Sources
 

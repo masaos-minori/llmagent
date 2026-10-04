@@ -57,7 +57,7 @@ cmake --build build --config Release -j$(nproc)
 
 Place model files in `/opt/llm/models/`. File names must match the names used in each service configuration (e.g., `model-path`).
 
-> **Canonical source** — This table is the canonical source for model filenames. `docs/overview-files-01-build.md` and `docs/rag_05_1-configuration-reference.md` refer to this.
+> **Canonical source** — This table is the canonical source for model filenames. `docs/01_overview/overview-files-01-build.md` and `docs/21_rag/rag_05_1-configuration-reference.md` refer to this.
 
 | Model | Filename |
 |---|---|
@@ -78,7 +78,6 @@ bash deploy/build_sqlite_vec.sh
 ```
 
 Install path: `/opt/llm/sqlite-vec/vec0.so` (must match `sqlite_vec_so` in `agent.toml`)
-*Note: Previous documentation and scripts referred to `config/common.toml`, but this has been corrected to `config/agent.toml`.*
 
 ### 2.2 Deploying scripts
 

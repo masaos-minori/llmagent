@@ -111,7 +111,7 @@ Run the corresponding `tools/generate_reference_table.py --type <domain>` genera
 
 ## Implementation Notes
 
-Agent (`docs/agent_13_reference-api.md`) and EventBus (`docs/eventbus_10_reference_api.md`)
+Agent (`docs/23_agent/agent_13_reference-api.md`) and EventBus (`docs/24_eventbus/eventbus_10_reference_api.md`)
 have both been migrated to generated Reference-class status under Option B.
 
 This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
