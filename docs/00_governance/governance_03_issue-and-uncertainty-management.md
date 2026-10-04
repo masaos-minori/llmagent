@@ -113,8 +113,6 @@ No active Known Issue items remain.
 **Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
 
 
-**EventBus-specific verification (REQ-006)**: Verified by configuration test confirming `ConfigMissingError` is raised when a required config file is missing. The EventBus `load_config()` function (`scripts/eventbus/config.py`) validates required keys via `_REQUIRED_CONFIG_KEYS` and raises `ValueError` for missing keys — consistent with the fail-closed behavior described in CI-005.
-
 Note on CI-014 batching: These "ADR invariant verified by code inspection, no automated test" entries formed one cross-cutting initiative of originally nine members. All nine have since been removed once test coverage was added (CI-008, CI-009, CI-010, CI-011, CI-012, CI-013, CI-014, CI-015, and CI-016); no active members remain. Their Area fields spanned Agent, Shared/DB, MCP, RAG, and EventBus, so no single existing RACI role was accountable for the cross-area ADR-invariant-test-suite initiative. This finding is recorded here; the cross-cutting-role vs. per-area-ownership decision stays open for any future similar initiative.
 
 ## Part 2: Needs Confirmation Inventory

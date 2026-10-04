@@ -67,7 +67,7 @@ An adopted architectural decision documented in an accepted ADR (`docs/10_adr/AD
 
 ### functional-requirement
 
-A normative statement of what the system must do, expressed in a Specification document (`docs/{area}_*_specification.md`). Boundary against `architecture-decision`: a functional-requirement defines the desired outcome; it does not prescribe how that outcome is achieved architecturally.
+A normative statement of what the system must do, expressed in an Accepted ADR (`docs/10_adr/ADR-{NNN}-*.md`) or in a source registered for it in the Canonical Source Registry. No per-area `*_specification.md` document is maintained. Boundary against `architecture-decision`: a functional-requirement defines the desired outcome; it does not prescribe how that outcome is achieved architecturally.
 
 ### external-behavior
 
@@ -118,11 +118,11 @@ A claim whose truth has not yet been verified through evidence.
 | Claim type | Definition | Canonical source kind | Auxiliary evidence | Conflict destination | Notes or constraints |
 |------------|-----------|----------------------|--------------------|---------------------|---------------------|
 | architecture-decision | Adopted architectural decision in accepted ADR | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues | Does not grant code authority over adopted design (AC4) |
-| functional-requirement | Normative requirement in Specification | `docs/{area}_*_specification.md` | Acceptance Test | Known Issues | |
-| external-behavior | Observable system behavior for external consumers | Specification + Integration Test | Runtime Log, Test | Known Issues | |
+| functional-requirement | Normative requirement in an Accepted ADR or Registry-registered source | `docs/10_adr/ADR-{NNN}-*.md` or the Canonical Source Registry entry | Acceptance Test | Known Issues | No per-area `*_specification.md` is maintained |
+| external-behavior | Observable system behavior for external consumers | Registry-registered source + Integration Test | Runtime Log, Test | Known Issues | |
 | api-contract | Formal interface contract | Official API Schema or Contract | Integration Test | Known Issues | |
 | runtime-behavior | Current execution-time behavior | Source under `scripts/`, `implementations/` | Runtime Log, Test | Known Issues | Code authority does not extend to adopted design (AC4) |
-| verification-contract | Executable assertions about expected behavior | `tests/` + Specification | ADR | Known Issues | Tests cannot silently redefine requirements (AC5) |
+| verification-contract | Executable assertions about expected behavior | `tests/` + the requirement source | ADR | Known Issues | Tests cannot silently redefine requirements (AC5) |
 | production-effective-value | Effective parameter value in deployment | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift | |
 | configuration-schema | Valid configuration structure and constraints | Configuration Schema | Configuration Validation | Configuration Drift | |
 | database-schema | Tables, columns, indexes, constraints | Schema Generator or official DDL | Schema Test | Known Issues | |
@@ -149,10 +149,10 @@ treated as the top canonical source for every kind of decision.
 | Decision Target | Canonical | Auxiliary Evidence | Discrepancy Registration Target |
 |-----------------|-----------|--------------------|----------------------------------|
 | Adopted Architecture Decision | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues |
-| Requirements | `docs/{area}_*_specification.md` | Acceptance Test | Known Issues |
-| External Behavior | `docs/{area}_*_specification.md` | Acceptance Test | Known Issues |
+| Requirements | Accepted ADR or Canonical Source Registry entry | Acceptance Test | Known Issues |
+| External Behavior | Canonical Source Registry entry | Acceptance Test | Known Issues |
 | Current Runtime Behavior | Source under `scripts/`, `implementations/` | Runtime Log, Test | Known Issues |
-| Expected Behavior | `tests/` + Specification | ADR | Known Issues |
+| Expected Behavior | `tests/` + the requirement source | ADR | Known Issues |
 | Effective Value in Production | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift |
 | DB Schema | Schema Generator or official DDL | Schema Test | Known Issues |
 | API Contract | API Schema or official Contract | Integration Test | Known Issues |
