@@ -57,6 +57,7 @@ def vocabulary_violation_doc(tmp_path: Path) -> Path:
         "- **Observed Implementation**: Test implementation\n"
         "- **Impact**: Test impact\n"
         "- **Recommended Action**: Test action\n"
+        "- **Resolution Target**: Test target\n"
         "- **Source**: Test source\n"
         "- **Related**: None\n"
     )
@@ -65,7 +66,7 @@ def vocabulary_violation_doc(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def template_field_count_violation_doc(tmp_path: Path) -> Path:
-    """Document with fewer than 16 fields (Part 1 full entry)."""
+    """Document with fewer than 17 fields (Part 1 full entry)."""
     doc = tmp_path / GOVERNANCE_DOC_NAME
     doc.write_text(
         "## Part 1: Known Issues\n\n"
@@ -85,6 +86,7 @@ def template_field_count_violation_doc(tmp_path: Path) -> Path:
         "- **Observed Implementation**: Test implementation\n"
         "- **Impact**: Test impact\n"
         "- **Recommended Action**: Test action\n"
+        "- **Resolution Target**: Test target\n"
         "- **Related**: None\n"
     )
     return doc
@@ -113,6 +115,7 @@ def orphaned_bullet_doc(tmp_path: Path) -> Path:
         "- **Observed Implementation**: Test implementation\n"
         "- **Impact**: Test impact\n"
         "- **Recommended Action**: Test action\n"
+        "- **Resolution Target**: Test target\n"
         "- **Source**: Test source\n"
         "- **Related**: None\n"
     )
@@ -141,6 +144,7 @@ def closing_summary_mismatch_doc(tmp_path: Path) -> Path:
         "- **Observed Implementation**: Test implementation\n"
         "- **Impact**: Test impact\n"
         "- **Recommended Action**: Test action\n"
+        "- **Resolution Target**: Test target\n"
         "- **Source**: Test source\n"
         "- **Related**: None\n"
         "\n"
@@ -173,6 +177,7 @@ def dangling_reference_doc(tmp_path: Path) -> Path:
         "- **Observed Implementation**: Test implementation\n"
         "- **Impact**: Test impact\n"
         "- **Recommended Action**: Test action\n"
+        "- **Resolution Target**: Test target\n"
         "- **Source**: Test source\n"
         "- **Related**: NC-999\n"
     )
@@ -181,7 +186,7 @@ def dangling_reference_doc(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def valid_part1_doc(tmp_path: Path) -> Path:
-    """Valid Part 1 entry with all 16 fields and no violations."""
+    """Valid Part 1 entry with all 17 fields and no violations."""
     doc = tmp_path / GOVERNANCE_DOC_NAME
     doc.write_text(
         "## Part 1: Known Issues\n\n"
@@ -201,6 +206,7 @@ def valid_part1_doc(tmp_path: Path) -> Path:
         "- **Observed Implementation**: Test implementation\n"
         "- **Impact**: Test impact\n"
         "- **Recommended Action**: Test action\n"
+        "- **Resolution Target**: Test target\n"
         "- **Source**: Test source\n"
         "- **Related**: None\n"
     )
@@ -274,6 +280,7 @@ class TestVocabularyViolation:
             "- **Observed Implementation**: Test implementation\n"
             "- **Impact**: Test impact\n"
             "- **Recommended Action**: Test action\n"
+            "- **Resolution Target**: Test target\n"
             "- **Source**: Test source\n"
             "- **Related**: None\n"
         )
@@ -304,6 +311,7 @@ class TestVocabularyViolation:
             "- **Observed Implementation**: Test implementation\n"
             "- **Impact**: Test impact\n"
             "- **Recommended Action**: Test action\n"
+            "- **Resolution Target**: Test target\n"
             "- **Source**: Test source\n"
             "- **Related**: None\n"
         )
@@ -334,6 +342,7 @@ class TestVocabularyViolation:
             "- **Observed Implementation**: Test implementation\n"
             "- **Impact**: Test impact\n"
             "- **Recommended Action**: Test action\n"
+            "- **Resolution Target**: Test target\n"
             "- **Source**: Test source\n"
             "- **Related**: None\n"
         )
@@ -364,6 +373,7 @@ class TestVocabularyViolation:
             "- **Observed Implementation**: Test implementation\n"
             "- **Impact**: Test impact\n"
             "- **Recommended Action**: Test action\n"
+            "- **Resolution Target**: Test target\n"
             "- **Source**: Test source\n"
             "- **Related**: None\n"
         )
@@ -418,15 +428,15 @@ class TestTemplateFieldCountViolation:
     ) -> None:
         doc = _make_doc(template_field_count_violation_doc)
         issues = check_template_field_count(doc)
-        assert any("expected 16 fields" in i.message for i in issues), (
+        assert any("expected 17 fields" in i.message for i in issues), (
             "Missing fields should be detected"
         )
 
     def test_no_extra_fields_in_valid_doc(self, valid_part1_doc: Path) -> None:
         doc = _make_doc(valid_part1_doc)
         issues = check_template_field_count(doc)
-        assert not any("expected 16 fields" in i.message for i in issues), (
-            "Valid Part 1 entry should have exactly 16 fields"
+        assert not any("expected 17 fields" in i.message for i in issues), (
+            "Valid Part 1 entry should have exactly 17 fields"
         )
 
     def test_valid_part2_field_count(self, valid_part2_doc: Path) -> None:
@@ -444,7 +454,7 @@ class TestTemplateFieldCountViolation:
         issues = check_template_field_count(doc)
         # Only the second entry should be checked; the removal placeholder is exempt
         for issue in issues:
-            if "expected 16 fields" in issue.message:
+            if "expected 17 fields" in issue.message:
                 assert "RAG-002" in issue.message or "RAG-XXX" in issue.message, (
                     "Only actual entries should be checked for field count"
                 )
@@ -488,6 +498,7 @@ class TestOrphanedBullets:
             "- **Observed Implementation**: Test implementation\n"
             "- **Impact**: Test impact\n"
             "- **Recommended Action**: Test action\n"
+            "- **Resolution Target**: Test target\n"
             "- **Source**: Test source\n"
             "- **Related**: None\n"
             "\n"
@@ -506,6 +517,7 @@ class TestOrphanedBullets:
             "- **Observed Implementation**: Test implementation\n"
             "- **Impact**: Test impact\n"
             "- **Recommended Action**: Test action\n"
+            "- **Resolution Target**: Test target\n"
             "- **Source**: Test source\n"
             "- **Related**: None\n"
         )

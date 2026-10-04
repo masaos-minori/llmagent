@@ -5,7 +5,7 @@ Conformance checker for docs/00_governance/governance_03_issue-and-uncertainty-m
 
 Validates:
   (a) Vocabulary conformance — Status/Type/Severity/Area/Owner against defined value sets
-   (b) Template field-count — 16 fields per Part 1 entry, 14 per Part 2 entry; exempt removal placeholders.
+   (b) Template field-count — 17 fields per Part 1 entry, 15 per Part 2 entry; exempt removal placeholders.
   (c) Orphaned bullets — - **Field:** bullets after removal placeholders
   (d) Closing-summary consistency — Part 1 closing ID list vs. actual headings
   (e) Referential integrity — Related/Related NC/Target ID resolution
@@ -237,7 +237,7 @@ def check_vocabulary(doc: DocFile) -> list[Issue]:
 
 
 def check_template_field_count(doc: DocFile) -> list[Issue]:
-    """Count - **Field:** bullets per entry; require 16 (Part 1) / 14 (Part 2); exempt placeholders."""
+    """Count - **Field:** bullets per entry; require 17 (Part 1) / 15 (Part 2); exempt placeholders."""
     issues: list[Issue] = []
     entries = parse_entries(doc)
 
@@ -245,7 +245,7 @@ def check_template_field_count(doc: DocFile) -> list[Issue]:
         if entry.is_removal_placeholder:
             continue
 
-        required_fields = 16 if entry.part == "Part 1" else 15
+        required_fields = 17 if entry.part == "Part 1" else 15
         actual_fields = len(entry.fields)
 
         if actual_fields != required_fields:

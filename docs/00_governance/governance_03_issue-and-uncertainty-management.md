@@ -75,7 +75,7 @@ The area-specific `~~rag_90_inconsistencies_and_known_issues~~ (deleted).md`,
 section on 2026-09-03 and deleted; this document is now the single system of record
 for Known Issues across all areas. Existing IDs were preserved as-is (`RAG-*`,
 `EVENTBUS-*`, `SHARED-*`, `CI-*`, `DESIGN-*`); one previously untitled RAG entry was
-assigned a new ID (`RAG-005`) since the 16-field template requires one. EventBus
+assigned a new ID (`RAG-005`) since the 17-field template requires one. EventBus
 entries used a distinct 18-field format with no direct equivalent for `Component`,
 `Workaround`, or the `*-Justification` fields — these were folded into `Source`,
 `Recommended Action`, and `Current Description`/`Resolution Notes` respectively, per
