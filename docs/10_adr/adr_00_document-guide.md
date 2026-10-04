@@ -28,10 +28,12 @@ No confirmed deviations.
 | Config Isolation | `ADR-002-config-isolation.md` |
 | Tool Registry Authority | `ADR-003-runtime-tool-registry-routing-authority.md` |
 | Environment Failure Handling | `ADR-004-environment-failure-handling-policy.md` |
+| ADR-004 Supporting Sections (companion) | `adr_04_failure-handling-supporting-sections.md` |
 | RAG Source-Derived Index | `ADR-005-rag-source-derived-index-relationships.md` |
 | EventBus Persistence & SSE | `ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
 | HTTP MCP Adoption | `ADR-007-http-mcp-adoption-and-stdio-non-support.md` |
 | SQLite 4DB Separation | `ADR-008-sqlite-4db-separation.md` |
+| ADR-008 Supporting Sections (companion) | `adr_08_sqlite-4db-supporting-sections.md` |
 | RAG FT5 Text Separation | `ADR-009-rag-ft5-text-separation.md` |
 | RAG Fallback | `ADR-010-rag-fallback.md` |
 | Git MCP Server-Side Write | `ADR-012-git-mcp-server-side-write-enforcement.md` |
