@@ -152,10 +152,10 @@ inside `validate()`. No other file is a modification target.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: allowlist policy not documented in `docs/*.md` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261004-154856 | 20261004-154856 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261004-154856 | 20261004-154856 | Regression run passed (15/15); new-interpreter tests are proc 02 scope |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261004-154856 | 20261004-154856 | ruff format/check clean; mypy clean (isolated; repo-wide tool_constants double-discovery blocks full run - pre-existing); bandit 0 issues; pytest 15/15 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261004-154856 | 20261004-154856 | N/A: allowlist policy not documented in `docs/*.md` N/A: allowlist policy not documented in docs/*.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
