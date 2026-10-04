@@ -18,12 +18,15 @@ import yaml
 from tools._front_matter_schema import load_front_matter_schema
 from tools.check_docs_structure import (
     MAX_SIZE,
+    SIZE_EXCEPTIONS,
     _build_basename_index,
+    check_adr_related_coverage,
     check_links,
     check_related_links,
     check_schema_compliance,
     check_size,
     check_status_value,
+    check_tail_sections,
     check_unique_adr_ids,
     validate_file,
 )
@@ -45,7 +48,6 @@ _COMPLIANT_DOC = (
     "---\n\n"
     "# Example\n\n"
     "Body.\n\n"
-    "## Related Documents\n\n"
     "## Keywords\n"
 )
 
@@ -164,7 +166,6 @@ class TestCheckStatusValue:
             "---\n\n"
             "# Example\n\n"
             "Body.\n\n"
-            "## Related Documents\n\n"
             "## Keywords\n"
         )
         doc = _write(tmp_path / "example.md", content)
@@ -184,7 +185,6 @@ class TestCheckStatusValue:
             "---\n\n"
             "# Example\n\n"
             "Body.\n\n"
-            "## Related Documents\n\n"
             "## Keywords\n"
         )
         doc = _write(tmp_path / "example.md", content)
@@ -205,7 +205,6 @@ class TestCheckStatusValue:
                 "---\n\n"
                 "# Example\n\n"
                 "Body.\n\n"
-                "## Related Documents\n\n"
                 "## Keywords\n"
             )
             doc = _write(tmp_path / "example.md", content)
@@ -237,6 +236,29 @@ class TestCheckSize:
         must pass under the raised limit even though it exceeded the old one."""
         doc = tmp_path / "example.md"
         assert check_size(doc, 19183) == []
+
+
+class TestCheckSizeExceptions:
+    """A per-file ceiling above MAX_SIZE applies only to the listed basename and
+    equals the accepted size, so further growth is still caught."""
+
+    def test_excepted_file_passes_up_to_its_ceiling(self, tmp_path: Path) -> None:
+        name, ceiling = next(iter(SIZE_EXCEPTIONS.items()))
+        assert ceiling > MAX_SIZE
+        assert check_size(tmp_path / name, ceiling) == []
+
+    def test_excepted_file_is_flagged_above_its_ceiling(self, tmp_path: Path) -> None:
+        name, ceiling = next(iter(SIZE_EXCEPTIONS.items()))
+        issues = check_size(tmp_path / name, ceiling + 1)
+        assert len(issues) == 1
+        assert f"exceeds {ceiling} byte limit" in issues[0]
+
+    def test_other_files_keep_the_global_limit(self, tmp_path: Path) -> None:
+        _, ceiling = next(iter(SIZE_EXCEPTIONS.items()))
+        issues = check_size(tmp_path / "other.md", ceiling)
+        assert issues == [
+            f"other.md: size {ceiling} bytes exceeds {MAX_SIZE} byte limit"
+        ]
 
 
 class TestValidateFileSchemaOptIn:
@@ -430,7 +452,6 @@ class TestValidateFileStatusIntegration:
             "---\n\n"
             "# Example\n\n"
             "Body.\n\n"
-            "## Related Documents\n\n"
             "## Keywords\n"
         )
         doc = _write(tmp_path / "example.md", content)
@@ -452,7 +473,6 @@ class TestValidateFileStatusIntegration:
                 "---\n\n"
                 "# Example\n\n"
                 "Body.\n\n"
-                "## Related Documents\n\n"
                 "## Keywords\n"
             )
             doc = _write(tmp_path / "example.md", content)
@@ -601,3 +621,93 @@ class TestDuplicateBodyLinks:
         index = _build_basename_index(tmp_path)
         issues = check_links(doc, doc.read_text(), index, check_duplicates=True)
         assert any("duplicate link" in i for i in issues)
+
+
+# ---------------------------------------------------------------------------
+# Related section rules: ADR requires the block; non-ADR must use front matter
+# ---------------------------------------------------------------------------
+
+_ADR_BODY = (
+    "# ADR\n\n## Related Documents\n\n### Specifications\n\n"
+    "- `a.md`\n- [B](b.md#x)\n- `missing_target.md`\n\n## Keywords\n"
+)
+
+
+def _adr_content(related: str) -> str:
+    return f"---\ntitle: T\narea: governance\ntags:\n  - x\nrelated:{related}\n---\n\n{_ADR_BODY}"
+
+
+class TestRelatedSectionRules:
+    def test_adr_without_related_documents_is_reported(self, tmp_path: Path) -> None:
+        adr = tmp_path / "10_adr" / "ADR-001-x.md"
+        issues = check_tail_sections(adr, "# ADR\n\n## Keywords\n")
+        assert issues == ["ADR-001-x.md: missing '## Related Documents' section"]
+
+    def test_non_adr_without_related_documents_passes(self, tmp_path: Path) -> None:
+        assert check_tail_sections(tmp_path / "doc.md", "# T\n\n## Keywords\n") == []
+
+    @pytest.mark.parametrize(
+        "heading", ["Related Documents", "Related Docs", "Related Chapters"]
+    )
+    def test_non_adr_related_section_is_reported(
+        self, tmp_path: Path, heading: str
+    ) -> None:
+        content = f"# T\n\n## {heading}\n\n- `a.md`\n\n## Keywords\n"
+        issues = check_tail_sections(tmp_path / "doc.md", content)
+        assert len(issues) == 1
+        assert f"## {heading}" in issues[0]
+        assert "front matter 'related:'" in issues[0]
+
+    def test_related_heading_inside_code_fence_is_ignored(self, tmp_path: Path) -> None:
+        content = "# T\n\n```\n## Related Documents\n```\n\n## Keywords\n"
+        assert check_tail_sections(tmp_path / "doc.md", content) == []
+
+    def test_keywords_section_is_still_required(self, tmp_path: Path) -> None:
+        issues = check_tail_sections(tmp_path / "doc.md", "# T\n")
+        assert issues == ["doc.md: missing '## Keywords' section"]
+
+
+class TestAdrRelatedCoverage:
+    def _index(self, tmp_path: Path) -> dict[str, Path]:
+        return {n: tmp_path / n for n in ("a.md", "b.md", "ADR-001-x.md")}
+
+    def test_missing_body_reference_is_reported(self, tmp_path: Path) -> None:
+        adr = tmp_path / "10_adr" / "ADR-001-x.md"
+        issues = check_adr_related_coverage(
+            adr, _adr_content("\n  - a.md"), self._index(tmp_path)
+        )
+        assert issues == [
+            "ADR-001-x.md: front matter 'related:' lacks body-referenced "
+            "document 'b.md'"
+        ]
+
+    def test_covered_adr_passes_and_unresolved_target_is_not_reported(
+        self, tmp_path: Path
+    ) -> None:
+        adr = tmp_path / "10_adr" / "ADR-001-x.md"
+        content = _adr_content("\n  - a.md\n  - ../b.md")
+        assert check_adr_related_coverage(adr, content, self._index(tmp_path)) == []
+
+    def test_non_adr_is_not_checked(self, tmp_path: Path) -> None:
+        doc = tmp_path / "doc.md"
+        assert (
+            check_adr_related_coverage(doc, _adr_content(" []"), self._index(tmp_path))
+            == []
+        )
+
+    def test_adr_without_front_matter_or_with_bad_yaml_is_skipped(
+        self, tmp_path: Path
+    ) -> None:
+        adr = tmp_path / "10_adr" / "ADR-001-x.md"
+        index = self._index(tmp_path)
+        assert check_adr_related_coverage(adr, "# no front matter\n", index) == []
+        assert check_adr_related_coverage(adr, "---\ntitle: T\n", index) == []
+        assert check_adr_related_coverage(adr, "---\n: [bad\n---\n", index) == []
+
+    def test_validate_file_reports_adr_coverage_gap(self, tmp_path: Path) -> None:
+        adr = _write(tmp_path / "10_adr" / "ADR-001-x.md", _adr_content("\n  - a.md"))
+        _write(tmp_path / "a.md", _COMPLIANT_DOC)
+        _write(tmp_path / "b.md", _COMPLIANT_DOC)
+        index = _build_basename_index(tmp_path)
+        issues = validate_file(adr, None, None, basename_index=index)
+        assert any("lacks body-referenced document 'b.md'" in i for i in issues)

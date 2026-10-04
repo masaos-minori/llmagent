@@ -8,6 +8,9 @@ Consolidated from:
 Subcommands:
   add-missing           Add missing YAML Front Matter to docs/*.md files
   dedupe-lists          Remove duplicate entries from list fields (tags/related/source)
+  merge-related         Union body `## Related Documents` (and `## Related Docs` /
+                        `## Related Chapters`) entries into front matter `related:`
+                        (dry-run by default; recursive over docs/**/*.md)
   rename-category-to-area
                         Rename a `category:` key to `area:` in files that already
                         have valid, `---`-fenced Front Matter (value unchanged)
@@ -18,6 +21,8 @@ Usage:
     python tools/manage_frontmatter.py add-missing [--dry-run]   # report-only (safe default)
     python tools/manage_frontmatter.py add-missing --fix         # perform actual writes
     python tools/manage_frontmatter.py dedupe-lists
+    python tools/manage_frontmatter.py merge-related [paths ...] [--dry-run]
+    python tools/manage_frontmatter.py merge-related [paths ...] --fix
     python tools/manage_frontmatter.py rename-category-to-area [--dry-run]
     python tools/manage_frontmatter.py rename-category-to-area --fix
     python tools/manage_frontmatter.py classify
@@ -34,7 +39,8 @@ import argparse
 import glob
 import re
 import sys
-from pathlib import Path
+from dataclasses import dataclass, field
+from pathlib import Path, PurePosixPath
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -443,6 +449,250 @@ def cmd_dedupe_lists() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Subcommand: merge-related
+# ---------------------------------------------------------------------------
+
+_RELATED_HEADING_RE = re.compile(
+    r"^## (?:Related Documents|Related Docs|Related Chapters)[ \t]*$", re.MULTILINE
+)
+_H2_RE = re.compile(r"^## ", re.MULTILINE)
+_BODY_REF_RE = re.compile(r"`([^`\n]+\.md)`|\]\(([^)#\s]+\.md)(?:#[^)]*)?\)")
+_LINK_ONLY_RE = re.compile(
+    r"^- (?:`[^`\n]+\.md`|\[[^\]\n]+\]\([^)\s]+\.md(?:#[^)]*)?\))[ \t]*$"
+)
+_RELATED_ITEM_RE = re.compile(r"^\s+-\s+(\S.*?)\s*$")
+
+
+@dataclass
+class RelatedMerge:
+    """Per-file result of planning a `merge-related` run."""
+
+    path: Path
+    sections: list[str] = field(default_factory=list)
+    added: list[str] = field(default_factory=list)
+    normalized: list[tuple[str, str]] = field(default_factory=list)
+    dropped: list[str] = field(default_factory=list)
+    unresolved: list[str] = field(default_factory=list)
+    non_link_lines: list[str] = field(default_factory=list)
+    unsupported: str | None = None
+    remove_sections: bool = False
+    new_content: str | None = None
+
+    @property
+    def has_notes(self) -> bool:
+        return bool(
+            self.sections
+            or self.added
+            or self.normalized
+            or self.dropped
+            or self.unresolved
+            or self.non_link_lines
+            or self.unsupported
+        )
+
+
+def _parse_related_block(
+    fm_lines: list[str],
+) -> tuple[int, int, list[str], str] | str:
+    """Locate the `related:` block.
+
+    Returns (start, stop, entries, shape) where `fm_lines[start:stop]` is the
+    key line plus its items, or an error string for an unsupported layout.
+    """
+    start = next((i for i, ln in enumerate(fm_lines) if ln.startswith("related:")), -1)
+    if start == -1:
+        return "no 'related:' key"
+    value = fm_lines[start].split(":", 1)[1].strip()
+    if value == "[]":
+        return start, start + 1, [], "inline-empty"
+    if value:
+        return f"unsupported inline value: {value}"
+    entries: list[str] = []
+    stop = start + 1
+    while stop < len(fm_lines):
+        item = _RELATED_ITEM_RE.match(fm_lines[stop])
+        if item is None:
+            break
+        entry = item.group(1)
+        if entry[0] in "\"'" or " #" in entry:
+            return f"unsupported entry: {entry}"
+        entries.append(entry)
+        stop += 1
+    return start, stop, entries, "block" if entries else "empty-block"
+
+
+def plan_related_merge(path: Path, content: str, known_names: set[str]) -> RelatedMerge:
+    """Plan the union of body Related sections into front matter `related:`."""
+    result = RelatedMerge(path=path)
+    if not content.startswith("---"):
+        result.unsupported = "no front matter"
+        return result
+    end = content.find("\n---", 3)
+    if end == -1:
+        result.unsupported = "front matter has no closing '---'"
+        return result
+    fm_lines = content[:end].split("\n")
+    rest = content[end:]
+
+    parsed = _parse_related_block(fm_lines)
+    if isinstance(parsed, str):
+        result.unsupported = parsed
+        return result
+    start, stop, entries, _shape = parsed
+
+    is_adr = "10_adr" in path.parts
+    spans: list[tuple[int, int]] = []
+    refs: list[str] = []
+    for heading in _RELATED_HEADING_RE.finditer(rest):
+        nxt = _H2_RE.search(rest, heading.end())
+        sec_end = nxt.start() if nxt else len(rest)
+        spans.append((heading.start(), sec_end))
+        result.sections.append(heading.group(0)[3:].strip())
+        for line in rest[heading.end() : sec_end].splitlines():
+            text = line.strip()
+            if not text:
+                continue
+            for code_ref, link_ref in _BODY_REF_RE.findall(line):
+                name = PurePosixPath(code_ref or link_ref).name
+                if name != path.name and name not in refs:
+                    refs.append(name)
+            if not is_adr and not _LINK_ONLY_RE.match(text):
+                result.non_link_lines.append(text)
+
+    seen: set[str] = set()
+    new_entries: list[str] = []
+    for entry in entries:
+        name = PurePosixPath(entry).name
+        if name == path.name or name in seen:
+            result.dropped.append(entry)
+            continue
+        seen.add(name)
+        if name not in known_names:
+            result.unresolved.append(entry)
+            new_entries.append(entry)
+            continue
+        if entry != name:
+            result.normalized.append((entry, name))
+        new_entries.append(name)
+    for name in refs:
+        if name in seen:
+            continue
+        if name not in known_names:
+            result.unresolved.append(name)
+            continue
+        seen.add(name)
+        result.added.append(name)
+        new_entries.append(name)
+
+    unresolved_body = [n for n in result.unresolved if n in refs and n not in entries]
+    result.remove_sections = bool(
+        spans and not is_adr and not result.non_link_lines and not unresolved_body
+    )
+
+    changed_fm = new_entries != entries
+    if changed_fm:
+        fm_lines[start:stop] = ["related:"] + [f"  - {e}" for e in new_entries]
+    if result.remove_sections:
+        ends_at_eof = spans[-1][1] == len(rest)
+        for sec_start, sec_end in reversed(spans):
+            rest = rest[:sec_start] + rest[sec_end:]
+        if ends_at_eof or not rest.endswith("\n"):
+            rest = rest.rstrip("\n") + "\n"
+    if changed_fm or result.remove_sections:
+        result.new_content = "\n".join(fm_lines) + rest
+    return result
+
+
+def _select_docs(patterns: list[str]) -> list[Path]:
+    """Expand `patterns` to markdown files under DOCS_DIR (default: all of it)."""
+    if not patterns:
+        return sorted(DOCS_DIR.rglob("*.md"))
+    selected: set[Path] = set()
+    docs_root = DOCS_DIR.resolve()
+    for pattern in patterns:
+        if Path(pattern).is_absolute():
+            matches = [Path(m) for m in glob.glob(pattern, recursive=True)]
+        else:
+            matches = list(ROOT_DIR.glob(pattern))
+        for match in matches:
+            if match.suffix == ".md" and match.resolve().is_relative_to(docs_root):
+                selected.add(match)
+    return sorted(selected)
+
+
+def _display_path(path: Path) -> str:
+    try:
+        return path.relative_to(ROOT_DIR).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _print_related_merge(plan: RelatedMerge, prefix: str) -> None:
+    print(f"{prefix} {_display_path(plan.path)}")
+    if plan.unsupported:
+        print(f"  skipped (unsupported): {plan.unsupported}")
+        return
+    if plan.added:
+        print(f"  add to related: {', '.join(plan.added)}")
+    for old, new in plan.normalized:
+        print(f"  normalize: {old} -> {new}")
+    for entry in plan.dropped:
+        print(f"  drop (self-reference or duplicate): {entry}")
+    for entry in plan.unresolved:
+        print(f"  unresolved (no such document): {entry}")
+    for text in plan.non_link_lines:
+        print(f"  non-link line (section kept): {text}")
+    if plan.sections:
+        action = "remove" if plan.remove_sections else "keep"
+        print(f"  {action} body section(s): {', '.join(plan.sections)}")
+
+
+def cmd_merge_related(argv: list[str] | argparse.Namespace | None = None) -> int:
+    if isinstance(argv, argparse.Namespace):
+        args = argv
+    else:
+        parser = argparse.ArgumentParser(
+            description="Merge body Related sections into front matter related:"
+        )
+        parser.add_argument(
+            "paths",
+            nargs="*",
+            help="Globs relative to the repo root (default: every docs/**/*.md)",
+        )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Print changes without modifying files (default)",
+        )
+        parser.add_argument("--fix", action="store_true", help="Actually modify files")
+        args = parser.parse_args(argv)
+
+    if not DOCS_DIR.is_dir():
+        print(f"ERROR: docs directory not found: {DOCS_DIR}", file=sys.stderr)
+        return 1
+
+    known_names = {p.name for p in DOCS_DIR.rglob("*.md")}
+    prefix = "[FIX]" if args.fix else "[DRY-RUN]"
+    changed = 0
+    blocked = 0
+    for md_file in _select_docs(list(args.paths)):
+        content = md_file.read_text(encoding="utf-8")
+        plan = plan_related_merge(md_file, content, known_names)
+        if plan.unsupported or plan.unresolved:
+            blocked += 1
+        if plan.has_notes:
+            _print_related_merge(plan, prefix)
+        if plan.new_content is not None:
+            changed += 1
+            if args.fix:
+                md_file.write_text(plan.new_content, encoding="utf-8")
+
+    verb = "modified" if args.fix else "would change"
+    print(f"\n{changed} file(s) {verb}; {blocked} with unresolved or unsupported input")
+    return 1 if args.fix and blocked else 0
+
+
+# ---------------------------------------------------------------------------
 # Subcommand: classify
 # ---------------------------------------------------------------------------
 
@@ -543,6 +793,25 @@ def main(argv: list[str] | None = None) -> int:
         "dedupe-lists", help="Remove duplicate entries from list fields"
     )
 
+    # merge-related
+    merge_parser = subparsers.add_parser(
+        "merge-related",
+        help="Merge body Related sections into front matter 'related:'",
+    )
+    merge_parser.add_argument(
+        "paths",
+        nargs="*",
+        help="Globs relative to the repo root (default: every docs/**/*.md)",
+    )
+    merge_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print changes without modifying files (default)",
+    )
+    merge_parser.add_argument(
+        "--fix", action="store_true", help="Actually modify files"
+    )
+
     # rename-category-to-area
     rename_parser = subparsers.add_parser(
         "rename-category-to-area",
@@ -575,6 +844,8 @@ def main(argv: list[str] | None = None) -> int:
     elif args.subcommand == "dedupe-lists":
         cmd_dedupe_lists()
         return 0
+    elif args.subcommand == "merge-related":
+        return cmd_merge_related(args)
     elif args.subcommand == "rename-category-to-area":
         return cmd_rename_category_to_area(args)
     elif args.subcommand == "classify":

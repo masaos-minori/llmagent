@@ -4,6 +4,9 @@
 Rename a `docs/*.md` file (including `docs/10_adr/*.md`) via `git mv` and rewrite
 every Markdown-link path across `docs/` pointing at the old path, preserving
 each referencing file's existing link style (bare filename vs. `../`-prefixed).
+Front matter `related:` entries that point at the old path are rewritten the
+same way (a bare entry becomes the new basename, a `../` entry the new relative
+path); any other entry shape that resolves to it is reported, never guessed.
 
 Scope is restricted to `docs/`: both the old/new path arguments and every
 rewrite target must resolve under the repository's `docs/` directory, or the
@@ -137,6 +140,33 @@ def _line_text_at(content: str, pos: int) -> str:
     return content[start:end]
 
 
+_RELATED_ITEM_RE = re.compile(r"^(\s+-\s+)(\S.*?)\s*$")
+
+
+def _front_matter_related_items(content: str) -> list[tuple[int, int, str]]:
+    """Return (start, end, entry) text spans of the `related:` block items."""
+    if not content.startswith("---"):
+        return []
+    fm_end = content.find("\n---", 3)
+    if fm_end == -1:
+        return []
+    items: list[tuple[int, int, str]] = []
+    in_block = False
+    offset = 0
+    for line in content[:fm_end].split("\n"):
+        if in_block:
+            match = _RELATED_ITEM_RE.match(line)
+            if match is None:
+                in_block = False
+            else:
+                start = offset + len(match.group(1))
+                items.append((start, start + len(match.group(2)), match.group(2)))
+        elif line.startswith("related:") and not line[len("related:") :].strip():
+            in_block = True
+        offset += len(line) + 1
+    return items
+
+
 def scan_file(
     md_file: Path,
     old_path: Path,
@@ -189,6 +219,44 @@ def scan_file(
                 span=m.span(),
                 old_snippet=m.group(0),
                 new_snippet=new_snippet,
+            )
+        )
+
+    for start, end, entry in _front_matter_related_items(content):
+        quoted = entry[0] in "\"'"
+        bare = entry.strip("\"'")
+        if "/" not in bare:
+            is_target = bare == old_path.name
+        else:
+            is_target = (md_file.parent / bare).resolve() == old_path
+        if not is_target:
+            continue
+        handled_spans.append((start, end))
+        line_no = _line_number_at(content, start)
+        style = None if quoted else classify_style(entry)
+        if style is None:
+            unresolved.append(
+                UnresolvedLink(
+                    file=md_file,
+                    line_no=line_no,
+                    snippet=entry,
+                    reason=(
+                        "front matter entry is quoted or not a bare filename / "
+                        "../-prefixed path; not rewritten"
+                    ),
+                )
+            )
+            continue
+        new_entry = (
+            new_path.name if style == "bare" else compute_new_target(md_file, new_path)
+        )
+        rewrites.append(
+            PlannedRewrite(
+                file=md_file,
+                line_no=line_no,
+                span=(start, end),
+                old_snippet=entry,
+                new_snippet=new_entry,
             )
         )
 
@@ -282,7 +350,7 @@ def print_report(
     )
 
     if plan.rewrites_by_file:
-        print("\nPlanned link/title rewrites:")
+        print("\nPlanned link/front matter/title rewrites:")
         for file, rewrites in sorted(plan.rewrites_by_file.items()):
             rel = file.relative_to(repo_root)
             for rewrite in sorted(rewrites, key=lambda r: r.line_no):
@@ -290,7 +358,7 @@ def print_report(
                 print(f"    - {rewrite.old_snippet}")
                 print(f"    + {rewrite.new_snippet}")
     else:
-        print("\nPlanned link/title rewrites: none")
+        print("\nPlanned link/front matter/title rewrites: none")
 
     if plan.unresolved_links:
         print("\nUnresolved links (matched old path, style not rewritten):")
