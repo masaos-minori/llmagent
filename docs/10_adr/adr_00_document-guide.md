@@ -28,6 +28,7 @@ No confirmed deviations.
 | Config Isolation | `ADR-002-config-isolation.md` |
 | Tool Registry Authority | `ADR-003-runtime-tool-registry-routing-authority.md` |
 | Environment Failure Handling | `ADR-004-environment-failure-handling-policy.md` |
+| ADR-002 Supporting Sections (companion) | `adr_02_config-isolation-supporting-sections.md` |
 | ADR-003 Supporting Sections (companion) | `adr_03_runtime-tool-registry-supporting-sections.md` |
 | ADR-004 Supporting Sections (companion) | `adr_04_failure-handling-supporting-sections.md` |
 | RAG Source-Derived Index | `ADR-005-rag-source-derived-index-relationships.md` |

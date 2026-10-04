@@ -126,31 +126,7 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 
 ## Rationale
 
-### 1. Primary Reason for Adoption — Security
-
-Safety/integrity failures are always Fail-Fast (at startup) or Fail-Closed (at runtime), preventing Security Controls from being bypassed by the choice of environment name.
-
-### 2. Second Reason for Adoption — Data Integrity
-
-Aborting startup unconditionally when a mandatory component is unavailable prevents processing from proceeding without canonical state or Config Isolation/approval control.
-
-### 3. Third Reason for Adoption — Predictability
-
-A single common policy guarantees the same conditions produce the same results (Fail-Fast/Fail-Closed/continue) in every environment, increasing predictability for operators.
-
-### 4. Availability
-
-Uniformly aborting all of startup even for availability failures of non-mandatory components needlessly stops functions that do not affect core safety and integrity. Permitting partial availability only under explicit criteria secures the necessary availability.
-
-### 5. Operability
-
-Making the reasons for component disabling and partial availability explicitly observable prevents unavailable functions from appearing available and makes incident response easier.
-
-Do not use "the current code is implemented this way" as the sole reason for adoption.
-
-### 6. Non-Persistence of Startup Validation Results
-
-The startup validation results built by `StartupOrchestrator` are an in-memory aggregate rebuilt at every process startup, intentionally not persisted. Keeping a history of past startups is outside the scope of this Decision; only the decision at each startup is valid.
+This section is maintained in the companion document: [Rationale](adr_04_failure-handling-supporting-sections.md#rationale).
 
 ## Alternatives Considered
 
@@ -158,24 +134,7 @@ This section is maintained in the companion document: [Alternatives Considered](
 
 ## Consequences
 
-### Positives
-
-- Single consistent failure handling policy across all environments
-- No safety relaxation through environment names
-- Startup and execution boundaries predictable
-- Startup can continue when only non-mandatory components unavailable
-- Unavailable functions excluded from executable exposure set
-- Partial-availability state observable
-- Fallback conditions limited to explicit definitions by other Accepted ADRs
-
-### Negatives
-
-- Component mandatoriness must be defined and maintained
-- Misclassification can cause unnecessary startup abort or inappropriate disabling of mandatory function
-- Partial availability requires support in Diagnostics, Health Checks, and logs
-- Startup validation more comprehensive
-- Every environment must meet same safety requirements
-- Operators must distinguish availability failures from safety/integrity failures when responding
+This section is maintained in the companion document: [Consequences](adr_04_failure-handling-supporting-sections.md#consequences).
 
 ## Invariants
 
