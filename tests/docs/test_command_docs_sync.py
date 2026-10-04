@@ -64,9 +64,6 @@ class TestCommandDocsSync:
             ROOT / "docs" / "23_agent" / "agent_07_04_cli-and-commands-purpose.md",
             ROOT / "docs" / "23_agent" / "agent_07_05_cli-and-commands-repl-io.md",
             ROOT / "docs" / "23_agent" / "agent_07_06_cli-and-commands-hot-reload.md",
-            # agent_07_07 (migration-notes) intentionally excluded: its entire
-            # purpose is documenting removed commands (e.g. /db) as a historical
-            # record, not describing current active command surface.
             ROOT
             / "docs"
             / "23_agent"

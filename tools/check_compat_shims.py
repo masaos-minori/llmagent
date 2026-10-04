@@ -116,10 +116,8 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "tests" / "agent" / "commands" / "test_cmd_registry_note_removal.py",
     ROOT_DIR / "tests" / "agent" / "commands" / "test_removed_commands.py",
     ROOT_DIR / "tests" / "db" / "test_create_schema.py",
-    # Docs documenting removed features (POST /v1/search, /mcp install, /note, /db aliases)
+    # Guide that names the _MCP_TOOLS to TOOL_LIST naming-convention document
     ROOT_DIR / "docs" / "22_mcp" / "mcp_00_document-guide.md",
-    # Migration notes doc (split from the former 05_agent_07_cli-and-commands.md) documenting removed /note and /db aliases
-    ROOT_DIR / "docs" / "23_agent" / "agent_07_07_cli-and-commands-migration-notes.md",
     # Doc (split from the former 90_shared_04_db_architecture_and_schema.md) documenting the deleted workflow_schema.py entry point
     ROOT_DIR
     / "docs"
