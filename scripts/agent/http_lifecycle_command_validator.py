@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 
 from .http_lifecycle_errors import HttpStartupError, StartupFailure
@@ -23,6 +24,7 @@ _DEFAULT_ALLOWED_COMMANDS: frozenset[str] = frozenset(
 _DEFAULT_PROTECTED_ENV_VARS: frozenset[str] = frozenset(
     {"PATH", "PYTHONPATH", "LD_LIBRARY_PATH", "HOME", "USER"}
 )
+_INTERPRETER_BASENAME_RE = re.compile(r"python3(?:\.\d+)?")
 
 
 class CommandValidator:
@@ -79,8 +81,9 @@ class CommandValidator:
 
         # Check 4: Allowlist verification using basename
         base_name = os.path.basename(cmd_path)
-        if base_name not in self._allowed_commands and not base_name.startswith(
-            "python3"
+        if (
+            base_name not in self._allowed_commands
+            and not _INTERPRETER_BASENAME_RE.fullmatch(base_name)
         ):
             raise HttpStartupError(
                 StartupFailure(

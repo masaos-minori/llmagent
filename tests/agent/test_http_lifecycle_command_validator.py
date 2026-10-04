@@ -153,19 +153,83 @@ class TestCommandValidatorValidate:
         assert os.path.isabs(result)
 
     def test_python3_prefix_allows_python3x(self):
-        """Commands starting with 'python3' are allowed even if not in allowlist."""
-        # python3.x variants should be allowed
+        """Bounded interpreter match: real variants pass, 'python3evil' is rejected."""
         custom_validator = CommandValidator(
             allowed_commands=frozenset({"python3"}),
         )
-        # Find a python3.x binary
-        for name in ["python3.13", "python3.12", "python3.11", "python3"]:
-            if shutil.which(name):
-                result = custom_validator.validate(_TEST_SERVER_KEY, name)
-                assert result is not None
-                break
-        else:
-            pytest.skip("No python3.x binary found")
+        fixtures_dir = Path("/tmp/validator_fixtures")
+        fixtures_dir.mkdir(exist_ok=True)
+        try:
+            for name in ["python3", "python3.11", "python3.12"]:
+                fixture = fixtures_dir / name
+                try:
+                    fixture.write_text("")
+                    with patch.object(shutil, "which", return_value=str(fixture)):
+                        result = custom_validator.validate(_TEST_SERVER_KEY, name)
+                        assert os.path.isabs(result)
+                        assert os.path.isfile(result)
+                finally:
+                    fixture.unlink(missing_ok=True)
+            # Crafted basename that merely starts with 'python3' must be rejected.
+            evil = fixtures_dir / "python3evil"
+            try:
+                evil.write_text("")
+                with patch.object(shutil, "which", return_value=str(evil)):
+                    with pytest.raises(HttpStartupError) as exc_info:
+                        custom_validator.validate(_TEST_SERVER_KEY, "python3evil")
+                assert "not in the allowed commands list" in str(exc_info.value)
+            finally:
+                evil.unlink(missing_ok=True)
+        finally:
+            try:
+                fixtures_dir.rmdir()
+            except OSError:
+                pass
+
+    def test_python3_evil_rejected(self):
+        """Crafted basename 'python3evil' (starts with python3) raises HttpStartupError."""
+        custom_validator = CommandValidator(
+            allowed_commands=frozenset({"python3"}),
+        )
+        fixtures_dir = Path("/tmp/validator_fixtures")
+        fixtures_dir.mkdir(exist_ok=True)
+        try:
+            evil = fixtures_dir / "python3evil"
+            try:
+                evil.write_text("")
+                with patch.object(shutil, "which", return_value=str(evil)):
+                    with pytest.raises(HttpStartupError) as exc_info:
+                        custom_validator.validate(_TEST_SERVER_KEY, "python3evil")
+                assert "not in the allowed commands list" in str(exc_info.value)
+            finally:
+                evil.unlink(missing_ok=True)
+        finally:
+            try:
+                fixtures_dir.rmdir()
+            except OSError:
+                pass
+
+    def test_interpreter_variants_accepted(self):
+        """Real interpreter basenames python3/.11/.12 validate to an absolute path."""
+        validator = CommandValidator()
+        fixtures_dir = Path("/tmp/validator_fixtures")
+        fixtures_dir.mkdir(exist_ok=True)
+        try:
+            for name in ["python3", "python3.11", "python3.12"]:
+                fixture = fixtures_dir / name
+                try:
+                    fixture.write_text("")
+                    with patch.object(shutil, "which", return_value=str(fixture)):
+                        result = validator.validate(_TEST_SERVER_KEY, name)
+                        assert os.path.isabs(result)
+                        assert os.path.isfile(result)
+                finally:
+                    fixture.unlink(missing_ok=True)
+        finally:
+            try:
+                fixtures_dir.rmdir()
+            except OSError:
+                pass
 
     def test_validate_returns_absolute_path(self):
         validator = CommandValidator()
