@@ -75,6 +75,47 @@ _HISTORICAL_MARKERS: frozenset[str] = frozenset(
 # file comparison is unaffected by this threshold (see check_content_similarity).
 _MIN_CROSS_FILE_TOKEN_COUNT = 10
 
+# Sections whose near-identical wording across documents is intentional, not
+# duplication to clean up:
+#   - ADR template sections: `governance_01_documentation-policy.md` ("ADR
+#     Section Header Standardization" and the Acceptance Evidence Standard)
+#     requires every ADR to carry these sections with a common shape.
+#   - Area document-guide sections that all defer to a single source (e.g.
+#     "Canonical Sources" pointing at the Canonical Source Registry), which
+#     must not diverge into per-area wording.
+# Only same-heading pairs between documents of the same kind are exempt; any
+# other similar pair is still reported.
+_ADR_TEMPLATE_SECTIONS: frozenset[str] = frozenset(
+    {
+        "Approval Record",
+        "Required Reviewers",
+        "Implementation Notes",
+        "Completion Checklist",
+        "Security Consequences",
+        "Status",
+        "Assumptions",
+    }
+)
+_GUIDE_TEMPLATE_SECTIONS: frozenset[str] = frozenset(
+    {"Canonical Sources", "Known Issues / Deferred Items", "Governance"}
+)
+_GUIDE_SUFFIX = "_00_document-guide.md"
+
+
+def _is_template_section_pair(
+    rel_a: str, heading_a: str, rel_b: str, heading_b: str
+) -> bool:
+    """Return True for a same-heading pair of intentionally templated sections."""
+    if heading_a != heading_b:
+        return False
+    name_a, name_b = Path(rel_a).name, Path(rel_b).name
+    if name_a.startswith("ADR-") and name_b.startswith("ADR-"):
+        return heading_a in _ADR_TEMPLATE_SECTIONS
+    if name_a.endswith(_GUIDE_SUFFIX) and name_b.endswith(_GUIDE_SUFFIX):
+        return heading_a in _GUIDE_TEMPLATE_SECTIONS
+    return False
+
+
 _SENTENCE_BOUNDARY = re.compile(r"[.!?:]")
 
 
@@ -567,6 +608,13 @@ def check_content_similarity(docs_dir: Path, files: list[DocFile]) -> list[Issue
             doc_b, sections_b = doc_tokenized_sections[b]
             for sec_a, tokens_a in sections_a:
                 for sec_b, tokens_b in sections_b:
+                    if _is_template_section_pair(
+                        doc_a.rel_path,
+                        sec_a["heading"],
+                        doc_b.rel_path,
+                        sec_b["heading"],
+                    ):
+                        continue
                     if _jaccard_similarity_above(tokens_a, tokens_b):
                         issues.append(
                             Issue(

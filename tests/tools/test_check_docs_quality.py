@@ -384,6 +384,59 @@ class TestContentSimilarityCrossFile:
             (_ROOT_DIR / ".tmp_test_doc_b.md").unlink(missing_ok=True)
 
 
+class TestContentSimilarityTemplateSections:
+    """Same-heading template sections between ADRs / area guides are exempt."""
+
+    _COMMON = (
+        "This is boilerplate content that appears in many documents. "
+        "It describes the purpose and scope of the section."
+    )
+
+    def _run(self, name_a: str, heading_a: str, name_b: str, heading_b: str):
+        doc_a = _make_doc_file(
+            f"# A\n\n## {heading_a}\n\n{self._COMMON}", tmp_name=name_a
+        )
+        doc_b = _make_doc_file(
+            f"# B\n\n## {heading_b}\n\n{self._COMMON}", tmp_name=name_b
+        )
+        try:
+            return check_content_similarity(_DOCS_DIR, [doc_a, doc_b])
+        finally:
+            (_ROOT_DIR / name_a).unlink(missing_ok=True)
+            (_ROOT_DIR / name_b).unlink(missing_ok=True)
+
+    def test_adr_template_section_is_exempt(self):
+        issues = self._run(
+            "ADR-901-a.md", "Approval Record", "ADR-902-b.md", "Approval Record"
+        )
+        assert issues == []
+
+    def test_adr_non_template_section_is_still_reported(self):
+        issues = self._run("ADR-901-a.md", "Scope", "ADR-902-b.md", "Scope")
+        assert len(issues) >= 1
+
+    def test_adr_template_heading_against_non_adr_is_still_reported(self):
+        issues = self._run(
+            "ADR-901-a.md", "Approval Record", "other_doc.md", "Approval Record"
+        )
+        assert len(issues) >= 1
+
+    def test_guide_template_section_is_exempt(self):
+        issues = self._run(
+            "x_00_document-guide.md",
+            "Canonical Sources",
+            "y_00_document-guide.md",
+            "Canonical Sources",
+        )
+        assert issues == []
+
+    def test_guide_other_section_is_still_reported(self):
+        issues = self._run(
+            "x_00_document-guide.md", "Purpose", "y_00_document-guide.md", "Purpose"
+        )
+        assert len(issues) >= 1
+
+
 # ---------------------------------------------------------------------------
 # Integration tests
 # ---------------------------------------------------------------------------
