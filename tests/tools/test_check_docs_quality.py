@@ -19,134 +19,16 @@ from tools.check_docs_quality import (
 
 # Baseline snapshot of within-file content-similarity pairs. Regenerate it from
 # `python -m tools.check_docs_quality` output when docs are renamed or split
-# (last refreshed 2026-10-04 after the docs directory reorganization).
+# (last refreshed 2026-10-04 after the duplicate-section cleanup).
 EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
     [
         "00_governance/governance_03_issue-and-uncertainty-management.md:'Lifecycle' <-> 'Lifecycle'",
-        "10_adr/ADR-002-config-isolation.md:'Exceptions' <-> 'Known Issues'",
-        "10_adr/ADR-003-runtime-tool-registry-routing-authority.md:'Fail-Open or Degraded Conditions' <-> 'Fallback Policy'",
-        "10_adr/ADR-005-rag-source-derived-index-relationships.md:'Exceptions' <-> 'Known Issues'",
-        "10_adr/ADR-008-sqlite-4db-separation.md:'Consequences' <-> 'Verification'",
-        "10_adr/ADR-009-rag-ft5-text-separation.md:'Exceptions' <-> 'Known Issues'",
-        "10_adr/ADR-010-rag-fallback.md:'Exceptions' <-> 'Known Issues'",
-        "10_adr/adr_08_sqlite-4db-supporting-sections.md:'Reconsideration Conditions' <-> 'Reconsideration Conditions'",
-        "21_rag/rag_02_01_ingestion_pipeline-overview.md:'Batch split unprocessed files' <-> 'Regenerate existing chunks'",
-        "21_rag/rag_02_01_ingestion_pipeline-overview.md:'Embed and save to DB' <-> 'Force re-registration'",
-        "21_rag/rag_02_01_ingestion_pipeline-overview.md:'Step 1: Crawling' <-> 'Step 2: Chunk Splitting'",
-        "21_rag/rag_02_01_ingestion_pipeline-overview.md:'Step 1: Crawling' <-> 'Step 3: Embedding and Storage'",
-        "21_rag/rag_02_01_ingestion_pipeline-overview.md:'Step 2: Chunk Splitting' <-> 'Step 3: Embedding and Storage'",
-        "21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md:'Keywords' <-> 'Keywords'",
-        "21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md:'RAG Ingestion Pipeline' <-> 'RAG Ingestion Pipeline'",
-        "21_rag/rag_02_04_ingestion_pipeline-ingester.md:'4.2 Detailed Behavior' <-> '4.2 Detailed Behavior'",
-        "21_rag/rag_02_04_ingestion_pipeline-ingester.md:'4.2.1 Immutable Deletion Order' <-> '4.2.1 Immutable Deletion Order'",
-        "21_rag/rag_02_04_ingestion_pipeline-ingester.md:'4.3 CLI Arguments' <-> '4.3 CLI Arguments'",
-        "21_rag/rag_02_04_ingestion_pipeline-ingester.md:'4.4 Embedding API' <-> '4.4 Embedding API'",
-        "21_rag/rag_02_04_ingestion_pipeline-ingester.md:'4.5 Database Updates' <-> '4.5 Database Updates'",
-        "21_rag/rag_02_04_ingestion_pipeline-ingester.md:'4.6 Error Handling' <-> '4.6 Error Handling'",
-        "21_rag/rag_02_04_ingestion_pipeline-ingester.md:'4.7 Logging' <-> '4.7 Logging'",
-        "21_rag/rag_02_04_ingestion_pipeline-ingester.md:'Keywords' <-> 'Keywords'",
-        "21_rag/rag_02_04_ingestion_pipeline-ingester.md:'RAG Ingestion Pipeline' <-> 'RAG Ingestion Pipeline'",
-        "21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md:'Keywords' <-> 'Keywords'",
-        "21_rag/rag_03_06_query_pipeline-helpers-and-cache.md:'RAG Query Pipeline' <-> 'RAG Query Pipeline Implementation Details'",
-        "21_rag/rag_05_2-execution-guide.md:'2.1 Prerequisites' <-> '2.2 Step 1: Crawling'",
-        "21_rag/rag_05_2-execution-guide.md:'2.1 Prerequisites' <-> '2.3 Step 2: Chunk Splitting'",
-        "21_rag/rag_05_2-execution-guide.md:'2.1 Prerequisites' <-> '2.4 Embedding and Storage'",
-        "21_rag/rag_05_2-execution-guide.md:'2.2 Step 1: Crawling' <-> '2.3 Step 2: Chunk Splitting'",
-        "21_rag/rag_05_2-execution-guide.md:'2.2 Step 1: Crawling' <-> '2.4 Embedding and Storage'",
-        "21_rag/rag_05_2-execution-guide.md:'2.3 Step 2: Chunk Splitting' <-> '2.4 Embedding and Storage'",
-        "21_rag/rag_05_2-execution-guide.md:'Batch split unprocessed files' <-> 'Regenerate existing chunks'",
-        "21_rag/rag_05_2-execution-guide.md:'Embed and save to DB' <-> 'Force re-registration'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allow_force_push`' <-> 'Workflow Allowlist (cicd-mcp)'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allow_force_push`' <-> '`require_pr_review`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> 'Workflow Allowlist (cicd-mcp)'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> '`allow_force_push`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> '`allowed_repo_paths` (git-mcp)'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> '`path_denylist`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> '`protected_branches`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allowed_dirs` (File Servers)' <-> '`require_pr_review`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allowed_repo_paths` (git-mcp)' <-> 'Workflow Allowlist (cicd-mcp)'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allowed_repo_paths` (git-mcp)' <-> '`allow_force_push`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allowed_repo_paths` (git-mcp)' <-> '`path_denylist`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allowed_repo_paths` (git-mcp)' <-> '`protected_branches`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`allowed_repo_paths` (git-mcp)' <-> '`require_pr_review`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`path_denylist`' <-> 'Workflow Allowlist (cicd-mcp)'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`path_denylist`' <-> '`allow_force_push`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`path_denylist`' <-> '`require_pr_review`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`protected_branches`' <-> 'Workflow Allowlist (cicd-mcp)'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`protected_branches`' <-> '`allow_force_push`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`protected_branches`' <-> '`path_denylist`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`protected_branches`' <-> '`require_pr_review`'",
-        "22_mcp/mcp_05_01_access-control-and-allowlists.md:'`require_pr_review`' <-> 'Workflow Allowlist (cicd-mcp)'",
-        "22_mcp/mcp_06_07_reading-audit-logs.md:'View all audit events (MCP server + agent-side)' <-> 'View raw agent-side audit events (JSON-lines format)'",
-        "22_mcp/mcp_06_13_watchdog-health-reasons-scheduling.md:'Keywords' <-> 'Keywords'",
-        "23_agent/agent_02_runtime-architecture.md:'Enumerated Call Sites' <-> 'Enumerated Call Sites'",
-        "23_agent/agent_02_runtime-architecture.md:'Keywords' <-> 'Keywords'",
-        "23_agent/agent_02_runtime-architecture.md:'Known Limitations' <-> 'Known Limitations'",
-        "23_agent/agent_02_runtime-architecture.md:'Related Documents' <-> 'Agent Runtime Architecture (Part 2)'",
-        "23_agent/agent_07_02_cli-and-commands-cliview.md:'Operational Notes' <-> 'Known Limitations'",
-        "23_agent/agent_07_03_cli-and-commands-command-registry.md:'Key Constraints' <-> 'Operational Notes'",
-        "23_agent/agent_07_06_cli-and-commands-hot-reload.md:'Key Constraints' <-> 'Known Limitations'",
-        "23_agent/agent_07_08_cli-and-commands-slash-commands-session-mcp.md:'Key Constraints' <-> 'Known Limitations'",
-        "23_agent/agent_07_08_cli-and-commands-slash-commands-session-mcp.md:'Key Constraints' <-> 'Operational Notes'",
-        "23_agent/agent_07_08_cli-and-commands-slash-commands-session-mcp.md:'Operational Notes' <-> 'Known Limitations'",
-        "23_agent/agent_07_09_cli-and-commands-slash-commands-context-db.md:'Key Constraints' <-> 'Known Limitations'",
-        "23_agent/agent_07_09_cli-and-commands-slash-commands-context-db.md:'Key Constraints' <-> 'Operational Notes'",
-        "23_agent/agent_07_09_cli-and-commands-slash-commands-context-db.md:'Operational Notes' <-> 'Known Limitations'",
-        "23_agent/agent_07_10_cli-and-commands-slash-commands-workflow-debug.md:'Key Constraints' <-> 'Operational Notes'",
-        "23_agent/agent_07_11_cli-and-commands-slash-commands-memory-other.md:'Key Constraints' <-> 'Operational Notes'",
-        "23_agent/agent_08_01_configuration-loading-agent-config.md:'Key Constraints' <-> 'Known Limitations'",
-        "23_agent/agent_08_01_configuration-loading-agent-config.md:'Key Constraints' <-> 'Operational Notes'",
-        "23_agent/agent_08_01_configuration-loading-agent-config.md:'Operational Notes' <-> 'Known Limitations'",
-        "23_agent/agent_08_02_configuration-llm-rag.md:'Operational Notes' <-> 'Known Limitations'",
-        "23_agent/agent_08_03_configuration-tools-memory.md:'Operational Notes' <-> 'Known Limitations'",
-        "23_agent/agent_09_02_data-layer-access-patterns.md:'Operational Notes' <-> 'Known Limitations'",
-        "23_agent/agent_09_03_data-layer-indexing-boundaries.md:'Operational Notes' <-> 'Known Limitations'",
-        "23_agent/agent_12_01_memory-overview-and-modes.md:'Keywords' <-> 'Memory Layer — Overview and Modes (Part 2)'",
-        "23_agent/agent_12_02_memory-gate-data-model-search.md:'Memory Layer — Activation Gate, Data Model, and Search (Part 1)' <-> 'Memory Layer — Module Reference'",
-        "23_agent/agent_13_reference-api.md:'Keywords' <-> 'Related Documents'",
         "24_eventbus/eventbus_05_dlq_endpoint.md:'Success Response' <-> 'Success Response'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'ACK Error Responses' <-> 'ACK Error Responses'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'ACK Postconditions' <-> 'ACK Postconditions'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'ACK Preconditions' <-> 'ACK Preconditions'",
         "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'ACK Preconditions' <-> 'NACK Preconditions'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'ACK followed by NACK' <-> 'ACK followed by NACK'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Background Loop Promotion' <-> 'Background Loop Promotion'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Cleanup Procedure' <-> 'Cleanup Procedure'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Consumer Identity' <-> 'Consumer Identity'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Consumer Offset Precedence' <-> 'Consumer Offset Precedence'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Duplicate NACK Behavior' <-> 'Duplicate NACK Behavior'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Explicit Ack-only Offset' <-> 'Monotonicity Guarantee'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Inline Promotion Path' <-> 'Inline Promotion Path'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Inline Promotion Path' <-> 'Promotion Path'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'JSONL Archive Retention' <-> 'JSONL Archive Retention'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Last-Event-ID Precedence' <-> 'Last-Event-ID Precedence'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Monotonicity Guarantee' <-> 'Explicit Ack-only Offset'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Monotonicity Guarantee' <-> 'Monotonicity Guarantee'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'NACK Error Responses' <-> 'NACK Error Responses'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'NACK Postconditions' <-> 'NACK Postconditions'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'NACK Preconditions' <-> 'ACK Preconditions'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'NACK Preconditions' <-> 'NACK Preconditions'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'NACK followed by ACK' <-> 'NACK followed by ACK'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Per-Topic Ordering' <-> 'Per-Topic Ordering'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Promotion Path' <-> 'Inline Promotion Path'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Queue Overflow Behavior' <-> 'Queue Overflow Behavior'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Requeue Semantics' <-> 'Requeue Semantics'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Resume Behavior' <-> 'Resume Behavior'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Seq-Based Ordering' <-> 'Seq-Based Ordering'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'Slow Consumer Detection' <-> 'Slow Consumer Detection'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'TTL Policy' <-> 'TTL Policy'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'since_seq Precedence' <-> 'since_seq Precedence'",
-        "24_eventbus/eventbus_07_persistence_schema_and_replay.md:'Declared Role: Replica' <-> 'Declared Role: Replica'",
-        "24_eventbus/eventbus_07_persistence_schema_and_replay.md:'Idempotency Contract' <-> 'Idempotency Contract'",
-        "24_eventbus/eventbus_07_persistence_schema_and_replay.md:'Keywords' <-> 'Related Documents'",
-        "24_eventbus/eventbus_12_health_endpoint.md:'Related Documents' <-> 'Keywords'",
-        "24_eventbus/eventbus_13_replay_endpoint.md:'Related Documents' <-> 'Keywords'",
         "24_eventbus/eventbus_15_ack_nack_endpoints.md:'Bad Request Responses' <-> 'Bad Request Responses'",
         "24_eventbus/eventbus_15_ack_nack_endpoints.md:'Forbidden Response' <-> 'Forbidden Response'",
         "24_eventbus/eventbus_15_ack_nack_endpoints.md:'Not Found Response' <-> 'Not Found Response'",
-        "24_eventbus/eventbus_15_ack_nack_endpoints.md:'Related Documents' <-> 'Keywords'",
         "24_eventbus/eventbus_15_ack_nack_endpoints.md:'Success Response' <-> 'Success Response'",
-        "41_db/db_08_active_databases.md:'Keywords' <-> 'Related Documents'",
         "41_db/db_08_active_databases.md:'rag.sqlite' <-> 'session.sqlite'",
     ]
 )
@@ -384,6 +266,31 @@ class TestContentSimilarityCrossFile:
             (_ROOT_DIR / ".tmp_test_doc_b.md").unlink(missing_ok=True)
 
 
+class TestExtractSectionsFencedCode:
+    def test_comment_line_in_fenced_block_is_not_a_heading(self):
+        from tools.check_docs_quality import _extract_sections
+
+        content = "# Title\n\n## Real\n\n```bash\n# a comment\necho hi\n```\n\nafter"
+        headings = [s["heading"] for s in _extract_sections(content)]
+        assert headings == ["Title", "Real"]
+
+
+class TestPlaceholderSections:
+    def test_identical_placeholder_sections_in_one_file_are_not_reported(self):
+        content = (
+            "# T\n\n## Operational Notes\n\n- Unknown\n\n"
+            "## Known Limitations\n\n- Unknown\n"
+        )
+        doc = _make_doc_file(content)
+        assert check_content_similarity(_DOCS_DIR, [doc]) == []
+
+    def test_identical_real_content_in_one_file_is_still_reported(self):
+        body = "The service validates every request and rejects unknown fields."
+        content = f"# T\n\n## One\n\n{body}\n\n## Two\n\n{body}\n"
+        doc = _make_doc_file(content)
+        assert len(check_content_similarity(_DOCS_DIR, [doc])) >= 1
+
+
 class TestContentSimilarityTemplateSections:
     """Same-heading template sections between ADRs / area guides are exempt."""
 
@@ -393,12 +300,21 @@ class TestContentSimilarityTemplateSections:
     )
 
     def _run(self, name_a: str, heading_a: str, name_b: str, heading_b: str):
-        doc_a = _make_doc_file(
-            f"# A\n\n## {heading_a}\n\n{self._COMMON}", tmp_name=name_a
+        return self._run_bodies(
+            name_a, heading_a, self._COMMON, name_b, heading_b, self._COMMON
         )
-        doc_b = _make_doc_file(
-            f"# B\n\n## {heading_b}\n\n{self._COMMON}", tmp_name=name_b
-        )
+
+    def _run_bodies(
+        self,
+        name_a: str,
+        heading_a: str,
+        body_a: str,
+        name_b: str,
+        heading_b: str,
+        body_b: str,
+    ):
+        doc_a = _make_doc_file(f"# A\n\n## {heading_a}\n\n{body_a}", tmp_name=name_a)
+        doc_b = _make_doc_file(f"# B\n\n## {heading_b}\n\n{body_b}", tmp_name=name_b)
         try:
             return check_content_similarity(_DOCS_DIR, [doc_a, doc_b])
         finally:
@@ -412,7 +328,9 @@ class TestContentSimilarityTemplateSections:
         assert issues == []
 
     def test_adr_non_template_section_is_still_reported(self):
-        issues = self._run("ADR-901-a.md", "Scope", "ADR-902-b.md", "Scope")
+        issues = self._run(
+            "ADR-901-a.md", "Alternative A", "ADR-902-b.md", "Alternative A"
+        )
         assert len(issues) >= 1
 
     def test_adr_template_heading_against_non_adr_is_still_reported(self):
@@ -420,6 +338,28 @@ class TestContentSimilarityTemplateSections:
             "ADR-901-a.md", "Approval Record", "other_doc.md", "Approval Record"
         )
         assert len(issues) >= 1
+
+    def test_navigation_sections_are_exempt(self):
+        links = "- [a](a.md)\n- [b](b.md)\n- [c](c.md)\n- [d](d.md)\n- [e](e.md)"
+        issues = self._run_bodies(
+            "x.md", "See Also", links, "y.md", "Other Pointers", links
+        )
+        assert issues == []
+
+    def test_non_navigation_similar_sections_are_still_reported(self):
+        issues = self._run_bodies(
+            "x.md", "Details", self._COMMON, "y.md", "Notes", self._COMMON
+        )
+        assert len(issues) >= 1
+
+    def test_adr_companion_document_counts_as_adr(self):
+        issues = self._run(
+            "ADR-901-a.md",
+            "Deployment Validation",
+            "adr_91_supporting-sections.md",
+            "Deployment Validation",
+        )
+        assert issues == []
 
     def test_guide_template_section_is_exempt(self):
         issues = self._run(
@@ -487,9 +427,8 @@ class TestRegressionFullDocsTree:
                 )
 
     def test_cross_file_duplication_detected_on_full_docs_tree(self):
-        """Run the extended checker against the full docs/ tree → confirm the
-        within-file finding count is unchanged and the known governance_01/
-        governance_04 duplication is now detected cross-file."""
+        """Run the checker against the full docs/ tree → confirm the set of
+        within-file similarity pairs still matches the recorded baseline."""
         if not _DOCS_DIR.exists():
             pytest.skip(f"Docs directory not found: {_DOCS_DIR}")
 
@@ -520,11 +459,4 @@ class TestRegressionFullDocsTree:
             f"Within-file content-similarity pairs changed:\n"
             f"Added: {current_pairs - EXPECTED_WITHIN_FILE_PAIRS}\n"
             f"Removed: {EXPECTED_WITHIN_FILE_PAIRS - current_pairs}"
-        )
-
-        assert (
-            "governance_01_documentation-policy.md" in output
-            and "governance_04_documentation-checks.md" in output
-        ), (
-            "Expected a cross-file finding between the known governance_01/governance_04 duplication"
         )

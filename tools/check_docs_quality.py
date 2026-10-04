@@ -90,16 +90,35 @@ _ADR_TEMPLATE_SECTIONS: frozenset[str] = frozenset(
         "Approval Record",
         "Required Reviewers",
         "Implementation Notes",
+        "Implementation References",
         "Completion Checklist",
         "Security Consequences",
+        "Operational Consequences",
         "Status",
         "Assumptions",
+        "Constraints",
+        "Scope",
+        "Out of Scope",
+        "Review Triggers",
+        "Startup Validation",
+        "Deployment Validation",
+        "Runtime Monitoring",
+        "Manual Review",
+        "Retry Policy",
+        "Fallback Policy",
+        "Fail-Open or Degraded Conditions",
+        "Data Ownership and Persistence",
     }
 )
 _GUIDE_TEMPLATE_SECTIONS: frozenset[str] = frozenset(
     {"Canonical Sources", "Known Issues / Deferred Items", "Governance"}
 )
 _GUIDE_SUFFIX = "_00_document-guide.md"
+
+
+def _is_adr_document(name: str) -> bool:
+    """True for an ADR (`ADR-NNN-*.md`) or its companion (`adr_NN_*.md`)."""
+    return name.startswith("ADR-") or re.match(r"adr_\d\d_", name) is not None
 
 
 def _is_template_section_pair(
@@ -109,11 +128,44 @@ def _is_template_section_pair(
     if heading_a != heading_b:
         return False
     name_a, name_b = Path(rel_a).name, Path(rel_b).name
-    if name_a.startswith("ADR-") and name_b.startswith("ADR-"):
+    if _is_adr_document(name_a) and _is_adr_document(name_b):
         return heading_a in _ADR_TEMPLATE_SECTIONS
     if name_a.endswith(_GUIDE_SUFFIX) and name_b.endswith(_GUIDE_SUFFIX):
         return heading_a in _GUIDE_TEMPLATE_SECTIONS
     return False
+
+
+# Navigation sections only point at other documents (link lists, "see also"
+# tables, keyword lists). Two of them naturally look alike — sibling documents
+# link to the same neighbours — and that is not duplicated content to merge.
+_NAVIGATION_HEADINGS: frozenset[str] = frozenset(
+    {"Related Documents", "Related Docs", "Related ADRs", "Keywords"}
+)
+_DOC_LINK_RE = re.compile(r"\[[^\]]*\]\([^)]*\)|`[^`]*\.md`")
+
+
+_PLACEHOLDER_BODIES: frozenset[str] = frozenset(
+    {"unknown", "n/a", "not applicable", "none", "tbd"}
+)
+
+
+def _is_placeholder_body(body: str) -> bool:
+    """True if the body only holds a placeholder such as "- Unknown"."""
+    lines = [
+        ln.strip().lstrip("-* ").strip().rstrip(".").lower() for ln in body.splitlines()
+    ]
+    lines = [ln for ln in lines if ln]
+    return bool(lines) and all(ln in _PLACEHOLDER_BODIES for ln in lines)
+
+
+def _is_navigation_section(heading: str, body: str) -> bool:
+    """True if the section is a navigation list (links to documents only)."""
+    if heading in _NAVIGATION_HEADINGS:
+        return True
+    lines = [
+        ln for ln in body.splitlines() if ln.strip() and set(ln.strip()) - set("-*_ ")
+    ]
+    return bool(lines) and all(_DOC_LINK_RE.search(ln) for ln in lines)
 
 
 _SENTENCE_BOUNDARY = re.compile(r"[.!?:]")
@@ -194,8 +246,13 @@ def _extract_sections(content: str) -> list[dict]:
     current_body_lines: list[str] = []
     current_line: int | None = None
 
+    in_fence = False
     for idx, line in enumerate(lines, start=1):
-        match = re.match(r"^(#{1,6})\s+(.+)$", line)
+        stripped = line.strip()
+        if stripped.startswith(("```", "~~~")):
+            in_fence = not in_fence
+        # A "# comment" line inside a fenced code block is not a heading.
+        match = None if in_fence else re.match(r"^(#{1,6})\s+(.+)$", line)
         if match:
             if current_heading is not None:
                 sections.append(
@@ -564,11 +621,16 @@ def check_content_similarity(docs_dir: Path, files: list[DocFile]) -> list[Issue
         except OSError:
             continue
         sections = _extract_sections(content)
+        is_nav = [_is_navigation_section(s["heading"], s["body"]) for s in sections]
         for i in range(len(sections)):
             for j in range(i + 1, len(sections)):
                 body_a = sections[i]["body"]
                 body_b = sections[j]["body"]
                 if not body_a or not body_b:
+                    continue
+                if is_nav[i] and is_nav[j]:
+                    continue
+                if _is_placeholder_body(body_a) and _is_placeholder_body(body_b):
                     continue
                 if _compute_section_similarity(body_a, body_b):
                     issues.append(
@@ -599,6 +661,7 @@ def check_content_similarity(docs_dir: Path, files: list[DocFile]) -> list[Issue
             tokens = _tokenize_for_similarity(sec["body"])
             if len(tokens) < _MIN_CROSS_FILE_TOKEN_COUNT:
                 continue
+            sec["nav"] = _is_navigation_section(sec["heading"], sec["body"])
             tokenized.append((sec, tokens))
         doc_tokenized_sections.append((doc, tokenized))
 
@@ -614,6 +677,8 @@ def check_content_similarity(docs_dir: Path, files: list[DocFile]) -> list[Issue
                         doc_b.rel_path,
                         sec_b["heading"],
                     ):
+                        continue
+                    if sec_a["nav"] and sec_b["nav"]:
                         continue
                     if _jaccard_similarity_above(tokens_a, tokens_b):
                         issues.append(
