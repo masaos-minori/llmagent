@@ -159,10 +159,15 @@ class TestRunWithDbLockMetrics:
         # Capture before/after delta to avoid order-dependent failures
         before_text = generate_latest().decode()
         before_count_samples = [
-            line for line in before_text.splitlines()
+            line
+            for line in before_text.splitlines()
             if "eventbus_db_lock_wait_time_seconds_count" in line
         ]
-        before_value = float(before_count_samples[-1].split(" ")[-1]) if before_count_samples else 0.0
+        before_value = (
+            float(before_count_samples[-1].split(" ")[-1])
+            if before_count_samples
+            else 0.0
+        )
 
         # Call run_with_db_lock
         async def _call():
@@ -185,10 +190,15 @@ class TestRunWithDbLockMetrics:
         # Collect metrics after calling
         after_text = generate_latest().decode()
         after_count_samples = [
-            line for line in after_text.splitlines()
+            line
+            for line in after_text.splitlines()
             if "eventbus_db_lock_wait_time_seconds_count" in line
         ]
-        after_value = float(after_count_samples[-1].split(" ")[-1]) if after_count_samples else 0.0
+        after_value = (
+            float(after_count_samples[-1].split(" ")[-1])
+            if after_count_samples
+            else 0.0
+        )
         delta = after_value - before_value
         # At least one new histogram sample should have been added
         assert delta >= 1

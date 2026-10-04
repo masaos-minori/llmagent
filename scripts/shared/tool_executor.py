@@ -19,13 +19,12 @@ if TYPE_CHECKING:
 
 import httpx
 
-from shared.http_transport import HttpTransport
 from shared.mcp_config import (
     McpServerConfig,
     StartupMode,
 )
 from shared.route_resolver import ToolRouteResolver
-from shared.tool_lifecycle import _PERMITTED_LIFECYCLE_EXCEPTIONS, LifecycleProtocol
+from shared.tool_lifecycle import LifecycleProtocol
 from shared.tool_transport_invoker import ToolTransportInvoker
 from shared.transport_dto import ToolCallResult
 
@@ -47,7 +46,16 @@ class ToolExecutor(ToolTransportInvoker):
         concurrency_limits: dict[str, int] | None = None,
         lifecycle: LifecycleProtocol | None = None,
     ) -> None:
-        """Initialize with HTTP client and server configurations."""
+        """Initialize with HTTP client and server configurations.
+
+        Args:
+            http: AsyncHTTPClient instance for making requests.
+            server_configs: Server configurations for MCP servers.
+            concurrency_limits: Optional concurrency limits per server. If None, no
+                concurrency limiting is applied. Note: this value is fixed at
+                initialization time and cannot be changed later.
+            lifecycle: Optional lifecycle protocol for MCP servers.
+        """
         super().__init__(http, server_configs, concurrency_limits, lifecycle)
         self._server_configs = server_configs
 
@@ -56,22 +64,6 @@ class ToolExecutor(ToolTransportInvoker):
     def set_runtime_registry(self, registry: RuntimeToolRegistry) -> None:
         """Wire RuntimeToolRegistry into the existing resolver after discovery completes."""
         self._resolver.set_runtime_registry(registry)
-
-    async def _ensure_lifecycle_ready(self, server_key: str) -> ToolCallResult | None:
-        """Ensure the MCP server lifecycle is ready; returns error result if not."""
-        if self._lifecycle is None:
-            return None
-        try:
-            await self._lifecycle.ensure_ready(server_key)
-        except Exception as e:
-            if isinstance(e, _PERMITTED_LIFECYCLE_EXCEPTIONS):
-                return self._handle_lifecycle_error(server_key, e)
-            raise
-        return None
-
-    def _resolve_transport(self, server_key: str) -> HttpTransport | None:
-        """Resolve the transport for a server key; returns None if missing."""
-        return self._transports.get(server_key)
 
     def _check_startup_mode(self, server_key: str) -> ToolCallResult | None:
         """Return an error result if the server is disabled or has no validated config."""
@@ -86,16 +78,6 @@ class ToolExecutor(ToolTransportInvoker):
             return self._error_result(server_key, msg, error_type="tool")
         return None
 
-    def _run_gate_chain(self, server_key: str) -> ToolCallResult | None:
-        """Run the health gates in order; return the first error, or None if both pass.
-
-        The lifecycle gate (_ensure_lifecycle_ready) is async and stays a separate
-        await in _raw_execute immediately after this call, preserving call order.
-        """
-        if err := self._check_health(server_key):
-            return err
-        return None
-
     async def _raw_execute(
         self,
         tool_name: str,
@@ -103,27 +85,7 @@ class ToolExecutor(ToolTransportInvoker):
     ) -> ToolCallResult:
         """Execute tool via the appropriate transport; applies per-server-key Semaphore when configured."""
         server_key = self._resolver.resolve(tool_name)
-
-        if err := self._run_gate_chain(server_key):
-            return err
-
-        # Lifecycle ensure_ready
-        lifecycle_err = await self._ensure_lifecycle_ready(server_key)
-        if lifecycle_err is not None:
-            return lifecycle_err
-
-        # Transport resolution
-        transport = self._resolve_transport(server_key)
-        if transport is None:
-            return self._error_result(
-                server_key, self._transport_missing_msg(server_key), error_type="tool"
-            )
-
-        self._ensure_semaphores()
-        sem = (self._semaphores or {}).get(server_key)
-        return await self._invoke_and_record(
-            server_key, transport, tool_name, args, sem
-        )
+        return await self._run_precall_gates(server_key, tool_name, args)
 
     async def execute(
         self,

@@ -61,6 +61,14 @@ These items are also documented as Deferred Items in `docs/governance_03_issue-a
 
 ### EVENTBUS-001: Offset Monotonicity Not Guaranteed
 
+- **Status**: open
+- **Severity**: Medium
+- **Area**: EventBus
+- **Type**: design-gap
+- **Summary**: Offset monotonicity is NOT guaranteed across all scenarios; if ACKs are not received in seq order, the offset may become non-monotonic
+- **Related**: eventbus_06_dlq_offsets_and_delivery_semantics.md
+- **Resolution Target**: Enforce monotonicity via server-side validation
+
 Offset monotonicity is NOT guaranteed across all scenarios. If ACKs are not received in `seq` order, the offset may become non-monotonic (skipped `seq` values will not be re-acquired later). See `eventbus_06_dlq_offsets_and_delivery_semantics.md` for details.
 
 ## Related Documents

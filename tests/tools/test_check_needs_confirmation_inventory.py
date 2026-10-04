@@ -168,3 +168,68 @@ class TestGovernanceDocMarkerClassification:
         assert len(issues) == 1
         assert issues[0].severity == "WARNING"
         assert "untracked" in issues[0].message.lower()
+
+
+class TestExitCodeBehavior:
+    """Verify main()'s exit-code contract: warnings → 0, ERROR → non-zero."""
+
+    def test_warnings_only_returns_zero(self, tmp_path: Path) -> None:
+        """A run yielding only WARNING findings must return exit code 0."""
+        docs_dir = tmp_path / "docs"
+        _write(
+            docs_dir,
+            "governance_03_issue-and-uncertainty-management.md",
+            "## Part 2:\n#### NC-1\n**Status:** resolved\n**Source File:** `example.md`\n",
+        )
+        _write(
+            docs_dir,
+            "05_agent_example.md",
+            "Needs confirmation: is this value correct?\n",
+        )
+        import tools.check_needs_confirmation_inventory as mod
+
+        orig_docs_dir = mod.DOCS_DIR
+        orig_inv_path = mod.INVENTORY_DOC_PATH
+        try:
+            mod.DOCS_DIR = docs_dir
+            mod.INVENTORY_DOC_PATH = (
+                docs_dir / "governance_03_issue-and-uncertainty-management.md"
+            )
+            result = mod.main()
+            assert result == 0, (
+                f"Expected exit code 0 for WARNING-only findings, got {result}"
+            )
+        finally:
+            mod.DOCS_DIR = orig_docs_dir
+            mod.INVENTORY_DOC_PATH = orig_inv_path
+
+    def test_error_finding_returns_nonzero(self, tmp_path: Path) -> None:
+        """A run yielding an ERROR finding must return a non-zero exit code."""
+        docs_dir = tmp_path / "docs"
+        _write(
+            docs_dir,
+            "governance_03_issue-and-uncertainty-management.md",
+            "## Part 2:\n#### NC-1\n**Status:** resolved\n**Source File:** `example.md`\n",
+        )
+        # Declare "two required fields" but provide only one numbered item
+        _write(
+            docs_dir,
+            "05_agent_example.md",
+            "The following two required fields:\n1. **Field A**\n",
+        )
+        import tools.check_needs_confirmation_inventory as mod
+
+        orig_docs_dir = mod.DOCS_DIR
+        orig_inv_path = mod.INVENTORY_DOC_PATH
+        try:
+            mod.DOCS_DIR = docs_dir
+            mod.INVENTORY_DOC_PATH = (
+                docs_dir / "governance_03_issue-and-uncertainty-management.md"
+            )
+            result = mod.main()
+            assert result != 0, (
+                f"Expected non-zero exit code for ERROR finding, got {result}"
+            )
+        finally:
+            mod.DOCS_DIR = orig_docs_dir
+            mod.INVENTORY_DOC_PATH = orig_inv_path

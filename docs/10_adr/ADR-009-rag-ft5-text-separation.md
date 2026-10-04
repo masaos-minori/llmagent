@@ -359,12 +359,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-- **Known Issue**: DESIGN-2 — `chunks_fts` is derived from `chunks`, and direct INSERT/UPDATE is prohibited. However, no test guarantees that there is no path in application code that manipulates `chunks_fts` directly.
-- **Type**: Architectural Limitation
-- **Summary**: No test guarantees the prohibition on directly manipulating `chunks_fts`
-- **Impact**: An unintended update of `chunks_fts` could occur
-- **Resolution Target**: Detect direct manipulation with a test
-- **Status**: Resolved — `tools/check_chunks_fts_invariant.py` enforces the invariant via CI pipeline (`lint-chunks-ft` tox environment)
+
 - **Whitelist**: 
   - `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()` — sanctioned `/session rag-rebuild-fts` command path
   - `scripts/db/schema_sql.py` — schema initialization SQL (executed once during setup, not runtime)

@@ -116,10 +116,10 @@ Making `httpx.RequestError` fail fast (UNK-01), changing retry counts/statuses/b
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Split handler; collapse for..else; remove dead code |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Row 2 adds the malformed post-count regression |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | pytest + ruff/mypy/bandit |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs document retry/backoff policy |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Split handler; collapse for..else; remove dead code |
+| 2 | Add or update tests per Validation plan | Done | — | — | Row 2 adds the malformed post-count regression |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | pytest + ruff/mypy OK |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | N/A: no docs document retry/backoff policy |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -302,7 +302,10 @@ class TestDiscoveryToLlmVisibilityEndToEnd:
         ctx = MagicMock()
         ctx.cfg.mcp.mcp_servers = {
             "srv": McpServerConfig(
-                TransportType.HTTP, "http://127.0.0.1:9100", auth_token="test-token", startup_mode=StartupMode.PERSISTENT
+                TransportType.HTTP,
+                "http://127.0.0.1:9100",
+                auth_token="test-token",
+                startup_mode=StartupMode.PERSISTENT,
             )
         }
         ctx.services_required.http = http

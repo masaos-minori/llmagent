@@ -27,7 +27,9 @@ class ToolRouteResolver:
     """Map tool_name → server_key using RuntimeToolRegistry as the sole routing authority.
 
     RuntimeToolRegistry is populated from live /v1/tools discovery. Raises ValueError
-    when the tool is not found there.
+    when the tool is not found there. Note: both `strict_mode=True` and `strict_mode=False`
+    always raise ValueError on an unresolved tool — the difference is in error-message
+    wording only.
     """
 
     def __init__(

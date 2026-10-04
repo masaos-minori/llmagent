@@ -157,10 +157,14 @@ class Orchestrator:
             self._fallback_mode = True
             self._workflow_def = _FALLBACK_WORKFLOW_DEF
 
-        _engine = workflow_engine if workflow_engine is not None else WorkflowEngine(
-            self._workflow_def,
-            self._state_store,
-            tracer=tracer,
+        _engine = (
+            workflow_engine
+            if workflow_engine is not None
+            else WorkflowEngine(
+                self._workflow_def,
+                self._state_store,
+                tracer=tracer,
+            )
         )
         self._workflow_adapter = WorkflowEngineAdapter(
             ctx,

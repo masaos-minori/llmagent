@@ -149,7 +149,8 @@ treated as the top canonical source for every kind of decision.
 | Decision Target | Canonical | Auxiliary Evidence | Discrepancy Registration Target |
 |-----------------|-----------|--------------------|----------------------------------|
 | Adopted Architecture Decision | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues |
-| Requirements, External Behavior | `docs/{area}_*_specification.md` | Acceptance Test | Known Issues |
+| Requirements | `docs/{area}_*_specification.md` | Acceptance Test | Known Issues |
+| External Behavior | `docs/{area}_*_specification.md` | Acceptance Test | Known Issues |
 | Current Runtime Behavior | Source under `scripts/`, `implementations/` | Runtime Log, Test | Known Issues |
 | Expected Behavior | `tests/` + Specification | ADR | Known Issues |
 | Effective Value in Production | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift |

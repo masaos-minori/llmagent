@@ -118,10 +118,10 @@ Production code (row 1), the `invoke()`-vs-`_raw_execute()` equivalence test (in
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Append malformed post-count regression |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Same addition; verify full suite |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | pytest + ruff |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs document retry/backoff policy |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Append malformed post-count regression |
+| 2 | Add or update tests per Validation plan | Done | — | — | Same addition; verify full suite |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | pytest + ruff OK |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | N/A: no docs document retry/backoff policy |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -156,7 +156,11 @@ class TestCallToolEndpoint:
                 "name": "trigger_workflow",
                 "args": {"repo": "acme/widgets", "workflow": "ci.yml"},
             },
-            headers={"x-session-id": "sess-1", "x-request-id": "req-1", "x-idempotency-key": "cicd-test-1"},
+            headers={
+                "x-session-id": "sess-1",
+                "x-request-id": "req-1",
+                "x-idempotency-key": "cicd-test-1",
+            },
         )
         assert resp.status_code == 200
         body = resp.json()

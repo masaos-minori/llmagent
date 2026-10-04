@@ -36,7 +36,15 @@ class HttpTransport:
         cfg: McpServerConfig | None = None,
         timeout_sec: float = 60.0,
     ) -> None:
-        """Initialize with HTTP client, server URL, key, and optional auth config."""
+        """Initialize with HTTP client, server URL, key, and optional auth config.
+
+        Args:
+            http: AsyncHTTPClient instance for making requests.
+            base_url: Base URL of the MCP server.
+            server_key: Server key for identifying this connection.
+            cfg: Optional MCP server configuration.
+            timeout_sec: Timeout in seconds. If <= 0, httpx's default timeout (10s) is used.
+        """
         self._http = http
         self._base_url = base_url
         self._server_key = server_key
@@ -115,7 +123,6 @@ class HttpTransport:
             headers["X-Session-Id"] = self._session_id
 
         timeout = httpx.Timeout(self._timeout) if self._timeout > 0 else None
-        last_exc: Exception | None = None
         last_retryable_status: int | None = None
         for attempt in range(self._RETRY_MAX):
             try:
@@ -143,25 +150,25 @@ class HttpTransport:
                 parsed = self._parse_http_response(resp)
                 return dataclasses.replace(parsed, server_key=self._server_key)
             except httpx.TimeoutException as e:
-                last_exc = self._transport_error(
+                raise self._transport_error(
                     name, "[TimeoutException]", str(e), break_flag=True
                 )
             except httpx.HTTPStatusError as e:
                 req_id = e.response.headers.get("x-request-id", "")
                 detail = f"status={e.response.status_code} request_id={req_id!r}"
-                last_exc = self._transport_error(
+                raise self._transport_error(
                     name,
                     "[HTTPStatusError]",
                     detail,
-                    break_flag=e.response.status_code not in self._RETRYABLE_STATUS,
+                    break_flag=True,
                     health_check=False,
                 )
-                if e.response.status_code in self._RETRYABLE_STATUS:
-                    last_retryable_status = e.response.status_code
-            except (httpx.RequestError, ValueError) as e:
-                last_exc = self._transport_error(name, f"[{type(e).__name__}]", str(e))
-        else:
-            msg = self._build_exhaustion_message(name, last_retryable_status)
-            logger.error(msg)
-            raise TransportError(msg)
-        raise last_exc or TransportError(f"call failed: {name}")
+            except ValueError as e:
+                raise self._transport_error(
+                    name, f"[{type(e).__name__}]", str(e), break_flag=True
+                )
+            except httpx.RequestError as e:
+                self._transport_error(name, f"[{type(e).__name__}]", str(e))
+        msg = self._build_exhaustion_message(name, last_retryable_status)
+        logger.error(msg)
+        raise TransportError(msg)

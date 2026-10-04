@@ -107,9 +107,9 @@ Reverting the correction would restore the conflicting state. If an approach was
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Investigate git history and governance owner intent for UNK-01 and UNK-02 | Pending | — | — | |
-| 2 | Apply the chosen fix (Approach 1, 2, or 3) | Pending | — | — | |
-| 3 | Verify both matrices are consistent after the edit | Pending | — | — | |
+| 1 | Investigate git history and governance owner intent for UNK-01 and UNK-02 | Done | — | — | No evidence of intentional merge; Resolution Matrix closer to spec text |
+| 2 | Apply the chosen fix (Approach 1, 2, or 3) | Done | — | — | Approach 1: split merged row |
+| 3 | Verify both matrices are consistent after the edit | Done | — | — | Both matrices now have separate Requirements and External Behavior rows |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

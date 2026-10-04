@@ -496,6 +496,36 @@ class TestToolExecutorErrorClassification:
         assert result.error_type == "transport"
         assert ex.stat_transport_errors.get("file_read", 0) == 1
 
+    @pytest.mark.asyncio
+    async def test_malformed_response_fails_after_single_post(self) -> None:
+        """A persistently malformed body must raise TransportError after one post call."""
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor()
+        ex.set_health_registry(registry)
+
+        class _FakeClientMalformedCounter:
+            def __init__(self, body: bytes) -> None:
+                self.body = body
+                self.calls = 0
+
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                self.calls += 1
+                req = httpx.Request("POST", url)
+                return httpx.Response(200, request=req, content=self.body)
+
+        client = _FakeClientMalformedCounter(b'{"is_error": false}')
+        transport = HttpTransport(
+            client,  # type: ignore[arg-type]  -- duck-typed fake for test
+            base_url="http://127.0.0.1:8000",
+            server_key="file_read",
+        )
+        ex._transports["file_read"] = transport
+
+        result = await ex._raw_execute("read_text_file", {})
+
+        assert result.error_type == "transport"
+        assert client.calls == 1
+
 
 # ── H-5: ensure_ready failure → ToolCallResult error ─────────────────────────
 
@@ -573,3 +603,68 @@ class TestDisabledServerInvocation:
         assert result is not None
         assert result.is_error is True
         assert "no transport configured" in result.output.lower()
+
+
+class TestInvokeRawExecuteEquivalence:
+    """Characterization pin asserting invoke() and _raw_execute() yield identical results."""
+
+    def _equivalent_executor(
+        self,
+        call_side_effect: Exception | None = None,
+        return_value: ToolCallResult | None = None,
+    ) -> ToolExecutor:
+        ex = _make_executor(
+            configs={
+                "test_server": McpServerConfig(
+                    transport=TransportType.HTTP,
+                    url="http://127.0.0.1:9",
+                    startup_mode=StartupMode.PERSISTENT,
+                    auth_token="test-token",
+                )
+            }
+        )
+        ex.set_health_registry(McpServerHealthRegistry())
+        mock_transport = AsyncMock()
+        ex._transports["test_server"] = mock_transport  # type: ignore[assignment]
+        if return_value is not None:
+            mock_transport.call = AsyncMock(return_value=return_value)
+        elif call_side_effect is not None:
+            mock_transport.call = AsyncMock(side_effect=call_side_effect)
+        ex._resolver.resolve = MagicMock(return_value="test_server")
+        return ex
+
+    @pytest.mark.asyncio
+    async def test_healthy_calls_equivalent(self) -> None:
+        """Healthy calls via invoke() and _raw_execute() produce identical results."""
+        expected = ToolCallResult(
+            output="ok",
+            is_error=False,
+            request_id="",
+            server_key="test_server",
+            source="mcp",
+        )
+        r_invoke = await self._equivalent_executor(return_value=expected).invoke(
+            "test_server", "some_tool", {}
+        )
+        r_exec = await self._equivalent_executor(return_value=expected)._raw_execute(
+            "some_tool", {}
+        )
+        assert r_invoke.output == r_exec.output == "ok"
+        assert r_invoke.is_error is False
+        assert r_invoke.server_key == r_exec.server_key == "test_server"
+        assert r_invoke.error_type == r_exec.error_type
+
+    @pytest.mark.asyncio
+    async def test_transport_error_calls_equivalent(self) -> None:
+        """Transport-error calls via invoke() and _raw_execute() produce identical results."""
+        r_invoke = await self._equivalent_executor(
+            call_side_effect=TransportError("network down")
+        ).invoke("test_server", "some_tool", {})
+        r_exec = await self._equivalent_executor(
+            call_side_effect=TransportError("network down")
+        )._raw_execute("some_tool", {})
+        assert r_invoke.is_error is True
+        assert r_exec.is_error is True
+        assert r_invoke.error_type == r_exec.error_type == "transport"
+        assert r_invoke.server_key == r_exec.server_key == "test_server"
+        assert r_invoke.output == r_exec.output

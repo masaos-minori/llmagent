@@ -273,7 +273,10 @@ class TestStartHttpSubprocess:
                 return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
-            patch.object(mgr._subprocess_mgr._http_mgr._process_terminator, "terminate_with_timeout"),
+            patch.object(
+                mgr._subprocess_mgr._http_mgr._process_terminator,
+                "terminate_with_timeout",
+            ),
         ):
             client_instance, _ = _wire_http_client(MockClient)
             await mgr.start_http_subprocess("s", cfg)
@@ -333,7 +336,10 @@ class TestStartHttpSubprocess:
                 return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
-            patch.object(mgr._subprocess_mgr._http_mgr._process_terminator, "terminate_with_timeout"),
+            patch.object(
+                mgr._subprocess_mgr._http_mgr._process_terminator,
+                "terminate_with_timeout",
+            ),
             pytest.raises(RuntimeError, match="did not become healthy"),
         ):
             client_instance, _ = _wire_http_client(MockClient)
@@ -543,7 +549,9 @@ class TestHttpManagerRestart:
         async def fake_terminate(p: object, key: str, timeout: float = 3.0) -> None:
             seen_pgid[key] = orig_get(key, -1)
 
-        monkeypatch.setattr(mgr._process_terminator, "terminate_with_timeout", fake_terminate)
+        monkeypatch.setattr(
+            mgr._process_terminator, "terminate_with_timeout", fake_terminate
+        )
 
         cfg = _make_test_cfg(
             cmd=["python", "-c", "import time; time.sleep(60)"],
@@ -846,7 +854,9 @@ class TestHttpLifecycleStderrLog:
             pass
 
         monkeypatch.setattr(mgr, "start", fake_start)
-        monkeypatch.setattr(mgr._process_terminator, "terminate_with_timeout", AsyncMock())
+        monkeypatch.setattr(
+            mgr._process_terminator, "terminate_with_timeout", AsyncMock()
+        )
         await mgr.restart("srv", _make_test_cfg())
         assert fh.closed
         assert "srv" not in mgr._stderr_files

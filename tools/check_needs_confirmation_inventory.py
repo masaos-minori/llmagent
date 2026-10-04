@@ -19,6 +19,12 @@ A third, self-contained check catches the inventory document contradicting
 itself: governance_03 states its entries "must contain the following
 eleven fields" while actually enumerating a different number.
 
+Exit-status contract: warnings (including untracked inline markers) do not
+cause a non-zero exit; only ERROR findings produce a non-zero exit. This
+is a deliberate detection-mode design (not enforcement): the checker's role
+is detection/remediation-triggering, not gating. See the source plan's
+Design section for the full rationale.
+
 Usage:
     python tools/check_needs_confirmation_inventory.py
 """

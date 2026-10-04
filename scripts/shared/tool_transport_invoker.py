@@ -101,6 +101,9 @@ class ToolTransportInvoker:
         sem: asyncio.Semaphore | None,
     ) -> contextlib.AbstractAsyncContextManager[None]:
         """Return the semaphore as an async context manager, or nullcontext if None."""
+        # Note: contextlib.nullcontext is safe to use with `async with` even though
+        # it's not an AbstractAsyncContextManager. Python 3.7+ falls back to the
+        # sync context manager protocol when __aenter__/__aexit__ are missing.
         if sem is not None:
             return sem
         return contextlib.nullcontext()
@@ -198,13 +201,13 @@ class ToolTransportInvoker:
         except TransportError as e:
             return self._record_transport_error(server_key, e)
 
-    async def invoke(
+    async def _run_precall_gates(
         self,
         server_key: str,
         tool_name: str,
         args: dict[str, Any],
     ) -> ToolCallResult:
-        """Invoke tool via transport; applies health check, lifecycle, semaphore, and recording."""
+        """Run the pre-call gate chain: health → disabled → lifecycle → transport → semaphore → dispatch."""
         if err := self._check_health(server_key):
             return err
 
@@ -234,3 +237,12 @@ class ToolTransportInvoker:
         return await self._invoke_and_record(
             server_key, transport, tool_name, args, sem
         )
+
+    async def invoke(
+        self,
+        server_key: str,
+        tool_name: str,
+        args: dict[str, Any],
+    ) -> ToolCallResult:
+        """Invoke tool via transport; applies health check, lifecycle, semaphore, and recording."""
+        return await self._run_precall_gates(server_key, tool_name, args)

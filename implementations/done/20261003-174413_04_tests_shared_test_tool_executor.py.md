@@ -102,10 +102,10 @@ Production code (rows 1–2), the `invoke()`-only characterization pin (row 3), 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Append invoke-vs-_raw_execute equivalence test |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Same additions; verify full suite |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | pytest + ruff |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs describe the gate order |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Append invoke-vs-_raw_execute equivalence test |
+| 2 | Add or update tests per Validation plan | Done | — | — | Same additions; verify full suite |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | pytest + ruff |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | N/A: no docs describe the gate order |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

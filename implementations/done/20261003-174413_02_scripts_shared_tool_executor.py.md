@@ -96,10 +96,10 @@ Contained to this file. Restoring `_raw_execute()`'s original body and re-adding
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Delegate `_raw_execute` to shared helper; delete dead gate methods |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Row 4 covers the invoke-vs-_raw_execute equivalence test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | pytest + ruff/mypy/bandit |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs describe the gate order |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Delegate `_raw_execute` to shared helper; delete dead gate methods |
+| 2 | Add or update tests per Validation plan | Done | — | — | Row 4 covers the invoke-vs-_raw_execute equivalence test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | pytest + ruff/mypy/bandit |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | N/A: no docs describe the gate order |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

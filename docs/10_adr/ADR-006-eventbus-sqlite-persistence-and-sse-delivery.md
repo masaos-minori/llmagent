@@ -365,18 +365,6 @@ Record any discrepancy between this ADR and the current implementation, configur
 - **Impact**: Duplicate delivery may occur on reconnection
 - **Resolution Target**: Mitigated by requiring Consumers to process idempotently by event_id
 
-- **Known Issue**: EVENTBUS-003 — DLQ dual promotion path (inline + background) was incompletely documented.
-- **Type**: Documentation Gap
-- **Summary**: Insufficient documentation of the DLQ promotion paths
-- **Impact**: Confusion for operators
-- **Resolution Target**: Make inline promotion the preferred policy explicitly in this ADR
-
-- **Known Issue**: EVENTBUS-004 — Dead code `promote_to_dlq()` exists in `dlq.py` with zero callers.
-- **Type**: Dead Code
-- **Summary**: `promote_to_dlq()` has no callers
-- **Impact**: Code complexity
-- **Resolution Target**: Remove during refactoring
-
 - **Known Issue (updated 2026-09-10)**: EVENTBUS-007 — Per-consumer delivery-state and SQLite-backed offset store were added to eliminate the two-commit gap between ACK state and offset advancement. The `consumer_delivery` table tracks per-consumer delivery progress; the `consumer_offsets` table stores monotonic offsets. `ack_event_for_consumer()` performs both operations atomically. Legacy file-based offsets remain during migration but are no longer the primary path. At startup, `migrate_legacy_offsets()` reads each legacy offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; when no `.map` companion exists, it falls back to the sanitized filename as the `consumer_id`.
 - **Type**: Resolved Gap
 - **Summary**: Closing the two-commit gap between ACK state and Offset tracking
@@ -388,19 +376,6 @@ Record any discrepancy between this ADR and the current implementation, configur
 - **Summary**: The authentication model is not implemented (a public bind itself has been removed)
 - **Impact**: Access within the same host or via an SSH tunnel has no authentication layer (direct external exposure cannot be configured)
 - **Resolution Target**: Authentication must be implemented
-
-- **Known Issue**: EVENTBUS-009 — `nack_event` lacks idempotency guard; duplicate NACK increases `delivery_failure_count` without bound. Also, `nack_event` does not check `acked_at` before incrementing failure count, allowing NACK after ACK. Both are documented as **Implementation fix required** in `eventbus_03_dlq_operations.md`.
-- **Type**: Implementation Gap
-- **Summary**: NACK lacks an idempotency guard and permits NACK after ACK
-- **Impact**: Duplicate NACKs could cause DLQ promotion at unintended times
-- **Resolution Target**: Add an idempotency guard and an `acked_at` check to `nack_event`
-- **Status**: Partially Resolved — `acked_at`/`dlq_at` predicates added to WHERE clause (returns `-2,-2` for invalid transitions); HTTP 409 response added in `ack_route.py`; idempotency guard for duplicate NACK remains unresolved
-
-- **Known Issue**: EVENTBUS-010 — When `since_seq=0` is explicitly provided alongside a `consumer_id`, it is indistinguishable from omitting `since_seq` entirely. Both resolve to "read from the saved offset". Clients cannot express "full replay while providing a consumer_id". Documented in `eventbus_03_dlq_operations.md` under `since_seq`/Offset Precedence Rules.
-- **Type**: API Design Gap
-- **Summary**: `since_seq=0` cannot be distinguished from an omitted value
-- **Impact**: A full Replay cannot be executed with a consumer_id
-- **Resolution Target**: Consider changing the API specification
 
 ### Enforced Invariants (post-implementation)
 
@@ -416,7 +391,6 @@ The following invariants are now enforced by content comparison logic in `insert
 - **Impact**: Low (Events are deleted only in rare cases)
 - **Resolution Target**: Re-check the Event state before responding with 409, or improve the error message
 
-- **Resolved**: INV-07 (at-least-once delivery) — Now enforced by duplicate detection in `insert_event()`. Duplicate events with identical canonical fields return the original seq; conflicting content returns HTTP 409. No stored data corruption possible.
 - **Not affected**: INV-12 (ACK failure handling) — Not affected by this change.
 - **Not affected**: INV-13 (DLQ promotion priority) — Not affected by this change.
 

@@ -339,11 +339,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-- **Known Issue**: DESIGN-1 — The corpus difference between the external RAG and the local RAG is not documented. Because result consistency is not guaranteed, users may get unexpected results.
-- **Type**: Architectural Limitation
-- **Summary**: The corpus difference between the external RAG and the local RAG is not documented
-- **Impact**: Users may get unexpected results
-- **Resolution Target**: Document the corpus difference
+
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 

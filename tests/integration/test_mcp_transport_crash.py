@@ -198,7 +198,9 @@ async def test_d05_http_timeout_races_lifecycle_termination() -> None:
             mgr = HttpServerLifecycleManager()
             proc = _make_running_proc()
             terminate_task = asyncio.create_task(
-                mgr._process_terminator.terminate_with_timeout(proc, "d05_server", timeout=1.0)
+                mgr._process_terminator.terminate_with_timeout(
+                    proc, "d05_server", timeout=1.0
+                )
             )
 
             result, _ = await asyncio.wait_for(

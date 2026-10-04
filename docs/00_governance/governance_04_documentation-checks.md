@@ -96,6 +96,8 @@ Verifies the NC inventory stays in sync with `docs/*.md`.
 - Resolved NC items do not leave markers in source documents
 - Field count declarations match actual list item counts
 
+**Exit behavior:** WARNING findings (including untracked inline markers) do not cause a non-zero exit; only ERROR findings produce a non-zero exit.
+
 ### 4. Backward Compatibility Check (`check_compat_shims.py`)
 
 Checks for stale compatibility layers left behind after API migrations.

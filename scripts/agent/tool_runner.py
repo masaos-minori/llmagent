@@ -131,6 +131,9 @@ async def execute_one_tool_call(
         # NOTE: In production, factory.py:652 creates RepositoryGateway unconditionally
         # during AppServices construction, so this branch should never execute.
         # Preflight check when gateway is None for non-READ operations
+        # NOTE: strict_mode behavior — both strict_mode=True and strict_mode=False
+        # always raise ValueError on an unresolved tool; the difference is in
+        # error-message wording only. See ToolRouteResolver.__init__ docstring.
         op = classify_operation_type(name, ctx.services_required.runtime_tools)
         if op != OperationType.READ:
             try:

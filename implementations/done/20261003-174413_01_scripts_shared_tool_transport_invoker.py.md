@@ -101,10 +101,10 @@ Contained to this file. Reverting the addition of `_run_precall_gates` and resto
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_run_precall_gates` helper to `ToolTransportInvoker` (`REQ-001`) | Pending | — | — | Gate chain single source of truth |
-| 2 | Refactor `invoke()` to delegate to the helper, delete inline block (`REQ-002`) | Pending | — | — | Preserve signature/return type |
-| 3 | Run validation sequence (`rules/toolchain.md`) (`REQ-004`) | Pending | — | — | pytest + ruff/mypy/bandit |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs describe gate order |
+| 1 | Add `_run_precall_gates` helper to `ToolTransportInvoker` (`REQ-001`) | Done | — | — | Gate chain single source of truth |
+| 2 | Refactor `invoke()` to delegate to the helper, delete inline block (`REQ-002`) | Done | — | — | Preserve signature/return type |
+| 3 | Run validation sequence (`rules/toolchain.md`) (`REQ-004`) | Done | — | — | pytest + ruff/mypy/bandit |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | N/A: no docs describe gate order |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

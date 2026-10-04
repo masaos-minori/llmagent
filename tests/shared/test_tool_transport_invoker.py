@@ -219,3 +219,51 @@ class TestDisabledServerExclusion:
         assert result.error_type == "tool"
         assert "disabled" in result.output.lower()
         assert "cannot be used" in result.output.lower()
+
+
+class TestInvokeCharacterizationPin:
+    """Characterization pins locking invoke()'s observable output after gate-chain unification."""
+
+    @pytest.mark.asyncio
+    async def test_invoke_healthy_returns_expected_result(self) -> None:
+        """A healthy call through the real gate chain returns the expected ToolCallResult."""
+        invoker = _make_invoker()
+        invoker.set_health_registry(McpServerHealthRegistry())
+        lifecycle = AsyncMock()
+        invoker.set_lifecycle(lifecycle)
+        mock_transport = AsyncMock()
+        expected = ToolCallResult(
+            output="ok",
+            is_error=False,
+            request_id="r1",
+            server_key="srv",
+            source="mcp",
+        )
+        mock_transport.call = AsyncMock(return_value=expected)
+        invoker._transports["srv"] = mock_transport
+
+        result = await invoker.invoke("srv", "some_tool", {})
+
+        assert result.output == "ok"
+        assert result.is_error is False
+        assert result.server_key == "srv"
+        assert lifecycle.ensure_ready.await_count == 1
+        assert lifecycle.ensure_ready.await_args_list[-1].args == ("srv",)
+
+    @pytest.mark.asyncio
+    async def test_invoke_transport_error_returns_error_result(self) -> None:
+        """A transport error through the real gate chain returns an error ToolCallResult."""
+        invoker = _make_invoker()
+        invoker.set_health_registry(McpServerHealthRegistry())
+        lifecycle = AsyncMock()
+        invoker.set_lifecycle(lifecycle)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(side_effect=TransportError("network down"))
+        invoker._transports["srv"] = mock_transport
+
+        result = await invoker.invoke("srv", "some_tool", {})
+
+        assert result.is_error is True
+        assert result.error_type == "transport"
+        assert result.server_key == "srv"
+        assert invoker.stat_transport_errors.get("srv", 0) == 1

@@ -278,7 +278,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-`docs/governance_03_issue-and-uncertainty-management.md`'s EVENTBUS-008 (No Production Authentication Model for Event Bus HTTP API, High severity, resolved 2026-09-14) and CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, resolved 2026-09-15) are both resolved. Residual gaps from EVENTBUS-008 (token with no configured consumer_id allowlist entry has consumer-identity validation skipped — fail-open) are tracked separately in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`.
+`docs/governance_03_issue-and-uncertainty-management.md`'s CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, resolved 2026-09-15) is resolved. Residual gaps from EVENTBUS-008 (token with no configured consumer_id allowlist entry has consumer-identity validation skipped — fail-open) are tracked separately in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`.
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -314,7 +314,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EVENTBUS-008 (No Production Authentication Model) and CI-001 (ConfigLoader migration) addressed by this ADR.
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — CI-001 (ConfigLoader migration) addressed by this ADR.
 
 ### Implementation References
 
