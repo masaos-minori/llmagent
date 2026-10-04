@@ -27,7 +27,7 @@ To change the current decision after acceptance, update this ADR body directly. 
 
 ## Summary
 
-`docs/governance_01_documentation-policy.md`'s Document Classification defines a "Reference" class (API/command/configuration reference material), but a proposed documentation-slimming policy's mechanical-content removal criteria conflict with hand-written Reference documents by design — their entire content is exactly the kind of code-derivable listing the policy wants removed. This ADR recommends treating Reference-class documents as generated artifacts (Option B), produced from source code via `tools/generate_reference_table.py`, rather than retiring the class or accepting continued drift.
+`docs/00_governance/governance_01_documentation-policy.md`'s Document Classification defines a "Reference" class (API/command/configuration reference material), but a proposed documentation-slimming policy's mechanical-content removal criteria conflict with hand-written Reference documents by design — their entire content is exactly the kind of code-derivable listing the policy wants removed. This ADR recommends treating Reference-class documents as generated artifacts (Option B), produced from source code via `tools/generate_reference_table.py`, rather than retiring the class or accepting continued drift.
 
 ## Context
 
@@ -59,7 +59,7 @@ Adopt **Option B**: Reference-class documents are treated as generated artifacts
 
 ### Scope
 
-Applies to any `docs/*.md` document classified `class: Reference` per `docs/governance_01_documentation-policy.md`'s Document Classification, once tooling exists to generate its content.
+Applies to any `docs/*.md` document classified `class: Reference` per `docs/00_governance/governance_01_documentation-policy.md`'s Document Classification, once tooling exists to generate its content.
 
 ### Out of Scope
 
@@ -138,7 +138,7 @@ Do not unconditionally align the ADR text with the current implementation; manag
 - **Approval Date**: 2026-09-19
 - **Approval Reference**: Reviewed and approved via chat (Claude Code session llmagent-73), content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
 
-This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/governance_01_documentation-policy.md`) — not the task-level fallback path.
+This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.
 
 ## Related Documents
 

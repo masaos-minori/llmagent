@@ -225,7 +225,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 
 - **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
-- **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -272,6 +272,6 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Automatable verification does not rely only on Manual Review (some INVs currently rely only on Manual Review; adding automated tests will be considered after the INV-024 fix issue is resolved)
 - [x] The ADR does not contradict related Specifications
 - [x] Discrepancies with the current implementation are registered as Known Issues
-- [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
+- [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
 - [x] Review Triggers are recorded
 - [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)

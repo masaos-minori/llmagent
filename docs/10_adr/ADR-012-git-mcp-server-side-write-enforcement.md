@@ -209,7 +209,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-`docs/governance_03_issue-and-uncertainty-management.md`'s MCP-001 (`verify_postcondition()` unconditional-success placeholder) and MCP-002 (`PipelineResult` missing `post_state`) are both registered and marked `resolved` (confirmed this cycle). Whether any further deviation remains open after Phase 1's dead-method removal lands is tracked in row 4 of that document.
+`docs/00_governance/governance_03_issue-and-uncertainty-management.md`'s MCP-001 (`verify_postcondition()` unconditional-success placeholder) and MCP-002 (`PipelineResult` missing `post_state`) are both registered and marked `resolved` (confirmed this cycle). Whether any further deviation remains open after Phase 1's dead-method removal lands is tracked in row 4 of that document.
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -228,7 +228,7 @@ Do not unconditionally align the ADR text with the current implementation; manag
 
 - **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
-- **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -269,6 +269,6 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Each Invariant has a corresponding Verification
 - [x] Automatable verification does not rely only on Manual Review
 - [x] Discrepancies with the current implementation are registered as Known Issues
-- [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
+- [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
 - [x] Review Triggers are recorded
 - [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)

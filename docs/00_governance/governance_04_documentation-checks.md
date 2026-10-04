@@ -362,7 +362,7 @@ Note: Items 1-3 were previously listed for GV-001, GV-002, and GV-003. These ite
      unaffected — the new patterns match only the specific retired identifiers above,
      not the word "local" itself. Running `--check-removed-names` against the current
      corpus after this extension found 14 pre-existing findings outside this Plan's own
-     scope (`docs/governance_03`, `00_security_02`, `06_eventbus_01`, ADR-006,
+     scope (`docs/00_governance/governance_03`, `00_security_02`, `06_eventbus_01`, ADR-006,
      ADR-008, and others still describing `allow_public_bind` as current) — these are
      tracked as a follow-up documentation-drift cleanup, not fixed by this Plan.
 9. **GV-021**: `check_docs_content_policy.py` is not wired into any CI workflow

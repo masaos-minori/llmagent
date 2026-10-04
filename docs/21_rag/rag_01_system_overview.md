@@ -88,7 +88,7 @@ owned state must consider downstream impact on dependent components.
 
 #### Known issue
 
-The `rag-src/registered/` directory's retention policy is configurable via `config/ingester.toml` with a default of 30 days. Automated cleanup of `rag-src/registered/` files requires a separate design decision. See Known Issue `RAG-006` in `docs/governance_03_issue-and-uncertainty-management.md`.
+The `rag-src/registered/` directory's retention policy is configurable via `config/ingester.toml` with a default of 30 days. Automated cleanup of `rag-src/registered/` files requires a separate design decision. See Known Issue `RAG-006` in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`.
 
 ---
 

@@ -56,7 +56,7 @@ When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, 
 7. The Agent does not interpret MCP-server-internal configuration.
 8. MCP servers do not reference `agent.toml`.
 9. Using a shared Config Loader is permitted, but the permitted files are restricted per process, and reading a non-permitted file is a Runtime Error.
-    *Note: EventBus is an exception — it loads config via tomllib directly (see CI-001).*
+    *Note: EventBus is an exception — it loads its own config through the shared loader without `restrict_to()`; isolation is enforced by a local invariant instead (see CI-001).*
 10. No new shared configuration file is created.
 11. Duplication of values such as DB paths, URLs, and Timeouts across multiple configurations is permitted as explicit dependency declarations of independent processes.
 12. Even when a key with the same name exists in multiple files, each is treated as a separate configuration contract.
@@ -335,16 +335,16 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-### CI-001: EventBus does NOT use ConfigLoader at all
+### CI-001: EventBus does not apply ConfigLoader.restrict_to()
 
-- **Known Issue**: CI-001
+- **Resolved**: CI-001 — EventBus config isolation is enforced by a local invariant instead of `restrict_to()`
 - **Type**: Design Deviation
-- **Summary**: EventBus uses tomllib directly for config loading, bypassing ConfigLoader.restrict_to() permission checks
+- **Summary**: EventBus loads its config through the shared loader but does not call ConfigLoader.restrict_to(), so the loader's per-process permission check is not applied
 - **Conflicting Source**: docs/10_adr/ADR-002-config-isolation.md:Decision #9, scripts/eventbus/config.py (load_config()), scripts/eventbus/app.py
 - **Expected Design**: All processes MUST load config through ConfigLoader.restrict_to() to enforce process-level config ownership boundaries
-- **Observed Implementation**: EventBus config.py loads its own config via tomllib without calling restrict_to(), allowing it to access configs outside its declared scope
-- **Impact**: Config isolation invariant violated for EventBus; could read/write configs belonging to other processes
-- **Recommended Action**: EventBus cannot import ConfigLoader (.importlinter eventbus-is-isolated contract). Resolved via a local invariant instead: load_config()'s docstring states callers must pass get_config_path()'s return value, and a regression test in tests/eventbus/test_eventbus_config.py locks both call sites in app.py to that invariant. Agent-side, ConfigLoader.restrict_to("agent.toml") was added to AgentContext.__init__ (scripts/agent/context.py).
+- **Observed Implementation**: EventBus config.py loads its own config through the shared loader without calling restrict_to(); the permission check is replaced by the local invariant described under Recommended Action
+- **Impact**: Without the local invariant, EventBus could read configs belonging to other processes
+- **Recommended Action**: Resolved via a local invariant instead of `restrict_to()`: load_config()'s docstring states callers must pass get_config_path()'s return value, and a regression test in tests/eventbus/test_eventbus_config.py locks both call sites in app.py to that invariant. Agent-side, ConfigLoader.restrict_to("agent.toml") was added to AgentContext.__init__ (scripts/agent/context.py).
 - **Owner**: Team
 - **Status**: resolved
 - **Resolution Target**: Before ADR-002 moves from Proposed to Accepted status
@@ -381,7 +381,7 @@ Add review conditions specific to this ADR.
 
 - **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
-- **Approval Reference**: `docs/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
