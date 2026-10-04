@@ -7,7 +7,6 @@ tags:
   - mcp-server
   - file-structure
 related:
-  - overview-files-03-scripts.md
 ---
 
 # File Structure

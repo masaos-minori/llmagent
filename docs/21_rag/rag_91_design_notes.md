@@ -6,9 +6,9 @@ tags:
   - design-notes
   - adr-migration
 related:
-  - 10_adr/ADR-010-rag-fallback.md
-  - 10_adr/ADR-009-rag-ft5-text-separation.md
-  - 10_adr/ADR-005-rag-source-derived-index-relationships.md
+  - ../10_adr/ADR-010-rag-fallback.md
+  - ../10_adr/ADR-009-rag-ft5-text-separation.md
+  - ../10_adr/ADR-005-rag-source-derived-index-relationships.md
 ---
 # Design Notes Index
 

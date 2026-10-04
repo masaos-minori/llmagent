@@ -62,7 +62,7 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 
 | File | Description |
 |---|---|
-| [rag_00_document-guide.md](rag_00_document-guide.md) | Entry point and routing guide |
+| `rag_00_document-guide.md` | Entry point and routing guide |
 | [rag_01_system_overview.md](rag_01_system_overview.md) | System overview, architecture, prerequisites |
 | [rag_02_01_ingestion_pipeline-overview.md](rag_02_01_ingestion_pipeline-overview.md) | Ingestion execution guide |
 | [crawler-part1](rag_02_02_ingestion_pipeline-crawler.md) / [-part2](rag_02_02_ingestion_pipeline-crawler.md) | WebCrawler details |

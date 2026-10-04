@@ -7,8 +7,6 @@ tags:
   - purpose
 related:
   - agent_00_document-guide.md
-source:
-  - agent_07_04_cli-and-commands-purpose.md
 ---
 
 # Agent CLI and Commands
@@ -40,3 +38,7 @@ As specified in the docstrings of `agent/repl.py`, `AgentREPL` is a thin coordin
 ## Keywords
 
 purpose
+
+## Related Documents
+
+- `agent_00_document-guide.md`

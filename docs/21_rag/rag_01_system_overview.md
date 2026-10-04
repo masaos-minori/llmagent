@@ -11,7 +11,6 @@ related:
   - rag_00_document-guide.md
   - rag_02_01_ingestion_pipeline-overview.md
   - rag_03_01_query_pipeline-overview.md
-source:
 ---
 
 

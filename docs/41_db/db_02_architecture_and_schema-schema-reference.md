@@ -53,3 +53,13 @@ Independent persistence domain per [ADR-008](../10_adr/ADR-008-sqlite-4db-separa
 ## 7a. Timestamp Format Policy
 
 SQLite DEFAULT timestamps use strftime('%Y-%m-%dT%H:%M:%SZ', 'now') (Z suffix). Python-side timestamps (workflow tables without DEFAULT): datetime.now(UTC).isoformat() produces +00:00 suffix. Consistent across: session_diagnostics, documents, sessions, messages, memories, Event Bus events.
+
+## Related Documents
+
+- `db_01_architecture_and_schema-overview-and-config.md`
+
+## Keywords
+
+- shared
+- db
+- schema

@@ -215,3 +215,29 @@ Using optimistic locking, it only targets events where `dlq_at IS NULL` to preve
 - `eventbus_01_system-overview.md`
 - `eventbus_06_dlq_offsets_and_delivery_semantics.md`
 - `eventbus_09_configuration-and-operations.md`
+
+## Keywords
+
+- event-bus
+- http-api
+- publish
+- replay
+- subscribe
+- ack
+- nack
+- health
+- dlq
+- dead-letter-queue
+- background-loop
+- safety-sweep
+- optimistic-lock
+- orphan-promotion
+- requeue
+- error-handling
+- failure-behavior
+- sse
+- streaming
+- consumer-offset
+- idempotent
+- json-schema
+- pagination

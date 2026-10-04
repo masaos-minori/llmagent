@@ -113,3 +113,9 @@ An immutable `frozen=True` dataclass — has no dependencies on FastAPI, MCP, or
 Purpose: To decouple shell execution policy from MCP server implementations.
 
 Import: `from shared.protocols.shell import ShellPolicy`
+
+## Keywords
+
+- shared
+- types
+- dto

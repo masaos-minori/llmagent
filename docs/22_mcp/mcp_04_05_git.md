@@ -11,7 +11,7 @@ related:
   - mcp_04_02_file-write-file-delete-shell.md
   - mcp_04_03_rag-pipeline-and-cicd.md
   - mcp_04_04_mdq.md
-   - ../91_security/security_02_high-risk-tool-common-policy.md
+  - ../91_security/security_02_high-risk-tool-common-policy.md
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - governance_03_issue-and-uncertainty-management.md
 ---
@@ -152,3 +152,9 @@ Every `/v1/call_tool` invocation is recorded via the shared `_audit_log()` helpe
 - `mcp_04_02_file-write-file-delete-shell.md`
 - `mcp_04_03_rag-pipeline-and-cicd.md`
 - `mcp_04_04_mdq.md`
+
+## Keywords
+
+- mcp
+- server-catalog
+- git

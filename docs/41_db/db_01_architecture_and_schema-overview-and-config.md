@@ -8,11 +8,9 @@ tags:
   - sqlitehelper
   - layer-structure
 related:
-  - 90_shared_00_document-guide.md
-  - db_02_db_architecture_and_schema-schema-reference.md
-  - db_03_db_architecture_and_schema-migration-and-scaling.md
-source:
-  - db_01_db_architecture_and_schema-overview-and-config.md
+  - shared_00_document-guide.md
+  - db_02_architecture_and_schema-schema-reference.md
+  - db_03_architecture_and_schema-migration-and-scaling.md
 ---
 
 # DB Architecture and Schema
@@ -64,3 +62,17 @@ Frozen dataclass for DB configuration. `rag_db_path` (path to `rag.sqlite`), `se
 `SQLiteHelper` provides context managers `begin_immediate()` / `begin_exclusive()` that wrap `BEGIN IMMEDIATE` / `BEGIN EXCLUSIVE`. Both attempt a `ROLLBACK` upon normal exceptions (swallowing `sqlite3.OperationalError`) and re-raise the original exception. They do not catch `BaseException` (e.g., `KeyboardInterrupt`/`SystemExit`). `begin_exclusive()` is intended specifically for operations requiring exclusive locks, such as `VACUUM` or schema changes (`see db/helper.py` docstring).
 
 ---
+
+## Related Documents
+
+- `shared_00_document-guide.md`
+- `db_02_architecture_and_schema-schema-reference.md`
+- `db_03_architecture_and_schema-migration-and-scaling.md`
+
+## Keywords
+
+- shared
+- db
+- dbconfig
+- sqlitehelper
+- layer-structure

@@ -115,3 +115,7 @@ HistoryManager compression
 compression trigger
 compression selection
 data classification
+
+## Related Documents
+
+- `agent_00_document-guide.md`

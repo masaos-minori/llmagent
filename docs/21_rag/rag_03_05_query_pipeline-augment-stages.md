@@ -179,7 +179,7 @@ Both reasons can be verified as follows:
 
 ---
 
-### Related Documents
+## Related Documents
 
 - [rag_00_document-guide.md](rag_00_document-guide.md)
 - [rag_01_system_overview.md](rag_01_system_overview.md)
@@ -192,7 +192,7 @@ Both reasons can be verified as follows:
 - [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md)
 - System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 
-### Keywords
+## Keywords
 
 rerank-stage
 augment-stage

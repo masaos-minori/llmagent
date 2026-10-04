@@ -148,3 +148,7 @@ identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 
 ToolConfig
 MemoryConfig
+
+## Related Documents
+
+- `agent_00_document-guide.md`

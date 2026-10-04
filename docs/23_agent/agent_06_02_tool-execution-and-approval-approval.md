@@ -8,8 +8,6 @@ tags:
 related:
   - agent_00_document-guide.md
   - agent_06_04_tool-execution-and-approval-canonical.md
-source:
-  - agent_06_02_tool-execution-and-approval-approval.md
 ---
 
 # Agent Tool Execution and Approval
@@ -139,3 +137,8 @@ approval flow
 risk classification
 plan mode
 tool result cache
+
+## Related Documents
+
+- `agent_00_document-guide.md`
+- `agent_06_04_tool-execution-and-approval-canonical.md`

@@ -15,8 +15,6 @@ related:
   - rag_03_07_query_pipeline-tests.md
   - rag_04_05_dto-types.md
   - rag_05_1-configuration-reference.md
-source:
-  - rag_03_01_query_pipeline-overview.md
 ---
 
 

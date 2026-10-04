@@ -7,8 +7,6 @@ tags:
   - session-sqlite
 related:
   - agent_00_document-guide.md
-source:
-  - agent_09_01_data-layer-session-db.md
 ---
 
 # Agent Data Layer
@@ -110,3 +108,7 @@ session_diagnostics
 SessionMessageRepository
 SQLiteSessionStore
 session retention
+
+## Related Documents
+
+- `agent_00_document-guide.md`

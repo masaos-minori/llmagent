@@ -11,8 +11,6 @@ related:
   - agent_00_document-guide.md
   - agent_04_02_state-and-persistence-history-compression.md
   - agent_04_03_state-and-persistence-platform-databases.md
-source:
-  - agent_04_01_state-and-persistence-state-model.md
 ---
 
 # Agent State and Persistence
@@ -122,3 +120,9 @@ TurnState
 WorkflowState
 RuntimeStats
 session persistence
+
+## Related Documents
+
+- `agent_00_document-guide.md`
+- `agent_04_02_state-and-persistence-history-compression.md`
+- `agent_04_03_state-and-persistence-platform-databases.md`

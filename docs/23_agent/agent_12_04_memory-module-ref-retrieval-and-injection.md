@@ -60,3 +60,15 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 - `agent_12_03_memory-module-ref-core-and-store.md`
 - `agent_12_05_memory-module-ref-extraction-and-facade.md`
 - `agent_12_06_memory-module-ref-ops-and-scoring.md`
+
+## Related Documents
+
+- `agent_12_01_memory-overview-and-modes.md`
+- `agent_12_03_memory-module-ref-core-and-store.md`
+- `agent_12_05_memory-module-ref-extraction-and-facade.md`
+
+## Keywords
+
+- agent
+- memory
+- retrieval-injection

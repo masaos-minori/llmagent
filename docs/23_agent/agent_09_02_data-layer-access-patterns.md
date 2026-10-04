@@ -7,8 +7,6 @@ tags:
   - rag-mcp
 related:
   - agent_00_document-guide.md
-source:
-  - agent_09_02_data-layer-access-patterns.md
 ---
 
 # Agent Data Layer
@@ -86,3 +84,7 @@ To prevent orphaned records, `delete_document()` enforces a strict deletion orde
 RAG MCP internal path
 document access patterns
 responsibility boundary
+
+## Related Documents
+
+- `agent_00_document-guide.md`

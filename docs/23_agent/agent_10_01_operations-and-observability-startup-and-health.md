@@ -14,8 +14,6 @@ related:
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - agent_10_05_operations-and-observability-monitoring.md
   - agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md
-source:
-  - agent_10_01_operations-and-observability-startup-and-health.md
 ---
 
 # Agent Operations and Observability
@@ -146,3 +144,20 @@ This clears all pending approvals and workflow state. If the data loss is signif
 - [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) — Role of `session_diagnostics`
 - [agent_09_02_data-layer-access-patterns.md](agent_09_02_data-layer-access-patterns.md) — DB access patterns
 - [agent_08_04_configuration-mcp-approval-obs.md](agent_08_04_configuration-mcp-approval-obs.md) — Configuration files
+
+## Related Documents
+
+- `agent_00_document-guide.md`
+- `agent_10_02_operations-and-observability-audit-and-otel.md`
+- `agent_10_03_operations-and-observability-workflow-observability.md`
+- `agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+- `agent_10_05_operations-and-observability-monitoring.md`
+- `agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
+
+## Keywords
+
+- agent
+- operations
+- startup
+- health-probes
+- operational-verification

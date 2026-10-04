@@ -8,8 +8,6 @@ tags:
   - workflow-sqlite
 related:
   - agent_00_document-guide.md
-source:
-  - agent_09_03_data-layer-indexing-boundaries.md
 ---
 
 # Agent Data Layer
@@ -100,3 +98,7 @@ FTS5 index
 workflow.sqlite
 non-message persistence boundaries
 context manager pattern
+
+## Related Documents
+
+- `agent_00_document-guide.md`

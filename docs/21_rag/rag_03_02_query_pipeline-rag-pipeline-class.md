@@ -14,8 +14,6 @@ related:
   - rag_03_06_query_pipeline-helpers-and-cache.md
   - rag_04_05_dto-types.md
   - rag_05_1-configuration-reference.md
-source:
-  - rag_03_02_query_pipeline-rag-pipeline-class.md
 
 ---
 

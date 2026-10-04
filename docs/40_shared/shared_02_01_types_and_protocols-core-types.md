@@ -74,3 +74,9 @@ Covers semantic cache settings, search parameters (`top_k_search`, `rag_top_k`),
 
 - `shared_02_02_types_and_protocols-tool-and-execution-dto.md`
 - `shared_02_03_types_and_protocols-reference.md`
+
+## Keywords
+
+- shared
+- types
+- protocols

@@ -75,3 +75,7 @@ To document the responsibilities of `CLIView`, which handles only the presentati
 CLIView
 responsibility boundary
 callbacks
+
+## Related Documents
+
+- `agent_00_document-guide.md`

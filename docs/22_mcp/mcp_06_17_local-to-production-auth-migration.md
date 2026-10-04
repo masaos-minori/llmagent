@@ -83,11 +83,11 @@ section below remains current and applicable to any deployment.
 **Solution:** Stop and restart the agent process to apply new authentication settings.
 
 
-### Related Documents
+## Related Documents
 
 - [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 - `security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 
-### Keywords
+## Keywords
 
 configuration

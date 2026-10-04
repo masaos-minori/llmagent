@@ -7,8 +7,6 @@ tags:
   - config-loading
 related:
   - agent_00_document-guide.md
-source:
-  - agent_08_01_configuration-loading-agent-config.md
 ---
 
 # Agent Configuration
@@ -92,3 +90,7 @@ Check the following categories in the `ConfigReloadOutcome` output:
 configuration loading
 config file ownership
 hot-reload eligibility
+
+## Related Documents
+
+- `agent_00_document-guide.md`

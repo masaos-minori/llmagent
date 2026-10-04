@@ -121,3 +121,13 @@ DiagnosticStore.loop_guard_hint method was removed after confirming zero product
 - [agent_10_03_operations-and-observability-workflow-observability.md](agent_10_03_operations-and-observability-workflow-observability.md) — Workflow Observability
 - [agent_10_04_operations-and-observability-validation-and-troubleshooting.md](agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — Validation and Troubleshooting
 - [agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md](agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md) — RAG Diagnostics and Memory
+
+## Related Documents
+
+- `agent_00_document-guide.md`
+
+## Keywords
+
+- agent
+- operations
+- observability

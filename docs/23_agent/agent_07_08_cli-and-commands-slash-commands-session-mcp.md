@@ -7,8 +7,6 @@ tags:
   - slash-commands
 related:
   - agent_00_document-guide.md
-source:
-  - agent_07_08_cli-and-commands-slash-commands-session-mcp.md
 ---
 
 # Agent CLI and Commands
@@ -78,3 +76,7 @@ slash command reference
 session category
 mcp category
 config/stats category
+
+## Related Documents
+
+- `agent_00_document-guide.md`

@@ -55,3 +55,14 @@ Defined in `mcp_servers/models.py` (NOT in `shared/`; the `mcp_servers` package 
 | Pydantic model | `CallToolRequest`, `CallToolResponse` | Mutable | Yes | MCP HTTP request/response validation |
 
 **AI Guidance:** If a function accepts `RagConfig`, it should accept any object that satisfies the protocol (including `SimpleNamespace`), provided it has the required fields. Do not assume it must be an `AgentConfig`.
+
+## Related Documents
+
+- `shared_02_01_types_and_protocols-core-types.md`
+- `shared_02_02_types_and_protocols-tool-and-execution-dto.md`
+
+## Keywords
+
+- shared
+- types
+- reference

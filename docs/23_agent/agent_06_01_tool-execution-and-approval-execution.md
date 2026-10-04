@@ -6,8 +6,6 @@ tags:
   - tool-execution
 related:
   - agent_00_document-guide.md
-source:
-  - agent_06_01_tool-execution-and-approval-execution.md
 ---
 
 # Agent Tool Execution and Approval
@@ -117,3 +115,7 @@ ExecutionPlan
 ScheduledGroup
 force_serial
 global:write scope
+
+## Related Documents
+
+- `agent_00_document-guide.md`

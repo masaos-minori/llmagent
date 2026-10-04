@@ -19,8 +19,8 @@ related:
   - shared_00_document-guide.md
   - shared_02_01_types_and_protocols-core-types.md
   - shared_03_01_runtime_and_execution-config-and-logging.md
-  - db_01_db_architecture_and_schema-overview-and-config.md
-  - db_04_db_api_and_operations-module-boundaries-and-helper.md
+  - db_01_architecture_and_schema-overview-and-config.md
+  - db_04_api_and_operations-module-boundaries-and-helper.md
   - governance_03_issue-and-uncertainty-management.md
 ---
 
@@ -150,3 +150,28 @@ All persistent data resides in four SQLite files: `rag.sqlite` (RAG index), `ses
 ## 10. AI Reference Guide
 
 You can identify corresponding documents from the section titles: Types/DTOs → [section 2](shared_02_01_types_and_protocols-core-types.md), ConfigLoader → [section 3](shared_03_01_runtime_and_execution-config-and-logging.md), SQLite Schema → section 4, SQLiteHelper API → section 5, Inconsistencies → [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB).
+
+## Related Documents
+
+- `shared_00_document-guide.md`
+- `shared_02_01_types_and_protocols-core-types.md`
+- `shared_03_01_runtime_and_execution-config-and-logging.md`
+- `db_01_architecture_and_schema-overview-and-config.md`
+- `db_04_api_and_operations-module-boundaries-and-helper.md`
+- `governance_03_issue-and-uncertainty-management.md`
+
+## Keywords
+
+- shared
+- db
+- overview
+- purpose
+- scope
+- out-of-scope
+- layer-structure
+- responsibilities
+- architecture
+- import-direction
+- constraints
+- executive-summary
+- ai-reference

@@ -7,7 +7,7 @@ tags:
   - maintenance-rotation
 related:
   - db_04_api_and_operations-module-boundaries-and-helper.md
-  - db_05_db_api_and_operations-protocol-and-backend.md
+  - db_05_api_and_operations-protocol-and-backend.md
 ---
 # DB API and Operations
 
@@ -89,3 +89,14 @@ Contains `chunks` (int), `fts` (int), `vec` (int), `orphan_vec_count` (int), `ft
 - Diagnostic identifier lists (`affected_*`) are only populated when `fts_gap > 0` or `orphan_vec_count > 0`.
 
 ---
+
+## Related Documents
+
+- `db_04_api_and_operations-module-boundaries-and-helper.md`
+- `db_05_api_and_operations-protocol-and-backend.md`
+
+## Keywords
+
+- shared
+- db
+- maintenance-rotation

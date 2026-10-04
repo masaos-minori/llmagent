@@ -10,8 +10,6 @@ tags:
   - ai reference
 related:
   - governance_03_issue-and-uncertainty-management.md
-source:
-  - shared_00_document-guide.md
 ---
 
 # Shared/DB Documentation Guide
@@ -90,3 +88,16 @@ Cross-cutting documentation rules and policies:
 ## Related ADRs
 
 - [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
+
+## Related Documents
+
+- `governance_03_issue-and-uncertainty-management.md`
+
+## Keywords
+
+- shared
+- db
+- documentation
+- guide
+- routing
+- ai reference

@@ -147,9 +147,13 @@ Unknown
 - System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 - High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
 
-### Keywords
+## Keywords
 
 MCPConfig
 ApprovalConfig
 ObservabilityConfig
 DiagnosticsConfig
+
+## Related Documents
+
+- `agent_00_document-guide.md`

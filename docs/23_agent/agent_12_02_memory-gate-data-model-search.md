@@ -149,8 +149,6 @@ Each line in the JSONL store is a single JSON object serializing all `MemoryEntr
 
 ## Disabled Behavior
 
-For detailed breakdown by module, see the [Activation Gate section in agent_12_02](agent_12_02_memory-gate-data-model-search.md)#activation-gate) and the [Module-specific behavior when disabled table](agent_12_02_memory-gate-data-model-search.md)#module-specific-behavior-when-disabled).
-
 Overview:
 - `use_memory_layer=False` $\rightarrow$ `ctx.services.memory` becomes `None`, skipping all memory operations.
 - `EmbeddingClient.enabled=False` $\rightarrow$ `fetch()` returns a `DISABLED` error, falling back to FTS5 search.

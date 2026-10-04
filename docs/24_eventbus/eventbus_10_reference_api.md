@@ -202,3 +202,24 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `run_with_db_lock` | `async def run_with_db_lock(func) -> Any` | Execute a function inside get_db_lock() via asyncio.to_thread. |
 | `scripts/eventbus/subscribe_route.py` | `subscribe` | `async def subscribe(request, topic, since_seq, consumer_id, _principal, _identity) -> Any` | Subscribe to events via SSE with optional topic filtering and offset recovery. |
 <!-- END AUTO-GENERATED -->
+
+## Keywords
+
+- event-bus
+- api-reference
+- core-modules
+- app-py
+- config-py
+- db-py
+- dlq-py
+- route-handlers
+- publish-route
+- ack-route
+- dlq-route
+- replay-route
+- subscribe-route
+- health-route
+- broker
+- offsets
+- eventbroker
+- subscriber

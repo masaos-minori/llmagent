@@ -7,8 +7,6 @@ tags:
   - slash-commands
 related:
   - agent_00_document-guide.md
-source:
-  - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
 ---
 
 # Agent CLI and Commands
@@ -91,3 +89,7 @@ workflow category
 debug/audit category
 git/diff category
 compact/export category
+
+## Related Documents
+
+- `agent_00_document-guide.md`

@@ -7,8 +7,6 @@ tags:
   - hot-reload
 related:
   - agent_00_document-guide.md
-source:
-  - agent_07_06_cli-and-commands-hot-reload.md
 ---
 
 # Agent CLI and Commands
@@ -81,3 +79,7 @@ The reload subcommand reads the base configuration files and applies changes as 
 hot-reload scope
 reload subcommand
 change classification
+
+## Related Documents
+
+- `agent_00_document-guide.md`

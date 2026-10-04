@@ -7,8 +7,6 @@ tags:
   - slash-commands
 related:
   - agent_00_document-guide.md
-source:
-  - agent_07_09_cli-and-commands-slash-commands-context-db.md
 ---
 
 # Agent CLI and Commands
@@ -72,3 +70,7 @@ A group of commands for managing context information and history.
 
 context category
 plan category
+
+## Related Documents
+
+- `agent_00_document-guide.md`

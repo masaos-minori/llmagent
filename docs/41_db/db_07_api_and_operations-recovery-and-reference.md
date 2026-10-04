@@ -9,12 +9,10 @@ tags:
   - verification
   - ai-reference
 related:
-  - 90_shared_00_document-guide.md
+  - shared_00_document-guide.md
   - db_04_api_and_operations-module-boundaries-and-helper.md
-  - db_05_db_api_and_operations-protocol-and-backend.md
+  - db_05_api_and_operations-protocol-and-backend.md
   - db_06_api_and_operations-maintenance-and-rotation.md
-source:
-  - db_07_api_and_operations-recovery-and-reference.md
 ---
 
 # DB API and Operations
@@ -141,3 +139,19 @@ Schema initialization: `pytest tests/test_create_schema.py`; DB maintenance: `py
 ## 13. AI Reference Guide
 
 Open DB connection: `with SQLiteHelper('rag').open(row_factory=True) as db:`. Write atomically: `open(write_mode=True)` context within `with db.begin_immediate():`. What does `target='workflow'` connect to: `workflow.sqlite` — the task tracking DB. How to validate an embedding BLOB: `db.store.validate_embedding_blob(blob)`. How to purge old sessions: `purge_old_sessions(db, RetentionConfig(...))` — returns `MaintenanceResult`; check `.success`. How to recover from corruption: `recover_corruption(backup_path=..., target='rag')`. Does `prune_old_memories` catch exceptions: `STRICT` (default) — propagates; `BEST_EFFORT` — caught and stored in `MaintenanceResult`. How to use `BEST_EFFORT` mode: pass `mode=MaintenanceMode.BEST_EFFORT` to `vacuum_db`, `purge_old_sessions`, `prune_old_memories`. How to verify RAG consistency: `check_rag_consistency(db)` $\rightarrow$ `is_consistent(report)` + `summarize_issues(report)`.
+
+## Related Documents
+
+- `shared_00_document-guide.md`
+- `db_04_api_and_operations-module-boundaries-and-helper.md`
+- `db_05_api_and_operations-protocol-and-backend.md`
+- `db_06_api_and_operations-maintenance-and-rotation.md`
+
+## Keywords
+
+- shared
+- db
+- corruption-recovery
+- error-handling
+- verification
+- ai-reference

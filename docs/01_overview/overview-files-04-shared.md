@@ -7,7 +7,6 @@ tags:
   - sqlite
   - file-structure
 related:
-  - overview-files-04-shared.md
 ---
 
 # File Structure

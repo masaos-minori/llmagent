@@ -50,3 +50,8 @@ No reference APIs exist in this directory. All files are deployment guides.
 
 - `../00_index.md`
 - `../01_overview/overview_00_document-guide.md`
+
+## Keywords
+
+- deployment
+- document-guide

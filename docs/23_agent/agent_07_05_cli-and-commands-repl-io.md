@@ -7,8 +7,6 @@ tags:
   - repl-io
 related:
   - agent_00_document-guide.md
-source:
-  - agent_07_05_cli-and-commands-repl-io.md
 ---
 
 # Agent CLI and Commands
@@ -73,3 +71,7 @@ Documents the design intent and operational decisions for the REPL input/output 
 ## Keywords
 
 REPL input/output model
+
+## Related Documents
+
+- `agent_00_document-guide.md`

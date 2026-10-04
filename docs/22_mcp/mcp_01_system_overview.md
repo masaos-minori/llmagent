@@ -180,3 +180,7 @@ architecture
 health-registry
 half-open
 circuit-breaker
+
+## Related Documents
+
+- `mcp_00_document-guide.md`

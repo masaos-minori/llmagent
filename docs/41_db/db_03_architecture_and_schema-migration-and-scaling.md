@@ -9,11 +9,9 @@ tags:
   - scaling-limits
   - ai-reference
 related:
-  - 90_shared_00_document-guide.md
-  - db_01_db_architecture_and_schema-overview-and-config.md
-  - db_02_db_architecture_and_schema-schema-reference.md
-source:
-  - db_03_db_architecture_and_schema-migration-and-scaling.md
+  - shared_00_document-guide.md
+  - db_01_architecture_and_schema-overview-and-config.md
+  - db_02_architecture_and_schema-schema-reference.md
 ---
 
 # DB Architecture and Schema
@@ -180,3 +178,18 @@ Before performing a schema change task, answer all of the following:
 - [ ] Is there a possibility of data loss?
 - [ ] Are tests updated to reflect the schema behavior?
 - [ ] Which component is affected: RAG, session, workflow, eventbus, or MDQ?
+
+## Related Documents
+
+- `shared_00_document-guide.md`
+- `db_01_architecture_and_schema-overview-and-config.md`
+- `db_02_architecture_and_schema-schema-reference.md`
+
+## Keywords
+
+- shared
+- db
+- migration
+- constraints
+- scaling-limits
+- ai-reference

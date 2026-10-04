@@ -7,8 +7,6 @@ tags:
   - slash-commands
 related:
   - agent_00_document-guide.md
-source:
-  - agent_07_11_cli-and-commands-slash-commands-memory-other.md
 ---
 
 # Agent CLI and Commands
@@ -80,3 +78,7 @@ All `/mdq` commands call MCP tools of `mdq-mcp` via the agent's tool executor. M
 memory category
 mdq category
 skill category
+
+## Related Documents
+
+- `agent_00_document-guide.md`

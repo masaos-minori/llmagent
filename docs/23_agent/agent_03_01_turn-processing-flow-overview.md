@@ -146,3 +146,8 @@ validated history append/insert
 validated tool result/denied-message append
 workflow engine mandatory execution path
 history compression detail
+
+## Related Documents
+
+- `agent_03_02_turn-processing-flow-llm-tool-loop.md`
+- `agent_03_03_turn-processing-flow-workflow-engine.md`

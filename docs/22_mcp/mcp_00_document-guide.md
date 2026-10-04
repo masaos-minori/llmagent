@@ -79,7 +79,7 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 
 | File | Description |
 |---|---|
-| [mcp_00_document-guide.md](mcp_00_document-guide.md) | Entry Point |
+| `mcp_00_document-guide.md` | Entry Point |
 | [mcp_01_system_overview.md](mcp_01_system_overview.md) | System Overview |
 | [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ownership_matrix.md) | Tool Ownership Matrix |
 | [mcp_02_service_boundaries.md](mcp_02_service_boundaries.md) | Service Boundary Definitions |

@@ -12,8 +12,6 @@ related:
   - shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
   - shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
   - shared_03_04_runtime_and_execution-caching-and-reference.md
-source:
-  - shared_03_01_runtime_and_execution-config-and-logging.md
 ---
 
 # Shared Runtime and Execution
@@ -73,3 +71,18 @@ class Logger:
 - **Secret redaction:** `register_secret(value)` adds a string to a module-level registry that every configured logger checks via `_RedactionFilter` (applied alongside `_ContextFilter` in `_configure_logger()`). Any `Bearer <token>`-pattern match, or an exact match against a registered value, is redacted from `record.msg` before emission. `shared.mcp_config._build_single_server()` calls `register_secret()` on every resolved MCP `auth_token` immediately after `resolve_env_ref()` resolves it, so a token never reaches a log line even if a caller accidentally logs a raw header or config value.
 
 ---
+
+## Related Documents
+
+- `shared_00_document-guide.md`
+- `shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`
+- `shared_03_03_runtime_and_execution-llm-and-mcp-clients.md`
+- `shared_03_04_runtime_and_execution-caching-and-reference.md`
+
+## Keywords
+
+- shared
+- runtime
+- config-loader
+- config-isolation
+- logger

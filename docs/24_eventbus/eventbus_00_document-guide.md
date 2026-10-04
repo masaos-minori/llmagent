@@ -70,3 +70,8 @@ Cross-cutting documentation rules and policies:
 - `eventbus_06_dlq_offsets_and_delivery_semantics.md`
 - `eventbus_09_configuration-and-operations.md`
 - `eventbus_10_reference_api.md`
+
+## Keywords
+
+- eventbus
+- document-guide

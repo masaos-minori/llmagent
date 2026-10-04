@@ -201,7 +201,7 @@ Fail-fast vs fail-open at MCP startup failure: `production` raises `RuntimeError
 
 ### Workflow deployment failures
 
-Full failure-scenario table (missing definition, invalid JSON, checksum mismatch, schema incomplete/version mismatch, stage execution failure) and remediation commands: [Workflow Deployment Runbook](../../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
+Full failure-scenario table (missing definition, invalid JSON, checksum mismatch, schema incomplete/version mismatch, stage execution failure) and remediation commands: [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
 ### RAG failure behavior
 
@@ -216,7 +216,7 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 
 When embedding is unavailable: existing documents remain searchable via FTS, new documents cannot be indexed, `memory_embed_enabled` remains `true` but embeddings are not generated, and the system logs a WARNING on each failed embedding attempt.
 
-*Source: [rag_05_2-execution-guide.md](../../21_rag/rag_05_2-execution-guide.md#26-rag-integrity-check)*
+*Source: [rag_05_2-execution-guide.md](../21_rag/rag_05_2-execution-guide.md#26-rag-integrity-check)*
 
 ### Memory layer failure behavior
 

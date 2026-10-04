@@ -7,8 +7,6 @@ tags:
   - migration
 related:
   - agent_00_document-guide.md
-source:
-  - agent_07_07_cli-and-commands-migration-notes.md
 ---
 
 # Agent CLI and Commands
@@ -68,3 +66,7 @@ Documents the mapping between deprecated slash commands and their current succes
 
 migration notes
 deprecated commands
+
+## Related Documents
+
+- `agent_00_document-guide.md`

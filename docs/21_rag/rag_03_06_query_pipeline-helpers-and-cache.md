@@ -14,9 +14,6 @@ related:
   - rag_03_05_query_pipeline-augment-stages.md
   - rag_04_05_dto-types.md
   - rag_05_1-configuration-reference.md
-  - rag_03_06_query_pipeline-helpers-and-cache.md
-source:
-  - rag_03_06_query_pipeline-helpers-and-cache.md
 ---
 
 # RAG Query Pipeline

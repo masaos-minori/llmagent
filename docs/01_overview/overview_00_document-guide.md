@@ -16,8 +16,6 @@ related:
   - overview-files-04-shared.md
   - overview-files-05-config.md
   - overview-files-06-misc.md
-source:
-  - 01_overview.md
 ---
 
 # Overview, Architecture, and File Structure (Index)
@@ -56,3 +54,10 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 - `overview-files-04-shared.md`
 - `overview-files-05-config.md`
 - `overview-files-06-misc.md`
+
+## Keywords
+
+- system-overview
+- architecture
+- introduction
+- index

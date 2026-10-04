@@ -13,8 +13,6 @@ related:
   - rag_01_system_overview.md
   - rag_03_01_query_pipeline-overview.md
   - rag_05_1-configuration-reference.md
-source:
-  - rag_02_01_ingestion_pipeline-overview.md
 ---
 
 

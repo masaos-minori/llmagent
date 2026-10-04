@@ -22,7 +22,6 @@ related:
   - ../22_mcp/mcp_06_16_pre-production-fail-open-checklist.md
   - ../22_mcp/mcp_02_03_audit-logging-and-errors.md
 source:
-  - security_02_high-risk-tool-common-policy.md
 ---
 
 # High-Risk MCP Tool Common Policy
@@ -204,3 +203,13 @@ Tool-specific docs must include a "See also: `security_02_high-risk-tool-common-
 - `../23_agent/agent_06_02_tool-execution-and-approval-approval.md`
 - `../22_mcp/mcp_06_16_pre-production-fail-open-checklist.md`
 - `../22_mcp/mcp_02_03_audit-logging-and-errors.md`
+
+## Keywords
+
+- security
+- policy
+- high-risk-tools
+- path-traversal
+- approval
+- audit
+- symlink-traversal

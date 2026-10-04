@@ -112,7 +112,7 @@ Tool-level exceptions (`MdqValidationError` / `MdqAuthorizationError` / `MdqNotF
 
 ---
 
-### Related Documents
+## Related Documents
 
 - `mcp_00_document-guide.md`
 - `mcp_04_01_web-search-file-read-github.md`
@@ -121,7 +121,7 @@ Tool-level exceptions (`MdqValidationError` / `MdqAuthorizationError` / `MdqNotF
 - `mcp_04_05_git.md`
 - `security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (mdq traversal processing is one implementation example of this common policy)
 
-### Keywords
+## Keywords
 
 mcp
 server-catalog

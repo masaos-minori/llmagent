@@ -131,3 +131,7 @@ response
 reconnect
 transport-error
 llm-client
+
+## Related Documents
+
+- `agent_00_document-guide.md`

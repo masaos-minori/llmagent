@@ -90,3 +90,11 @@ Expected span names:
 - [agent_10_03_operations-and-observability-workflow-observability.md](agent_10_03_operations-and-observability-workflow-observability.md) — Workflow observability
 
 (End of file - total 87 lines)
+
+## Keywords
+
+- agent
+- operations
+- audit-log
+- otel
+- observability

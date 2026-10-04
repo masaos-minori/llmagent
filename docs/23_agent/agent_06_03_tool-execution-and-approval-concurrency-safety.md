@@ -11,8 +11,6 @@ related:
   - agent_06_01_tool-execution-and-approval-execution.md
   - agent_06_02_tool-execution-and-approval-approval.md
   - agent_06_04_tool-execution-and-approval-canonical.md
-source:
-  - agent_06_03_tool-execution-and-approval-concurrency-safety.md
 ---
 
 # Agent Tool Execution and Approval
@@ -108,3 +106,10 @@ ToolLoopGuard
 concurrency limits
 fail-closed execution policy
 workflow approval recovery
+
+## Related Documents
+
+- `agent_00_document-guide.md`
+- `agent_06_01_tool-execution-and-approval-execution.md`
+- `agent_06_02_tool-execution-and-approval-approval.md`
+- `agent_06_04_tool-execution-and-approval-canonical.md`

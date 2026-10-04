@@ -11,8 +11,6 @@ related:
   - agent_06_02_tool-execution-and-approval-approval.md
   - agent_06_03_tool-execution-and-approval-concurrency-safety.md
 
-source:
-  - agent_06_04_tool-execution-and-approval-canonical.md
 ---
 
 # Agent Tool Execution and Approval
@@ -116,3 +114,10 @@ If a workflow fails after some steps are completed, the workflow engine records 
 canonical approval model
 ADR-001
 partial completion persistence
+
+## Related Documents
+
+- `agent_00_document-guide.md`
+- `agent_06_01_tool-execution-and-approval-execution.md`
+- `agent_06_02_tool-execution-and-approval-approval.md`
+- `agent_06_03_tool-execution-and-approval-concurrency-safety.md`

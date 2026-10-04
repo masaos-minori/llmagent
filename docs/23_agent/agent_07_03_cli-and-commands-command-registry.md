@@ -7,8 +7,6 @@ tags:
   - command-registry
 related:
   - agent_00_document-guide.md
-source:
-  - agent_07_03_cli-and-commands-command-registry.md
 ---
 
 # Agent CLI and Commands
@@ -73,3 +71,7 @@ Add a `CommandDef(...)` entry to `command_defs_list.py` and implement the corres
 CommandRegistry
 responsibility boundary
 known limitation
+
+## Related Documents
+
+- `agent_00_document-guide.md`

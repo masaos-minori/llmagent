@@ -227,3 +227,35 @@ Sweep results are recorded in the logs but are not exposed via the health endpoi
 - `eventbus_03_dlq_operations.md`
 - `eventbus_07_persistence_schema_and_replay.md`
 - `eventbus_08_validation_status.md`
+
+## Keywords
+
+- event-bus
+- configuration
+- environment-variables
+- config-fields
+- toml
+- bind-address
+- startup
+- security
+- public-bind
+- loopback
+- wildcard
+- health-check
+- http-status-codes
+- monitoring
+- degraded
+- consumer-id
+- offset-resume
+- reconnect
+- stability
+- delivery
+- verification
+- slow-consumer
+- reconnect-recovery
+- subscriber-count
+- dlq
+- dead-letter-queue
+- requeue
+- background-loop
+- sweep

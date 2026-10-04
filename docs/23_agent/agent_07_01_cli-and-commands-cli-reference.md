@@ -7,8 +7,6 @@ tags:
   - commands
 related:
   - agent_00_document-guide.md
-source:
-  - agent_07_01_cli-and-commands-cli-reference.md
 ---
 
 # Agent CLI and Commands
@@ -50,3 +48,7 @@ File index for this chapter (07 CLI and Commands).
 
 CLI reference index
 chapter 07 file index
+
+## Related Documents
+
+- `agent_00_document-guide.md`
