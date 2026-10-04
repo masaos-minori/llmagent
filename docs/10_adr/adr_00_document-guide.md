@@ -69,3 +69,11 @@ No reference APIs exist in this directory. All files are ADR documents.
 
 - `../00_index.md`
 - `../01_overview/overview_00_document-guide.md`
+
+## Keywords
+
+- adr
+- architecture-decision-record
+- document-guide
+- reading-order
+- decision-rationale
