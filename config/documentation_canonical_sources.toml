@@ -41,3 +41,31 @@ claim_type = "documentation-metadata"
 source_paths = ["docs/00_governance/governance_01_documentation-policy.md"]
 area = "Governance"
 notes = "Documentation policy is the governance authority."
+
+[[canonical_sources]]
+decision_target = "rag.core-behavior"
+claim_type = "runtime-behavior"
+source_paths = ["scripts/rag/"]
+area = "RAG"
+notes = "No RAG specification document exists; current runtime behavior is defined by the implementation."
+
+[[canonical_sources]]
+decision_target = "mcp.core-behavior"
+claim_type = "runtime-behavior"
+source_paths = ["scripts/mcp_servers/"]
+area = "MCP"
+notes = "No MCP specification document exists; current runtime behavior is defined by the implementation."
+
+[[canonical_sources]]
+decision_target = "agent.core-behavior"
+claim_type = "runtime-behavior"
+source_paths = ["scripts/agent/"]
+area = "Agent"
+notes = "No Agent specification document exists; current runtime behavior is defined by the implementation."
+
+[[canonical_sources]]
+decision_target = "shared-db.core-behavior"
+claim_type = "runtime-behavior"
+source_paths = ["scripts/shared/", "scripts/db/"]
+area = "Shared/DB"
+notes = "No Shared/DB specification document exists; current runtime behavior is defined by the implementation."

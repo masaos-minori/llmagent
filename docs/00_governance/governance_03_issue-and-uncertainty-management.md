@@ -162,10 +162,6 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 | Item ID | Title | Category | Priority | Evidence | Required Decision |
 |---------|-------|----------|----------|----------|-------------------|
-| NC-001 | RAG canonical source not identified | Missing-canonical-source | Medium | No `*specification*` file exists under `docs/`; no close equivalent in `docs/21_rag/` | Determine whether a specification document should exist for RAG |
-| NC-002 | MCP canonical source not identified | Missing-canonical-source | Medium | No `*specification*` file exists under `docs/`; no close equivalent in `docs/22_mcp/` | Determine whether a specification document should exist for MCP |
-| NC-003 | Agent canonical source not identified | Missing-canonical-source | Medium | No `*specification*` file exists under `docs/`; no close equivalent in `docs/23_agent/` | Determine whether a specification document should exist for Agent |
-| NC-004 | Shared/DB canonical source not identified | Missing-canonical-source | Medium | No `*specification*` file exists under `docs/`; no close equivalent in `docs/40_shared/` or `docs/41_db/` | Determine whether a specification document should exist for Shared/DB |
 
 ## Part 3: Canonical Source Conflict
 
