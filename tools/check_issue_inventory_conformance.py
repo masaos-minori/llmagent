@@ -63,7 +63,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
 GOVERNANCE_DOC_PATH = DOCS_DIR / "00_governance" / GOVERNANCE_DOC_NAME
 REMOVAL_PLACEHOLDER_RE = re.compile(r"do not create a `#### ([A-Z]+-\d+)` heading")
-FIELD_BULLET_RE = re.compile(r"- \*\*([^*]+):\*\*| - \*\*([^*]+)\*\*: ")
+FIELD_BULLET_RE = re.compile(r"- \*\*([^*]+):\*\*|- \*\*([^*]+)\*\*: ")
 HEADING_RE = re.compile(r"^#### (.+)$")
 CLOSING_SUMMARY_RE = re.compile(
     r"No other active .* beyond (\S+)(?: through (\S+))? above\."
