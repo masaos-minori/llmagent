@@ -82,7 +82,7 @@ Import: `from shared.runtime_tool_registry import RuntimeToolRegistry`
 
 ---
 
-## 7c. `ToolDefinition` (`shared/tool_registry.py`)
+## 7e. `ToolDefinition` (`shared/tool_registry.py`)
 
 Immutable tool definition — each tool belongs to exactly one MCP server. (Explicit in code: `scripts/shared/tool_registry.py` docstring)
 

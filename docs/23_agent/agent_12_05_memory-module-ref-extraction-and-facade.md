@@ -47,7 +47,7 @@ Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-
 
 ## Known Limitations
 
-Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (chunk fragmentation in search hits; `RETENTION_DAYS` filters unreachable).
+Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (chunk fragmentation in search hits).
 
 ## Related Docs
 

@@ -31,9 +31,9 @@ source:
 
 **Evidence:**
 - CJK threshold, character count threshold, chunk size/overlap, embedding dims/endianness: Explicit in code (`scripts/rag/ingestion/crawler_utils.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/utils.py:floats_to_blob`, `config/agent.toml`, `config/ingester.toml`).
-- Crawl depth and max pages: Explicit in code, but operational values in `config/crawler.toml` differ from code defaults. Previous versions stated "`config/agent.toml:43`", "max 6 hops", and "max 500 pages", but in the current `config/agent.toml`, `embed_url` is on line 10, and actual `config/crawler.toml` values are `max_depth=3` and `max_pages=200`. Line number references are deprecated; use section-based references instead.
+- Crawl depth and max pages: Explicit in code, but operational values in `config/crawler.toml` differ from code defaults. Earlier versions of this document stated "max 6 hops" and "max 500 pages"; the actual `config/crawler.toml` values are `max_depth=3` and `max_pages=200`.
 - `chunk_index`/`url`/`content` validation, `lang`/`chunking_strategy` non-enforcement: Explicit in code
-  (`scripts/rag/ingestion/pipeline_utils.py:53-97` validator definitions, `:100-233`
+  (`scripts/rag/ingestion/pipeline_utils.py` validator definitions, ``
   `read_crawl_json()`/`read_chunk_json()` call sites); `LanguageCode`'s `en`/`ja`
   members are defined in `scripts/rag/enums.py` but never referenced by either reader.
 

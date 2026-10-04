@@ -60,18 +60,18 @@ Because an untested execution path may bypass the gate, every path requires a te
 
 | # | Location | Caller Chain | Gate Status | Test Coverage | Exemption |
 |---|---|---|---|---|---|
-| 1 | `scripts/agent/repository_gateway.py:114` | `RepositoryGateway._gate_write()` → `RepositoryGateway.execute()` | Enforced | Partial (mocked in tests) | None |
-| 2 | `scripts/agent/commands/cmd_mdq.py:67` | `_MdqMixin._execute_mdq()` → `/mdq <subcommand>` | Enforced | None | None |
-| 3 | `scripts/agent/commands/cmd_context.py:206` | `_ContextMixin._cmd_diff()` → `/diff` | Enforced | None | None |
-| 4 | `scripts/agent/tool_approval.py:148` | `check_approval()` → `run_approval_checks()` | Enforced | Partial (existing tests) | None |
+| 1 | `scripts/agent/repository_gateway.py` | `RepositoryGateway._gate_write()` → `RepositoryGateway.execute()` | Enforced | Partial (mocked in tests) | None |
+| 2 | `scripts/agent/commands/cmd_mdq.py` | `_MdqMixin._execute_mdq()` → `/mdq <subcommand>` | Enforced | None | None |
+| 3 | `scripts/agent/commands/cmd_context.py` | `_ContextMixin._cmd_diff()` → `/diff` | Enforced | None | None |
+| 4 | `scripts/agent/tool_approval.py` | `check_approval()` → `run_approval_checks()` | Enforced | Partial (existing tests) | None |
 
 ### Exempt Paths
 
 | Path | Justification |
 |---|---|
-| `repository_gateway.py:execute()` line 85-86 (`if op == OperationType.READ`) | READ operations are intentionally preflight-exempt per design (direct passthrough for read-only tools). No separate `read_execute()` method exists. |
+| `repository_gateway.py:execute()` (`if op == OperationType.READ` branch) | READ operations are intentionally preflight-exempt per design (direct passthrough for read-only tools). No separate `read_execute()` method exists. |
 | `tool_approval.py:check_approval()` via `ApprovalDecisionType.DRY_RUN` | dry_run execution is preflight-exempt (read-only operation). No separate `build_preview()` method exists; handled via `DryRun` decision type. |
-| `tool_runner.py:run_tool_call()` line 116-119 (`else` branch) | Gateway not yet configured; requires separate resolution. This path bypasses both the gateway and the preflight gate. |
+| `tool_runner.py:run_tool_call()` (`else` branch) | Gateway not yet configured; requires separate resolution. This path bypasses both the gateway and the preflight gate. |
 
 ### Gateway-Bypass Gap Analysis
 

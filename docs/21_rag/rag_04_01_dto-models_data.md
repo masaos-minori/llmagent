@@ -25,7 +25,7 @@ This file defines the data models shared throughout the RAG pipeline. All DTOs a
 Field definitions: `EmbeddingResponse` in `scripts/rag/models_data.py`.
 
 ### ChunkDocument — Chunk data passed between pipeline stages
-DTO-level field types (`scripts/rag/models_data.py:31-47`):
+DTO-level field types (`scripts/rag/models_data.py`):
 - `url`, `title`, `lang`, `content`, `chunking_strategy`, `chunk_index`,
   `source_file`, `chunk_type`, `fetched_at` are non-`Optional` (`str`/`int`);
   `code_blocks` defaults to `[]` (never `None`).

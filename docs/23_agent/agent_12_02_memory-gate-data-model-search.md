@@ -38,11 +38,10 @@ The memory layer is controlled by three independent gates: complete bypass via a
 - Current mode can be checked with `/memory status`.
 - If embeddings are unavailable, the system falls back to FTS only (no manual intervention required).
 - `DEDUP_THRESHOLDS` is consumed in `ingestion.py` as deduplication thresholds per `source_type`.
-- `RETENTION_DAYS` is defined but currently unreachable (dead code). See NC-007 for details.
 
 ## Known Limitations
 
-- Enterprise filters based on `RETENTION_DAYS` retention period are currently unreachable (NC-007).
+None currently known.
 
 ## Related Docs
 

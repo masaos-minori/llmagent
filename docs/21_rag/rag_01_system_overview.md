@@ -86,7 +86,7 @@ owned state must consider downstream impact on dependent components.
 
 #### Known issue
 
-The `rag-src/registered/` directory's retention policy is configurable via `config/ingester.toml` with a default of 30 days. Automated cleanup of `rag-src/registered/` files requires a separate design decision. See Known Issue `RAG-006` in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`.
+Chunk files are moved to `rag-src/registered/` after ingestion. No automated retention or cleanup of `rag-src/registered/` exists; files accumulate until removed manually, and adding cleanup requires a separate design decision.
 
 ---
 
@@ -217,17 +217,17 @@ Note: No empirical basis or trade-off analysis for these six constraint values i
 
 Each constraint below states what happens when violated and whether enforcement is programmatic or operational.
 
-**Language Detection** — Enforced programmatically in `detect_lang()` (`crawler_utils.py` lines 130-141): text under 100 characters returns `None` (falls back to hint language); CJK ratio ≥ 0.10 triggers `ja`, otherwise `en`. No error is raised — the fallback path handles short-text edge cases gracefully.
+**Language Detection** — Enforced programmatically in `detect_lang()` (`crawler_utils.py`): text under 100 characters returns `None` (falls back to hint language); CJK ratio ≥ 0.10 triggers `ja`, otherwise `en`. No error is raised — the fallback path handles short-text edge cases gracefully.
 
-**Chunk Size** — Enforced programmatically in `chunk_splitter.py`: sub-minimum chunks (< 40 chars) are discarded as noise (confirmed at lines 168-169: `if len(section) >= self._min_chunk`); over-maximum sections (> 500 chars) are split further via sentence-level chunking (line 174: `self._chunk_english(section)`). See `docs/21_rag/rag_05_1-configuration-reference.md` line 39 for the discard-on-noise policy.
+**Chunk Size** — Enforced programmatically in `chunk_splitter.py`: sub-minimum chunks (< 40 chars) are discarded as noise (confirmed: `if len(section) >= self._min_chunk`); over-maximum sections (> 500 chars) are split further via sentence-level chunking (`self._chunk_english(section)`). See `docs/21_rag/rag_05_1-configuration-reference.md` for the discard-on-noise policy.
 
-**Chunk Overlap** — A configured value applied programmatically via sliding-window logic in `merge_text_items()` (`chunk_splitter.py` lines 185-186). There is no "violation" concept — any config value is accepted and applied without validation.
+**Chunk Overlap** — A configured value applied programmatically via sliding-window logic in `merge_text_items()` (`chunk_splitter.py`). There is no "violation" concept — any config value is accepted and applied without validation.
 
-**Embedding Dimension** — Strictly enforced programmatically via `validate_embedding_blob()` (`store_protocols.py` lines 38-47): raises `TypeError` if blob is not bytes, `ValueError` if blob length does not match expected dimensions. Changing the embedding model requires a corresponding code change (not a config change), since the dimension is a code-level constant defined in `get_embedding_dims()`.
+**Embedding Dimension** — Strictly enforced programmatically via `validate_embedding_blob()` (`store_protocols.py`): raises `TypeError` if blob is not bytes, `ValueError` if blob length does not match expected dimensions. Changing the embedding model requires a corresponding code change (not a config change), since the dimension is a code-level constant defined in `get_embedding_dims()`.
 
-**Crawl Depth / Max Pages Per Site** — Operational limits enforced by stopping BFS traversal at the limit. Neither constitutes a "violation" in the sense of an error — exceeding the limit simply ends the crawl for that site. Values are read from `config/crawler.toml` (`crawler.py` lines 61, 66).
+**Crawl Depth / Max Pages Per Site** — Operational limits enforced by stopping BFS traversal at the limit. Neither constitutes a "violation" in the sense of an error — exceeding the limit simply ends the crawl for that site. Values are read from `config/crawler.toml` (`crawler.py`).
 
-**Database** — An architectural assumption per `ADR-008` (Assumptions section: "Target environment: a single host, multiple processes"; Rationale section: Operability/Performance/Data Integrity/Correctness, lines 91-101). Not per-request enforced code; reconsidering it requires the ADR's own "Reconsideration Conditions".
+**Database** — An architectural assumption per `ADR-008` (Assumptions section: "Target environment: a single host, multiple processes"; Rationale section: Operability/Performance/Data Integrity/Correctness). Not per-request enforced code; reconsidering it requires the ADR's own "Reconsideration Conditions".
 
 ---
 
@@ -243,7 +243,7 @@ For operators who prefer a quick reference without navigating away from this doc
 
 The interaction flow is: MCP client → `rag_pipeline_server.py` (HTTP routing) → `rag_pipeline_service.py` (orchestration) → `scripts/rag/pipeline.py` (search execution).
 
-Note: External (HTTP-delegated) and local (in-process) RAG execution modes currently read the same corpus database (`rag_db_path`). Both `config/agent.toml` (line 7: `rag_db_path = "/opt/llm/db/rag.sqlite"`) and `config/rag_pipeline_mcp_server.toml` (line 13: `rag_db_path = "/opt/llm/db/rag.sqlite"`) are configured identically. This is a configuration convention, not an enforced invariant — a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` would silently diverge, undetected by any current automated check.
+Note: External (HTTP-delegated) and local (in-process) RAG execution modes currently read the same corpus database (`rag_db_path`). Both `config/agent.toml` and `config/rag_pipeline_mcp_server.toml` (both set `rag_db_path`) are configured identically. This is a configuration convention, not an enforced invariant — a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` would silently diverge, undetected by any current automated check.
 
 For details on responsibilities of these components, please refer to `docs/21_rag/rag_03_01_query_pipeline-overview.md`.
 

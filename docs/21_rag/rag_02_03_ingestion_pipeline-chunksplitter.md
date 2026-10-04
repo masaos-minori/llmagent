@@ -107,7 +107,7 @@ rag
 
 URLs ending in `.md`, `.markdown`, or `.mdx` always use heading chunking regardless of `md_index_enable`. For other files, heuristic detection (two or more heading lines in content) is used only if `md_index_enable=true`.
 
-Note: No historical rationale for this extension-based rule is recorded in code comments or commit history (earliest traced commits: `ee035ff5e`/`c0b578e82`, "feat: Markdown ingest standardization — production code changes", contain no explanation). Contrary to what a reader might assume from the documentation, `md_index_enable` does not provide any way to override this rule for `.md`/`.markdown`/`.mdx` sources — including local `file://` sources (where `str.endswith()` matches the extension regardless of the `file://` scheme prefix, confirmed by inspecting `WebCrawler.crawl_file()`'s URL construction, `crawl_persister.py:62`: `f"file://{path.resolve()}"`). A plausible technical rationale is determinism vs. content-based heuristics (an extension-based check requires no content inspection), but this is inferred from the code's structure, not documented anywhere.
+Note: No historical rationale for this extension-based rule is recorded in code comments or commit history (earliest traced commits: `ee035ff5e`/`c0b578e82`, "feat: Markdown ingest standardization — production code changes", contain no explanation). Contrary to what a reader might assume from the documentation, `md_index_enable` does not provide any way to override this rule for `.md`/`.markdown`/`.mdx` sources — including local `file://` sources (where `str.endswith()` matches the extension regardless of the `file://` scheme prefix, confirmed by inspecting `WebCrawler.crawl_file()`'s URL construction, `crawl_persister.py`: `f"file://{path.resolve()}"`). A plausible technical rationale is determinism vs. content-based heuristics (an extension-based check requires no content inspection), but this is inferred from the code's structure, not documented anywhere.
 
 ### 3.1.4 Markdown Heading Chunking Behavior
 
@@ -127,17 +127,17 @@ Text is split by Markdown headings (# through ######). Sections exceeding `md_sn
 
 #### Trigger condition
 
-The fallback to sentence-based chunking triggers **per individual heading-delimited section**, not for the document as a whole. `_chunk_markdown_by_heading()` (lines 158-175 of `scripts/rag/ingestion/chunk_splitter.py`) splits the entire text at heading boundaries first (one pass), then for each resulting section checks `len(section) <= self._md_snippet_max_chars` individually (line 169). Only sections exceeding `md_snippet_max_chars` are re-split via `_chunk_english()` (line 174).
+The fallback to sentence-based chunking triggers **per individual heading-delimited section**, not for the document as a whole. `_chunk_markdown_by_heading()` (`scripts/rag/ingestion/chunk_splitter.py`) splits the entire text at heading boundaries first (one pass), then for each resulting section checks `len(section) <= self._md_snippet_max_chars` individually. Only sections exceeding `md_snippet_max_chars` are re-split via `_chunk_english()`.
 
 #### Sequential combination
 
-The two strategies combine **sequentially**, not in parallel. Heading-boundary splitting always runs first across the entire text (line 161-163: `re.split(rf"(?={MARKDOWN_HEADING_RE} )", text.strip(), flags=re.MULTILINE)`). Sentence-based splitting (`_chunk_english()`) is a second pass applied only to whichever individual sections exceed the size limit (line 174: `chunks.extend(self._chunk_english(section))`). It is not a parallel or whole-alternative strategy.
+The two strategies combine **sequentially**, not in parallel. Heading-boundary splitting always runs first across the entire text (`re.split(rf"(?={MARKDOWN_HEADING_RE} )", text.strip(), flags=re.MULTILINE)`). Sentence-based splitting (`_chunk_english()`) is a second pass applied only to whichever individual sections exceed the size limit (`chunks.extend(self._chunk_english(section))`). It is not a parallel or whole-alternative strategy.
 
 #### Chunk metadata during fallback
 
-- `chunking_strategy`: Remains `"heading"` for the overall Markdown source regardless of which sections fell back to sentence splitting (per the document's existing note at line 134: "Heading chunking (`chunking_strategy="heading"`)... regardless of `lang`").
+- `chunking_strategy`: Remains `"heading"` for the overall Markdown source regardless of which sections fell back to sentence splitting (per the document's existing note: "Heading chunking (`chunking_strategy="heading"`)... regardless of `lang`").
 - `normalized_content`: Stays `null` for both non-fallback sections (size-fitting path) and fallback sections (sentence-split path), consistent with the Evidence note above.
-- Sections below `min_chunk` after either path are silently discarded as noise (per `chunk_splitter.py` line 168-169: `if len(section) >= self._min_chunk` guard).
+- Sections below `min_chunk` after either path are silently discarded as noise (per the `if len(section) >= self._min_chunk` guard in `chunk_splitter.py`).
 
 #### Known edge case
 
@@ -148,10 +148,10 @@ Japanese content loses Sudachi normalization when routed through heading chunkin
 #### No override for `.md`/`.markdown`/`.mdx` sources
 
 There is no configuration or per-source override for `.md`/`.markdown`/`.mdx` URLs'
-unconditional heading chunking. `_is_markdown_source()` (lines 138-154 of
-`scripts/rag/ingestion/chunk_splitter.py`) checks the URL extension first (line 146:
+unconditional heading chunking. `_is_markdown_source()` (in
+`scripts/rag/ingestion/chunk_splitter.py`) checks the URL extension first (
 `if url.endswith((".md", ".markdown", ".mdx")):` returns `True` immediately), and only
-reaches the `self._md_index_enable` check (line 148) for non-`.md`-extension URLs. This
+reaches the `self._md_index_enable` check for non-`.md`-extension URLs. This
 means any source ending in `.md`, `.markdown`, or `.mdx` — whether a remote URL or a local
 `file://` source — always uses heading chunking regardless of `md_index_enable`.
 
@@ -238,7 +238,7 @@ validated or mapped onto `ChunkDocument`'s own fields.
 There is exactly one cross-field validation rule among the crawl/chunk artifact fields documented above. It applies only to crawl artifacts:
 
 - **Rule**: For crawl artifacts, `content` may be an empty string only when `code_blocks` is non-empty. If both are empty, the payload is rejected with `ChunkFormatError`.
-- **Rationale**: Traced to `CrawlPersister.save()`'s `.py`-file handling (`crawl_persister.py:70,76-77`). When processing a `.py` file, the crawler stores the source code in `code_blocks=[content]` with `content=""`, allowing the code chunker to apply. The cross-field rule permits this legitimate empty-content case while rejecting a genuinely broken/incomplete crawl result (both fields empty).
+- **Rationale**: Traced to `CrawlPersister.save()`'s `.py`-file handling (`crawl_persister.py`). When processing a `.py` file, the crawler stores the source code in `code_blocks=[content]` with `content=""`, allowing the code chunker to apply. The cross-field rule permits this legitimate empty-content case while rejecting a genuinely broken/incomplete crawl result (both fields empty).
 - **Chunk artifacts**: No equivalent exception — `content` is required and must be non-empty for chunk artifacts.
 - **Valid example** (`.py` file): `{"content": "", "code_blocks": ["def foo(): ..."]}`
 - **Invalid example**: `{"content": "", "code_blocks": []}` → rejected with `ChunkFormatError("crawl: empty 'content' requires non-empty 'code_blocks'")`

@@ -105,9 +105,9 @@ list.
 
 ### 2.4 Output JSON Format
 
-`read_crawl_json()` (`scripts/rag/ingestion/pipeline_utils.py:100`) is the canonical
+`read_crawl_json()` (`scripts/rag/ingestion/pipeline_utils.py`) is the canonical
 reader for crawl-stage JSON artifacts; `ChunkSplitter`
-(`scripts/rag/ingestion/chunk_splitter.py:196`) is its sole caller. A crawl artifact
+(`scripts/rag/ingestion/chunk_splitter.py`) is its sole caller. A crawl artifact
 requires exactly 8 keys (`url`, `content`, `title`, `lang`, `code_blocks`, `etag`,
 `last_modified`, `fetched_at`) — a missing key or an invalid field type raises
 `ChunkFormatError` (see [rag_05_4-error-handling-reference.md](rag_05_4-error-handling-reference.md)).

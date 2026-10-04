@@ -133,7 +133,7 @@ When loading workflow definitions from `config/workflows/*.json`:
 - `retry_policy.max_attempts` must be $\ge 1$
 - `retry_policy.backoff_sec` must be $\ge 0$
 
-See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md)#workflow-deployment-runbook) for recovery steps when a rule is violated.
+See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) for recovery steps when a rule is violated.
 
 ## Key Constraints
 

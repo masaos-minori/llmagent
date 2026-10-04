@@ -34,18 +34,18 @@ Database recovery exists to restore a usable persistence state after physical co
 
 ### 9.3 Integrity-result model
 
-Current implementation produces a structured classification via the `DbCondition` enum (`scripts/db/recovery.py:18-26`). `_run_integrity_check()` returns `tuple[DbCondition, str | None]`; callers distinguish outcomes by the `DbCondition` value, not by `RecoveryResult.action`/`detail` alone. The enum distinguishes: `HEALTHY`, `CORRUPTION`, `LOCK_CONTENTION`, `PERMISSION_FAILURE`, `INVALID_FORMAT`, and `UNKNOWN`. Downstream recovery policy depends on this structured classification, not on free-form error text.
+Current implementation produces a structured classification via the `DbCondition` enum (`scripts/db/recovery.py`). `_run_integrity_check()` returns `tuple[DbCondition, str | None]`; callers distinguish outcomes by the `DbCondition` value, not by `RecoveryResult.action`/`detail` alone. The enum distinguishes: `HEALTHY`, `CORRUPTION`, `LOCK_CONTENTION`, `PERMISSION_FAILURE`, `INVALID_FORMAT`, and `UNKNOWN`. Downstream recovery policy depends on this structured classification, not on free-form error text.
 
 ### 9.4 Exception policy
 
-- **Current behavior:** `_run_integrity_check()` catches **all** exceptions (`except Exception` at line 57) and dispatches them to `_classify_error()` which classifies them into `DbCondition` values (line 29-39). `sqlite3.DatabaseError` — the exception SQLite raises for physical page corruption — is caught and classified as `DbCondition.CORRUPTION` (line 37-38).
+- **Current behavior:** `_run_integrity_check()` catches **all** exceptions (`except Exception`) and dispatches them to `_classify_error()` which classifies them into `DbCondition` values. `sqlite3.DatabaseError` — the exception SQLite raises for physical page corruption — is caught and classified as `DbCondition.CORRUPTION`.
 - **Invariants satisfied:**
   - `sqlite3.DatabaseError` does NOT escape the public recovery boundary as an unclassified failure — it is caught and classified as `DbCondition.CORRUPTION` (Confirmed by code).
   - Catching an exception does NOT automatically trigger backup restoration (Confirmed by code).
-  - Lock contention is NOT classified as physical corruption: `sqlite3.OperationalError` with "database is locked" or "busy" is classified as `DbCondition.LOCK_CONTENTION` (line 33-34), and `recover_corruption()` short-circuits to `action="error"` before reaching the restore branch (Confirmed by code).
-  - Permission failure is NOT classified as physical corruption: `sqlite3.OperationalError` with "permission denied" or "readonly" is classified as `DbCondition.PERMISSION_FAILURE` (line 35-36) (Confirmed by code).
+  - Lock contention is NOT classified as physical corruption: `sqlite3.OperationalError` with "database is locked" or "busy" is classified as `DbCondition.LOCK_CONTENTION`, and `recover_corruption()` short-circuits to `action="error"` before reaching the restore branch (Confirmed by code).
+  - Permission failure is NOT classified as physical corruption: `sqlite3.OperationalError` with "permission denied" or "readonly" is classified as `DbCondition.PERMISSION_FAILURE` (Confirmed by code).
   - Disk I/O or capacity failure does NOT cause the target database to be overwritten (Confirmed by code).
-  - Unknown errors preserve the target database and require operator intervention: `_classify_error()` returns `DbCondition.UNKNOWN` for unclassifiable exceptions (line 39) (Confirmed by code).
+  - Unknown errors preserve the target database and require operator intervention: `_classify_error()` returns `DbCondition.UNKNOWN` for unclassifiable exceptions (Confirmed by code).
 - The `action="error"` result value still conflates lock contention, permission errors, and unclassified integrity-check failures into one label; callers do not branch on cause, only on `success`/`action` (Confirmed by code — this is a design weakness, not a corruption-misclassification risk).
 
 ### 9.5 Safe restoration sequence

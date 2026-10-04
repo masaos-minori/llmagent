@@ -32,7 +32,7 @@ skips just that URL without stopping the overall crawl — see
 ## Pipeline Utils — Artifact Validation (`read_crawl_json()` / `read_chunk_json()`)
 
 Both canonical artifact readers (`scripts/rag/ingestion/pipeline_utils.py`) raise
-`ChunkFormatError` (`scripts/rag/exceptions.py:27`, a `RagLayerError` and `ValueError`
+`ChunkFormatError` (`scripts/rag/exceptions.py`, a `RagLayerError` and `ValueError`
 subclass) on any validation failure — there is no silent-default fallback path in
 either reader (contrast with the legacy `read_json_file()`, documented as historical
 in [rag_02_08_ingestion_pipeline-shared.md](rag_02_08_ingestion_pipeline-shared.md)).
@@ -50,7 +50,7 @@ in [rag_02_08_ingestion_pipeline-shared.md](rag_02_08_ingestion_pipeline-shared.
 | `chunk_index` is `bool`, non-`int`, or negative (`_validate_int_non_negative`; `bool` explicitly rejected before the `int` check) | `ChunkFormatError` |
 | Crawl artifact only: `content` is empty and `code_blocks` is also empty (cross-field rule) | `ChunkFormatError` |
 
-**Catch guidance**: Callers should catch `ChunkFormatError` specifically, not the broader `RagLayerError` base class. This matches every actual catch site in the codebase — `chunk_grouping.py:30`, `chunk_splitter.py:197` (as part of `(FileNotFoundError, ChunkFormatError)`), `file_routing.py:52,101`, and `ingester.py:217,235,348`. No catch site was found using the wrong exception type as of this cycle's search.
+**Catch guidance**: Callers should catch `ChunkFormatError` specifically, not the broader `RagLayerError` base class. This matches every actual catch site in the codebase — `chunk_grouping.py`, `chunk_splitter.py` (as part of `(FileNotFoundError, ChunkFormatError)`), `file_routing.py`, and `ingester.py`. No catch site was found using the wrong exception type as of this cycle's search.
 
 For the full per-field Required/Nullable/Conditional classification referenced above,
 see the canonical table in
@@ -80,23 +80,17 @@ Each class should be raised when its docstring condition applies — e.g., use
 Every current caller in the repository catches `ChunkFormatError` specifically rather
 than `RagLayerError` or `ValueError`:
 
-- `scripts/rag/ingestion/chunk_splitter.py:197` — `except (FileNotFoundError, ChunkFormatError)`
-- `scripts/rag/ingestion/file_routing.py:52,101` — `except ChunkFormatError`
-- `scripts/rag/ingestion/ingester.py:217,235,348` — `except ChunkFormatError`
-- `scripts/rag/ingestion/chunk_grouping.py:30` — `except ChunkFormatError`
+- `scripts/rag/ingestion/chunk_splitter.py` — `except (FileNotFoundError, ChunkFormatError)`
+- `scripts/rag/ingestion/file_routing.py` — `except ChunkFormatError`
+- `scripts/rag/ingestion/ingester.py` — `except ChunkFormatError`
+- `scripts/rag/ingestion/chunk_grouping.py` — `except ChunkFormatError`
 
 New code should follow the same pattern: catch `ChunkFormatError` specifically, not its
 base classes.
 
-#### Known hierarchy deviation
+#### Exception hierarchy
 
-Tracked as Known Issue CI-018 in
-`docs/00_governance/governance_03_issue-and-uncertainty-management.md`. `RagRerankError`
-and `RagPipelineError` are defined outside `scripts/rag/exceptions.py` (in
-`llm_prompts.py` and `pipeline.py` respectively), inheriting from `RuntimeError` rather
-than `RagLayerError`. This fragmentation arose from three independent refactoring efforts
-at different times, each introducing its own exception class without referencing the others.
-No ADR or design document records a rationale for keeping them separate.
+All RAG-layer error classes, including `RagRerankError` and `RagPipelineError`, are defined in `scripts/rag/exceptions.py` and derive from `RagLayerError`.
 
 ## RagIngester
 

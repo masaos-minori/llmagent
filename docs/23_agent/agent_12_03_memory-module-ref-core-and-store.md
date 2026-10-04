@@ -40,18 +40,16 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 - If `use_memory_layer = false` is set, the memory service is not constructed and all memory operations are completely bypassed.
 - `VectorRetriever.knn_search()` raises an `OperationalError` if the `memories_vec` table does not exist (exceptions propagate if embeddings are enabled while tables are uninitialized).
 - `MemoryStore.list_entries()` branch filtering behavior: uses `branch = '' OR branch = ?`, meaning entries with an empty string branch always match regardless of the specified branch value.
-- `embed_dim` is not in `MemoryStore` itself; it is passed by the caller `agent/factory.py` (`MemoryStore(embed_dim=get_embedding_dims())` at line 380), sourced from `scripts/db/store_protocols.py::get_embedding_dims()` (a fixed code-level constant), not a config field.
+- `embed_dim` is not in `MemoryStore` itself; it is passed by the caller `agent/factory.py` (`MemoryStore(embed_dim=get_embedding_dims())`), sourced from `scripts/db/store_protocols.py::get_embedding_dims()` (a fixed code-level constant), not a config field.
 
 ## Operational Notes
 
 - Write operations are in `write_ops.py`; read operations are in `store.py`.
 - Chunk splitting occurs for content exceeding `memory_max_content_chars` (default: 500). This is a limit per chunk, not on total content volume.
 - If a single source message is split into multiple chunks, each appears as an independent hit during search (fragmentation limitation).
-- `RETENTION_DAYS` is defined but currently unreachable (dead code). See NC-007 for details.
 
 ## Known Limitations
 
-- Enterprise filters based on `RETENTION_DAYS` retention period are currently unreachable (NC-007).
 - If a single source message is split into multiple chunks, each appears as an independent hit during search (fragmentation).
 
 ## Related Docs

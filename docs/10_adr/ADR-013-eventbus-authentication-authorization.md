@@ -71,7 +71,7 @@ Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in
 5. Audit logging of authorization failures and privileged actions, with no secret/token values recorded.
 6. Fail-closed rejection of unknown, missing, and incorrectly-typed EventBus configuration keys in `load_config()` — implemented locally, not via `ConfigLoader`.
 7. A missing or empty `auth_token` in `config/eventbus.toml` must fail closed at startup (per REQ-005), not silently start unauthenticated.
-8. The ConfigLoader migration question is already resolved by ADR-002's local-invariant exception (its own embedded CI-001 note, lines 363-375) — no new decision needed there.
+8. The ConfigLoader migration question is already resolved by ADR-002's local-invariant exception (its own embedded CI-001 note in Known Deviations) — no new decision needed there.
 
 ### Scope
 
@@ -266,7 +266,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 ### Resolved Items
 
 - **Resolved**: Privileged-replay scope ambiguity (UNK-01) — resolved by this ADR's Decision Details #4 (all `/replay` calls require operator permission).
-- **Resolved**: ConfigLoader migration question — already resolved by ADR-002's embedded CI-001 note (lines 363-375).
+- **Resolved**: ConfigLoader migration question — already resolved by ADR-002's embedded CI-001 note.
 
 ## Implementation Notes
 

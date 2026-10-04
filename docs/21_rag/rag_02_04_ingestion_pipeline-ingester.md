@@ -35,10 +35,10 @@ related:
 
 For a complete list of dataclasses and public methods, see `scripts/rag/ingestion/ingester.py`.
 
-`read_chunk_json()` (`scripts/rag/ingestion/pipeline_utils.py:163`) is the canonical
+`read_chunk_json()` (`scripts/rag/ingestion/pipeline_utils.py`) is the canonical
 reader for chunk-stage JSON artifacts; `RagIngester._read_chunk_json()`
-(`scripts/rag/ingestion/ingester.py:344`, calling `read_chunk_json()` at line 346) is
-its wrapper, used at `ingester.py:222,240`. A missing required key or invalid field
+(`scripts/rag/ingestion/ingester.py`, calling `read_chunk_json()`) is
+its wrapper, used within `ingester.py`. A missing required key or invalid field
 type raises `ChunkFormatError` — see [rag_05_4-error-handling-reference.md](rag_05_4-error-handling-reference.md)
 and the canonical field-contract table in
 [rag_02_03_ingestion_pipeline-chunksplitter.md](rag_02_03_ingestion_pipeline-chunksplitter.md).
