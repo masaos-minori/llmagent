@@ -157,7 +157,7 @@ def test_different_consumer_id_starts_from_zero(
 
 
 def test_same_consumer_id_last_write_wins(client: TestClient, tmp_path: Path) -> None:
-    """Two consumers with same consumer_id → last write wins for offset (no collision detection)."""
+    """Two ACKs with the same consumer_id share one offset (highest acked seq wins; no collision detection on ACK)."""
     from eventbus import app as eb_app
     from eventbus.db import get_consumer_offset
 
@@ -168,7 +168,7 @@ def test_same_consumer_id_last_write_wins(client: TestClient, tmp_path: Path) ->
     r2 = _pub(client)
     client.post(f"/events/{r2['event_id']}/ack?consumer_id=shared-consumer")
 
-    # Last write wins — offset should be from the second ack
+    # The second ack has the higher seq, so the offset is from the second ack
     offset = get_consumer_offset(eb_app.app.state.db, "shared-consumer")
     assert offset == r2["seq"]
 
