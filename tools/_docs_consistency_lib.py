@@ -78,6 +78,8 @@ _HISTORICAL_MARKERS: frozenset[str] = frozenset(
         "resolved",
         "was:",
         "removed",
+        "deprecated",
+        "no separate",
         "削除済み",
         "旧",
     }

@@ -212,6 +212,17 @@ class TestCheckFunctionReferences:
         doc = _mk_file("a.md", ["created via `HealthRegistry()`"])
         assert check_function_references(tmp_path, [doc], repo) == []
 
+    def test_deprecated_and_negated_mentions_are_skipped(self, tmp_path: Path) -> None:
+        repo = self._repo(tmp_path, "def do_thing():\n    pass\n")
+        doc = _mk_file(
+            "a.md",
+            [
+                "the engine `old_engine()` has been deprecated",
+                "No separate `other_engine()` method exists",
+            ],
+        )
+        assert check_function_references(tmp_path, [doc], repo) == []
+
     def test_known_external_callable_is_accepted(self, tmp_path: Path) -> None:
         repo = self._repo(tmp_path, "def do_thing():\n    pass\n")
         doc = _mk_file("a.md", ["awaits `gather()` and `aclose()`"])
