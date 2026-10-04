@@ -16,7 +16,7 @@ Each MCP server is an independent process and **only reads its own configuration
 
 `MCPServer.run_http()` calls `ConfigLoader.restrict_to(own_config_file)` before starting uvicorn to enforce this rule at runtime. A `ConfigPermissionError` is raised upon violation.
 
-→ Details: [ADR-002](../10_adr/ADR-002-config-isolation.md) / [90_shared_03 §2a](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-isolation-policy-config-isolation-policy)
+→ Details: [ADR-002](../10_adr/ADR-002-config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 ## Layer 1 — Agent Process Configuration (`config/agent.toml`)
 

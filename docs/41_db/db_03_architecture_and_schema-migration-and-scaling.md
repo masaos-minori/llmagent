@@ -61,7 +61,7 @@ Each table serves a distinct purpose:
 - **Column removal:** a retired `retry_count` column, if present, is dropped via `ALTER TABLE events DROP COLUMN retry_count`; "no such column" errors are caught and ignored.
 - **Additive indexes:** `idx_events_dlq_at ON events(dlq_at)` and `idx_events_dlq_seq ON events(dlq_at, seq)` are created with `CREATE INDEX IF NOT EXISTS`; duplicate-index errors are caught and ignored.
 - **New tables:** `_migrate()` additionally creates the `consumer_delivery` and `consumer_offsets` tables via the same idempotent `CREATE TABLE IF NOT EXISTS` pattern used for column/index additions.
-- **Separate data seeding:** `migrate_legacy_offsets()` (see section 9) is distinct from `_migrate()`'s schema-DDL role.
+- **Separate data seeding:** `migrate_legacy_offsets()` (see Schema Evolution below) is distinct from `_migrate()`'s schema-DDL role.
 - **Two initialization paths:** `create_schema()` bootstrap (create-only DDL via `schema.sql`) vs. `eventbus/db.py::open_db()` live-service startup (incremental ALTER TABLE operations). A reader must distinguish them — conflating them would incorrectly suggest `eventbus.sqlite` lacks migration support.
 
 ### 8c. RAG Consistency Verification (Explicit in code)

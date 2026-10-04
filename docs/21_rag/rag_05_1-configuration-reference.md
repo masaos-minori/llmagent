@@ -12,7 +12,7 @@ related:
 
 Crawler / chunk_splitter / ingester / rag-pipeline-mcp are each independent processes, reading only their respective configuration files. There are no shared configuration files. If multiple processes require the same DB path or external service URL, they must specify them individually in their respective configuration files.
 
-→ For details on the Process Separation Policy: [ADR-002](../10_adr/ADR-002-config-isolation.md) / [90_shared_03 §2a](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
+→ For details on the Process Separation Policy: [ADR-002](../10_adr/ADR-002-config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 ## 1.1 `config/crawler.toml`
 

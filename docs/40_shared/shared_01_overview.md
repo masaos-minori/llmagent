@@ -44,7 +44,7 @@ This document provides an overview of the `shared/` and `db/` layers. It covers 
 **In Scope:**
 - `shared` provides configuration types, DTOs, logging infrastructure, caching, and client abstractions.
 - `db` provides schema management, migration, store protocols, backend implementations, and recovery.
-- DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`
+- The SQLite database files listed in [db_08_active_databases.md](../41_db/db_08_active_databases.md)
 
 **Out of Scope:**
 - MCP server implementations (`mcp_servers/`)
@@ -128,9 +128,9 @@ All four databases use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only 
 
 ## 8. Other Key Constraints
 
-Constraints not already covered above (import direction, JSON library, HTTP client — see section 6):
+Constraints not already covered above (import direction, JSON library, HTTP client — see Import Direction Constraints above):
 
-- **Configuration Format:** TOML / JSON under `/opt/llm/config/` — see [section 2a](shared_03_01_runtime_and_execution-config-and-logging.md#2a-config-ownership) for ownership table
+- **Configuration Format:** TOML / JSON under `/opt/llm/config/` — see [Process Separation Policy](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy) for the ownership table
 - **Log Messages:** English only (do not use Japanese in code comments or logs)
 - **SQLite WAL:** Use `PRAGMA journal_mode=WAL` for all connections
 - **Security Profile:** `SecurityProfile` enum in `mcp_config.py` (`local`/`production`). `ProductionConfigValidator` in `production_config_validator.py` validates strict keys, `tool_safety_tiers`, and `allowed_tools` when in production mode
@@ -149,7 +149,7 @@ All persistent data resides in four SQLite files: `rag.sqlite` (RAG index), `ses
 
 ## 10. AI Reference Guide
 
-You can identify corresponding documents from the section titles: Types/DTOs → [section 2](shared_02_01_types_and_protocols-core-types.md), ConfigLoader → [section 3](shared_03_01_runtime_and_execution-config-and-logging.md), SQLite Schema → section 4, SQLiteHelper API → section 5, Inconsistencies → [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB).
+Identify the corresponding document by topic: types and DTOs → [shared_02_01](shared_02_01_types_and_protocols-core-types.md); ConfigLoader and logging → [shared_03_01](shared_03_01_runtime_and_execution-config-and-logging.md); SQLite schema → [db_01](../41_db/db_01_architecture_and_schema-overview-and-config.md) and [db_02](../41_db/db_02_architecture_and_schema-schema-reference.md); SQLiteHelper and store APIs → [db_04](../41_db/db_04_api_and_operations-module-boundaries-and-helper.md) and [db_05](../41_db/db_05_api_and_operations-protocol-and-backend.md); known issues → [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB).
 
 ## Keywords
 

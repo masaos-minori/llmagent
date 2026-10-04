@@ -39,7 +39,7 @@ Import: `from shared.transport_dto import ToolCallResult, TransportErrorInfo`
 
 ## 7a. `ToolSpec` (`shared/tool_spec.py`)
 
-Execution metadata (`call_id`, `name`, `args`, `resource_scopes` (tuple of kind-prefixed scope strings), `requires_serial`, `is_write`) — used for DAG scheduling. `resource_scopes` are resolved per call via `shared/resource_scope.py::resolve_resource_scopes()`. Actual scheduling logic resides in `agent/tool_scheduler.py`. (Explicit in code: `scripts/agent/tool_scheduler.py`)
+A frozen dataclass of DAG scheduling metadata. Fields: `call_id` (LLM-assigned tool call id from `tool_calls[].id`), `name` (tool function name), `args` (dict[str, object]), `resource_scopes` (tuple[str, ...] of kind-prefixed resource-scope strings, e.g., `"filesystem:/a/b.txt"`, for conflict detection — resolved per call by `shared/resource_scope.py::resolve_resource_scopes()`), `requires_serial` (forces serialization regardless of parallel mode), and `is_write` (write/delete classification). `agent/tool_runner.py::_execute_with_dag()` builds a call-id-keyed `ToolSpec` for each approved tool call via `RuntimeToolRegistry.tool_spec_for_call()`. Scheduling logic resides in `agent/tool_scheduler.py`. (Explicit in code: `scripts/agent/tool_scheduler.py`)
 
 Import: `from shared.tool_spec import ToolSpec`
 
@@ -47,7 +47,7 @@ Import: `from shared.tool_spec import ToolSpec`
 
 ## 7b. `CacheEntry` / `ToolResultCache` (`shared/tool_cache.py`)
 
-`CacheEntry` (output, is_error, cached_at) — a standalone utility, not used by `ToolExecutor`. (Explicit in code)
+`CacheEntry` and `ToolResultCache` are a standalone utility not used by `ToolExecutor`; see [shared_03_04](shared_03_04_runtime_and_execution-caching-and-reference.md#15-toolresultcache--cacheentry-sharedtool_cachepy). (Explicit in code)
 
 ---
 

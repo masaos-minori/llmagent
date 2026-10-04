@@ -27,7 +27,7 @@ A frozen dataclass `CacheEntry` with `output` (str), `is_error` (bool), and `cac
 
 ## 16. `ToolSpec` (`shared/tool_spec.py`)
 
-A frozen dataclass for DAG scheduling metadata. Fields include: `call_id` (LLM-assigned tool call id from `tool_calls[].id`), `name` (tool function name), `args` (dict[str, object]), `resource_scopes` (tuple[str, ...] of kind-prefixed resource-scope strings, e.g., `"filesystem:/a/b.txt"`, for conflict detection — resolved per call by `shared/resource_scope.py::resolve_resource_scopes()`), `requires_serial` (forces serialization regardless of parallel mode), and `is_write` (write/delete classification). `agent/tool_runner.py::_execute_with_dag()` builds a call-id-keyed `ToolSpec` for each approved tool call via `RuntimeToolRegistry.tool_spec_for_call()`.
+`ToolSpec` is the DAG scheduling metadata dataclass. Its fields and construction are described in [shared_02_02](shared_02_02_types_and_protocols-tool-and-execution-dto.md#7a-toolspec-sharedtool_specpy).
 
 ---
 
@@ -62,14 +62,14 @@ Manages hot-reloadable config fields for `LLMClient`. `HOT_CONFIG_FIELDS` is a t
 | Question | Answer |
 |---|---|
 | How to load configuration files? | `ConfigLoader().load("filename.toml")` or `load_all()` |
-| Where is the configuration ownership table? | **See [section 2a Configuration Ownership]** — Official reference for process isolation policies and per-process config files |
-| Does `load_all()` include `agent.toml`? | **Yes (it is the only one)** — `_BASE_CONFIG_FILES = ("agent.toml",)` contains only one entry; other configs (`crawler.toml`, etc.) are loaded individually by their respective processes (See [section 2a Configuration Ownership]) |
+| Where is the configuration ownership table? | **See [Process Separation Policy](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)** — Official reference for process isolation policies and per-process config files |
+| Does `load_all()` include `agent.toml`? | **Yes (it is the only one)** — `_BASE_CONFIG_FILES = ("agent.toml",)` contains only one entry; other configs (`crawler.toml`, etc.) are loaded individually by their respective processes (See [Process Separation Policy](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)) |
 | Does `ToolExecutor` cache results? | No. Result caching is provided only by the standalone `ToolResultCache`. |
 | Is `git_helper.get_repo_info()` reliable? | Returns `RepoInfoResult`; verify `.success` and `.failure_reason` (FailureReason enum) |
 | How to get accurate token counts? | `await get_token_count(history, tokenize_url, http)` |
 | How do LLM retries work? | Exponential backoff: `retry_base_delay * (2**attempt)` for 429/503 and connection errors |
 | What is the `ToolResultCache` key format? | `{tool_name}:{json_dumps(args)}` (using `shared.json_utils.dumps`) |
-| What are the health gate state transitions? | HEALTHY $\rightarrow$ DEGRADED $\rightarrow$ UNAVAILABLE $\rightarrow$ HALF_OPEN $\rightarrow$ HEALTHY/UNAVAILABLE (section 17) |
+| What are the health gate state transitions? | HEALTHY $\rightarrow$ DEGRADED $\rightarrow$ UNAVAILABLE $\rightarrow$ HALF_OPEN $\rightarrow$ HEALTHY/UNAVAILABLE (see the `McpServerHealthState` section above) |
 
 ## Keywords
 

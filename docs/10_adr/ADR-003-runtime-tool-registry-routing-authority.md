@@ -271,7 +271,7 @@ No confirmed deviations.
 - [mcp_03_02_tool-registry.md](../22_mcp/mcp_03_02_tool-registry.md) — Tool Registry Reference
 - [mcp_03_06_tool-runtime-availability-metadata.md](../22_mcp/mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Availability Metadata
 - [agent_06_01_tool-execution-and-approval-execution.md](../23_agent/agent_06_01_tool-execution-and-approval-execution.md) — Agent Tool Execution
-- [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](../40_shared/shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime
+- [shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](../40_shared/shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime
 
 ### Operations
 
