@@ -17,32 +17,11 @@ from tools.check_docs_quality import (
     check_duplicate_heading_numbers,
 )
 
-# Baseline snapshot of within-file content-similarity pairs. Regenerate it from
-# `python -m tools.check_docs_quality` output when docs are renamed or split
-# (last refreshed 2026-10-04 after the duplicate-section cleanup).
-EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset(
-    [
-        "00_governance/governance_03_issue-and-uncertainty-management.md:'Lifecycle' <-> 'Lifecycle'",
-        "24_eventbus/eventbus_05_dlq_endpoint.md:'Success Response' <-> 'Success Response'",
-        "24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md:'ACK Preconditions' <-> 'NACK Preconditions'",
-        "24_eventbus/eventbus_15_ack_nack_endpoints.md:'Bad Request Responses' <-> 'Bad Request Responses'",
-        "24_eventbus/eventbus_15_ack_nack_endpoints.md:'Forbidden Response' <-> 'Forbidden Response'",
-        "24_eventbus/eventbus_15_ack_nack_endpoints.md:'Not Found Response' <-> 'Not Found Response'",
-        "24_eventbus/eventbus_15_ack_nack_endpoints.md:'Success Response' <-> 'Success Response'",
-        "41_db/db_08_active_databases.md:'rag.sqlite' <-> 'session.sqlite'",
-    ]
-)
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# Baseline of within-file content-similarity pairs. Sections shorter than the
+# within-file token threshold are not compared, so the docs tree currently has
+# none; a new entry means real duplicated prose appeared inside one document.
+EXPECTED_WITHIN_FILE_PAIRS: frozenset[str] = frozenset()
 
-_ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-_DOCS_DIR = _ROOT_DIR / "docs"
-_KNOWN_DEFECT_PATH = (
-    _DOCS_DIR
-    / "40_shared"
-    / "shared_02_02_types_and_protocols-tool-and-execution-dto.md"
-)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -50,10 +29,13 @@ _KNOWN_DEFECT_PATH = (
 
 _ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 _DOCS_DIR = _ROOT_DIR / "docs"
-_KNOWN_DEFECT_PATH = (
-    _DOCS_DIR
-    / "40_shared"
-    / "shared_02_02_types_and_protocols-tool-and-execution-dto.md"
+
+# Long enough to clear the within-file token threshold.
+_LONG_TEXT = (
+    "This is boilerplate content that appears in many documents and describes the "
+    "purpose and scope of the section in detail. It explains the responsibilities "
+    "involved, the constraints that apply, the inputs that are accepted, the outputs "
+    "that are produced and the failure behavior that callers should expect."
 )
 
 
@@ -141,23 +123,22 @@ class TestComputeSectionSimilarity:
 
 
 class TestAlphabeticSuffixDuplicateHeading:
-    def test_true_positive_same_base_number(self):
-        """Two headings with same base number and same level → expect Issue."""
-        content = "# Title\n\n## 7a. First section\n\nSome text.\n\n## 7b. Second section\n\nMore text."
+    def test_true_positive_exact_duplicate_lettered_number(self):
+        """The same lettered number twice at the same level → expect Issue."""
+        content = "# Title\n\n## 7c. First section\n\nText.\n\n## 7c. Second section\n\nMore text."
         doc = _make_doc_file(content)
         issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])
         assert len(issues) == 1
-        assert "7a" in str(issues[0].message) or "7b" in str(issues[0].message)
+        assert issues[0].severity == "ERROR"
+        assert "7c" in issues[0].message
 
-    def test_true_positive_known_defect_case(self):
-        """The known ## 7c. duplicate in docs/40_shared/shared_02_02_types_and_protocols-tool-and-execution-dto.md → expect Issue."""
-        if not _KNOWN_DEFECT_PATH.exists():
-            pytest.skip(f"Test file not found: {_KNOWN_DEFECT_PATH}")
-        content = _KNOWN_DEFECT_PATH.read_text(encoding="utf-8")
-        doc = _make_doc_file(content, path=_KNOWN_DEFECT_PATH)
-        issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])
-        assert len(issues) >= 1
-        assert any("7c" in str(issue.message) for issue in issues)
+    def test_distinct_suffixes_of_one_base_are_not_reported(self):
+        """7a, 7b, 7c are a legitimate sub-numbering scheme → no Issue."""
+        content = (
+            "# Title\n\n## 7a. First\n\nA.\n\n## 7b. Second\n\nB.\n\n## 7c. Third\n\nC."
+        )
+        doc = _make_doc_file(content)
+        assert check_duplicate_heading_numbers(_DOCS_DIR, [doc]) == []
 
     def test_false_positive_different_base_numbers(self):
         """Different base numbers at same level → no Issue."""
@@ -180,6 +161,11 @@ class TestAlphabeticSuffixDuplicateHeading:
         issues = check_duplicate_heading_numbers(_DOCS_DIR, [doc])
         assert len(issues) == 0
 
+    def test_lettered_number_inside_fenced_block_is_ignored(self):
+        content = "# Title\n\n## 7c. Real\n\n```md\n## 7c. Example\n```\n"
+        doc = _make_doc_file(content)
+        assert check_duplicate_heading_numbers(_DOCS_DIR, [doc]) == []
+
 
 # ---------------------------------------------------------------------------
 # Tests for content-similarity check
@@ -189,10 +175,7 @@ class TestAlphabeticSuffixDuplicateHeading:
 class TestContentSimilarity:
     def test_true_positive_overlapping_sections(self):
         """Two sections with heavily overlapping body text → expect Issue."""
-        common_text = (
-            "This is boilerplate content that appears in many documents. "
-            "It describes the purpose and scope of the section."
-        )
+        common_text = _LONG_TEXT
         content = f"# Title\n\n## Section One\n\n{common_text}\n\n## Section Two\n\n{common_text}"
         doc = _make_doc_file(content)
         issues = check_content_similarity(_DOCS_DIR, [doc])
@@ -219,7 +202,7 @@ class TestContentSimilarity:
 
     def test_content_similarity_across_multiple_sections(self):
         """Three sections where two share heavy overlap → expect one Issue."""
-        shared = "Shared content between sections one and three."
+        shared = _LONG_TEXT
         content = f"# Title\n\n## Section One\n\n{shared}\n\n## Section Two\n\nUnique content here.\n\n## Section Three\n\n{shared}"
         doc = _make_doc_file(content)
         issues = check_content_similarity(_DOCS_DIR, [doc])
@@ -275,6 +258,20 @@ class TestExtractSectionsFencedCode:
         assert headings == ["Title", "Real"]
 
 
+class TestWithinFileSizeThreshold:
+    def test_short_parallel_sections_are_not_reported(self):
+        body = "Returned when the request succeeds."
+        content = f"# T\n\n## One\n\n{body}\n\n## Two\n\n{body}\n"
+        doc = _make_doc_file(content)
+        assert check_content_similarity(_DOCS_DIR, [doc]) == []
+
+    def test_long_duplicated_sections_are_still_reported(self):
+        body = " ".join(f"word{n}" for n in range(40))
+        content = f"# T\n\n## One\n\n{body}\n\n## Two\n\n{body}\n"
+        doc = _make_doc_file(content)
+        assert len(check_content_similarity(_DOCS_DIR, [doc])) >= 1
+
+
 class TestPlaceholderSections:
     def test_identical_placeholder_sections_in_one_file_are_not_reported(self):
         content = (
@@ -285,7 +282,7 @@ class TestPlaceholderSections:
         assert check_content_similarity(_DOCS_DIR, [doc]) == []
 
     def test_identical_real_content_in_one_file_is_still_reported(self):
-        body = "The service validates every request and rejects unknown fields."
+        body = _LONG_TEXT
         content = f"# T\n\n## One\n\n{body}\n\n## Two\n\n{body}\n"
         doc = _make_doc_file(content)
         assert len(check_content_similarity(_DOCS_DIR, [doc])) >= 1
@@ -380,30 +377,6 @@ class TestContentSimilarityTemplateSections:
 # ---------------------------------------------------------------------------
 # Integration tests
 # ---------------------------------------------------------------------------
-
-
-class TestIntegrationKnownDefect:
-    def test_run_checker_against_known_duplicate(self):
-        """Run checker against the known defect file → expect '7c' in output."""
-        if not _KNOWN_DEFECT_PATH.exists():
-            pytest.skip(f"Test file not found: {_KNOWN_DEFECT_PATH}")
-
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "tools.check_docs_quality",
-                "--only",
-                "duplicate_heading_numbers",
-                str(_KNOWN_DEFECT_PATH),
-            ],
-            capture_output=True,
-            text=True,
-            cwd=str(_ROOT_DIR),
-        )
-
-        # Warnings don't trigger non-zero exit; check output content instead
-        assert "7c" in result.stdout or "7c" in result.stderr
 
 
 class TestRegressionFullDocsTree:
