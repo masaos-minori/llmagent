@@ -39,7 +39,7 @@ Dispatch priority of `ToolExecutor.execute(tool_name, args)`:
 | `serial_tool_calls=False` (default) | DAG Scheduling (Phase construction + conflict graph) |
 | `serial_tool_calls=True` | `force_serial=True` — Bypasses phase/conflict graph construction entirely and generates individual serial phases in calling order |
 
-**Design judgment**: `_execute_with_dag()` is the only execution path; there is no implementation-level switch back to "legacy behavior (standard execution)". While `serial_tool_calls=True` still executes all calls sequentially, this is achieved through input to a single scheduler rather than branching to a different function.
+**Design judgment**: `_execute_with_dag()` is the only execution path; `serial_tool_calls=True` executes all calls sequentially through input to the single scheduler rather than by branching to a different function.
 
 ### DAG Tool Scheduler Design Decisions
 

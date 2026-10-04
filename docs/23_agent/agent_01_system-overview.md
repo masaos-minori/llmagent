@@ -67,7 +67,6 @@ The system overview should answer "what does this agent do" and "how does it fit
 | History compression threshold | `context_char_limit` (default 8000 chars) |
 | HTTP timeout | `http_timeout` (default 30.0 sec) |
 | LLM retry limit | `llm_max_retries` (default 3) |
-| Tool result cache TTL | Removed (see REQ-002) |
 
 ## Operational Notes
 

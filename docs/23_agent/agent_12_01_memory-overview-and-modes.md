@@ -15,9 +15,6 @@ related:
 ---
 # Memory Layer — Overview and Modes (Part 1)
 
-## Keywords
-<placeholder>
-
 - Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
 - Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
 
@@ -91,3 +88,16 @@ If embedding retrieval fails, processing continues and the entry is saved withou
 Only when embedding retrieval succeeds does the duplicate link discovery perform a KNN nearest neighbor search and record related links in the `memory_links` table for entries within a distance less than `DedupPolicy.threshold` (default 0.3). Insertion failures (`OperationalError` / `IntegrityError`) are ignored with only a warning log.
 
 Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.SKIP_NEW`, but semantic writes / episodic writes (manual writes) intentionally bypass this deduplication.
+
+---
+
+## Keywords
+
+memory layer
+memory modes
+optional memory layer
+FTS5 fallback
+embedding endpoint
+deduplication
+on_session_stop
+ctx.services.memory

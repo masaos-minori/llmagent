@@ -45,10 +45,6 @@ Documents the structure and constraints of tool and memory configurations.
 - `tool_result_max_llm_chars`: Maximum characters from tool execution results added to LLM context.
 - `tool_results_turn_max_chars`: Cumulative maximum characters from tool execution results added to LLM context within one turn.
 
-#### Caching
-
-Removed (see REQ-002).
-
 #### Parallel Execution
 
 - `tool_concurrency_limits`: Server key → Maximum number of concurrent calls.

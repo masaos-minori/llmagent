@@ -47,11 +47,6 @@ The memory layer is controlled by three independent gates: complete bypass via a
 
 None currently known.
 
-## Memory Layer — Module Reference
-
-- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
-- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
-
 ## Data Model
 
 ### MemoryEntry (Stored in JSONL + SQLite)
@@ -60,18 +55,12 @@ None currently known.
 |---|---|---|
 | `memory_id` | `str` | UUID v4, Primary Key |
 | `memory_type` | `MemoryType` | `"semantic"` \| `"episodic"` |
-| `source_type` | `SourceType` | `"rule"` \| `"conversation"` \| `"decision"` \| `"failure"` (Note: Actual values in `StrEnum` are lowercase. This table uses capitalized names for legacy categorization; refer to `agent/memory/types.py` for actual values.) |
+| `source_type` | `SourceType` | `"rule"` \| `"conversation"` \| `"decision"` \| `"failure"` |
 | `session_id` | `int \| None` | Parent session ID |
 | `turn_id` | `str \| None` | UUID linking to the originating conversation turn |
 | `project` | `str` | Project name for context filtering |
 | `repo` | `str` | Repository name for context filtering |
 | `branch` | `str` | Git branch for context filtering |
-
-> **Current Behavior:** When a non-empty branch is specified, search includes ONLY the following via hard SQL filtering:
-> - Memories where `branch = ''` (Global memories, always included)
-> - Memories where `branch = <current branch>`
->
-> Memories from other branches are completely excluded (not just deprioritized).
 
 | `content` | `str` | Full text of the message |
 | `summary` | `str` | Short summary of the content |
@@ -80,6 +69,12 @@ None currently known.
 | `pinned` | `bool` | If `True`, injected at every session start |
 | `created_at` | `str` | ISO 8601 UTC timestamp. Set by `write_ops.add()` |
 | `updated_at` | `str` | ISO 8601 UTC timestamp |
+
+> **Branch filtering:** When a non-empty branch is specified, search includes ONLY the following via hard SQL filtering:
+> - Memories where `branch = ''` (Global memories, always included)
+> - Memories where `branch = <current branch>`
+>
+> Memories from other branches are completely excluded (not just deprioritized).
 
 **DB Mapping:** Stored in the `memories` table (SQLite), and one line per entry is written to the JSONL file. The FTS5 index is in `memories_fts`. The vector index is in `memories_vec` (if embeddings are enabled).
 

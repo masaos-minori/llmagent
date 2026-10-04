@@ -90,7 +90,7 @@ When schema/command references change, verify that `agent_01_system-overview.md`
 | 04 | State/persistence — state model, history compression, platform databases |
 | 05 | LLM/streaming — LLMClient API, SSE, reconnect |
 | 06 | Tool exec/approval — execution, approval, concurrency safety, canonical |
-| 07 | CLI/commands — CLI reference, CLIView, command registry, purpose, REPL I/O, hot-reload, migration notes |
+| 07 | CLI/commands — CLI reference, CLIView, command registry, purpose, REPL I/O, hot-reload, slash commands |
 | 08 | Configuration — loading agent config, LLM/RAG, tools/memory, MCP/approval/observability |
 | 09 | Data layer — session DB, access patterns, indexing boundaries |
 | 10 | Operations — startup/health, audit/OTel, workflow observability, validation/troubleshooting, monitoring, RAG diagnostics/memory |

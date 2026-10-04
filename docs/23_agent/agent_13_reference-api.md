@@ -11,9 +11,6 @@ related:
 ---
 # Agent Reference API
 
-## Keywords
-<placeholder>
-
 ## Purpose
 
 A concise per-module API reference including roles, primary public APIs, callers, callees, relevant configurations, and failure behavior. For full method signatures, refer to the respective chapters linked below.
@@ -171,7 +168,7 @@ Full details: [agent_07_01_cli-and-commands-cli-reference.md CLIView](agent_07_0
 
 ## AgentSession (`agent/session.py`)
 
-- **Role:** Persistence of sessions and messages to SQLite (RAG document operations have been migrated to rag-pipeline-mcp).
+- **Role:** Persistence of sessions and messages to SQLite (RAG document operations are performed by rag-pipeline-mcp).
 - **Primary API:** `start()`, `save(role, content)`, `save_diagnostic(content)`, `fetch_messages(session_id)`
 - **Skip Counters:** `skipped_no_session_count`, `skipped_invalid_role_count` (read-only properties per session)
 - **Strict Mode:** `AgentSession(strict_mode=True)` raises a `RuntimeError` on the first skipped save instead of warning.
@@ -208,3 +205,14 @@ Full details: [agent_08_01_configuration-loading-agent-config.md](agent_08_01_co
 
 **Activation:** If `use_memory_layer=True` (default), `ctx.services.memory` becomes active.
 Always null-check before accessing memory services.
+
+---
+
+## Keywords
+
+AgentREPL
+Orchestrator
+AgentContext
+AgentSession
+reference API
+agent runtime

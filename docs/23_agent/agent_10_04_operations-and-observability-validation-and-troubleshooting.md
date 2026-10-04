@@ -142,14 +142,6 @@ loopback-only exposure, and MCP authentication. It covers:
 - External unreachability from outside the loopback interface
   (`test_external_unreachability_or_manual_fallback`)
 
-All three dependency Plans (`localremoval`, `plans/done/20260903-091417_plan.md`;
-`loopbackonly`, `plans/done/20260903-091921_plan.md`; `mcpauth`,
-`plans/done/20260903-092407_plan.md`) have landed as of 2026-09-04. Every test
-in this suite now exercises real, current production code and passes —
-`test_production_only_rejects_local_mode`,
-`test_mcp_server_wildcard_bind_is_rejected`, and
-`test_mcp_auth_token_redacted_in_logs` no longer carry `xfail` markers.
-
 ### Platform-Capability Requirements and Manual Fallback
 
 `test_external_unreachability_or_manual_fallback` uses `unshare --net`
