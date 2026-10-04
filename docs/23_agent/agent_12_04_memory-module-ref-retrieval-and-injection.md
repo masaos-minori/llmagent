@@ -21,21 +21,18 @@ Defines the responsibility boundaries for memory searching (FTS5 + KNN + Hybrid)
 
 ## Design Intent
 
-Since the memory layer is optional, all public APIs are designed to be safely guarded when `ctx.services.memory is None`. Core types are defined as immutable DTOs and are compatible with both JSONL and SQLite storage layers.
+Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (memory layer is optional: guarded public APIs and shared immutable DTOs).
 
 ## Responsibility Boundary
 
-- **Memory Layer owns:** Persistence, search, and injection of memory entries.
-- **Memory Layer does NOT own:** LLM context generation, tool execution, or RAG document search.
+Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (the Memory Layer owns persistence, search and injection of memory entries).
 
 ## Key Constraints
 
-- If `use_memory_layer = false` is set, the memory service is not constructed and all memory operations are completely bypassed.
-- `VectorRetriever.knn_search()` raises an `OperationalError` if the `memories_vec` table does not exist (exceptions propagate if embeddings are enabled while tables are uninitialized).
+- Common constraints (`use_memory_layer = false` bypass; `VectorRetriever.knn_search()` on a missing `memories_vec` table): see Key Constraints in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md).
+- Embedding, deduplication and archive-write constraints: see Key Constraints in [agent_12_05_memory-module-ref-extraction-and-facade.md](agent_12_05_memory-module-ref-extraction-and-facade.md).
 - `HybridRetriever.search()` performs FTS only if embeddings are unavailable; otherwise, it performs RRF merging.
 - Default `InjectionPolicy`: `max_semantic=5`, `max_episodic=3`, `min_importance=0.5`, `max_snippet_length=500`.
-- If embedding retrieval fails, processing continues and the entry is saved without embeddings (`stat_embed_skip` counter increases).
-- Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.SKIP_NEW`, but manual writes intentionally bypass this deduplication.
 - `knn_search` uses L2/Euclidean distance metric (explicit `distance_metric=L2` in vec0 DDL).
 
 ## Operational Notes
@@ -49,8 +46,7 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 
 ## Known Limitations
 
-- If a single source message is split into multiple chunks, each appears as an independent hit during search (fragmentation).
-- Enterprise filters based on `RETENTION_DAYS` retention period are currently unreachable (NC-007).
+Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (chunk fragmentation in search hits; `RETENTION_DAYS` filters unreachable).
 
 ## Related Docs
 

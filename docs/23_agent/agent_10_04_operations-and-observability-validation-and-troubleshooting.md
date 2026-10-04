@@ -41,24 +41,15 @@ The agent unconditionally verifies the existence of workflow definition files be
 
 ### SIGINT/SIGTERM Interruption During Startup Sequence
 
-If SIGINT/SIGTERM is received during the startup sequence, a `ShutdownInterrupted` exception is raised, triggering a rollback. The HTTP subprocess health polling loop is also immediately interrupted by the shutdown event.
+See [SIGINT/SIGTERM Interruption During Startup](agent_10_01_operations-and-observability-startup-and-health.md#sigintsigterm-interruption-during-startup) in the startup and health document.
 
 ### Restoration of Pending Post-Execution Approval States
 
-If post-execution approvals from a previous session remain unresolved upon agent startup, they are restored from `workflow.sqlite` via `StateStore.find_latest_pending_approval()`. Only one such approval is tracked at a time, applying the latest record across all sessions.
-
-If a restoration value is set while a `pending_approval_task_id` is already configured, a `WARNING` level log is emitted, but the value is overwritten (the process does not abort).
+See [Restoration of Pending Post-Execution Approvals](agent_10_01_operations-and-observability-startup-and-health.md#restoration-of-pending-post-execution-approvals) in the startup and health document.
 
 ### Resource Cleanup on Shutdown
 
-Resources are closed in the following order within a `finally` block:
-
-1. WAL checkpoint (with PASSIVE $\rightarrow$ TRUNCATE fallback)
-2. WAL backup (with path validation)
-3. `lifecycle.shutdown_all()`
-4. `http.aclose()`
-
-Each step is independently guarded so that if one fails, others still execute. WAL backups are allowed only within paths matching `allowed_root`, and symlinks are resolved before validation.
+See [Resource Cleanup on Shutdown](agent_10_01_operations-and-observability-startup-and-health.md#resource-cleanup-on-shutdown) in the startup and health document.
 
 ## Workflow Deployment Runbook
 

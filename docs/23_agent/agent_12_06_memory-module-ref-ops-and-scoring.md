@@ -17,7 +17,6 @@ related:
   - agent_12_05_memory-module-ref-extraction-and-facade.md
 ---
 
-
 # Memory Layer — Module Reference: Ops and Scoring
 
 - Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
@@ -29,24 +28,17 @@ Defines the responsibility boundaries for write operations, scoring, RRF merging
 
 ## Design Intent
 
-Since the memory layer is optional, all public APIs are designed to be safely guarded when `ctx.services.memory is None`. Core types are defined as immutable DTOs and are compatible with both JSONL and SQLite storage layers.
+Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (memory layer is optional: guarded public APIs and shared immutable DTOs).
 
 ## Responsibility Boundary
 
-- **Memory Layer owns:** Persistence, search, and injection of memory entries.
-- **Memory Layer does NOT own:** LLM context generation, tool execution, or RAG document search.
+Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (the Memory Layer owns persistence, search and injection of memory entries).
 
 ## Key Constraints
 
-- If `use_memory_layer = false` is set, the memory service is not constructed and all memory operations are completely bypassed.
-- `VectorRetriever.knn_search()` raises an `OperationalError` if the `memories_vec` table does not exist (exceptions propagate if embeddings are enabled while tables are uninitialized).
-- When `EmbeddingClient.enabled=False`, `fetch()` returns `EmbeddingResult(success=False, error_kind=DISABLED)` immediately without making an HTTP call.
-- If embedding retrieval fails, processing continues and the entry is saved without embeddings (`stat_embed_skip` counter increases).
-- `JsonlMemoryStore` is an append-only archive. Deletions and changes to pin/unpin status are not replayed.
-- Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.SKIP_NEW`, but manual writes intentionally bypass this deduplication.
+- Common constraints (`use_memory_layer = false` bypass; `VectorRetriever.knn_search()` on a missing `memories_vec` table): see Key Constraints in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md).
+- Embedding, deduplication and archive-write constraints: see Key Constraints in [agent_12_05_memory-module-ref-extraction-and-facade.md](agent_12_05_memory-module-ref-extraction-and-facade.md).
 - After retrieving embeddings, the top 5 nearest neighbors via KNN are searched; if an existing entry is found that is closer than the threshold for its `source_type`, the new entry is discarded (SKIP_NEW).
-- If embedding retrieval fails, saving to SQLite/JSONL continues without embeddings (fail-open).
-- If writing to JSONL fails with `OSError`, a warning is logged and processing continues (not treated as a fatal error since SQLite is the source of truth).
 - If insertion into `memory_links` fails with `sqlite3.OperationalError`/`IntegrityError`, only a warning is logged and processing continues.
 
 ## Operational Notes
@@ -59,8 +51,7 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 
 ## Known Limitations
 
-- If a single source message is split into multiple chunks, each appears as an independent hit during search (fragmentation).
-- Enterprise filters based on `RETENTION_DAYS` retention period are currently unreachable (NC-007).
+Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (chunk fragmentation in search hits; `RETENTION_DAYS` filters unreachable).
 
 ## Related Docs
 

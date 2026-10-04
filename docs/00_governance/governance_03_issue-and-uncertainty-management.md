@@ -210,7 +210,7 @@ An item is removed from this active inventory once it is resolved or no longer a
 
 ### Lifecycle
 
-Open → Investigating → Resolved, or removed from this inventory once resolved or no longer applicable to the current system.
+Same as the Lifecycle in Part 3: Open → Investigating → Resolved, or removed from this inventory once resolved or no longer applicable to the current system.
 
 ### Resolution Rule
 

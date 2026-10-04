@@ -198,7 +198,7 @@ Invalid combinations fail startup with actionable error messages naming both con
 
 ### Recovery on Reconnection
 
-Reconnecting with a `consumer_id` resumes from the last acknowledged offset. If no offsets have been acknowledged, it starts from `seq=0`. It is also possible to start from a specific position using `since_seq=N`.
+See [Resume Behavior](eventbus_06_dlq_offsets_and_delivery_semantics.md#resume-behavior) in the DLQ, offsets and delivery semantics document.
 
 ### Subscriber Count
 

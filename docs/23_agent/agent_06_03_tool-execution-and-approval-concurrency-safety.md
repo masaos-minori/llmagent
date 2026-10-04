@@ -90,7 +90,7 @@ Workflow-level approval states are persisted in the `approvals` table of `workfl
 
 ## Known Limitations
 
-- Since GitHub tools are not included in `approval_dry_run_tools` by default, this path is currently dormant.
+See Known Limitations in [agent_06_02_tool-execution-and-approval-approval.md](agent_06_02_tool-execution-and-approval-approval.md) (the dry-run path for GitHub tools is currently dormant).
 
 ## Related Docs
 

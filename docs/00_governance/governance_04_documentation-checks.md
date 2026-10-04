@@ -271,19 +271,13 @@ left neither fixed nor excepted is treated as incomplete review, not a passing P
 
 ### 14. Cross-Area Reference Validation
 
-When referencing other documents:
-
-- Use relative paths from the current document's directory
-- Include anchor links where applicable (e.g., `#section-name`)
-- For cross-area references, use full filenames with path
-- For same-area references, use just the filename without extension
-- For ADR references, use the ADR number format (ADR-001) rather than the filename
+Verify that cross-document references follow the Link Rules in [governance_02_documentation-metadata.md](governance_02_documentation-metadata.md#link-rules).
 
 **Link format examples:**
-- Same area: `[Agent Guide](<agent_01_system-overview_00_document-guide.md>)`
-- Cross area: `[RAG Specification](<rag_01_system_overview_00_document-guide.md>)`
+- Same area: `[Agent Guide](agent_00_document-guide.md)`
+- Cross area: `[RAG Guide](../21_rag/rag_00_document-guide.md)`
 - ADR: `[ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md)`
-- Internal anchor: `[Section](<agent_01_system-overview_00_document-guide.md>#workflow-engine)`
+- Internal anchor: `[Section](agent_01_system-overview.md#workflow-engine-execution)`
 
 ## Governance Verification Matrix
 
@@ -388,15 +382,7 @@ See [Policy's Maintenance Rules](governance_01_documentation-policy.md#maintenan
 
 ## Non-Goals
 
-This document does not cover:
-
-- Defining how AI agents parse or use metadata fields
-- Specifying enforcement mechanisms for metadata compliance
-- Defining metadata for non-document assets (code, configuration files)
-- Document formatting conventions within Specification documents
-- Individual area architectural decisions
-- Testing strategy per area
-- Source code review processes
+Same as the Non-Goals in [governance_01_documentation-policy.md](governance_01_documentation-policy.md#non-goals).
 
 ## Related Documents
 
