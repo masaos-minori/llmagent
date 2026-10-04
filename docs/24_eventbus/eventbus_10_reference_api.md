@@ -130,7 +130,9 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |---|---|---|---|
 | `scripts/eventbus/ack_route.py` | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
 |  | `nack` | `async def nack(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
+| `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request) -> dict[str, Any]` | Update `consumer_authorization`/`topic_authorization` at runtime and |
 | `scripts/eventbus/app.py` | `lifespan` | `async def lifespan(app) -> AsyncGenerator[None]` | FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown. |
+|  | `resolve_subscribe_identity` | `async def resolve_subscribe_identity(request, consumer_id, topic, principal) -> Principal` | — |
 |  | `health` | `async def health(request) -> JSONResponse` | Health check endpoint for the event bus service. |
 |  | `publish` | `async def publish(request) -> dict[str, Any]` | Publish a new event to the event bus. |
 |  | `replay` | `async def replay(request, since_seq, fmt, limit, offset, _principal) -> Any` | Replay events from a given sequence number via SSE or JSON. |
@@ -139,6 +141,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `dlq_requeue` | `async def dlq_requeue(request, event_id, _principal) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active queue. |
 |  | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
 |  | `nack` | `async def nack(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
+|  | `admin_topics_authorization` | `async def admin_topics_authorization(request, _principal) -> dict[str, Any]` | Update consumer_authorization/topic_authorization at runtime. |
 | `scripts/eventbus/audit.py` | `AuditRecord` | `class AuditRecord` | Structured payload for one EventBus audit record. |
 |  | `log_auth_failure` | `def log_auth_failure(consumer_id, request_id, route, target, error_type, detail) -> None` | Emit one JSON-lines audit record for an authorization failure. |
 |  | `log_privileged_action` | `def log_privileged_action(consumer_id, request_id, route, target, detail) -> None` | Emit one JSON-lines audit record for a privileged action. |
@@ -156,30 +159,31 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `get_schema_path` | `def get_schema_path() -> Path` | Return the path to the Event Envelope JSON schema file. |
 |  | `EventBusConfig` | `class EventBusConfig` | Immutable configuration for the Event Bus service. |
 |  | `load_config` | `def load_config(path) -> EventBusConfig` | Load and validate the EventBus TOML configuration file. Callers must always pass get_config_path()'s return value — this function does not itself restrict which path is read; see tests/eventbus/test_eventbus_config.py for the call-site regression test that locks this invariant. |
-| `scripts/eventbus/db.py` | `get_db_lock` | `def get_db_lock() -> threading.Lock` | Return the lock that must be held for all DB operations. |
+| `scripts/eventbus/db_conn.py` | `get_db_lock` | `def get_db_lock() -> threading.Lock` | Return the lock that must be held for all DB operations. |
 |  | `open_db` | `def open_db(db_path) -> sqlite3.Connection` | Return a shared SQLite connection for the Event Bus. |
+|  | `check_db` | `def check_db(conn) -> bool` | Return True if the DB connection is usable. |
+| `scripts/eventbus/delivery_repo.py` | `NackResult` | `class NackResult` | Return value for nack_event(). |
 |  | `ack_event` | `def ack_event(conn, event_id, now) -> tuple[bool, bool]` | Set acked_at on an event. Idempotent — will not overwrite existing ack. |
-|  | `nack_event` | `def nack_event(conn, event_id, consumer_id) -> tuple[int, int]` | Increment delivery_failure_count and cycle_failure_count for an event. |
+|  | `nack_event` | `def nack_event(conn, event_id, consumer_id) -> NackResult` | Increment delivery_failure_count and cycle_failure_count for an event. |
 |  | `ack_event_for_consumer` | `def ack_event_for_consumer(conn, event_id, consumer_id, now) -> tuple[bool, bool, int \| None]` | Acknowledge an event for a specific consumer atomically. |
 |  | `get_consumer_offset` | `def get_consumer_offset(conn, consumer_id) -> int` | Return the last-committed sequence offset for a consumer, or 0 if none exists. |
-|  | `check_db` | `def check_db(conn) -> bool` | Return True if the DB connection is usable. |
-|  | `insert_event` | `def insert_event(conn, event_id, topic, payload_str, producer, published_at) -> tuple[int \| None, bool, str]` | INSERT OR IGNORE. Returns (seq, inserted, status). |
-|  | `get_seq` | `def get_seq(conn, event_id) -> int` | Return the seq for an existing event_id; 0 if not found. |
-|  | `fetch_events_since` | `def fetch_events_since(conn, since_seq, topics, limit, offset) -> list[sqlite3.Row]` | Return events with seq > since_seq, optionally filtered by topics. |
-|  | `fetch_dlq` | `def fetch_dlq(conn, limit, offset) -> list[sqlite3.Row]` | Return events currently in the DLQ (dlq_at IS NOT NULL). |
-|  | `count_dlq` | `def count_dlq(conn) -> int` | Return the number of events currently in the DLQ. |
-|  | `requeue_event` | `def requeue_event(conn, event_id) -> bool` | Increment dlq_requeue_count and clear dlq_at. Returns True if the event was found in DLQ. |
-|  | `redeliver_event` | `def redeliver_event(conn, event_id, now) -> tuple[bool, str \| None]` | Redeliver a dead-lettered event by inserting a new row with lineage. |
-|  | `migrate_legacy_offsets` | `def migrate_legacy_offsets(conn, offsets_dir) -> list[str]` | Migrate legacy file-based offsets into the consumer_offsets table. |
 | `scripts/eventbus/dlq.py` | `DlqEventRecord` | `class DlqEventRecord` | A single event record written to the dead-letter queue as a JSON file on disk. |
 |  | `sweep_orphans` | `def sweep_orphans(db, deadletter_dir, max_retry) -> int` | Sweep events that reached retry limit but were not promoted inline. |
 |  | `promote_single` | `def promote_single(db, deadletter_dir, event_id) -> bool` | Promote one event to DLQ immediately (inline on nack threshold). |
 |  | `archive_dlq_record` | `def archive_dlq_record(deadletter_dir, event_id) -> bool` | Move {deadletter_dir}/{event_id}.json to {deadletter_dir}/requeued/{event_id}_{timestamp}.json. |
+| `scripts/eventbus/dlq_repo.py` | `requeue_event` | `def requeue_event(conn, event_id) -> bool` | Increment dlq_requeue_count and clear dlq_at. Returns True if the event was found in DLQ. |
+|  | `redeliver_event` | `def redeliver_event(conn, event_id, now) -> tuple[bool, str \| None]` | Redeliver a dead-lettered event by inserting a new row with lineage. |
 | `scripts/eventbus/dlq_route.py` | `dlq_list` | `async def dlq_list(request, limit, offset) -> dict[str, Any]` | List dead-letter queue entries with pagination support. |
 |  | `dlq_requeue` | `async def dlq_requeue(request, event_id) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active event queue. |
+| `scripts/eventbus/event_repo.py` | `insert_event` | `def insert_event(conn, event_id, topic, payload_str, producer, published_at) -> tuple[int \| None, bool, str]` | INSERT OR IGNORE. Returns (seq, inserted, status). |
+|  | `get_seq` | `def get_seq(conn, event_id) -> int` | Return the seq for an existing event_id; 0 if not found. |
+|  | `fetch_events_since` | `def fetch_events_since(conn, since_seq, topics, limit, offset) -> list[sqlite3.Row]` | Return events with seq > since_seq, optionally filtered by topics. |
+|  | `fetch_dlq` | `def fetch_dlq(conn, limit, offset) -> list[sqlite3.Row]` | Return events currently in the DLQ (dlq_at IS NOT NULL). |
+|  | `count_dlq` | `def count_dlq(conn) -> int` | Return the number of events currently in the DLQ. |
 | `scripts/eventbus/health_route.py` | `health_check` | `async def health_check(request) -> JSONResponse` | Return DB/broker/DLQ task health status as a JSON response. |
 | `scripts/eventbus/json_utils.py` | `dumps` | `def dumps(obj, option) -> str` | — |
 |  | `now_iso` | `def now_iso() -> str` | — |
+| `scripts/eventbus/offset_migrator.py` | `migrate_legacy_offsets` | `def migrate_legacy_offsets(conn, offsets_dir) -> list[str]` | Migrate legacy file-based offsets into the consumer_offsets table. |
 | `scripts/eventbus/offsets.py` | `CorruptOffsetError` | `class CorruptOffsetError` | Raised when offset file content is corrupted. |
 |  | `read_offset` | `def read_offset(offsets_dir, consumer_id) -> int` | Read the last committed sequence offset for a consumer from disk. |
 |  | `write_offset` | `def write_offset(offsets_dir, consumer_id, seq) -> None` | Write the current sequence offset for a consumer to disk. |

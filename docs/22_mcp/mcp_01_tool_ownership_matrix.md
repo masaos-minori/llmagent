@@ -180,7 +180,7 @@ routing
 ## Server Port & Tool Reference (auto-generated)
 
 <!-- AUTO-GENERATED: gen_mcp_reference.py port-tool-reference -->
-Generated from `config/agent.toml` and `scripts/mcp_servers/**/*.py` TOOL_LIST definitions. Do not hand-edit between the guard comments; run `python tools/gen_mcp_reference.py` to refresh.
+Generated from `config/agent.toml` and `scripts/mcp_servers/**/*.py` TOOL_LIST definitions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type mcp` to refresh.
 
 | Server | Port | Tool Count | Tool Names |
 |---|---|---|---|

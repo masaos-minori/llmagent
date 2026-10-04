@@ -57,7 +57,22 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 | `scripts/agent/conversation_state_manager.py` | `ConversationStateManager` | `class ConversationStateManager` | Manages conversation history state across turns. |
 | `scripts/agent/diagnostic_store.py` | `DiagnosticStore` | `class DiagnosticStore` | Dedicated store for diagnostic messages, separate from conversation history. |
 | `scripts/agent/error_injection_service.py` | `ErrorInjectionService` | `class ErrorInjectionService` | Service for handling synthetic error injection in agent turns. |
-| `scripts/agent/factory.py` | `init_tracer` | `def init_tracer(ctx) -> object` | Build and return an OTel tracer; returns a NoOp stub when otel_enabled=False. |
+| `scripts/agent/eventbus_client.py` | `EventBusPublishErrorKind` | `class EventBusPublishErrorKind` | Enumeration of publish failure reasons. |
+|  | `EventBusPublishResult` | `class EventBusPublishResult` | Result of a publish attempt. |
+|  | `EventBusClientConfig` | `class EventBusClientConfig` | Configuration for the Event Bus publish client connection. |
+|  | `EventBusClient` | `class EventBusClient` | Async HTTP client for publishing events to Event Bus. |
+| `scripts/agent/eventbus_subscriber.py` | `EventBusStreamError` | `class EventBusStreamError` | Raised when the subscribe stream cannot be established or maintained |
+|  | `EventBusSubscriberConfig` | `class EventBusSubscriberConfig` | Configuration for the Event Bus SSE subscribe client connection. |
+|  | `EventBusEvent` | `class EventBusEvent` | One event received from the SSE stream. |
+|  | `EventBusSubscriber` | `class EventBusSubscriber` | Async SSE client for Event Bus's /subscribe endpoint. |
+| `scripts/agent/eventbus_topic_admin_client.py` | `EventBusTopicAdminErrorKind` | `class EventBusTopicAdminErrorKind` | Enumeration of admin-update failure reasons. |
+|  | `EventBusTopicAdminResult` | `class EventBusTopicAdminResult` | Result of an authorization-update attempt. |
+|  | `EventBusTopicAdminClientConfig` | `class EventBusTopicAdminClientConfig` | Configuration for the Event Bus admin topics-authorization client. |
+|  | `EventBusTopicAdminClient` | `class EventBusTopicAdminClient` | Async HTTP client for Event Bus's admin topics-authorization endpoint. |
+| `scripts/agent/factory.py` | `LlmClientResult` | `class LlmClientResult` | Result of building httpx.AsyncClient and LLMClient. |
+|  | `ToolExecutorResult` | `class ToolExecutorResult` | Result of building ToolExecutor, lifecycle manager, and health registry. |
+|  | `HistoryManagerResult` | `class HistoryManagerResult` | Result of building HistoryManager. |
+|  | `init_tracer` | `def init_tracer(ctx) -> object` | Build and return an OTel tracer; returns a NoOp stub when otel_enabled=False. |
 |  | `build_agent_context` | `def build_agent_context(ctx, view) -> None` | Inject all services into ctx.services. |
 | `scripts/agent/history.py` | `HistoryCompressionError` | `class HistoryCompressionError` | Raised when LLM-based history compression fails. |
 |  | `CompressResult` | `class CompressResult` | Metadata returned by compress() and force_compress(). |
@@ -69,7 +84,6 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 | `scripts/agent/http_lifecycle_errors.py` | `StartupFailure` | `class StartupFailure` | Records the full stderr output and reason when an HTTP subprocess fails to start. |
 |  | `HttpStartupError` | `class HttpStartupError` | Raised when an HTTP subprocess MCP server fails to start. |
 | `scripts/agent/http_lifecycle_health_checker.py` | `HealthChecker` | `class HealthChecker` | Performs HTTP health checks against a running server. |
-|  | `ProcessSnapshotProvider` | `class ProcessSnapshotProvider` | Provides process snapshots via /proc filesystem access. |
 | `scripts/agent/http_lifecycle_process_terminator.py` | `ProcessTerminator` | `class ProcessTerminator` | Manages process termination with SIGTERM → SIGKILL escalation. |
 | `scripts/agent/http_lifecycle_shutdown_coordinator.py` | `ShutdownCoordinator` | `class ShutdownCoordinator` | Coordinates shutdown of HTTP server process and associated resources. |
 | `scripts/agent/http_lifecycle_stderr_log_manager.py` | `StderrLogManager` | `class StderrLogManager` | Manages stderr log files for HTTP subprocess MCP servers. |
@@ -80,7 +94,7 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 |  | `handle_partial_completion` | `def handle_partial_completion(e, ctx, diagnostic_store) -> None` | Save partial text to diagnostic channel only. |
 |  | `handle_non_partial_error` | `def handle_non_partial_error(e, ctx, diagnostic_store) -> None` | Save non-partial error to diagnostic channel and log. |
 | `scripts/agent/llm_turn_executor.py` | `LlmTurnExecutor` | `class LlmTurnExecutor` | Executes an LLM turn: streaming + inner tool-call loop. |
-| `scripts/agent/llm_turn_runner.py` | `LLMTurnRunner` | `class LLMTurnRunner` | Legacy alias for `LlmTurnExecutor`; kept for backward compatibility during transition. |
+| `scripts/agent/llm_turn_runner.py` | `LLMTurnRunner` | `class LLMTurnRunner` | Manages the inner LLM streaming + tool-call loop for one agent turn. |
 | `scripts/agent/mdq_rag_classifier.py` | `MdqRagMode` | `class MdqRagMode` | Mode for selecting between MDQ and RAG search strategies. |
 |  | `classify_query` | `def classify_query(query) -> MdqRagMode` | Return MDQ if query contains Markdown-structural terms; RAG otherwise. |
 |  | `resolve_mode` | `def resolve_mode(query, config_mode) -> MdqRagMode` | Config override takes precedence; AUTO falls back to classifier heuristics. |
