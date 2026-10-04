@@ -119,11 +119,6 @@ Port `8011` was deprecated (formerly `sqlite-mcp`) and is intentionally absent f
 - Configuration changes to one process's config file must be reviewed against its dependency boundaries (e.g., changing `agent.toml`'s `mcp_servers` section affects which MCP servers the Agent CLI can reach).
 - Cross-component state transitions (Agent CLI ↔ LLM service ↔ MCP server) require coordinated testing when any component's contract changes.
 
-## Related Documents
-
-- `overview-arch-02-pipelines.md`
-- `overview-arch-03-features.md`
-
 ## Keywords
 
 process-architecture

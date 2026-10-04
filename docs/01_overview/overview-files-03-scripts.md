@@ -69,10 +69,6 @@ Architecture Overview → [`overview-arch-01-process.md`](overview-arch-01-proce
 
 Refer to the repository implementation tree for the full list of files.
 
-## Related Documents
-
-- `overview-files-03-scripts.md`
-
 ## Keywords
 
 scripts

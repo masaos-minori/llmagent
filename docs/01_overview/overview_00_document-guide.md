@@ -43,18 +43,6 @@ related:
 
 Canonical sources for this area are defined in the [Canonical Source Registry](../00_governance/governance_01_documentation-policy.md#canonical-source-registry). This area guide does not maintain an independent mapping.
 
-## Related Documents
-
-- `overview-arch-01-process.md`
-- `overview-arch-02-pipelines.md`
-- `overview-arch-03-features.md`
-- `overview-files-01-build.md`
-- `overview-files-02-rag.md`
-- `overview-files-03-scripts.md`
-- `overview-files-04-shared.md`
-- `overview-files-05-config.md`
-- `overview-files-06-misc.md`
-
 ## Keywords
 
 - system-overview

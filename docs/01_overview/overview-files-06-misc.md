@@ -51,14 +51,6 @@ SQLite-based event store with WAL mode for concurrent access. Event schema inclu
 
 Per-MCP-server configuration files under `conf.d/`: operational credentials for CI/CD, git, GitHub, and web search providers. These files contain sensitive settings and are managed separately from code.
 
-## Related Documents
-
-- `overview-files-01-build.md`
-- `overview-files-02-rag.md`
-- `overview-files-03-scripts.md`
-- `overview-files-04-shared.md`
-- `overview-files-05-config.md`
-
 ## Keywords
 
 eventbus

@@ -51,14 +51,6 @@ Deployment scripts are separated because:
 - Independent scaling: write-heavy domains may require different resource allocation than read-only domains.
 - Deployment independence: individual scripts can be updated or restarted without affecting the entire system.
 
-## Related Documents
-
-- `overview-files-06-misc.md`
-- `overview-files-02-rag.md`
-- `overview-files-03-scripts.md`
-- `overview-files-04-shared.md`
-- `overview-files-05-config.md`
-
 ## Keywords
 
 build

@@ -41,12 +41,6 @@ Crawler produces crawled content consumed by chunk_splitter; chunk_splitter prod
 
 Retention period for post-ingestion staging files is not confirmed within this document (requires verification against ingester implementation).
 
-## Related Documents
-
-- `overview-files-01-build.md`
-- `overview-files-05-config.md`
-- `overview-files-06-misc.md`
-
 ## Keywords
 
 rag

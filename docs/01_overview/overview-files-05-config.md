@@ -44,14 +44,6 @@ Each process reads only its own config file — no cross-process config sharing.
 
 MCP server configs define: transport type (SSE/HTTP), target URL, timeout duration, retry count, and health-check interval. Each MCP server has its own config file because each server operates independently and may have different requirements.
 
-## Related Documents
-
-- `overview-files-01-build.md`
-- `overview-files-02-rag.md`
-- `overview-files-03-scripts.md`
-- `overview-files-04-shared.md`
-- `overview-files-06-misc.md`
-
 ## Keywords
 
 configuration
