@@ -365,7 +365,6 @@ class HttpServerLifecycleManager:
         server_key: str,
         cfg: McpServerConfig,
         proc: subprocess.Popen[bytes],
-        client: httpx.AsyncClient,
         deadline: float,
         shutdown_event: asyncio.Event | None,
     ) -> None:
@@ -379,7 +378,6 @@ class HttpServerLifecycleManager:
             server_key: Server identifier key.
             cfg: Server configuration.
             proc: Subprocess instance to monitor.
-            client: Async HTTP client for health check requests.
             deadline: Monotonic time at which to abort polling.
             shutdown_event: Optional event to race against poll sleep.
 
@@ -463,12 +461,9 @@ class HttpServerLifecycleManager:
 
         if cfg.startup_timeout_sec > 0:
             deadline = time.monotonic() + cfg.startup_timeout_sec
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(timeout=MCPSERVER_HEALTH_TIMEOUT)
-            ) as client:
-                await self._health_poll_until_ready(
-                    server_key, cfg, proc, client, deadline, shutdown_event
-                )
+            await self._health_poll_until_ready(
+                server_key, cfg, proc, deadline, shutdown_event
+            )
         else:
             logger.info(
                 "Lifecycle: skipping health check for %r (timeout=0)",
