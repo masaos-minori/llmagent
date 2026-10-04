@@ -21,6 +21,7 @@ from tools._docs_consistency_lib import (
     DocFile,
     check_broken_internal_links,
     check_command_drift,
+    check_function_references,
     check_removed_file_references,
     discover_md_files,
 )
@@ -173,3 +174,45 @@ class TestCheckCommandDrift:
         doc = _mk_file("05_agent_00_b.md", ["run /db rag stats"])
         issues = check_command_drift(tmp_path, [doc], tmp_path)
         assert issues == []
+
+    def test_keyword_form_command_def_is_registered(self, tmp_path: Path) -> None:
+        """`CommandDef(name="/x", ...)` (keyword form) must count as registered."""
+        repo_root = tmp_path
+        (repo_root / "scripts" / "agent" / "commands").mkdir(parents=True)
+        (
+            repo_root / "scripts" / "agent" / "commands" / "command_defs_list.py"
+        ).write_text('CommandDef(\n    name="/session",\n    prefix=True,\n)')
+        doc = _mk_file("05_agent_00_b.md", ["run /session rag-consistency"])
+        assert check_command_drift(tmp_path, [doc], repo_root) == []
+
+
+# ── check_function_references ────────────────────────────────────────────────
+
+
+class TestCheckFunctionReferences:
+    def _repo(self, tmp_path: Path, source: str) -> Path:
+        (tmp_path / "scripts").mkdir()
+        (tmp_path / "scripts" / "mod.py").write_text(source)
+        return tmp_path
+
+    def test_defined_function_no_issue(self, tmp_path: Path) -> None:
+        repo = self._repo(tmp_path, "def do_thing():\n    pass\n")
+        doc = _mk_file("a.md", ["see `do_thing()`"])
+        assert check_function_references(tmp_path, [doc], repo) == []
+
+    def test_undefined_function_is_warning(self, tmp_path: Path) -> None:
+        repo = self._repo(tmp_path, "def do_thing():\n    pass\n")
+        doc = _mk_file("a.md", ["see `ghost_func()`"])
+        issues = check_function_references(tmp_path, [doc], repo)
+        assert len(issues) == 1
+        assert "ghost_func" in issues[0].message
+
+    def test_class_instantiation_is_accepted(self, tmp_path: Path) -> None:
+        repo = self._repo(tmp_path, "class HealthRegistry:\n    pass\n")
+        doc = _mk_file("a.md", ["created via `HealthRegistry()`"])
+        assert check_function_references(tmp_path, [doc], repo) == []
+
+    def test_known_external_callable_is_accepted(self, tmp_path: Path) -> None:
+        repo = self._repo(tmp_path, "def do_thing():\n    pass\n")
+        doc = _mk_file("a.md", ["awaits `gather()` and `aclose()`"])
+        assert check_function_references(tmp_path, [doc], repo) == []

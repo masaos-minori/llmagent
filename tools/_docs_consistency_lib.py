@@ -207,7 +207,7 @@ def check_directory_listing_completeness(
 # both Agent and MCP docs cite REPL slash commands.
 # ---------------------------------------------------------------------------
 
-_COMMAND_DEF_RE = re.compile(r'CommandDef\(\s*"(/[a-z][a-z0-9_]*)"')
+_COMMAND_DEF_RE = re.compile(r'CommandDef\(\s*(?:name\s*=\s*)?"(/[a-z][a-z0-9_]*)"')
 _DOC_SLASH_COMMAND_RE = re.compile(
     r"(?<![`/a-zA-Z0-9])/(mcp|db|debug|audit|memory|mdq|rag|help|config|"
     r"stats|set|reload|context|compact|system|session|clear|undo|history|"
@@ -353,10 +353,41 @@ _FUNC_REF_RE = re.compile(
 _FUNC_DEF_RE = re.compile(
     r"^\s*(?:async\s+)?def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", re.MULTILINE
 )
+_CLASS_DEF_RE = re.compile(r"^\s*class\s+([a-zA-Z_][a-zA-Z0-9_]*)", re.MULTILINE)
+
+# Callable names that docs cite in backticks but that are defined outside
+# scripts/ (standard library, third-party libraries) or that are callback
+# parameter names rather than definitions, so a `def` search under scripts/
+# can never find them. Keep this list to names with a verified external origin.
+_EXTERNAL_CALLABLE_NAMES: frozenset[str] = frozenset(
+    {
+        # standard library
+        "aclose",
+        "append",
+        "fromisoformat",
+        "gather",
+        "getpgid",
+        "getsockname",
+        "ip_address",
+        "loads",
+        "poll",
+        "read_bytes",
+        "replace",
+        "signal",
+        "warning",
+        "critical",
+        # third-party libraries (PyGithub, SudachiPy)
+        "Github",
+        "normalized_form",
+        # callback parameter names accepted by the streaming/LLM client API
+        "on_token",
+        "on_usage",
+    }
+)
 
 
 def extract_defined_function_names(repo_root: Path) -> frozenset[str]:
-    """Regex-extract every `def name(` (sync or async, function or method) under scripts/."""
+    """Regex-extract every `def name(` / `class Name` under scripts/, plus known external callables."""
     found: set[str] = set()
     scripts_dir = repo_root / "scripts"
     if not scripts_dir.is_dir():
@@ -364,7 +395,8 @@ def extract_defined_function_names(repo_root: Path) -> frozenset[str]:
     for py_file in scripts_dir.rglob("*.py"):
         content = py_file.read_text(encoding="utf-8")
         found.update(_FUNC_DEF_RE.findall(content))
-    return frozenset(found)
+        found.update(_CLASS_DEF_RE.findall(content))
+    return frozenset(found) | _EXTERNAL_CALLABLE_NAMES
 
 
 def check_function_references(
