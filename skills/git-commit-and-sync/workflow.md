@@ -309,6 +309,30 @@ If `git push` is rejected for any other reason — most commonly a non-fast-forw
 rejection because the remote advanced again after Phase 7's sync completed — apply
 `SKILL.md` Core rules' push-rejection handling and report the exact rejection message.
 
+### Transient non-fast-forward rejection (bounded retry)
+
+A non-fast-forward rejection immediately after a successful rebase almost always means the
+remote advanced by a small amount during the rebase-to-push window (an active concurrent
+writer on the remote), not that the local branch is unsafe to push. Phase 7's rebase is
+always safe and reversible (`git rebase --abort`); only the push races against the remote.
+
+Absorb a transient race with a **bounded** retry, capped at 3 total attempts to match the
+repository's general attempt limit (`AGENTS.md`, Loop Prevention — "Maximum 3 attempts"):
+
+```bash
+git fetch
+git rebase @{u}          # replays local commits onto the freshly-fetched upstream
+git push
+```
+
+`git fetch` refreshes `@{u}`, so each iteration replays onto the current upstream instead of
+a stale one. Count every `git push` (initial plus retries) toward the limit of 3.
+
+If the 3rd attempt is still rejected, stop and report exactly as above — do not retry
+further, and never escalate to `force push`. Flag in the report that the remote appears to
+be under active concurrent writes (the rejection recurs across multiple fetch/rebase
+cycles); waiting for the remote to settle is then the likely remedy.
+
 Do not proceed to `git push` at all if:
 - Phase 7 aborted a rebase due to a conflict — Phase 7 already stops before this
   phase is reached in that case; this is a defense-in-depth reminder, not a separate
