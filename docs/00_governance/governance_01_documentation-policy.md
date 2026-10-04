@@ -4,8 +4,9 @@ area: governance
 tags:
   - governance
 related:
-  - ../00_index.md
-  - ../01_overview/overview_00_document-guide.md
+  - 00_index.md
+  - overview_00_document-guide.md
+  - governance_05_change-impact-and-dependency-graphs.md
 ---
 
 # Documentation Policy
@@ -359,14 +360,6 @@ This document does not cover:
 - Defining how AI agents parse or use metadata fields
 - Specifying enforcement mechanisms for metadata compliance
 - Defining metadata for non-document assets (code, configuration files)
-
-## Related Documents
-
-Cross-cutting documentation rules and policies:
-
-- [Documentation Overview](../00_index.md)
-- [System Overview Index](../01_overview/overview_00_document-guide.md)
-- [Change Impact and Dependency Graphs](governance_05_change-impact-and-dependency-graphs.md)
 
 ## Keywords
 

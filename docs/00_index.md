@@ -6,6 +6,13 @@ tags:
   - navigation
   - index
 related:
+  - overview_00_document-guide.md
+  - deployment_01_deployment.md
+  - rag_00_document-guide.md
+  - mcp_00_document-guide.md
+  - agent_00_document-guide.md
+  - eventbus_00_document-guide.md
+  - shared_00_document-guide.md
 ---
 # Documentation Overview
 
@@ -142,16 +149,6 @@ Migrated from `/routing.md`. Load only the necessary documents according to the 
 | Event Bus (config/ops) | `24_eventbus/eventbus_09_configuration-and-operations.md` |
 | Event Bus (API ref) | `24_eventbus/eventbus_10_reference_api.md` |
 | Event Bus (issues) | `00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
-
-## Related Documents
-
-- `01_overview/overview_00_document-guide.md`
-- `90_deployment/deployment_01_deployment.md`
-- `21_rag/rag_00_document-guide.md`
-- `22_mcp/mcp_00_document-guide.md`
-- `23_agent/agent_00_document-guide.md`
-- `24_eventbus/eventbus_00_document-guide.md`
-- `40_shared/shared_00_document-guide.md`
 
 ## Keywords
 

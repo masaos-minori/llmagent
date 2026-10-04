@@ -4,8 +4,8 @@ area: governance
 tags:
   - governance
 related:
-  - ../00_index.md
-  - ../01_overview/overview_00_document-guide.md
+  - 00_index.md
+  - overview_00_document-guide.md
 ---
 
 # Documentation Metadata
@@ -21,12 +21,12 @@ The following four metadata fields are required in every document's front matter
 - **title** — Document title
 - **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/10_adr/`) and security documents (`docs/00_security_*.md`) use `area: governance`, since both are cross-cutting governance/policy content rather than a distinct runtime area.
 - **tags** — Keywords describing the document content
-- **related** — Links to related documents. Owner ruling (2026-09-27): this front-matter
-  list diverges from the body `## Related Documents` heading in existing documents
-  (confirmed drift, not intentional duality) — front matter `related:` is authoritative;
-  reconciling body headings to match it across existing documents is separate,
-  unstarted follow-up work, tracked in
-  `issues/20260927-160936_relateddocsdrift_reconcile-front-matter-related-field-with-body-related-documents-headings.md`
+- **related** — Filenames of related documents (basenames). Front matter `related:` is the single
+  authoritative store of cross-references: general documents carry no body Related section.
+  ADR documents keep a classified `## Related Documents` block in the body (Specifications,
+  Operations, Known Issues, and similar), and their front matter `related:` must cover every
+  document that block references. Human-oriented navigation lives in the index and the per-area
+  document guides.
 - **category** — Not a valid front-matter key. Do not use this field.
 
 `keywords` is not a front-matter key. Every document instead uses a `## Keywords` body-section heading — see `tools/check_docs_structure.py`'s own check, which looks for that heading, not a front-matter key.
@@ -211,13 +211,6 @@ execution (a test failing, a config load erroring), not by review.
 | Retain | Design decisions and intent | Error handling design decisions |
 | Move to Known Issues | Discrepancy between implementation and documentation | Inconsistency between docs and code |
 | Move to Needs Confirmation | Unknown matters | Unclear implementation intent |
-
-## Related Documents
-
-Cross-cutting documentation rules and policies:
-
-- [Documentation Overview](../00_index.md)
-- [System Overview Index](../01_overview/overview_00_document-guide.md)
 
 ## Keywords
 

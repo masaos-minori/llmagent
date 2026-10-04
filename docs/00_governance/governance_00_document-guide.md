@@ -5,8 +5,8 @@ tags:
   - governance
   - document-guide
 related:
-  - ../00_index.md
-  - ../01_overview/overview_00_document-guide.md
+  - 00_index.md
+  - overview_00_document-guide.md
 ---
 # Governance: Document Guide
 
@@ -49,11 +49,6 @@ No reference APIs exist in this directory. All files are policy/convention docum
 ## Related ADRs
 
 - [ADR-015](../10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
-
-## Related Documents
-
-- `../00_index.md`
-- `../01_overview/overview_00_document-guide.md`
 
 ## Keywords
 

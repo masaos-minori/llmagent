@@ -4,8 +4,8 @@ area: governance
 tags:
   - governance
 related:
-  - ../00_index.md
-  - ../01_overview/overview_00_document-guide.md
+  - 00_index.md
+  - overview_00_document-guide.md
 ---
 
 # Issue and Uncertainty Management
@@ -274,13 +274,6 @@ Topics explicitly excluded from this document:
 - Modifying source documents during extraction — this document is read-only relative to sources
 - Defining new evidence labels beyond those already established
 - Changing the common template itself
-
-## Related Documents
-
-Cross-cutting documentation rules and policies:
-
-- [Documentation Overview](../00_index.md)
-- [System Overview Index](../01_overview/overview_00_document-guide.md)
 
 ## Keywords
 
