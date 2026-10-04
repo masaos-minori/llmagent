@@ -60,7 +60,7 @@ Target sequence: detect and classify → preserve the damaged database → locat
 - The restored database IS reopened and re-verified before success is reported (`_run_integrity_check(db_path, target)`).
 - After the physical re-check succeeds, a RAG or Session logical-verification stage runs (`check_rag_consistency()`/`check_session_consistency()` per `target`) before `success=True` is returned; a logical-verification failure produces `success=False` with an `action` value distinct from `restore_verify_failed`.
 
-### Automated vs. operator-only breakdown (REQ-009)
+### 9.5a Automated vs. operator-only breakdown
 
 Checks that run automatically inside `check_rag_consistency()` / `check_session_consistency()`:
 
