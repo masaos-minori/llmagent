@@ -335,6 +335,8 @@ def check_tool_name_drift(
                 name = ident_match.group(1)
                 if "_" not in name:
                     continue
+                if name.endswith("_"):
+                    continue  # a name prefix (e.g. "github_"), not a tool name
                 if name not in live_names:
                     issues.append(
                         Issue(
@@ -569,14 +571,31 @@ _DB_PATH_FIELD_RE = re.compile(
 _DOC_DB_PATH_RE = re.compile(r"`(\w+_db_path)`")
 
 
+def _optional_db_path_keys(repo_root: Path) -> frozenset[str]:
+    """`*_db_path` keys that `DbConfig` defaults in Python (optional in agent.toml)."""
+    src = repo_root / "scripts" / "db" / "config.py"
+    if not src.is_file():
+        return frozenset()
+    content = src.read_text(encoding="utf-8")
+    return frozenset(
+        key for key, default in _DB_PATH_FIELD_RE.findall(content) if default
+    )
+
+
 def check_config_key_presence(
     docs_dir: Path, files: list[DocFile], repo_root: Path
 ) -> list[Issue]:
+    """Flag cited `*_db_path` keys that agent.toml lacks and DbConfig does not default.
+
+    A key with a Python-level default is optional by design, so citing it
+    without a value in agent.toml is not reported.
+    """
     if not _AGENT_TOML.is_file():
         return []
     with _AGENT_TOML.open("rb") as f:
         cfg = tomllib.load(f)
     configured_keys = {k for k in cfg.keys() if k.endswith("_db_path")}
+    configured_keys |= _optional_db_path_keys(repo_root)
 
     issues: list[Issue] = []
     for doc in files:
@@ -593,7 +612,7 @@ def check_config_key_presence(
                             severity="WARNING",
                             message=(
                                 f"cites `{key}` as a config key in agent.toml, "
-                                f"but it is not set there (falls back to Python-level default)"
+                                f"but it is not set there and DbConfig has no default for it"
                             ),
                         )
                     )
