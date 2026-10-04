@@ -2,7 +2,7 @@
 tests/test_rag_ingester_callback.py
 Verify RagIngester.ingest_all() invokes on_ingest_complete exactly once.
 
-Resolves: OPEN-01 (docs/03_rag_90_inconsistencies_and_known_issues.md)
+Resolves: OPEN-01 (a per-area known-issues document since consolidated and removed)
 """
 
 from __future__ import annotations

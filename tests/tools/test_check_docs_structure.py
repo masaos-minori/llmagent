@@ -232,7 +232,7 @@ class TestCheckSize:
         assert str(MAX_SIZE) in issues[0]
 
     def test_file_between_old_and_new_limit_passes(self, tmp_path: Path) -> None:
-        """19183 bytes is what docs/00_governance_01_documentation-policy.md
+        """19183 bytes is what docs/00_governance/governance_01_documentation-policy.md
         grew to under plans/20260902-191512_plan.md's REQ-001 change — this
         must pass under the raised limit even though it exceeded the old one."""
         doc = tmp_path / "example.md"

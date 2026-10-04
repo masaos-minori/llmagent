@@ -4,7 +4,7 @@ Regression tests for `check_port_drift()`/`check_port_range_claim()`
 confirming both functions still run unchanged under the docs content policy
 (Plan `docscope3`, option (c): keep both active pending a documented,
 explicit exemption list — see
-`docs/00_governance_04_documentation-checks.md`'s Domain Consistency Check
+`docs/00_governance/governance_04_documentation-checks.md`'s Domain Consistency Check
 description for the recorded rationale).
 """
 

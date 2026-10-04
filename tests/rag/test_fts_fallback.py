@@ -8,7 +8,7 @@ Verifies:
 - Empty string normalized_content differs from NULL (COALESCE semantics)
 - Mixed-language documents index each chunk independently
 
-Resolves: OQ-6 (docs/03_rag_90_inconsistencies_and_known_issues.md)
+Resolves: OQ-6 (a per-area known-issues document since consolidated and removed)
 """
 
 from __future__ import annotations

@@ -4,7 +4,7 @@ Tests for tools/check_adr_structure.py.
 Each scenario builds an in-memory DocFile (a small set of lines) and calls
 check_known_deviations_heading()/check_notes_references_drift() directly --
 matching tests/tools/test_check_adr_reference.py's direct-function-call
-pattern. Live docs/adr/*.md validation is exercised separately by running the
+pattern. Live docs/10_adr/*.md validation is exercised separately by running the
 tool against the real repository, not duplicated here as a unit test.
 """
 

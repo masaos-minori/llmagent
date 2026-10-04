@@ -312,7 +312,7 @@ class TestIntegrationWithTempRegistry:
     )
     def test_canonical_007_case(self, tmp_path: Path) -> None:
         # TODO(seq 02): Implement after duplicate ADR ID check lands.
-        # Expected: duplicate ADR identifiers across docs/adr/*.md files.
+        # Expected: duplicate ADR identifiers across docs/10_adr/*.md files.
         pass
 
 

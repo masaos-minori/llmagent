@@ -135,7 +135,7 @@ class TestStartupOrchestratorSetupPrompt:
 
 # ── StartupOrchestrator._check_services() severity classification ───────────
 #
-# Cross-reference for docs/05_agent_10_01_operations-and-observability-startup-and-health.md's
+# Cross-reference for docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md's
 # severity-mapping table. Proves each documented severity is actually produced under its
 # documented condition, for all 8 checks run by _check_services():
 # security_audit, embedding_dimensions, readiness, tool_definitions, routing_drift,
@@ -232,7 +232,7 @@ async def _run_check_services(
 
 class TestCheckServicesSeverityClassification:
     """Regression tests proving each check's documented severity is actually produced
-    under its documented condition — see docs/05_agent_10_01_...startup-and-health.md's
+    under its documented condition — see docs/23_agent/agent_10_01_...startup-and-health.md's
     severity-mapping table for the full narrative this cross-references."""
 
     # ── security_audit ───────────────────────────────────────────────────────

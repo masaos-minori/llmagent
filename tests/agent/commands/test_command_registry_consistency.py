@@ -97,7 +97,7 @@ class TestCommandRegistryConsistency:
 class TestCompletionDriftGuard:
     """Regression coverage for requires/20260716_16_require.md: SLASH_COMMANDS
     (tab completion) and _COMMANDS (the command registry) must not drift
-    apart silently -- see docs/05_agent_01_system-overview.md
+    apart silently -- see docs/23_agent/agent_01_system-overview.md
     §Current behavior."""
 
     def test_slash_commands_equals_registered_commands_plus_reserved(self) -> None:

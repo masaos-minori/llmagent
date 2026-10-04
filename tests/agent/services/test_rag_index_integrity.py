@@ -10,7 +10,7 @@ Covers:
 - TEST-DESIGN3-05: check_rag_consistency() detects FTS desynchronization
 - reconcile_url() FTS deletion does not raise OperationalError (bug fix regression)
 
-Resolves: DESIGN-3 missing tests (docs/03_rag_90_inconsistencies_and_known_issues.md)
+Resolves: DESIGN-3 missing tests (a per-area known-issues document since consolidated and removed)
 """
 
 from __future__ import annotations

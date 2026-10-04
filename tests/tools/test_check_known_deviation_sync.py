@@ -165,7 +165,7 @@ class TestFalsePositiveAvoidance:
 
 
 class TestConsolidatedGovernanceFormat:
-    """The consolidated `docs/00_governance_03_issue-and-uncertainty-management.md`
+    """The consolidated `docs/00_governance/governance_03_issue-and-uncertainty-management.md`
     format (`#### <ID>` heading, no colon/title on the same line) must resolve
     identically to the legacy `### <ID>: <title>` per-area format — regression
     for the confirmed bug where discover_canonical_docs()/_CANONICAL_ID_HEADER_RE
@@ -176,7 +176,7 @@ class TestConsolidatedGovernanceFormat:
         canonical_dir = tmp_path / "docs"
         _write(
             canonical_dir,
-            "00_governance_03_issue-and-uncertainty-management.md",
+            "governance_03_issue-and-uncertainty-management.md",
             "## Part 1: Known Issues\n\n"
             "#### RAG-999\n\n"
             "- **ID**: RAG-999\n"
@@ -207,7 +207,7 @@ class TestConsolidatedGovernanceFormat:
         canonical_dir = tmp_path / "docs"
         _write(
             canonical_dir,
-            "00_governance_03_issue-and-uncertainty-management.md",
+            "governance_03_issue-and-uncertainty-management.md",
             "## Part 1: Known Issues\n\n"
             "#### RAG-998\n\n"
             "- **Status**: resolved\n\n"

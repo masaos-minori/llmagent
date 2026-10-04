@@ -377,7 +377,7 @@ _WORKFLOW_SCHEMA_NO_VEC0 = """
 
 class TestCreateWorkflowSchema:
     def test_creates_all_tables(self, tmp_path: Path) -> None:
-        """All 5 workflow tables defined in docs/90_shared_04_db_architecture_and_schema.md are created."""
+        """All 5 workflow tables defined in docs/41_db/db_02_architecture_and_schema-schema-reference.md are created."""
         db_file = tmp_path / "workflow.sqlite"
         cfg = DbConfig(
             rag_db_path="/tmp/rag.sqlite",

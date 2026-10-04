@@ -48,7 +48,7 @@ def test_t1_multi_file_rename_preserves_link_styles(tmp_path: Path) -> None:
     """Renaming a file with `--apply` rewrites every referencing link to the
     new path in its own original style: bare filename for a same-directory
     reference, `../<filename>` for a parent-hop reference (the two
-    conventions confirmed in `docs/adr/ADR-005-...`/`docs/adr/ADR-012-...`),
+    conventions confirmed in `docs/10_adr/ADR-005-...`/`docs/10_adr/ADR-012-...`),
     and the move itself happens via `git mv`.
     """
     repo = _init_git_repo(tmp_path)

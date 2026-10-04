@@ -101,7 +101,7 @@ async def _run_check_services(
 
 class TestStartupMemoryFailures:
     """Regression tests proving each memory-failure path's documented severity is actually produced
-    under its documented condition — see docs/05_agent_10_01_...startup-and-health.md's
+    under its documented condition — see docs/23_agent/agent_10_01_...startup-and-health.md's
     severity-mapping table for the full narrative this cross-references."""
 
     @pytest.mark.asyncio

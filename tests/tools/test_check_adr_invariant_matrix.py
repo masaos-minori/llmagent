@@ -4,7 +4,7 @@ Tests for tools/check_adr_invariant_matrix.py.
 Each scenario builds an in-memory Matrix table (as a list of lines) and calls
 check_invariant_matrix_test_paths() directly, matching
 tests/tools/test_check_known_deviation_sync.py's direct-function-call pattern.
-Live `docs/adr-index.md` validation (AC-1) is exercised separately by running
+Live `docs/10_adr/adr-index.md` validation (AC-1) is exercised separately by running
 the tool against the real repository, not duplicated here as a unit test.
 """
 

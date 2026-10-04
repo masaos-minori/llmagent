@@ -4,7 +4,7 @@ Cross-server unit test that asserts every active MCP tool schema module exports
 TOOL_LIST as a non-empty list of dicts each containing a "name" key, and that no
 module relies on the legacy _MCP_TOOLS name.
 
-Enforces the export policy in docs/04_mcp_07_tool_schema_export_policy.md.
+Enforces the export policy in docs/22_mcp/mcp_07_tool_schema_export_policy.md.
 """
 
 from __future__ import annotations
