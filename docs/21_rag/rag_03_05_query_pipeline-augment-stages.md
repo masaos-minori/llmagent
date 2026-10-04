@@ -12,6 +12,7 @@ related:
   - rag_03_03_query_pipeline-context-and-diagnostics.md
   - rag_04_05_dto-types.md
   - rag_05_1-configuration-reference.md
+  - rag_03_06_query_pipeline-helpers-and-cache.md
 source:
   - rag_03_01_query_pipeline-overview.md
 ---
@@ -178,19 +179,6 @@ Both reasons can be verified as follows:
 | `refiner_exception` | Boolean indicating if `refiner_exception_count > 0` |
 
 ---
-
-## Related Documents
-
-- [rag_00_document-guide.md](rag_00_document-guide.md)
-- [rag_01_system_overview.md](rag_01_system_overview.md)
-- [rag_03_01_query_pipeline-overview.md](rag_03_01_query_pipeline-overview.md)
-- [rag_03_04_query_pipeline-search-stages.md](rag_03_04_query_pipeline-search-stages.md)
-- [rag_03_03_query_pipeline-context-and-diagnostics.md](rag_03_03_query_pipeline-context-and-diagnostics.md)
-- [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
-- [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md)
-- [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md)
-- System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 
 ## Keywords
 

@@ -100,17 +100,6 @@ Note: No quantitative benchmark data (recall@k/precision@k or other metrics) com
 
 ---
 
-## Related Documents
-
-- `rag_00_document-guide.md`
-- `rag_01_system_overview.md`
-- `rag_03_01_query_pipeline-overview.md`
-- `rag_03_02_query_pipeline-rag-pipeline-class.md`
-- `rag_03_05_query_pipeline-augment-stages.md`
-- `rag_03_03_query_pipeline-context-and-diagnostics.md`
-- `rag_04_05_dto-types.md`
-- `rag_05_1-configuration-reference.md`
-
 ## Keywords
 
 mqe-stage

@@ -74,17 +74,6 @@ This module provides the following public methods. See source code for details.
 
 > Evidence: Explicit in code — `scripts/rag/ingestion/chunk_splitter.py::__init__` uses `ConfigLoader().load("chunk_splitter.toml")`, and `en_stopwords`/`ja_stop_pos` are defined in `config/chunk_splitter.toml`. The former single-file config does not exist in this repository.
 
-## Related Documents
-
-- `rag_00_document-guide.md`
-- `rag_01_system_overview.md`
-- `rag_02_01_ingestion_pipeline-overview.md`
-- `rag_02_02_ingestion_pipeline-crawler.md`
-- `rag_02_04_ingestion_pipeline-ingester.md`
-- `rag_02_07_ingestion_pipeline-utils.md`
-- `rag_05_1-configuration-reference.md`
-- `rag_02_03_ingestion_pipeline-chunksplitter.md`
-
 ## Keywords
 
 chunk-splitter
@@ -271,17 +260,6 @@ per-chunk skip, but the current code has no try/except at the chunk level: a
 See [rag_05_1-configuration-reference.md section 1.1](rag_05_1-configuration-reference.md).
 
 ---
-
-## Related Documents
-
-- `rag_00_document-guide.md`
-- `rag_01_system_overview.md`
-- `rag_02_01_ingestion_pipeline-overview.md`
-- `rag_02_02_ingestion_pipeline-crawler.md`
-- `rag_02_04_ingestion_pipeline-ingester.md`
-- `rag_02_07_ingestion_pipeline-utils.md`
-- `rag_05_1-configuration-reference.md`
-- `rag_02_03_ingestion_pipeline-chunksplitter.md`
 
 ## Keywords
 

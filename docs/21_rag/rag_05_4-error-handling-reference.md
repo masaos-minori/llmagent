@@ -114,11 +114,6 @@ All RAG-layer error classes, including `RagRerankError` and `RagPipelineError`, 
 ---
 
 
-## Related Documents
-
-- [RAG Documentation Guide](rag_00_document-guide.md)
-- [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-
 ## Keywords
 
 configuration

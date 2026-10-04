@@ -100,14 +100,6 @@ StageResult = TypedDict with keys:
 
 ---
 
-## Related Documents
-
-- `rag_00_document-guide.md`
-- `rag_01_system_overview.md`
-- `rag_03_01_query_pipeline-overview.md`
-- `rag_04_05_dto-types.md`
-- `rag_05_1-configuration-reference.md`
-
 ## Keywords
 
 pipeline-context

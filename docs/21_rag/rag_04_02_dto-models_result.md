@@ -96,11 +96,6 @@ Fields and defaults are defined in `scripts/rag/models_result.py::SearchDiagnost
 #### Fields Added After HTTP Introduction (Meaningful only in Remote mode)
 These fields are only meaningful when the search is delegated to a remote HTTP RAG service; they remain at their default values during pure local execution: `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`, `fallback_reason`.
 
-## Related Documents
-
-- [6.3 types.py (`scripts/rag/types.py`)](rag_04_05_dto-types.md)
-- [rag_00_document-guide.md](rag_00_document-guide.md)
-
 ## Keywords
 
 dto
