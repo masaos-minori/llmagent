@@ -145,7 +145,7 @@ The full pipeline runs across three top-level directories, in order:
 
 Load only the docs relevant to the specific task. Do NOT load all `docs/*.md`.
 
-Full task-scope → doc mapping (Domain specs, System overview, Agent, MCP, RAG, DB/Shared, Event Bus): see `docs/00_governance/00_index.md` "Document References by Task".
+Full task-scope → doc mapping (Domain specs, System overview, Agent, MCP, RAG, DB/Shared, Event Bus): see `docs/00_index.md` "Document References by Task".
 
 ## Always load alongside the skill
 

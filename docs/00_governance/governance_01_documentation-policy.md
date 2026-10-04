@@ -189,15 +189,14 @@ Recency must never be used for any of the following:
 
 ## Area Canonical Maps (derived from Registry)
 
-This section is derived from the Canonical Source Registry above.
-It is maintained automatically and must not be edited manually.
-For the authoritative mapping, see the Registry above.
+This section holds no hand-maintained per-area mapping table. The only
+authoritative per-area mapping is the Canonical Source Registry below; do not
+restate it here by hand.
 
 ### Canonical Source Registry
 
 `config/documentation_canonical_sources.toml` is the system of record for
-canonical-source ownership, superseding the hand-maintained Primary/Secondary
-tables above as the authoritative mapping. Area guides (each area's own
+canonical-source ownership and the sole authoritative per-area mapping. Area guides (each area's own
 "Canonical Source Rule(s)" section) must not maintain an independent,
 hand-edited canonical-source mapping going forward — new or changed canonical
 mappings are recorded in the registry, not restated by hand per area. Migrating

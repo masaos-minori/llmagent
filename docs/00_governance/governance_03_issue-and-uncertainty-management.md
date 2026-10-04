@@ -12,7 +12,7 @@ related:
 
 ## Purpose
 
-This document defines how to track currently active discrepancies between documentation and implementation (Known Issues) and currently active unverified claims (Needs Confirmation). It ensures unconfirmed statements are trackable and actionable, preventing them from being silently accepted as facts.
+This document defines how to track currently active discrepancies between documentation and implementation (Known Issues) and currently active unverified claims, tracked as Needs Confirmation items. It ensures unconfirmed statements are trackable and actionable, preventing them from being silently accepted as facts.
 
 ## Part 1: Known Issues
 
@@ -63,7 +63,7 @@ longer applicable to the current system.
 
 ### Review Cadence
 
-Part 1 entries are reviewed quarterly, consistent with the cadence documented for Part 2 Needs Confirmation items and "Proposed" ADRs in `docs/00_governance/governance_01_documentation-policy.md` line 521.
+Part 1 entries are reviewed quarterly, consistent with the cadence documented for Part 2 Needs Confirmation items and "Proposed" ADRs in `docs/00_governance/governance_01_documentation-policy.md` under `## Maintenance Rules`.
 
 ### Consolidation Note
 
@@ -106,8 +106,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 | ID | Title | Status | Severity | Area | Type | Source | Owner | First Found | Summary | Related |
 |----|-------|--------|----------|------|------|--------|-------|-------------|---------|---------|
-| DESIGN-001 | Hand-maintained `## Area Canonical Maps` table competes with Registry | open | Medium | Governance | design-gap | docs/00_governance/governance_01_documentation-policy.md | Unassigned | 2026-10-01 | The `## Area Canonical Maps` table in the Policy duplicates Registry information; canonical authority is ambiguous | REQ-001 |
-| DESIGN-002 | Inline Needs Confirmation markers in Policy contradict central Inventory | open | Medium | Governance | document-document-mismatch | docs/00_governance/governance_01_documentation-policy.md | Unassigned | 2026-10-01 | Policy contains inline Needs Confirmation markers while the central Inventory states no active items remain | REQ-003 |
 
 
 **Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
