@@ -36,10 +36,7 @@ For exhaustive detail, see `scripts/rag/ingestion/etag_manager.py` (ETagManager 
 
 ### 4.8.1 Freshness Comparison: Edge Cases and Error Handling
 
-- **Only current update mode:** Freshness Mode (above) is `ETagManager`'s only update
-  mode — Null Fill Mode / `COALESCE`-based missing-`fetched_at` handling has been
-  fully removed; no `_update_null_fill`, `null_fill`, or `COALESCE` reference remains
-  anywhere under `scripts/rag/ingestion/`.
+- **Only update mode:** Freshness Mode (above) is `ETagManager`'s only update mode.
 - **Timestamp format:** both the incoming and stored `fetched_at` are parsed via
   `datetime.fromisoformat()` after replacing a trailing `Z` with `+00:00`; a
   timezone-naive value is accepted and normalized to UTC (`replace(tzinfo=UTC)`).

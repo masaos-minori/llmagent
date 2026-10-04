@@ -62,8 +62,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 ### 2.6 RAG Consistency Check (`db/rag_consistency.py`)
 
-> **Correction:** This section's heading was previously "`db/maintenance.py`", but the actual implementations of `check_rag_consistency`, `is_consistent`, and `summarize_issues` are defined in `scripts/db/rag_consistency.py`. They do not exist in `db/maintenance.py`.
-> [Explicit in code]
+`check_rag_consistency`, `is_consistent`, and `summarize_issues` are defined in `scripts/db/rag_consistency.py`. (Explicit in code)
 
 Use `check_rag_consistency(db, embed_failed=0)` to detect trigger-based synchronization failures or orphaned records. Run this after bulk ingestion, after a forced re-registration, or during diagnostics.
 
@@ -83,7 +82,7 @@ with SQLiteHelper("rag").open() as db:
 
 See `RagConsistencyReport` in `scripts/db/models.py` for exact fields.
 
-**CLI:** `/session rag-consistency` runs the same check from the REPL and displays issues (the old `/db consistency` is deprecated; see `cmd_session.py`).
+**CLI:** `/session rag-consistency` runs the same check from the REPL and displays issues.
 
 **Post-Ingestion Warning:** After `ingest_all()` completes, `ingester.py` runs a non-blocking consistency check via `DocumentManager.check_consistency()` (`scripts/rag/ingestion/document_manager.py`). Warnings are logged, but the ingestion process itself is not interrupted. If the check fails with `sqlite3.OperationalError`, `sqlite3.DatabaseError`, or `ValueError`, it returns `None` and the exception is not re-raised. [Explicit in code]
 

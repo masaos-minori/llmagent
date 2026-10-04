@@ -144,7 +144,7 @@ Stages: MQE → Search → Fusion → Rerank → Augmentation. For details on ea
 
 ### Semantic Cache
 
-**Removed.** The semantic cache feature was deliberately removed from the RAG pipeline. The configuration keys `use_semantic_cache`, `semantic_cache_threshold`, and `semantic_cache_max_size` are no longer supported and will cause a validation error when present in any configuration source (see `RagConfigValidator._check_removed_semantic_cache_keys()` at `scripts/shared/config_validator.py`). Removal commits: `282b08f38` (req-005: remove SemanticCache from RAG pipeline and MCP server), `09093016d` (remove semantic cache configuration fields and references).
+The RAG pipeline has no semantic cache. The configuration keys `use_semantic_cache`, `semantic_cache_threshold`, and `semantic_cache_max_size` are not supported and cause a validation error when present in any configuration source (see `RagConfigValidator._check_removed_semantic_cache_keys()` at `scripts/shared/config_validator.py`).
 
 ---
 

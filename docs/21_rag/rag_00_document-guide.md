@@ -14,7 +14,6 @@ related:
   - rag_04_05_dto-types.md
   - rag_05_1-configuration-reference.md
   - governance_03_issue-and-uncertainty-management.md
-  - rag_91_design_notes.md
 ---
 
 # RAG Documentation Guide
@@ -48,7 +47,7 @@ Read this file first to determine which chapter you should open.
 | What are `RawHit`, `MergedHit`, and `RankedHit`? | `rag_04` |
 | What are the configuration parameters? | `rag_05` |
 | Are there any known bugs or behavioral inconsistencies? | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
-| What are the established design invariants regarding FTS5/LLM content separation and table responsibilities? | `rag_91` |
+| What are the established design invariants regarding FTS5/LLM content separation and table responsibilities? | [ADR-009](../10_adr/ADR-009-rag-ft5-text-separation.md) / [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md) |
 
 ---
 
@@ -82,7 +81,6 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | [rag_03_07_query_pipeline-tests.md](rag_03_07_query_pipeline-tests.md) | Tests |
 | [rag_04_01_dto-models_data.md](rag_04_01_dto-models_data.md) | DTO: models_data |
 | [rag_04_02_dto-models_result.md](rag_04_02_dto-models_result.md) | DTO: models_result |
-| [rag_04_03_dto-models_audit.md](rag_04_03_dto-models_audit.md) | DTO: models_audit |
 | [rag_04_04_dto-models_config.md](rag_04_04_dto-models_config.md) | DTO: models_config |
 | [rag_04_05_dto-types.md](rag_04_05_dto-types.md) | DTO: types |
 | [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md) | Configuration reference |
@@ -94,8 +92,6 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | [rag_05_7-rag-index-consistency-checks.md](rag_05_7-rag-index-consistency-checks.md) | Consistency checks |
 | [rag_05_8-rag-mcp-internal-operations-direct-db-access.md](rag_05_8-rag-mcp-internal-operations-direct-db-access.md) | MCP internal operations |
 | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) | Known issues (all areas) |
-| [rag_91_design_notes.md](rag_91_design_notes.md) | DESIGN-2 notes |
-| [rag_91_design_notes.md](rag_91_design_notes.md) | DESIGN-3 notes |
 
 ---
 

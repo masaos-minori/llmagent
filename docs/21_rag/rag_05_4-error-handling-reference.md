@@ -34,8 +34,7 @@ skips just that URL without stopping the overall crawl — see
 Both canonical artifact readers (`scripts/rag/ingestion/pipeline_utils.py`) raise
 `ChunkFormatError` (`scripts/rag/exceptions.py`, a `RagLayerError` and `ValueError`
 subclass) on any validation failure — there is no silent-default fallback path in
-either reader (contrast with the legacy `read_json_file()`, documented as historical
-in [rag_02_08_ingestion_pipeline-shared.md](rag_02_08_ingestion_pipeline-shared.md)).
+either reader.
 
 | Error | Action |
 |---|---|

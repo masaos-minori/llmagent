@@ -56,7 +56,7 @@ SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: st
 > **Documentation vs. Implementation Mismatch**: `sqlite3.OperationalError` / `RuntimeError` raised by `vector_search`/`fts_search` are caught within `SearchStage` and merely increment the `fts_errors` counter per query; they are NOT propagated as exceptions to the caller. A failure in one query does not stop processing of remaining queries.
 > (Evidence classification: Explicit in code — `_search_all_queries()` method).
 >
-> **Note:** `RagPipeline.search_queries()` and `RagPipeline.rerank_candidates()` were removed as dead code. Actual search and reranking logic is executed in `SearchStage.run()` and `RerankStage.run()`.
+> **Note:** Search and reranking logic is executed in `SearchStage.run()` and `RerankStage.run()`, not in `RagPipeline` methods.
 
 #### Failure Behavior
 

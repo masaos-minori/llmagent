@@ -66,13 +66,13 @@ Used by: `ingester.py` only
 | `embed_retry` | `3` | Max embedding API retries (exponential backoff) |
 | `embed_workers` | `4` | Number of threads in `ThreadPoolExecutor` for parallel embedding |
 
-**Note (2026-07-13):** Confirmed that `strict_artifact_validation` is not used as a setting (`RagIngester.__init__` does not read it, and artifact validation function calls do not specify `strict`). Thus, it was removed from `config/ingester.toml`. In practice, rejection of chunks with missing required fields is always enabled via Python defaults in the artifact validation function.
+**Note:** `strict_artifact_validation` is not a setting (`RagIngester.__init__` does not read it, and artifact validation function calls do not specify `strict`). Rejection of chunks with missing required fields is always enabled via Python defaults in the artifact validation function.
 
 ## 1.4 `config/rag_pipeline_mcp_server.toml`
 
 Used by: `rag-pipeline-mcp` only (the rag-pipeline MCP server process). Loaded via `RagPipelineConfig.from_dict()` in `mcp_servers/rag_pipeline/rag_pipeline_models.py`. Does NOT use `agent.toml` (as stated in the header comment).
 
-**Note (2026-07-13):** `host`/`port` were removed from the config file because they were not loaded into `RagPipelineConfig` and were unused. Actual values are hardcoded: `http_host="127.0.0.1"` (in `MCPServer` base class), `http_port=8010` (in `rag_pipeline_server.py`). `http_timeout` is hardcoded as `120.0` in `rag_pipeline_service.py`; this is the HTTP client timeout for the MCP server itself, while a different timeout (10s) is used for fallback calls to external RAG services.
+**Note:** `host`/`port` are not configuration keys because `RagPipelineConfig` does not load them. The values are hardcoded: `http_host="127.0.0.1"` (in `MCPServer` base class), `http_port=8010` (in `rag_pipeline_server.py`). `http_timeout` is hardcoded as `120.0` in `rag_pipeline_service.py`; this is the HTTP client timeout for the MCP server itself, while a different timeout (10s) is used for fallback calls to external RAG services.
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -102,7 +102,7 @@ Used by: `rag-pipeline-mcp` only (the rag-pipeline MCP server process). Loaded v
 See "Implementation Supplements" below — some of these code defaults differ from the
 operational `config/rag_pipeline_mcp_server.toml` values.
 
-**Note (2026-07-13):** For fallback calls to external RAG services (`call_rag_service()`), a `timeout=10.0` is hardcoded for each attempt (`scripts/rag/pipeline_service.py`). This value is not loaded from configuration or `RagPipelineConfig`, so changing it requires source code modification.
+**Note:** For fallback calls to external RAG services (`call_rag_service()`), a `timeout=10.0` is hardcoded for each attempt (`scripts/rag/pipeline_service.py`). This value is not loaded from configuration or `RagPipelineConfig`, so changing it requires source code modification.
 
 ## Implementation Supplements (Current behavior)
 

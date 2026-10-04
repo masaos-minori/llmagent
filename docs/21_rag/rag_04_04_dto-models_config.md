@@ -56,7 +56,7 @@ Note: All fields are required — no default values are specified in the datacla
 
 ## Implementation Notes
 
-RAG configuration is provided by `RagConfigImpl`; the legacy per-stage config dataclasses (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) no longer exist.
+RAG configuration is provided by `RagConfigImpl`.
 
 ## Code References
 
