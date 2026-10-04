@@ -7,6 +7,16 @@ tags:
   - repl-io
 related:
   - agent_00_document-guide.md
+  - agent_07_01_cli-and-commands-cli-reference.md
+  - agent_07_02_cli-and-commands-cliview.md
+  - agent_07_03_cli-and-commands-command-registry.md
+  - agent_07_04_cli-and-commands-purpose.md
+  - agent_07_06_cli-and-commands-hot-reload.md
+  - agent_07_07_cli-and-commands-migration-notes.md
+  - agent_07_08_cli-and-commands-slash-commands-session-mcp.md
+  - agent_07_09_cli-and-commands-slash-commands-context-db.md
+  - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
+  - agent_07_11_cli-and-commands-slash-commands-memory-other.md
 ---
 
 # Agent CLI and Commands
@@ -54,24 +64,6 @@ Documents the design intent and operational decisions for the REPL input/output 
 
 - Unknown
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_07_01_cli-and-commands-cli-reference.md`
-- `agent_07_02_cli-and-commands-cliview.md`
-- `agent_07_03_cli-and-commands-command-registry.md`
-- `agent_07_04_cli-and-commands-purpose.md`
-- `agent_07_06_cli-and-commands-hot-reload.md`
-- `agent_07_07_cli-and-commands-migration-notes.md`
-- `agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
-- `agent_07_09_cli-and-commands-slash-commands-context-db.md`
-- `agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`
-- `agent_07_11_cli-and-commands-slash-commands-memory-other.md`
-
 ## Keywords
 
 REPL input/output model
-
-## Related Documents
-
-- `agent_00_document-guide.md`

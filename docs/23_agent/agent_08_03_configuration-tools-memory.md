@@ -6,6 +6,9 @@ tags:
   - configuration
 related:
   - agent_00_document-guide.md
+  - agent_08_01_configuration-loading-agent-config.md
+  - agent_08_02_configuration-llm-rag.md
+  - agent_08_04_configuration-mcp-approval-obs.md
 source:
   - agent_08_01_configuration-loading-agent-config.md
 ---
@@ -137,18 +140,7 @@ identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 
 - Unknown
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_08_01_configuration-loading-agent-config.md`
-- `agent_08_02_configuration-llm-rag.md`
-- `agent_08_04_configuration-mcp-approval-obs.md`
-
 ## Keywords
 
 ToolConfig
 MemoryConfig
-
-## Related Documents
-
-- `agent_00_document-guide.md`

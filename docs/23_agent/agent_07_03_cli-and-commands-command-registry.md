@@ -7,6 +7,16 @@ tags:
   - command-registry
 related:
   - agent_00_document-guide.md
+  - agent_07_01_cli-and-commands-cli-reference.md
+  - agent_07_02_cli-and-commands-cliview.md
+  - agent_07_04_cli-and-commands-purpose.md
+  - agent_07_05_cli-and-commands-repl-io.md
+  - agent_07_06_cli-and-commands-hot-reload.md
+  - agent_07_07_cli-and-commands-migration-notes.md
+  - agent_07_08_cli-and-commands-slash-commands-session-mcp.md
+  - agent_07_09_cli-and-commands-slash-commands-context-db.md
+  - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
+  - agent_07_11_cli-and-commands-slash-commands-memory-other.md
 ---
 
 # Agent CLI and Commands
@@ -52,26 +62,8 @@ Add a `CommandDef(...)` entry to `command_defs_list.py` and implement the corres
 
 - `AgentREPL.SLASH_COMMANDS` (for tab completion) and `command_defs_list._COMMANDS` (for dispatching) are maintained separately and currently have discrepancies. Since `SLASH_COMMANDS` does not include `/memory`, `/audit`, `/plan`, `/skill`, or `/mdq`, these commands can be dispatched but are not available for tab completion.
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_07_01_cli-and-commands-cli-reference.md`
-- `agent_07_02_cli-and-commands-cliview.md`
-- `agent_07_04_cli-and-commands-purpose.md`
-- `agent_07_05_cli-and-commands-repl-io.md`
-- `agent_07_06_cli-and-commands-hot-reload.md`
-- `agent_07_07_cli-and-commands-migration-notes.md`
-- `agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
-- `agent_07_09_cli-and-commands-slash-commands-context-db.md`
-- `agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`
-- `agent_07_11_cli-and-commands-slash-commands-memory-other.md`
-
 ## Keywords
 
 CommandRegistry
 responsibility boundary
 known limitation
-
-## Related Documents
-
-- `agent_00_document-guide.md`

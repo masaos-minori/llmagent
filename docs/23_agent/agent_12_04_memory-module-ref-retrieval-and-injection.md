@@ -9,6 +9,9 @@ related:
   - agent_12_01_memory-overview-and-modes.md
   - agent_12_03_memory-module-ref-core-and-store.md
   - agent_12_05_memory-module-ref-extraction-and-facade.md
+  - agent_00_document-guide.md
+  - agent_12_02_memory-gate-data-model-search.md
+  - agent_12_06_memory-module-ref-ops-and-scoring.md
 ---
 # Memory Layer — Module Reference: Retrieval and Injection
 
@@ -47,21 +50,6 @@ Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-
 ## Known Limitations
 
 Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (chunk fragmentation in search hits).
-
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_12_01_memory-overview-and-modes.md`
-- `agent_12_02_memory-gate-data-model-search.md`
-- `agent_12_03_memory-module-ref-core-and-store.md`
-- `agent_12_05_memory-module-ref-extraction-and-facade.md`
-- `agent_12_06_memory-module-ref-ops-and-scoring.md`
-
-## Related Documents
-
-- `agent_12_01_memory-overview-and-modes.md`
-- `agent_12_03_memory-module-ref-core-and-store.md`
-- `agent_12_05_memory-module-ref-extraction-and-facade.md`
 
 ## Keywords
 

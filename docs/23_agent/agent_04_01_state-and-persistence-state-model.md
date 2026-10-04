@@ -105,13 +105,6 @@ All write operations must go through `RepositoryGateway`. Direct calls that bypa
 
 - While rare, session restoration via `replace_history()` allows for cases where corrupted/tampered DB rows might introduce reserved ephemeral keys.
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_04_02_state-and-persistence-history-compression.md`
-- `agent_04_03_state-and-persistence-platform-databases.md`
-- `agent_04_01_state-and-persistence-state-model.md`
-
 ## Keywords
 
 AgentContext state model
@@ -120,9 +113,3 @@ TurnState
 WorkflowState
 RuntimeStats
 session persistence
-
-## Related Documents
-
-- `agent_00_document-guide.md`
-- `agent_04_02_state-and-persistence-history-compression.md`
-- `agent_04_03_state-and-persistence-platform-databases.md`

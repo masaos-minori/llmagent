@@ -6,6 +6,9 @@ tags:
   - configuration
 related:
   - agent_00_document-guide.md
+  - agent_08_01_configuration-loading-agent-config.md
+  - agent_08_03_configuration-tools-memory.md
+  - agent_08_04_configuration-mcp-approval-obs.md
 source:
   - agent_08_01_configuration-loading-agent-config.md
 ---
@@ -99,18 +102,7 @@ Documents the structure and constraints of LLM and RAG configurations.
 
 - Unknown
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_08_01_configuration-loading-agent-config.md`
-- `agent_08_03_configuration-tools-memory.md`
-- `agent_08_04_configuration-mcp-approval-obs.md`
-
 ## Keywords
 
 LLMConfig
 RAGConfig
-
-## Related Documents
-
-- `agent_00_document-guide.md`

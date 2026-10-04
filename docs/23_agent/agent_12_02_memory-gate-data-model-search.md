@@ -8,6 +8,10 @@ tags:
 related:
   - agent_12_01_memory-overview-and-modes.md
   - agent_12_03_memory-module-ref-core-and-store.md
+  - agent_00_document-guide.md
+  - agent_12_04_memory-module-ref-retrieval-and-injection.md
+  - agent_12_05_memory-module-ref-extraction-and-facade.md
+  - agent_12_06_memory-module-ref-ops-and-scoring.md
 ---
 # Memory Layer — Activation Gate, Data Model, and Search (Part 1)
 
@@ -42,17 +46,6 @@ The memory layer is controlled by three independent gates: complete bypass via a
 ## Known Limitations
 
 None currently known.
-
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_12_01_memory-overview-and-modes.md`
-- `agent_12_03_memory-module-ref-core-and-store.md`
-- `agent_12_04_memory-module-ref-retrieval-and-injection.md`
-- `agent_12_05_memory-module-ref-extraction-and-facade.md`
-- `agent_12_06_memory-module-ref-ops-and-scoring.md`
-- `agent_12_02_memory-gate-data-model-search.md`
-
 
 ## Memory Layer — Module Reference
 
@@ -154,11 +147,6 @@ Overview:
 - `cli_view.py` reflects the memory layer status in the startup banner.
 
 ---
-
-## Related Documents
-
-- `agent_12_01_memory-overview-and-modes.md`
-- `agent_12_03_memory-module-ref-core-and-store.md`
 
 ## Keywords
 

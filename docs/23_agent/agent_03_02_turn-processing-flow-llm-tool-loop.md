@@ -8,6 +8,8 @@ tags:
 related:
   - agent_03_01_turn-processing-flow-overview.md
   - agent_03_03_turn-processing-flow-workflow-engine.md
+  - agent_00_document-guide.md
+  - agent_04_01_state-and-persistence-state-model.md
 ---
 # Agent Turn Processing Flow - LLM and Tool Loop
 
@@ -117,13 +119,6 @@ Messages constructed by the LLM client's streaming aggregation logic consist onl
 - Retry suppression is only effective if `tool_error_retry_max > 0`.
 - Empty result repeat detection is only effective if `tool_empty_result_max_repeats > 0`.
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_03_01_turn-processing-flow-overview.md`
-- `agent_03_03_turn-processing-flow-workflow-engine.md`
-- `agent_04_01_state-and-persistence-state-model.md`
-
 ## Keywords
 
 LLM invocation and tool loop
@@ -132,8 +127,3 @@ guard methods
 error handling
 validated history append
 append_message
-
-## Related Documents
-
-- `agent_03_01_turn-processing-flow-overview.md`
-- `agent_03_03_turn-processing-flow-workflow-engine.md`

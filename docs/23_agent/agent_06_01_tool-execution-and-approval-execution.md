@@ -6,6 +6,11 @@ tags:
   - tool-execution
 related:
   - agent_00_document-guide.md
+  - agent_06_02_tool-execution-and-approval-approval.md
+  - agent_06_03_tool-execution-and-approval-concurrency-safety.md
+  - agent_06_04_tool-execution-and-approval-canonical.md
+  - agent_04_01_state-and-persistence-state-model.md
+  - security_02_high-risk-tool-common-policy.md
 ---
 
 # Agent Tool Execution and Approval
@@ -92,15 +97,6 @@ Uses verified methods via `ConversationState.append_message()` / `extend_message
 
 - Structurally invalid schemas from MCP servers may raise `jsonschema.SchemaError`, which `_check_type_validation()` does not catch.
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_06_02_tool-execution-and-approval-approval.md`
-- `agent_06_03_tool-execution-and-approval-concurrency-safety.md`
-- `agent_06_04_tool-execution-and-approval-canonical.md`
-- `agent_04_01_state-and-persistence-state-model.md`
-- `security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (Approval-Risk Tier Mapping)
-
 ## Keywords
 
 ToolExecutor
@@ -115,7 +111,3 @@ ExecutionPlan
 ScheduledGroup
 force_serial
 global:write scope
-
-## Related Documents
-
-- `agent_00_document-guide.md`

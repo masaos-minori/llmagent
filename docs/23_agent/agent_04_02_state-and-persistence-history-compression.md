@@ -6,6 +6,9 @@ tags:
   - state-persistence
   - history-compression
 related:
+  - agent_00_document-guide.md
+  - agent_04_01_state-and-persistence-state-model.md
+  - agent_04_03_state-and-persistence-platform-databases.md
 ---
 # Agent State and Persistence - History Compression
 
@@ -103,19 +106,9 @@ Even during fallback truncation, character limits are strictly enforced.
 
 - After reloading a session that has been compressed, `/undo` operates on the compressed DB rows. Since original messages were replaced by a summary message, fewer turns may be undoable than the user expects.
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_04_01_state-and-persistence-state-model.md`
-- `agent_04_03_state-and-persistence-platform-databases.md`
-
 ## Keywords
 
 HistoryManager compression
 compression trigger
 compression selection
 data classification
-
-## Related Documents
-
-- `agent_00_document-guide.md`

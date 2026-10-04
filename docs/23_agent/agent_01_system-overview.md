@@ -10,6 +10,13 @@ related:
   - agent_02_runtime-architecture.md
   - agent_03_01_turn-processing-flow-overview.md
   - agent_07_01_cli-and-commands-cli-reference.md
+  - agent_04_01_state-and-persistence-state-model.md
+  - agent_05_llm-and-streaming.md
+  - agent_06_01_tool-execution-and-approval-execution.md
+  - agent_08_01_configuration-loading-agent-config.md
+  - agent_09_01_data-layer-session-db.md
+  - agent_10_01_operations-and-observability-startup-and-health.md
+  - agent_13_reference-api.md
 ---
 
 # Agent System Overview
@@ -96,27 +103,6 @@ For the canonical command list, see [agent_07 Slash Command Reference](agent_07_
 ## Known Limitations
 
 N/A — no known limitations documented beyond those tracked in `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent).
-
-## Related Docs
-
-- [agent_00_document-guide.md](agent_00_document-guide.md)
-- [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
-- [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md)
-- [agent_04_01_state-and-persistence-state-model.md](agent_04_01_state-and-persistence-state-model.md)
-- [agent_05_llm-and-streaming.md](agent_05_llm-and-streaming.md)
-- [agent_06_01_tool-execution-and-approval-execution.md](agent_06_01_tool-execution-and-approval-execution.md)
-- [agent_07_01_cli-and-commands-cli-reference.md](agent_07_01_cli-and-commands-cli-reference.md)
-- [agent_08_01_configuration-loading-agent-config.md](agent_08_01_configuration-loading-agent-config.md)
-- [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md)
-- [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
-- [agent_13_reference-api.md](agent_13_reference-api.md)
-
-## Related Documents
-
-- `agent_00_document-guide.md`
-- `agent_02_runtime-architecture.md`
-- `agent_03_01_turn-processing-flow-overview.md`
-- `agent_07_01_cli-and-commands-cli-reference.md`
 
 ## Keywords
 
