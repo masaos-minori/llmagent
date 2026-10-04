@@ -24,6 +24,7 @@ related:
 **Startup Mode:** persistent (HTTP)
 **Configuration:** `config/git_mcp_server.toml`
 **Authentication:** No GITHUB_TOKEN required; uses local git credentials
+**Remote authorization:** `allowed_remote_urls` in `config/git_mcp_server.toml` lists the normalized remote URLs that `git_pull` and `git_push` may use. The list is fail-closed: an empty list denies every remote. It does not affect which tools are enabled, so `git_pull` and `git_push` stay listed but reject every call until a remote URL is added.
 
 **Tools:**
 
@@ -117,12 +118,12 @@ A command-specific guard exists for protected-branch enforcement via `GitSecurit
 
 ### `git_pull` policy
 
-- **Current:** remote and branch are forwarded to `repo.git.pull()` with no allowlist beyond "non-empty" (branch is not even checked for non-empty); pull strategy (fast-forward-only vs. merge vs. rebase) is not set by Git MCP and is entirely determined by the ambient `git` configuration of the repository/environment; `verify_preconditions()` applies the same dirty-worktree/detached-HEAD guard as all write tools; conflict handling is whatever `git`'s own failure produces, wrapped into `GitServiceError`.
+- **Current:** before any mutating call, the remote's current URL is resolved and must appear in `GitConfig.allowed_remote_urls` (an empty list denies all; a rejected remote is reported with a redacted URL); the remote and branch are then forwarded to `repo.git.pull()`; pull strategy (fast-forward-only vs. merge vs. rebase) is not set by Git MCP and is entirely determined by the ambient `git` configuration of the repository/environment; `verify_preconditions()` applies the same dirty-worktree/detached-HEAD guard as all write tools; conflict handling is whatever `git`'s own failure produces, wrapped into `GitServiceError`.
 - **Target:** pull SHOULD use an explicit, fast-forward-only strategy for unattended execution; merge/rebase MUST require separately documented policy; Dirty Worktree MUST cause rejection; conflicts MUST NOT be reported as success.
 
 ### `git_push` policy
 
-- **Current:** `GitConfig.protected_branches` is enforced (see §Protected branch authority below); no technical Force-Push block — `GitPushRequest` exposes no `force` field and `format_push()` never passes `--force` to `repo.git.push()`, so Force Push is not reachable through this tool at all (a guard would have nothing to guard); no ref-deletion, mirror-push, or multiple-ref distinctions (the schema does not expose them, but option-injection-shaped `branch`/`remote` values are already rejected by `_is_safe_ref()`); upstream/remote is not validated against an allowlist beyond non-empty.
+- **Current:** `GitConfig.protected_branches` is enforced (see §Protected branch authority below); no technical Force-Push block — `GitPushRequest` exposes no `force` field and `format_push()` never passes `--force` to `repo.git.push()`, so Force Push is not reachable through this tool at all (a guard would have nothing to guard); no ref-deletion, mirror-push, or multiple-ref distinctions (the schema does not expose them, but option-injection-shaped `branch`/`remote` values are already rejected by `_is_safe_ref()`); the remote's current URL must appear in `GitConfig.allowed_remote_urls` before the push runs (the same gate as `git_pull`).
 - **Target:** Force Push MUST be blocked by the normal `git_push` operation; protected branches MUST reject direct push unless a separately approved policy allows it; remote and destination ref MUST be resolved and validated explicitly; a push rejected by the remote MUST NOT be reported as success. If Force Push is ever required operationally, it MUST be a separate, more strongly authorized administrative capability — not an option of the normal `git_push` tool.
 
 ### Protected branch authority

@@ -14,7 +14,7 @@ related:
   - mcp_02_02_startup-modes-and-health.md
   - mcp_03_01_dispatch-and-routing.md
   - mcp_03_03_transport-and-health.md
-  - mcp_03_04_tool-call-tracing-and-watchdog.md
+  - mcp_03_04_tool-call-tracing-and-lifecycle.md
   - mcp_03_05_lifecycle-and-new-server.md
   - mcp_06_02_configuration-file-inventory.md
   - mcp_06_05_long-running-http-operation-startup_modesubprocess.md
@@ -417,7 +417,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - [Startup Modes and Health](../22_mcp/mcp_02_02_startup-modes-and-health.md) — startup modes and health
 - [Dispatch and Routing](../22_mcp/mcp_03_01_dispatch-and-routing.md) — dispatch and routing
 - [Transport and Health](../22_mcp/mcp_03_03_transport-and-health.md) — Transport and health
-- [Tool Call Tracing and Watchdog](../22_mcp/mcp_03_04_tool-call-tracing-and-watchdog.md) — tool call tracing and watchdog
+- [Transport Error Tracing and Lifecycle Flow](../22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md) — transport error tracing and lifecycle flow
 - [Lifecycle and New Server](../22_mcp/mcp_03_05_lifecycle-and-new-server.md) — lifecycle
 - [Configuration File Inventory](../22_mcp/mcp_06_02_configuration-file-inventory.md) — list of configuration files
 - [Long-running HTTP Operation Startup Mode/Subprocess](../22_mcp/mcp_06_05_long-running-http-operation-startup_modesubprocess.md) — startup modes for HTTP operation

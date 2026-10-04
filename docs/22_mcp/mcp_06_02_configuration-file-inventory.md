@@ -35,8 +35,7 @@ runtime — MCP server definition changes (URL, startup mode,
 transport, command, environment) are always reported as restart-required
 and require a full agent restart to take effect. Authentication tokens
 are resolved from secrets (env vars or secret files), not from config files.
-There is no background auto-restart process (the MCP watchdog was removed;
-see [mcp_06_12_watchdog-configuration-monitoring.md](mcp_06_12_watchdog-configuration-monitoring.md)).
+There is no background auto-restart process (see [mcp_06_09_mcp-failure-diagnosis.md](mcp_06_09_mcp-failure-diagnosis.md) for manual recovery).
 A crashed subprocess-mode server is retried automatically only on the next
 tool dispatch via `ensure_ready()` (`agent/factory.py`); it does not read or
 apply any pending `/reload` config change either. See

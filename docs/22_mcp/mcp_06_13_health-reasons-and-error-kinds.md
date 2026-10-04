@@ -1,5 +1,5 @@
 ---
-title: "MCP Health Reasons and Scheduling"
+title: "MCP Health Reasons and Error Kinds"
 area: mcp
 tags:
   - mcp
@@ -8,10 +8,9 @@ tags:
 related:
   - mcp_00_document-guide.md
   - mcp_06_02_configuration-file-inventory.md
-  - mcp_06_12_watchdog-configuration-monitoring.md
 ---
 
-# MCP Health Reasons and Scheduling
+# MCP Health Reasons and Error Kinds
 
 ## Health Reasons Priority
 
@@ -57,8 +56,7 @@ registry.record_failure(server_key)
 
 # Step 4: Current Status
 # The registry keeps only the state and failure counts per server; the body
-# reason is not stored. Refer to mcp_06_12_watchdog-configuration-monitoring.md
-# for the removal of the degraded-reason bookkeeping.
+# reason is not stored.
 ```
 
 #### Degraded Reasons Are Not Stored
@@ -71,8 +69,6 @@ registry.record_failure(server_key)
 
 - `mcp_00_document-guide.md`
 - `mcp_06_02_configuration-file-inventory.md`
-- `mcp_06_13_watchdog-health-reasons-scheduling.md`
-- `mcp_06_12_watchdog-configuration-monitoring.md`
 
 ### Keywords
 

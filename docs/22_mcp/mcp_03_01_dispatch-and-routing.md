@@ -9,7 +9,7 @@ related:
   - mcp_00_document-guide.md
   - mcp_03_02_tool-registry.md
   - mcp_03_03_transport-and-health.md
-  - mcp_03_04_tool-call-tracing-and-watchdog.md
+  - mcp_03_04_tool-call-tracing-and-lifecycle.md
   - mcp_03_05_lifecycle-and-new-server.md
 ---
 
@@ -136,7 +136,6 @@ Every MCP tool passes through these layers consistently from invocation to audit
 ② Runtime Dispatch        `server.py`'s `_DISPATCH_TABLE` or `service.get_dispatch_table()`
 ③ Registry Registration    `shared/tool_constants.py`'s frozenset → `shared/tool_registry.py` (for drift detection); routing relies solely on `RuntimeToolRegistry` in `shared/runtime_tool_registry.py`
 ④ Side-effect Detection     Only execution path `agent/tool_runner.py::_execute_with_dag()` delegates to `agent/tool_scheduler.py::build_execution_groups()` and references `RuntimeToolRegistry`-registered `is_write` (PreparedToolCall.spec) to determine parallel/serial execution (unregistered tools are rejected in the preparation phase via fail-closed)
-                        `shared/tool_executor_helpers.py::is_side_effect()` is deprecated (no longer used after TTL cache removal).
 ⑤ Risk Classification & Approval `agent/tool_policy.py::classify_operation_type()` / `classify_risk()` — Priority: `approval_risk_rules` → `tool_safety_tiers` → `tool_constants.py` classification
 ⑥ Audit Logging           `agent/tool_audit.py` — Records `classify_operation_type()` result as `operation_type`
 ```
@@ -145,7 +144,7 @@ Every MCP tool passes through these layers consistently from invocation to audit
 
 ### Serialization mechanism integrated into a single scheduler
 
-Previously, there were two separate mechanisms: batch-level downgrade ("if any tool in a batch is a write tool, serialize the whole batch") via standard execution path (`agent/tool_runner.py::_execute_standard()`, effective when `serial_tool_calls=True`) and tool-specific mandatory serialization via `ToolSpec.requires_serial`. `_execute_standard()` was removed, and `agent/tool_runner.py::_execute_with_dag()` became the sole execution path, unifying serialization decision making into `agent/tool_scheduler.py::build_execution_groups()` (phase construction + conflict graph + `force_serial` input):
+`agent/tool_runner.py::_execute_with_dag()` is the sole execution path, and all serialization decisions (tool-specific mandatory serialization via `ToolSpec.requires_serial`, resource-scope conflicts, and the batch-level `serial_tool_calls` setting) are made in `agent/tool_scheduler.py::build_execution_groups()` (phase construction + conflict graph + `force_serial` input):
 
 | Source | Behavior |
 |---|---|
@@ -153,7 +152,7 @@ Previously, there were two separate mechanisms: batch-level downgrade ("if any t
 | Overlapping `resource_scopes` (where at least one is `is_write=True`; unscoped writes use synthetic `"global:write"` scope) | Grouped as connected components in the conflict graph and serialized within the group |
 | `ctx.cfg.tool.serial_tool_calls=True` → `force_serial=True` (batch-level input) | Bypasses all the above and forces individual serial phases for each call in order |
 
-`shared/tool_executor_helpers.py::is_side_effect()` is deprecated (no longer used after TTL cache removal).
+`shared/tool_executor_helpers.py::is_side_effect()` is not referenced by the execution path; parallel/serial determination relies solely on `PreparedToolCall.spec.is_write`.
 
 ---
 

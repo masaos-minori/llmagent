@@ -61,11 +61,9 @@ Provides guidance on determining which chapters to open as the entry point for t
 | What is broken or unimplemented | `mcp_90` |
 ---
 
-## Navigation to Major Known Issues
+## Navigation to Known Issues
 
-| Issue | Location |
-|---|---|
-| mdq-mcp is production-ready (FTS5 search and indexing are implemented) | [mcp_04_04_mdq.md](mcp_04_04_mdq.md) |
+Open issues and uncertainties for MCP are managed in [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md). Per-server implementation notes are in [mcp_04_04_mdq.md](mcp_04_04_mdq.md) and [mcp_05_05_mdq-enforcement-and-lockdown.md](mcp_05_05_mdq-enforcement-and-lockdown.md).
 
 ---
 
@@ -84,7 +82,7 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ownership_matrix.md) | Tool Ownership Matrix |
 | [mcp_02_service_boundaries.md](mcp_02_service_boundaries.md) | Service Boundary Definitions |
 | [mcp_02_01](mcp_02_01_endpoints-and-transport.md) to [_02](mcp_02_02_startup-modes-and-health.md)/[_03](mcp_02_03_audit-logging-and-errors.md) | Protocol and Transport (3 parts) |
-| [mcp_03_01](mcp_03_01_dispatch-and-routing.md) to [_02](mcp_03_02_tool-registry.md)/[_03a](mcp_03_03_transport-and-health.md)/[_03b](mcp_03_03_transport-and-health.md)/[_04](mcp_03_04_tool-call-tracing-and-watchdog.md)/[_05](mcp_03_05_lifecycle-and-new-server.md)/[_06](mcp_03_06_tool-runtime-availability-metadata.md) | Routing and Lifecycle (7 parts) |
+| [mcp_03_01](mcp_03_01_dispatch-and-routing.md) to [_02](mcp_03_02_tool-registry.md)/[_03a](mcp_03_03_transport-and-health.md)/[_03b](mcp_03_03_transport-and-health.md)/[_04](mcp_03_04_tool-call-tracing-and-lifecycle.md)/[_05](mcp_03_05_lifecycle-and-new-server.md)/[_06](mcp_03_06_tool-runtime-availability-metadata.md) | Routing and Lifecycle (7 parts) |
 | [mcp_04_01](mcp_04_01_web-search-file-read-github.md) to [_02](mcp_04_02_file-write-file-delete-shell.md)/[_03](mcp_04_03_rag-pipeline-and-cicd.md)/[_04](mcp_04_04_mdq.md)/[_05](mcp_04_05_git.md) | Server Catalog (5 parts, _04=mdq. browser-mcp was merged into web-search-mcp under _01 on 2026-07-20; old _06 was deleted) |
 | [mcp_05_01](mcp_05_01_access-control-and-allowlists.md) to [_02](mcp_05_02_auth-profiles-and-sandboxing.md)/[_03](mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)/[_04](mcp_05_04_mdq-rag-boundary.md)/[_05](mcp_05_05_mdq-enforcement-and-lockdown.md) | Security Model (5 parts) |
 | [mcp_06_01_purpose.md](mcp_06_01_purpose.md) | Config Purpose |
@@ -98,12 +96,11 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | [mcp_06_09_mcp-failure-diagnosis.md](mcp_06_09_mcp-failure-diagnosis.md) | Failure Diagnosis |
 | [mcp_06_10_settings-with-high-operational-impact.md](mcp_06_10_settings-with-high-operational-impact.md) | Settings with High Operational Impact |
 | [mcp_06_11_startup-validation-behavior-tool_definitions_strict.md](mcp_06_11_startup-validation-behavior-tool_definitions_strict.md) | Startup Validation |
-| [mcp_06_12_watchdog-configuration-monitoring.md](mcp_06_12_watchdog-configuration-monitoring.md) | watchdog deletion note (2026-07-16) |
-| [mcp_06_13_watchdog-health-reasons-scheduling.md](mcp_06_13_watchdog-health-reasons-scheduling.md) | health_reason / HealthRegistry |
+| [mcp_06_13_health-reasons-and-error-kinds.md](mcp_06_13_health-reasons-and-error-kinds.md) | health_reason / HealthRegistry |
 | [mcp_06_14_new-tool-registration-procedure.md](mcp_06_14_new-tool-registration-procedure.md) | New Tool Registration |
 | [mcp_06_15_new-mcp-server-addition-checklist.md](mcp_06_15_new-mcp-server-addition-checklist.md) | New Server Addition Checklist |
 | [mcp_06_16_pre-production-fail-open-checklist.md](mcp_06_16_pre-production-fail-open-checklist.md) | Pre-Production Checklist |
-| [mcp_06_17_local-to-production-auth-migration.md](mcp_06_17_local-to-production-auth-migration.md) | Auth Migration |
+| [mcp_06_17_mcp-authentication-setup.md](mcp_06_17_mcp-authentication-setup.md) | Authentication Setup |
 | [../91_security/security_01_architecture-and-trust-boundaries.md](../91_security/security_01_architecture-and-trust-boundaries.md) | System architecture / trust boundaries / threat modeling (canonical cross-cutting source) |
 | [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) | High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping) |
 | [mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md) | Schema Export |

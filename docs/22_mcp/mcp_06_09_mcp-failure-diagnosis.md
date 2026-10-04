@@ -7,7 +7,6 @@ tags:
   - troubleshooting
 related:
   - mcp_06_02_configuration-file-inventory.md
-  - mcp_06_12_watchdog-configuration-monitoring.md
 ---
 # MCP Failure Diagnosis
 
@@ -27,8 +26,7 @@ To track failed or unexpected MCP tool calls, use the following flow:
    NO  → continue
 
 4. Has the circuit breaker tripped (UNAVAILABLE)?
-   YES → No automatic restart will happen (the MCP watchdog was removed on 2026-07-16;
-          see [mcp_06_12_watchdog-configuration-monitoring.md](./mcp_06_12_watchdog-configuration-monitoring.md)). Manual recovery required —
+   YES → No automatic restart will happen. Manual recovery required —
           either wait for the next tool call to trigger `ensure_ready()`, or restart the
           server/agent process manually.
    NO  → Check serialization. See Serialization in Tool Execution.
@@ -76,7 +74,7 @@ except Exception:                               # any startup failure
     raise                                       # propagate up so caller sees the failure
 ```
 
-In other words, even if a server repeatedly crashes, individual tool calls that have not yet reached their own circuit-break threshold can attempt recovery through `ensure_ready()`. This is currently the only automatic recovery path (periodic polling + automatic restart by the old MCP watchdog was removed on 2026-07-16. See [mcp_06_12_watchdog-configuration-monitoring.md](./mcp_06_12_watchdog-configuration-monitoring.md)).
+In other words, even if a server repeatedly crashes, individual tool calls that have not yet reached their own circuit-break threshold can attempt recovery through `ensure_ready()`. This is currently the only automatic recovery path; there is no periodic polling or automatic restart loop.
 
 Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recovery of any kind — `ensure_ready()` returns immediately for them (`cfg.transport != TransportType.HTTP or cfg.startup_mode != StartupMode.SUBPROCESS`) — so recovery for a crashed persistent-mode server depends entirely on external process supervision (see [mcp_06_16_pre-production-fail-open-checklist.md](./mcp_06_16_pre-production-fail-open-checklist.md)'s restart-policy requirement). This explicitly contrasts with subprocess-mode's reactive-on-next-dispatch recovery described above.
 

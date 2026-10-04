@@ -16,7 +16,7 @@ related:
   - agent_06_01_tool-execution-and-approval-execution.md
   - rag_03_05_query_pipeline-augment-stages.md
   - mcp_06_16_pre-production-fail-open-checklist.md
-  - mcp_06_17_local-to-production-auth-migration.md
+  - mcp_06_17_mcp-authentication-setup.md
   - mcp_02_03_audit-logging-and-errors.md
   - mcp_06_07_reading-audit-logs.md
   - agent_10_02_operations-and-observability-audit-and-otel.md
@@ -90,10 +90,10 @@ Secret lifecycle management covers:
 
 - **Provisioning**: Secrets provisioned via config files (`config/agent.toml`, `config/*_mcp_server.toml`) and environment variables; no hardcoded secrets in code
 - **Storage**: Secrets stored in config files with filesystem permissions (0600); no secrets in git history
-- **Rotation**: Operator replaces secret value in config and restarts affected services; no hot-reload for secrets (per `mcp_06_17_local-to-production-auth-migration.md`)
+- **Rotation**: Operator replaces secret value in config and restarts affected services; no hot-reload for secrets (per `mcp_06_17_mcp-authentication-setup.md`)
 - **Revocation**: Removing secret from config and restarting services invalidates it immediately; no separate revocation list
 
-*Source: `mcp_06_17_local-to-production-auth-migration.md`*
+*Source: `mcp_06_17_mcp-authentication-setup.md`*
 
 ## Log redaction rules
 

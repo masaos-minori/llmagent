@@ -43,14 +43,9 @@ secret in the TOML file — see the Production-Only Migration Procedure for the 
 
 ---
 
-## Security Profile (`security_profile`) — retired
+## Security Profile (`security_profile`)
 
-**Removed 2026-09-04**: `security_profile` no longer distinguishes `local` from
-`production` — `SecurityProfile` has a single `PRODUCTION` member
-(`plans/done/20260903-091417_plan.md`, "localremoval"). The
-authentication-mandatory behavior described above under
-[Authentication](#authentication-auth_token) applies unconditionally in every
-environment; there is no profile value that relaxes it.
+`SecurityProfile` has a single `PRODUCTION` member, so `security_profile` does not distinguish environments. The authentication-mandatory behavior described above under [Authentication](#authentication-auth_token) applies unconditionally in every environment; there is no profile value that relaxes it.
 
 **Enforcement Point:** `agent/services/security_audit.py::audit_security_defaults()` raises `RuntimeError` unconditionally if any HTTP MCP server has an empty `auth_token` — this check no longer branches on `security_profile`. It also raises an exception, regardless of environment, if `shell_sandbox_backend == "none"`; it separately warns about empty `tool.allowed_tools`.
 

@@ -83,7 +83,7 @@ For service names and ports, see `rules/env.md`.
 # MCP servers (startup_mode="subprocess"; safe to restart, tool calls will retry) —
 # there is no dedicated restart command: kill the process by its port and
 # ensure_ready() (agent/factory.py) restarts it automatically on the next tool call
-# to that server (see docs/22_mcp/mcp_06_12_watchdog-configuration-monitoring.md).
+# to that server (see docs/22_mcp/mcp_06_09_mcp-failure-diagnosis.md).
 lsof -ti :<PORT> | xargs -r kill
 
 # LLM inference servers (embed-llm :8081 / agent-llm :8080; 10-30 seconds to load model) —

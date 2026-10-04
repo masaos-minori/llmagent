@@ -11,12 +11,9 @@ related:
   - mcp_03_02_tool-registry.md
   - mcp_03_03_transport-and-health.md
   - mcp_03_05_lifecycle-and-new-server.md
-  - mcp_06_12_watchdog-configuration-monitoring.md
 ---
 
 # Transport Error Tracing and Lifecycle Flow
-
-> **Note:** Due to historical reasons, the filename contains the word `watchdog`, but the MCP watchdog (automatic health polling / automatic restart loop) was removed on 2026-07-16. For details, see [mcp_06_12_watchdog-configuration-monitoring.md](mcp_06_12_watchdog-configuration-monitoring.md).
 
 ## Example Failure Path (Transport Error)
 
@@ -42,8 +39,7 @@ related:
    ensure_ready() attempts recovery (subprocess mode only), then dispatch proceeds.
    → if the call succeeds: HealthRegistry.record_success("file_read") → HALF_OPEN → HEALTHY
    → if it fails again: HealthRegistry.record_failure("file_read") → DEGRADED → UNAVAILABLE
-   No background poller retries this automatically; see
-   mcp_06_12_watchdog-configuration-monitoring.md for the removed watchdog.
+   No background poller retries this automatically.
 ```
 
 ---

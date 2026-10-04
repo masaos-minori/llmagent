@@ -9,7 +9,7 @@ related:
   - mcp_00_document-guide.md
   - mcp_03_01_dispatch-and-routing.md
   - mcp_03_02_tool-registry.md
-  - mcp_03_04_tool-call-tracing-and-watchdog.md
+  - mcp_03_04_tool-call-tracing-and-lifecycle.md
   - mcp_03_05_lifecycle-and-new-server.md
 ---
 
@@ -82,7 +82,7 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 87. - `mcp_03_01_dispatch-and-routing.md`
 88. - `mcp_03_02_tool-registry.md`
 89. - `mcp_03_03_transport-and-health.md`
-90. - `mcp_03_04_tool-call-tracing-and-watchdog.md`
+90. - `mcp_03_04_tool-call-tracing-and-lifecycle.md`
 91. - `mcp_03_05_lifecycle-and-new-server.md`
 
 93. ## Keywords
@@ -147,7 +147,7 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 238. - `mcp_03_01_dispatch-and-routing.md`
 239. - `mcp_03_02_tool-registry.md`
 240. - `mcp_03_03_transport-and-health.md`
-241. - `mcp_03_04_tool-call-tracing-and-watchdog.md`
+241. - `mcp_03_04_tool-call-tracing-and-lifecycle.md`
 242. - `mcp_03_05_lifecycle-and-new-server.md`
 
 244. ## Keywords

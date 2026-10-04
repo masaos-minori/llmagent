@@ -14,7 +14,6 @@ related:
   - agent_07_05_cli-and-commands-repl-io.md
   - agent_07_06_cli-and-commands-hot-reload.md
   - agent_07_09_cli-and-commands-slash-commands-context-db.md
-  - mcp_06_12_watchdog-configuration-monitoring.md
   - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
   - agent_07_11_cli-and-commands-slash-commands-memory-other.md
 ---

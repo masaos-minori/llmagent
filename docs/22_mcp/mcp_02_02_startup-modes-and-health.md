@@ -34,7 +34,7 @@ All MCP server `/health` endpoints follow consistent semantics for response fiel
 
 **`liveness`**: Defaults to `true` (base class); subclasses can override it to indicate critical internal states where the process cannot accept requests.
 
-**`restart_recommended`**: Setting this to `true` indicates that restarting the process may resolve the issue; `false` means a restart will not help. No live consumer acts on this field today — the MCP watchdog that once did was removed 2026-07-16; the field is surfaced read-only via `/mcp status`.
+**`restart_recommended`**: Setting this to `true` indicates that restarting the process may resolve the issue; `false` means a restart will not help. No live consumer acts on this field today; it is surfaced read-only via `/mcp status`.
 
 **Note (Current Implementation):** In the current codebase, all 10 MCP server `/health` implementations (those using `scripts/mcp_servers/health_response.py::make_health_response()` and custom implementations for `mdq`/`file-read`/`write-delete`) always return `False` for `restart_recommended`. The base implementation of `MCPServer.health()` also has a fixed `False`. There is no code path that returns `restart_recommended=True` (Explicit in code). Therefore, currently, no automatic restart occurs regardless of this field's value today, while all current implementations return `False` for `restart_recommended` (Explicit in code).
 
@@ -57,7 +57,7 @@ All MCP server `/health` endpoints follow consistent semantics for response fiel
 - Reflected in `health_reason` as `operator_action_required` if `operator_action_required=true`.
 - `HealthRegistry.record_degraded(server_key, reason=...)` in the tool execution layer is called via a different path (`dispatch` result in `shared/tool_executor.py`) (currently a no-op for `UNAVAILABLE`/`HALF_OPEN` cases)
 
-Automatic restarts (formerly MCP watchdog) were removed on 2026-07-16. For details and manual recovery procedures, see [mcp_06_12_watchdog-configuration-monitoring.md](mcp_06_12_watchdog-configuration-monitoring.md).
+There is no automatic restart of MCP servers. For manual recovery procedures, see [mcp_06_09_mcp-failure-diagnosis.md](mcp_06_09_mcp-failure-diagnosis.md).
 
 **Healthy Response Example**:
 ```json
