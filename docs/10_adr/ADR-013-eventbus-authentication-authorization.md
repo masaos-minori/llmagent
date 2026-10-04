@@ -10,6 +10,11 @@ decision_scope:
 related:
   - ADR-002-config-isolation.md
   - ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md
+  - eventbus_01_system-overview.md
+  - eventbus_07_persistence_schema_and_replay.md
+  - eventbus_06_dlq_offsets_and_delivery_semantics.md
+  - security_01_architecture-and-trust-boundaries.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # ADR-013: EventBus Authentication and Authorization

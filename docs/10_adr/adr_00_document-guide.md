@@ -6,7 +6,7 @@ tags:
   - adr
   - document-guide
 related:
-  - ../00_index.md
+  - 00_index.md
   - overview_00_document-guide.md
 ---
 # ADR: Document Guide

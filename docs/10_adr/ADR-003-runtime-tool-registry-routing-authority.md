@@ -10,6 +10,11 @@ decision_scope:
 related:
   - ADR-001-workflow-engine-mandatory.md
   - ADR-002-config-isolation.md
+  - mcp_03_01_dispatch-and-routing.md
+  - mcp_03_02_tool-registry.md
+  - mcp_03_06_tool-runtime-availability-metadata.md
+  - agent_06_01_tool-execution-and-approval-execution.md
+  - shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
   - adr_03_runtime-tool-registry-supporting-sections.md
 ---
 

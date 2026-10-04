@@ -9,6 +9,9 @@ decision_scope:
   - system
 related:
   - ADR-001-workflow-engine-mandatory.md
+  - agent_08_01_configuration-loading-agent-config.md
+  - mcp_06_02_configuration-file-inventory.md
+  - shared_03_01_runtime_and_execution-config-and-logging.md
 supersedes: []
 superseded_by: null
 ---

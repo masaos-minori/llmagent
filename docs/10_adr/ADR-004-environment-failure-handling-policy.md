@@ -12,6 +12,11 @@ related:
   - ADR-002-config-isolation.md
   - ADR-003-runtime-tool-registry-routing-authority.md
   - ADR-010-rag-fallback.md
+  - adr_04_failure-handling-supporting-sections.md
+  - deployment_01_deployment.md
+  - agent_08_04_configuration-mcp-approval-obs.md
+  - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # ADR-004: Failure Handling Policy Across Environments

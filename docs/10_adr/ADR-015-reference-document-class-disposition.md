@@ -6,7 +6,7 @@ tags:
   - governance
   - reference
 related:
-  - ../00_governance/governance_01_documentation-policy.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-015: Reference Document Class Disposition

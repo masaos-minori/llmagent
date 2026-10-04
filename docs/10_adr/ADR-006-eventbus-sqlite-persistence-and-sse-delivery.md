@@ -9,6 +9,13 @@ decision_scope:
   - eventbus
 related:
   - ADR-002-config-isolation.md
+  - eventbus_01_system-overview.md
+  - eventbus_03_dlq_operations.md
+  - eventbus_07_persistence_schema_and_replay.md
+  - eventbus_06_dlq_offsets_and_delivery_semantics.md
+  - eventbus_09_configuration-and-operations.md
+  - eventbus_10_reference_api.md
+  - governance_03_issue-and-uncertainty-management.md
 supersedes: []
 superseded_by: null
 ---

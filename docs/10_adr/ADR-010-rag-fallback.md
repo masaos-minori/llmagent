@@ -9,6 +9,12 @@ decision_scope:
   - rag
 related:
   - ADR-002-config-isolation.md
+  - rag_03_01_query_pipeline-overview.md
+  - rag_03_05_query_pipeline-augment-stages.md
+  - rag_05_4-error-handling-reference.md
+  - rag_05_1-configuration-reference.md
+  - rag_91_design_notes.md
+  - db_02_architecture_and_schema-schema-reference.md
 supersedes: []
 superseded_by: null
 ---

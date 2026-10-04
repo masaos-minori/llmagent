@@ -7,7 +7,11 @@ tags:
   - write-enforcement
 decision_scope:
   - mcp/git
-related: []
+related:
+  - mcp_04_05_git.md
+  - security_02_high-risk-tool-common-policy.md
+  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # ADR-012: Git MCP Server-Side Write Enforcement
