@@ -9,6 +9,8 @@ decision_scope:
   - system
 related:
   - ADR-014-agent-control-plane-responsibility-boundaries.md
+  - deployment_01_deployment.md
+  - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
 ---
 
 # ADR-001: Mandatory Workflow Engine

@@ -9,6 +9,17 @@ decision_scope:
   - mcp
 related:
   - ADR-002-config-isolation.md
+  - mcp_01_system_overview.md
+  - mcp_02_01_endpoints-and-transport.md
+  - mcp_02_02_startup-modes-and-health.md
+  - mcp_03_01_dispatch-and-routing.md
+  - mcp_03_03_transport-and-health.md
+  - mcp_03_04_tool-call-tracing-and-watchdog.md
+  - mcp_03_05_lifecycle-and-new-server.md
+  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_05_long-running-http-operation-startup_modesubprocess.md
+  - mcp_06_15_new-mcp-server-addition-checklist.md
+  - governance_03_issue-and-uncertainty-management.md
 supersedes: []
 superseded_by: null
 ---

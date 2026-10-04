@@ -105,13 +105,14 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | [mcp_06_16_pre-production-fail-open-checklist.md](mcp_06_16_pre-production-fail-open-checklist.md) | Pre-Production Checklist |
 | [mcp_06_17_local-to-production-auth-migration.md](mcp_06_17_local-to-production-auth-migration.md) | Auth Migration |
 | [../91_security/security_01_architecture-and-trust-boundaries.md](../91_security/security_01_architecture-and-trust-boundaries.md) | System architecture / trust boundaries / threat modeling (canonical cross-cutting source) |
-| [00_security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) | High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping) |
+| [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) | High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping) |
 | [mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md) | Schema Export |
 | [mcp_08_tool_capability_naming_convention.md](mcp_08_tool_capability_naming_convention.md) | Capability Naming Convention |
-| ~~[~~mcp_07_mdq_rag_boundary~~ (deleted).md]~~ | Deleted |
 | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) | Known Issues (all areas) |
 
 ---
+
+*Note: This section only lists major files defined in the routing table and files explicitly referenced in the text.*
 
 ## Governance
 
@@ -122,32 +123,9 @@ Cross-cutting documentation rules and policies:
 - [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md)
 - [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
 
-## Migration Notes
-
-### POST /v1/search (Deleted — 2026-06-26)
-
-The `POST /v1/search` endpoint in `rag-pipeline-mcp` has been removed. Any code calling `rag_service_url` must be updated to the canonical MCP tool call format: `POST /v1/call_tool {"name": "rag_run_pipeline", "args": {"query": "...", "history_context": []}}`. This change is not backward compatible — no compatibility shim will be provided.
-
-### Gateway-style Tool Names vs. Actual Tool Names (Clarifying Naming)
-
-Mapping of initial "MCP Integrated Plugin System" proposals (Gateway-style function names) to current actual tool names:
-`list_files` $\to$ `list_directory`, `read_file` $\to$ `read_text_file`, `search_file` $\to$ `search_files`, `invoke_script` $\to$ `shell_run`. When referring to tools in future proposals, use actual tool names instead of Gateway-style.
-
----
-
-## Legacy Source Document Policy
-
-**Policy: Deletion.** Since full content is preserved in Git history, archiving is unnecessary.
-
-Old MCP source files were kept during the documentation restructuring phase (plan 71-76), but were deleted as of 2026-06-26. If restoration is needed, use `git log --all -- docs/<filename>`.
-
----
-
 ## Known Limitations
 
-- The known issues from the former section 13 have all been transferred to `mcp_90`.
-
-*Note: This section only lists major files defined in the routing table and files explicitly referenced in the text.*
+None currently known. Open items are tracked in `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP).
 
 ## Related ADRs
 
@@ -155,18 +133,6 @@ Old MCP source files were kept during the documentation restructuring phase (pla
 - [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) — Failure Handling Policy Across Environments
 - [ADR-007](../10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — Adoption of HTTP MCP and Non-Support of stdio
 - [ADR-012](../10_adr/ADR-012-git-mcp-server-side-write-enforcement.md) — Git MCP Server-Side Write Enforcement
-
-## Related Documents
-
-- `mcp_06_02_configuration-file-inventory.md`
-- `mcp_01_system_overview.md`
-- `mcp_02_01_endpoints-and-transport.md`
-- `mcp_03_01_dispatch-and-routing.md`
-- `mcp_04_01_web-search-file-read-github.md`
-- `mcp_05_01_access-control-and-allowlists.md`
-- `mcp_07_tool_schema_export_policy.md`
-- `mcp_08_tool_capability_naming_convention.md`
-- `governance_03_issue-and-uncertainty-management.md`
 
 ## Keywords
 

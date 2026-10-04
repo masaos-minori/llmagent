@@ -6,6 +6,9 @@ tags:
   - operations
   - reference
 related:
+  - eventbus_05_dlq_endpoint.md
+  - eventbus_01_system-overview.md
+  - eventbus_06_dlq_offsets_and_delivery_semantics.md
 ---
 # DLQ Operations Reference
 
@@ -57,12 +60,6 @@ If no events are in the DLQ, the response body is:
 ### Ordering
 
 Items are ordered by `seq` ascending (oldest first), which corresponds to insertion order into the DLQ.
-
-## Related Documents
-
-- [DLQ Requeue API Reference](eventbus_05_dlq_endpoint.md)
-- [Event Bus Overview](eventbus_01_system-overview.md)
-- [Event Bus DLQ/Offsets/Delivery Semantics](eventbus_06_dlq_offsets_and_delivery_semantics.md)
 
 ## Keywords
 

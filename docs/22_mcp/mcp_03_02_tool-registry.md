@@ -114,16 +114,6 @@ is_side_effect(tool_name: str) -> bool
 
 **[Explicit in code]** `McpToolDiscoveryService` is called from `startup.py`. `ToolExecutor.set_runtime_registry(runtime_reg)` connects the `RuntimeToolRegistry`. `ToolRouteResolver.resolve()` refers only to `RuntimeToolRegistry` for resolution. `ToolRegistry` is NOT used for routing decisions—it functions solely as drift detection data for the `tool_constants.py` frozenset (see the explanation at the beginning of this document; `agent/tool_policy.py::classify_operation_type()` no longer consults `ToolRegistry` — see ADR-003 Decision #8).
 
-## Related Documents
-
-- `mcp_03_06_tool-runtime-availability-metadata.md`
-- `mcp_00_document-guide.md`
-- `mcp_03_01_dispatch-and-routing.md`
-- `mcp_03_03_transport-and-health.md`
-- `mcp_03_04_tool-call-tracing-and-watchdog.md`
-- `mcp_03_05_lifecycle-and-new-server.md`
-- `mcp_07_tool_schema_export_policy.md`
-
 ## Keywords
 
 mcp

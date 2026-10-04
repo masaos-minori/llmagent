@@ -8,6 +8,9 @@ tags:
 related:
   - agent_00_document-guide.md
   - agent_06_04_tool-execution-and-approval-canonical.md
+  - agent_06_01_tool-execution-and-approval-execution.md
+  - agent_06_03_tool-execution-and-approval-concurrency-safety.md
+  - security_02_high-risk-tool-common-policy.md
 ---
 
 # Agent Tool Execution and Approval
@@ -123,22 +126,9 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 
 - Since GitHub tools are not included in `approval_dry_run_tools` by default, this path is currently dormant.
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_06_01_tool-execution-and-approval-execution.md`
-- `agent_06_03_tool-execution-and-approval-concurrency-safety.md`
-- `agent_06_04_tool-execution-and-approval-canonical.md`
-- `security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (approval-risk tier mapping)
-
 ## Keywords
 
 approval flow
 risk classification
 plan mode
 tool result cache
-
-## Related Documents
-
-- `agent_00_document-guide.md`
-- `agent_06_04_tool-execution-and-approval-canonical.md`

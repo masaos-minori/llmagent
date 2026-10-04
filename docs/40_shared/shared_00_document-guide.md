@@ -80,7 +80,7 @@ Cross-cutting documentation rules and policies:
 1. `load_all()` only includes `agent.toml` (`_BASE_CONFIG_FILES = ("agent.toml",)`, see `shared_03_01` section 2a). A `rag_pipeline.toml` configuration file does not exist — each MCP server (including rag-pipeline-mcp) loads its own `config/<key>_mcp_server.toml` due to process isolation policy, so there is no need for explicit loading on the agent side.
 2. `orjson.dumps()` returns `bytes` (requires `.decode()`).
 3. `ArtifactEvent` is data-only and has no event bus.
-4. `LLMMessage` has 7 fields (including `importance`/`pinned`; not 5 as in old ~~~~~~~~~~~~~~~~~~~~~~~~`90_shared.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)).
+4. `LLMMessage` has 7 fields (including `importance`/`pinned`).
 5. Do NOT perform manual INSERTs because DB triggers automatically synchronize `chunks_fts`.
 6. `SQLiteHelper("workflow")` is enabled (see `db_01`).
 7. For details on `LLMClient`, see `agent_05_llm-and-streaming.md` (not covered by this document set).
@@ -88,10 +88,6 @@ Cross-cutting documentation rules and policies:
 ## Related ADRs
 
 - [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
-
-## Related Documents
-
-- `governance_03_issue-and-uncertainty-management.md`
 
 ## Keywords
 

@@ -60,9 +60,3 @@ These items are also documented as Deferred Items in `docs/00_governance/governa
 ## Known Issues
 
 Known issues for this area are tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus). Offset and resume semantics, including the ACK-order obligation, are described in `eventbus_06_dlq_offsets_and_delivery_semantics.md`.
-
-## Related Documents
-
-- `eventbus_00_document-guide.md`
-- `eventbus_03_dlq_operations.md`
-- `eventbus_09_configuration-and-operations.md`

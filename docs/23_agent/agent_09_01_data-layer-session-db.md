@@ -7,6 +7,8 @@ tags:
   - session-sqlite
 related:
   - agent_00_document-guide.md
+  - agent_09_02_data-layer-access-patterns.md
+  - agent_09_03_data-layer-indexing-boundaries.md
 ---
 
 # Agent Data Layer
@@ -95,12 +97,6 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 - Decrypt failures are silently tolerated: ciphertext is returned unchanged with only a warning logged, not raised as an error.
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_09_02_data-layer-access-patterns.md`
-- `agent_09_03_data-layer-indexing-boundaries.md`
-
 ## Keywords
 
 session.sqlite
@@ -108,7 +104,3 @@ session_diagnostics
 SessionMessageRepository
 SQLiteSessionStore
 session retention
-
-## Related Documents
-
-- `agent_00_document-guide.md`

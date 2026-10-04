@@ -11,8 +11,8 @@ related:
   - mcp_05_02_auth-profiles-and-sandboxing.md
   - mcp_05_04_mdq-rag-boundary.md
   - mcp_05_05_mdq-enforcement-and-lockdown.md
-  - ../91_security/security_01_architecture-and-trust-boundaries.md
-  - ../91_security/security_02_high-risk-tool-common-policy.md
+  - security_01_architecture-and-trust-boundaries.md
+  - security_02_high-risk-tool-common-policy.md
 ---
 
 # MCP Security and Safety Model: Fail-Open vs Fail-Closed Summary, Dry-Run, Risk Tiers and AI Notes
@@ -111,13 +111,3 @@ Both checks are performed via `ProductionConfigValidator.validate()`, which inte
 5. **mdq-mcp is production-ready.** FTS5 indexing and searching is implemented. For production RAG workloads, use `rag-pipeline-mcp`. See [04_mcp_05 MDQ vs RAG Boundary](./mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) for guidelines.
 
 6. **Preview with `dry_run=True` before destructive operations.** The agent's approval flow automatically injects `dry_run=True` for registered tools before displaying a user prompt.
-
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_05_01_access-control-and-allowlists.md`
-- `mcp_05_02_auth-profiles-and-sandboxing.md`
-- `mcp_05_04_mdq-rag-boundary.md`
-- `mcp_05_05_mdq-enforcement-and-lockdown.md`
-- `security_01_architecture-and-trust-boundaries.md` — System architecture / trust boundaries / threat modeling / authentication & authorization / auditing / local vs production / Fail-open/Fail-closed / prompt injection responsibility boundaries
-- `security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)

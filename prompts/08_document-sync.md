@@ -198,7 +198,7 @@ Content to avoid:
 
 Format:
 - Preserve or add YAML front matter.
-- Add a Related Documents section with relative links.
+- Maintain front matter `related:` with the related documents' filenames; do not add a body Related Documents section (ADR documents keep their classified block).
 - Add Keywords.
 - Structure content for LLM/RAG/coding-agent consumption.
 - Preserve existing navigation and cross-references.

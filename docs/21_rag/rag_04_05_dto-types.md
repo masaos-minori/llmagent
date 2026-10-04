@@ -30,11 +30,6 @@ related:
 | `stage_results` | `list[StageResult]` | Execution results for each stage |
 | `diagnostics` | `SearchDiagnostics` | Search diagnostic information |
 
-## Related Documents
-
-- [RAG Documentation Guide](rag_00_document-guide.md)
-- `rag_04_05_dto-types.md`
-
 ## Keywords
 
 dto

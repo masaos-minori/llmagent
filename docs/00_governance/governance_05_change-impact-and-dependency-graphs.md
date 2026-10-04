@@ -159,11 +159,6 @@ Management Graph, or the Documentation Reference Graph above.
 
 Not cycle-checked: this is a matrix, not a directed graph.
 
-## Related Documents
-
-- [Documentation Policy](governance_01_documentation-policy.md)
-- [Documentation Checks](governance_04_documentation-checks.md)
-
 ## Keywords
 
 change impact

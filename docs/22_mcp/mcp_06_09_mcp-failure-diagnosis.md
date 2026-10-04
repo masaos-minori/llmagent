@@ -6,6 +6,8 @@ tags:
   - diagnostics
   - troubleshooting
 related:
+  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_12_watchdog-configuration-monitoring.md
 ---
 # MCP Failure Diagnosis
 
@@ -119,11 +121,6 @@ Basis: Explicit in code (`shared/mcp_health.py`). Health checks within the `Tool
 
 **Root cause explanation:**
 The "Unknown tool" error originates from `ToolRouteResolver.resolve()` which raises `ValueError` when a tool name is not found in `RuntimeToolRegistry`. This can happen even when the LLM sees the tool via `/v1/tools` because `RuntimeToolRegistry` may be incomplete due to discovery failures.
-
-## Related Documents
-
-- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
-- [mcp_06_12_watchdog-configuration-monitoring.md](mcp_06_12_watchdog-configuration-monitoring.md)
 
 ## Keywords
 

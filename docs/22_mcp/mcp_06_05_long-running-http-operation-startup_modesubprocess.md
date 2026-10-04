@@ -6,6 +6,7 @@ tags:
   - startup-modes
   - subprocess
 related:
+  - mcp_06_02_configuration-file-inventory.md
 ---
 # Long-Running HTTP Operation (startup_mode=subprocess)
 
@@ -14,10 +15,6 @@ At startup, the Agent starts uvicorn and polls `/health` every 0.5 seconds until
 The handling of this `RuntimeError` differs depending on the `security_profile` (`SecurityProfile` in `scripts/shared/mcp_config.py`). If `security_profile=production`, after one retry (with a delay defined by `HEALTH_CHECK_RETRY_DELAY_SEC`), if it still fails, the `RuntimeError` is propagated without being caught, causing the entire Agent process to terminate. If `security_profile=local`, the same failure is only logged and displayed as a warning; the specific server is disabled, but the Agent process and other MCP servers continue to operate. The health check itself originates from the `/health` polling in `scripts/agent/http_lifecycle.py` (`HttpStartupError`), and `scripts/agent/startup.py` applies the aforementioned `security_profile`-dependent branching.
 
 ---
-
-## Related Documents
-
-- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 
 ## Keywords
 

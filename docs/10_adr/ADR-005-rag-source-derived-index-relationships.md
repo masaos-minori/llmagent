@@ -9,6 +9,15 @@ decision_scope:
   - rag
 related:
   - ADR-002-config-isolation.md
+  - rag_04_01_dto-models_data.md
+  - rag_05_7-rag-index-consistency-checks.md
+  - rag_05_8-rag-mcp-internal-operations-direct-db-access.md
+  - db_02_architecture_and_schema-schema-reference.md
+  - rag_02_01_ingestion_pipeline-overview.md
+  - rag_02_04_ingestion_pipeline-ingester.md
+  - rag_02_02_ingestion_pipeline-crawler.md
+  - rag_02_03_ingestion_pipeline-chunksplitter.md
+  - rag_05_1-configuration-reference.md
 supersedes: []
 superseded_by: null
 ---

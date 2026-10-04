@@ -10,6 +10,8 @@ related:
   - agent_12_03_memory-module-ref-core-and-store.md
   - agent_12_04_memory-module-ref-retrieval-and-injection.md
   - agent_12_05_memory-module-ref-extraction-and-facade.md
+  - agent_00_document-guide.md
+  - agent_12_06_memory-module-ref-ops-and-scoring.md
 ---
 # Memory Layer — Overview and Modes (Part 1)
 
@@ -50,17 +52,6 @@ It separates semantic memory (long-term rules/decisions) from episodic memory (s
 
 None
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_12_02_memory-gate-data-model-search.md`
-- `agent_12_03_memory-module-ref-core-and-store.md`
-- `agent_12_04_memory-module-ref-retrieval-and-injection.md`
-- `agent_12_05_memory-module-ref-extraction-and-facade.md`
-- `agent_12_06_memory-module-ref-ops-and-scoring.md`
-- `agent_12_01_memory-overview-and-modes.md`
-
-
 ## Memory Layer — Overview and Modes (Part 2)
 
 - Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
@@ -100,10 +91,3 @@ If embedding retrieval fails, processing continues and the entry is saved withou
 Only when embedding retrieval succeeds does the duplicate link discovery perform a KNN nearest neighbor search and record related links in the `memory_links` table for entries within a distance less than `DedupPolicy.threshold` (default 0.3). Insertion failures (`OperationalError` / `IntegrityError`) are ignored with only a warning log.
 
 Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.SKIP_NEW`, but semantic writes / episodic writes (manual writes) intentionally bypass this deduplication.
-
-## Related Documents
-
-- `agent_12_02_memory-gate-data-model-search.md`
-- `agent_12_03_memory-module-ref-core-and-store.md`
-- `agent_12_04_memory-module-ref-retrieval-and-injection.md`
-- `agent_12_05_memory-module-ref-extraction-and-facade.md`

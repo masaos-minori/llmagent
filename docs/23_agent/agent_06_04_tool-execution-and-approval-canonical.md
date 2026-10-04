@@ -102,22 +102,8 @@ If a workflow fails after some steps are completed, the workflow engine records 
 - Pre-execution approval (tool-level) can be configured individually via `approval_risk_rules`, but unset tools require approval as "MEDIUM" risk
 - Partial completion is not automatically resumed — manual user intervention is required
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_06_01_tool-execution-and-approval-execution.md`
-- `agent_06_02_tool-execution-and-approval-approval.md`
-- `agent_06_03_tool-execution-and-approval-concurrency-safety.md`
-
 ## Keywords
 
 canonical approval model
 ADR-001
 partial completion persistence
-
-## Related Documents
-
-- `agent_00_document-guide.md`
-- `agent_06_01_tool-execution-and-approval-execution.md`
-- `agent_06_02_tool-execution-and-approval-approval.md`
-- `agent_06_03_tool-execution-and-approval-concurrency-safety.md`

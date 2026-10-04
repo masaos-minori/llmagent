@@ -6,6 +6,7 @@ tags:
   - tracing
   - observability
 related:
+  - mcp_06_02_configuration-file-inventory.md
 ---
 # End-to-End Tool Call Tracing
 
@@ -102,10 +103,6 @@ While serialization reduces concurrency, it prevents race conditions on shared r
 ---
 
 
-
-## Related Documents
-
-- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
 
 ## Keywords
 

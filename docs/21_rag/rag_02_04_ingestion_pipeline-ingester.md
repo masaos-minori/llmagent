@@ -117,18 +117,6 @@ Configuration details $\rightarrow$ [rag_02_06_ingestion_pipeline-supporting-com
 
 ---
 
-## Related Documents
-
-- `rag_00_document-guide.md`
-- `rag_01_system_overview.md`
-- `rag_02_01_ingestion_pipeline-overview.md`
-- `rag_02_02_ingestion_pipeline-crawler.md`
-- `rag_02_03_ingestion_pipeline-chunksplitter.md`
-- `rag_02_07_ingestion_pipeline-utils.md`
-- `rag_02_05_ingestion_pipeline-document-manager.md`
-- `rag_02_06_ingestion_pipeline-supporting-components.md`
-- `rag_05_1-configuration-reference.md`
-
 ## Keywords
 
 ingester

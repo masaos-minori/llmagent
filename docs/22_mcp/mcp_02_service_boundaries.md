@@ -175,11 +175,6 @@ For authoritative tool-to-server and risk-tier mapping, see [MCP Tool Ownership 
 - `mdq-mcp`: Markdown structural analysis only (FTS5 search implemented, hybrid search not implemented)
 - `rag-pipeline-mcp`: Full RAG pipeline including embedding generation and vector storage
 
-## Related Documents
-
-- [MCP Documentation Guide](mcp_00_document-guide.md)
-- [MCP Tool Ownership Matrix](mcp_01_tool_ownership_matrix.md)
-
 ## Keywords
 
 mcp

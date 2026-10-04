@@ -115,23 +115,6 @@ Embed skip count        8
   - Resource cleanup $\rightarrow$ saving readline history, `lifecycle.shutdown_all()`, closing HTTP clients
 - `shutdown_all()` temporarily absorbs additional `SIGINT` (e.g., second Ctrl-C) during execution to ensure all MCP subprocesses complete their shutdown processing without interruption (returns to normal interrupt handling after completion).
 
-## Related Docs
-
-- [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md) — Startup and Health Checks
-- [agent_10_02_operations-and-observability-audit-and-otel.md](agent_10_02_operations-and-observability-audit-and-otel.md) — Audit Logs and OTel
-- [agent_10_03_operations-and-observability-workflow-observability.md](agent_10_03_operations-and-observability-workflow-observability.md) — Workflow Observability
-- [agent_10_04_operations-and-observability-validation-and-troubleshooting.md](agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — Validation and Troubleshooting
-- [agent_10_05_operations-and-observability-monitoring.md](agent_10_05_operations-and-observability-monitoring.md) — Monitoring
-
-## Related Documents
-
-- `agent_00_document-guide.md`
-- `agent_10_01_operations-and-observability-startup-and-health.md`
-- `agent_10_02_operations-and-observability-audit-and-otel.md`
-- `agent_10_03_operations-and-observability-workflow-observability.md`
-- `agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
-- `agent_10_05_operations-and-observability-monitoring.md`
-
 ## Keywords
 
 - agent

@@ -4,8 +4,8 @@ area: governance
 tags:
   - governance
 related:
-  - ../00_index.md
-  - ../01_overview/overview_00_document-guide.md
+  - 00_index.md
+  - overview_00_document-guide.md
 ---
 
 # Documentation Checks
@@ -151,10 +151,11 @@ Compares file names listed in `tools/TOOL_DESCRIPTIONS.md` against actual `tools
 ### 8. Documentation Structure Validation (`check_docs_structure.py`)
 
 Validates structural conventions for `docs/*.md`:
-- File size limits
+- File size limits (a per-file exception list covers documents the owner accepted above the limit)
 - H1 heading count (exactly one per document)
 - Front Matter presence and required fields
-- Related Documents / Keywords sections
+- Keywords section; Related Documents section required for ADR documents only, and no body Related section in other documents
+- Front matter `related:` of each ADR covers the documents its body Related Documents block references
 - Internal `.md` link reachability
 
 **Usage:**
@@ -294,7 +295,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-001 | Required Front Matter | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-002 | Valid Document Status | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
-| GV-005 | Existence of Related Documents | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
+| GV-005 | Related section placement (ADR block required; no body Related section elsewhere; ADR front matter covers body references) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-006 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-008 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | Implement |
@@ -383,13 +384,6 @@ See [Policy's Maintenance Rules](governance_01_documentation-policy.md#maintenan
 ## Non-Goals
 
 Same as the Non-Goals in [governance_01_documentation-policy.md](governance_01_documentation-policy.md#non-goals).
-
-## Related Documents
-
-Cross-cutting documentation rules and policies:
-
-- [Documentation Overview](../00_index.md)
-- [System Overview Index](../01_overview/overview_00_document-guide.md)
 
 ## Keywords
 

@@ -6,6 +6,10 @@ tags:
   - configuration
 related:
   - agent_00_document-guide.md
+  - agent_08_01_configuration-loading-agent-config.md
+  - agent_08_02_configuration-llm-rag.md
+  - agent_08_03_configuration-tools-memory.md
+  - agent_09_01_data-layer-session-db.md
 source:
   - agent_08_01_configuration-loading-agent-config.md
 ---
@@ -137,23 +141,9 @@ Unknown
 
 `/reload reports cfg.diagnostics.* changes under a distinct LIVE category; they take effect immediately on every DiagnosticStore save()/fetch() call without requiring a restart`
 
-## Related Docs
-
-- [agent_00_document-guide.md](agent_00_document-guide.md)
-- [agent_08_01_configuration-loading-agent-config.md](agent_08_01_configuration-loading-agent-config.md)
-- [agent_08_02_configuration-llm-rag.md](agent_08_02_configuration-llm-rag.md)
-- [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
-- [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md)
-- System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
-- High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
-
 ## Keywords
 
 MCPConfig
 ApprovalConfig
 ObservabilityConfig
 DiagnosticsConfig
-
-## Related Documents
-
-- `agent_00_document-guide.md`

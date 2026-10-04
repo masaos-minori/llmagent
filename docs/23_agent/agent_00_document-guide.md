@@ -12,6 +12,13 @@ related:
   - agent_05_llm-and-streaming.md
   - agent_13_reference-api.md
   - governance_03_issue-and-uncertainty-management.md
+  - governance_01_documentation-policy.md
+  - governance_02_documentation-metadata.md
+  - governance_04_documentation-checks.md
+  - ADR-001-workflow-engine-mandatory.md
+  - ADR-003-runtime-tool-registry-routing-authority.md
+  - ADR-004-environment-failure-handling-policy.md
+  - ADR-007-http-mcp-adoption-and-stdio-non-support.md
 ---
 
 # Agent Documentation Guide
@@ -40,7 +47,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 - Recommended reading order for humans: Overview → Runtime Architecture → Turn Processing Flow → State/Persistence → LLM/Streaming → Tool Execution/Approval → CLI/Commands → Configuration → Data Layer → Operations/Observability → Extension Points → Memory → Reference API.
 - The canonical query routing table maps questions to chapters; use it to find the right chapter before searching code.
 
-## Related Docs
+## Navigation Guide
 
 ### Governance
 - [Documentation Policy](../00_governance/governance_01_documentation-policy.md)
@@ -91,19 +98,7 @@ When schema/command references change, verify that `agent_01_system-overview.md`
 | 13 | Reference API — per-module API: role, callers, callees, config, failure |
 | 90 | Inconsistencies and known issues — known bugs, spec conflicts, open questions |
 
-### Removed Files
-
-Deleted `05_ref-*` / ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`05_agent-impl-flow.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`05_agent-ops.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) files are integrated into chapters 02-13 above. See [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Agent) for known issues and unresolved items.
-
 ### Additional References
-
-- `agent_01_system-overview.md`
-- `agent_02_runtime-architecture.md`
-- `agent_05_llm-and-streaming.md`
-- `agent_13_reference-api.md`
-- `governance_03_issue-and-uncertainty-management.md`
-
-## Related Documents
 
 - `agent_01_system-overview.md`
 - `agent_02_runtime-architecture.md`

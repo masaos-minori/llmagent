@@ -6,6 +6,7 @@ tags:
   - llm
   - streaming
 related:
+  - agent_00_document-guide.md
 ---
 # Agent LLM and Streaming
 
@@ -117,11 +118,6 @@ If the LLM endpoint returns a chunk containing a `usage` field, data is extracte
 
 - Unknown
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_05_llm-and-streaming.md`
-
 ## Keywords
 
 agent
@@ -131,7 +127,3 @@ response
 reconnect
 transport-error
 llm-client
-
-## Related Documents
-
-- `agent_00_document-guide.md`

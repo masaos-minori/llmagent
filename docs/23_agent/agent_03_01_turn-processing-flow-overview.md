@@ -8,6 +8,9 @@ tags:
 related:
   - agent_03_02_turn-processing-flow-llm-tool-loop.md
   - agent_03_03_turn-processing-flow-workflow-engine.md
+  - agent_00_document-guide.md
+  - agent_04_01_state-and-persistence-state-model.md
+  - agent_06_01_tool-execution-and-approval-execution.md
 ---
 # Agent Turn Processing Flow - Overview
 
@@ -128,14 +131,6 @@ The session title generation task scheduled on the first turn manages consecutiv
 
 - Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). The paused state persists until process restart.
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_03_02_turn-processing-flow-llm-tool-loop.md`
-- `agent_03_03_turn-processing-flow-workflow-engine.md`
-- `agent_04_01_state-and-persistence-state-model.md`
-- `agent_06_01_tool-execution-and-approval-execution.md`
-
 ## Keywords
 
 one-turn processing flow
@@ -146,8 +141,3 @@ validated history append/insert
 validated tool result/denied-message append
 workflow engine mandatory execution path
 history compression detail
-
-## Related Documents
-
-- `agent_03_02_turn-processing-flow-llm-tool-loop.md`
-- `agent_03_03_turn-processing-flow-workflow-engine.md`

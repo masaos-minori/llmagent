@@ -274,3 +274,161 @@ def test_t5_containment_escape_is_rejected(
     assert not escape_source_target.exists()
     assert old_path.exists()
     assert not (docs_root / "new_name.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# T6 (REQ-002): front matter `related:` entries are rewritten
+# ---------------------------------------------------------------------------
+
+
+def _fm_doc(*entries: str) -> str:
+    items = "".join(f"  - {entry}\n" for entry in entries)
+    return f"---\ntitle: T\nrelated:\n{items}---\n\n# T\n"
+
+
+def test_t6_bare_and_dotdot_front_matter_entries_are_rewritten(
+    tmp_path: Path,
+) -> None:
+    """A bare entry becomes the new basename; a `../` entry becomes the new
+    relative path from the referencing file; entries for other documents are
+    left alone.
+    """
+    repo = _init_git_repo(tmp_path)
+    docs_root = tmp_path / "docs"
+    old_path = docs_root / "old_name.md"
+    new_path = docs_root / "sub" / "new_name.md"
+    bare_ref = docs_root / "ref_bare.md"
+    dotdot_ref = docs_root / "adr" / "ref_dotdot.md"
+
+    _commit_file(repo, old_path, "# Old Doc\n")
+    _commit_file(repo, bare_ref, _fm_doc("other.md", "old_name.md"))
+    _commit_file(repo, dotdot_ref, _fm_doc("../old_name.md", "other.md"))
+
+    plan = build_plan(docs_root, old_path, new_path, None, None)
+
+    assert set(plan.rewrites_by_file) == {bare_ref, dotdot_ref}
+    bare = plan.rewrites_by_file[bare_ref]
+    dotdot = plan.rewrites_by_file[dotdot_ref]
+    assert [(r.old_snippet, r.new_snippet) for r in bare] == [
+        ("old_name.md", "new_name.md")
+    ]
+    assert [(r.old_snippet, r.new_snippet) for r in dotdot] == [
+        ("../old_name.md", "../sub/new_name.md")
+    ]
+    assert bare[0].line_no == 5  # `---`, `title`, `related:`, `other.md`, then this
+
+    rewritten = apply_rewrites_to_content(bare_ref.read_text(encoding="utf-8"), bare)
+    assert rewritten == _fm_doc("other.md", "new_name.md")
+
+
+def test_t6_rewritten_entry_is_not_reported_as_prose(tmp_path: Path) -> None:
+    repo = _init_git_repo(tmp_path)
+    docs_root = tmp_path / "docs"
+    old_path = docs_root / "old_name.md"
+    new_path = docs_root / "new_name.md"
+    ref = docs_root / "ref.md"
+
+    _commit_file(repo, old_path, "# Old Doc\n")
+    _commit_file(repo, ref, _fm_doc("old_name.md"))
+
+    plan = build_plan(docs_root, old_path, new_path, None, None)
+
+    assert len(plan.rewrites_by_file[ref]) == 1
+    assert plan.prose_findings == []
+
+
+def test_t6_unsupported_entry_shapes_fail_closed(tmp_path: Path) -> None:
+    """A quoted entry and a sub-path entry that resolve to the old path are
+    reported as unresolved, never rewritten, and not double-reported as prose.
+    """
+    repo = _init_git_repo(tmp_path)
+    docs_root = tmp_path / "docs"
+    old_path = docs_root / "sub" / "old_name.md"
+    new_path = docs_root / "sub" / "new_name.md"
+    quoted_ref = docs_root / "quoted.md"
+    subpath_ref = docs_root / "subpath.md"
+
+    _commit_file(repo, old_path, "# Old Doc\n")
+    _commit_file(repo, quoted_ref, _fm_doc("'old_name.md'"))
+    _commit_file(repo, subpath_ref, _fm_doc("sub/old_name.md"))
+
+    plan = build_plan(docs_root, old_path, new_path, None, None)
+
+    assert plan.rewrites_by_file == {}
+    assert {u.file for u in plan.unresolved_links} == {quoted_ref, subpath_ref}
+    assert plan.prose_findings == []
+
+
+def test_t6_other_documents_entries_are_untouched(tmp_path: Path) -> None:
+    repo = _init_git_repo(tmp_path)
+    docs_root = tmp_path / "docs"
+    old_path = docs_root / "old_name.md"
+    new_path = docs_root / "new_name.md"
+    ref = docs_root / "ref.md"
+
+    _commit_file(repo, old_path, "# Old Doc\n")
+    _commit_file(repo, ref, _fm_doc("old_name_extra.md", "other.md"))
+
+    plan = build_plan(docs_root, old_path, new_path, None, None)
+
+    assert plan.rewrites_by_file == {}
+    assert plan.unresolved_links == []
+
+
+def test_t6_main_apply_rewrites_front_matter_and_dry_run_does_not(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = _init_git_repo(tmp_path)
+    docs_root = tmp_path / "docs"
+    old_path = docs_root / "old_name.md"
+    ref = docs_root / "ref.md"
+    _commit_file(repo, old_path, "# Old Doc\n")
+    _commit_file(repo, ref, _fm_doc("old_name.md"))
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["docs/old_name.md", "docs/new_name.md"]) == 0
+    assert ref.read_text(encoding="utf-8") == _fm_doc("old_name.md")
+    assert old_path.exists()
+
+    assert main(["docs/old_name.md", "docs/new_name.md", "--apply"]) == 0
+    assert ref.read_text(encoding="utf-8") == _fm_doc("new_name.md")
+    assert (docs_root / "new_name.md").exists()
+    assert not old_path.exists()
+
+
+def test_t6_self_referencing_front_matter_entry_is_rewritten(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = _init_git_repo(tmp_path)
+    docs_root = tmp_path / "docs"
+    old_path = docs_root / "old_name.md"
+    _commit_file(repo, old_path, _fm_doc("old_name.md"))
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["docs/old_name.md", "docs/new_name.md", "--apply"]) == 0
+    renamed = docs_root / "new_name.md"
+    assert renamed.read_text(encoding="utf-8") == _fm_doc("new_name.md")
+
+
+def test_t6_related_block_ends_at_the_next_key_and_unclosed_front_matter_is_ignored(
+    tmp_path: Path,
+) -> None:
+    repo = _init_git_repo(tmp_path)
+    docs_root = tmp_path / "docs"
+    old_path = docs_root / "old_name.md"
+    new_path = docs_root / "new_name.md"
+    keyed = docs_root / "keyed.md"
+    unclosed = docs_root / "unclosed.md"
+
+    _commit_file(repo, old_path, "# Old Doc\n")
+    _commit_file(
+        repo,
+        keyed,
+        "---\ntitle: T\nrelated:\n  - old_name.md\nsource:\n  - old_name.md\n---\n",
+    )
+    _commit_file(repo, unclosed, "---\ntitle: T\nrelated:\n  - old_name.md\n")
+
+    plan = build_plan(docs_root, old_path, new_path, None, None)
+
+    assert [r.line_no for r in plan.rewrites_by_file[keyed]] == [4]
+    assert unclosed not in plan.rewrites_by_file

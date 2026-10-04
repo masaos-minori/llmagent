@@ -7,6 +7,11 @@ tags:
   - recovery
   - metrics
 related:
+  - eventbus_03_dlq_operations.md
+  - eventbus_05_dlq_endpoint.md
+  - eventbus_16_replay_operations.md
+  - eventbus_01_system-overview.md
+  - eventbus_06_dlq_offsets_and_delivery_semantics.md
 ---
 # EventBus Publish Durability
 
@@ -93,14 +98,6 @@ Partial lines in JSONL (from interrupted writes) are naturally excluded by line-
 | `eventbus_broker_notify_failure_total` | Counter | Number of broker notification failures after successful database commit |
 | `eventbus_broker_publish_failure_total` | Counter | Number of broker publish failures to individual subscribers |
 | `eventbus_slow_consumer_total` | Counter | Number of slow consumer events detected (existing) |
-
-## Related Documents
-
-- [DLQ Operations Reference](eventbus_03_dlq_operations.md)
-- [DLQ Requeue API Reference](eventbus_05_dlq_endpoint.md)
-- [Replay Operations Reference](eventbus_16_replay_operations.md)
-- [Event Bus Overview](eventbus_01_system-overview.md)
-- [Event Bus DLQ/Offsets/Delivery Semantics](eventbus_06_dlq_offsets_and_delivery_semantics.md)
 
 ## Keywords
 

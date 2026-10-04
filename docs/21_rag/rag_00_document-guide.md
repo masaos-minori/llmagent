@@ -108,16 +108,6 @@ Cross-cutting documentation rules and policies:
 - [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md)
 - [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
 
-## Related Documents
-
-- `../00_governance/governance_03_issue-and-uncertainty-management.md`
-- `rag_01_system_overview.md`
-- `rag_02_01_ingestion_pipeline-overview.md`
-- `rag_03_01_query_pipeline-overview.md`
-- `rag_04_05_dto-types.md`
-- `rag_05_1-configuration-reference.md`
-- `rag_91_design_notes.md`
-
 ## Related ADRs
 
 - [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md) — Relationship Between RAG Canonical Data and Derived Indexes

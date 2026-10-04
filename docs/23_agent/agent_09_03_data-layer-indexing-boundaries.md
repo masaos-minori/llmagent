@@ -8,6 +8,8 @@ tags:
   - workflow-sqlite
 related:
   - agent_00_document-guide.md
+  - agent_09_01_data-layer-session-db.md
+  - agent_09_02_data-layer-access-patterns.md
 ---
 
 # Agent Data Layer
@@ -86,19 +88,9 @@ Managed by `agent/workflow/state_store.py`:
 
 - Unknown
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_09_01_data-layer-session-db.md`
-- `agent_09_02_data-layer-access-patterns.md`
-
 ## Keywords
 
 FTS5 index
 workflow.sqlite
 non-message persistence boundaries
 context manager pattern
-
-## Related Documents
-
-- `agent_00_document-guide.md`

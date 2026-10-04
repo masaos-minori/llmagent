@@ -103,11 +103,6 @@ Verify: `firejail --version`
 
 **Resource Limits** (applied via `preexec_fn`): `RLIMIT_CPU`, `RLIMIT_AS`, `RLIMIT_NOFILE`, `RLIMIT_NPROC`, `RLIMIT_FSIZE`
 
-## Related Documents
-
-- `mcp_05_01_access-control-and-allowlists.md`
-- `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-
 ## Keywords
 
 mcp

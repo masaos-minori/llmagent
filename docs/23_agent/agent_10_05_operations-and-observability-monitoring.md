@@ -6,6 +6,12 @@ tags:
   - operations
   - observability
 related:
+  - agent_10_01_operations-and-observability-startup-and-health.md
+  - agent_10_02_operations-and-observability-audit-and-otel.md
+  - agent_10_03_operations-and-observability-workflow-observability.md
+  - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+  - agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md
+  - agent_00_document-guide.md
 ---
 # Agent Operations and Observability
 
@@ -113,18 +119,6 @@ DiagnosticStore.loop_guard_hint method was removed after confirming zero product
 **Implementation Notes:**
 - `workflow_count`, `task_count`, `approval_events`, `retry_count`, and `artifacts` fall back to zero or an empty list if querying the workflow DB fails.
 - If persisting diagnostic information fails, it is logged at DEBUG level; this does not affect the main process (e.g., conversation continuation or session shutdown). `DiagnosticStore.save()` is designed so that failures in saving diagnostics do not block primary operations like conversation continuation or session shutdown.
-
-## Related Docs
-
-- [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md) — Startup and Health Checks
-- [agent_10_02_operations-and-observability-audit-and-otel.md](agent_10_02_operations-and-observability-audit-and-otel.md) — Audit Logs and OTel
-- [agent_10_03_operations-and-observability-workflow-observability.md](agent_10_03_operations-and-observability-workflow-observability.md) — Workflow Observability
-- [agent_10_04_operations-and-observability-validation-and-troubleshooting.md](agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — Validation and Troubleshooting
-- [agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md](agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md) — RAG Diagnostics and Memory
-
-## Related Documents
-
-- `agent_00_document-guide.md`
 
 ## Keywords
 

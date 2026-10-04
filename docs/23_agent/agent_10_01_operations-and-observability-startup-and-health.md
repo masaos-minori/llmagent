@@ -14,6 +14,9 @@ related:
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - agent_10_05_operations-and-observability-monitoring.md
   - agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md
+  - agent_09_01_data-layer-session-db.md
+  - agent_09_02_data-layer-access-patterns.md
+  - agent_08_04_configuration-mcp-approval-obs.md
 ---
 
 # Agent Operations and Observability
@@ -138,21 +141,6 @@ This clears all pending approvals and workflow state. If the data loss is signif
 - Some branches in `startup.py` have been tested, but their actual behavior in production environments has only been partially verified.
 - The WAL checkpoint timeout (default 30 seconds) may need adjustment based on real-world load.
 - Information regarding rollback failures is not displayed on the console screen; it can only be checked in the log files.
-
-## Related Docs
-
-- [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) — Role of `session_diagnostics`
-- [agent_09_02_data-layer-access-patterns.md](agent_09_02_data-layer-access-patterns.md) — DB access patterns
-- [agent_08_04_configuration-mcp-approval-obs.md](agent_08_04_configuration-mcp-approval-obs.md) — Configuration files
-
-## Related Documents
-
-- `agent_00_document-guide.md`
-- `agent_10_02_operations-and-observability-audit-and-otel.md`
-- `agent_10_03_operations-and-observability-workflow-observability.md`
-- `agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
-- `agent_10_05_operations-and-observability-monitoring.md`
-- `agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
 
 ## Keywords
 

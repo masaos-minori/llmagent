@@ -23,9 +23,6 @@ source:
 ## Keywords
 <placeholder>
 
-## Related Documents
-<placeholder>
-
 ## SQLite Database
 
 Primary store for all events. WAL mode is enabled to allow concurrent reads. DB operations are serialized using `asyncio.to_thread()` + `threading.Lock`.

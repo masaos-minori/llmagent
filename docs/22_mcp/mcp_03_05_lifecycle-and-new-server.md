@@ -86,11 +86,6 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 Even if `tool_names` is omitted or incomplete, the registry will continue to route correctly (Priority 2), but a warning will be issued during startup drift validation.
 
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_03_03_transport-and-health.md`
-
 ## Keywords
 
 mcp

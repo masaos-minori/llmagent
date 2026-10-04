@@ -19,10 +19,6 @@ Companion to [agent_13_reference-api.md](agent_13_reference-api.md)
 (hand-curated); split into its own file to stay under the per-document size
 threshold. Do not hand-edit between the guard comments — run the generator.
 
-## Related Documents
-
-- [agent_13_reference-api.md](agent_13_reference-api.md) — hand-curated Agent API reference
-
 ## Keywords
 
 agent, api-reference, generated

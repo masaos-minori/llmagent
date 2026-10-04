@@ -186,14 +186,6 @@ The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server 
 
 ---
 
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_04_02_file-write-file-delete-shell.md`
-- `mcp_04_03_rag-pipeline-and-cicd.md`
-- `mcp_04_04_mdq.md`
-- `mcp_04_05_git.md`
-
 ## Keywords
 
 mcp

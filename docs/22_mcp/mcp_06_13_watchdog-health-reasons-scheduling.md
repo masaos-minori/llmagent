@@ -166,13 +166,6 @@ Do not change `requires_serial` or `resource_scope_kind`/`resource_scope_keys` v
 
 ---
 
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_06_02_configuration-file-inventory.md`
-- `mcp_06_13_watchdog-health-reasons-scheduling.md`
-- `mcp_06_12_watchdog-configuration-monitoring.md`
-
 ## Keywords
 
 health-reasons

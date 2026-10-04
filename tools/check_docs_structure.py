@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Validate docs/*.md structural conventions: size, H1 count, Front Matter,
-Related Documents/Keywords sections, and internal .md link reachability.
+the Keywords section (and the Related Documents section of ADR documents),
+front matter `related:` coverage of ADR body references, and internal .md link
+reachability.
 
 Usage:
     uv run python tools/check_docs_structure.py [glob ...]
@@ -13,7 +15,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
@@ -71,9 +73,20 @@ def strip_fenced_code(content: str) -> str:
     return "\n".join(kept)
 
 
+# Per-file ceilings above MAX_SIZE, keyed by basename. ADR-003 sat 8 bytes under
+# MAX_SIZE when its front matter `related:` had to grow to cover the documents its
+# body Related Documents block references, which pushed it over; the owner accepted
+# this exception (2026-10-04) instead of editing the ADR body or raising the global
+# limit. Each ceiling equals the file's accepted size, so any further growth fails.
+SIZE_EXCEPTIONS: dict[str, int] = {
+    "ADR-003-runtime-tool-registry-routing-authority.md": 24808,
+}
+
+
 def check_size(path: Path, size: int) -> list[str]:
-    if size > MAX_SIZE:
-        return [f"{path.name}: size {size} bytes exceeds {MAX_SIZE} byte limit"]
+    limit = SIZE_EXCEPTIONS.get(path.name, MAX_SIZE)
+    if size > limit:
+        return [f"{path.name}: size {size} bytes exceeds {limit} byte limit"]
     return []
 
 
@@ -168,10 +181,27 @@ def check_status_value(path: Path, data: dict[str, Any]) -> list[str]:
     return []
 
 
+_RELATED_HEADING_RE = re.compile(
+    r"^## (?:Related Documents|Related Docs|Related Chapters)[ \t]*$", re.MULTILINE
+)
+_BODY_REF_RE = re.compile(r"`([^`\n]+\.md)`|\]\(([^)#\s]+\.md)(?:#[^)]*)?\)")
+
+
+def _is_adr(path: Path) -> bool:
+    return "10_adr" in path.parts
+
+
 def check_tail_sections(path: Path, content: str) -> list[str]:
     issues = []
-    if not re.search(r"^## Related Documents", content, re.MULTILINE):
-        issues.append(f"{path.name}: missing '## Related Documents' section")
+    if _is_adr(path):
+        if not re.search(r"^## Related Documents", content, re.MULTILINE):
+            issues.append(f"{path.name}: missing '## Related Documents' section")
+    else:
+        for match in _RELATED_HEADING_RE.finditer(strip_fenced_code(content)):
+            issues.append(
+                f"{path.name}: non-ADR document must not carry a body "
+                f"'{match.group(0)}' section; use front matter 'related:'"
+            )
     if not re.search(r"^## Keywords", content, re.MULTILINE):
         issues.append(f"{path.name}: missing '## Keywords' section")
     return issues
@@ -292,6 +322,40 @@ def check_related_links(
     return issues
 
 
+def check_adr_related_coverage(
+    path: Path, content: str, basename_index: dict[str, Path]
+) -> list[str]:
+    """ADR front matter `related:` must cover the documents its body references."""
+    if not _is_adr(path) or not content.startswith("---"):
+        return []
+    end = content.find("\n---", 3)
+    if end == -1:
+        return []
+    try:
+        data = yaml.safe_load(content[3:end]) or {}
+    except yaml.YAMLError:
+        return []  # already reported by check_front_matter()
+    covered = {PurePosixPath(str(entry)).name for entry in data.get("related") or []}
+    body = strip_fenced_code(content[end:])
+    missing: list[str] = []
+    for heading in _RELATED_HEADING_RE.finditer(body):
+        following = re.search(r"^## ", body[heading.end() :], re.MULTILINE)
+        stop = heading.end() + following.start() if following else len(body)
+        for code_ref, link_ref in _BODY_REF_RE.findall(body[heading.end() : stop]):
+            name = PurePosixPath(code_ref or link_ref).name
+            if (
+                name != path.name
+                and name in basename_index
+                and name not in covered
+                and name not in missing
+            ):
+                missing.append(name)
+    return [
+        f"{path.name}: front matter 'related:' lacks body-referenced document '{name}'"
+        for name in missing
+    ]
+
+
 def validate_file(
     path: Path,
     expected_area: str | None,
@@ -328,6 +392,7 @@ def validate_file(
             path, content, basename_index, check_duplicates=check_duplicates
         )
     )
+    issues.extend(check_adr_related_coverage(path, content, basename_index))
     return issues
 
 

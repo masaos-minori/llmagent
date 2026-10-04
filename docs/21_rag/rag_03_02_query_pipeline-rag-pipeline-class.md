@@ -43,18 +43,6 @@ Refer to the source code for a list of public attributes and methods.
 
 - **Removed.** The `invalidate_cache()` method was deliberately removed as part of the semantic cache feature removal (`282b08f38`, `09093016d`). Its absence is verified by `tests/rag/test_rag_pipeline_no_cache_freshness.py` (three assertions: `assert hasattr(pipeline, "invalidate_cache") is False`). No cache invalidation mechanism exists in the current implementation.
 
-## Related Documents
-
-- `rag_00_document-guide.md`
-- `rag_01_system_overview.md`
-- `rag_03_01_query_pipeline-overview.md`
-- `rag_03_03_query_pipeline-context-and-diagnostics.md`
-- `rag_03_04_query_pipeline-search-stages.md`
-- `rag_03_05_query_pipeline-augment-stages.md`
-- `rag_03_06_query_pipeline-helpers-and-cache.md`
-- `rag_04_05_dto-types.md`
-- `rag_05_1-configuration-reference.md`
-
 ## Keywords
 
 rag-pipeline-class
@@ -100,19 +88,6 @@ This classification result can be verified here:
 > **Note**: `get_diagnostics()["http_result_kind"]` (values: `remote_nonempty`/`remote_empty`/`in_process_fallback`) and `SearchDiagnostics.http_result_kind` (`rag.models_result.HttpResultKind` enum, values: `success`/`empty`/`error`/`not_used`) have similar names but are different fields with different vocabularies. See [rag_03_03_query_pipeline-context-and-diagnostics.md](rag_03_03_query_pipeline-context-and-diagnostics.md) section 4.2 for details.
 > (Evidence classification: Explicit in code — `HttpAugmentResult.__init__` and `RagPipeline._run_http_augment`)
 ---
-
-## Related Documents
-
-- `rag_00_document-guide.md`
-- `rag_01_system_overview.md`
-- `rag_03_01_query_pipeline-overview.md`
-- `rag_03_03_query_pipeline-context-and-diagnostics.md`
-- `rag_03_04_query_pipeline-search-stages.md`
-- `rag_03_05_query_pipeline-augment-stages.md`
-- `rag_03_06_query_pipeline-helpers-and-cache.md`
-- `rag_04_05_dto-types.md`
-- `rag_05_1-configuration-reference.md`
-- `rag_03_02_query_pipeline-rag-pipeline-class.md`
 
 ## Keywords
 

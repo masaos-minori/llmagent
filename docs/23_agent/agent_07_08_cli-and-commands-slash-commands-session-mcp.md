@@ -7,6 +7,17 @@ tags:
   - slash-commands
 related:
   - agent_00_document-guide.md
+  - agent_07_01_cli-and-commands-cli-reference.md
+  - agent_07_02_cli-and-commands-cliview.md
+  - agent_07_03_cli-and-commands-command-registry.md
+  - agent_07_04_cli-and-commands-purpose.md
+  - agent_07_05_cli-and-commands-repl-io.md
+  - agent_07_06_cli-and-commands-hot-reload.md
+  - agent_07_07_cli-and-commands-migration-notes.md
+  - agent_07_09_cli-and-commands-slash-commands-context-db.md
+  - mcp_06_12_watchdog-configuration-monitoring.md
+  - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
+  - agent_07_11_cli-and-commands-slash-commands-memory-other.md
 ---
 
 # Agent CLI and Commands
@@ -55,28 +66,9 @@ A group of commands for displaying and monitoring configuration files. `/reload`
 
 - Unknown
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_07_01_cli-and-commands-cli-reference.md`
-- `agent_07_02_cli-and-commands-cliview.md`
-- `agent_07_03_cli-and-commands-command-registry.md`
-- `agent_07_04_cli-and-commands-purpose.md`
-- `agent_07_05_cli-and-commands-repl-io.md`
-- `agent_07_06_cli-and-commands-hot-reload.md`
-- `agent_07_07_cli-and-commands-migration-notes.md`
-- `agent_07_09_cli-and-commands-slash-commands-context-db.md`
-- `mcp_06_12_watchdog-configuration-monitoring.md`
-- `agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`
-- `agent_07_11_cli-and-commands-slash-commands-memory-other.md`
-
 ## Keywords
 
 slash command reference
 session category
 mcp category
 config/stats category
-
-## Related Documents
-
-- `agent_00_document-guide.md`

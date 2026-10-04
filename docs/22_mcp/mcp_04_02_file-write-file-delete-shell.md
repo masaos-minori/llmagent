@@ -119,10 +119,6 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 
 ---
 
-## Related Documents
-
-- `mcp_00_document-guide.md`
-
 ## Keywords
 
 mcp

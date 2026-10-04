@@ -26,15 +26,6 @@ Companion to the six hand-curated Memory Layer chapter documents
 of those hand-curated documents needs to embed a mechanically-derived class/function
 listing. Do not hand-edit between the guard comments — run the generator.
 
-## Related Documents
-
-- [agent_12_01_memory-overview-and-modes.md](agent_12_01_memory-overview-and-modes.md)
-- [agent_12_02_memory-gate-data-model-search.md](agent_12_02_memory-gate-data-model-search.md)
-- [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md)
-- [agent_12_04_memory-module-ref-retrieval-and-injection.md](agent_12_04_memory-module-ref-retrieval-and-injection.md)
-- [agent_12_05_memory-module-ref-extraction-and-facade.md](agent_12_05_memory-module-ref-extraction-and-facade.md)
-- [agent_12_06_memory-module-ref-ops-and-scoring.md](agent_12_06_memory-module-ref-ops-and-scoring.md)
-
 ## Keywords
 
 agent, memory, api-reference, generated

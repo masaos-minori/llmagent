@@ -11,6 +11,7 @@ related:
   - mcp_04_02_file-write-file-delete-shell.md
   - mcp_04_03_rag-pipeline-and-cicd.md
   - mcp_04_05_git.md
+  - security_02_high-risk-tool-common-policy.md
 ---
 
 # MCP Server Catalog: mdq-mcp
@@ -111,15 +112,6 @@ The `detail` field in `call_tool()` audit logs (via `_audit_log()`, see "Audit" 
 Tool-level exceptions (`MdqValidationError` / `MdqAuthorizationError` / `MdqNotFoundError` / `MdqIndexNotReadyError`) and FastAPI exception handlers (`MdqDatabaseError` / `MdqConsistencyError` / `MdqServiceError`) do not embed error types into the `detail` string; instead, they pass the error type as the `error_type=` parameter to `_audit_log()`.
 
 ---
-
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_04_01_web-search-file-read-github.md`
-- `mcp_04_02_file-write-file-delete-shell.md`
-- `mcp_04_03_rag-pipeline-and-cicd.md`
-- `mcp_04_05_git.md`
-- `security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (mdq traversal processing is one implementation example of this common policy)
 
 ## Keywords
 

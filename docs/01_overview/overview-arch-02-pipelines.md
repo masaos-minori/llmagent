@@ -85,11 +85,6 @@ Currently, `config/agent.toml` explicitly specifies `startup_mode = "subprocess"
 
 See [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) for rationale, tradeoffs, and invariants.
 
-## Related Documents
-
-- `overview-arch-01-process.md`
-- `overview-arch-03-features.md`
-
 ## Keywords
 
 pipeline-architecture

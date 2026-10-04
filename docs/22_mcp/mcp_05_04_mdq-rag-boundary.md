@@ -19,8 +19,6 @@ related:
 
 ## MDQ vs RAG boundary
 
-> **Source of Truth.** This section consolidates content previously located in `~~mcp_07_mdq_rag_boundary~~ (deleted).md` (removed in commit f24efc1).
-
 ### Purpose
 
 Clearly defines the ownership boundaries between MDQ (Markdown Context Compression Engine) and RAG (Retrieval Augmented Generation), enabling engineers to decide which system to use for a specific task.
@@ -133,14 +131,6 @@ There is no automatic migration path. Migration requires re-ingestion via the RA
 
 For production workloads requiring general document search, prioritize `rag-pipeline-mcp`.
 Use `mdq-mcp` only for Markdown-specific structural queries where embedding quality is not critical.
-
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_05_01_access-control-and-allowlists.md`
-- `mcp_05_02_auth-profiles-and-sandboxing.md`
-- `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `mcp_05_05_mdq-enforcement-and-lockdown.md`
 
 ## Keywords
 

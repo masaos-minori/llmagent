@@ -92,13 +92,6 @@ Workflow-level approval states are persisted in the `approvals` table of `workfl
 
 See Known Limitations in [agent_06_02_tool-execution-and-approval-approval.md](agent_06_02_tool-execution-and-approval-approval.md) (the dry-run path for GitHub tools is currently dormant).
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_06_01_tool-execution-and-approval-execution.md`
-- `agent_06_02_tool-execution-and-approval-approval.md`
-- `agent_06_04_tool-execution-and-approval-canonical.md`
-
 ## Keywords
 
 safety controls summary
@@ -106,10 +99,3 @@ ToolLoopGuard
 concurrency limits
 fail-closed execution policy
 workflow approval recovery
-
-## Related Documents
-
-- `agent_00_document-guide.md`
-- `agent_06_01_tool-execution-and-approval-execution.md`
-- `agent_06_02_tool-execution-and-approval-approval.md`
-- `agent_06_04_tool-execution-and-approval-canonical.md`

@@ -56,11 +56,6 @@ Other derivative records (e.g., rows in the `chunks` table) depend on cascading 
 ## CLI Tools
 For current CLI usage, run `crawler.py --help`, `chunk_splitter.py --help`, or `ingester.py --help` in `scripts/rag/ingestion/`.
 
-## Related Documents
-
-- [RAG Documentation Guide](rag_00_document-guide.md)
-- [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-
 ## Keywords
 
 configuration

@@ -35,10 +35,10 @@
 | `generate_mcp_inventory.py` | リファレンス生成 | エージェント設定からMCPサーバー一覧をJSON/CSV出力 |
 | `generate_reference_table.py` | リファレンス生成 | RAG/MCP/デプロイメント/Agent/EventBusのリファレンス表生成(Memory型は対象文書確定待ち) |
 | `generate_workitem.py` | ワークアイテム生成 | プレースホルダー付きワークアイテムスケルトン生成。`--kind implementation-procedure --all-rows`でPlanの`Implementation Target Files`表の全行を一括生成可能(行ごとの既存ファイルはSKIPして継続) |
-| `manage_frontmatter.py` | フロントマッター管理 | Front Matter欠落検知・重複除去・area改名 |
+| `manage_frontmatter.py` | フロントマッター管理 | Front Matter欠落検知・重複除去・area改名・本文Relatedセクションの`related:`への統合 |
 | `manage_workitem_stage.py` | ワークアイテム管理 | アーカイブ移動・ステータス更新・期限切れ検出 |
 | `rename_mcp_modules.py` | リネーム補助 | MCPサーバーモジュールの一括リネーム |
-| `rename_doc.py` | リネーム補助 | `docs/*.md`の`git mv`と内部リンク更新 |
+| `rename_doc.py` | リネーム補助 | `docs/*.md`の`git mv`と内部リンク・Front Matter `related:` の更新 |
 | `fix_docstring_blank_line.py` | 整形補助 | D205違反(docstring空行)の一括修正 |
 | `fix_docs_section_marks.py` | 整形補助 | `§`記号の平易な英語表現へ置き換え |
 | `fix_docstring_paths.py` | 整形補助 | scriptsモジュールdocstringヘッダーパスの更新 |
@@ -86,11 +86,11 @@
 
 | ファイル | 概要 |
 |---|---|
-| `check_docs_structure.py` | `docs/*.md` の構造規約(ファイルサイズ、H1見出し数、Front Matter、Related Documents/Keywordsセクション、内部 `.md` リンクの到達可能性)を検証する。`uv run python tools/check_docs_structure.py [glob ...]`。`--schema [PATH]`(値省略時は`schemas/doc_front_matter.json`)でスキーマ駆動のFront Matter検証(必須フィールド・`area`/`status`のenum制約)を追加実行できる(デフォルトでは無効、既存動作に影響なし)。スキーマ本体は`tools/_front_matter_schema.py`経由で読み込み、未存在時は現行の必須4フィールドにフォールバックする |
+| `check_docs_structure.py` | `docs/*.md` の構造規約(ファイルサイズ(オーナーが許容した文書に限り個別の上限例外あり)、H1見出し数、Front Matter、Keywordsセクション(`## Related Documents` はADR文書のみ必須。非ADR文書に本文のRelated系セクションが残っていると報告し、ADR文書はFront Matterの`related:`が本文の参照先を網羅しているかを検査する)、内部 `.md` リンクの到達可能性)を検証する。`uv run python tools/check_docs_structure.py [glob ...]`。`--schema [PATH]`(値省略時は`schemas/doc_front_matter.json`)でスキーマ駆動のFront Matter検証(必須フィールド・`area`/`status`のenum制約)を追加実行できる(デフォルトでは無効、既存動作に影響なし)。スキーマ本体は`tools/_front_matter_schema.py`経由で読み込み、未存在時は現行の必須4フィールドにフォールバックする |
 | `check_dependency_graph_cycles.py` | `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`の`## Software Runtime Dependency Graph`節からエッジ一覧(`- A → B`形式)をパースし、Agent/MCP/RAG/EventBus/Shared-DBの5ノード間に循環が存在すれば非ゼロで終了する。`Confirmed edges`/`Needs Confirmation`双方のエッジを循環検出対象に含める |
-| `manage_frontmatter.py` | `add-missing` サブコマンドでFront Matter欠落を検知・追加(ファイル名から`area`を確信を持って推定できない場合は`overview`等へ推測せず`[AMBIGUOUS]`として報告のみに留める)、`dedupe-lists` サブコマンドでリストフィールドの重複エントリを除去、`rename-category-to-area` サブコマンド(新規)で`---`フェンス済みの有効なFront Matter内の`category:`キーを値そのままに`area:`へ改名(両キー併存時は改名せず報告のみ)。`AREA_PREFIX_MAP`の`06_eventbus`プレフィックス欠落バグ(実在しない`06_config`/`91_eventbus`が誤って登録され、実在する`06_eventbus_*.md`が`area: overview`に誤推定されていた)を2026-09-03に修正 |
+| `manage_frontmatter.py` | `add-missing` サブコマンドでFront Matter欠落を検知・追加(ファイル名から`area`を確信を持って推定できない場合は`overview`等へ推測せず`[AMBIGUOUS]`として報告のみに留める)、`dedupe-lists` サブコマンドでリストフィールドの重複エントリを除去、`rename-category-to-area` サブコマンド(新規)で`---`フェンス済みの有効なFront Matter内の`category:`キーを値そのままに`area:`へ改名(両キー併存時は改名せず報告のみ)。`AREA_PREFIX_MAP`の`06_eventbus`プレフィックス欠落バグ(実在しない`06_config`/`91_eventbus`が誤って登録され、実在する`06_eventbus_*.md`が`area: overview`に誤推定されていた)を2026-09-03に修正。`merge-related` サブコマンド(新規)で本文の`## Related Documents`/`## Related Docs`/`## Related Chapters`のエントリをFront Matterの`related:`へ統合(デフォルトはdry-run、`--fix`で書き込み。`docs/**/*.md`を再帰走査し、パス引数で対象を限定可能。ADR文書はFront Matterのみ更新して本文は変更しない。リンク以外の行や存在しない参照を含むセクションは削除せず報告する) |
 | `rename_mcp_modules.py` | `mcp_servers/<server>/` 配下のモジュール名を一括リネームするためのスクリプト。絶対インポート・相対インポート・patchターゲット・ドキュメント文字列の更新を自動処理。 |
-| `rename_doc.py` | `docs/*.md`(`docs/10_adr/*.md`含む)を`<old-path> <new-path>`引数で`git mv`し、`docs/`配下の全Markdownファイルを走査して該当ファイルへのMarkdownリンクパスを書き換える。オプションの`--old-title`/`--new-title`を両方指定した場合はリンクテキストも置換(非リンクのプレーンテキスト言及は書き換えず報告のみ)。書き込みは`docs/`配下に限定。`--apply`を付けない限り`--dry-run`相当(デフォルト)で変更内容の表示のみ。 |
+| `rename_doc.py` | `docs/*.md`(`docs/10_adr/*.md`含む)を`<old-path> <new-path>`引数で`git mv`し、`docs/`配下の全Markdownファイルを走査して該当ファイルへのMarkdownリンクパスと、Front Matterの`related:`エントリ(素のファイル名または`../`形式)を書き換える(それ以外の形式は書き換えず報告のみ)。オプションの`--old-title`/`--new-title`を両方指定した場合はリンクテキストも置換(非リンクのプレーンテキスト言及は書き換えず報告のみ)。書き込みは`docs/`配下に限定。`--apply`を付けない限り`--dry-run`相当(デフォルト)で変更内容の表示のみ。 |
 | `fix_docstring_blank_line.py` | D205(docstringサマリー行の直後に空行がない)を検出し、空行を挿入する一括修正スクリプト。三重引用符文字列の判定を堅牢にし、SQL文字列リテラルの誤検出を回避する。`--dir` でスキャン対象ディレクトリを指定可能。 |
 | `fix_docs_section_marks.py` | `docs/`・`skills/` 配下の Markdown ファイルから節記号 `§`(表示崩れの原因)を除去し、平易な英語表現(`section N`、`sections N-M` 等)に置き換える。`--dir <path...>` でスキャン対象を変更可能(デフォルト `docs skills`)。`--apply` を付けない限り dry-run。 |
 | `fix_docstring_paths.py` | `scripts/**/*.py` のモジュールレベルdocstringヘッダーパスをリポジトリルートからの相対パス（scripts/<relpath>形式）に書き換える。--dry-run で変更内容を表示、--apply で実際に適用。 |

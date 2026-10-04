@@ -132,11 +132,6 @@ If the result exceeds 512 KB:
 
 ---
 
-## Related Documents
-
-- `mcp_03_03_transport-and-health.md`
-- `mcp_00_document-guide.md`
-
 ## Keywords
 
 mcp

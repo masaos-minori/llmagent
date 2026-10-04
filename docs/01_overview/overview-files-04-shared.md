@@ -55,10 +55,6 @@ Health checks using `mcp_health.py` enable dispatch control based on server stat
 
 Config Drift defaults to warnings, raises RuntimeError if `routing_drift_strict` enabled. Live Drift defaults to warnings, becomes FATAL if `tool_definitions_strict` enabled or `security_profile == PRODUCTION`. Ownership Duplication always results in FATAL regardless of mode.
 
-## Related Documents
-
-- `overview-files-04-shared.md`
-
 ## Keywords
 
 shared

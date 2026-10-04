@@ -218,24 +218,6 @@ Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 - Conditional lines are added: `Memory inconsist.` if `stat_memory_consistency_failures` is true; `Memory embed: CIRCUIT OPEN [DEGRADED]` if the memory embedding circuit breaker is open; and `Hint: Run /session rag-consistency for index integrity status` if `rag_db_configured` is true.
 - `Latency (mean/max)` aggregates only the sample array of the `"llm"` key from `ctx.stats.stat_latency`; delay rows for tool calls are not included in this aggregation.
 
-## Related Docs
-
-- [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md) — Startup and Health Checks
-- [agent_10_02_operations-and-observability-audit-and-otel.md](agent_10_02_operations-and-observability-audit-and-otel.md) — Audit Logs and OTel
-- [agent_10_03_operations-and-observability-workflow-observability.md](agent_10_03_operations-and-observability-workflow-observability.md) — Workflow Observability
-- [agent_10_05_operations-and-observability-monitoring.md](agent_10_05_operations-and-observability-monitoring.md) — Monitoring
-- [agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md](agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md) — RAG Diagnostics and Memory
-- `agent_10_04_operations-and-observability-validation-and-troubleshooting.md` — Validation and Troubleshooting
-
-## Related Documents
-
-- `agent_00_document-guide.md`
-- `agent_10_01_operations-and-observability-startup-and-health.md`
-- `agent_10_02_operations-and-observability-audit-and-otel.md`
-- `agent_10_03_operations-and-observability-workflow-observability.md`
-- `agent_10_05_operations-and-observability-monitoring.md`
-- `agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
-
 ## Keywords
 
 - agent

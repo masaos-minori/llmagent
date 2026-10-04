@@ -11,6 +11,9 @@ related:
   - rag_00_document-guide.md
   - rag_02_01_ingestion_pipeline-overview.md
   - rag_03_01_query_pipeline-overview.md
+  - rag_04_01_dto-models_data.md
+  - rag_05_1-configuration-reference.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 
@@ -247,7 +250,7 @@ Note: External (HTTP-delegated) and local (in-process) RAG execution modes curre
 
 For details on responsibilities of these components, please refer to `docs/21_rag/rag_03_01_query_pipeline-overview.md`.
 
-## Related Chapters
+## Chapter Map
 
 | Topic | File |
 |---|---|
@@ -256,12 +259,6 @@ For details on responsibilities of these components, please refer to `docs/21_ra
 | DB Schema, Type Definitions | [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md) |
 | Config, Execution Commands, Logs | [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md) |
 | Known Bugs and Inconsistencies | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG) |
-
-## Related Documents
-
-- `rag_00_document-guide.md`
-- `rag_02_01_ingestion_pipeline-overview.md`
-- `rag_03_01_query_pipeline-overview.md`
 
 ## Keywords
 

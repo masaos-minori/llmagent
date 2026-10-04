@@ -11,16 +11,16 @@ tags:
   - symlink-traversal
 related:
   - security_01_architecture-and-trust-boundaries.md
-  - ../00_governance/governance_01_documentation-policy.md
-  - ../22_mcp/mcp_05_01_access-control-and-allowlists.md
-  - ../22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
-  - ../23_agent/agent_06_01_tool-execution-and-approval-execution.md
-  - ../22_mcp/mcp_04_02_file-write-file-delete-shell.md
-  - ../22_mcp/mcp_04_04_mdq.md
-  - ../22_mcp/mcp_05_05_mdq-enforcement-and-lockdown.md
-  - ../23_agent/agent_06_02_tool-execution-and-approval-approval.md
-  - ../22_mcp/mcp_06_16_pre-production-fail-open-checklist.md
-  - ../22_mcp/mcp_02_03_audit-logging-and-errors.md
+  - governance_01_documentation-policy.md
+  - mcp_05_01_access-control-and-allowlists.md
+  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - agent_06_01_tool-execution-and-approval-execution.md
+  - mcp_04_02_file-write-file-delete-shell.md
+  - mcp_04_04_mdq.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
+  - agent_06_02_tool-execution-and-approval-approval.md
+  - mcp_06_16_pre-production-fail-open-checklist.md
+  - mcp_02_03_audit-logging-and-errors.md
 source:
 ---
 
@@ -189,20 +189,6 @@ This policy defines the common baseline. Tool-specific deviations are documented
 - **Shell MCP**: `approval_shell_safe_prefixes` allows auto-approval for safe prefixes (documented in `mcp_04_02_file-write-file-delete-shell.md`)
 
 Tool-specific docs must include a "See also: `security_02_high-risk-tool-common-policy.md`" reference.
-
-## Related Documents
-
-- `security_01_architecture-and-trust-boundaries.md`
-- `../00_governance/governance_01_documentation-policy.md`
-- `../22_mcp/mcp_05_01_access-control-and-allowlists.md`
-- `../22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `../23_agent/agent_06_01_tool-execution-and-approval-execution.md`
-- `../22_mcp/mcp_04_02_file-write-file-delete-shell.md`
-- `../22_mcp/mcp_04_04_mdq.md`
-- `../22_mcp/mcp_05_05_mdq-enforcement-and-lockdown.md`
-- `../23_agent/agent_06_02_tool-execution-and-approval-approval.md`
-- `../22_mcp/mcp_06_16_pre-production-fail-open-checklist.md`
-- `../22_mcp/mcp_02_03_audit-logging-and-errors.md`
 
 ## Keywords
 

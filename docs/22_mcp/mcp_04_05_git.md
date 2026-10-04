@@ -11,7 +11,7 @@ related:
   - mcp_04_02_file-write-file-delete-shell.md
   - mcp_04_03_rag-pipeline-and-cicd.md
   - mcp_04_04_mdq.md
-  - ../91_security/security_02_high-risk-tool-common-policy.md
+  - security_02_high-risk-tool-common-policy.md
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - governance_03_issue-and-uncertainty-management.md
 ---
@@ -144,14 +144,6 @@ Git MCP returns free-form strings, not stable codes: `[DENIED] git-mcp is config
 ### Audit
 
 Every `/v1/call_tool` invocation is recorded via the shared `_audit_log()` helper (tool name, outcome, timestamp, session/request id). On a successful call, `target` is the resolved canonical repository path, also recorded separately as `canonical_target`; on a validation, path-containment, or precondition rejection, `target` is empty but the raw caller-supplied value is recorded as `requested_target`. Pre-operation and post-operation git state (branch, HEAD, conflict status) are not part of the audit record regardless. `audit_log_path` in `GitConfig` is present but unused — no code path writes to it (see the 2026-07-13 note above, which remains accurate).
-
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_04_01_web-search-file-read-github.md`
-- `mcp_04_02_file-write-file-delete-shell.md`
-- `mcp_04_03_rag-pipeline-and-cicd.md`
-- `mcp_04_04_mdq.md`
 
 ## Keywords
 

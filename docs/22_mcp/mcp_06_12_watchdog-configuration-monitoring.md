@@ -6,6 +6,10 @@ tags:
   - watchdog
   - monitoring
 related:
+  - mcp_00_document-guide.md
+  - mcp_02_02_startup-modes-and-health.md
+  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_09_mcp-failure-diagnosis.md
 ---
 # MCP Watchdog — Removed (2026-07-16)
 
@@ -44,13 +48,6 @@ recovery paths are:
 2. **Manual process restart** — if a subprocess-mode server keeps crashing, or an externally-managed (`startup_mode="persistent"`) server goes down, an operator must restart it directly (e.g. via the process supervisor managing that server) or restart the agent process itself so MCP server startup runs again. There is no `/mcp restart` slash command; `/mcp status` is read-only and only reports state, it does not trigger a restart.
 
 Use `/mcp status` to check current DEGRADED/UNAVAILABLE state and `health_reason` before deciding whether a manual restart is needed — see [mcp_06_09_mcp-failure-diagnosis.md](mcp_06_09_mcp-failure-diagnosis.md).
-
-## Related Documents
-
-- [mcp_00_document-guide.md](mcp_00_document-guide.md)
-- [mcp_02_02_startup-modes-and-health.md](mcp_02_02_startup-modes-and-health.md)
-- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
-- [mcp_06_09_mcp-failure-diagnosis.md](mcp_06_09_mcp-failure-diagnosis.md)
 
 ## Keywords
 

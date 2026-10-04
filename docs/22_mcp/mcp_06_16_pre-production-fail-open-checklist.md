@@ -40,11 +40,6 @@ Refer to `mcp_05_01_access-control-and-allowlists.md` for the complete table of 
 ---
 
 
-## Related Documents
-
-- [MCP Documentation Guide](mcp_00_document-guide.md)
-- [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md)
-
 ## Keywords
 
 configuration

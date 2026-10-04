@@ -71,11 +71,6 @@ Manages hot-reloadable config fields for `LLMClient`. `HOT_CONFIG_FIELDS` is a t
 | What is the `ToolExecutor` cache key format? | `{tool_name}:{json_dumps(args)}` (using `shared.json_utils.dumps`) |
 | What are the health gate state transitions? | HEALTHY $\rightarrow$ DEGRADED $\rightarrow$ UNAVAILABLE $\rightarrow$ HALF_OPEN $\rightarrow$ HEALTHY/UNAVAILABLE (section 17) |
 
-## Related Documents
-
-- `shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`
-- `shared_03_03_runtime_and_execution-llm-and-mcp-clients.md`
-
 ## Keywords
 
 - shared

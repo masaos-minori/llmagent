@@ -11,9 +11,6 @@ status: draft
 ## Keywords
 <placeholder>
 
-## Related Documents
-<placeholder>
-
 ## rag.sqlite
 
 - **Owner**: Agent team

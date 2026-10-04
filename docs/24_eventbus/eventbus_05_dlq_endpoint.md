@@ -174,12 +174,6 @@ Concurrent requeue attempts on the same event produce exactly one successful red
 
 Requeue uses a lineage model: each requeue creates a new event row with `redelivered_from` pointing to the original event ID. The original row's `dlq_at` timestamp is intentionally preserved so only one successful redelivery occurs per original event. Attempting to requeue the same event twice will return HTTP 409 on the second attempt.
 
-## Related Documents
-
-- [DLQ Operations Reference](eventbus_03_dlq_operations.md)
-- [Event Bus Overview](eventbus_01_system-overview.md)
-- [Event Bus DLQ/Offsets/Delivery Semantics](eventbus_06_dlq_offsets_and_delivery_semantics.md)
-
 ## Keywords
 
 dlq

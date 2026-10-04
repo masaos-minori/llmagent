@@ -7,13 +7,11 @@ tags:
 related:
   - agent_02_runtime-architecture.md
   - agent_14_reference-api-generated.md
+  - agent_00_document-guide.md
 ---
 # Agent Reference API
 
 ## Keywords
-<placeholder>
-
-## Related Documents
 <placeholder>
 
 ## Purpose
@@ -47,14 +45,6 @@ The API reference focuses on "what the API is" and "how it works." "Why this API
 ## Known Limitations
 
 - Some callees involve indirect dependencies (e.g., `factory.build_agent_context()` is called via `StartupOrchestrator`).
-
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_13_reference-api.md`
-- `agent_14_reference-api-generated.md` — generated `scripts/agent/*.py` class/function index
-
----
 
 ## AgentREPL (`agent/repl.py`)
 

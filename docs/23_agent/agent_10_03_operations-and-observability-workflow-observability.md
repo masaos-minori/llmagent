@@ -13,6 +13,7 @@ related:
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - agent_10_05_operations-and-observability-monitoring.md
   - agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md
+  - agent_09_01_data-layer-session-db.md
 source:
   - agent_10_01_operations-and-observability-startup-and-health.md
 ---
@@ -73,21 +74,6 @@ Expected span names:
 
 - Since additional observability events occur only in workflow mode, differentiation from normal mode is required.
 - Workflow information might be redundantly recorded in both audit logs and session diagnostics.
-
-## Related Docs
-
-- [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md) — Startup and Health Checks
-- [agent_10_02_operations-and-observability-audit-and-otel.md](agent_10_02_operations-and-observability-audit-and-otel.md) — Audit Logs and OTel
-- [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) — Role of `session_diagnostics`
-
-## Related Documents
-
-- `agent_00_document-guide.md`
-- `agent_10_01_operations-and-observability-startup-and-health.md`
-- `agent_10_02_operations-and-observability-audit-and-otel.md`
-- `agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
-- `agent_10_05_operations-and-observability-monitoring.md`
-- `agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
 
 ## Keywords
 

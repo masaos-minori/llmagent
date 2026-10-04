@@ -7,6 +7,9 @@ tags:
   - config-loading
 related:
   - agent_00_document-guide.md
+  - agent_08_02_configuration-llm-rag.md
+  - agent_08_03_configuration-tools-memory.md
+  - agent_08_04_configuration-mcp-approval-obs.md
 ---
 
 # Agent Configuration
@@ -77,20 +80,8 @@ Check the following categories in the `ConfigReloadOutcome` output:
 
 - Unknown
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_08_02_configuration-llm-rag.md`
-- `agent_08_03_configuration-tools-memory.md`
-- `agent_08_04_configuration-mcp-approval-obs.md`
-- `agent_08_01_configuration-loading-agent-config.md`
-
 ## Keywords
 
 configuration loading
 config file ownership
 hot-reload eligibility
-
-## Related Documents
-
-- `agent_00_document-guide.md`

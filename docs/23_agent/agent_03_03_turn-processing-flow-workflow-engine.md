@@ -8,6 +8,8 @@ tags:
 related:
   - agent_03_01_turn-processing-flow-overview.md
   - agent_03_02_turn-processing-flow-llm-tool-loop.md
+  - agent_00_document-guide.md
+  - eventbus_00_document-guide.md
 ---
 # Agent Turn Processing Flow - Workflow Engine Integration & Turn-by-turn State Changes
 
@@ -179,13 +181,6 @@ In default production settings, approval gates are not triggered. Enabling appro
 | `ctx.stats.stat_partial_completions` | On LLM stream interruption | No — in-memory; partial content is stored in `session_diagnostics` | Resets on session restart |
 | `session.title` | First turn (asynchronous background task) | Yes — SQLite `sessions.title` | Non-blocking; falls back to truncating first input if LLM fails |
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_03_01_turn-processing-flow-overview.md`
-- `agent_03_02_turn-processing-flow-llm-tool-loop.md`
-- `eventbus_00_document-guide.md`
-
 ## Keywords
 
 partial-completion model
@@ -194,8 +189,3 @@ state changes per turn
 turn-state mutation reference
 ADR-001
 workflow execution mandatory
-
-## Related Documents
-
-- `agent_03_01_turn-processing-flow-overview.md`
-- `agent_03_02_turn-processing-flow-llm-tool-loop.md`

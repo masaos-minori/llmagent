@@ -157,14 +157,6 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 248. tool call tracing
 249. end-to-end tracing
 
-## Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_03_01_dispatch-and-routing.md`
-- `mcp_03_02_tool-registry.md`
-- `mcp_03_04_tool-call-tracing-and-watchdog.md`
-- `mcp_03_05_lifecycle-and-new-server.md`
-
 ## Keywords
 
 - mcp

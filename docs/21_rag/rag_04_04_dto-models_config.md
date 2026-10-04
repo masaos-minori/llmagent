@@ -58,10 +58,8 @@ Note: All fields are required — no default values are specified in the datacla
 
 RAG configuration is provided by `RagConfigImpl`; the legacy per-stage config dataclasses (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) no longer exist.
 
-## Related Documents
+## Code References
 
-- [RAG Documentation Guide](rag_00_document-guide.md)
-- [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
 - `shared/types.py`'s `RagConfig` Protocol — The configuration contract actually used at runtime.
 
 ## Keywords

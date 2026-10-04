@@ -9,6 +9,14 @@ decision_scope:
   - system
 related:
   - ADR-002-config-isolation.md
+  - adr_08_sqlite-4db-supporting-sections.md
+  - db_02_architecture_and_schema-schema-reference.md
+  - db_07_api_and_operations-recovery-and-reference.md
+  - agent_09_01_data-layer-session-db.md
+  - eventbus_07_persistence_schema_and_replay.md
+  - eventbus_06_dlq_offsets_and_delivery_semantics.md
+  - agent_10_01_operations-and-observability-startup-and-health.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # ADR-008: Separating SQLite into Four Databases

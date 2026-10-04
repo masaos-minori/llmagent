@@ -72,11 +72,6 @@ Diagnostics can be viewed using the `/db` command. (Source: `agent/repl.py`)
 
 ---
 
-## Related Documents
-
-- `overview-arch-01-process.md`
-- `overview-arch-02-pipelines.md`
-
 ## Keywords
 
 feature-architecture

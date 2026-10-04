@@ -77,11 +77,6 @@ Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp
 - For details on `LLMClient`, see this document (section 10) and [agent_05_llm-and-streaming.md](agent_05_llm-and-streaming.md).
 - For details on `ToolExecutor`, see this document (section 9), [mcp_03_01_dispatch-and-routing.md](../22_mcp/mcp_03_01_dispatch-and-routing.md), and [agent_06_01_tool-execution-and-approval-execution.md](agent_06_01_tool-execution-and-approval-execution.md).
 
-## Related Documents
-
-- `shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`
-- `shared_03_04_runtime_and_execution-caching-and-reference.md`
-
 ## Keywords
 
 - shared

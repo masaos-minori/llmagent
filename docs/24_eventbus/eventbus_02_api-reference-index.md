@@ -90,14 +90,6 @@ Paginated list responses follow this pattern:
 - Consumer authorization requires the caller's principal to include the requested `consumer_id` in `allowed_consumer_ids`.
 - Requeue operations use a lineage model where each requeue creates a new event; the original event's `dlq_at` timestamp is preserved to prevent duplicate redeliveries.
 
-## Related Documents
-
-- `eventbus_00_document-guide.md`
-- `eventbus_12_health_endpoint.md`
-- `eventbus_13_replay_endpoint.md`
-- `eventbus_05_dlq_endpoint.md`
-- `eventbus_15_ack_nack_endpoints.md`
-
 ## Keywords
 
 - api-reference

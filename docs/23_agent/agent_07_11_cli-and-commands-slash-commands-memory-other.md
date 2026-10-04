@@ -7,6 +7,16 @@ tags:
   - slash-commands
 related:
   - agent_00_document-guide.md
+  - agent_07_01_cli-and-commands-cli-reference.md
+  - agent_07_02_cli-and-commands-cliview.md
+  - agent_07_03_cli-and-commands-command-registry.md
+  - agent_07_04_cli-and-commands-purpose.md
+  - agent_07_05_cli-and-commands-repl-io.md
+  - agent_07_06_cli-and-commands-hot-reload.md
+  - agent_07_07_cli-and-commands-migration-notes.md
+  - agent_07_08_cli-and-commands-slash-commands-session-mcp.md
+  - agent_07_09_cli-and-commands-slash-commands-context-db.md
+  - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
 ---
 
 # Agent CLI and Commands
@@ -58,27 +68,8 @@ All `/mdq` commands call MCP tools of `mdq-mcp` via the agent's tool executor. M
 
 - `/skill` ephemeral messages leave only `_skill_ephemeral: True` in history
 
-## Related Docs
-
-- `agent_00_document-guide.md`
-- `agent_07_01_cli-and-commands-cli-reference.md`
-- `agent_07_02_cli-and-commands-cliview.md`
-- `agent_07_03_cli-and-commands-command-registry.md`
-- `agent_07_04_cli-and-commands-purpose.md`
-- `agent_07_05_cli-and-commands-repl-io.md`
-- `agent_07_06_cli-and-commands-hot-reload.md`
-- `agent_07_07_cli-and-commands-migration-notes.md`
-- `agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
-- `agent_07_09_cli-and-commands-slash-commands-context-db.md`
-- `agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`
-- `agent_07_11_cli-and-commands-slash-commands-memory-other.md`
-
 ## Keywords
 
 memory category
 mdq category
 skill category
-
-## Related Documents
-
-- `agent_00_document-guide.md`
