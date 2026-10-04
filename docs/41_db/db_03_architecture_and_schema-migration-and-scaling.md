@@ -179,12 +179,6 @@ Before performing a schema change task, answer all of the following:
 - [ ] Are tests updated to reflect the schema behavior?
 - [ ] Which component is affected: RAG, session, workflow, eventbus, or MDQ?
 
-## Related Documents
-
-- `shared_00_document-guide.md`
-- `db_01_architecture_and_schema-overview-and-config.md`
-- `db_02_architecture_and_schema-schema-reference.md`
-
 ## Keywords
 
 - shared

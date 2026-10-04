@@ -81,11 +81,6 @@ Category-based estimation replaces the legacy `chars // 4` heuristic, improving 
 
 `truncate(text, max_chars)` truncates text; `fmt_kvlog(op, **kwargs)` formats key=value log strings; `fmt_size(size)` formats human-readable sizes; `fmt_md_link(text, url)` formats Markdown links; `MAX_SNIPPET_CHARS` is a constant for snippet display limits.
 
-## Related Documents
-
-- `shared_03_03_runtime_and_execution-llm-and-mcp-clients.md`
-- `shared_03_04_runtime_and_execution-caching-and-reference.md`
-
 ## Keywords
 
 - shared

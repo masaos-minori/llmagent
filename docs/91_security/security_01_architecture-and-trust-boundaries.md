@@ -10,19 +10,19 @@ tags:
   - audit
 related:
   - security_02_high-risk-tool-common-policy.md
-  - ../00_governance/governance_01_documentation-policy.md
-  - ../22_mcp/mcp_05_01_access-control-and-allowlists.md
-  - ../22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
-  - ../23_agent/agent_06_01_tool-execution-and-approval-execution.md
-  - ../21_rag/rag_03_05_query_pipeline-augment-stages.md
-  - ../22_mcp/mcp_06_16_pre-production-fail-open-checklist.md
-  - ../22_mcp/mcp_06_17_local-to-production-auth-migration.md
-  - ../22_mcp/mcp_02_03_audit-logging-and-errors.md
-  - ../22_mcp/mcp_06_07_reading-audit-logs.md
-  - ../23_agent/agent_10_02_operations-and-observability-audit-and-otel.md
-  - ../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md
-  - ../21_rag/rag_04_02_dto-models_result.md
-  - ../21_rag/rag_05_2-execution-guide.md
+  - governance_01_documentation-policy.md
+  - mcp_05_01_access-control-and-allowlists.md
+  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - agent_06_01_tool-execution-and-approval-execution.md
+  - rag_03_05_query_pipeline-augment-stages.md
+  - mcp_06_16_pre-production-fail-open-checklist.md
+  - mcp_06_17_local-to-production-auth-migration.md
+  - mcp_02_03_audit-logging-and-errors.md
+  - mcp_06_07_reading-audit-logs.md
+  - agent_10_02_operations-and-observability-audit-and-otel.md
+  - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+  - rag_04_02_dto-models_result.md
+  - rag_05_2-execution-guide.md
 ---
 
 # System Security Architecture and Trust Boundaries
@@ -300,23 +300,6 @@ for the authorization model decision and role definitions.
 `EventBusConfig.__post_init__` and `_LoopbackVerifyingServer` — both confirmed by
 direct read. This predates the authentication/authorization work described above
 and remains in effect as defense-in-depth.
-
-## Related Documents
-
-- `security_02_high-risk-tool-common-policy.md`
-- `../00_governance/governance_01_documentation-policy.md`
-- `../22_mcp/mcp_05_01_access-control-and-allowlists.md`
-- `../22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
-- `../23_agent/agent_06_01_tool-execution-and-approval-execution.md`
-- `../21_rag/rag_03_05_query_pipeline-augment-stages.md`
-- `../22_mcp/mcp_06_16_pre-production-fail-open-checklist.md`
-- `../22_mcp/mcp_06_17_local-to-production-auth-migration.md`
-- `../22_mcp/mcp_02_03_audit-logging-and-errors.md`
-- `../22_mcp/mcp_06_07_reading-audit-logs.md`
-- `../23_agent/agent_10_02_operations-and-observability-audit-and-otel.md`
-- `../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
-- `../21_rag/rag_04_02_dto-models_result.md`
-- `../21_rag/rag_05_2-execution-guide.md`
 
 ## Keywords
 

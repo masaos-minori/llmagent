@@ -63,12 +63,6 @@ Frozen dataclass for DB configuration. `rag_db_path` (path to `rag.sqlite`), `se
 
 ---
 
-## Related Documents
-
-- `shared_00_document-guide.md`
-- `db_02_architecture_and_schema-schema-reference.md`
-- `db_03_architecture_and_schema-migration-and-scaling.md`
-
 ## Keywords
 
 - shared

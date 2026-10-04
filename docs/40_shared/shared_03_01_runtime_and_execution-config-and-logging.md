@@ -72,13 +72,6 @@ class Logger:
 
 ---
 
-## Related Documents
-
-- `shared_00_document-guide.md`
-- `shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`
-- `shared_03_03_runtime_and_execution-llm-and-mcp-clients.md`
-- `shared_03_04_runtime_and_execution-caching-and-reference.md`
-
 ## Keywords
 
 - shared

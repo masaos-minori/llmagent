@@ -49,11 +49,6 @@ from db.store import NewStorageProtocol, NewStorageImpl  # stable contract
 
 ---
 
-## Related Documents
-
-- `db_05_api_and_operations-protocol-and-backend.md`
-- `db_06_api_and_operations-maintenance-and-rotation.md`
-
 ## Keywords
 
 - shared

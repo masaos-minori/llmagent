@@ -90,11 +90,6 @@ Contains `chunks` (int), `fts` (int), `vec` (int), `orphan_vec_count` (int), `ft
 
 ---
 
-## Related Documents
-
-- `db_04_api_and_operations-module-boundaries-and-helper.md`
-- `db_05_api_and_operations-protocol-and-backend.md`
-
 ## Keywords
 
 - shared

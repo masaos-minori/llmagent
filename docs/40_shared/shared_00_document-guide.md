@@ -89,10 +89,6 @@ Cross-cutting documentation rules and policies:
 
 - [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
 
-## Related Documents
-
-- `governance_03_issue-and-uncertainty-management.md`
-
 ## Keywords
 
 - shared

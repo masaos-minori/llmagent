@@ -276,12 +276,6 @@ Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit 
 | `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | No (Python-level default in `scripts/db/config.py`) |
 <!-- END AUTO-GENERATED -->
 
-## Related Documents
-
-- `overview_00_document-guide.md`
-- `agent_03_03_turn-processing-flow-workflow-engine.md`
-- `db_01_architecture_and_schema-overview-and-config.md`
-
 ## Keywords
 
 deployment

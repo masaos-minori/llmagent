@@ -5,8 +5,8 @@ tags:
   - security
   - document-guide
 related:
-  - ../00_index.md
-  - ../01_overview/overview_00_document-guide.md
+  - 00_index.md
+  - overview_00_document-guide.md
 ---
 # Security: Document Guide
 
@@ -51,11 +51,6 @@ No reference APIs exist in this directory. All files are security policy/archite
 - [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
 - [ADR-013](../10_adr/ADR-013-eventbus-authentication-authorization.md) — EventBus Authentication and Authorization
 - [ADR-015](../10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
-
-## Related Documents
-
-- `../00_index.md`
-- `../01_overview/overview_00_document-guide.md`
 
 ## Keywords
 

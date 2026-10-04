@@ -75,13 +75,6 @@ Import: `from shared.runtime_tool_registry import RuntimeToolRegistry`
 
 ---
 
-## Related Documents
-
-- `shared_02_01_types_and_protocols-core-types.md`
-- `shared_02_03_types_and_protocols-reference.md`
-
----
-
 ## 7e. `ToolDefinition` (`shared/tool_registry.py`)
 
 Immutable tool definition — each tool belongs to exactly one MCP server. (Explicit in code: `scripts/shared/tool_registry.py` docstring)
