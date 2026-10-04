@@ -389,17 +389,15 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Specifications
 
-- [RAG Query Pipeline](rag_05_9-rag-query-pipeline.md) — query pipeline
-- [RAG Augment Stage](rag_05_10_augment-stage.md) — Augment stage
+- [RAG Query Pipeline](../21_rag/rag_03_01_query_pipeline-overview.md) — query pipeline
+- [RAG Augment Stage](../21_rag/rag_03_05_query_pipeline-augment-stages.md) — Augment stage
 - [RAG Error Handling Reference](../21_rag/rag_05_4-error-handling-reference.md) — error handling
 - [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — configuration reference
 - [RAG Design Notes](../21_rag/rag_91_design_notes.md) — DESIGN-1 notes
-- [DB Schema Reference](../41_db/db_02_db_architecture_and_schema-schema-reference.md) — DB schema reference
+- [DB Schema Reference](../41_db/db_02_architecture_and_schema-schema-reference.md) — DB schema reference
 
 ### Operations
 
-<!-- TODO: Document 'rag_05_9-rag-query-pipeline.md' was deleted -->
-<!-- TODO: Document 'rag_05_10_augment-stage.md' was deleted -->
 <!-- TODO: Document 'rag_05_6-rag-operations.md' was deleted -->
 
 ### Known Issues

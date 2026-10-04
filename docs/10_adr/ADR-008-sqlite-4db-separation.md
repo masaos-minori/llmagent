@@ -496,11 +496,9 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Specifications
 
-- [DB Architecture and Schema](../41_db/db_02_db_architecture_and_schema-schema-reference.md)
-- [DB API and Operations — Recovery and Reference](../41_db/db_07_db_api_and_operations-recovery-and-reference.md)
-- [RAG Persistence](rag_04_02_rag-persistence.md)
-- [RAG Recovery](rag_04_03_rag-recovery.md)
-- [Agent Session Persistence](agent_04_01_agent-session-persistence.md)
+- [DB Architecture and Schema](../41_db/db_02_architecture_and_schema-schema-reference.md)
+- [DB API and Operations — Recovery and Reference](../41_db/db_07_api_and_operations-recovery-and-reference.md)
+- [Agent Session and DB Data Layer](../23_agent/agent_09_01_data-layer-session-db.md)
 - [EventBus Persistence Schema and Replay](../24_eventbus/eventbus_07_persistence_schema_and_replay.md)
 - [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md)
 

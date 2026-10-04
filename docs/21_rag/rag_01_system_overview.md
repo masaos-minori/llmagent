@@ -12,7 +12,6 @@ related:
   - rag_02_01_ingestion_pipeline-overview.md
   - rag_03_01_query_pipeline-overview.md
 source:
-  - rag_01_system_overview.md
 ---
 
 
