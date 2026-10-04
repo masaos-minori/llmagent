@@ -27,8 +27,8 @@ Documents the `shared/` layer (common types, configuration, logging, OTel, tool 
 ## Recommended Reading Order (Human)
 
 ``` text
-01 Overview → 02 Types and Protocols → 03 Runtime and Execution
-  → 04 DB Architecture/Schema → 05 DB API and Operations → 90 Inconsistencies
+shared_01 Overview → shared_02 Types and Protocols → shared_03 Runtime and Execution
+  → db_01-03 Architecture and Schema → db_04-07 API and Operations
 ```
 
 ---
@@ -37,18 +37,22 @@ Documents the `shared/` layer (common types, configuration, logging, OTel, tool 
 
 | Question | Reference Target |
 |---|---|
-| Usage/import rules for `shared/` | `overview` |
-| Type definitions, tool constants | `02_core-types` / `02_reference` |
-| ConfigLoader, Logging | `03_config-and-logging` |
-| ToolExecutor, LLMClient | `03_tool-executor` / `03_llm-and-mcp-clients` |
-| Schema, Migrations | `04_overview` / `04_schema` / `04_migration` |
-| Module boundaries, Protocols | `05_module-boundaries` / `05_protocol` |
-| Maintenance, Recovery | `05_maintenance` / `05_recovery` (API/operational); ADR-008 Recovery Policy Matrix (recovery policy per persistence domain) |
-| Known issues | `90_inconsistencies` |
+| Usage/import rules for `shared/` | [shared_01_overview.md](shared_01_overview.md) |
+| Type definitions, tool constants | [shared_02_01](shared_02_01_types_and_protocols-core-types.md) / [shared_02_03](shared_02_03_types_and_protocols-reference.md) |
+| Tool and execution DTOs | [shared_02_02](shared_02_02_types_and_protocols-tool-and-execution-dto.md) |
+| ConfigLoader, Logging | [shared_03_01](shared_03_01_runtime_and_execution-config-and-logging.md) |
+| ToolExecutor | [shared_03_02](shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md) |
+| LLMClient, MCP clients, routing | [shared_03_03](shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) |
+| Caching, health gate, AI reference guide | [shared_03_04](shared_03_04_runtime_and_execution-caching-and-reference.md) |
+| Schema, migrations | [db_01](../41_db/db_01_architecture_and_schema-overview-and-config.md) / [db_02](../41_db/db_02_architecture_and_schema-schema-reference.md) / [db_03](../41_db/db_03_architecture_and_schema-migration-and-scaling.md) |
+| Module boundaries, protocols, backends | [db_04](../41_db/db_04_api_and_operations-module-boundaries-and-helper.md) / [db_05](../41_db/db_05_api_and_operations-protocol-and-backend.md) |
+| Maintenance, recovery | [db_06](../41_db/db_06_api_and_operations-maintenance-and-rotation.md) / [db_07](../41_db/db_07_api_and_operations-recovery-and-reference.md); ADR-008 Recovery Policy Matrix (recovery policy per persistence domain) |
+| Active databases | [db_08](../41_db/db_08_active_databases.md) |
+| Known issues | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) |
 
 ---
 
-## Navigation to Major Known Issues
+## Navigation to Known Issues
 
 Refer to [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB) for a full catalog of known inconsistencies. Note that `ArtifactEvent` does not involve an event bus (it is data definition only).
 
@@ -62,7 +66,7 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 
 ## File Index
 
-Read the `shared/` documentation group in order: `overview` → `02_types` → `03_runtime`. Read the `db/` documentation group in order: `04_schema` → `05_operations`. (Explicit in code)
+Read the `shared/` documentation group (`shared_01` → `shared_02_*` → `shared_03_*`) and then the `db/` documentation group in [41_db](../41_db/db_01_architecture_and_schema-overview-and-config.md) (`db_01` → `db_08`).
 
 ---
 

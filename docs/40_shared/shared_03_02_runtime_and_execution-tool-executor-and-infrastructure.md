@@ -15,9 +15,9 @@ related:
 
 ## 4. `ToolExecutor` (`shared/tool_executor.py`, `shared/tool_executor_helpers.py`)
 
-`ToolExecutor` inherits from `ToolTransportInvoker` and accepts an HTTP client, `server_configs`, and optional parameters via its constructor. `apply_config()` enables hot-reloading. The `execute()` method follows this sequence: concurrency protection $\rightarrow$ health check gate $\rightarrow$ transport resolution $\rightarrow$ per-server semaphore execution. `clear_cache()` and `get_error_counters()` manage state. Failures are not cached.
+`ToolExecutor` inherits from `ToolTransportInvoker` and accepts an HTTP client, `server_configs`, and optional parameters via its constructor. `apply_config()` enables hot-reloading. The `execute()` method follows this sequence: concurrency protection $\rightarrow$ health check gate $\rightarrow$ transport resolution $\rightarrow$ per-server semaphore execution. `get_error_counters()` returns the error counters.
 
-Helper functions: `is_side_effect()` identifies tools belonging to `WRITE_TOOLS`/`DELETE_TOOLS`/`shell_run`/`GIT_WRITE_TOOLS`/`GITHUB_WRITE_TOOLS`/`GITHUB_DANGEROUS_TOOLS` (deprecated — no longer used after TTL cache removal). Parallel/serial determination for tool call batches is delegated by `agent/tool_runner.py::_execute_with_dag()` to `agent/tool_scheduler.py::build_execution_groups()`, which references the `is_write` flag registered in `RuntimeToolRegistry` (via `PreparedToolCall.spec`) — this is a separate path from `is_side_effect()` (see [shared_03_03](shared_03_03_runtime_and_execution-llm-and-mcp-clients.md)). `format_transport_error()` generates `TransportErrorInfo`. `tool_hash_key()` returns an MD5 hash used for failure tracking rather than as a cache key.
+Helper functions: `is_side_effect()` identifies tools belonging to `WRITE_TOOLS`/`DELETE_TOOLS`/`shell_run`/`GIT_WRITE_TOOLS`/`GITHUB_WRITE_TOOLS`/`GITHUB_DANGEROUS_TOOLS` (not referenced by the execution path). Parallel/serial determination for tool call batches is delegated by `agent/tool_runner.py::_execute_with_dag()` to `agent/tool_scheduler.py::build_execution_groups()`, which references the `is_write` flag registered in `RuntimeToolRegistry` (via `PreparedToolCall.spec`) — this is a separate path from `is_side_effect()` (see [shared_03_03](shared_03_03_runtime_and_execution-llm-and-mcp-clients.md)). `format_transport_error()` generates `TransportErrorInfo`. `tool_hash_key()` returns an MD5 hash used for failure tracking rather than as a cache key.
 
 ---
 
@@ -61,7 +61,7 @@ class LifecycleProtocol(Protocol):
 
 Calls `POST {tokenize_url}/tokenize` for exact counts (`is_exact=True`); otherwise, it falls back to category-based character-to-token estimation (text: 4.0, tool_calls: 2.5, system: 3.5), returning an estimated count (`is_exact=False`). Connection errors fail silently to the fallback.
 
-Category-based estimation replaces the legacy `chars // 4` heuristic, improving accuracy for multilingual text and structured tool payloads. Token estimation returns `(total_tokens, breakdown: dict[str, int])` including category-specific counts.
+Category-based estimation improves accuracy for multilingual text and structured tool payloads. Token estimation returns `(total_tokens, breakdown: dict[str, int])` including category-specific counts.
 
 ---
 
