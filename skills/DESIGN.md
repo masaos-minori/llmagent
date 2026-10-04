@@ -49,7 +49,7 @@ When a document or skill file grows too large, split it according to these rules
 
 1. Group sections/functions by responsibility and write the split proposal in a temporary plan file (e.g. `04_split_plan.md`); review the plan before touching any file
 2. After splitting, convert the original file to an index (link list) or remove its content
-3. Apply ripple-effect changes in the same pass: `routing.md`, `rules/env.md`, skill references, `docs/00_llm-implementation-guide.md`, `docs/06_common.md`
+3. Apply ripple-effect changes in the same pass: `routing.md`, `rules/env.md`, skill references, `docs/00_index.md`
 4. For code files, confirm `ruff` / `mypy` / `pytest` pass before closing the task
 
 ## Shared Vocabulary

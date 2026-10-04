@@ -21,7 +21,7 @@ follow-up work (see `SKILL.md` Composes with / Called by).
 - Do not change external behavior, public APIs, or visible output.
 - Do not edit documentation unless explicitly instructed (see `path-c.md` ADR
   Requirement for the one scoped exception: Step 10 MUST draft ADR content inline in
-  the report; only writing it under `docs/adr/` requires explicit instruction).
+  the report; only writing it under `docs/10_adr/` requires explicit instruction).
 
 ## Out of Scope
 

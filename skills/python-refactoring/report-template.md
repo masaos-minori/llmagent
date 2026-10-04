@@ -76,7 +76,7 @@ do not re-run `mutmut` or any other check merely to produce this report. For eac
   item, cross-validated by `path-c.md` Architecture Comparison Validation's "Rollback
   validation" item), or `Not applicable` for Path A/B.
 - **ADR Status**: report the ADR's `Status` value (per `path-c.md` ADR Requirement's
-  convention) and whether the file was actually created under `docs/adr/` this cycle or
+  convention) and whether the file was actually created under `docs/10_adr/` this cycle or
   remains a draft pending explicit documentation-update instruction, or `Not applicable`
   when no ADR was required or chosen for this change.
 

@@ -146,7 +146,7 @@ are defined here.
 
 ADR content produced by this Requirement follows the repository's existing convention —
 `adr-template.md`'s section structure, standardized by
-`docs/00_governance_01_documentation-policy.md` "ADR Section Header Standardization"
+`docs/00_governance/governance_01_documentation-policy.md` "ADR Section Header Standardization"
 (canonical header order: Context [Problem, Constraints], Assumptions, Decision,
 Rationale, Alternatives Considered, Consequences [Positive/Negative], Invariants,
 Verification, Migration, Implementation Notes, Known Deviations, Review Triggers,
@@ -160,14 +160,14 @@ folded into its nearest existing section rather than added as a new top-level he
 `workflow.md`'s existing Allowed file operations rule ("Do not edit documentation
 unless explicitly instructed") governs where this ADR content is written: Step 10
 MUST produce the ADR content, in the reconciled shape above, inline in the report as
-a draft. Creating the file under `docs/adr/ADR-{next-number}-{slug}.md` and registering
-it in `docs/adr-index.md`'s existing "ADR List" table and dependency graph happens only
+a draft. Creating the file under `docs/10_adr/ADR-{next-number}-{slug}.md` and registering
+it in `docs/10_adr/adr-index.md`'s existing "ADR List" table and dependency graph happens only
 when the user explicitly instructs a documentation update — this Requirement does not
 relax or reinterpret that existing rule, it states how the new ADR obligation operates
 within it.
 
 Report the ADR's `Status` value and whether the file was actually created under
-`docs/adr/` this cycle or remains a draft pending explicit documentation-update
+`docs/10_adr/` this cycle or remains a draft pending explicit documentation-update
 instruction — see `report-template.md` "ADR Status".
 
 ---

@@ -15,7 +15,7 @@ Add a new MCP server end-to-end: skeleton files, service registration, agent rou
 
 ## Existing MCP servers (reference)
 
-Port/role table (canonical): `docs/04_mcp_01_system_overview.md` Server Catalog.
+Port/role table (canonical): `docs/22_mcp/mcp_01_system_overview.md` Server Catalog.
 Module paths follow the pattern `scripts/mcp_servers/<name>/<name>_server.py` (plus
 `<name>_service.py`, `<name>_models.py`, `<name>_tools.py`), e.g.
 `scripts/mcp_servers/web_search/web_search_server.py`.
