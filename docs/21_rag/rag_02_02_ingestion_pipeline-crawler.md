@@ -75,7 +75,7 @@ If `lang == "auto"`, this method resolves the language based on the CJK ratio of
 
 `crawl_file()` only calculates the mtime (ISO string) and SHA-256 hash of the file content and stores them in the `last_modified` and `etag` fields of the crawl payload; it does not perform any skip/decision logic. The JSON payload is always output unconditionally. The URL is stored as `file://{absolute_path}`.
 
-Decisions on whether to skip or re-ingest are made by `DocumentManager._is_file_unchanged()`/`_handle_existing_file()` in `scripts/rag/ingestion/document_manager.py`, NOT by `WebCrawler`.
+Decisions on whether to skip or re-ingest are made by `DocumentManager._is_file_unchanged()`/`handle_existing_document()` in `scripts/rag/ingestion/document_manager.py`, NOT by `WebCrawler`.
 
 | Condition | Decision (`DocumentManager` performs) |
 |---|---|

@@ -153,7 +153,7 @@ MCP server processes (mcp_servers/<name>/server.py)
 | Max response size | 512 KB (`MCP_MAX_RESPONSE_SIZE = 524288`) | `scripts/mcp_servers/server.py` |
 | Auth header | `Authorization: Bearer <token>` (when `auth_token` is configured) | `scripts/mcp_servers/server.py` |
 | Health threshold | Default: 3 consecutive failures $\rightarrow$ UNAVAILABLE | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
-| Circuit breaker recovery | `UNAVAILABLE` auto-transitions to `HALF_OPEN` (a trial state allowing one request) after `half_open_cooldown_sec` (default 30s) on `is_unavailable()`. `record_degraded()` does not overwrite `UNAVAILABLE`/`HALF_OPEN` state, to avoid breaking the circuit breaker and trial window. | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
+| Circuit breaker recovery | `UNAVAILABLE` auto-transitions to `HALF_OPEN` (a trial state allowing one request) after `half_open_cooldown_sec` (default 30s) on `is_unavailable()`. | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
 
 ---
 

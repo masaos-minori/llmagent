@@ -33,7 +33,7 @@ result = await transport.call("tool_name", {"arg": "val"})
 - **Retries:** Retries are performed on HTTP 429/502/503/504. A maximum of 3 attempts are made, with decreasing delays: 4 seconds for attempt 0, 2 seconds for attempt 1, and 1 second for attempt 2 before a final exhaustion error occurs. Formula: $2^{(RETRY\_MAX - attempt - 1)}$. This is not exponential backoff (delays decrease per attempt). Only the final result (success or `TransportError` after all retries exhausted) is recorded in the HealthRegistry. The `TransportError` message (`"[Retry exhausted] ..."`) includes the last caught exception details (type, status code, etc.) at the end.
 - **Non-retryable errors:** HTTP timeouts (`httpx.TimeoutException`) and `HTTPStatusError` for status codes other than 429/502/503/504 are propagated immediately without retries.
 - **Tool-level vs. Transport-level errors:** Tool-level errors (`error_type == "tool"`) are treated as successful transport calls, triggering `record_success()` and incrementing the `stat_tool_errors` counter. Transport-level errors trigger `record_failure()` and increment the `stat_transport_errors` counter. Both counters are tracked independently.
-- **Response Parsing:** The `_handle_call_tool_response()` method uses `parse_http_json(resp)` within `parse_http_json` (defined in `shared/json_utils.py`) to decode JSON data from an `httpx.Response`. Previously, `orjson.loads(resp.content)` was used directly.
+- **Response Parsing:** `HttpTransport._parse_http_response()` uses `parse_http_json(resp)` (defined in `shared/json_utils.py`) to decode JSON data from an `httpx.Response`. Previously, `orjson.loads(resp.content)` was used directly.
 
 ---
 

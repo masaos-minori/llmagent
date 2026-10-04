@@ -53,19 +53,17 @@ _resolve_endpoint() returns tuple including body_reason
 
 # Step 3: HealthRegistry receives it via record_failure(server_key)
 # Note: record_failure() does not take a 'reason' argument.
-# Although record_degraded(server_key, reason=None) exists, it is currently dead code.
 registry.record_failure(server_key)
 
 # Step 4: Current Status
-# Because record_degraded() is not used, get_degraded_reason() always returns None.
-# Refer to docs/mcp_06_12_watchdog-configuration-monitoring.md for details.
+# The registry keeps only the state and failure counts per server; the body
+# reason is not stored. Refer to mcp_06_12_watchdog-configuration-monitoring.md
+# for the removal of the degraded-reason bookkeeping.
 ```
 
-#### List of Degraded Reasons
+#### Degraded Reasons Are Not Stored
 
-Currently, since `record_degraded()` is not called, `get_degraded_reason()` always returns `None`.
-
-- All degraded reasons are cleared by `record_success()`.
+`McpServerHealthRegistry` does not store a degraded reason: the former `record_degraded()` / `get_degraded_reason()` pair was removed on 2026-08-20. A server's state changes only through `record_failure()` (`DEGRADED` below the failure threshold, `UNAVAILABLE` at or above it) and `record_success()` (back to `HEALTHY`, clearing the failure count).
 
 ---
 

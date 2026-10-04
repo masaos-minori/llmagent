@@ -16,9 +16,9 @@ subprocess-mode servers on failure) was removed on 2026-07-16. See
 
 Removed with it:
 
-- `watchdog_loop()` and related helper functions (`agent/repl_health.py`)
+- `watchdog_loop()` and related helper functions (`agent/repl_health.py`) — removed
 - watchdog loop and start/stop functions (`agent/repl.py`)
-- `McpServerHealthRegistry.record_restart_exhausted()` (`shared/mcp_health.py`)
+- `McpServerHealthRegistry.record_restart_exhausted()` (`shared/mcp_health.py`) — removed
 - The `mcp_watchdog_interval` / `mcp_watchdog_max_restarts` config keys (`MCPConfig`, `config/agent.toml`, `/reload` diff-apply)
 - The `Watchdog` line in `/config` and `/mcp status` output
 
@@ -28,12 +28,10 @@ place unchanged:
 - The `/health` endpoint itself and its response fields (`restart_recommended`, `operator_action_required`, `dependencies`, ...)
 - `McpServerHealthRegistry`'s state machine (`HEALTHY`/`DEGRADED`/`UNAVAILABLE`/`HALF_OPEN`) and its `record_success()` / `record_failure()` methods — these are driven by the `ToolExecutor` transport-error path on every real tool dispatch, not by the watchdog
 
-**Now dead code as a side effect of this removal** — kept in place
-per this change's scope (no production-code deletion beyond the watchdog
-itself), but no longer reachable:
+**Dead code left by this removal — since deleted:** `McpServerHealthRegistry.record_degraded()` (its only caller was `_watchdog_check_http()`) and `get_degraded_reason()` (read by the `/mcp status` display) were removed on 2026-08-20 together with the rest of the degraded-reason bookkeeping, so the registry no longer stores or reports a degraded reason.
 
-- `McpServerHealthRegistry.record_degraded()` — `_watchdog_check_http()` was its only caller; nothing else in `scripts/` calls it after this removal
-- `get_degraded_reason()` (`cmd_mcp.py`'s `/mcp status` display) — still called, but since `record_degraded()` is never invoked, it will always return `None` going forward
+**Still in place:**
+
 - `McpStatusService.probe_all()` and the `/mcp status` command — still probe every server's `/health` on demand and display the result
 
 ## Manual recovery (replaces the automatic restart loop)

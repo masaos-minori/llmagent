@@ -38,8 +38,6 @@ This test suite verifies that the key operational characteristics of the RAG que
   - Hit deduplication and descending sorting by `rrf_score` in RRF mode.
   - Handling of `rrf_score == 0.0` in non-RRF (deduplication only) mode.
   - Fallback behavior when no embedding server is configured (returns empty results).
-- **Semantic Cache Behavior**:
-  - Context retrieval on cache hits, misses below threshold, and entry eviction via `invalidate()`.
 - **Accuracy of Diagnostics**:
   - Accurate counting of fusion modes (`rrf` vs `dedup_only`), FTS errors, and embedding failures.
   - Tracking of fallback occurrences and exceptions in the Refiner stage.
@@ -78,6 +76,5 @@ These tests cover individual stages (`MqeStage`/`SearchStage`/`FusionStage`/`Rer
 
 rag-tests
 quality-regression
-semantic-cache-generation
 refiner-diagnostics
 rag
