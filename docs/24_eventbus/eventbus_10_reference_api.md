@@ -43,9 +43,9 @@ Application state and CLI entry point. See code for details.
 
 `EventBusConfig` class and configuration loading functions. See code for details.
 
-**New fields (REQ-001):** `sse_heartbeat_interval` (float, default 30.0) — interval in seconds between SSE comment heartbeats during live delivery phase. Optional TOML key; absent from TOML uses default. Validated as float type when present.
+**SSE heartbeat field:** `sse_heartbeat_interval` (float) — interval in seconds between SSE comment heartbeats during live delivery phase. Optional TOML key; absent from TOML uses default. Validated as float type when present.
 
-**New operational thresholds (REQ-001, REQ-002):** `slow_consumer_threshold` (int, default 100), `queue_backlog_threshold` (int, default 1000), `dlq_requeue_threshold` (int, default 500). All optional TOML keys; defaults used when absent. Relationship validation enforced: `slow_consumer_threshold < queue_backlog_threshold`.
+**Operational thresholds:** `slow_consumer_threshold`, `queue_backlog_threshold`, `dlq_requeue_threshold`. All optional TOML keys; defaults used when absent. Relationship validation enforced: `slow_consumer_threshold < queue_backlog_threshold`.
 
 ### scripts/eventbus/db.py
 
@@ -91,7 +91,7 @@ Common route helpers. See code for details.
 
 `subscribe(request, topic=[], since_seq=0, consumer_id="")`: `GET /subscribe`. SSE streaming + replay+push. See `eventbus_06_dlq_offsets_and_delivery_semantics.md` for delivery semantics, offset semantics, and backpressure behavior.
 
-**SSE-standard features (REQ-001 through REQ-005):**
+**SSE-standard features:**
 - Heartbeat: During live delivery phase, emits `: heartbeat\n\n` comments at `cfg.sse_heartbeat_interval` intervals to keep idle connections alive through proxies/LBs.
 - Event IDs: Each event frame includes `id:<seq>` field where `seq` is the monotonic sequence number, enabling `EventSource`-based clients to auto-reconnect.
 - Last-Event-ID: Client can send `Last-Event-ID` HTTP header with a sequence number to resume from that point. Precedence: `since_seq` query param > persisted consumer offset > `Last-Event-ID` header.

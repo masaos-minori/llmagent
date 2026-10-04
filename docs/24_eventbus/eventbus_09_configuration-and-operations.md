@@ -77,9 +77,9 @@ model the token fields below implement.
 
 Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Startup fails unless `auth_token` or at least one of the 5 per-role tokens above is configured — see `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` for the four-role authorization model these tokens implement.
 
-### Deprecated Keys
+### Unsupported Keys
 
-Startup fails if `poll_interval_ms` or `offset_checkpoint_interval` remain in the configuration file.
+Startup fails if `poll_interval_ms` or `offset_checkpoint_interval` is present in the configuration file.
 
 ---
 
@@ -88,8 +88,7 @@ Startup fails if `poll_interval_ms` or `offset_checkpoint_interval` remain in th
 ### Bind Address
 
 Event Bus enforces loopback-only binding unconditionally — there is no
-override. Binding to anything other than loopback poses a security risk as
-the API has no authentication.
+override. Binding to anything other than loopback is not permitted.
 
 **Address Classification** (`_is_public_host()`, `scripts/eventbus/config.py`):
 - Loopback (`127.0.0.1`, `::1`) — Allowed
@@ -123,28 +122,18 @@ HTTP 200 = `ok`, otherwise = HTTP 503 + `status: "degraded"` + component details
 
 ## Batched Replay Design
 
-Initial replay is now performed in bounded, configurable batches rather than a single unbounded `.fetchall()` call. This prevents memory exhaustion during large replays and reduces database lock contention by releasing and reacquiring `_db_lock` between batches.
+Initial replay is performed in bounded, configurable batches rather than a single unbounded `.fetchall()` call. This prevents memory exhaustion during large replays and reduces database lock contention by releasing and reacquiring `_db_lock` between batches.
 
 ### Configuration
 
-The following configuration fields control replay behavior:
+The following configuration fields control replay behavior (see also `retained_event_count` above):
 
 - `replay_batch_size` — Number of rows fetched per batch (default: 1000)
 - `subscriber_count` — Maximum number of concurrent subscribers before capacity limits apply (default: 10)
-- `retained_event_count` — Number of events retained in SQLite for replay (default: 10000)
-- `publish_rate` — Maximum publish rate in events/sec before backpressure applies (default: 100.0)
 
 ### Capacity Limits
 
-Based on representative load testing, the following capacity limits have been established:
-
-| Metric | Limit | Measurement Methodology |
-|--------|-------|-------------------------|
-| Publish rate | 100 events/sec | Load test with concurrent publishers |
-| Subscriber count | 10 | Load test with concurrent subscribers |
-| Retained event count | 10000 | Load test with large backlog |
-| Replay size | TBD MB | Load test with large replay |
-| Latency objective | TBD ms p99 | Load test with concurrent operations |
+Capacity is governed by the configuration fields `subscriber_count`, `retained_event_count`, and `publish_rate` described above and in the Configuration section. No replay-size limit or latency objective is defined.
 
 ### Database-Lock Contention Monitoring
 

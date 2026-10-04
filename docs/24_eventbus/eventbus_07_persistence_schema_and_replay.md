@@ -20,9 +20,6 @@ source:
 
 # Event Bus: Persistence, Schema, and Replay
 
-## Keywords
-<placeholder>
-
 ## SQLite Database
 
 Primary store for all events. WAL mode is enabled to allow concurrent reads. DB operations are serialized using `asyncio.to_thread()` + `threading.Lock`.
@@ -31,7 +28,7 @@ Primary store for all events. WAL mode is enabled to allow concurrent reads. DB 
 
 Key columns: `seq` (PK), `event_id` (UNIQUE), `topic`, `payload` (JSON string), `producer`, `published_at`, `acked_at` (for idempotency), `delivery_failure_count`, `dlq_requeue_count`, `dlq_at` (when promoted to DLQ).
 
-The `retry_count` column has been removed. Migrations for existing databases are idempotent.
+Schema migrations for existing databases are idempotent.
 
 ### Per-consumer delivery state
 
@@ -50,11 +47,7 @@ The `retry_count` column has been removed. Migrations for existing databases are
 
 ## JSONL Archive
 
-`{storage_dir}/events.jsonl` is a replica of the `events` table — one line per unique event, matching SQLite's deduplication semantics. It is appended after a successful DB insert; failures in appending do not prevent a 200 response. Do NOT read primary data from JSONL; use SQLite queries instead.
-
-### Declared Role: Replica
-
-`events.jsonl` is a replica of the `events` table — one line per unique event, matching SQLite's deduplication semantics. Duplicate events are not appended again; the file reflects the deduplicated view of the database.
+`{storage_dir}/events.jsonl` is a replica of the `events` table — one line per unique event, matching SQLite's deduplication semantics. It is appended after a successful DB insert; failures in appending do not prevent a 200 response. Duplicate events are not appended again. Do NOT read primary data from JSONL; use SQLite queries instead.
 
 ### Idempotency Contract
 
@@ -72,6 +65,7 @@ See [Consumer Identity](eventbus_06_dlq_offsets_and_delivery_semantics.md#consum
 ## Replay Behavior
 
 `GET /replay?since_seq=N` returns events where `seq > N` in ascending order of `seq`. SSE format provides sequential streaming; JSON format provides a `{total, limit, offset, items}` pagination object. `total` is available only in JSON format.
+
 ## SQLite/JSONL Consistency Check and Recovery Procedure
 
 ### Step 1: Verify WAL file integrity
@@ -124,7 +118,7 @@ If inconsistencies are detected, follow this controlled restart procedure:
 
 1. Stop the EventBus process gracefully:
    ```bash
-   kill -TERM $(pgrep -f "uvicorn scripts.eventbus.app:app")
+   kill -TERM $(pgrep -f "eventbus.app")
    ```
 
 2. Wait for the process to stop completely:
@@ -149,35 +143,14 @@ If inconsistencies are detected, follow this controlled restart procedure:
 
 6. Re-run Steps 1–4 to confirm consistency.
 
-If inconsistencies are detected, follow this controlled restart procedure:
+## Keywords
 
-1. Stop the EventBus process gracefully:
-   ```bash
-   kill -TERM $(pgrep -f "uvicorn scripts.eventbus.app:app")
-   ```
-
-2. Wait for the process to stop completely:
-   ```bash
-   sleep 5
-   ```
-
-3. Run the checkpoint command to flush WAL to the main database:
-   ```bash
-   sqlite3 /path/to/eventbus.db "PRAGMA wal_checkpoint(TRUNCATE);"
-   ```
-
-4. Start the EventBus process again:
-   ```bash
-   uvicorn scripts.eventbus.app:app --host 127.0.0.1 --port <port> &
-   ```
-
-5. Verify the process started successfully:
-   ```bash
-   curl http://127.0.0.1:8080/health
-   ```
-
-6. Re-run Steps 1–4 to confirm consistency.
-- `eventbus_00_document-guide.md`
-- `eventbus_01_system-overview.md`
-- `eventbus_03_dlq_operations.md`
-- `eventbus_06_dlq_offsets_and_delivery_semantics.md`
+- sqlite
+- wal
+- schema
+- jsonl archive
+- idempotency
+- replay
+- consumer offsets
+- consistency check
+- controlled restart

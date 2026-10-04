@@ -99,4 +99,8 @@ conditions triggered the degraded state (see "Possible Degraded Reasons" above) 
 `scripts/eventbus/health_route.py` for the full response schema.
 
 ## Keywords
-<placeholder>
+
+- health endpoint
+- degraded reasons
+- HTTP 503
+- monitoring

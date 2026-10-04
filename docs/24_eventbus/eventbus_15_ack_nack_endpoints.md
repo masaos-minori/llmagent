@@ -248,4 +248,8 @@ curl -X POST -H "Authorization: Bearer ${CONSUMER_TOKEN}" \
 ```
 
 ## Keywords
-<placeholder>
+
+- ack endpoint
+- nack endpoint
+- consumer token
+- delivery acknowledgement

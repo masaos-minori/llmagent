@@ -19,9 +19,6 @@ source:
 
 # Event Bus: System Overview
 
-## Keywords
-<placeholder>
-
 ## Purpose
 
 The Event Bus provides an internal publish/subscribe infrastructure for LLM agent systems. Producers publish JSON events, and consumers subscribe to topics via SSE and can replay past events.
@@ -60,3 +57,13 @@ These items are also documented as Deferred Items in `docs/00_governance/governa
 ## Known Issues
 
 Known issues for this area are tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus). Offset and resume semantics, including the ACK-order obligation, are described in `eventbus_06_dlq_offsets_and_delivery_semantics.md`.
+
+## Keywords
+
+- event bus
+- system overview
+- SQLite
+- SSE
+- DLQ
+- loopback binding
+- authentication roles
