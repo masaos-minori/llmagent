@@ -220,14 +220,6 @@ Files are created at `{deadletter_dir}/{event_id}.json` during inline processing
 
 Sweep results are recorded in the logs but are not exposed via the health endpoint.
 
-## Related Documents
-
-- `eventbus_00_document-guide.md`
-- `eventbus_01_system-overview.md`
-- `eventbus_03_dlq_operations.md`
-- `eventbus_07_persistence_schema_and_replay.md`
-- `eventbus_08_validation_status.md`
-
 ## Keywords
 
 - event-bus

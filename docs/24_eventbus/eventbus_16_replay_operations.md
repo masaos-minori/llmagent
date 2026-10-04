@@ -7,6 +7,10 @@ tags:
   - json
   - reference
 related:
+  - eventbus_03_dlq_operations.md
+  - eventbus_05_dlq_endpoint.md
+  - eventbus_01_system-overview.md
+  - eventbus_06_dlq_offsets_and_delivery_semantics.md
 ---
 # Replay Operations Reference
 
@@ -87,13 +91,6 @@ Events are ordered by `seq` ascending (oldest first), which corresponds to inser
 ### Concurrency guarantee
 
 The replay endpoint acquires a shared SQLite lock during the fetch operation, ensuring that the returned events represent a consistent snapshot at the time of the query. Concurrent writes do not affect the result set.
-
-## Related Documents
-
-- [DLQ Operations Reference](eventbus_03_dlq_operations.md)
-- [DLQ Requeue API Reference](eventbus_05_dlq_endpoint.md)
-- [Event Bus Overview](eventbus_01_system-overview.md)
-- [Event Bus DLQ/Offsets/Delivery Semantics](eventbus_06_dlq_offsets_and_delivery_semantics.md)
 
 ## Keywords
 

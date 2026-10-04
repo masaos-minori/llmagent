@@ -121,12 +121,6 @@ Methods: `subscribe(topics→_Subscriber, consumer_id=str)`, `unsubscribe(sub→
 
 `read_offset(offsets_dir, consumer_id)→int`: Reads saved offset (returns 0 if not found). `write_offset(offsets_dir, consumer_id, seq)→None`: Only writes to file if `seq` is greater than the current committed offset. Skips and logs a warning if `seq <= current` (ensures monotonicity).
 
-## Related Documents
-
-- `eventbus_00_document-guide.md`
-- `eventbus_01_system-overview.md`
-- `eventbus_03_dlq_operations.md`
-
 ## Module Class/Function Reference (auto-generated)
 
 <!-- AUTO-GENERATED: gen_eventbus_reference.py class-function-reference -->

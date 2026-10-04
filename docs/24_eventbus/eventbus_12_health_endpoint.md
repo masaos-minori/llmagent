@@ -98,8 +98,5 @@ Returns `status: "degraded"` with a non-empty `degraded_reasons` array listing w
 conditions triggered the degraded state (see "Possible Degraded Reasons" above) — see
 `scripts/eventbus/health_route.py` for the full response schema.
 
-## Related Documents
-<placeholder>
-
 ## Keywords
 <placeholder>

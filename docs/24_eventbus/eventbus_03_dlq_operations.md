@@ -209,13 +209,6 @@ Using optimistic locking, it only targets events where `dlq_at IS NULL` to preve
 | Duplicate `event_id` during `publish` (Idempotency skip) | 200 returned (existing `seq`), broker notification skipped |
 | Subscriber queue full | Subscriber disconnected; client must reconnect using its last committed offset |
 
-## Related Documents
-
-- `eventbus_00_document-guide.md`
-- `eventbus_01_system-overview.md`
-- `eventbus_06_dlq_offsets_and_delivery_semantics.md`
-- `eventbus_09_configuration-and-operations.md`
-
 ## Keywords
 
 - event-bus
