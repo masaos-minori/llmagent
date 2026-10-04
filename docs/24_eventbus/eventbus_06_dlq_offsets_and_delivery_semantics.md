@@ -102,7 +102,7 @@ No `acked_at` check in `nack_event`. Even if already ACKed, NACK succeeds and `d
 
 Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/ack?consumer_id={consumer_id}`. They do not advance automatically during streaming. Idempotent duplicate ACKs do not update the offset.
 
-**Note:** Offsets only advance based on the `seq` value provided during ACK. If ACKs are not received in `seq` order, the offset may become non-monotonic (skipped `seq` values will not be re-acquired later).
+**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. If ACKs are not received in `seq` order, an unacknowledged lower `seq` is not re-acquired on resume (tracked as EVENTBUS-001).
 
 ### Resume Behavior
 
@@ -221,7 +221,7 @@ Each consumer's last-committed offset is stored in a per-consumer SQLite table (
 
 Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/ack?consumer_id={consumer_id}`. They do not advance automatically during streaming. Idempotent duplicate ACKs do not update the offset.
 
-**Note:** Offsets only advance based on the `seq` value provided during ACK. If ACKs are not received in `seq` order, the offset may become non-monotonic (skipped `seq` values will not be re-acquired later).
+**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. If ACKs are not received in `seq` order, an unacknowledged lower `seq` is not re-acquired on resume (tracked as EVENTBUS-001).
 
 ### Resuming on Reconnection
 
@@ -369,7 +369,7 @@ No `acked_at` check in `nack_event`. Even if already ACKed, NACK succeeds and `d
 
 Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/ack?consumer_id={consumer_id}`. They do not advance automatically during streaming. Idempotent duplicate ACKs do not update the offset.
 
-**Note:** Offsets only advance based on the `seq` value provided during ACK. If ACKs are not received in `seq` order, the offset may become non-monotonic (skipped `seq` values will not be re-acquired later).
+**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. If ACKs are not received in `seq` order, an unacknowledged lower `seq` is not re-acquired on resume (tracked as EVENTBUS-001).
 
 ### Resume Behavior
 

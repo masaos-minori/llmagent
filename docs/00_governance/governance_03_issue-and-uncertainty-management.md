@@ -115,18 +115,18 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 Note on CI-014 batching: These "ADR invariant verified by code inspection, no automated test" entries formed one cross-cutting initiative of originally nine members. All nine have since been removed once test coverage was added (CI-008, CI-009, CI-010, CI-011, CI-012, CI-013, CI-014, CI-015, and CI-016); no active members remain. Their Area fields spanned Agent, Shared/DB, MCP, RAG, and EventBus, so no single existing RACI role was accountable for the cross-area ADR-invariant-test-suite initiative. This finding is recorded here; the cross-cutting-role vs. per-area-ownership decision stays open for any future similar initiative.
 
-### EVENTBUS-001: Offset Monotonicity Not Guaranteed
+### EVENTBUS-001: Out-of-Order ACK Skips Lower-seq Events on Resume
 
 - **Status**: open
-- **Severity**: Medium
+- **Severity**: High
 - **Area**: EventBus
 - **Type**: design-gap
 - **Source**: docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md
 - **Owner**: Unassigned
 - **First Found**: 2026-10-03
-- **Summary**: Offset monotonicity is NOT guaranteed across all scenarios; if ACKs are not received in seq order, the offset may become non-monotonic
-- **Related**: eventbus_06_dlq_offsets_and_delivery_semantics.md
-- **Resolution Target**: Enforce monotonicity via server-side validation
+- **Summary**: Offset monotonicity itself is guaranteed (the offset never moves backward), but the offset is a high-water mark of acknowledged seq values; with out-of-order ACKs an unacknowledged lower seq is skipped on resume, in tension with the at-least-once baseline
+- **Related**: eventbus_06_dlq_offsets_and_delivery_semantics.md; issues/20261004-095313_eventbus001_eventbus-out-of-order-ack-skips-lower-seq-events-on-resume.md
+- **Resolution Target**: Record a design decision in ADR-006 (ordered ACK as a consumer obligation, or a resume position that never skips unacknowledged events) and align the documentation
 
 ## Part 2: Needs Confirmation Inventory
 

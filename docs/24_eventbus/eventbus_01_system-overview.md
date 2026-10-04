@@ -59,17 +59,12 @@ These items are also documented as Deferred Items in `docs/governance_03_issue-a
 
 ## Known Issues
 
-### EVENTBUS-001: Offset Monotonicity Not Guaranteed
+### EVENTBUS-001: Out-of-Order ACK Skips Lower-seq Events on Resume
 
 - **Status**: open
-- **Severity**: Medium
-- **Area**: EventBus
-- **Type**: design-gap
-- **Summary**: Offset monotonicity is NOT guaranteed across all scenarios; if ACKs are not received in seq order, the offset may become non-monotonic
 - **Related**: eventbus_06_dlq_offsets_and_delivery_semantics.md
-- **Resolution Target**: Enforce monotonicity via server-side validation
 
-Offset monotonicity is NOT guaranteed across all scenarios. If ACKs are not received in `seq` order, the offset may become non-monotonic (skipped `seq` values will not be re-acquired later). See `eventbus_06_dlq_offsets_and_delivery_semantics.md` for details.
+The offset never moves backward, but it is the highest acknowledged `seq` (a high-water mark). If ACKs are not received in `seq` order, an unacknowledged lower `seq` is not re-acquired on resume. The entry is tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1); see `eventbus_06_dlq_offsets_and_delivery_semantics.md` for the offset semantics.
 
 ## Related Documents
 

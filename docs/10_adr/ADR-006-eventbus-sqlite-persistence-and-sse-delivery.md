@@ -359,11 +359,11 @@ Register any Invariant without Verification as an unverified item in an Issue.
 
 Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-- **Known Issue**: EVENTBUS-001 — `write_offset()` lacks a `max(current, new)` check. Reconnection can cause duplicate delivery. No server-side fix planned.
+- **Known Issue**: EVENTBUS-001 — The offset is a high-water mark of acknowledged `seq` values and never moves backward. With out-of-order ACKs, an unacknowledged lower `seq` is skipped when a consumer resumes, which is in tension with the at-least-once baseline (losses not tolerated).
 - **Type**: Open Issue
-- **Summary**: The monotonicity check in `write_offset()` is insufficient
-- **Impact**: Duplicate delivery may occur on reconnection
-- **Resolution Target**: Mitigated by requiring Consumers to process idempotently by event_id
+- **Summary**: Resume position is derived from the offset alone; per-consumer delivery state is not consulted
+- **Impact**: Event loss on resume is possible when a consumer ACKs out of `seq` order
+- **Resolution Target**: Record a design decision (ordered ACK as a consumer obligation, or a resume position that never skips unacknowledged events) — tracked in `issues/20261004-095313_eventbus001_eventbus-out-of-order-ack-skips-lower-seq-events-on-resume.md`
 
 - **Known Issue (updated 2026-09-10)**: EVENTBUS-007 — Per-consumer delivery-state and SQLite-backed offset store were added to eliminate the two-commit gap between ACK state and offset advancement. The `consumer_delivery` table tracks per-consumer delivery progress; the `consumer_offsets` table stores monotonic offsets. `ack_event_for_consumer()` performs both operations atomically. Legacy file-based offsets remain during migration but are no longer the primary path. At startup, `migrate_legacy_offsets()` reads each legacy offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; when no `.map` companion exists, it falls back to the sanitized filename as the `consumer_id`.
 - **Type**: Resolved Gap
