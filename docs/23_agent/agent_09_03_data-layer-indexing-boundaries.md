@@ -80,14 +80,6 @@ Managed by `agent/workflow/state_store.py`:
 - Using `messages` for purposes other than the conversation flow visible to the LLM is prohibited.
 - `workflow.sqlite` is mandatory for workflows — startup fails if the configuration file is missing.
 
-## Operational Notes
-
-- Unknown
-
-## Known Limitations
-
-- Unknown
-
 ## Keywords
 
 FTS5 index

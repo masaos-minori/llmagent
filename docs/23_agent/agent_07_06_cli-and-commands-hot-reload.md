@@ -12,7 +12,6 @@ related:
   - agent_07_03_cli-and-commands-command-registry.md
   - agent_07_04_cli-and-commands-purpose.md
   - agent_07_05_cli-and-commands-repl-io.md
-  - agent_07_07_cli-and-commands-migration-notes.md
   - agent_07_08_cli-and-commands-slash-commands-session-mcp.md
   - agent_07_09_cli-and-commands-slash-commands-context-db.md
   - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
@@ -35,7 +34,7 @@ The reload subcommand reads the base configuration files and applies changes as 
 
 ### Configuration Files
 
-`_BASE_CONFIG_FILES` in `config_loader.py` contains only one item: `("agent.toml",)`. Agent process settings are centralized in `config/agent.toml`. Descriptions assuming the legacy multi-file structure have been removed.
+`_BASE_CONFIG_FILES` in `config_loader.py` contains only one item: `("agent.toml",)`. Agent process settings are centralized in `config/agent.toml`.
 
 ### Change Classification
 
@@ -58,17 +57,9 @@ The reload subcommand reads the base configuration files and applies changes as 
 - **Requires restart**: MCP server settings, etc.
 - **Startup-only**: Settings loaded only during process startup.
 
-## Key Constraints
-
-- Unknown
-
 ## Operational Notes
 
 - For full classification of each field, see [Configuration: Hot-Reloadable Scope](agent_08_01_configuration-loading-agent-config.md#hot-reloadable-scope).
-
-## Known Limitations
-
-- Unknown
 
 ## Keywords
 

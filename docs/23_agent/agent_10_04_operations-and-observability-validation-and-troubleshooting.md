@@ -116,7 +116,7 @@ MCP server definitions (transport, url, startup_mode, call_timeout_sec, startup_
 
 `/mcp` / `/mcp status` always reflects the currently running (pre-restart) server settings and does not reflect pending `/reload` changes.
 
-The MCP watchdog (background automatic health polling and auto-restart loop) has been removed. If a server fails in subprocess mode, `ensure_ready()` will only attempt a restart with the *current* startup configuration during the next tool dispatch — because this is a health-driven recovery and not a configuration reload, pending changes to MCP server definitions are not applied.
+There is no background health polling or automatic restart loop for MCP servers. If a server fails in subprocess mode, `ensure_ready()` will only attempt a restart with the *current* startup configuration during the next tool dispatch — because this is a health-driven recovery and not a configuration reload, pending changes to MCP server definitions are not applied.
 
 Changed MCP server definitions are only applied during a full agent restart.
 

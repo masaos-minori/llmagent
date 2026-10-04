@@ -12,7 +12,6 @@ related:
   - agent_07_04_cli-and-commands-purpose.md
   - agent_07_05_cli-and-commands-repl-io.md
   - agent_07_06_cli-and-commands-hot-reload.md
-  - agent_07_07_cli-and-commands-migration-notes.md
   - agent_07_08_cli-and-commands-slash-commands-session-mcp.md
   - agent_07_09_cli-and-commands-slash-commands-context-db.md
   - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
@@ -38,7 +37,6 @@ File index for this chapter (07 CLI and Commands).
 | [agent_07_10_cli-and-commands-slash-commands-workflow-debug.md](agent_07_10_cli-and-commands-slash-commands-workflow-debug.md) | Slash commands: Workflow, Debug/audit, Compact/Export |
 | [agent_07_11_cli-and-commands-slash-commands-memory-other.md](agent_07_11_cli-and-commands-slash-commands-memory-other.md) | Slash commands: Memory, MDQ, Other |
 | [agent_07_06_cli-and-commands-hot-reload.md](agent_07_06_cli-and-commands-hot-reload.md) | Hot-reload scope (reload subcommand) |
-| [agent_07_07_cli-and-commands-migration-notes.md](agent_07_07_cli-and-commands-migration-notes.md) | Migration notes |
 
 ## Keywords
 

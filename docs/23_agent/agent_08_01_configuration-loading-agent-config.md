@@ -68,18 +68,6 @@ Check the following categories in the `ConfigReloadOutcome` output:
 - **Configuration Files**: `config/agent.toml` is the canonical source.
 - **Field-level Mapping**: Refer to `agent/services/config_reload.py`.
 
-## Key Constraints
-
-- Unknown
-
-## Operational Notes
-
-- Unknown
-
-## Known Limitations
-
-- Unknown
-
 ## Keywords
 
 configuration loading

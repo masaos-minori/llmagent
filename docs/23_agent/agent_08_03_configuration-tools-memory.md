@@ -132,14 +132,6 @@ identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 - `allowed_tools=[]` (empty) means "all allowed" — explicit confirmation is required to prevent unintended behavior.
 - `memory_embed_enabled=True` → `rag.embed_url` must not be empty (see Part 2).
 
-## Operational Notes
-
-- Unknown
-
-## Known Limitations
-
-- Unknown
-
 ## Keywords
 
 ToolConfig

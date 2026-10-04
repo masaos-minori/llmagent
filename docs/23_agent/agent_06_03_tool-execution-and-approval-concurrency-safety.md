@@ -84,10 +84,6 @@ Workflow-level approval states are persisted in the `approvals` table of `workfl
 - Fail-safe: Undefined tools in `tool_safety_tiers` default to `WRITE_DANGEROUS`
 - ToolLoopGuard guard hints are not injected into history
 
-## Operational Notes
-
-- Unknown
-
 ## Known Limitations
 
 See Known Limitations in [agent_06_02_tool-execution-and-approval-approval.md](agent_06_02_tool-execution-and-approval-approval.md) (the dry-run path for GitHub tools is currently dormant).

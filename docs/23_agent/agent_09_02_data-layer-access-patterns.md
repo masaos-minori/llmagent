@@ -67,14 +67,6 @@ To prevent orphaned records, `delete_document()` enforces a strict deletion orde
 - Application code in the agent, other MCP services, or shared layer code is prohibited from accessing `rag.sqlite` directly.
 - Since `chunks_vec` does not have a foreign key constraint to `documents`, deletion order is critical.
 
-## Operational Notes
-
-- Unknown
-
-## Known Limitations
-
-- Unknown
-
 ## Keywords
 
 RAG MCP internal path

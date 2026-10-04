@@ -12,7 +12,6 @@ related:
   - agent_07_04_cli-and-commands-purpose.md
   - agent_07_05_cli-and-commands-repl-io.md
   - agent_07_06_cli-and-commands-hot-reload.md
-  - agent_07_07_cli-and-commands-migration-notes.md
   - agent_07_08_cli-and-commands-slash-commands-session-mcp.md
   - agent_07_09_cli-and-commands-slash-commands-context-db.md
   - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
@@ -52,11 +51,8 @@ Add a `CommandDef(...)` entry to `command_defs_list.py` and implement the corres
 
 ## Key Constraints
 
-- Unknown
-
-## Operational Notes
-
-- Unknown
+- A slash command that is not registered, including legacy commands such as `/db`, is rejected as an unknown command (`Unknown command: ... (type /help for commands)`); no compatibility alias is provided.
+- `/debug` rejects an unknown subcommand explicitly (`Unknown subcommand: ...`) instead of ignoring it.
 
 ## Known Limitations
 

@@ -61,6 +61,8 @@ From `db.rotation import rotate_session_db, rotate_workflow_db, rotate_eventbus_
 
 The archive directory defaults to `/opt/llm/db/archive` (from `agent.toml::sqlite_archive_dir`). The rotation format is `{stem}_{YYYYMMDD_HHMMSS}{suffix}` in the `archive_dir`. It uses the SQLite online backup API to ensure WAL integrity is preserved during rotation.
 
+**Corrupt-archive retention (`CorruptArchiveRetentionConfig`, `db/maintenance.py`):** timestamped `*_corrupt_*` archives that `db.recovery` creates before restoring a database are pruned by two optional `agent.toml` keys. `sqlite_corrupt_archive_max_files` keeps the most recent N archives per source database, and `sqlite_corrupt_archive_max_age_days` deletes archives older than N days (`0` disables the age limit). Both keys fall back to in-code defaults when absent, and `ProductionConfigValidator` accepts them as known `agent.toml` keys.
+
 ---
 
 ## 6. RAG Consistency Checks (`db/rag_consistency.py`)

@@ -114,10 +114,6 @@ If the LLM endpoint returns a chunk containing a `usage` field, data is extracte
 - `LLMTransportError` carries `phase` (pre_stream/in_stream), `url`, `status_code`, `retryable`, `partial_text`, `detail`, and `stat_heartbeat_timeouts`.
 - `UTF8_PARTIAL_DECODE_ERROR` and `PREMATURE_EOF` are clearly distinguished. `PREMATURE_EOF` is raised if the SSE stream ends before the expected `content-length`. `UTF8_PARTIAL_DECODE_ERROR` handles JSON decoding errors separately.
 
-## Known Limitations
-
-- Unknown
-
 ## Keywords
 
 agent

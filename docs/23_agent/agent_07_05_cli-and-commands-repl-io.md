@@ -12,7 +12,6 @@ related:
   - agent_07_03_cli-and-commands-command-registry.md
   - agent_07_04_cli-and-commands-purpose.md
   - agent_07_06_cli-and-commands-hot-reload.md
-  - agent_07_07_cli-and-commands-migration-notes.md
   - agent_07_08_cli-and-commands-slash-commands-session-mcp.md
   - agent_07_09_cli-and-commands-slash-commands-context-db.md
   - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
@@ -59,10 +58,6 @@ Documents the design intent and operational decisions for the REPL input/output 
 
 - The continuation prompt for multi-line input is `... `, which is different from the REPL prompt.
 - Graceful shutdown timeout is 10 seconds.
-
-## Known Limitations
-
-- Unknown
 
 ## Keywords
 

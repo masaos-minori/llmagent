@@ -94,14 +94,6 @@ Documents the structure and constraints of LLM and RAG configurations.
 - `rag.use_semantic_cache=True` → `rag.embed_url` must not be empty (see Part 2).
 - `memory.memory_embed_enabled=True` → `rag.embed_url` must not be empty (see Part 2).
 
-## Operational Notes
-
-- Unknown
-
-## Known Limitations
-
-- Unknown
-
 ## Keywords
 
 LLMConfig

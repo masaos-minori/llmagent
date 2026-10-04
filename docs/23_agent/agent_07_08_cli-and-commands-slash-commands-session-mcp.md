@@ -13,7 +13,6 @@ related:
   - agent_07_04_cli-and-commands-purpose.md
   - agent_07_05_cli-and-commands-repl-io.md
   - agent_07_06_cli-and-commands-hot-reload.md
-  - agent_07_07_cli-and-commands-migration-notes.md
   - agent_07_09_cli-and-commands-slash-commands-context-db.md
   - mcp_06_12_watchdog-configuration-monitoring.md
   - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
@@ -36,7 +35,7 @@ A group of commands for session management and history operations. `/clear new` 
 
 #### Session DB operation subcommands
 
-All legacy `/db session <subcmd>` subcommands have been migrated to `/session <subcmd>`. For details, see [Context/DB Category](agent_07_09_cli-and-commands-slash-commands-context-db.md).
+Session subcommands are invoked as `/session <subcmd>`. For the other maintenance subcommands, see [Context/DB Category](agent_07_09_cli-and-commands-slash-commands-context-db.md).
 
 ### MCP Category
 
@@ -53,18 +52,6 @@ A group of commands for displaying and monitoring configuration files. `/reload`
 - **Session**: Lifecycle management of sessions and history
 - **MCP**: Health and tool list of MCP servers
 - **Config/Stats**: Displaying configuration and metrics
-
-## Key Constraints
-
-- Unknown
-
-## Operational Notes
-
-- Unknown
-
-## Known Limitations
-
-- Unknown
 
 ## Keywords
 

@@ -118,10 +118,6 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 - Fail-safe: Undefined tools in `tool_safety_tiers` default to `WRITE_DANGEROUS`
 - Base risk `none` skips escalation
 
-## Operational Notes
-
-- Unknown
-
 ## Known Limitations
 
 - Since GitHub tools are not included in `approval_dry_run_tools` by default, this path is currently dormant.

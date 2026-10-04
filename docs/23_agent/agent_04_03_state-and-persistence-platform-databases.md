@@ -117,10 +117,6 @@ The Memory layer uses `session.sqlite` and is independent of `rag.sqlite`.
 - `finish_attempt`'s `error_kind`/`error_detail` are additional columns in the `attempts` table, providing error classification separate from `error_msg`.
 - `begin_stage_if_new` checks the `event_id` atomically and starts an attempt if new. `begin_immediate` wraps check and insertion in a single transaction without calling `commit()` explicitly.
 
-## Known Limitations
-
-- Unknown
-
 ## Keywords
 
 platform databases

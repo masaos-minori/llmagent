@@ -32,7 +32,7 @@ Dispatch priority of `ToolExecutor.execute(tool_name, args)`:
 
 ### Parallel vs Sequential Execution
 
-`execute_all_tool_calls()` always delegates processing to `agent/tool_runner.py::_execute_with_dag()` (a single execution path). The second execution engine called `_execute_standard()` has been deprecated. `ctx.cfg.tool.serial_tool_calls` is no longer a flag to select an execution engine; instead, it is passed as the `force_serial` input to `agent/tool_scheduler.py::build_execution_groups()`:
+`execute_all_tool_calls()` always delegates processing to `agent/tool_runner.py::_execute_with_dag()` (a single execution path). `ctx.cfg.tool.serial_tool_calls` is no longer a flag to select an execution engine; instead, it is passed as the `force_serial` input to `agent/tool_scheduler.py::build_execution_groups()`:
 
 | Condition | Execution |
 |---|---|
@@ -47,7 +47,7 @@ Dispatch priority of `ToolExecutor.execute(tool_name, args)`:
 
 1. **`requires_serial=True`** — An in-place barrier. Closes all currently accumulated phases, issues a single serial phase at the original position of the current call, and starts a new phase for subsequent calls (does not pull up to the start of the batch).
 2. **Calls with overlapping `resource_scopes` (where at least one is `is_write=True`)** — Grouped as connected components within the same phase, and serialization occurs within that group (in addition to exact matches, filesystem scopes are considered overlapping if they have ancestor/descendant relationships. See `shared/resource_scope.py::_scopes_conflict()`).
-3. **`resource_scopes` is empty AND `is_write=True`** — Treated as a synthetic scope `("global:write",)` and joins the same conflict graph as Rule 2. A dedicated `write_first` bucket was deprecated; non-scoped writes now also detect conflicts and are serialized (unless they do not conflict with other calls, in which case they are pooled into a normal parallel execution group).
+3. **`resource_scopes` is empty AND `is_write=True`** — Treated as a synthetic scope `("global:write",)` and joins the same conflict graph as Rule 2. Non-scoped writes also detect conflicts and are serialized (unless they do not conflict with other calls, in which case they are pooled into a normal parallel execution group).
 4. **Calls not matching rules 1–3 within the same phase** — Pooled into a single parallel execution group.
 5. **`force_serial=True`** (supplied from `ctx.cfg.tool.serial_tool_calls`) — Bypasses all the above and generates individual serial phases in calling order.
 
@@ -55,7 +55,7 @@ Grouping is performed by `agent/tool_scheduler.py::build_execution_groups()` usi
 
 #### ExecutionPlan Structure (batches / ScheduledGroup)
 
-`build_execution_groups()` returns a single `ExecutionPlan` (`batches: tuple[ScheduledBatch, ...], serialization_events: tuple[SerializationEvent, ...]`). The old two-value tuple format `tuple[list[list[dict]], _GroupMetadata]` plus a parallel array of `serialize_flags` has been deprecated.
+`build_execution_groups()` returns a single `ExecutionPlan` (`batches: tuple[ScheduledBatch, ...], serialization_events: tuple[SerializationEvent, ...]`).
 
 - Each **batch** is executed sequentially relative to other batches.
 - Within a **batch**, `ScheduledGroup`s are executed in parallel via `asyncio.gather()`; if a group's `sequential` flag is `True`, calls within that group are executed in order.
@@ -88,10 +88,6 @@ Uses verified methods via `ConversationState.append_message()` / `extend_message
 - `_execute_with_dag()` is the only execution path. `serial_tool_calls=True` does not switch to a different engine but acts as the `force_serial` input to `build_execution_groups()`.
 - Multiple calls to write tools with overlapping `resource_scopes` are serialized within the same group.
 - Preparation phase is fail-closed: if any issue exists (missing id, invalid JSON, unregistered tool, registry disconnected, schema violation, metadata construction failure), it is rejected before reaching approval, execution, or scheduling.
-
-## Operational Notes
-
-- Unknown
 
 ## Known Limitations
 

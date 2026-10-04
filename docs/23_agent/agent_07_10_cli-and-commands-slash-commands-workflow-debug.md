@@ -13,7 +13,6 @@ related:
   - agent_07_04_cli-and-commands-purpose.md
   - agent_07_05_cli-and-commands-repl-io.md
   - agent_07_06_cli-and-commands-hot-reload.md
-  - agent_07_07_cli-and-commands-migration-notes.md
   - agent_07_08_cli-and-commands-slash-commands-session-mcp.md
   - agent_07_09_cli-and-commands-slash-commands-context-db.md
   - agent_07_11_cli-and-commands-slash-commands-memory-other.md
@@ -66,14 +65,6 @@ RAG search is not provided as a slash command — it is automatically called by 
 - **Debug/Audit**: Debug mode and audit logs
 - **Git/Diff**: Displaying file changes within a session
 - **Compact/Export**: History compression and export
-
-## Key Constraints
-
-- Unknown
-
-## Operational Notes
-
-- Unknown
 
 ## Known Limitations
 

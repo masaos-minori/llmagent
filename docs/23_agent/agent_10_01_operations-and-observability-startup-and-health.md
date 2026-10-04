@@ -61,7 +61,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 
 **Important Notes:**
 - `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
-- `tool_definitions` follows a unified severity scheme: FATAL when in strict mode, WARNING otherwise (the former `security_profile=PRODUCTION` branch was removed when `SecurityProfile.LOCAL` was removed — `security_profile` is always `PRODUCTION` now, so checking it added nothing).
+- `tool_definitions` follows a unified severity scheme: FATAL when in strict mode, WARNING otherwise (`security_profile` is always `PRODUCTION`, so it does not affect the severity).
 - Failure in `mcp_tool_discovery` is treated as FATAL regardless of environment. Since tool discovery failure makes all session tool calls impossible, it is critical.
 - `mcp_auth` ("1b. MCP authentication check", runs between the security audit and service-readiness checks): FATAL if any `[mcp_servers.*]` entry has an empty `auth_token`, listing every offending server key in one outcome. In practice this is unreachable via a real `McpServerConfig` — construction itself already rejects an empty `auth_token` (see [mcp_06_02](../22_mcp/mcp_06_02_configuration-file-inventory.md)) — so this check only fires for a `ctx` assembled some other way than the normal config-load path. `check_services()` does not short-circuit on an earlier FATAL: every check listed here always runs and reports independently; only the final aggregated `has_fatal` decides whether startup aborts.
 
@@ -85,6 +85,12 @@ Each step is independently guarded so that if one fails, others still execute. W
 ### SIGINT/SIGTERM Interruption During Startup
 
 If SIGINT/SIGTERM is received during the startup sequence, a `ShutdownInterrupted` exception is raised, triggering a rollback. The HTTP subprocess health polling loop is also immediately interrupted by the shutdown event.
+
+### Secret Masking in MCP Subprocess Failure Reports
+
+When an MCP subprocess fails to start, the tail of its stderr is included in the startup failure report, and a failed first start attempt is logged. Both pass through `agent/secrets_masker.py`, which replaces values written as `key=value` for key names such as `password`, `api_key`, `secret` and `token` (case-insensitive) with a masked form. Only that `key=value` form is recognized; other shapes (for example an `Authorization: Bearer ...` header) are not masked.
+
+The masker keeps the first characters of each matched fragment, so short values are not masked and longer ones leak their leading characters. This is a known defect tracked in `issues/20261004-160514_secmask001_secrets-masker-leaves-short-secret-values-unmasked.md`; do not rely on the masker as the only protection for secrets that may appear in subprocess output.
 
 ### Manual Recovery: workflow.sqlite / eventbus.sqlite
 
@@ -141,6 +147,7 @@ This clears all pending approvals and workflow state. If the data loss is signif
 - Some branches in `startup.py` have been tested, but their actual behavior in production environments has only been partially verified.
 - The WAL checkpoint timeout (default 30 seconds) may need adjustment based on real-world load.
 - Information regarding rollback failures is not displayed on the console screen; it can only be checked in the log files.
+- Secret masking of MCP subprocess output is incomplete (see Secret Masking in MCP Subprocess Failure Reports).
 
 ## Keywords
 

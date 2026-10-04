@@ -13,7 +13,6 @@ related:
   - agent_07_04_cli-and-commands-purpose.md
   - agent_07_05_cli-and-commands-repl-io.md
   - agent_07_06_cli-and-commands-hot-reload.md
-  - agent_07_07_cli-and-commands-migration-notes.md
   - agent_07_08_cli-and-commands-slash-commands-session-mcp.md
   - agent_07_09_cli-and-commands-slash-commands-context-db.md
   - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
@@ -55,14 +54,6 @@ All `/mdq` commands call MCP tools of `mdq-mcp` via the agent's tool executor. M
 - **MDQ**: Document indexing and search
 - **Skill**: Skill injection
 - **Other**: Help display
-
-## Key Constraints
-
-- Unknown
-
-## Operational Notes
-
-- Unknown
 
 ## Known Limitations
 
