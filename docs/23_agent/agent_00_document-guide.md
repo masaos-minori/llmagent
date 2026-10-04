@@ -91,10 +91,6 @@ When schema/command references change, verify that `agent_01_system-overview.md`
 | 13 | Reference API — per-module API: role, callers, callees, config, failure |
 | 90 | Inconsistencies and known issues — known bugs, spec conflicts, open questions |
 
-### Removed Files
-
-Deleted `05_ref-*` / ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`05_agent-impl-flow.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) / ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`05_agent-ops.md`~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted)~~ (deleted) files are integrated into chapters 02-13 above. See [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Agent) for known issues and unresolved items.
-
 ### Additional References
 
 - `agent_01_system-overview.md`

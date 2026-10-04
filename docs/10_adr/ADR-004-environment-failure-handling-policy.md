@@ -244,7 +244,7 @@ Do not record line numbers; reference by file path and symbol name.
 ### CI-016: Undefined component criticality treatment relies on a safe default, untested
 
 - **Summary**: No automated test verifies prohibition on continuing startup with undefined mandatoriness (Decision #12, INV-14)
-- **Action**: **Resolved**: REQ-001 unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`) verifies `McpServerConfig.required` defaults to `True`. Update the automated test if `required` default changes.
+- **Action**: **Resolved**: REQ-001 unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`) verifies the strict default of `McpServerConfig.required`. Update the automated test if that default changes.
 - **Status**: Resolved
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.

@@ -19,8 +19,6 @@ related:
 
 ## MDQ vs RAG boundary
 
-> **Source of Truth.** This section consolidates content previously located in `~~mcp_07_mdq_rag_boundary~~ (deleted).md` (removed in commit f24efc1).
-
 ### Purpose
 
 Clearly defines the ownership boundaries between MDQ (Markdown Context Compression Engine) and RAG (Retrieval Augmented Generation), enabling engineers to decide which system to use for a specific task.
