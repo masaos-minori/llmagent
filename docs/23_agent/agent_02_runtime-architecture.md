@@ -85,7 +85,7 @@ Three distinct patterns exist where `tools.execute()` is called directly without
 
 ### Ongoing Maintenance
 
-Coverage map accuracy must be maintained over time. Future changes to gate placement must update this map as part of the acceptance criteria (REQ-07 / AC-07). Any new `check_preflight()` addition requires a corresponding test or documented exception.
+Coverage map accuracy must be maintained over time. Future changes to gate placement must update this map as part of the acceptance criteria. Any new `check_preflight()` addition requires a corresponding test or documented exception.
 
 ## Keywords
 

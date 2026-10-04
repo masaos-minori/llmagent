@@ -187,7 +187,7 @@ Budget breakdown:
 
 **Implementation Notes:**
 - The Token estimate in `/context` remains constant based on category-aware estimation; the actual value used by `/tokenize` is only used for history compression decisions in the next turn, not for display in `/context`.
-- Category-aware estimation ratio constants (Text: 4.0, Tool Call JSON: 2.5, System Message: 3.5) use `RATIO_TEXT`/`RATIO_TOOL_CALL`/`RATIO_SYSTEM` from `shared/token_estimation.py` as single positives. `agent/services/context_view.py::_token_breakdown` imports and uses these; previously duplicated local ratio constants have been deprecated.
+- Category-aware estimation ratio constants (Text: 4.0, Tool Call JSON: 2.5, System Message: 3.5) use `RATIO_TEXT`/`RATIO_TOOL_CALL`/`RATIO_SYSTEM` from `shared/token_estimation.py` as the single source. `agent/services/context_view.py::_token_breakdown` imports and uses these and defines no local ratio constants.
 - `/context`'s `Approval pending` is derived from turn state. Meanwhile, `/stats`'s `Approval pending` refers to workflow state. While both fields are always set/cleared in pairs by the orchestrator and startup commands, resulting in consistent operational values, they refer to different implementation fields.
 
 ## `/stats` Interpretation

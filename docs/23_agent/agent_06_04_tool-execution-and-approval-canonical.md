@@ -26,19 +26,15 @@ Documents the Canonical Approval Model (ADR-001) and the persistence of partial 
 
 ### Canonical Approval Model (ADR-001)
 
-**Date:** 2026-06-26
-**Status:** Accepted
+There are two approval layers in the agent: tool-level and workflow-level. They coexist without conflict.
 
-#### Context
+#### Terminology
 
-There are two approval layers in the agent: tool-level and workflow-level. They must coexist without conflict.
-
-**Terminology Clarification:**
 - **Automatic Execution**: Operations that do not require human approval (planning phase, verification phase, low-risk tool operations).
 - **Pre-execution Approval**: A tool-level approval gate triggered before tool execution (real-time risk assessment).
 - **Post-execution Approval**: A workflow-level approval gate triggered after the `execute` stage is complete (batch result verification).
 
-#### Decision
+#### Layer Responsibilities
 
 Both layers are canonical; boundaries and responsibilities are explicit rather than mutually exclusive.
 

@@ -28,7 +28,7 @@ The Agent layer does not own `rag.sqlite`. These tables are owned by the RAG lay
 - The agent accesses document-level data through `rag-pipeline-mcp`.
 - For statistics, use `DbMaintenanceService.stats()` or `RagMaintenanceService.stats_rag()`.
 
-**Design judgment:** `/db rag urls` and `/db rag clean` call `rag_list_documents` and `rag_delete_document` via `rag-pipeline-mcp`. `DbMaintenanceService` no longer owns RAG document access for listing or deletion.
+**Design judgment:** `/db rag urls` and `/db rag clean` call `rag_list_documents` and `rag_delete_document` via `rag-pipeline-mcp`. `DbMaintenanceService` does not own RAG document access for listing or deletion.
 
 ### Internal RAG MCP Paths
 

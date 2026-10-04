@@ -28,7 +28,7 @@ Documents the `AgentConfig` structure, configuration file ownership, and classif
 
 **Canonical Configuration File:** `config/agent.toml` (LLM/RAG/DB/Tools/Memory/Observability/Approval/MCP Lifecycle/Diagnostics)
 
-**Fail-closed behavior (REQ-001):** When `agent.toml` is missing, `ConfigLoader.load_all()` raises `ConfigMissingError` (inherits `ValueError`). In `load_config()`, this is caught and re-raised as `ConfigLoadError` (inherits `RuntimeError`). Execution aborts before `security_profile_val = SecurityProfile(cfg.get("security_profile", "local"))` is computed, preventing any production config validation from running on incomplete configuration.
+**Fail-closed behavior:** When `agent.toml` is missing, `ConfigLoader.load_all()` raises `ConfigMissingError` (inherits `ValueError`). In `load_config()`, this is caught and re-raised as `ConfigLoadError` (inherits `RuntimeError`). Execution aborts before `security_profile_val = SecurityProfile(cfg.get("security_profile", "production"))` is computed (`agent/config_builders.py`), preventing any production config validation from running on incomplete configuration.
 
 ### Configuration File Ownership
 
