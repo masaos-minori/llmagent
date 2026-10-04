@@ -125,10 +125,10 @@ other file is a modification target.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261004-160633 | 20261004-160633 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261004-160633 | 20261004-160633 | 17/17 pass (new: test_python3_evil_rejected, test_interpreter_variants_accepted; rewritten test_python3_prefix_allows_python3x asserts bounded) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261004-160633 | 20261004-160633 | ruff format/check clean; mypy: only pre-existing unused-ignore on unmodified line 83 (repo full-mypy blocked by tool_constants double-discovery); pytest 17/17 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261004-160633 | 20261004-160633 | N/A: no docs/*.md mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
