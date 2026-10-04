@@ -61,7 +61,7 @@ registry.record_failure(server_key)
 
 #### Degraded Reasons Are Not Stored
 
-`McpServerHealthRegistry` does not store a degraded reason: the former `record_degraded()` / `get_degraded_reason()` pair was removed on 2026-08-20. A server's state changes only through `record_failure()` (`DEGRADED` below the failure threshold, `UNAVAILABLE` at or above it) and `record_success()` (back to `HEALTHY`, clearing the failure count).
+`McpServerHealthRegistry` does not store a degraded reason. A server's state changes only through `record_failure()` (`DEGRADED` below the failure threshold, `UNAVAILABLE` at or above it) and `record_success()` (back to `HEALTHY`, clearing the failure count).
 
 ---
 
@@ -115,7 +115,7 @@ grep '"error_type":"tool"' agent.log
 
 ### Tool Scheduling and Serialization
 
-An agent executes tool calls grouped by resource scope (always active DAG scheduling when `serial_tool_calls=False`). While `use_tool_dag` is not present in the codebase (Explicit in code — [agent_08_03](../23_agent/agent_08_03_configuration-tools-memory.md)), setting `serial_tool_calls=True` switches to the legacy standard execution mode (sequential if any side-effecting tool is present, otherwise parallel). Most tools are executed in parallel, but
+An agent executes tool calls grouped by resource scope through a single DAG scheduler. Setting `serial_tool_calls=True` passes `force_serial` to the scheduler, which then runs every call in its own serial phase (see [agent_08_03](../23_agent/agent_08_03_configuration-tools-memory.md)). Most tools are executed in parallel, but
 
 serialization is forced within a round under certain conditions:
 

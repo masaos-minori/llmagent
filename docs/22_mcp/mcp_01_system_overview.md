@@ -52,7 +52,7 @@ Configuration for managing the lifecycle and transport of MCP servers on the age
 - `mcp_servers.<key>.url` — HTTP endpoint
 - `mcp_servers.<key>.cmd` — Subprocess startup command
 
-(`healthcheck_mode` was removed on 2026-07-17 — it was redundant wiring as HTTP is the only transport and always automatically derived as `"http"`)
+(HTTP is the only transport, so the health check mode is always derived as `"http"` and is not a configuration key)
 
 **Layer 2 — MCP Server Local Application Configuration (`config/*_mcp_server.toml`)**
 

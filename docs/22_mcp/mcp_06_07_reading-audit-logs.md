@@ -94,7 +94,7 @@ grep '"event":"mcp_tool_exec"' /opt/llm/logs/audit.log
 | cicd-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (`_audit_log()`) |
 | git-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (`_audit_log()`). `audit_log_path` setting is reserved but unimplemented |
 
-**Note (2026-07-13):** It was confirmed that `audit_log_path` for `mdq-mcp` and `git-mcp` are dead settings that are never referenced in implementation; they were removed from both servers' configuration files (`config/mdq_mcp_server.toml`, `config/git_mcp_server.toml`). MDQ audit events are actually recorded via `MdqService`/`server.py`'s `_audit_log()` to the shared audit log (`/opt/llm/logs/audit.log`) in JSON-lines format. (Explicit in code)
+**Note:** `mdq-mcp` and `git-mcp` have no effective `audit_log_path` setting (it is not set in `config/mdq_mcp_server.toml` or `config/git_mcp_server.toml`). MDQ audit events are actually recorded via `MdqService`/`server.py`'s `_audit_log()` to the shared audit log (`/opt/llm/logs/audit.log`) in JSON-lines format. (Explicit in code)
 
 ### MCP Servers without Audit Logging
 

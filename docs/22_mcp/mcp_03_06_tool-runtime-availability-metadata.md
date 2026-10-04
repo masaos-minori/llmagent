@@ -27,7 +27,7 @@ See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for 
 
 ## 1. `config_dependent` (static)
 
-Each server's `TOOL_LIST` includes a per-tool boolean field `config_dependent` (direct rename of `requires_config` with identical boolean semantics, no compatibility shim). `requires_config` is removed; any remaining doc/code reference to it describes obsolete behavior. `web_search-mcp`'s `browser_fetch` tool is the first to adopt `config_dependent: True`.
+Each server's `TOOL_LIST` includes a per-tool boolean field `config_dependent` (a boolean flag marking tools whose availability depends on configuration). `web_search-mcp`'s `browser_fetch` tool sets `config_dependent: True`.
 
 ## 2. `enabled` / `disabled_reason` (runtime, request-time-computed)
 

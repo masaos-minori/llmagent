@@ -71,7 +71,7 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 
 ### Implementation Notes
 
-- The `audit_log_path` key in `config/file_delete_mcp_server.toml` was removed on 2026-07-13 (as `FileDeleteConfig` did not originally load this key, and `delete_service.py::build_service` always hardcoded `"/opt/llm/logs/delete_audit.log"` — same reason as the removal of `audit_log_path` for git-mcp. See `# NOTE:` comments in the config file). [Explicit in code]
+- `audit_log_path` is not a configuration key of `config/file_delete_mcp_server.toml`: `FileDeleteConfig` does not load it, and `delete_service.py::build_service` fixes the audit log destination in code. [Explicit in code]
 - Even if writing to the audit log fails, no exception is raised; instead, an error is logged and the deletion process itself returns as successful (unlike github-mcp's `GitHubAuditError`, failure to write the audit log does not block the deletion operation in file-delete-mcp). [Explicit in code]
 - `delete_directory(recursive=true)` rejects deletion with a `FileAuthorizationError` if the target matches any root directory defined in `allowed_dirs` (it does not prevent deleting individual files/subdirectories within allowed directories). [Explicit in code]
 - Directory scanning during `dry_run` is capped at `_DRY_RUN_MAX_FILES = 1000` and reflected in `dir_info` as `"<count>+ files"`. [Explicit in code]

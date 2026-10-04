@@ -17,7 +17,7 @@ related:
 
 # Tool Registry: Drift Verification, Adding Tools, Cache and Concurrency
 
-The responsibility of `ToolRegistry` is to manage the ownership relationship from tools to servers, not as a schema registry. Runtime routing is exclusively authorized by `RuntimeToolRegistry`, and `ToolRegistry` is NOT used for routing decisions (see the "`RuntimeToolRegistry` and Live Discovery" section at the end of this document for details). `ToolRegistry` is still maintained for one production use: input data for `McpToolDiscoveryService`'s drift detection. This use is a formalized architectural decision, not an undocumented exception — see ADR-003 Decision Detail #15 / INV-04 (2026-09-02). (As of 2026-08-25, it is no longer consulted by `agent/tool_policy.py::classify_operation_type()` — that function now uses `RuntimeToolRegistry` exclusively, per ADR-003 Decision #8.) `ToolDefinition.description` / `input_schema` are reserved and unused here. The canonical source for the schemas of tools visible to the LLM is each server's `TOOL_LIST` ([mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md)).
+The responsibility of `ToolRegistry` is to manage the ownership relationship from tools to servers, not as a schema registry. Runtime routing is exclusively authorized by `RuntimeToolRegistry`, and `ToolRegistry` is NOT used for routing decisions (see the "`RuntimeToolRegistry` and Live Discovery" section at the end of this document for details). `ToolRegistry` has one production use: input data for `McpToolDiscoveryService`'s drift detection. This use is a formalized architectural decision — see ADR-003 Decision Detail #15 / INV-04. `agent/tool_policy.py::classify_operation_type()` uses `RuntimeToolRegistry` exclusively, per ADR-003 Decision #8. `ToolDefinition.description` / `input_schema` are reserved and unused here. The canonical source for the schemas of tools visible to the LLM is each server's `TOOL_LIST` ([mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md)).
 
 ## Drift Verification
 
@@ -75,10 +75,6 @@ executor = ToolExecutor(
 result = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
 # result: ToolCallResult(output, is_error, request_id, server_key)
 ```
-
-### Cache Behavior
-
-Removed (see REQ-002).
 
 ### Concurrency Limits
 

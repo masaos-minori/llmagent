@@ -23,9 +23,9 @@ When set to `true`: `git_add`, `git_commit`, `git_checkout`, `git_pull`, and `gi
 
 ## Authentication (`auth_token`)
 
-**Note (2026-09-04)**: a non-empty `auth_token` is mandatory, unconditionally, for
+A non-empty `auth_token` is mandatory, unconditionally, for
 every HTTP MCP server — there is no environment or profile in which an empty
-token is accepted (`plans/done/20260903-092407_plan.md`, "mcpauth").
+token is accepted.
 `McpServerConfig._validate_auth_token()` (`scripts/shared/mcp_config.py`) raises
 `ValueError` at config-load time if `auth_token` is empty for any server using
 `transport="http"`.

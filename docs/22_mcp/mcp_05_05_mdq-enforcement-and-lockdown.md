@@ -57,7 +57,7 @@ This is not an oversight. The `MdqMCPServer` class docstring in `scripts/mcp_ser
 
 Instead, the path authorization based on `allowed_dirs` (default `[]`) serves as the actual security boundary. Setting `allowed_dirs = []` is fail-closed (denies all path access) (Explicit in code, see section above).
 
-> **Important:** An empty `auth_token` is the exact opposite of the configuration keys removed during the 2026-07-16 MDQ compatibility cleanup (which included `audit_log_path`, `concurrency_limit`, `enable_refresh`, embedding/hybrid related keys, and summary-cache related keys). While those were removed because they were loaded but not enforced, `auth_token=""` is loaded and its effect (skipping HTTP auth) is fully enforced and intended—it is part of the **current specification** and is not subject to removal/correction.
+> **Important:** The empty token passed to `attach_auth_middleware()` is enforced and intended: it skips HTTP auth for mdq-mcp and is part of the **current specification**.
 >
 > If the MDQ HTTP authentication model changes in the future (e.g., adding actual Bearer tokens), it should be treated as an independent security design task and not as part of a compatibility cleanup.
 

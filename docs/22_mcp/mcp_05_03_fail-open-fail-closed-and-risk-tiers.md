@@ -17,9 +17,6 @@ related:
 
 # MCP Security and Safety Model: Fail-Open vs Fail-Closed Summary, Dry-Run, Risk Tiers and AI Notes
 
-## Keywords
-<placeholder>
-
 ## Fail-Open vs Fail-Closed Summary
 
 | Control | Policy | Behavior if Empty/Not Set |
@@ -111,3 +108,12 @@ Both checks are performed via `ProductionConfigValidator.validate()`, which inte
 5. **mdq-mcp is production-ready.** FTS5 indexing and searching is implemented. For production RAG workloads, use `rag-pipeline-mcp`. See [04_mcp_05 MDQ vs RAG Boundary](./mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) for guidelines.
 
 6. **Preview with `dry_run=True` before destructive operations.** The agent's approval flow automatically injects `dry_run=True` for registered tools before displaying a user prompt.
+
+## Keywords
+
+fail-open
+fail-closed
+dry-run
+risk tiers
+approval
+MCP safety model

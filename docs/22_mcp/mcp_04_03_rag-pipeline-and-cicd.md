@@ -53,7 +53,7 @@ related:
 
 **Standalone Configuration Fields:** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `mqe_n_queries`, `mqe_prompt_template`, `rerank_prompt_template`, `use_mqe`, `use_rrf`, `use_rerank`, `use_refiner`, `rrf_k`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`, `semantic_cache_max_size`, `semantic_cache_threshold`, `refiner_max_tokens`, `refiner_max_chars_per_chunk`, `refiner_timeout`
 
-**Note (2026-07-13):** host/port/http_timeout were removed from `config/rag_pipeline_mcp_server.toml`. They were not loaded into `RagPipelineConfig` and were not referenced anywhere in the implementation. Actual values are hardcoded: `http_host="127.0.0.1"` (MCPServer base class), `http_port=8010` (`rag_pipeline/rag_pipeline_server.py`), `http_timeout=120.0` (`rag_pipeline/rag_pipeline_service.py`).
+**Note:** host/port/http_timeout are not configuration keys of `config/rag_pipeline_mcp_server.toml`, because `RagPipelineConfig` does not load them. The values are hardcoded: `http_host="127.0.0.1"` (MCPServer base class), `http_port=8010` (`rag_pipeline/rag_pipeline_server.py`), `http_timeout=120.0` (`rag_pipeline/rag_pipeline_service.py`).
 
 **Health:** If `embed_url` is configured: `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; if not configured: `{"status":"degraded","ready":false,"dependencies":{"embed_url":"not configured"}}` or `{"dependencies":{"config":"check failed"}}` — returns HTTP 200 when ready, and 503 when degraded.
 **Design Note:** To prevent HTTP loops, `rab_service_url = ""` is hardcoded in `build_rag_cfg_adapter()`.

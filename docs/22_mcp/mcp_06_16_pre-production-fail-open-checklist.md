@@ -17,7 +17,7 @@ Before deploying to production, verify the following:
 
 - [ ] `tool_definitions_strict = true` (Default is `false`; explicitly enable in production to treat schema mismatches as fatal errors)
 - [ ] `routing_drift_strict = true` (Treat routing drift as a fatal error)
-- [ ] `serial_tool_calls = false` (Default; DAG scheduling is always enabled. Setting to `true` switches to legacy sequential/parallel determination mode. Note: The setting field `use_tool_dag` does not exist — see [agent_08_03](../23_agent/agent_08_03_configuration-tools-memory.md))
+- [ ] `serial_tool_calls = false` (Default; DAG scheduling is always used. Setting to `true` forces every call into its own serial phase — see [agent_08_03](../23_agent/agent_08_03_configuration-tools-memory.md))
 - [ ] `allowed_tools` is explicitly configured (Empty = allow all tools; should be whitelisted)
 - [ ] All registered tools have an entry in `tool_safety_tiers` (Missing tier → Fatal error in production)
 - [ ] No unknown keys in `tool_safety_tiers` (Unknown key → Fatal error in production)
@@ -25,7 +25,7 @@ Before deploying to production, verify the following:
 - [ ] cicd-mcp: `workflow_allowlist` is explicitly configured (Empty = fails to start with `RuntimeError`/`CicdAuthorizationError` due to fail-closed behavior)
 - [ ] `config/agent.toml` has `security_profile = "production"` (Enables strict checks during startup)
 - [ ] Health check thresholds (`startup_timeout_sec`, `McpServerHealthRegistry.failure_threshold`) have been reviewed
-- [ ] Note: The MCP watchdog (automatic health polling + automatic restart loop) was removed on 2026-07-16. Recovery for crashed subprocess-mode MCP servers is limited to retry attempts via `ensure_ready()` during the next tool dispatch or manual restart of the agent process itself. Ensure external process monitoring (e.g., systemd) is set up for liveness monitoring and restarts.
+- [ ] Note: There is no MCP watchdog (automatic health polling or restart loop). Recovery for crashed subprocess-mode MCP servers is limited to retry attempts via `ensure_ready()` during the next tool dispatch or manual restart of the agent process itself. Ensure external process monitoring (e.g., systemd) is set up for liveness monitoring and restarts.
 - [ ] Audit log path is configured and writable
 - [ ] API keys (`github_token`, `auth_token`) are set via environment variables and not hardcoded in configuration files
 - [ ] `repo_allowlist` in `cicd_mcp_server.toml` is not empty (Empty = reject all repositories)

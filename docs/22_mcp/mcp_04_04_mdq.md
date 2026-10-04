@@ -40,11 +40,11 @@ related:
 **Logs:** `/opt/llm/logs/mdq-mcp.log`
 **Audit:** Layer1 (Agent/MCP shared): tool_exec / Layer2 (Shared MCP): mcp_tool_exec / Layer3 (Dedicated): None — recorded via `_audit_log()` to the shared audit log (`/opt/llm/logs/audit.log`) in JSON-lines format.
 
-**Note (2026-07-20):** Implementation of a dedicated MDQ audit log (`mdq_audit.log` / `audit_log_path` configuration key) was considered but rejected, as the existing shared audit log (`/opt/llm/logs/audit.log` via `_audit_log()` / `server_key="mdq"`) was deemed sufficient. Unless specific implementation needs arise, a dedicated logging mechanism will not be reintroduced.
+**Note:** mdq-mcp has no dedicated audit log or `audit_log_path` configuration key; audit events are recorded in the shared audit log via `_audit_log()` with `server_key="mdq"`.
 
 **Usage Scenario:** Indexing Markdown documentation and context compression. For production RAG search, use `rag-pipeline-mcp`.
 
-**Note (2026-07-19):** The `tags_json` field in the `chunks` table (an array extracted from the YAML frontmatter `tags:` field, accepting both list and comma-separated formats) and `token_count` (an approximation via local heuristic `len(content) // 4`, not an accurate tokenizer) now store real data instead of being hardcoded placeholders (`""`/`None`). `search_docs`'s `tag_filter` now matches against this real data.
+**Note:** The `tags_json` field in the `chunks` table (an array extracted from the YAML frontmatter `tags:` field, accepting both list and comma-separated formats) and `token_count` (an approximation via local heuristic `len(content) // 4`, not an accurate tokenizer) store real data. `search_docs`'s `tag_filter` matches against this real data.
 
 ### Path Control
 
@@ -88,8 +88,8 @@ Configure `allowed_dirs` in `config/mdq_mcp_server.toml` before using indexing t
 |---|---|---|
 | FTS5 (BM25) | Full-text search via FTS5; the only supported search mode | `mode` parameter in `search_docs` (`bm25` only) |
 
-**Hybrid search has been removed:**
-The configuration items (`use_embedding`, `embedding_dims`, `vector_table`, `embedding_model`) and code (`_search_vector()`, `_merge_hybrid()`) for hybrid/semantic search were completely removed on 2026-07-16. This feature was never fully implemented (`_search_vector()` always returned an empty list as a permanent placeholder); therefore, the `mode` parameter in `search_docs` supports `bm25` only.
+**Search mode:**
+mdq-mcp has no hybrid or semantic search and no embedding-related configuration; the `mode` parameter in `search_docs` supports `bm25` only.
 
 #### Result Count and Limits
 
