@@ -100,15 +100,44 @@ Revert to the original unconditional overwrite if callers depend on immediate re
 - Changes to the StateStore API
 - Creating new test file (handled in separate document)
 
+## Implementation outcome
+
+Deviation from procedure: the inline draft was NOT applied. Origin/master already ships
+this fix in `ApprovalRecovery.recover()`. The keep-existing guard was introduced in commit
+`10308ed7` and the unconditional-set branch was refined in `c0a589e1`. Current behavior is
+Explicit in code and Verified by test:
+
+- REQ-001 (does not overwrite an active approval without justification): when
+  `pending_approval_task_id` already holds a value that differs from the recovered
+  `task_id`, `recover()` logs a "Keeping existing pending_approval_task_id ... instead of
+  overwriting with ..." warning and skips the assignment. The assignment runs only when the
+  value is unset or equals the recovered id.
+- REQ-004 (warning includes both old and new values): both branches of the guard log the
+  existing id and the recovered id.
+
+Structural deviation: the draft used a single `if`/`elif`/`else` with a `logger.info`
+branch for the keep case; origin uses two `logger.warning` branches inside an `is not None`
+guard plus a separate final guarded assignment. Both satisfy the same two requirements.
+
+Traceability numbering mismatch: this procedure lists REQ-001 and REQ-004, while the shipped
+tests label the equivalent behavior REQ-002 (`test_startup_recovery_keeps_existing_pending_approval_task_id`)
+and REQ-003 (`test_startup_recovery_overwrites_when_current_equals_recovered`). The
+requirement intent matches; only the numeric labels differ.
+
+Existing regression coverage passes: `tests/agent/test_startup_approval_recovery.py` ran
+clean (27 passed), including the keep-existing, overwrite-on-equal, and no-warning-when-unset
+cases. No new file was created and no code was changed. Accepting the upstream implementation
+and closing the workflow.
+
 ## execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Conditional-overwrite guard present in origin `10308ed7` / refined `c0a589e1`; no code authored by this workflow (see outcome). |
+| 2 | Add or update tests per Validation plan | Done | — | — | `tests/agent/test_startup_approval_recovery.py` present in origin; 27 passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | 27 passed; ruff/bandit clean (no code change). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Out of scope per procedure. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
