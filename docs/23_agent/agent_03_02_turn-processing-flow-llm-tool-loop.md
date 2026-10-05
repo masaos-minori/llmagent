@@ -23,7 +23,7 @@ To document the processing flow for LLM invocation and the tool loop. This inclu
 
 ### Role and Design of ToolLoopGuard
 
-Within the tool loop, an LLM may potentially call the same tool infinitely. To prevent this, `ToolLoopGuard` sequentially executes five guards:
+Within the tool loop, an LLM may potentially call the same tool infinitely. To prevent this, `ToolLoopGuard` sequentially executes the following guards:
 
 1. **Cycle Detection** — If the same set of tool calls is repeated within the last $N$ rounds.
 2. **Deduplication** — If the same `(name, args)` is detected more than a certain number of times.
@@ -39,7 +39,7 @@ The system has three independent retry mechanisms at different granularities:
 
 | Layer | Config field | Scope | Relationship to other layers |
 |---|---|---|---|
-| ToolLoopGuard retry suppression | `tool_error_retry_max` (default 1) | Per-turn, per-(tool, args) pair within a single LLM turn's tool loop | Independent from WorkflowEngine retry; prevents same (tool, args) from being retried within one turn |
+| ToolLoopGuard retry suppression | `tool_error_retry_max` | Per-turn, per-(tool, args) pair within a single LLM turn's tool loop | Independent from WorkflowEngine retry; prevents same (tool, args) from being retried within one turn |
 | WorkflowEngine stage-level retry | `workflow_engine.retry_policy.max_attempts` | Stage-level across turns; retries entire workflow stages on failure | Independent from ToolLoopGuard; operates across turns at the workflow level |
 | LLM transport retry | `llm_max_retries` (config/agent.toml) | Connection-level; retries failed HTTP requests to the LLM endpoint | Independent from both above; operates at the network transport layer before the agent even sees the error |
 

@@ -132,7 +132,7 @@ Full details: [mcp_03_01_dispatch-and-routing.md Reliable source of routing info
 - **Configuration:** `cfg.llm.context_char_limit`, `context_compress_turns`, `history_protect_turns`
 - **On Failure:** If LLM summarization fails (`HistoryCompressionError`) → If character limit exceeded, fall back to truncation starting from least important messages. If only token limit exceeded, return history unchanged.
 
-> **Evidence Classification: Explicit in code (Correction).** Previous versions stated that callees were `LLMClient`, but summary LLM calls actually perform direct `self._http.post()` requests against the `httpx.AsyncClient` provided at construction, bypassing the `shared/llm_client.py::LLMClient` instance. Additionally, the description "no compression on failure" was incomplete; if character limits are exceeded, fallback truncation occurs (`stat_fallback_truncate_count` is incremented). If only token limits are exceeded, the history is returned unchanged.
+> **Evidence Classification: Explicit in code.** Summary LLM calls perform direct `self._http.post()` requests against the `httpx.AsyncClient` provided at construction, bypassing the `shared/llm_client.py::LLMClient` instance. If character limits are exceeded after a summarization failure, fallback truncation occurs (`stat_fallback_truncate_count` is incremented). If only token limits are exceeded, the history is returned unchanged.
 
 Full details: [agent_04_02_state-and-persistence-history-compression.md](agent_04_02_state-and-persistence-history-compression.md)
 
@@ -140,10 +140,10 @@ Full details: [agent_04_02_state-and-persistence-history-compression.md](agent_0
 
 ## CommandRegistry (`agent/commands/registry.py`)
 
-- **Role:** Dispatcher for all slash commands. 12 mixin-based command groups.
+- **Role:** Dispatcher for all slash commands. mixin-based command groups.
 - **Primary API:** `await cmds.dispatch(line) -> bool`
 - **Caller:** REPL loop driver
-- **Callee:** 12 mixin handlers
+- **Callee:** mixin handlers
 - **Configuration:** Different `cfg.*` fields per command
 - **On Failure:** Command errors are displayed to the user. REPL continues.
 
@@ -201,7 +201,7 @@ Full details: [agent_08_01_configuration-loading-agent-config.md](agent_08_01_co
 - **Configuration:** `cfg.memory.*`
 - **On Failure:** Errors are logged. REPL continues without memory (graceful degradation).
 
-**Activation:** If `use_memory_layer=True` (default), `ctx.services.memory` becomes active.
+**Activation:** If `use_memory_layer` enabled, `ctx.services.memory` becomes active.
 Always null-check before accessing memory services.
 
 ---

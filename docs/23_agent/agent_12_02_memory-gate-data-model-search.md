@@ -65,7 +65,7 @@ None currently known.
 | `content` | `str` | Full text of the message |
 | `summary` | `str` | Short summary of the content |
 | `tags` | `list[str]` | Keyword tags for classification |
-| `importance` | `float` | 0.0–1.0. Higher means higher search priority (Default: 0.5) |
+| `importance` | `float` | 0.0–1.0. Higher means higher search priority |
 | `pinned` | `bool` | If `True`, injected at every session start |
 | `created_at` | `str` | ISO 8601 UTC timestamp. Set by `write_ops.add()` |
 | `updated_at` | `str` | ISO 8601 UTC timestamp |

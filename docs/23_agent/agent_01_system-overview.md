@@ -61,12 +61,12 @@ The system overview should answer "what does this agent do" and "how does it fit
 
 ## Key Constraints
 
-| Constraint | Value |
+| Constraint | Config key (values in `config/agent.toml` and `agent_08`) |
 |---|---|
-| Max tool turns per message | `max_tool_turns` (default 5) |
-| History compression threshold | `context_char_limit` (default 8000 chars) |
-| HTTP timeout | `http_timeout` (default 30.0 sec) |
-| LLM retry limit | `llm_max_retries` (default 3) |
+| Max tool turns per message | `max_tool_turns` |
+| History compression threshold | `context_char_limit` |
+| HTTP timeout | `http_timeout` |
+| LLM retry limit | `llm_max_retries` |
 
 ## Operational Notes
 
@@ -77,7 +77,7 @@ The system overview should answer "what does this agent do" and "how does it fit
 [2] User message + tool definitions → LLM (SSE streaming)
 [3] LLM returns tool_calls → execute via MCP servers
 [4] Tool results added as "tool" role messages → re-send to LLM
-[5] Steps [3]–[4] repeat up to max_tool_turns (default 5)
+[5] Steps [3]–[4] repeat up to max_tool_turns
 [6] Final answer displayed; conversation history carried to next turn
 ```
 
@@ -93,7 +93,7 @@ MCP servers are called via HTTP POST `/v1/call_tool`.
 
 **SSE Streaming:** LLM responses are streamed token-by-token via Server-Sent Events. `LLMClient` handles reconnection (up to `sse_reconnect_max`), heartbeat timeouts, and partial completion processing.
 
-**History Compression:** When `ctx.conv.history` exceeds `context_char_limit` (default 8000 chars), `HistoryManager.compress()` summarizes the oldest turns via LLM. The most recent `history_protect_turns` (default 2) turns are always protected.
+**History Compression:** When `ctx.conv.history` exceeds `context_char_limit`, `HistoryManager.compress()` summarizes the oldest turns via LLM. The most recent `history_protect_turns` turns are always protected.
 
 ### Slash Commands
 

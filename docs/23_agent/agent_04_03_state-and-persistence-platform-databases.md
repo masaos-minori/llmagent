@@ -38,7 +38,7 @@ The Agent layer operates across four SQLite databases (`DbTarget` enum in `db/he
 | `workflow.sqlite` | Task tracking, event processing | [db_02](../41_db/db_02_architecture_and_schema-schema-reference.md) section 7 |
 | `eventbus.sqlite` | Event Bus (out of scope for this document) | — |
 
-DB paths are configured in `agent.toml` via `rag_db_path`, `session_db_path`, `workflow_db_path`, and `eventbus_db_path` (`db/config.py`). `rag_db_path`/`session_db_path` have no default values (raises `ValueError` if not set), while `workflow_db_path`/`eventbus_db_path` have default paths under `/opt/llm/db/`.
+DB paths are configured in `agent.toml` via `rag_db_path`, `session_db_path`, `workflow_db_path`, and `eventbus_db_path` (`db/config.py`). `rag_db_path`/`session_db_path` have no default values (raises `ValueError` if not set), while `workflow_db_path`/`eventbus_db_path` have built-in default paths (see `scripts/db/config.py`).
 
 **DB Ownership:**
 

@@ -214,7 +214,7 @@ Client-side libraries for the Event Bus HTTP API: `EventBusClient` publishes eve
 
 ### Shutdown
 
-Graceful shutdown is controlled via flags. Upon receiving `SIGTERM`, the `shutdown_requested` flag is set, and the loop terminates after the next turn completion. There is a maximum 10-second grace period before timeout.
+Graceful shutdown is controlled via flags. Upon receiving `SIGTERM`, the `shutdown_requested` flag is set, and the loop terminates after the next turn completion. There is a bounded grace period before timeout.
 
 This approach was chosen to ensure the integrity of ongoing workflows rather than performing a direct system exit. Handlers do not block, instead deferring termination to the post-turn check.
 

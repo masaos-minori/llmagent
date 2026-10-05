@@ -80,8 +80,8 @@ Each MCP server is an independent process that only reads its own configuration 
 
 #### Escalation
 
-- `approval_protected_paths`: Escalate to high (/opt/, /etc/, /boot/, /usr/, /bin/, /sbin/)
-- `approval_high_risk_branches`: main, master
+- `approval_protected_paths`: Path prefixes that escalate an operation to high risk (values in `config/agent.toml`)
+- `approval_high_risk_branches`: Branch names treated as high-risk (values in `config/agent.toml`)
 
 #### Auto-Approval
 

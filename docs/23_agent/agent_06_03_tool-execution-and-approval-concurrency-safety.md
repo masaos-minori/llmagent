@@ -42,10 +42,10 @@ Controls the internal tool loop within `LlmTurnExecutor`:
 
 | Guard | Config field | Behavior |
 |---|---|---|
-| Deduplication | `tool_dedup_max_repeats` (default 3) | If the same (name, args) is repeated N or more times → terminate loop |
-| Cycle Detection | `tool_cycle_detect_window` (default 2) | If the same tool call fingerprint is repeated within the last N rounds → terminate loop |
-| Retry Limit | `tool_error_retry_max` (default 1) | If an erroring (name, args) is called again → terminate loop |
-| Consecutive Errors | `tool_error_max_consecutive` (default 3) | If all tools in a round error N times → terminate loop |
+| Deduplication | `tool_dedup_max_repeats` | If the same (name, args) is repeated N or more times → terminate loop |
+| Cycle Detection | `tool_cycle_detect_window` | If the same tool call fingerprint is repeated within the last N rounds → terminate loop |
+| Retry Limit | `tool_error_retry_max` | If an erroring (name, args) is called again → terminate loop |
+| Consecutive Errors | `tool_error_max_consecutive` | If all tools in a round error N times → terminate loop |
 | Empty Result Repeat | `tool_empty_result_max_repeats` (disabled when 0) | If a tool returns empty results N or more times within a turn → terminate loop |
 
 **Distinction from WorkflowEngine retry**: `tool_error_retry_max` is ToolLoopGuard's own in-memory per-turn block — it suppresses retries of the same `(tool, args)` pair within a single turn. It is NOT the same as `WorkflowEngine.retry_policy.max_attempts`, which governs stage-level retries across turns. These are two independent mechanisms at different granularities: ToolLoopGuard operates within a single LLM turn's tool loop, while WorkflowEngine operates across turns at the workflow stage level.

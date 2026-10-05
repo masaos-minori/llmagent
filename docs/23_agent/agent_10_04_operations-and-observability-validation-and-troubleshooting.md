@@ -62,8 +62,8 @@ Workflows are **mandatory** deployment artifacts; there are no settings, environ
 PYTHONPATH=scripts uv run python -m agent.workflow.validate config/workflows/default.json
 
 # Check workflow DB schema tables and versions
-sqlite3 /opt/llm/db/workflow.sqlite ".tables"
-sqlite3 /opt/llm/db/workflow.sqlite "SELECT * FROM workflow_schema_version ORDER BY applied_at DESC;"
+sqlite3 <workflow_db_path> ".tables"
+sqlite3 <workflow_db_path> "SELECT * FROM workflow_schema_version ORDER BY applied_at DESC;"
 ```
 
 ### Common Failures and Responses

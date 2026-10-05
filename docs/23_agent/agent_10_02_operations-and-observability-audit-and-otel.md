@@ -73,7 +73,7 @@ Expected span names:
 ### Troubleshooting
 
 - Use `audit.log` or `session_diagnostics` to check training errors or token statistics.
-- To extract spans, use `grep '"name":' /opt/llm/logs/agent.log`.
+- To extract spans, use `grep '"name":' <agent log file>`.
 
 ## Known Limitations / Unresolved Items
 

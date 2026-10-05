@@ -119,9 +119,9 @@ Partial completion occurs when an LLM response stream is interrupted before all 
 
 All `plan`/`execute`/`verify` stages go through the same retry loop function. Stages where `retryable` is `false` (default: `plan` and `verify`) are executed once and raise an exception immediately upon failure. For stages where `retryable` is `true` (default: `execute`), retry behavior is determined by the retry policy:
 
-- `max_attempts`: Maximum number of attempts (default 3)
+- `max_attempts`: Maximum number of attempts
 - Backoff strategy is currently implemented as "fixed" only
-- `backoff_sec`: Delay between retries (default 1s)
+- `backoff_sec`: Delay between retries
 
 ### Workflow Loader Validation Rules
 

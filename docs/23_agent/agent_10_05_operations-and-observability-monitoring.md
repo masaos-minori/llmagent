@@ -28,23 +28,23 @@ related:
 For the formal partial completion model, see [agent_03 Partial-Completion Model](agent_03_03_turn-processing-flow-workflow-engine.md).
 
 **Implementation Notes:**
-- The actual display label for `/stats` is `Partial compl : N` (or `Partial compl : 0` when zero), not exactly `partials > 0`. If there is at least one, it appends `(stored in session_diagnostics)`.
-- The log message for compression is actually `"History compressed: %s messages summarized"`, which does not match the string `Compressed history` used in this table.
-- There is no configuration key named `compression_char_threshold`. The actual threshold key is `context_char_limit` (default 8000); compression is triggered when the total character count of the history exceeds this value.
+- The actual display label for `/stats` is `Partial compl : N` (or `Partial compl : 0` when zero). If there is at least one, it appends `(stored in session_diagnostics)`.
+- The log message for compression is `"History compressed: %s messages summarized"`.
+- The compression threshold key is `context_char_limit`; compression is triggered when the total character count of the history exceeds this value.
 - If the character limit is exceeded without compression occurring, `HistoryManager` performs fallback truncation (deleting low-priority messages) and increments `stat_fallback_truncate_count`. This is displayed as `Fallback trunc: N` in `/stats`. This behavior is a failsafe implemented if compression fails.
 
 ## Troubleshooting
 
 | Symptom | Cause | Action |
 |---|---|---|
-| All `embedding attempt 3/3` fail | embed-llm is not running or overloaded | Run `curl -s http://127.0.0.1:8081/health` and wait for the model to load |
+| All `embedding attempt 3/3` fail | embed-llm is not running or overloaded | Run `curl -s <embed-llm-endpoint>/health` (endpoint from the embedding settings in `config/agent.toml`) and wait for the model to load |
 | `AttributeError: enable_load_extension` | Python was built without sqlite extension support | Rebuild Python with sqlite support |
-| `no such table: chunks_vec` | Failure to load `sqlite-vec` extension | Verify `ls /opt/llm/sqlite-vec/vec0.so` |
+| `no such table: chunks_vec` | Failure to load `sqlite-vec` extension | Verify `ls <sqlite-vec library path>` (path from the configured extension setting) |
 | FTS search returns 0 results | `chunks_fts` is in an asynchronous state | Run `/session rag-rebuild-fts` |
 | `blob_bytes` ≠ expected | Embedding dimension mismatch | Verify the BLOB byte count matches `scripts/db/store_protocols.py::get_embedding_dims()` (returns a fixed code constant, not a config value) |
 | Frequent `Sudachi tokenize error` | `sudachidict-core` is not installed | Run `pip install sudachidict-core` |
-| `llama-server` fails to start | Path or permission issue with model files | Check `ls -lh /opt/llm/models/` |
-| Extremely high latency | RAM exhausted due to multiple models loaded | Adjust `--threads` and keep the total $\le$ 4 |
+| `llama-server` fails to start | Path or permission issue with model files | Check `ls -lh <model directory>` |
+| Extremely high latency | RAM exhausted due to multiple models loaded | Adjust `--threads` and keep the total within the available CPU cores |
 | Server shows UNAVAILABLE in `/mcp` | Health registry marks server as unavailable | Check watchdog logs regarding auto-restart attempts. Note that changing the server *definition* (URL, auth, transport, etc.) requires a full agent restart — `/reload` does not apply MCP configuration changes. |
 
 ## Runtime Diagnostics (Session End Summary)
@@ -55,22 +55,22 @@ At the end of a session, a lightweight diagnostic summary is persisted to the `s
 
 ```bash
 # View all diagnostic events (newest first)
-sqlite3 /opt/llm/db/session.sqlite "SELECT id, session_id, kind, created_at FROM session_diagnostics ORDER BY created_at DESC LIMIT 50;"
+sqlite3 <session_db_path> "SELECT id, session_id, kind, created_at FROM session_diagnostics ORDER BY created_at DESC LIMIT 50;"
 
 # Aggregate by kind
-sqlite3 /opt/llm/db/session.sqlite "SELECT kind, COUNT(*) AS n FROM session_diagnostics GROUP BY kind ORDER BY n DESC;"
+sqlite3 <session_db_path> "SELECT kind, COUNT(*) AS n FROM session_diagnostics GROUP BY kind ORDER BY n DESC;"
 
 # Diagnostics for a specific session
-sqlite3 /opt/llm/db/session.sqlite "SELECT id, kind, content, created_at FROM session_diagnostics WHERE session_id = ? ORDER BY created_at DESC;"
+sqlite3 <session_db_path> "SELECT id, kind, content, created_at FROM session_diagnostics WHERE session_id = ? ORDER BY created_at DESC;"
 
 # View all session summaries
-sqlite3 /opt/llm/db/session.sqlite "SELECT kind, json(content) FROM session_diagnostics WHERE kind = 'session_summary' ORDER BY created_at DESC;" | jq .
+sqlite3 <session_db_path> "SELECT kind, json(content) FROM session_diagnostics WHERE kind = 'session_summary' ORDER BY created_at DESC;" | jq .
 
 # Filter sessions with high error rates
-sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostics WHERE kind = 'session_summary' AND json_extract(content, '$.tool_errors') > 0 ORDER BY created_at DESC LIMIT 10;" | jq -r '.content'
+sqlite3 <session_db_path> "SELECT kind, content FROM session_diagnostics WHERE kind = 'session_summary' AND json_extract(content, '$.tool_errors') > 0 ORDER BY created_at DESC LIMIT 10;" | jq -r '.content'
 
 # Cross-session statistical aggregation
-sqlite3 /opt/llm/db/session.sqlite "SELECT COUNT(*) as total_sessions, AVG(json_extract(content, '$.turns')) as avg_turns, SUM(json_extract(content, '$.tool_errors')) as total_tool_errors FROM session_diagnostics WHERE kind = 'session_summary';"
+sqlite3 <session_db_path> "SELECT COUNT(*) as total_sessions, AVG(json_extract(content, '$.turns')) as avg_turns, SUM(json_extract(content, '$.tool_errors')) as total_tool_errors FROM session_diagnostics WHERE kind = 'session_summary';"
 ```
 
 ### Diagnostic Kinds

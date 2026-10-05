@@ -90,7 +90,7 @@ If SIGINT/SIGTERM is received during the startup sequence, a `ShutdownInterrupte
 
 When an MCP subprocess fails to start, the tail of its stderr is included in the startup failure report, and a failed first start attempt is logged. Both pass through `agent/secrets_masker.py`, which replaces values written as `key=value` for key names such as `password`, `api_key`, `secret` and `token` (case-insensitive) with a masked form. Only that `key=value` form is recognized; other shapes (for example an `Authorization: Bearer ...` header) are not masked.
 
-The masker keeps the first characters of each matched fragment, so short values are not masked and longer ones leak their leading characters. This is a known defect tracked in `issues/20261004-160514_secmask001_secrets-masker-leaves-short-secret-values-unmasked.md`; do not rely on the masker as the only protection for secrets that may appear in subprocess output.
+The masker keeps the first characters of each matched fragment, so short values are not masked and longer ones leak their leading characters. This is a known defect; do not rely on the masker as the only protection for secrets that may appear in subprocess output.
 
 ### Manual Recovery: workflow.sqlite / eventbus.sqlite
 
@@ -104,9 +104,9 @@ cp workflow.sqlite workflow.sqlite.corrupted
 cp eventbus.sqlite eventbus.sqlite.corrupted
 ```
 
-**Step 3 — Locate available backups.** `rotate_all_dbs()` (`scripts/db/rotation.py`) archives `workflow.sqlite`/`eventbus.sqlite` alongside `rag.sqlite`/`session.sqlite` via the SQLite online backup API, writing WAL-consistent copies to the configured archive directory (`sqlite_archive_dir` in `agent.toml`; defaults to `/opt/llm/db/archive` when unset) named `{stem}_{timestamp}{suffix}` (e.g. `workflow_20260901-063000.sqlite`):
+**Step 3 — Locate available backups.** `rotate_all_dbs()` (`scripts/db/rotation.py`) archives `workflow.sqlite`/`eventbus.sqlite` alongside `rag.sqlite`/`session.sqlite` via the SQLite online backup API, writing WAL-consistent copies to the configured archive directory (`sqlite_archive_dir` in `agent.toml`) named `{stem}_{timestamp}{suffix}` (e.g. `workflow_20260901-063000.sqlite`):
 ```bash
-ARCHIVE_DIR="${SQLITE_ARCHIVE_DIR:-/opt/llm/db/archive}"
+ARCHIVE_DIR="${SQLITE_ARCHIVE_DIR:?set to the configured sqlite_archive_dir}"
 ls -lt "$ARCHIVE_DIR"/workflow_*.sqlite 2>/dev/null
 ls -lt "$ARCHIVE_DIR"/eventbus_*.sqlite 2>/dev/null
 ```
@@ -145,7 +145,7 @@ This clears all pending approvals and workflow state. If the data loss is signif
 ## Known Limitations / Unresolved Issues
 
 - Some branches in `startup.py` have been tested, but their actual behavior in production environments has only been partially verified.
-- The WAL checkpoint timeout (default 30 seconds) may need adjustment based on real-world load.
+- The WAL checkpoint timeout may need adjustment based on real-world load.
 - Information regarding rollback failures is not displayed on the console screen; it can only be checked in the log files.
 - Secret masking of MCP subprocess output is incomplete (see Secret Masking in MCP Subprocess Failure Reports).
 

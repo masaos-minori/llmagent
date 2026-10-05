@@ -85,7 +85,7 @@ When persisting embedded entries at session end, an `upsert` to SQLite is perfor
 
 If embedding retrieval fails, processing continues and the entry is saved without embeddings (incrementing `stat_embed_skip` and logging `memory.embed_skip` at INFO level).
 
-Only when embedding retrieval succeeds does the duplicate link discovery perform a KNN nearest neighbor search and record related links in the `memory_links` table for entries within a distance less than `DedupPolicy.threshold` (default 0.3). Insertion failures (`OperationalError` / `IntegrityError`) are ignored with only a warning log.
+Only when embedding retrieval succeeds does the duplicate link discovery perform a KNN nearest neighbor search and record related links in the `memory_links` table for entries within a distance less than `DedupPolicy.threshold`. Insertion failures (`OperationalError` / `IntegrityError`) are ignored with only a warning log.
 
 Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.SKIP_NEW`, but semantic writes / episodic writes (manual writes) intentionally bypass this deduplication.
 

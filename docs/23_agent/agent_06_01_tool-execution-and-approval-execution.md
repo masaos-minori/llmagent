@@ -32,11 +32,11 @@ Dispatch priority of `ToolExecutor.execute(tool_name, args)`:
 
 ### Parallel vs Sequential Execution
 
-`execute_all_tool_calls()` always delegates processing to `agent/tool_runner.py::_execute_with_dag()` (a single execution path). `ctx.cfg.tool.serial_tool_calls` is no longer a flag to select an execution engine; instead, it is passed as the `force_serial` input to `agent/tool_scheduler.py::build_execution_groups()`:
+`execute_all_tool_calls()` always delegates processing to `agent/tool_runner.py::_execute_with_dag()` (a single execution path). `ctx.cfg.tool.serial_tool_calls` is not a flag to select an execution engine; it is passed as the `force_serial` input to `agent/tool_scheduler.py::build_execution_groups()`:
 
 | Condition | Execution |
 |---|---|
-| `serial_tool_calls=False` (default) | DAG Scheduling (Phase construction + conflict graph) |
+| `serial_tool_calls=False` | DAG Scheduling (Phase construction + conflict graph) |
 | `serial_tool_calls=True` | `force_serial=True` — Bypasses phase/conflict graph construction entirely and generates individual serial phases in calling order |
 
 **Design judgment**: `_execute_with_dag()` is the only execution path; `serial_tool_calls=True` executes all calls sequentially through input to the single scheduler rather than by branching to a different function.

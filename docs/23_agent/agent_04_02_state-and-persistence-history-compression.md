@@ -39,7 +39,7 @@ Triggered during each turn if either of the following conditions is met:
    - `temporary_reasoning` (`assistant` with tool calls) — Second highest priority
    - `factual` (`system`) — Retained
    - `history` (`user`/`assistant` text) — Normal priority
-3. **Protection** — The most recent `history_protect_turns` (default 2) user+assistant pairs are excluded from compression.
+3. **Protection** — The most recent `history_protect_turns` user+assistant pairs are excluded from compression.
 
 ### Compression Results
 

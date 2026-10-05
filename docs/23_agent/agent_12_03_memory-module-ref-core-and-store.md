@@ -45,7 +45,7 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 ## Operational Notes
 
 - Write operations are in `write_ops.py`; read operations are in `store.py`.
-- Chunk splitting occurs for content exceeding `memory_max_content_chars` (default: 500). This is a limit per chunk, not on total content volume.
+- Chunk splitting occurs for content exceeding `memory_max_content_chars`. This is a limit per chunk, not on total content volume.
 - If a single source message is split into multiple chunks, each appears as an independent hit during search (fragmentation limitation).
 
 ## Known Limitations
