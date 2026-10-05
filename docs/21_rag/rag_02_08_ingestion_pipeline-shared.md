@@ -41,7 +41,7 @@ source:
 
 ### 9.1 Module Overview
 
-`pipeline_utils.py` — Shared I/O utilities for the RAG ingestion pipeline: reading chunk JSONs with validation, collecting source files, and checking processed sentinels. Provides the `ChunkJsonRaw` dataclass for raw chunk/crawl JSON payload fields.
+`pipeline_utils.py` — Shared I/O utilities for the RAG ingestion pipeline: reading chunk JSONs with validation, collecting source files, and checking processed sentinels. Provides the `ChunkJsonRaw` TypedDict for raw chunk/crawl JSON payload fields.
 
 For exhaustive signature and constant detail, see `scripts/rag/ingestion/pipeline_utils.py`.
 

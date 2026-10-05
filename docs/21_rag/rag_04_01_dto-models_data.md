@@ -53,8 +53,8 @@ to the DTO-level typing above), see the canonical table in
 Defined as `ChunkRecord` in `scripts/rag/models_data.py`; see that dataclass for its
 exact fields.
 
-### CacheEntry — Semantic cache entry
-See `CacheEntry` in `scripts/rag/models_data.py` for exact fields.
+### PreparedChunk — Embedded chunk prepared for DB insertion
+See `PreparedChunk` in `scripts/rag/models_data.py` for exact fields.
 
 ### TwoStageFetchResult — Result of HTTP RAG service call
 See `TwoStageFetchResult` in `scripts/rag/models_data.py` for exact fields. Note:

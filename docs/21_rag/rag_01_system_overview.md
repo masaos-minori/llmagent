@@ -45,7 +45,7 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 ## System Architecture
 
 - **Component Responsibilities**: Admin/Operator initiates crawling via `crawler.py`; `WebCrawler` performs BFS crawl of same-origin URLs producing `{yyyymmddhhmmss}-{slug}.json` artifacts; `ChunkSplitter` splits crawled content using language-aware strategies (JA: Sudachi / EN: sentence / code: blank-line); `RagIngester` generates embeddings via embed-llm and upserts into SQLite; processed chunks are moved to `rag-src/registered/`.
-- **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns post-ingestion staging area (Retention period is configurable via `config/ingester.toml`; default 30 days. Cleanup mechanism design is out of scope — requires separate design decision.).
+- **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns post-ingestion staging area (No automated retention or cleanup exists; cleanup mechanism design is out of scope — requires separate design decision.).
 - **Allowed Dependency Direction**: Admin → crawler.py → chunk_splitter.py → ingester.py → rag-src/registered/. No circular dependencies among pipeline stages.
 - **Reason for Process Separation**: Each pipeline stage runs as a separate script because failure isolation prevents one stage's crash from affecting others; independent scaling allows write-heavy domains (file-write-mcp) to require different resource allocation than read-only domains (web-search-mcp); deployment independence allows individual scripts to be updated or restarted without affecting the entire system.
 - **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
@@ -116,7 +116,7 @@ config/crawler.toml [target_urls]
   → chunk_splitter.py (config/chunk_splitter.toml): language-aware splitting
                        (JA: Sudachi / EN: sentence / code: blank-line)
                        → rag-src/chunk/
-  → ingester.py (config/ingester.toml): "passage: {text}" embed
+  → ingester.py (config/ingester.toml): embed chunk text (no prefix)
                 → struct.pack float32 BLOB → SQLite INSERT
                 → rag-src/registered/
 ```
@@ -242,7 +242,7 @@ For operators who prefer a quick reference without navigating away from this doc
 
 - **`rag_pipeline_service.py`**: Pipeline orchestration and error handling. The `RagPipelineMCPService` class wraps `RagPipeline`, manages lifecycle (start/stop), formats results for MCP tool responses, and maintains the dispatch table mapping tool names to service methods.
 
-- **`scripts/rag/pipeline.py`**: Core search logic and stage execution. The `RagPipeline` class orchestrates the MQE → Search → RRF → Rerank pipeline stages, implements the `augment()` method with its fallback chain (HTTP → cache → search → refiner → raw chunks), and collects diagnostics.
+- **`scripts/rag/pipeline.py`**: Core search logic and stage execution. The `RagPipeline` class orchestrates the MQE → Search → RRF → Rerank pipeline stages, implements the `augment()` method with its fallback chain (HTTP → search → refiner → raw chunks), and collects diagnostics.
 
 The interaction flow is: MCP client → `rag_pipeline_server.py` (HTTP routing) → `rag_pipeline_service.py` (orchestration) → `scripts/rag/pipeline.py` (search execution).
 
@@ -256,7 +256,8 @@ For details on responsibilities of these components, please refer to `docs/21_ra
 |---|---|
 | Ingestion Scripts (API, CLI, Config) | [rag_02_01_ingestion_pipeline-overview.md](rag_02_01_ingestion_pipeline-overview.md) |
 | Query Pipeline (API, Stage Details) | [rag_03_01_query_pipeline-overview.md](rag_03_01_query_pipeline-overview.md) |
-| DB Schema, Type Definitions | [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md) |
+| Type Definitions | [rag_04_01_dto-models_data.md](rag_04_01_dto-models_data.md) |
+| DB Schema | [db_08_active_databases.md](../41_db/db_08_active_databases.md) |
 | Config, Execution Commands, Logs | [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md) |
 | Known Bugs and Inconsistencies | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG) |
 

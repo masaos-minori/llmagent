@@ -41,7 +41,7 @@ For exhaustive detail, see `scripts/rag/ingestion/etag_manager.py` (ETagManager 
   `datetime.fromisoformat()` after replacing a trailing `Z` with `+00:00`; a
   timezone-naive value is accepted and normalized to UTC (`replace(tzinfo=UTC)`).
 - **Invalid incoming timestamp:** if the incoming `fetched_at` fails to parse,
-  `_is_stale_update()` raises `ValueError(f"Invalid incoming timestamp: {value}")`.
+  `_is_stale_update()` raises `InvalidIncomingTimestampError(f"Invalid incoming timestamp: {value}")`.
 - **Invalid stored timestamp:** if the stored `fetched_at` fails to parse,
   `_is_stale_update()` raises `InvalidStoredTimestampError(f"Invalid stored timestamp: {value}")`.
   An invalid incoming `fetched_at` raises `InvalidIncomingTimestampError`; an invalid
@@ -54,7 +54,7 @@ For exhaustive detail, see `scripts/rag/ingestion/etag_manager.py` (ETagManager 
   `doc_id`, or its stored `fetched_at` is empty/absent (e.g. a pre-migration row),
   `_is_stale_update()` returns `False` (not stale) without attempting to parse it —
   the incoming value always wins in this case.
-- **Both `etag` and `last_modified` absent:** as already documented above, `update()`
+- **Both `etag` and `last_modified` absent:** `update()`
   returns early without any database write in this case — no staleness check occurs.
 
 See [rag_02_04_ingestion_pipeline-ingester.md](rag_02_04_ingestion_pipeline-ingester.md)

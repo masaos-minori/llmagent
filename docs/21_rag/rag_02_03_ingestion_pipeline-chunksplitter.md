@@ -70,7 +70,7 @@ This module provides the following public methods. See source code for details.
 | `max_chunk` | 500 | Maximum number of characters per chunk. Text exceeding this limit will be split. |
 | `chunk_overlap` | 50 | Sliding window chunk overlap (in characters). Adds this many characters from the end of the previous chunk to the beginning of the next; 0 disables it. |
 | `en_stopwords` | — | English stopwords to exclude from chunking (defined in `config/chunk_splitter.toml`. Corrected from old docs referencing a now-deleted single-file config). |
-| `ja_stop_pos` | — | Sudachi part-of-speech categories treated as stopwords in Japanese. Default value: `["Particle", "Auxiliary", "Symbol", "Whitespace", "Interjection", "Conjunction"]` (defined in `config/chunk_splitter.toml`). |
+| `ja_stop_pos` | — | Sudachi part-of-speech categories treated as stopwords in Japanese. Default value: a list of Japanese Sudachi part-of-speech names (not English labels) defined in `config/chunk_splitter.toml`. |
 
 > Evidence: Explicit in code — `scripts/rag/ingestion/chunk_splitter.py::__init__` uses `ConfigLoader().load("chunk_splitter.toml")`, and `en_stopwords`/`ja_stop_pos` are defined in `config/chunk_splitter.toml`. The former single-file config does not exist in this repository.
 
@@ -158,7 +158,7 @@ normalization for accurate segmentation, but the heading chunking path bypasses 
 |---|---|
 | Japanese text | Morphological analysis via Sudachi SplitMode.C; pair of `(original sentence, space-joined normalized form)` |
 | English text | Sentence boundary splitting via regex (`(?<=[.!?])\s+`); short paragraphs are joined, and chunks smaller than `min_chunk` after stopword removal are discarded |
-| `.md`/`.markdown`/`.mdx` URLs | Heading boundary splitting (`#`/`##`/`###`); always applied regardless of `md_index_enable` |
+| `.md`/`.markdown`/`.mdx` URLs | Heading boundary splitting (`#` through `######`); always applied regardless of `md_index_enable` |
 | Non-.md content with ≥2 heading lines | Heading boundary splitting; applied only if `md_index_enable=true` |
 | Code blocks | Empty line splitting (language independent); excluded from stopword removal or morphological analysis |
 
@@ -182,7 +182,7 @@ JSON shape.
 - `chunk_type`: `text` / `code`
 - `chunking_strategy`: `text` / `heading`
 - `normalized_content`: Japanese only (Sudachi normalization), null for English/code
-- `source_file`: Filename of the crawler output without the `.json` extension
+- `source_file`: Filename of the crawler output, including the `.json` extension (`src_path.name`)
 
 ### 3.4a Canonical Artifact-Field Contract
 
@@ -234,15 +234,12 @@ There is exactly one cross-field validation rule among the crawl/chunk artifact 
 
 ### 3.5 Error Handling
 
-For the file-level-failure and existing-chunks cases, see
+For the file-level-failure, existing-chunks and Sudachi-tokenization-error cases, see
 [rag_05_4-error-handling-reference.md](rag_05_4-error-handling-reference.md)'s
-"ChunkSplitter" section. For the Sudachi-tokenization-error case specifically, see
-`scripts/rag/ingestion/chunk_japanese.py::_normalize_ja_sentence` and
-`scripts/rag/ingestion/chunk_splitter.py::process_all` directly instead —
-error-handling-reference.md's entry for this one case is stale (it describes a
-per-chunk skip, but the current code has no try/except at the chunk level: a
-`TokenizationError` propagates to `process_all()`'s per-file catch, aborting the
-**entire file**, not one chunk).
+"ChunkSplitter" section. The current code has no try/except at the chunk level: a
+`TokenizationError` (raised in `scripts/rag/ingestion/chunk_japanese.py::_normalize_ja_sentence`)
+propagates to the per-file catch in `scripts/rag/ingestion/chunk_splitter.py::process_all`,
+aborting the **entire file**, not one chunk.
 
 ### 3.6 Logging
 
@@ -252,8 +249,7 @@ per-chunk skip, but the current code has no try/except at the chunk level: a
 | Level | Timing |
 |---|---|
 | `INFO` | Processed files, generated chunks, skipped files (with URL) |
-| `WARNING` | Sudachi errors |
-| `ERROR` | File read errors, file-level failures (with traceback) |
+| `ERROR` | File read errors, file-level failures including Sudachi tokenization errors (with traceback) |
 
 ### 3.7 Configuration
 

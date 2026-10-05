@@ -23,9 +23,9 @@ uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.t
 
 TOML format:
 ```toml
-[[target_urls]]
-url = "file:///path/to/file.py"
-lang = "en"
+target_urls = [
+    ["file:///path/to/file.py", "en"],
+]
 ```
 
 - Three-step process (separate processes): Crawling $\rightarrow$ Chunk Splitting $\rightarrow$ Embedding.
@@ -49,10 +49,10 @@ Log messages during ingestion:
 ## Batch re-ingestion of multiple local files
 
 If multiple files have changed, run the crawler specifying `--targets-file` to re-crawl all listed `file://` URLs.
-The crawler does not support `--force`. Unchanged files will be automatically skipped via SHA-256 hash comparison.
+The crawler does not support `--force` and always writes the crawl payload; unchanged files are skipped at ingestion by the SHA-256 comparison in `DocumentManager`.
 To force re-running embeddings for already ingested URLs, run `ingester.py --force` after crawling.
 
-```python
+```bash
 uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml
 uv run python scripts/rag/ingestion/ingester.py --force
 ```

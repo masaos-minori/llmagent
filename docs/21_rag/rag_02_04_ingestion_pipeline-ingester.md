@@ -45,11 +45,11 @@ and the canonical field-contract table in
 
 ### 4.2 Detailed Behavior
 
-- **E5 Prefix:** Prepends `passage: {text}` before embedding (uses `query: ` for queries).
+- **Embedding Input:** The original chunk `content` is embedded as-is; no `passage:` / `query:` prefix is added (`scripts/rag/ingestion/embedding.py`).
 - **Vector Encoding:** Uses `struct.pack(f"<{N}f", *values)` $\rightarrow$ Little-endian float32 BLOB.
-- **Parallel Embedding:** Uses `ThreadPoolExecutor(embed_workers)` per URL group. Each thread uses an independent `SQLiteHelper().open()`.
+- **Parallel Embedding:** Uses `ThreadPoolExecutor(embed_workers)` per URL group (`scripts/rag/ingestion/chunk_preparation.py`). Embedding threads perform no DB access (`embed_and_store` returns a `PreparedChunk`).
 - **WAL Mode:** Uses `PRAGMA journal_mode=WAL` for concurrent read/write safety.
-- **Upsert (`--force`):** Deletes in order: `chunks_vec` $\rightarrow$ `chunks` $\rightarrow$ `documents`, then re-inserts. The original `chunking_strategy` value from the source file is preserved.
+- **Upsert (`--force`):** Deletes `chunks_vec` rows explicitly, then `documents` (rows in `chunks` are removed by `ON DELETE CASCADE`), then re-inserts. The original `chunking_strategy` value from the source file is preserved.
 
 ### 4.2.1 Immutable Deletion Order
 
@@ -81,13 +81,13 @@ list.
 ### 4.4 Embedding API
 
 ``` http
-POST http://127.0.0.1:8081/embedding
+POST {embed_url}   # configured in config/ingester.toml
 Content-Type: application/json
 
-{"content": "passage: {text}"}
+{"content": "{text}"}
 ```
 
-Response: `{"embedding": [float, ...]}` — 384 dimensions (multilingual-E5-small)
+Response: `{"embedding": [float, ...]}` — the vector length must equal the fixed code-level dimension constant (see below)
 
 - Embedding dimension: fixed code-level constant returned by
   `scripts/db/store_protocols.py::get_embedding_dims()`, not a
@@ -95,7 +95,7 @@ Response: `{"embedding": [float, ...]}` — 384 dimensions (multilingual-E5-smal
 
 ### 4.5 Database Updates
 
-Current DB schema definition $\rightarrow$ [RAG schema reference document](rag_02_06_ingestion_pipeline-supporting-components.md)
+Current DB schema definition $\rightarrow$ [rag.sqlite schema](../41_db/db_08_active_databases.md)
 
 ### 4.6 Error Handling
 

@@ -28,7 +28,7 @@ Read this file first to determine which chapter you should open.
 ## Reading Order
 
 ``` text
-01 System Overview → 02 Ingestion Pipeline → 03 Query Pipeline → 04 Data Model → 05 Configuration → 91 Design Notes
+01 System Overview → 02 Ingestion Pipeline → 03 Query Pipeline → 04 DTO Models → 05 Configuration and Operations
 ```
 
 ---
@@ -43,7 +43,7 @@ Read this file first to determine which chapter you should open.
 | How does the query pipeline work (stages, RRF, reranking)? | `rag_03` |
 | What is the `RagPipeline` API? | `rag_03` |
 | How does `use_rrf` affect fusion mode? | `rag_03` |
-| What is the SQLite schema for the RAG database? | `rag_04` |
+| What is the SQLite schema for the RAG database? | [db_08_active_databases.md](../41_db/db_08_active_databases.md) |
 | What are `RawHit`, `MergedHit`, and `RankedHit`? | `rag_04` |
 | What are the configuration parameters? | `rag_05` |
 | Are there any known bugs or behavioral inconsistencies? | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
@@ -64,20 +64,20 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | `rag_00_document-guide.md` | Entry point and routing guide |
 | [rag_01_system_overview.md](rag_01_system_overview.md) | System overview, architecture, prerequisites |
 | [rag_02_01_ingestion_pipeline-overview.md](rag_02_01_ingestion_pipeline-overview.md) | Ingestion execution guide |
-| [crawler-part1](rag_02_02_ingestion_pipeline-crawler.md) / [-part2](rag_02_02_ingestion_pipeline-crawler.md) | WebCrawler details |
-| [chunksplitter-part1](rag_02_03_ingestion_pipeline-chunksplitter.md) / [-part2](rag_02_03_ingestion_pipeline-chunksplitter.md) | ChunkSplitter details |
-| [ingester-part1](rag_02_04_ingestion_pipeline-ingester.md) / [-part2](rag_02_04_ingestion_pipeline-ingester.md) | RagIngester details |
+| [rag_02_02_ingestion_pipeline-crawler.md](rag_02_02_ingestion_pipeline-crawler.md) | WebCrawler details |
+| [rag_02_03_ingestion_pipeline-chunksplitter.md](rag_02_03_ingestion_pipeline-chunksplitter.md) | ChunkSplitter details |
+| [rag_02_04_ingestion_pipeline-ingester.md](rag_02_04_ingestion_pipeline-ingester.md) | RagIngester details |
 | [rag_02_05_ingestion_pipeline-document-manager.md](rag_02_05_ingestion_pipeline-document-manager.md) | DocumentManager details |
 | [rag_02_06_ingestion_pipeline-supporting-components.md](rag_02_06_ingestion_pipeline-supporting-components.md) | ETagManager + Config |
 | [rag_02_07_ingestion_pipeline-utils.md](rag_02_07_ingestion_pipeline-utils.md) | Utility functions |
 | [rag_02_08_ingestion_pipeline-shared.md](rag_02_08_ingestion_pipeline-shared.md) | Shared utilities |
 | [rag_02_09_ingestion_pipeline-shared-utilities.md](rag_02_09_ingestion_pipeline-shared-utilities.md) | rag.utils details |
 | [rag_03_01_query_pipeline-overview.md](rag_03_01_query_pipeline-overview.md) | Query pipeline overview |
-| [rag-pipeline-class-part1](rag_03_02_query_pipeline-rag-pipeline-class.md) / [-part2](rag_03_02_query_pipeline-rag-pipeline-class.md) | RagPipeline class |
+| [rag_03_02_query_pipeline-rag-pipeline-class.md](rag_03_02_query_pipeline-rag-pipeline-class.md) | RagPipeline class |
 | [rag_03_03_query_pipeline-context-and-diagnostics.md](rag_03_03_query_pipeline-context-and-diagnostics.md) | Context + Diagnostics |
 | [rag_03_04_query_pipeline-search-stages.md](rag_03_04_query_pipeline-search-stages.md) | Search stages |
 | [rag_03_05_query_pipeline-augment-stages.md](rag_03_05_query_pipeline-augment-stages.md) | Augmentation stages |
-| [helpers-and-cache-part1](rag_03_06_query_pipeline-helpers-and-cache.md) / [-part2](rag_03_06_query_pipeline-helpers-and-cache.md) | Helpers + Cache |
+| [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md) | Helpers + Cache |
 | [rag_03_07_query_pipeline-tests.md](rag_03_07_query_pipeline-tests.md) | Tests |
 | [rag_04_01_dto-models_data.md](rag_04_01_dto-models_data.md) | DTO: models_data |
 | [rag_04_02_dto-models_result.md](rag_04_02_dto-models_result.md) | DTO: models_result |

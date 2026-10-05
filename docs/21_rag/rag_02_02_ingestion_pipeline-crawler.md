@@ -46,7 +46,7 @@ TypedDict field set used for crawl output JSON files.
 `max_depth` and `max_pages` bound the crawl's BFS traversal to prevent
 unbounded growth in processing time, storage, and external-site load — see
 [section 1.1 Configuration Reference](rag_05_1-configuration-reference.md)
-below for the current operational values. No historical rationale for the
+for the current operational values. No historical rationale for the
 specific limit values is recorded in this repository; `config/crawler.toml`'s
 own inline comment states these are unvalidated heuristics.
 `skip_nofollow` controls whether nofollow-marked links are excluded from
@@ -56,7 +56,7 @@ the BFS queue.
 
 ### 2.1.2 `crawl_file` Behavior
 
-`crawl_file(path, lang)` reads a local file and writes the crawl JSON to `rag-src/`. Unlike web URLs, no HTTP round-trips occur. Python files (.py) are stored as code blocks and subject to code-specific chunking. Other file types store their content directly in the `content` field. Local file payloads include metadata fields: `schema_version`, `artifact_type` (value for `ingestion-only`), and `created_by`.
+`crawl_file(path, lang)` reads a local file and writes the crawl JSON to `rag-src/`. Unlike web URLs, no HTTP round-trips occur. Python files (.py) are stored as code blocks and subject to code-specific chunking. Other file types store their content directly in the `content` field.
 
 If `lang == "auto"`, this method resolves the language based on the CJK ratio of the file content.
 
@@ -114,7 +114,7 @@ requires exactly 8 keys (`url`, `content`, `title`, `lang`, `code_blocks`, `etag
 For the full Required/Nullable/Conditional classification of these fields, see the
 canonical crawl/chunk artifact-field contract table in
 [rag_02_03_ingestion_pipeline-chunksplitter.md](rag_02_03_ingestion_pipeline-chunksplitter.md).
-See also [docs/rag_04_01_dto-models_data.md](rag_04_01_dto-models_data.md) for
+See also [rag_04_01_dto-models_data.md](rag_04_01_dto-models_data.md) for
 the `ChunkDocument` DTO this reader returns.
 
 ### 2.5 Error Handling

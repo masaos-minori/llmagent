@@ -23,7 +23,7 @@ source:
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
 - Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- Type Definitions → [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md)
+- Type Definitions → [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
 
 ---
 

@@ -21,7 +21,7 @@ source:
 
 ## System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
 ## Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-## Type Definitions → [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md)
+## Type Definitions → [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
 
 ---
 
@@ -85,7 +85,7 @@ from rag.augment import AugmentRefiner
 | `http` | `httpx.AsyncClient` | Yes | HTTP client for external RAG service calls |
 | `cfg` | `RagConfig` | Yes | Configuration including `rag_service_url`, `rag_auth_token`, `refiner_*` settings |
 | `on_status` | `Callable[[str], None] \| None` | No | Status callback; defaults to no-op |
-| `set_fetch_result` | `Callable[[str], None] \| None` | No | Fetch result callback; defaults to no-op |
+| `set_fetch_result` | `Callable[[TwoStageFetchResult], None] \| None` | No | Fetch result callback; defaults to no-op |
 | `set_fallback_reason` | `Callable[[str], None] \| None` | No | Fallback reason callback; defaults to no-op |
 | `search_diagnostics` | `SearchDiagnostics \| None` | No | Diagnostics object; defaults to empty `SearchDiagnostics()` |
 | `llm` | `RagLLM \| None` | No | LLM client for refiner; required when `use_refiner=true` |
@@ -127,6 +127,7 @@ Maps HTTP result kind string to `HttpResultKind` enum:
 - `"remote_nonempty"` → `SUCCESS`
 - `"remote_empty"` → `EMPTY`
 - `"in_process_fallback"` → `ERROR`
+- `"auth_error"` → `AUTH_ERROR`
 
 #### Properties
 

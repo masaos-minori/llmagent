@@ -25,7 +25,7 @@ skips just that URL without stopping the overall crawl — see
 
 | Error | Action |
 |---|---|
-| Sudachi tokenization error | Return `""`; skip chunk; `WARNING` |
+| Sudachi tokenization error | `TokenizationError` propagates to `process_all()`; the entire file is aborted; `ERROR` (with traceback); continue to next file |
 | Failure at file level | `ERROR` (with traceback); continue to next file |
 | Existing chunks | Skip unless `--force` is specified |
 

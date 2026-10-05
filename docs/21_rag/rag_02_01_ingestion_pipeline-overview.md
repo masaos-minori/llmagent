@@ -68,8 +68,8 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 | Path | Created By | Content | Deletion Policy |
 |---|---|---|---|
-| `{rag_src_dir}/{timestamp}-{slug}.json` | crawler.py | URL, Title, Language, Content, Code Blocks | Deleted after successful chunking (no audit trail required) |
-| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy | Deleted after successful ingestion (no audit trail required) |
+| `{rag_src_dir}/{timestamp}-{slug}.json` | crawler.py | URL, Title, Language, Content, Code Blocks | Not deleted by the pipeline code; no automated retention or cleanup |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy | Moved out of `chunk/` after ingestion: to `registered/` on success, to `retry/` (embedding failures) or `failed/` (other failures, with a `.error.json` file) on failure |
 | `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | Chunk → Registered | No automated retention or cleanup; files accumulate until removed manually |
 
 > **Retention:** No retention or cleanup setting exists for `rag-src/registered/`. See the Known issue in [rag_01_system_overview.md](rag_01_system_overview.md).
@@ -80,7 +80,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 > python -c "import orjson; print(orjson.loads(open('{rag_src_dir}/{timestamp}-{slug}.json', 'rb').read()))"
 > ```
 >
-> Use the artifact path format from the table above (e.g., `{rag_src_dir}/20260913-183000_example.json`). The `'rb'` (binary read) mode is required because `orjson.loads()` accepts `bytes` input directly, matching how `read_crawl_json()`/`read_chunk_json()` read files via `path.read_bytes()` before passing to `orjson.loads()`. `orjson` is used instead of the standard `json` module for its performance characteristics (Rust-backed, significantly faster). Expected output: a Python `dict` printed to stdout, or a `json.JSONDecodeError` if the file is not valid JSON.
+> Use the artifact path format from the table above (e.g., `{rag_src_dir}/20260913183000-example.json`). The `'rb'` (binary read) mode is required because `orjson.loads()` accepts `bytes` input directly, matching how `read_crawl_json()`/`read_chunk_json()` read files via `path.read_bytes()` before passing to `orjson.loads()`. `orjson` is used instead of the standard `json` module for its performance characteristics (Rust-backed, significantly faster). Expected output: a Python `dict` printed to stdout, or a `json.JSONDecodeError` if the file is not valid JSON.
 >
 > **Crawl artifact keys:** `url`, `content`, `title`, `lang`, `code_blocks`, `etag`, `last_modified`, `fetched_at`
 >

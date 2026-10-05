@@ -22,7 +22,7 @@ related:
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
 - Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- Type Definitions → [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md)
+- Type Definitions → [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
 
 ---
 
@@ -69,14 +69,7 @@ If `rag_service_url` is not empty, `augment()` delegates to an external RAG serv
 
 #### `call_rag_service()` Function (`scripts/rag/pipeline_service.py`)
 
-```python
-def call_rag_service(
-    rag_config: RagConfig,
-    query: str,
-    search_results: list[Hit],
-) -> tuple[str | None, int | None, float]:
-    ...
-```
+`call_rag_service()` is an `async` coroutine. It takes the shared async HTTP client, the RAG service URL, the query and the history context, plus keyword-only options for the auth token and for callbacks that receive the fetched hits and the fallback reason.
 
 Returns `(context, status_code, elapsed_ms)`: `context` is the augmented text or `None`; `status_code` is the HTTP response code or `None`; `elapsed_ms` is total time in milliseconds.
 
@@ -85,8 +78,8 @@ The `"remote_empty"` case is NOT a fallback, it is a **SUCCESS**. It means the r
 This classification result can be verified here:
 - `get_diagnostics()["http_result_kind"]`
 
-> **Note**: `get_diagnostics()["http_result_kind"]` (values: `remote_nonempty`/`remote_empty`/`in_process_fallback`) and `SearchDiagnostics.http_result_kind` (`rag.models_result.HttpResultKind` enum, values: `success`/`empty`/`error`/`not_used`) have similar names but are different fields with different vocabularies. See [rag_03_03_query_pipeline-context-and-diagnostics.md](rag_03_03_query_pipeline-context-and-diagnostics.md) section 4.2 for details.
-> (Evidence classification: Explicit in code — `HttpAugmentResult.__init__` and `RagPipeline._run_http_augment`)
+> **Note**: `get_diagnostics()["http_result_kind"]` and `SearchDiagnostics.http_result_kind` both carry the `rag.models_result.HttpResultKind` enum (`success`/`empty`/`error`/`not_used`/`auth_error`); the strings `remote_nonempty`/`remote_empty`/`in_process_fallback`/`auth_error` are internal to `HttpAugment` and are mapped to the enum before being exposed. See [rag_03_03_query_pipeline-context-and-diagnostics.md](rag_03_03_query_pipeline-context-and-diagnostics.md) section 4.2 for details.
+> (Evidence classification: Explicit in code — `HttpAugment` (`scripts/rag/http_augment.py`) and `AugmentRefiner.run_http_augment`)
 ---
 
 ## Keywords

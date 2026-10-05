@@ -21,7 +21,7 @@ The RAG index requires synchronization between the following three tables:
 
 ## Startup Warnings
 
-On every agent startup, a RAG consistency check is performed via `check_rag_consistency()` (3 COUNT queries, read-only, high performance). If an inconsistency is detected, a warning is printed to the console.
+On every agent startup, a RAG consistency check is performed via `check_rag_consistency()` (read-only). If an inconsistency is detected, a warning is printed to the console.
 
 ```text
 [RAG] Consistency issue: fts_gap=3 (3 chunks missing from FTS index)

@@ -20,7 +20,7 @@ related:
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
 - Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- Type Definitions → [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md)
+- Type Definitions → [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
 
 ---
 
@@ -45,7 +45,7 @@ rag
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
 - Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- Type Definitions → [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md)
+- Type Definitions → [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
 
 ---
 
@@ -118,5 +118,6 @@ Returned by `RagPipeline.run()`.
 
 `PipelineRunResult` has no `result_source` field; the result origin is tracked in `SearchDiagnostics.result_source`.
 
-**Note on confusion:** There are two fields with the same name but different types.
+**Note:** `result_source` exists only on `SearchDiagnostics`.
+
 - `SearchDiagnostics.result_source: ResultSource` (`rag/models_result.py`) — Takes `ResultSource.LOCAL` (default), `REMOTE`, or `FALLBACK`; updated via `dataclasses.replace()` during HTTP augment execution.

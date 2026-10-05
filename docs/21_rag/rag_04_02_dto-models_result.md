@@ -31,6 +31,7 @@ source:
 | `"empty"` | Empty context (valid empty result) |
 | `"error"` | HTTP error path |
 | `"not_used"` | HTTP mode is inactive |
+| `"auth_error"` | HTTP authentication failure (401/403) |
 
 `ResultSource`/`HttpResultKind` are `StrEnum`; every other DTO in this module is
 `@dataclass(frozen=True)`, following the DTO-layer immutability policy shared with

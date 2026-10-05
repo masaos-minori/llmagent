@@ -18,15 +18,15 @@ The following operations are internal processes of the RAG MCP service and acces
 
 ## `list_documents()`
 
-Used by the `/db rag urls` command (via the `rag_list_documents` MCP tool) to return a list of documents with their respective chunk counts.
+Exposed through the `rag_list_documents` MCP tool of the rag-pipeline MCP server to return a list of documents with their respective chunk counts.
 
-See `list_documents()` in `scripts/mcp_servers/rag_pipeline/document_manager.py` (or the equivalent in `scripts/rag/ingestion/document_manager.py`) for the current signature.
+See `list_documents()` in `scripts/mcp_servers/rag_pipeline/document_manager.py` for the current signature.
 
 **Access Pattern:** Read-only queries against the `documents` and `chunks` tables.
 
 ## `delete_document()`
 
-Used by the `/db rag clean` command (via the `rag_delete_document` MCP tool) to perform deletion of a document and its associated chunks/embeddings.
+Exposed through the `rag_delete_document` MCP tool of the rag-pipeline MCP server to perform deletion of a document and its associated chunks/embeddings.
 
 See `delete_document()` in `scripts/mcp_servers/rag_pipeline/document_manager.py` for the current signature.
 

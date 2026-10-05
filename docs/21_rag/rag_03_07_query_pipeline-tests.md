@@ -23,7 +23,7 @@ source:
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
 - Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- Type Definitions → [rag_04_05_dto-types.md](rag_04_01_dto-models_data.md)
+- Type Definitions → [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
 
 ---
 
@@ -49,12 +49,12 @@ This test suite verifies that the key operational characteristics of the RAG que
 
 ### 8.2 References
 
-This section is limited to the scope of `tests/rag/test_rag_quality_regression.py`. Other tests covering individual stages or service layers are included in the following files:
+This section is limited to the scope of `tests/rag/test_rag_quality_regression.py`. Other tests covering individual stages or service layers are included in the following files (under `tests/rag/` unless a path is given):
 - `test_rag_pipeline.py`
 - `test_rag_pipeline_stage.py`
 - `test_rag_pipeline_service.py`
-- `test_rag_pipeline_mcp_service.py`
-- `test_mcp_rag_pipeline.py`
+- `tests/mcp_servers/rag_pipeline/test_rag_pipeline_mcp_service.py`
+- `tests/mcp_servers/rag_pipeline/test_mcp_rag_pipeline.py`
 
 These tests cover individual stages (`MqeStage`/`SearchStage`/`FusionStage`/`RerankStage`/`AugmentStage`) and the `pipeline_service`/MCP service layer separately. This section focuses specifically on deterministic quality regression (`test_rag_quality_regression.py`).
 

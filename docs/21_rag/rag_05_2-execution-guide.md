@@ -58,7 +58,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 - `crawler.py`: Not applicable (idempotent).
 - `chunk_splitter.py`: Deletes existing chunks and regenerates them.
-- `ingester.py`: Deletes `chunks_vec` $\rightarrow$ `chunks` $\rightarrow$ `documents` for the target URL, then re-inserts them.
+- `ingester.py`: Deletes `chunks_vec` rows and then the `documents` row (rows in `chunks` are removed by `ON DELETE CASCADE`) for the target URL, then re-inserts them.
 
 ### 2.6 RAG Consistency Check (`db/rag_consistency.py`)
 
