@@ -119,15 +119,31 @@ Revert to the original warning-only fallback if callers depend on the current be
 - Changes to POSIX signal handler behavior
 - Creating new test file (handled in separate document)
 
-## execution Status
+## Implementation outcome
+
+Deviation from procedure: no code change was performed. Origin/master already ships
+this fix in commit `10308ed7` — `SignalHandler.register()` wraps the pywin32-unavailable
+path in a ctypes fallback (`ctypes.windll.kernel32.SetConsoleCtrlHandler`) inside the
+`except ImportError:` block, and logs a complete-failure error via `logger.error(...)`
+(lines 83-118). The procedure's stated target (warning-only fallback at lines 83-87)
+does not match current source. REQ-001 (registered without pywin32) and REQ-002 (error
+logged) are satisfied by the upstream implementation. The Details-block helper
+`_register_ctypes_console_handler(loop)` with its `lambda: None` shutdown placeholder
+was not adopted; origin inlines the handler with real `win32con.CTRL_CLOSE_EVENT` logic
+consistent with the pywin32 branch above. Existing regression coverage
+(`tests/agent/test_signal_handler_race.py::TestWindowsCtypesFallback`) passes (skip-marked);
+the newly added `tests/agent/test_signal_handler.py` (REQ-002 runnable, REQ-001/REQ-003
+skip-marked) also passes. Accepting the upstream implementation and closing the workflow.
+
+## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Already in origin `10308ed7` (see outcome). |
+| 2 | Add or update tests per Validation plan | Done | — | — | `tests/agent/test_signal_handler.py` added; race-file test present. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | ruff clean; bandit B101 (Low, assert) as in other tests; tests pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Out of scope per procedure. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
