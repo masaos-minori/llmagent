@@ -62,7 +62,7 @@ Each table serves a distinct purpose:
 - **Additive indexes:** `idx_events_dlq_at ON events(dlq_at)` and `idx_events_dlq_seq ON events(dlq_at, seq)` are created with `CREATE INDEX IF NOT EXISTS`; duplicate-index errors are caught and ignored.
 - **New tables:** `_migrate()` additionally creates the `consumer_delivery` and `consumer_offsets` tables via the same idempotent `CREATE TABLE IF NOT EXISTS` pattern used for column/index additions.
 - **Separate data seeding:** `migrate_legacy_offsets()` (see Schema Evolution below) is distinct from `_migrate()`'s schema-DDL role.
-- **Two initialization paths:** `create_schema()` bootstrap (create-only DDL via `schema.sql`) vs. `eventbus/db.py::open_db()` live-service startup (incremental ALTER TABLE operations). A reader must distinguish them — conflating them would incorrectly suggest `eventbus.sqlite` lacks migration support.
+- **Two initialization paths:** `create_schema()` bootstrap (create-only DDL via `schema.sql`) vs. `open_db()` live-service startup (defined in `scripts/eventbus/db_conn.py`, re-exported by `scripts/eventbus/db.py`) (incremental ALTER TABLE operations). A reader must distinguish them — conflating them would incorrectly suggest `eventbus.sqlite` lacks migration support.
 
 ### 8c. RAG Consistency Verification (Explicit in code)
 
@@ -78,7 +78,7 @@ Each table serves a distinct purpose:
 - **Comparison:** Unlike 8a's `workflow.sqlite`, there are no version control columns or explicit `ALTER TABLE` migration lists — it simply inspects the schema shape at startup and rebuilds it silently if it is outdated.
 - **Data Loss Warning:** The `DROP` during legacy schema detection is unconditional; existing data is lost after recreation.
 
-The `chunks_vec`/`memories_vec` (`db/schema_sql.py`) for `rag.sqlite`, `session.sqlite`, and `eventbus.sqlite` are unrelated to the MDQ schema/hybrid search cleanup and are unaffected.
+The `chunks_vec` (`rag.sqlite`) and `memories_vec` (`session.sqlite`) tables defined in `db/schema_sql.py` are unrelated to the MDQ schema and are unaffected.
 
 ---
 
@@ -100,9 +100,7 @@ rag.sqlite schema location: this doc section 5; session.sqlite schema location: 
 
 ## 10. Source of Truth
 
-DDL source: `db/schema_sql.py`; schema initialization entry point: `db/create_schema.py::create_schema()`; deploy initialization entry point: `deploy/init_db.sh`; DB connection helper: `db/helper.py::SQLiteHelper`; DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`; Event Bus schema (DDL only): `scripts/eventbus/schema.sql`; mdq.sqlite schema/auto-update source: `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` (see section 8c); deleted entry point: `db/workflow_schema.py` — removed in plan 54.
-
-**Note:** The Event Bus runtime (publisher/subscriber/dispatcher/DLQ worker) is outside the scope of this cleanup. Future Event Bus write operations must use ISO-8601 UTC Z-suffix timestamps.
+DDL source: `db/schema_sql.py`; schema initialization entry point: `db/create_schema.py::create_schema()`; deploy initialization entry point: `deploy/init_db.sh`; DB connection helper: `db/helper.py::SQLiteHelper`; DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`; Event Bus schema (DDL only): `scripts/eventbus/schema.sql`; mdq.sqlite schema/auto-update source: `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` (see section 8d).
 
 ## 11. Storage Growth
 

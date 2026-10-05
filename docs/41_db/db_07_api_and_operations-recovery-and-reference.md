@@ -121,7 +121,7 @@ Failure to recover required workflow or event-delivery state MUST NOT be silentl
 
 ## 11. DB Recreation Procedure
 
-Schema changes require DB recreation — a migration feature does not exist. **Step 1: Archive** — execute `rotate_all_dbs()` to archive all three production DBs. **Step 2: Delete** — manually delete DB files; paths are resolved from `agent.toml` `rag_db_path`/`session_db_path`/`workflow_db_path`/`eventbus_db_path` keys (`db/config.py::DbConfig`); `create_schema()` also recreates `eventbus.sqlite`, so include `/opt/llm/db/eventbus.sqlite` if deleting (Explicit in code — `db/create_schema.py`). **Step 3: Recreate** — execute `create_schema()` to initialize empty DBs. 
+Schema changes require DB recreation — a migration feature does not exist. **Step 1: Archive** — execute `rotate_all_dbs()` to archive every production DB (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`). **Step 2: Delete** — manually delete DB files; paths are resolved from `agent.toml` `rag_db_path`/`session_db_path`/`workflow_db_path`/`eventbus_db_path` keys (`db/config.py::DbConfig`); `create_schema()` also recreates `eventbus.sqlite`, so include `/opt/llm/db/eventbus.sqlite` if deleting (Explicit in code — `db/create_schema.py`). **Step 3: Recreate** — execute `create_schema()` to initialize empty DBs. 
 
 **Important notes:** 
 - Recreated DBs are empty — existing records are not automatically migrated.
