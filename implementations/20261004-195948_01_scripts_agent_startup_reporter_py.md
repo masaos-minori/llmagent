@@ -97,6 +97,31 @@ The key changes are:
 1. Assertion in services_required property validates the invariant at access time
 2. Removal of redundant defensive null checks in report_readiness()
 
+### Source-verified outcome
+
+Adversarial verification (workflow Step 3a) found the Procedure/Method/Details do
+not map byte-for-byte onto current source, because the target evolved before this
+workflow ran:
+
+- `scripts/agent/startup_reporter.py` was refactored into the `ReadinessReporter`
+  class (`report_readiness()` now aggregates pipeline outcomes instead of returning
+  a dict of per-service null checks) in `bdd64049`. The old dict-style
+  `report_readiness()` described above no longer exists.
+- The invariant this procedure sought to enforce is now enforced at **construction
+  time** in `AppServices.__init__` (`scripts/agent/context.py`, commit
+  `10308ed7` — "AppServices validation"): the six required services
+  (http/llm/tools/lifecycle/hist_mgr/audit_logger) are non-optional constructor
+  args, and any None raises `RuntimeError`. This is exactly Option A
+  ("validate at construction time") the procedure anticipated, using `RuntimeError`
+  rather than `AssertionError`.
+- `AppServices` docstring ("All required services are non-None. memory is None when
+  …; gateway is None until …") matches the implementation: required services are
+  enforced non-None, while memory/gateway are explicitly optional. REQ-002
+  ambiguity is resolved.
+
+Conclusion: the Goal is fully achieved via the paths above. No code is authored by
+this workflow; the change is already present in committed source.
+
 ## Compatibility considerations
 
 This change is backward-compatible — it adds a protection mechanism that was previously absent. No existing behavior is lost for cases where the invariant holds. However, callers relying on the defensive null checks may see different error types (AssertionError vs None handling).
@@ -132,10 +157,10 @@ Revert to the original defensive null checks if callers depend on graceful handl
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261005-223738 | 20261005-223738 | Goal achieved via AppServices construction-time enforcement (commit 10308ed7) + ReadinessReporter refactor (bdd64049); no code authored by this workflow. See Source-verified outcome. |
+| 2 | Add or update tests per Validation plan | Completed | 20261005-223932 | 20261005-223932 | No new test authored this cycle (test_startup_reporter.py is created by sibling ..._03_...). Existing tests test_context.py + test_startup.py cover AppServices invariant and ReadinessReporter; 50 passed/1 skipped. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261005-223951 | 20261005-223951 | 50 passed, 1 skipped (test_context.py + test_startup.py). No source change this cycle; pre-existing ruff/bandit/mypy baseline unchanged. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261005-224009 | 20261005-224009 | N/A: no code authored by this workflow (goal met via prior commits), so no changed-file docs/00_index.md task-scope mapping to update. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
