@@ -16,6 +16,17 @@ The source of this issue is the work instruction in `memo2.md` (repository root)
 - CI and local runs differ today: `.github/workflows/governance-docs-consistency.yml` runs the structure check with `continue-on-error: true`, only over `docs/*.md docs/10_adr/*.md` (so subdirectories such as `docs/21_rag` are not covered), with `--schema`. A local run without arguments scans `docs/**/*.md`. `.pre-commit-config.yaml` runs `check_docs_quality.py` and the ADR checks, not `check_docs_structure.py`.
 - Rule and tooling touchpoints that mention the body section: `tools/check_docs_structure.py`, `tools/manage_frontmatter.py` (the `merge-related` subcommand merges the body block into `related:`), `tools/check_docs_quality.py` (allowed-heading set), `tools/TOOL_DESCRIPTIONS.md`, `routing.md` (Tools table), `prompts/08_document-sync.md`, governance_02 (the `related` field description) and governance_04 (structure-check description, GV-005 row). No other template, document generation script, README or AI-facing authoring guidance carries the old rule: `templates/` holds only work-item templates and no document generator exists.
 
+## Adversarial Verification
+Verified against the current repository state (2026-10-05). Every factual claim below holds:
+- `docs/` contains 192 Markdown files; 870 `related:` entries exist, all plain basenames ending in `.md`; none uses a path or anchor.
+- Three EventBus documents use `related: []`: `docs/24_eventbus/eventbus_12_health_endpoint.md`, `eventbus_13_replay_endpoint.md`, `eventbus_15_ack_nack_endpoints.md`.
+- All 20 files under `docs/10_adr/` carry a `## Related Documents` section; no non-ADR document carries a `## Related Documents`, `## Related Docs`, `## Related Chapters` or `See Also` heading.
+- The only non-ADR body Related-style heading is `### Related Documents` at line 68 of `docs/22_mcp/mcp_06_13_health-reasons-and-error-kinds.md`; its two entries equal the front matter `related:` list.
+- The adjacent `### Keywords` block (lines 73-76) duplicates the real `## Keywords` section (lines 165-168) verbatim — removing it loses nothing. Resolves the Unresolved Question there.
+- `tools/check_docs_structure.py` `_RELATED_HEADING_RE` matches only `^## ` headings, so the `### ` block is not detected; running the tool on the file reports "All checks passed".
+- `.github/workflows/governance-docs-consistency.yml` runs the structure check with `continue-on-error: true` over `docs/*.md docs/10_adr/*.md --schema ...`; `.pre-commit-config.yaml` runs `check_docs_quality.py` and the ADR checks but not `check_docs_structure.py`.
+- governance_02 states the single-store rule; governance_04 GV-005 row is currently `Warning` (not blocking); `merge-related`, `check_docs_quality.py` allowed-heading set, `TOOL_DESCRIPTIONS.md`, `routing.md`, `prompts/08_document-sync.md` all carry the rule text.
+
 ## Problem
 A body `Related Documents` block can still appear in a non-ADR document without being detected (one such block exists), because the check matches only second-level headings. The structure check that would catch it is not blocking in CI and does not cover the subdirectories of `docs/`, so local and CI results differ. The `related:` format (basename list) is also not stated as a validated rule even though every existing entry follows it.
 
