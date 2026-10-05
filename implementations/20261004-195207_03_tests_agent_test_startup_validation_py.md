@@ -108,15 +108,29 @@ Delete the test file if the startup validation change is reverted.
 - Modifying `startup_validation.py` (handled in separate document)
 - Modifying `rag_maintenance_service.py` (handled in separate document)
 
-## execution Status
+## Implementation outcome
+
+Deviation from procedure: the inline draft was NOT applied. It imports
+`from scripts.agent.startup_validation import StartupValidationPipeline` (the real
+module is imported as `agent.startup_validation`), constructs
+`StartupValidationPipeline()` (no-arg; the real constructor is
+`StartupValidationPipeline(ctx, ...)`), patches global `asyncio.wait_for`, and its
+second test performs no assertion. Origin/master already ships a correct test file in
+commit `10308ed7` (`tests/agent/test_startup_validation.py`,
+`TestRagConsistencyTimeout`) that drives the real `check_services()` body, patches
+`agent.startup_validation.asyncio.wait_for`, and asserts SKIPPED (REQ-002) and OK
+(REQ-003); it passes (2 passed). No new file was created and no code was changed.
+Accepting the upstream implementation and closing the workflow.
+
+## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Deliverable (test file) present in origin `10308ed7`; no code authored by this workflow (see outcome). |
+| 2 | Add or update tests per Validation plan | Done | — | — | `tests/agent/test_startup_validation.py` present in origin, 2 passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | 2 passed; ruff/bandit clean (no code change). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Out of scope per procedure. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
