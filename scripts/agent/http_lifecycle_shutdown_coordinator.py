@@ -106,9 +106,16 @@ class ShutdownCoordinator:
                     await terminator.terminate_with_timeout(
                         proc, server_key, **terminate_kwargs
                     )
+                    # Process terminated successfully — safe to remove tracking
+                    manager.cleanup_server_key(server_key)
                 except (OSError, TimeoutError) as e:
-                    logger.warning("Lifecycle: error terminating %r: %s", server_key, e)
-                manager.cleanup_server_key(server_key)
+                    # Termination failed — keep tracking entries for manual intervention
+                    logger.error(
+                        "Lifecycle: error terminating %r (%s); "
+                        "tracking entry retained for manual cleanup.",
+                        server_key,
+                        e,
+                    )
             manager.clear_all_health_checks()
         finally:
             if old_sigint is not None:

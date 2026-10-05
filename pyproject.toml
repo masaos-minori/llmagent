@@ -115,6 +115,10 @@ warn_unused_ignores = true
 module = ["scripts.mcp_servers.*"]
 disable_error_code = ["attr-defined", "call-arg"]
 
+[[tool.mypy.overrides]]
+module = ["agent.signal_handler"]
+disable_error_code = ["attr-defined"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"

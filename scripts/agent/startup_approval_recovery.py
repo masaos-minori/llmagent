@@ -48,11 +48,21 @@ class ApprovalRecovery:
         ctx.workflow.approval_pending = True
         ctx.turn.pending_approval_id = approval.approval_id
         if ctx.turn.pending_approval_task_id is not None:
-            logger.warning(
-                "Overwriting pending_approval_task_id %s with %s during recovery",
-                ctx.turn.pending_approval_task_id,
-                task_id,
-            )
+            # Only overwrite if the current value is stale (from a previous session).
+            # If both exist and differ, prefer the current value assuming it's active.
+            existing_task_id = ctx.turn.pending_approval_task_id
+            if existing_task_id != task_id:
+                logger.warning(
+                    "Keeping existing pending_approval_task_id %s instead of overwriting with %s during recovery",
+                    existing_task_id,
+                    task_id,
+                )
+            else:
+                logger.warning(
+                    "Overwriting pending_approval_task_id %s with %s during recovery",
+                    existing_task_id,
+                    task_id,
+                )
         ctx.turn.pending_approval_task_id = task_id
         # List all pending approvals for resolution
         lines = []

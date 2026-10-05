@@ -85,7 +85,13 @@ class McpServerStarter:
                     started_at = await self._start_http_subprocess_once(key, cfg)
                     if started_at is not None:
                         last_startup_time = started_at
-                except (OSError, RuntimeError) as e:
+                except (
+                    OSError,
+                    TimeoutError,
+                    ConnectionRefusedError,
+                    ConnectionResetError,
+                    BrokenPipeError,
+                ) as e:
                     # First attempt failure — use retry helper
                     logger.info(
                         "First attempt failed for MCP subprocess %r: %s",

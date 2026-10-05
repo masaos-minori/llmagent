@@ -56,7 +56,7 @@ async def retry_once_with_delay[T](
         msg = f"{fatal_prefix} {_mask_secrets(str(retry_err))}"
         masked_msg = _mask_secrets(msg)
         logger.error(masked_msg)
-        raise RuntimeError(masked_msg) from retry_err
+        raise retry_err
 
 
 async def _interruptible_sleep(

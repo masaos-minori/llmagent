@@ -70,7 +70,7 @@ class ProcessTerminator:
 
     async def terminate_with_timeout(
         self, proc: object, server_key: str, timeout: float = 5.0
-    ) -> None:
+    ) -> bool:
         """Terminate a process with a strict timeout.
 
         Args:
@@ -94,7 +94,7 @@ class ProcessTerminator:
                     terminate_method()
                 except (OSError, AttributeError, TypeError):
                     pass
-            return
+            return True
 
         # Early-exit if process already exited
         poll_result = getattr(proc, "poll", None)
@@ -102,7 +102,7 @@ class ProcessTerminator:
             try:
                 if poll_result() is not None:
                     logger.info("Process %s already exited", server_key)
-                    return
+                    return True
             except (OSError, AttributeError, TypeError):
                 pass
 
@@ -122,7 +122,7 @@ class ProcessTerminator:
                     terminate_method()
                 except (OSError, AttributeError, TypeError):
                     pass
-            return
+            return True
         except OSError:
             logger.warning(
                 "Lifecycle: os.killpg() failed for %r pid=%d; falling back to proc.terminate()",
@@ -135,7 +135,7 @@ class ProcessTerminator:
                     terminate_method()
                 except (OSError, AttributeError, TypeError):
                     pass
-            return
+            return True
 
         # Warn if pgid wasn't used (children may remain)
         if not used_pgid:
@@ -152,11 +152,17 @@ class ProcessTerminator:
                 await asyncio.sleep(self._terminate_poll_interval_sec)
             except ProcessLookupError:
                 logger.info("Process group %d exited within timeout", pgid)
-                return
+                return True
 
         # Escalate to SIGKILL
         try:
             os.killpg(pgid, signal.SIGKILL)  # nosec B603 — process-group signal to force-kill an admin-started MCP server subprocess after a graceful-termination timeout
             logger.warning("Escalated to SIGKILL for process group %d", pgid)
+            return True
         except ProcessLookupError:
             logger.info("Process group %d already exited after timeout")
+            return True
+        except OSError as e:
+            logger.error(f"Failed to send SIGKILL to process group {pgid}: {e}")
+            # Process may still be running — do not mark as terminated
+            return False

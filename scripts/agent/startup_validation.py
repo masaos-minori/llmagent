@@ -127,9 +127,12 @@ class StartupValidationPipeline:
         # 6. RAG consistency
         try:
             loop = asyncio.get_running_loop()
-            rag_check = await loop.run_in_executor(
-                None,
-                lambda: RagMaintenanceService().consistency(),
+            rag_check = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: RagMaintenanceService().consistency(),
+                ),
+                timeout=30.0,
             )
             if rag_check.is_consistent:
                 pipeline.add_ok("rag_consistency")
@@ -138,6 +141,11 @@ class StartupValidationPipeline:
                     pipeline.add_warning(
                         "rag_consistency", f"[RAG] Consistency issue: {issue}"
                     )
+        except TimeoutError:
+            logger.warning("RAG consistency check timed out after 30s")
+            pipeline.add_skipped(
+                "rag_consistency", "RAG consistency check skipped: timeout after 30s"
+            )
         except Exception as exc:  # noqa: BLE001 — non-critical maintenance check must not abort startup
             logger.warning("RAG consistency check failed: %s", exc)
             pipeline.add_skipped(

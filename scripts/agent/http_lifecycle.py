@@ -230,8 +230,7 @@ class HttpServerLifecycleManager:
         exposing the internal `_http_procs` dictionary directly. Callers receive
         an iterator and cannot modify the underlying dictionary.
         """
-        for key, proc in self._http_procs.items():
-            yield key, proc
+        yield from self._http_procs.items()
 
     async def _interruptible_poll_sleep(
         self, delay: float, shutdown_event: asyncio.Event | None
@@ -373,6 +372,11 @@ class HttpServerLifecycleManager:
         Polls the health endpoint in a loop, checking for early exit and shutdown
         events between polls. Raises HttpStartupError on early exit, shutdown,
         or timeout.
+
+        Note: A new AsyncClient is created per call site (not reused across calls).
+        This prioritizes correctness — no leaked connections on failure paths —
+        over connection pooling benefits, which are marginal for short-lived
+        health checks against localhost.
 
         Args:
             server_key: Server identifier key.

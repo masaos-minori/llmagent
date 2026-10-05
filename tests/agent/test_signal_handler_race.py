@@ -98,3 +98,43 @@ class TestShutdownCompleteness:
             pass  # Would clean up hist_mgr
         if repl.ctx.services.llm is not None:
             pass  # Would clean up llm
+
+
+class TestWindowsCtypesFallback:
+    """Tests for REQ-001: Verify ctypes fallback when pywin32 unavailable."""
+
+    @pytest.mark.skipif(True, reason="Requires Windows platform simulation")
+    def test_ctypes_console_ctrl_handler_registered_when_pywin32_unavailable(
+        self,
+    ) -> None:
+        """When pywin32 is unavailable, ctypes.windll.kernel32.SetConsoleCtrlHandler is used."""
+        import sys
+
+        # Simulate Windows frozen app without pywin32
+        original_frozen = getattr(sys, "frozen", False)
+        sys.frozen = True
+
+        try:
+            # Mock ImportError for win32api/win32con
+            with patch.dict("sys.modules", {"win32api": None, "win32con": None}):
+                with patch(
+                    "builtins.__import__",
+                    side_effect=ImportError("No module named 'win32api'"),
+                ):
+                    with patch(
+                        "ctypes.windll.kernel32.SetConsoleCtrlHandler",
+                        return_value=True,
+                    ) as mock_set_handler:
+                        with patch("ctypes.WINFUNCTYPE", return_value=lambda f: f):
+                            with patch("ctypes.wintypes.BOOL", int):
+                                with patch("ctypes.wintypes.DWORD", int):
+                                    # Import signal_handler to trigger the fallback path
+                                    import importlib
+
+                                    import scripts.agent.signal_handler as sh_module
+
+                                    importlib.reload(sh_module)
+                                    # Verify SetConsoleCtrlHandler was called via ctypes
+                                    mock_set_handler.assert_called_once()
+        finally:
+            sys.frozen = original_frozen

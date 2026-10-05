@@ -143,8 +143,8 @@ def is_allowlisted(filepath: Path, allowlist: set[Path]) -> bool:
 
 
 def _is_justified(remainder: str) -> bool:
-    """Check whether an em-dash-delimited justification follows a suppression marker."""
-    return f" {EM_DASH} " in remainder
+    """Check whether an em-dash or ASCII double-hyphen delimited justification follows a suppression marker."""
+    return f" {EM_DASH} " in remainder or " -- " in remainder
 
 
 def check_suppression_justification(

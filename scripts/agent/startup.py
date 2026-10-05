@@ -19,7 +19,7 @@ from shared.logger import Logger
 
 from agent.context import AgentContext
 from agent.orchestrator import Orchestrator
-from agent.shared.health_models import StartupValidationResult
+from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
 from agent.startup_approval_recovery import ApprovalRecovery
 from agent.startup_component_init import ComponentInitializer
 from agent.startup_mcp_starter import McpServerStarter
@@ -113,7 +113,14 @@ class StartupOrchestrator:
         self._report_readiness(pipeline)
 
         if pipeline.has_fatal:
-            fatal_str = "; ".join(pipeline.fatal_messages())
+            fatal_parts: list[str] = []
+            for o in pipeline.outcomes:
+                if o.status == StartupCheckStatus.FATAL:
+                    part = o.message
+                    if o.remediation:
+                        part += f"\nRemediation: {o.remediation}"
+                    fatal_parts.append(part)
+            fatal_str = "\n\n".join(fatal_parts)
             logger.error(
                 "FATAL pipeline outcomes: %s",
                 [(o.source, o.status, o.message) for o in pipeline.outcomes],

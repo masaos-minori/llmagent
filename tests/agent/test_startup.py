@@ -856,3 +856,39 @@ class TestUnknownTopLevelKeyRejection:
             }
         )
         assert len(result.errors) == 0
+
+
+# ── StartupOrchestrator._check_services() FATAL error message with remediation ──
+
+
+class TestCheckServicesFatalErrorMessageWithRemediation:
+    """Tests for REQ-001: Verify FATAL error messages include remediation steps."""
+
+    @pytest.mark.asyncio
+    async def test_fatal_error_message_includes_remediation(self) -> None:
+        """FATAL error message includes remediation step when available."""
+        ctx = _make_startup_ctx()
+        pipeline, exc = await _run_check_services(
+            ctx,
+            audit_security_defaults=MagicMock(
+                side_effect=RuntimeError("no auth_token configured on server 'web'")
+            ),
+        )
+        assert exc is not None
+        assert isinstance(exc, RuntimeError)
+        # The error message should include the remediation text
+        assert "Fix MCP server auth_token or sandbox config." in str(exc)
+
+    @pytest.mark.asyncio
+    async def test_fatal_error_message_format_with_multiple_outcomes(self) -> None:
+        """Multiple FATAL outcomes are separated by double newline."""
+        ctx = _make_startup_ctx()
+        ctx.cfg.mcp.mcp_servers = {
+            "web": MagicMock(auth_token=""),
+            "shell": MagicMock(auth_token=""),
+        }
+        pipeline, exc = await _run_check_services(ctx)
+        assert exc is not None
+        assert isinstance(exc, RuntimeError)
+        # Should contain both FATAL outcome messages
+        assert "mcp_auth" in str(exc) or "MCP server(s)" in str(exc)

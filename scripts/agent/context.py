@@ -267,6 +267,17 @@ class AppServices:
         runtime_tools: RuntimeToolRegistry | None = None,
     ) -> None:
         """Initialize all required service references for the agent runtime."""
+        # REQ-001: enforce invariant — all required services must be non-None
+        for _name, _value in [
+            ("http", http),
+            ("llm", llm),
+            ("tools", tools),
+            ("lifecycle", lifecycle),
+            ("hist_mgr", hist_mgr),
+            ("audit_logger", audit_logger),
+        ]:
+            if _value is None:
+                raise RuntimeError(f"AppServices: required service '{_name}' is None")
         self.http = http
         self.llm = llm
         self.tools = tools
@@ -310,7 +321,7 @@ class AgentContext:
             config_dir = Path(__file__).resolve().parent.parent.parent / "config"
             raise RuntimeError(
                 f"Failed to load agent config ({config_dir}): {e.__class__.__name__}: {e}"
-            ) from None
+            )
         self.session = AgentSession()
 
         # Wired by Orchestrator.__init__() to its DiagnosticStore instance.

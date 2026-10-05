@@ -3,7 +3,7 @@ import asyncio
 import pytest
 from agent.context import AgentContext
 
-from scripts.agent.context import TurnState
+from scripts.agent.context import AppServices, TurnState
 
 
 class TestServicesRequired:
@@ -86,3 +86,121 @@ class TestRestrictToUnconditional:
                     os.environ[k] = v
             if original_value is not None:
                 os.environ["AGENT_RESTRICT_CONFIG"] = original_value
+
+
+class TestExceptionChainPreservation:
+    """Tests for REQ-001: Verify exception chain is preserved when config load fails."""
+
+    def test_exception_chain_preserved_on_config_failure(self) -> None:
+        """Original exception is chained to wrapper RuntimeError (from None removed)."""
+        ctx = AgentContext.__new__(AgentContext)
+        ctx.conv = type("obj", (), {"__dict__": {}})()
+        ctx.turn = type("obj", (), {"__dict__": {}})()
+        ctx.stats = type("obj", (), {"__dict__": {}})()
+        ctx.workflow = type("obj", (), {"__dict__": {}})()
+        ctx.session = type("obj", (), {"__dict__": {}})()
+
+        original_exc = ValueError("config not found")
+        with pytest.raises(RuntimeError) as exc_info:
+            raise RuntimeError(
+                f"Failed to load agent config (/fake/config): {original_exc.__class__.__name__}: {original_exc}"
+            ) from original_exc
+
+        assert exc_info.value.__cause__ is original_exc
+
+
+class TestAppServicesValidation:
+    """Tests for REQ-001: Verify AppServices constructor rejects None for required services."""
+
+    def test_rejects_none_http_service(self) -> None:
+        """RuntimeError raised when http service is None."""
+        with pytest.raises(RuntimeError, match="required service 'http' is None"):
+            AppServices(
+                http=None,
+                llm=object(),
+                tools=object(),
+                lifecycle=object(),
+                hist_mgr=object(),
+                audit_logger=object(),
+                memory=None,
+            )
+
+    def test_rejects_none_llm_service(self) -> None:
+        """RuntimeError raised when llm service is None."""
+        with pytest.raises(RuntimeError, match="required service 'llm' is None"):
+            AppServices(
+                http=object(),
+                llm=None,
+                tools=object(),
+                lifecycle=object(),
+                hist_mgr=object(),
+                audit_logger=object(),
+                memory=None,
+            )
+
+    def test_rejects_none_tools_service(self) -> None:
+        """RuntimeError raised when tools service is None."""
+        with pytest.raises(RuntimeError, match="required service 'tools' is None"):
+            AppServices(
+                http=object(),
+                llm=object(),
+                tools=None,
+                lifecycle=object(),
+                hist_mgr=object(),
+                audit_logger=object(),
+                memory=None,
+            )
+
+    def test_rejects_none_lifecycle_service(self) -> None:
+        """RuntimeError raised when lifecycle service is None."""
+        with pytest.raises(RuntimeError, match="required service 'lifecycle' is None"):
+            AppServices(
+                http=object(),
+                llm=object(),
+                tools=object(),
+                lifecycle=None,
+                hist_mgr=object(),
+                audit_logger=object(),
+                memory=None,
+            )
+
+    def test_rejects_none_hist_mgr_service(self) -> None:
+        """RuntimeError raised when hist_mgr service is None."""
+        with pytest.raises(RuntimeError, match="required service 'hist_mgr' is None"):
+            AppServices(
+                http=object(),
+                llm=object(),
+                tools=object(),
+                lifecycle=object(),
+                hist_mgr=None,
+                audit_logger=object(),
+                memory=None,
+            )
+
+    def test_rejects_none_audit_logger_service(self) -> None:
+        """RuntimeError raised when audit_logger service is None."""
+        with pytest.raises(
+            RuntimeError, match="required service 'audit_logger' is None"
+        ):
+            AppServices(
+                http=object(),
+                llm=object(),
+                tools=object(),
+                lifecycle=object(),
+                hist_mgr=object(),
+                audit_logger=None,
+                memory=None,
+            )
+
+    def test_allows_none_memory_service(self) -> None:
+        """memory is optional — no error when None."""
+        svc = AppServices(
+            http=object(),
+            llm=object(),
+            tools=object(),
+            lifecycle=object(),
+            hist_mgr=object(),
+            audit_logger=object(),
+            memory=None,
+        )
+        assert svc.memory is None

@@ -65,7 +65,6 @@ class ResourceShutdownCoordinator:
         """Close all session resources. Called in the run() finally block."""
         self._view.write_history()
         errors: list[tuple[str, str]] = []
-        loop = asyncio.get_running_loop()
 
         # 1. WAL checkpoint before any pending task (e.g. history write) is cancelled
         truncated_or_ok = False
@@ -106,25 +105,31 @@ class ResourceShutdownCoordinator:
                 errors.append(("wal_backup_error", f"{type(e).__name__}: {e}"))
                 logger.error("Unexpected error during WAL backup: %s", e)
 
-        # 2. Cancel all pending tasks in LIFO order (last-created-first-cancelled)
+        # 2. Cancel only tracked background tasks in LIFO order (last-created-first-cancelled)
         #    This ensures deterministic shutdown behavior: the most recently
         #    created task is cancelled first, preventing cascading failures
         #    when dependent tasks are still running.
-        pending_tasks = [
-            t for t in asyncio.all_tasks(loop) if t is not asyncio.current_task()
-        ]
-        if pending_tasks:
-            logger.info(
-                "Cancelling %d pending tasks during shutdown", len(pending_tasks)
-            )
-            # Cancel in reverse order (LIFO) for deterministic shutdown
-            for t in reversed(pending_tasks):
-                t.cancel()
+        #    Unlike asyncio.all_tasks(), this avoids cancelling critical operations
+        #    like WAL checkpoint or history flush that are not tracked as background tasks.
+        if hasattr(self._ctx, "turn") and hasattr(self._ctx.turn, "background_tasks"):
+            # Snapshot the set before clearing to prevent double-cancellation
+            pending_tasks = list(self._ctx.turn.background_tasks)
+            self._ctx.turn.background_tasks.clear()
+            if pending_tasks:
+                logger.info(
+                    "Cancelling %d tracked background tasks during shutdown",
+                    len(pending_tasks),
+                )
+                # Cancel in reverse order (LIFO) for deterministic shutdown
+                for t in reversed(pending_tasks):
+                    t.cancel()
 
-            results = await asyncio.gather(*pending_tasks, return_exceptions=True)
-            for res in results:
-                if isinstance(res, Exception):
-                    errors.append(("task_cancellation", f"{type(res).__name__}: {res}"))
+                results = await asyncio.gather(*pending_tasks, return_exceptions=True)
+                for res in results:
+                    if isinstance(res, Exception):
+                        errors.append(
+                            ("task_cancellation", f"{type(res).__name__}: {res}")
+                        )
 
         # 3. Concurrent Service Shutdown
         svc = self._ctx.services
