@@ -97,15 +97,44 @@ Delete the test file if the signal handler change is reverted.
 
 - Modifying `signal_handler.py` (handled in separate document)
 
-## execution Status
+## Implementation outcome
+
+Deviation from procedure: the inline draft was NOT applied. It imports
+`from scripts.agent.signal_handler import SignalHandler` (the real module is imported as
+`agent.signal_handler`, per `scripts/agent/__init__.py` and `scripts/agent/repl.py`),
+constructs `SignalHandler()` (no-arg; the real constructor is
+`SignalHandler(ctx, shutdown_event)`), awaits `handler.register(...)` (the real method is
+synchronous and returns `None`), and patches `scripts.agent.signal_handler.logger` and
+`ctypes.windll.kernel32.SetConsoleCtrlHandler` (both raise AttributeError on POSIX —
+`ctypes.windll` is absent). Origin/master did not create this separate file; it folded a
+single skip-marked REQ-001 test into
+`tests/agent/test_signal_handler_race.py::TestWindowsCtypesFallback`.
+
+Implemented intent against the real API instead. Created `tests/agent/test_signal_handler.py`
+(`TestWindowsCtypesFallback`):
+- `test_complete_failure_logs_error` (REQ-002): runnable on POSIX — forces the
+  `NotImplementedError` fallback path, sets `sys.frozen`, and injects a raising
+  `ctypes.WINFUNCTYPE` via `patch.dict` so the complete-failure branch logs an error.
+  Deterministic across repeated and reordered runs; leaves no `ctypes`/`sys` state behind.
+- `test_registered_without_pywin32` (REQ-001/REQ-003): marked `skipif` because successful
+  registration requires Windows-platform simulation — `ctypes.WINFUNCTYPE` and
+  `ctypes.windll` are gated on `os.name == "nt"` and absent on POSIX CI (verified against
+  `ctypes/__init__.py` line 112). Injecting them into global ctypes state proved
+  order-dependent/flaky, so it is recorded as a skip rather than a fragile test.
+
+Ruff clean; bandit findings are B101 (`assert_used`, Low severity), consistent with every
+other file under `tests/agent/`. Full agent suite: 3167 passed, 10 skipped, 0 failed — no
+regression (source unchanged; only a new test file added).
+
+## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Created `tests/agent/test_signal_handler.py` against real API (see outcome). |
+| 2 | Add or update tests per Validation plan | Done | — | — | 1 passed (REQ-002) + 1 skip (REQ-001/REQ-003). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | ruff clean; bandit B101 (Low); full agent suite 3167 passed / 0 failed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Out of scope per procedure. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
