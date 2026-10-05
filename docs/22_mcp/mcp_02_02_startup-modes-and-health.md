@@ -100,16 +100,16 @@ If `McpServerConfig.auth_token` is not empty:
 
 ## Response Truncation
 
-If the result exceeds 512 KB:
+If the result exceeds the response size limit (`MCP_MAX_RESPONSE_BYTES`):
 ``` text
 [TRUNCATED: {total:,} bytes total, showing {actual_visible:,} bytes]
 ```
 
 - `total_bytes` = original byte count (before truncation)
-- `actual_visible_bytes` = bytes actually displayed (may be less than 512 KB if a multi-byte UTF-8 character falls on the truncation boundary)
+- `actual_visible_bytes` = bytes actually displayed (may be less than the limit if a multi-byte UTF-8 character falls on the truncation boundary)
 - Implemented via the metadata-aware truncation method in `mcp_servers/server.py`
 
-**Note:** The suffix shows the `actual_visible_bytes`, not the set limit. For ASCII text, this is exactly 512 KB (524,288 bytes). For UTF-8 text containing multi-byte characters at the boundary, it may be slightly less.
+**Note:** The suffix shows the `actual_visible_bytes`, not the set limit. For ASCII text, this is exactly the limit. For UTF-8 text containing multi-byte characters at the boundary, it may be slightly less.
 
 **Important:** The `total_bytes` and `actual_visible_bytes` fields in the HTTP response metadata represent the size of the *original* dispatch output, not the truncated text itself. This allows clients to distinguish between short responses that do not require truncation and long responses that have been truncated.
 

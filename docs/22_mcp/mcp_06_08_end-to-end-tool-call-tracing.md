@@ -14,17 +14,17 @@ To trace a failed tool call through agent, transport, and server logs, follow th
 
 1. Find the `mcp_request_id` in the agent-side audit log:
     ```bash
-    jq 'select(.mcp_request_id == "<id>")' /opt/llm/logs/audit.log
+    jq 'select(.mcp_request_id == "<id>")' <log_dir>/audit.log
     ```
 2. Search for the same `request_id` field in the MCP server's audit log (JSON-lines format):
     ```bash
-    jq 'select(.request_id == "<id>")' /opt/llm/logs/audit.log
+    jq 'select(.request_id == "<id>")' <log_dir>/audit.log
     ```
 3. Search for the `X-Request-Id` response header in the specific server logs:
     ```bash
-    grep "<id>" /opt/llm/logs/github-mcp.log  # or relevant server log
+    grep "<id>" <log_dir>/github-mcp.log  # or relevant server log
     ```
-4. Check the health status of the `server_key` at that time in `/opt/llm/logs/agent.log`.
+4. Check the health status of the `server_key` at that time in `<log_dir>/agent.log`.
 5. If the health status has changed: check the current DEGRADED/UNAVAILABLE state and `health_reason` via `/mcp status`. Note that automatic restarts are not performed (for subprocess-mode servers, `ensure_ready()` will only attempt a restart during the next tool dispatch).
 
 ---
@@ -45,10 +45,10 @@ Example audit log line:
 Filter by error type:
 ```bash
 # Transport failures (server issues)
-grep '"error_type":"transport"' /opt/llm/logs/audit.log
+grep '"error_type":"transport"' <log_dir>/audit.log
 
 # Tool-level failures (business logic errors)
-grep '"error_type":"tool"' /opt/llm/logs/audit.log
+grep '"error_type":"tool"' <log_dir>/audit.log
 ```
 
 ## Per-Server Error Counters
@@ -66,10 +66,10 @@ These counters are kept in memory only (not persisted) and are reset upon agent 
 
 ## Detecting Repeated Failures
 
-If a tool fails 3 or more times within a 5-minute sliding window, a warning is logged:
+If a tool fails repeatedly within a sliding window, a warning is logged (threshold and window are defined in code):
 
 ``` text
-WARNING: Repeated tool failures detected: shell_run failed 3 times in 300s window
+WARNING: Repeated tool failures detected: shell_run failed <N> times in <W>s window
 ```
 
 > **Note:** `McpServerHealthRegistry` (`shared/mcp_health.py`) only tracks transport availability. Tool-layer errors (`error_type=tool`) do not affect the HealthRegistry state — only transport failures (`error_type=transport`) affect the server's health state.

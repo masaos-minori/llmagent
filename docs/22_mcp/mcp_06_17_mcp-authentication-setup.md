@@ -38,7 +38,7 @@ follow the Production-Only Migration Procedure in the deployment document.
 
 - Check startup logs for missing or mismatched authentication tokens
   - Verify there are no errors regarding authentication failure during startup.
-  - For servers that now require authentication, check transport layer errors in `/opt/llm/logs/agent.log`.
+  - For servers that now require authentication, check transport layer errors in `<log_dir>/agent.log`.
 
 ### Troubleshooting
 

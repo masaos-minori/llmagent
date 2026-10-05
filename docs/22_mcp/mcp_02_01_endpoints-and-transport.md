@@ -27,7 +27,7 @@ To document the shared MCP protocol. It covers HTTP formats, common types, authe
 | `/v1/tools` | GET | List available tools and descriptions |
 | `/health` | GET | Health check |
 
-All 10 servers expose these endpoints. The `/health` response varies by server (see [Server-specific health](./mcp_02_02_startup-modes-and-health.md)).
+All servers expose these endpoints. The `/health` response varies by server (see [Server-specific health](./mcp_02_02_startup-modes-and-health.md)).
 
 ---
 
@@ -140,7 +140,7 @@ All MCP servers inherit from `MCPServer`.
 | `server_name` | `str` | `"web-search-mcp"` |
 | `server_version` | `str` | `"3.0.0"` |
 | `http_host` | `str` | `"127.0.0.1"` |
-| `http_port` | `int` | `8004` |
+| `http_port` | `int` | Port number (see `config/agent.toml`) |
 | `app_module` | `str` | `"mcp_servers.<name>.server:app"` (all servers use dotted path convention) |
 | `mcp_tools` | `list[dict]` | Tool definitions list |
 
@@ -153,7 +153,7 @@ All MCP servers inherit from `MCPServer`.
 | `list_tools_with_server_key() -> list[dict[str, object]]` | Tool metadata including `server_key`; used by `/v1/tools` endpoint |
 | `health() -> tuple[dict[str, object], int]` | Returns `(health_dict, http_status_code)`. HTTP Status: 200 if `ready=True`, 503 if `ready=False`. Health dict: `{"status": "ok"/"degraded", "ready": bool, "liveness": bool, "restart_recommended": bool, "operator_action_required": bool, "dependencies": dict, "details": dict}`. Overridden by each server (e.g., github adds `github_token` to `dependencies`, mdq adds `service` to `details`). |
 
-The base class `health()` implementation has fixed `deps={}` and always returns `status="ok"`, `ready=True`, `restart_recommended=False`, `operator_action_required=False` unless overridden (Explicit in code). In practice, all 10 MCP servers implement `/health` individually, using either the `mcp_servers/health_response.py` `make_health_response(deps, details)` helper (for file/git/github/shell/rag_pipeline/cicd/web_search series) or custom implementations (for mdq, file-read/write/delete series) (Explicit in code). See [mcp_02_02](./mcp_02_02_startup-modes-and-health.md) for details.
+The base class `health()` implementation has fixed `deps={}` and always returns `status="ok"`, `ready=True`, `restart_recommended=False`, `operator_action_required=False` unless overridden (Explicit in code). In practice, every MCP server implements `/health` individually, using either the `mcp_servers/health_response.py` `make_health_response(deps, details)` helper (for file/git/github/shell/rag_pipeline/cicd/web_search series) or custom implementations (for mdq, file-read/write/delete series) (Explicit in code). See [mcp_02_02](./mcp_02_02_startup-modes-and-health.md) for details.
 
 | `run_http() -> None` | Starts uvicorn HTTP server. Raises `ValueError` before binding if `http_host` is not `"127.0.0.1"` or `"::1"` — every internal MCP server binds to loopback only, with no override. Also verifies the actual bound socket address is loopback immediately after startup (defense-in-depth, independent of the pre-bind check). |
 | `attach_auth_middleware(app, token) -> None` | Wires a Starlette middleware that rejects requests without a matching `Authorization: Bearer <token>` header with HTTP 401. An empty `token` disables enforcement (accept-all) at this middleware level, but this is not a supported production configuration: `McpServerConfig`'s own construction-time validation and `agent.startup_validation`'s "MCP authentication check" both reject an empty `auth_token` before the agent ever calls a server with one. |

@@ -76,17 +76,19 @@ The "Tier" column does not exist within the `scripts/mcp_servers/git/` directory
 **Health:** If git is found: `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; if not found: `{"status":"degraded","ready":false,"dependencies":{"git":"git not found in PATH"/"check failed"}}` — returns HTTP 200 when ready, and 503 when degraded.
 **Configuration:**
 
-| Key | Default | Notes |
-|---|---|---|
-| `allowed_repo_paths` | `[]` | fail-closed; empty = reject all; paths are resolved via `Path.resolve()` |
-| `read_only` | `true` | Unless explicitly set to false, all write tools return `[DENIED]` |
-| `max_log_entries` | `50` | Limit on `git_log` entries |
-| `auth_token` | `""` | Bearer token for MCP server call authentication |
-| `protected_branches` | `[]` | branches rejected for `git_checkout`/`git_pull`/`git_push`; empty = none protected |
+| Key | Notes |
+|---|---|
+| `allowed_repo_paths` | fail-closed; empty = reject all; paths are resolved via `Path.resolve()` |
+| `read_only` | Unless explicitly set to false, all write tools return `[DENIED]` |
+| `max_log_entries` | Limit on `git_log` entries |
+| `auth_token` | Bearer token for MCP server call authentication |
+| `protected_branches` | branches rejected for `git_checkout`/`git_pull`/`git_push`; empty = none protected |
+
+Current default values are defined in `config/git_mcp_server.toml`.
 
 **Note:** `audit_log_path` is not set in `config/git_mcp_server.toml`, and git operations are not logged to a configured path. The `GitConfig.audit_log_path` field (default "") remains in `git_models.py` but has no effect.
 
-**Note:** `git_show` is truncated at 8000 characters. The `inputSchema` for `git_log` sets `max_entries=20` as its own default, which differs from the config's `max_log_entries` value shown in the table above.
+**Note:** `git_show` output is truncated at a fixed character limit. The `inputSchema` for `git_log` sets `max_entries` with its own default, which differs from the config's `max_log_entries` value shown in the table above.
 
 ### Implementation Notes
 
@@ -103,7 +105,7 @@ See also: `security_02_high-risk-tool-common-policy.md` Layered protection model
 
 Agent-side approval confirms user intent; it does not verify that a `git_checkout`/`git_pull`/`git_push` call is technically safe. Git MCP MUST enforce its own technical constraints independently of Agent-side approval. Today it only partially does so — this section states current behavior plainly and separates it from target policy.
 
-### Common guard (implemented)
+### Common guard
 
 `GitSecurityGuards` (mixin on `GitService`) enforces, for every write tool: repository-path authorization against `allowed_repo_paths` (resolved via `Path.resolve()` before comparison, so symlink- and traversal-based escapes are rejected) and `read_only` rejection. Both checks run before dispatch to the tool handler, for all five write tools uniformly (Explicit in code). Additionally, `WriteProtectionPipeline.verify_authorization()` in `repository_state.py` performs a second-stage check of protected-branch status and ref validity using the `RepositoryState` captured during `_run_tool()`.
 

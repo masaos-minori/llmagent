@@ -69,20 +69,20 @@ Application settings specific to each MCP server:
 
 ## Server Catalog
 
-Configuration, tools, security settings, and operational notes per server $\rightarrow$ [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md) (the canonical catalog).
+Ports are configured per server in `config/agent.toml` (`mcp_servers`). Configuration, tools, security settings, and operational notes per server $\rightarrow$ [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md) (the canonical catalog).
 
-| Server | Port | Transport | Startup Mode | Tool Count | Role |
-|---|---|---|---|---|---|
-| web-search-mcp | 8004 | HTTP | subprocess | 2 (Updated: 1 -> 2 due to browser_fetch integration) | Web Search (DuckDuckGo) |
-| file-read-mcp | 8005 | HTTP | subprocess | 9 | Local File Reading |
-| github-mcp | 8006 | HTTP | subprocess | 21 | GitHub API |
-| file-write-mcp | 8007 | HTTP | subprocess | 4 | Local File Writing |
-| file-delete-mcp | 8008 | HTTP | subprocess | 2 | Local File Deletion |
-| shell-mcp | 8009 | HTTP | subprocess | 1 | Sandboxed Shell Execution |
-| rag-pipeline-mcp | 8010 | HTTP | subprocess | 4 | RAG Search Pipeline |
-| cicd-mcp | 8012 | HTTP | subprocess | 4 | GitHub Actions CI/CD |
-| mdq-mcp | 8013 | HTTP | subprocess | 7 | Markdown Context Compression |
-| git-mcp | 8014 | HTTP | subprocess | 10 | Local Git Operations |
+| Server | Transport | Startup Mode | Role |
+|---|---|---|---|
+| web-search-mcp | HTTP | subprocess | Web Search (DuckDuckGo) |
+| file-read-mcp | HTTP | subprocess | Local File Reading |
+| github-mcp | HTTP | subprocess | GitHub API |
+| file-write-mcp | HTTP | subprocess | Local File Writing |
+| file-delete-mcp | HTTP | subprocess | Local File Deletion |
+| shell-mcp | HTTP | subprocess | Sandboxed Shell Execution |
+| rag-pipeline-mcp | HTTP | subprocess | RAG Search Pipeline |
+| cicd-mcp | HTTP | subprocess | GitHub Actions CI/CD |
+| mdq-mcp | HTTP | subprocess | Markdown Context Compression |
+| git-mcp | HTTP | subprocess | Local Git Operations |
 
 ---
 
@@ -157,10 +157,10 @@ MCP server processes (mcp_servers/<name>/server.py)
 
 | Constraint | Value | Source |
 |---|---|---|
-| Max response size | 512 KB (`MCP_MAX_RESPONSE_BYTES`) | `scripts/mcp_servers/server.py` |
+| Max response size | Fixed limit (`MCP_MAX_RESPONSE_BYTES`) | `scripts/mcp_servers/server.py` |
 | Auth header | `Authorization: Bearer <token>` (when `auth_token` is configured) | `scripts/mcp_servers/server.py` |
-| Health threshold | Default: 3 consecutive failures $\rightarrow$ UNAVAILABLE | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
-| Circuit breaker recovery | `UNAVAILABLE` auto-transitions to `HALF_OPEN` (a trial state allowing one request) after `half_open_cooldown_sec` (default 30s) on `is_unavailable()`. | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
+| Health threshold | Consecutive failures reaching `failure_threshold` $\rightarrow$ UNAVAILABLE | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
+| Circuit breaker recovery | `UNAVAILABLE` auto-transitions to `HALF_OPEN` (a trial state allowing one request) after `half_open_cooldown_sec` on `is_unavailable()`. | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
 
 ---
 

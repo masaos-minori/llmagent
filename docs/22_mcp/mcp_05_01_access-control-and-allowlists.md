@@ -31,9 +31,9 @@ To document a common security model across servers. It covers access control, al
 
 | Server | Control Mechanism | Default Policy |
 |---|---|---|
-| file-read-mcp | `allowed_dirs` | `["/opt/llm", "/opt/llm/storage"]` — Path jail |
-| file-write-mcp | `allowed_dirs` (write) | `["/opt/llm/storage"]` — Path jail |
-| file-delete-mcp | `allowed_dirs` | `["/opt/llm/storage"]` — Path jail |
+| file-read-mcp | `allowed_dirs` | Path jail restricted to configured directories |
+| file-write-mcp | `allowed_dirs` (write) | Path jail restricted to configured directories |
+| file-delete-mcp | `allowed_dirs` | Path jail restricted to configured directories |
 | github-mcp | `allowed_repos` | Fail-closed (empty = all writes denied) |
 | shell-mcp | `command_allowlist` + `shell_cwd_allowed_dirs` | Deny-all (both are empty by default) |
 | cicd-mcp | `repo_allowlist` + `workflow_allowlist` | Both: fail-closed |
@@ -47,7 +47,7 @@ To document a common security model across servers. It covers access control, al
 ### `allowed_dirs` (File Servers)
 
 ```toml
-# config/file_read_mcp_server.toml
+# config/file_read_mcp_server.toml (illustrative example values)
 allowed_dirs = ["/opt/llm", "/opt/llm/storage"]
 ```
 
@@ -58,7 +58,7 @@ allowed_dirs = ["/opt/llm", "/opt/llm/storage"]
 ### `allowed_repo_paths` (git-mcp)
 
 ```toml
-# config/git_mcp_server.toml
+# config/git_mcp_server.toml (illustrative example values)
 allowed_repo_paths = ["/opt/llm/myrepo"]
 ```
 

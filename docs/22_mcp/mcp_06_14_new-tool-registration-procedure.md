@@ -46,7 +46,7 @@ missing any of them, or failing validation, is rejected and excluded from the bu
 
 #### Query parameters
 
-`/v1/tools` accepts `include_disabled` (default `false`) and `disabled_code`; `disabled_code` is matched against `disabled_reason`. See `mcp_03_06_tool-runtime-availability-metadata.md`.
+`/v1/tools` accepts `include_disabled` (opt-in) and `disabled_code`; `disabled_code` is matched against `disabled_reason`. See `mcp_03_06_tool-runtime-availability-metadata.md`.
 
 When adding a new tool to an **existing** MCP server:
 

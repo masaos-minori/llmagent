@@ -19,7 +19,7 @@ related:
 
 ## Purpose
 
-Specifications for 10 MCP servers per server: purpose, port, tools, I/O, configuration, startup, security, logs, operational notes, and known limitations.
+Specifications for each MCP server: purpose, port, tools, I/O, configuration, startup, security, logs, operational notes, and known limitations.
 
 > **Note:** This document is a formal server catalog. For a system-level list of servers including ports and transport types, refer to [mcp_01_system_overview.md Server Catalog](mcp_01_system_overview.md).
 
@@ -35,15 +35,17 @@ Specifications for 10 MCP servers per server: purpose, port, tools, I/O, configu
 
 | Tool | Input | Output |
 |---|---|---|
-| `search_web` | `{query: str (1-500 chars, non-empty after trim), max_results?: int (1 to configured `max_results_limit`, hard limit `HARD_MAX_RESULTS_LIMIT=100`)}` | Header + N result blocks (title/URL/snippet) |
+| `search_web` | `{query: str (non-empty after trim, length-limited), max_results?: int (1 to configured `max_results_limit`, hard limit `HARD_MAX_RESULTS_LIMIT`)}` | Header + N result blocks (title/URL/snippet) |
 
 **Configuration Parameters:**
 
-| Key | Default | Description |
-|---|---|---|
-| `default_max_results` | `5` | Default number of results |
-| `max_results_limit` | `20` | Server-side limit (must be $\le$ `HARD_MAX_RESULTS_LIMIT=100`) |
-| `search_timeout_sec` | `10.0` | Timeout in seconds for provider calls (range: `(0, 60.0]`) |
+| Key | Description |
+|---|---|
+| `default_max_results` | Default number of results |
+| `max_results_limit` | Server-side limit (must be $\le$ `HARD_MAX_RESULTS_LIMIT`) |
+| `search_timeout_sec` | Timeout in seconds for provider calls (range: `(0, 60.0]`) |
+
+Current default values are defined in `config/web_search_mcp_server.toml` and the owning config class.
 
 **Note:** The above two keys are directly reflected in `SearchRequest.max_results` in `mcp_servers/web_search/web_search_github_models.py` (Pydantic `Field`'s `ge`/`le`/default value) via `WebSearchConfig.load()` which is loaded during module import (following the existing `_cfg: WebSearchConfig = WebSearchConfig.load()` pattern in `web_search_server.py`).
 
@@ -61,12 +63,14 @@ Specifications for 10 MCP servers per server: purpose, port, tools, I/O, configu
 
 **Configuration Parameters (Integrated into `config/web_search_mcp_server.toml`):**
 
-| Key | Default | Description |
-|---|---|---|
-| `browser_allowed_domains` | `[]` | fail-closed; empty = all domains denied (exact host match) |
-| `browser_max_response_kb` | `256` | Limit for extracted text size. If exceeded, text is truncated and `truncated=true` is set. |
-| `browser_timeout_sec` | `15` | Timeout for fetch requests |
-| `browser_auth_token` | `""` | Bearer token for `browser_fetch` calls only (independent of `search_web`) |
+| Key | Description |
+|---|---|
+| `browser_allowed_domains` | fail-closed; empty = all domains denied (exact host match) |
+| `browser_max_response_kb` | Limit for extracted text size. If exceeded, text is truncated and `truncated=true` is set. |
+| `browser_timeout_sec` | Timeout for fetch requests |
+| `browser_auth_token` | Bearer token for `browser_fetch` calls only (independent of `search_web`) |
+
+Current default values are defined in `config/web_search_mcp_server.toml` and the owning config class.
 
 **Implementation Details (browser_fetch):**
 
@@ -116,17 +120,17 @@ Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty
 | `grep_files` | `{path, pattern, file_pattern?, max_matches?}` |
 | `get_file_info` | `{path}` |
 
-**Configuration Fields:** `allowed_dirs`, `max_read_bytes` (default: 1,000,000), `max_tree_depth` (default: 5), `max_search_results` (default: 200)
+**Configuration Fields:** `allowed_dirs`, `max_read_bytes`, `max_tree_depth`, `max_search_results`
 
 **Health:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — HTTP 200 when ready, HTTP 503 when degraded.
 **Error Codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
-**Logs:** `/opt/llm/logs/file-read-mcp.log`
+**Logs:** `<log_dir>/file-read-mcp.log`
 **Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): None / Layer3 (Dedicated): None — Does not write audit logs
 **Additional Endpoints:** `GET /list_allowed_directories` (Not an MCP tool)
 
 ### Implementation Details (file-read-mcp)
 
-- `FileReadConfig.from_dict` (`read_github_models.py`) interprets TOML's `max_read_bytes` as **KB** (`max_file_size_kb = max_read_bytes // 1024`). For a default value of 1,000,000, the effective limit is `1,000,000 // 1024 * 1024 = 999,424` bytes, which strictly differs from the TOML value. [Explicit in code]
+- `FileReadConfig.from_dict` (`read_github_models.py`) interprets TOML's `max_read_bytes` as **KB** (`max_file_size_kb = max_read_bytes // 1024`). The effective limit is therefore `max_read_bytes // 1024 * 1024` bytes, which can differ from the TOML value when it is not a multiple of 1024. [Explicit in code]
 - Read-only errors are `FileAuthorizationError`(403) / `FileNotFoundError`(404) / `FileValidationError`(400 or 422 as registered in `read_web_search_server.py`'s 422 handler) in addition to `read_text_file` rejecting simultaneous `head`/`tail` arguments via Pydantic model validation (ValueError $\rightarrow$ FastAPI standard 422). [Explicit in code]
 
 ---
@@ -149,7 +153,7 @@ The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server 
 **Write Operations (9 items) are subject to repository allowlist:**
 `github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`, `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request`
 
-**Configuration Fields:** `max_per_page` (100), `allowed_repos`, `protected_branches` (fnmatch pattern), `path_denylist` (fnmatch pattern), `max_file_size_kb` (1024 KB), `allow_force_push` (false), `require_pr_review` (true), `audit_log_path`
+**Configuration Fields:** `max_per_page`, `allowed_repos`, `protected_branches` (fnmatch pattern), `path_denylist` (fnmatch pattern), `max_file_size_kb`, `allow_force_push`, `require_pr_review`, `audit_log_path`
 
 **Note:** `default_per_page` is not a configuration key of `config/github_mcp_server.toml`. The default count for listing endpoints is module constant `DEFAULT_PER_PAGE` (`github_models_config.py`) which each request model references directly (not configurable). `max_per_page` is used as `self._max_per_page` for clamping `per_page` values and is a valid configuration.
 
@@ -158,13 +162,13 @@ The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server 
 - `protected_branches` (fnmatch pattern)
 - `path_denylist` (fnmatch pattern)
 - `max_file_size_kb` (0 = unlimited)
-- `allow_force_push` (default `false`; set to `true` to allow force-push and rebase merges)
-- `require_pr_review` (default `true`; set to `false` to allow merging without review)
+- `allow_force_push` (disabled unless set to `true`, which allows force-push and rebase merges)
+- `require_pr_review` (review required unless set to `false`, which allows merging without review)
 
 **Domain Exceptions** (defined in `scripts/mcp_servers/github/github_models_config.py`, re-exported in `github_models.py`): `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403), `GitHubConflictError` (409), `GitHubValidationError` (400), `GitHubUpstreamError` (502), `GitHubAuditError` (500)
 
 **Health:** Token configured: `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; Unset: `{"status":"degraded","ready":false,"dependencies":{"github_token":"not_set"}}` — HTTP 200 when ready, HTTP 503 when degraded.
-**Logs:** `/opt/llm/logs/github-mcp.log`
+**Logs:** `<log_dir>/github-mcp.log`
 **Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): `mcp_tool_exec` / Layer3 (Dedicated): `github_audit.log`
 
 ### Implementation Details (github-mcp)

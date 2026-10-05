@@ -90,8 +90,8 @@ Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recov
 
 `McpServerHealthRegistry` in `shared/mcp_health.py` is an independent circuit breaker that tracks consecutive failures per server and gates dispatching.
 
-- `record_failure()` increments the failure count; when it reaches `failure_threshold` (default 3), the state becomes `UNAVAILABLE`.
-- `is_unavailable()` is not just a simple getter. After transitioning to `UNAVAILABLE`, once `half_open_cooldown_sec` (default 30 seconds) has passed, it transitions to `HALF_OPEN` without notifying the caller, allowing exactly one trial call (which returns `False`).
+- `record_failure()` increments the failure count; when it reaches `failure_threshold`, the state becomes `UNAVAILABLE`.
+- `is_unavailable()` is not just a simple getter. After transitioning to `UNAVAILABLE`, once `half_open_cooldown_sec` has passed, it transitions to `HALF_OPEN` without notifying the caller, allowing exactly one trial call (which returns `False`).
 - A failure during `HALF_OPEN` immediately reverts the state to `UNAVAILABLE` and resets the cooldown.
 - `record_success()` restores the state to `HEALTHY` and clears the failure count and degraded reason.
 

@@ -19,16 +19,16 @@ source:
 
 ```bash
 # Individual server health checks (all return 4-field nested format)
-curl -s http://127.0.0.1:8004/health | jq   # web-search: base response only
-curl -s http://127.0.0.1:8005/health | jq   # file-read: dependencies.filesystem
-curl -s http://127.0.0.1:8006/health | jq   # github: dependencies.github_token
-curl -s http://127.0.0.1:8007/health | jq   # file-write: dependencies.filesystem
-curl -s http://127.0.0.1:8008/health | jq   # file-delete: dependencies.filesystem
-curl -s http://127.0.0.1:8009/health | jq   # shell: dependencies.shell, details.sandbox_backend
-curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: dependencies.embed_url
-curl -s http://127.0.0.1:8012/health | jq   # cicd: dependencies.github_token
-curl -s http://127.0.0.1:8013/health | jq   # mdq: details.service
-curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
+curl -s http://127.0.0.1:<web_search_port>/health | jq   # web-search: base response only
+curl -s http://127.0.0.1:<file_read_port>/health | jq   # file-read: dependencies.filesystem
+curl -s http://127.0.0.1:<github_port>/health | jq   # github: dependencies.github_token
+curl -s http://127.0.0.1:<file_write_port>/health | jq   # file-write: dependencies.filesystem
+curl -s http://127.0.0.1:<file_delete_port>/health | jq   # file-delete: dependencies.filesystem
+curl -s http://127.0.0.1:<shell_port>/health | jq   # shell: dependencies.shell, details.sandbox_backend
+curl -s http://127.0.0.1:<rag_pipeline_port>/health | jq   # rag-pipeline: dependencies.embed_url
+curl -s http://127.0.0.1:<cicd_port>/health | jq   # cicd: dependencies.github_token
+curl -s http://127.0.0.1:<mdq_port>/health | jq   # mdq: details.service
+curl -s http://127.0.0.1:<git_port>/health | jq   # git: dependencies.git
 
 # Base response shape: {"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}
 ```
@@ -42,7 +42,7 @@ The mcp subcommand's `status` action (`McpStatusService.probe_all()`) reads both
 
 ```bash
 # Check HTTP status code (not just body)
-curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8006/health   # 200 if healthy, 503 if degraded
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:<github_port>/health   # 200 if healthy, 503 if degraded
 ```
 
 ### Example Health Probe Responses
@@ -79,15 +79,15 @@ Other servers share the same `degraded` response shape (`status`/`ready`/`livene
 
 | Server (Port) | `dependencies` Example | Meaning |
 |---|---|---|
-| rag-pipeline-mcp (8010) | `{"embed_url": "not configured"}` | Embedding URL not configured |
-| github-mcp (8006) | `{"github_token": "not_set"}` | GitHub token not set |
-| mdq-mcp (8013) | `{"db_file": "not found: /opt/llm/db/mdq.sqlite"}` | Database file not found |
-| git-mcp (8014) | `{"git": "git not found in PATH"}` | Git not found in PATH |
+| rag-pipeline-mcp | `{"embed_url": "not configured"}` | Embedding URL not configured |
+| github-mcp | `{"github_token": "not_set"}` | GitHub token not set |
+| mdq-mcp | `{"db_file": "not found: <db_path>"}` | Database file not found |
+| git-mcp | `{"git": "git not found in PATH"}` | Git not found in PATH |
 
 ## Verification via /v1/tools
 
 ```bash
-curl -s http://127.0.0.1:8005/v1/tools | jq '.tools[].name'
+curl -s http://127.0.0.1:<file_read_port>/v1/tools | jq '.tools[].name'
 ```
 
 ## Checking in Agent REPL

@@ -56,17 +56,17 @@ secret in the TOML file — see the Production-Only Migration Procedure for the 
 
 ## Output and Resource Limits
 
-| Limit | Default | Server |
+| Limit | Source | Server |
 |---|---|---|
-| Max response bytes | 512 KB (`MCP_MAX_RESPONSE_BYTES = 524288`) | All servers (truncated) |
-| Max shell output | 4096 KB (config) | shell-mcp |
-| Max shell memory | 512 MB (`RLIMIT_AS`) | shell-mcp |
-| Max shell timeout | 300 seconds (config) | shell-mcp |
-| `git_show` max chars | 8,000 characters | git-mcp |
-| cicd log limit | 256 KB / 5 jobs | cicd-mcp |
-| Max file read | 1 MB (config) | file-read-mcp |
-| Max file write | 1 MB (config) | file-write-mcp |
-| GitHub per_page | 100 (config) | github-mcp |
+| Max response bytes | `MCP_MAX_RESPONSE_BYTES` | All servers (truncated) |
+| Max shell output | config (`max_output_kb`) | shell-mcp |
+| Max shell memory | config (`max_memory_mb`, `RLIMIT_AS`) | shell-mcp |
+| Max shell timeout | config (`max_timeout_sec`) | shell-mcp |
+| `git_show` max chars | fixed code limit | git-mcp |
+| cicd log limit | config (`max_log_size_kb`) and fixed job limit | cicd-mcp |
+| Max file read | config (`max_read_bytes`) | file-read-mcp |
+| Max file write | config (`max_write_bytes`) | file-write-mcp |
+| GitHub per_page | config (`max_per_page`) | github-mcp |
 
 ---
 
@@ -87,7 +87,7 @@ shell_sandbox_backend = "firejail"  # RuntimeError at startup if binary missing
 - `"firejail"`: Prepends `["firejail", "--private", "--net=none", "--noroot", "--"]` to `argv`.
 - `"none"`: No sandbox; only `RLIMIT_*` resource limits applied.
 
-**Startup Enforcement** (added in plan 20260626-091916):
+**Startup Enforcement**:
 - If `backend == "firejail"` and `shutil.which("firejail")` returns `None` $\rightarrow$ `RuntimeError` at startup.
 - If `backend != "firejail"` and `backend != "none"` $\rightarrow$ WARNING at startup.
 - If `backend == "none"` $\rightarrow$ `RuntimeError`, regardless of environment.

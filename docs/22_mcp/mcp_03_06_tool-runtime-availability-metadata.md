@@ -103,7 +103,7 @@ For end-to-end tracing of how `disabled_reason` flows into `/mcp status`, see al
 
 **Note:** Top-level `capabilities` (on the response body, not per-tool) is not returned by `build_tools_response()`, which returns only `schema_version` and `tools`.
 
-All MCP servers' `list_tools()` handlers accept `include_disabled` and `disabled_code` and pass them through to `mcp_servers/server.py::build_tools_response()`. `include_disabled` defaults to `false`: `GET /v1/tools` omits tools with `enabled=False` unless `include_disabled=true` is passed.
+All MCP servers' `list_tools()` handlers accept `include_disabled` and `disabled_code` and pass them through to `mcp_servers/server.py::build_tools_response()`. `include_disabled` is opt-in: `GET /v1/tools` omits tools with `enabled=False` unless `include_disabled=true` is passed.
 
 `disabled_code`, when provided, is compared against each tool's `disabled_reason` string (the values in section 3); no separate machine-readable enum exists. Because disabled tools are already omitted by default, `disabled_code` is only meaningful together with `include_disabled=true`. `disabled_reason` strings are therefore effectively part of the programmatic contract for this filter.
 

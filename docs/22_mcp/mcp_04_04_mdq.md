@@ -23,9 +23,9 @@ related:
 **Configuration:** `config/mdq_mcp_server.toml`
 
 **Tools:** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
-**Tool Status:** All 7 tools are in `production` (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`). **Operational Scope:** Supports only FTS5 (BM25) based structural Markdown search. Hybrid/semantic search configuration and code have been removed (see below).
+**Tool Status:** All tools are in `production` (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`). **Operational Scope:** Supports only FTS5 (BM25) based structural Markdown search. Hybrid/semantic search configuration and code have been removed (see below).
 
-**Configuration Fields:** `allowed_dirs`, `db_path`, `include_globs`, `exclude_globs`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars`, `max_results_limit`, `max_chars_per_chunk`, `max_total_result_chars`, `max_outline_items`, `max_grep_matches`, `search_timeout_sec`, `enable_grep`, `max_chars_per_match` (default 500), `context_before` (default 2), `context_after` (default 2), `max_outline_depth` (default 6), `sqlite_busy_timeout` (default 5000)
+**Configuration Fields:** `allowed_dirs`, `db_path`, `include_globs`, `exclude_globs`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars`, `max_results_limit`, `max_chars_per_chunk`, `max_total_result_chars`, `max_outline_items`, `max_grep_matches`, `search_timeout_sec`, `enable_grep`, `max_chars_per_match`, `context_before`, `context_after`, `max_outline_depth`, `sqlite_busy_timeout`
 
 **Enforced keys:** `include_globs`, `exclude_globs`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars` and `search_timeout_sec` are enforced as follows:
 - `include_globs` / `exclude_globs`: The indexing scan function applies these glob patterns across all four indexing scans.
@@ -36,9 +36,9 @@ related:
 
 **Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns more fields than the basic response (refer to [mcp_06 Health probes](mcp_06_06_verification-methods.md#health-probes)).
 
-**DB Path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
-**Logs:** `/opt/llm/logs/mdq-mcp.log`
-**Audit:** Layer1 (Agent/MCP shared): tool_exec / Layer2 (Shared MCP): mcp_tool_exec / Layer3 (Dedicated): None — recorded via `_audit_log()` to the shared audit log (`/opt/llm/logs/audit.log`) in JSON-lines format.
+**DB Path:** (`config/mdq_mcp_server.toml`: `db_path`)
+**Logs:** `<log_dir>/mdq-mcp.log`
+**Audit:** Layer1 (Agent/MCP shared): tool_exec / Layer2 (Shared MCP): mcp_tool_exec / Layer3 (Dedicated): None — recorded via `_audit_log()` to the shared audit log (`<log_dir>/audit.log`) in JSON-lines format.
 
 **Note:** mdq-mcp has no dedicated audit log or `audit_log_path` configuration key; audit events are recorded in the shared audit log via `_audit_log()` with `server_key="mdq"`.
 

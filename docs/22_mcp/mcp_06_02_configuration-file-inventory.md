@@ -44,7 +44,7 @@ for the full explanation.
 
 **`cmd` script-path invariant:** for every `[mcp_servers.<name>]` entry with
 `startup_mode = "subprocess"`, the last element of `cmd` must point to a
-script that actually exists on disk (relative to `/opt/llm/scripts/` in
+script that actually exists on disk (relative to the deployed scripts directory in
 production, `scripts/` in this repo) — `ConfigLoader`/`_build_mcp_servers()`
 do not verify this at load time, so a stale or renamed path silently loads
 without error until the subprocess is spawned.

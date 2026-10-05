@@ -33,7 +33,7 @@ result = await transport.call("tool_name", {"arg": "val"})
 - **Retries:** Retries are performed on HTTP 429/502/503/504 and on non-timeout `httpx.RequestError` (e.g. connection errors). The number of attempts is bounded by `HttpTransport._RETRY_MAX`. The delay between attempts for retryable HTTP statuses increases exponentially (`2**attempt` seconds); no sleep follows the last attempt. Only the final result (success or `TransportError` after all retries exhausted) is recorded in the HealthRegistry. The `TransportError` message (`"[Retry exhausted] ..."`) includes the tool name, the last retryable HTTP status (if any), and the attempt count; raw response bodies are not included.
 - **Non-retryable errors:** HTTP timeouts (`httpx.TimeoutException`) and `HTTPStatusError` for status codes other than 429/502/503/504 are propagated immediately without retries.
 - **Tool-level vs. Transport-level errors:** Tool-level errors (`error_type == "tool"`) are treated as successful transport calls, triggering `record_success()` and incrementing the `stat_tool_errors` counter. Transport-level errors trigger `record_failure()` and increment the `stat_transport_errors` counter. Both counters are tracked independently.
-- **Response Parsing:** `HttpTransport._parse_http_response()` uses `parse_http_json(resp)` (defined in `shared/json_utils.py`) to decode JSON data from an `httpx.Response`. Previously, `orjson.loads(resp.content)` was used directly.
+- **Response Parsing:** `HttpTransport._parse_http_response()` uses `parse_http_json(resp)` (defined in `shared/json_utils.py`) to decode JSON data from an `httpx.Response`.
 
 ---
 
@@ -48,7 +48,7 @@ Created within `_build_tool_executor()` (factory.py), this is a per-server failu
 ``` text
 HEALTHY ──(failure × threshold)──→ UNAVAILABLE
    ↑                                    │
-   │                            (cooldown 30s elapsed)
+   │                            (cooldown elapsed)
    │                                    ↓
    └──(record_success)────────── HALF_OPEN (trial probe)
                                          │
@@ -58,9 +58,9 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 | State | Condition |
 |---|---|
 | `HEALTHY` | No failures, or after a successful call |
-| `DEGRADED` | number of failures < threshold (default 3) |
+| `DEGRADED` | number of failures < threshold |
 | `UNAVAILABLE` | number of failures ≥ threshold; dispatch is blocked |
-| `HALF_OPEN` | After 30s cooldown; allows one trial dispatch |
+| `HALF_OPEN` | After the cooldown; allows one trial dispatch |
 
 | Method | Description |
 |---|---|
@@ -69,8 +69,8 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 | `get_state(server_key)` | Current state; returns `HEALTHY` for unknown keys |
 | `is_unavailable(server_key)` | Returns `True` if `UNAVAILABLE` and cooldown has not yet elapsed; side effect: transitions to `HALF_OPEN` when cooldown expires |
 
-**Constructor:** `McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=30.0)`
-- `half_open_cooldown_sec`: Seconds until trial dispatch is allowed after entering `UNAVAILABLE` (default 30s, fixed value — not exponential backoff).
+**Constructor:** `McpServerHealthRegistry(failure_threshold, half_open_cooldown_sec)` (defaults in `shared/mcp_health.py`)
+- `half_open_cooldown_sec`: Seconds until trial dispatch is allowed after entering `UNAVAILABLE` (fixed value — not exponential backoff).
 
 **Shared Wiring:** This registry is created once and consumed in multiple places — writing side is `ToolTransportInvoker` (`record_failure`/`record_success`), reading side is `/mcp status` (`McpStatusService.probe_all()`, `get_state`). Created during the tool executor build process in `factory.py`, an instance of `McpServerHealthRegistry()` is generated and injected into `ToolTransportInvoker` via `set_health_registry()`, and the same object is also stored in `AppServices.health_registry`. As a result, dispatch gating (`is_unavailable()`) recognizes transport layer failure records without synchronization lag. Note: Replacing or rebuilding the registry object (e.g., if a future refactor creates a second `McpServerHealthRegistry()`) would cause asynchrony between writers and readers, breaking dispatch gating consistency — consider this constraint in future changes.
 
