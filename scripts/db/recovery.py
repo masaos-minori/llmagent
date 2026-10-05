@@ -411,7 +411,7 @@ def recover_corruption(
 
     # Domain policy check — moved here, before _run_integrity_check()
     if target in ("workflow", "eventbus"):
-        # ADR-011 Requirement #6: workflow/eventbus require explicit decision
+        # ADR-008 recovery policy: workflow/eventbus require an explicit operator decision
         return RecoveryResult(
             success=False,
             action="no_recovery_allowed",
