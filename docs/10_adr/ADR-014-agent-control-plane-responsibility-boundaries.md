@@ -15,7 +15,11 @@ related:
 # ADR-014: Responsibility Boundaries of the Agent Control Plane
 
 ## Keywords
-<placeholder>
+
+agent control plane
+responsibility boundaries
+orchestrator
+workflow engine
 
 ## Status
 

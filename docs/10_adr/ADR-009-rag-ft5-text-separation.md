@@ -25,21 +25,15 @@ superseded_by: null
 # ADR-009: Separating RAG FTS5 Search Text from LLM Presentation Text
 
 ## Keywords
-<placeholder>
+
+rag
+fts5
+text separation
+chunks
 
 ## Status
 
 Accepted
-
-The available Status values are as follows.
-
-- `Proposed`: Under proposal; before review or approval
-- `Accepted`: Adopted and effective as the current design
-- `Rejected`: Considered but not adopted
-- `Deprecated`: No longer recommended, but partially remaining
-- `Superseded`: Replaced by a successor ADR
-
-To change the decision after acceptance, do not edit the body directly; create a new ADR and change this ADR to Superseded.
 
 ## Summary
 
@@ -261,8 +255,8 @@ None
 ### Retry Policy
 
 - Retry target: ingestion failures
-- Retry count: `retry_policy.max_attempts` (default 3)
-- Backoff: fixed interval (default 1 second)
+- Retry count: bounded by `retry_policy.max_attempts`
+- Backoff: fixed interval
 - Errors not retried: consistency-check mismatches
 
 If not applicable, write "Not applicable".
@@ -371,9 +365,9 @@ Record any discrepancy between this ADR and the current implementation, configur
 - **Whitelist**: 
   - `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()` — sanctioned `/session rag-rebuild-fts` command path
   - `scripts/db/schema_sql.py` — schema initialization SQL (executed once during setup, not runtime)
-- **Excluded**: `scripts/mcp_servers/mdq/` — targets separate database `/opt/llm/db/mdq.sqlite`, out of ADR-009 scope
+- **Excluded**: `scripts/mcp_servers/mdq/` — targets a separate mdq database, out of ADR-009 scope
 - **Enforcement**: `tools/check_chunks_fts_invariant.py` detects direct INSERT/UPDATE (integrated into CI)
-  - Whitelist: `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()` (AST function-context detection), `scripts/db/schema_sql.py` (INSERTs inside CREATE TRIGGER blocks are excluded because they are not runtime writes), `scripts/mcp_servers/mdq/` (targets a separate DB, `/opt/llm/db/mdq.sqlite`)
+  - Whitelist: `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()` (AST function-context detection), `scripts/db/schema_sql.py` (INSERTs inside CREATE TRIGGER blocks are excluded because they are not runtime writes), `scripts/mcp_servers/mdq/` (targets a separate DB)
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -432,10 +426,6 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - [Ingestion Pipeline - Crawler](../21_rag/rag_02_02_ingestion_pipeline-crawler.md) — Crawler details
 - [Ingestion Pipeline - ChunkSplitter](../21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md) — ChunkSplitter details
 - [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — configuration reference
-
-### Operations
-
-<!-- TODO: Document 'rag_05_6-rag-operations.md' was deleted -->
 
 ### Known Issues
 

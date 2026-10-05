@@ -27,21 +27,15 @@ superseded_by: null
 # ADR-007: Adoption of HTTP MCP and Non-Support of stdio
 
 ## Keywords
-<placeholder>
+
+mcp
+http transport
+stdio
+health check
 
 ## Status
 
 Accepted
-
-The available Status values are as follows.
-
-- `Proposed`: Under proposal; before review or approval
-- `Accepted`: Adopted and effective as the current design
-- `Rejected`: Considered but not adopted
-- `Deprecated`: No longer recommended, but partially remaining
-- `Superseded`: Replaced by a successor ADR
-
-To change the decision after acceptance, do not edit the body directly; create a new ADR and change this ADR to Superseded.
 
 ## Summary
 
@@ -267,7 +261,7 @@ None
 ### Retry Policy
 
 - Retry target: HTTP 429/502/503/504
-- Retry count: up to 3
+- Retry count: bounded
 - Backoff: increasing delay between attempts (`scripts/shared/http_transport.py`)
 - Errors not retried: timeouts, other HTTP status codes
 
@@ -421,10 +415,6 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - [Configuration File Inventory](../22_mcp/mcp_06_02_configuration-file-inventory.md) — list of configuration files
 - [Long-running HTTP Operation Startup Mode/Subprocess](../22_mcp/mcp_06_05_long-running-http-operation-startup_modesubprocess.md) — startup modes for HTTP operation
 - [New MCP Server Addition Checklist](../22_mcp/mcp_06_15_new-mcp-server-addition-checklist.md) — checklist for adding an MCP server
-
-### Operations
-
-<!-- TODO: Document 'mcp_05_7-mcp-operations.md' was deleted -->
 
 ### Known Issues
 

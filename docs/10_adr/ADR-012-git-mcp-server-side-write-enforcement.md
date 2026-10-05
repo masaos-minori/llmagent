@@ -17,18 +17,15 @@ related:
 # ADR-012: Git MCP Server-Side Write Enforcement
 
 ## Keywords
-<placeholder>
+
+git mcp
+write protection
+server-side enforcement
+protected branch
 
 ## Status
 
 Accepted
-
-The available Status values are as follows.
-
-- `Proposed`: Under proposal; before review or approval
-- `Accepted`: Adopted and effective as the current design
-
-To change the current decision after acceptance, update this ADR body directly. In the same change, update the affected Specification, Reference, and Operations documents and the verification requirements.
 
 ## Summary
 
@@ -196,11 +193,11 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 - **Test**: Postcondition verification runs on the live path and cannot be bypassed (`TestPostConditionBypassPrevention`: `test_checkout_postcondition_cannot_be_bypassed`, `test_pull_postcondition_cannot_be_bypassed`, `test_push_postcondition_cannot_be_bypassed`) — **Verifies**: Decision Details #6 — **Type**: Integration — **Blocking**: Yes
 - **Test**: `RepositoryState` is a frozen dataclass and snapshots capture the required fields (`test_snapshot_frozen_dataclass`, plus the `TestRepositoryStateSnapshot` suite) — **Verifies**: Decision Details #8 — **Type**: Unit — **Blocking**: Yes
 - **Test**: audit records include the correct repository identity and pre/post-condition state (`test_audit_record_includes_repo_identity`, `test_audit_record_has_pre_condition`, `test_audit_record_has_post_condition`) — **Verifies**: Decision Details #7, #10 — **Type**: Unit — **Blocking**: Yes
-- **Test**: all 9 pipeline stages execute in the documented order for `git_checkout`/`git_pull`/`git_push` (`TestCompletePipelineCoverage`: `test_all_stages_execute_in_order_for_checkout`, `test_all_stages_execute_in_order_for_pull`, `test_all_stages_execute_in_order_for_push`) — **Verifies**: Decision Details #9 — **Type**: Integration — **Blocking**: Yes
+- **Test**: all pipeline stages execute in the documented order for `git_checkout`/`git_pull`/`git_push` (`TestCompletePipelineCoverage`: `test_all_stages_execute_in_order_for_checkout`, `test_all_stages_execute_in_order_for_pull`, `test_all_stages_execute_in_order_for_push`) — **Verifies**: Decision Details #9 — **Type**: Integration — **Blocking**: Yes
 
 ### Resolved Items
 
-- **Resolved**: Protected-branch empty-branch short-circuit — resolved by commit `800aea33e` (fix `_validate_protected()` to reject empty `branch` argument).
+- **Resolved**: Protected-branch empty-branch short-circuit — fixed by `_validate_protected()` rejecting an empty `branch` argument.
 - **Resolved**: Audit `target` field key-name mismatch fixed.
 
 ## Implementation Notes

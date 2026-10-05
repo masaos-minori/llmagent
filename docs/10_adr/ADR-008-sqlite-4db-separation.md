@@ -23,6 +23,11 @@ related:
 
 ## Keywords
 
+sqlite
+database separation
+recovery policy
+backup
+
 ## Status
 
 Accepted
@@ -197,7 +202,7 @@ This section is maintained in the companion document: [Verification](adr_08_sqli
 
 ## Known Deviations
 
-- **Known Issue (updated 2026-09-04)**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed (`plans/done/20260903-091921_plan.md`): `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gaps are tracked under ADR-013 Known Deviations.
+- **Known Issue**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed: `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gaps are tracked under ADR-013 Known Deviations.
   - **Type**: Security Gap
   - **Summary**: The EventBus authentication model is implemented per ADR-013 (a public bind itself has been removed)
   - **Impact**: Access within the same host or via an SSH tunnel is authenticated (direct external exposure cannot be configured)

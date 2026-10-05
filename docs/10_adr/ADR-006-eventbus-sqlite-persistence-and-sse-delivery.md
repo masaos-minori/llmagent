@@ -24,6 +24,13 @@ superseded_by: null
 
 ## Keywords
 
+eventbus
+sqlite
+persistence
+sse
+delivery
+dlq
+
 ## Status
 
 Accepted
@@ -262,8 +269,8 @@ None
 ### Retry Policy
 
 - Retry target: ingestion failures
-- Retry count: `retry_policy.max_attempts` (default 3)
-- Backoff: fixed interval (default 1 second)
+- Retry count: bounded by `retry_policy.max_attempts`
+- Backoff: fixed interval
 - Errors not retried: consistency-check mismatches
 
 ### Fallback Policy
@@ -367,13 +374,13 @@ Register any Invariant without Verification as an unverified item in an Issue.
 
 Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-- **Known Issue (updated 2026-09-10)**: EVENTBUS-007 — Per-consumer delivery-state and SQLite-backed offset store were added to eliminate the two-commit gap between ACK state and offset advancement. The `consumer_delivery` table tracks per-consumer delivery progress; the `consumer_offsets` table stores monotonic offsets. `ack_event_for_consumer()` performs both operations atomically. Legacy file-based offsets remain during migration but are no longer the primary path. At startup, `migrate_legacy_offsets()` reads each legacy offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; when no `.map` companion exists, it falls back to the sanitized filename as the `consumer_id`.
+- **Known Issue**: EVENTBUS-007 — Per-consumer delivery-state and SQLite-backed offset store were added to eliminate the two-commit gap between ACK state and offset advancement. The `consumer_delivery` table tracks per-consumer delivery progress; the `consumer_offsets` table stores monotonic offsets. `ack_event_for_consumer()` performs both operations atomically. Legacy file-based offsets remain during migration but are no longer the primary path. At startup, `migrate_legacy_offsets()` reads each legacy offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; when no `.map` companion exists, it falls back to the sanitized filename as the `consumer_id`.
 - **Type**: Resolved Gap
 - **Summary**: Closing the two-commit gap between ACK state and Offset tracking
 - **Impact**: Compatibility with existing file-based offsets
 - **Resolution Target**: Remove the legacy path after the migration period ends
 
-- **Known Issue (updated 2026-09-04)**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed (`plans/done/20260903-091921_plan.md`): `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gaps are tracked under ADR-013 Known Deviations.
+- **Known Issue**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed: `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gaps are tracked under ADR-013 Known Deviations.
 - **Type**: Security Gap
 - **Summary**: The authentication model is implemented per ADR-013 (a public bind itself has been removed)
 - **Impact**: Access within the same host or via an SSH tunnel is authenticated (direct external exposure cannot be configured)
@@ -387,7 +394,7 @@ The following invariants are now enforced by content comparison logic in `insert
 - **INV-12 (ACK failure handling)**: Not affected by this change.
 - **INV-13 (DLQ promotion priority)**: Not affected by this change.
 
-- **Known Issue (added 2026-09-11)**: EVENTBUS-011 — `nack_event()` now returns `(-2,-2)` for invalid transitions (already ACKed or DLQ'd), and `ack_route.py` converts this to HTTP 409. However, the caller (`_nack_and_promote()`) checks `failure_count == -2` but does not verify whether the event is actually in the database before raising 409 — if the event was deleted between the NACK call and the status check, a spurious 409 could be returned.
+- **Known Issue**: EVENTBUS-011 — `nack_event()` now returns `(-2,-2)` for invalid transitions (already ACKed or DLQ'd), and `ack_route.py` converts this to HTTP 409. However, the caller (`_nack_and_promote()`) checks `failure_count == -2` but does not verify whether the event is actually in the database before raising 409 — if the event was deleted between the NACK call and the status check, a spurious 409 could be returned.
 - **Type**: Race Condition
 - **Summary**: A 409 response after NACK may be returned incorrectly when the Event has been deleted
 - **Impact**: Low (Events are deleted only in rare cases)
@@ -446,10 +453,6 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - [Configuration and Operations](../24_eventbus/eventbus_09_configuration-and-operations.md) — configuration, bind address, health endpoint, Consumer ID, delivery, DLQ operations
 - [Reference API](../24_eventbus/eventbus_10_reference_api.md) — core modules, route handlers, Broker/Offsets
 
-### Operations
-
-<!-- TODO: Document '06_eventbus_05_7-eventbus-operations.md' was deleted -->
-
 ### Known Issues
 
 - [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus known issues
@@ -469,7 +472,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `consumer_delivery` table — `consumer_id`, `event_id`, `acked_at`, PRIMARY KEY `(consumer_id, event_id)`
 - `consumer_offsets` table — `consumer_id` PRIMARY KEY, `offset INTEGER NOT NULL DEFAULT 0`
 - Offset files — `{offsets_dir}/{sanitized_consumer_id}` (legacy, being migrated)
-- DLQ promotion paths — inline promotion (on `POST /nack`) and the background loop (every 60 seconds)
+- DLQ promotion paths — inline promotion (on `POST /nack`) and the periodic background loop
 - Tests — `tests/eventbus/`, `tests/db/test_create_schema.py`
 
 ## Completion Checklist

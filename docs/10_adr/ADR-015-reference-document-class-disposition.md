@@ -12,18 +12,15 @@ related:
 # ADR-015: Reference Document Class Disposition
 
 ## Keywords
-<placeholder>
+
+reference document
+document class
+generated reference
+disposition
 
 ## Status
 
 Accepted
-
-The available Status values are as follows.
-
-- `Proposed`: Under proposal; before review or approval
-- `Accepted`: Adopted and effective as the current design
-
-To change the current decision after acceptance, update this ADR body directly. In the same change, update the affected Specification, Reference, and Operations documents and the verification requirements.
 
 ## Summary
 

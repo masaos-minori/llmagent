@@ -19,19 +19,9 @@ related:
 
 # ADR-013: EventBus Authentication and Authorization
 
-## Keywords
-<placeholder>
-
 ## Status
 
 Accepted
-
-The available Status values are as follows.
-
-- `Proposed`: Under proposal; before review or approval
-- `Accepted`: Adopted and effective as the current design
-
-To change the current decision after acceptance, update this ADR body directly. In the same change, update the affected Specification, Reference, and Operations documents and the verification requirements.
 
 ## Summary
 
@@ -43,7 +33,7 @@ EventBus API establishes a fail-closed security boundary by adding Bearer-token 
 
 Several routes in `scripts/eventbus/` authenticate and authorize callers via Bearer-token middleware and role-based authorization, but the authentication model has gaps: consumer identity validation can fail-open when no `consumer_id` allowlist is configured for a token, and audit logging of privileged actions is incomplete. Additionally, `load_config()` enforces fail-closed validation for unknown keys, missing required keys, and wrong-type keys — implemented locally, not via `ConfigLoader`.
 
-### Current State (Updated 2026-09-15)
+### Current State
 
 Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in `scripts/eventbus/app.py`. Each route requires role-based authentication via `Depends(require_role(...))`. Consumer-facing routes (/subscribe, /ack, /nack) additionally require `Depends(require_consumer_identity)` for consumer identity validation. The Problem section above describes the pre-auth state; see the Known Deviations section below for residual gaps.
 

@@ -23,6 +23,11 @@ related:
 
 ## Keywords
 
+failure handling
+environment policy
+startup validation
+health check
+
 ## Status
 
 Accepted
@@ -173,7 +178,7 @@ Briefly describe how the current implementation realizes the Decision.
 
 For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in `## Rationale`.
 
-Retry policy when an MCP server is unreachable: unreachable-handling paths (`mcp_health.py`, `scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`, adjacent files) contain no retry logic; the only retry implementation (`scripts/agent/http_lifecycle_health_checker.py::HealthChecker.startup_poll()`) has no callers. Owner confirmation (2026-09-27): current no-retry behavior on these paths is the intended, settled policy.
+Retry policy when an MCP server is unreachable: unreachable-handling paths (`mcp_health.py`, `scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`, adjacent files) contain no retry logic; the only retry implementation (`scripts/agent/http_lifecycle_health_checker.py::HealthChecker.startup_poll()`) has no callers. Owner confirmation: current no-retry behavior on these paths is the intended, settled policy.
 
 Not a basis for design decisions. Detailed APIs, Classes, and Functions listed in Implementation References.
 
@@ -184,13 +189,13 @@ Do not record line numbers; reference by file path and symbol name.
 ### ADR-004-D1-profile-config-model-still-present: Environment-conditional required/local branching in McpServerConfig
 
 - **Summary**: `McpServerConfig` branched on `security_profile` to choose `required_in_production` vs `required_in_local`
-- **Action**: **Resolved (2026-09-04)**: `plans/done/20260903-091417_plan.md` (`localremoval`) removed `SecurityProfile.LOCAL`; `SecurityProfile` now holds only `PRODUCTION`. Mandatoriness decisions are environment-independent.
+- **Action**: **Resolved**: removed `SecurityProfile.LOCAL`; `SecurityProfile` now holds only `PRODUCTION`. Mandatoriness decisions are environment-independent.
 - **Status**: Resolved
 
 ### ADR-004-D2-production-config-validator-severity-downgrade: is_production-gated strict-mode violation downgraded to warning
 
 - **Summary**: Strict-mode violations downgraded to warnings under `is_production` in `production_config_validator.py`
-- **Action**: **Resolved (2026-09-04)**: REQ-004 removed the `is_production` branch; Production-grade validation applies unconditionally.
+- **Action**: **Resolved**: removed the `is_production` branch; Production-grade validation applies unconditionally.
 - **Status**: Resolved
 
 ### ADR-004-D3-non-required-continuation-test-coverage: Decision #18/INV-09 continuation test coverage
@@ -212,8 +217,6 @@ Do not record line numbers; reference by file path and symbol name.
 - **Status**: Resolved
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
-
-**Revision record (2026-09-04)**: Architecture owner approved 2026-09-03: fully remove `SecurityProfile.LOCAL`, make Production-grade validation unconditional. All four related plans confirmed implemented; two Known Deviations updated as resolved. Decision Group 1 wording already environment-independent.
 
 ## Review Triggers
 

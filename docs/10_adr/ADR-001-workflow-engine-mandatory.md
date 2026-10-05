@@ -17,7 +17,11 @@ related:
 # ADR-001: Mandatory Workflow Engine
 
 ## Keywords
-<placeholder>
+
+workflow engine
+mandatory
+execution control plane
+state transitions
 
 ## Status
 

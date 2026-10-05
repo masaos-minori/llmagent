@@ -22,6 +22,11 @@ related:
 
 ## Keywords
 
+runtime tool registry
+routing authority
+drift validation
+tool discovery
+
 ## Status
 
 Accepted

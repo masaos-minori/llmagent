@@ -200,8 +200,8 @@ Not applicable. physical-recovery is designed as a Fail-Closed domain. When in d
 ### Retry Policy
 
 - Retry target: ingestion failures
-- Retry count: `retry_policy.max_attempts` (default 3)
-- Backoff: fixed interval (default 1 second)
+- Retry count: bounded by `retry_policy.max_attempts`
+- Backoff: fixed interval
 - Errors not retried: consistency-check mismatches
 - operator-restore is a single, operator-initiated attempt; no automatic retry loop
 
@@ -217,7 +217,7 @@ Not applicable. physical-recovery is designed as a Fail-Closed domain. When in d
 - **System of Record**: the four SQLite DBs (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`)
 - **Derived Data**: regenerable derived data (FTS5, Vector Index)
 - **Ownership**: the RAG team, the Agent team, the Workflow team, the EventBus team
-- **Persistence**: file system (`/opt/llm/db/` directory)
+- **Persistence**: file system (the configured DB directory)
 - **Transaction Boundary**: per DB
 - **Recovery Source**: for `rag.sqlite`/`session.sqlite`, verified backup files supplied by the operator. `workflow.sqlite`/`eventbus.sqlite` are not subject to automatic restore and are handled manually by the operator.
 - **Deletion Rule**: each DB is deleted independently. Deletion of corrupted DB copies set aside for diagnosis (`*_corrupt_<timestamp>.sqlite`) is left to the operator's manual judgment; no automatic deletion is performed.

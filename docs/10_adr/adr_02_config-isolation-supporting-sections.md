@@ -107,15 +107,15 @@ Rejected to prioritize Security and prevent configuration leakage across process
   - **Verifies**: INV-01
   - **Type**: Integration
   - **Blocking**: Yes
-- **Status**: - **Status**: Confirmed — `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error` verifies Config Isolation fail-closed (REQ-003); `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to` verifies ConfigLoader.restrict_to call path (REQ-003)
-  - **Citation**: - **Citation**: `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys`, `tests/mcp_servers/test_config_isolation_fail_closed.py` ebf063b9 (docs: add REQ-005 per-process required files and keys table to ADR-002)
+- **Status**: Confirmed — `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error` verifies Config Isolation fail-closed (REQ-003); `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to` verifies ConfigLoader.restrict_to call path (REQ-003)
+  - **Citation**: `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys`, `tests/mcp_servers/test_config_isolation_fail_closed.py`
 
 - **Test**: Access to non-permitted configuration files is rejected
   - **Verifies**: INV-02
   - **Type**: Regression
   - **Blocking**: Yes
-- **Status**: - **Status**: Confirmed — `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys` verifies unknown-key rejection in production config validation (REQ-004)
-  - **Citation**: - **Citation**: `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorSecurityProfileEnum`, `tests/mcp_servers/test_config_isolation_fail_closed.py` ebf063b9 (docs: add REQ-005 per-process required files and keys table to ADR-002)
+- **Status**: Confirmed — `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys` verifies unknown-key rejection in production config validation (REQ-004)
+  - **Citation**: `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorSecurityProfileEnum`, `tests/mcp_servers/test_config_isolation_fail_closed.py`
 
 - **Test**: An MCP server can start standalone without agent.toml
   - **Verifies**: INV-03

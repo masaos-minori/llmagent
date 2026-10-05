@@ -25,21 +25,16 @@ superseded_by: null
 # ADR-005: Relationship Between RAG Canonical Data and Derived Indexes
 
 ## Keywords
-<placeholder>
+
+rag
+source data
+derived index
+chunks
+fts
 
 ## Status
 
 Accepted
-
-The available Status values are as follows.
-
-- `Proposed`: Under proposal; before review or approval
-- `Accepted`: Adopted and effective as the current design
-- `Rejected`: Considered but not adopted
-- `Deprecated`: No longer recommended, but partially remaining
-- `Superseded`: Replaced by a successor ADR
-
-To change the decision after acceptance, do not edit the body directly; create a new ADR and change this ADR to Superseded.
 
 ## Summary
 
@@ -257,8 +252,8 @@ None
 ### Retry Policy
 
 - Retry target: ingestion failures
-- Retry count: `retry_policy.max_attempts` (default 3)
-- Backoff: fixed interval (default 1 second)
+- Retry count: bounded by `retry_policy.max_attempts`
+- Backoff: fixed interval
 - Errors not retried: consistency-check mismatches
 
 ### Fallback Policy
@@ -417,10 +412,6 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - [Ingestion Pipeline - Crawler](../21_rag/rag_02_02_ingestion_pipeline-crawler.md) — Crawler details
 - [Ingestion Pipeline - ChunkSplitter](../21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md) — ChunkSplitter details
 - [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — configuration reference
-
-### Operations
-
-<!-- TODO: Document 'rag_05_6-rag-operations.md' was deleted -->
 
 ### Known Issues
 

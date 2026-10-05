@@ -21,21 +21,15 @@ superseded_by: null
 # ADR-010: In-Process Fallback When External RAG Execution Fails
 
 ## Keywords
-<placeholder>
+
+rag
+fallback
+http service
+in-process
 
 ## Status
 
 Accepted
-
-The available Status values are as follows.
-
-- `Proposed`: Under proposal; before review or approval
-- `Accepted`: Adopted and effective as the current design
-- `Rejected`: Considered but not adopted
-- `Deprecated`: No longer recommended, but partially remaining
-- `Superseded`: Replaced by a successor ADR
-
-To change the decision after acceptance, do not edit the body directly; create a new ADR and change this ADR to Superseded.
 
 ## Summary
 
@@ -68,7 +62,7 @@ The RAG pipeline depends heavily on the external RAG service, so a network failu
 
 1. When `rag_service_url` is set, an HTTP POST is sent to the external RAG service.
 2. When `rag_service_url` is not set, the in-process local RAG is executed.
-3. The HTTP call is made by `call_rag_service()`, and each attempt is controlled by `timeout=10.0`.
+3. The HTTP call is made by `call_rag_service()`, and each attempt is bounded by a configured timeout.
 4. HTTP errors (401, 403, 4xx, 5xx) are distinguished from empty results (`""`).
 5. An empty result is treated as a valid result and does not trigger fallback.
 6. Only technical failures (timeouts, connection errors, HTTP errors other than authentication errors 401/403, which do not fall back) are fallback conditions.
@@ -225,7 +219,7 @@ If not applicable, write "Not applicable".
 ## Invariants
 
 - INV-01: The execution mode is switched by whether `rag_service_url` is set.
-- INV-02: Each HTTP call attempt is controlled by `timeout=10.0`.
+- INV-02: Each HTTP call attempt is bounded by a configured timeout.
 - INV-03: An empty result is treated as a valid result and does not trigger fallback.
 - INV-04: Only technical failures (timeouts, connection errors, HTTP errors other than authentication errors 401/403, which do not fall back) are fallback conditions.
 - INV-05: On fallback, the whole pipeline MQE → KNN/BM25 → RRF → Rerank → Augment is re-executed.
@@ -254,8 +248,8 @@ None
 ### Retry Policy
 
 - Retry target: ingestion failures
-- Retry count: `retry_policy.max_attempts` (default 3)
-- Backoff: fixed interval (default 1 second)
+- Retry count: bounded by `retry_policy.max_attempts`
+- Backoff: fixed interval
 - Errors not retried: consistency-check mismatches
 
 If not applicable, write "Not applicable".
@@ -274,7 +268,7 @@ If not applicable, write "Not applicable".
 - **System of Record**: `rag.sqlite` (shared by both the local and remote RAG modes)
 - **Derived Data**: regenerable derived data (FTS5, Vector Index)
 - **Ownership**: RAG team (owner of the canonical data)
-- **Persistence**: file system (`/opt/llm/db/` directory)
+- **Persistence**: file system (the configured DB directory)
 - **Transaction Boundary**: per DB
 - **Recovery Source**: manual recovery of each DB
 - **Deletion Rule**: each DB is deleted independently
@@ -398,10 +392,6 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - [RAG Error Handling Reference](../21_rag/rag_05_4-error-handling-reference.md) — error handling
 - [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — configuration reference
 - [DB Schema Reference](../41_db/db_02_architecture_and_schema-schema-reference.md) — DB schema reference
-
-### Operations
-
-<!-- TODO: Document 'rag_05_6-rag-operations.md' was deleted -->
 
 ### Known Issues
 

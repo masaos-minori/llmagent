@@ -21,6 +21,12 @@ superseded_by: null
 
 ## Keywords
 
+configuration
+config isolation
+per-process ownership
+secrets
+environment variables
+
 ## Summary
 
 This ADR canonicalizes the design in which the Agent, each MCP server, the RAG ingestion processes, and the EventBus own their own configuration files and read only the configuration files they are permitted to read. Creating a new shared configuration file is prohibited, and duplicated values are permitted as explicit dependency declarations of independent processes. Minimal exposure of Secrets and Prefix/Allowlist rules for environment variables prevent configuration leakage across process boundaries.
@@ -175,8 +181,8 @@ The `AGENT_RESTRICT_CONFIG` environment variable has been removed (legacy). Ever
 ### Retry Policy
 
 - Retry target: configuration file loading failures
-- Retry count: `retry_policy.max_attempts` (default 3)
-- Backoff: fixed interval (default 1 second)
+- Retry count: bounded by `retry_policy.max_attempts`
+- Backoff: fixed interval
 - Errors not retried: configuration file syntax errors
 
 ### Fallback Policy
