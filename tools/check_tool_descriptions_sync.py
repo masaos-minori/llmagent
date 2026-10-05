@@ -5,7 +5,7 @@ TOOL_DESCRIPTIONS.md is tools/'s own inventory doc. It is exactly as prone to
 drift as any other documentation in this repo: a script can be added to
 tools/ without updating it, or removed while a stale mention lingers. This
 checker applies the same "compare the doc against the live directory" pattern
-used by tools/gen_mcp_reference.py and tools/check_mcp_docs_consistency.py to
+used by tools/generate_reference_table.py and tools/check_mcp_docs_consistency.py to
 tools/ itself.
 
 Usage:

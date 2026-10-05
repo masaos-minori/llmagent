@@ -123,7 +123,7 @@ Legacy file-based offset store, used only by the one-time startup migration (`of
 
 ## Module Class/Function Reference (auto-generated)
 
-<!-- AUTO-GENERATED: gen_eventbus_reference.py class-function-reference -->
+<!-- AUTO-GENERATED: generate_reference_table.py eventbus-class-function-reference -->
 Generated from `scripts/eventbus/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type eventbus` to refresh.
 
 | File | Class/Function | Signature | Summary |

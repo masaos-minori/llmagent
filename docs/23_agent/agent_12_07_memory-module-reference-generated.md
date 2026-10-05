@@ -32,7 +32,7 @@ agent, memory, api-reference, generated
 
 ## Module Class/Function Reference (auto-generated)
 
-<!-- AUTO-GENERATED: gen_memory_reference.py class-function-reference -->
+<!-- AUTO-GENERATED: generate_reference_table.py memory-class-function-reference -->
 Generated from `scripts/agent/memory/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type memory` to refresh.
 
 | File | Class/Function | Signature | Summary |

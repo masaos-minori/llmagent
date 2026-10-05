@@ -113,5 +113,5 @@ def test_existing_generators_unaffected() -> None:
         "| Server | Port | Tool Count | Tool Names |"
     )
     assert generate_deployment_reference_table().startswith(
-        "| DB | Default path | Config key | Set in `agent.toml`? |"
+        "| DB | Config key | Set in `agent.toml`? |"
     )

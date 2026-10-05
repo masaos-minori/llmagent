@@ -254,12 +254,12 @@ Regarding why these deployment requirements are mandatory (design decisions for 
 <!-- AUTO-GENERATED: generate_reference_table.py db-path-reference -->
 Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type deployment` to refresh.
 
-| DB | Default path | Config key | Set in `agent.toml`? |
-|---|---|---|---|
-| `eventbus.sqlite` | `/opt/llm/db/eventbus.sqlite` | `eventbus_db_path` | Yes |
-| `rag.sqlite` | `/opt/llm/db/rag.sqlite` | `rag_db_path` | Yes |
-| `session.sqlite` | `/opt/llm/db/session.sqlite` | `session_db_path` | Yes |
-| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | No (Python-level default in `scripts/db/config.py`) |
+| DB | Config key | Set in `agent.toml`? |
+|---|---|---|
+| `eventbus.sqlite` | `eventbus_db_path` | Yes |
+| `rag.sqlite` | `rag_db_path` | Yes |
+| `session.sqlite` | `session_db_path` | Yes |
+| `workflow.sqlite` | `workflow_db_path` | No (Python-level default in `scripts/db/config.py`) |
 <!-- END AUTO-GENERATED -->
 
 ## Keywords

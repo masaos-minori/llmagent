@@ -123,7 +123,7 @@ def _is_guard_start(line: str) -> bool:
     Recognizes any line starting with `<!-- AUTO-GENERATED` — not only the
     exact bare `<!-- AUTO-GENERATED -->` string — so the real guard-comment
     format `tools/generate_reference_table.py` emits (e.g. `<!--
-    AUTO-GENERATED: gen_mcp_reference.py port-tool-reference -->`) is
+    AUTO-GENERATED: generate_reference_table.py port-tool-reference -->`) is
     recognized.
     """
     return line.strip().startswith("<!-- AUTO-GENERATED")

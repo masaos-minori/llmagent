@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 """generate_reference_table.py — Unified reference table generator for all domains.
 
-Consolidated from:
-  - tools/gen_rag_reference.py
-  - tools/gen_mcp_reference.py
-  - tools/gen_deployment_reference.py
-
 Applies the same "generate objective facts from live code instead of
 hand-maintaining a copy" approach across all domains. Each type generates
 only mechanically derivable columns; human-authored columns stay as-is.
@@ -49,20 +44,16 @@ CONFIG_PATHS = [
 ]
 
 # Guard comments for auto-generated sections in doc files.
-GUARD_START_MCP = "<!-- AUTO-GENERATED: gen_mcp_reference.py port-tool-reference -->"
+GUARD_START_MCP = (
+    "<!-- AUTO-GENERATED: generate_reference_table.py port-tool-reference -->"
+)
 GUARD_END = "<!-- END AUTO-GENERATED -->"
 GUARD_START_DEPLOYMENT = (
     "<!-- AUTO-GENERATED: generate_reference_table.py db-path-reference -->"
 )
-GUARD_START_AGENT = (
-    "<!-- AUTO-GENERATED: gen_agent_reference.py class-function-reference -->"
-)
-GUARD_START_EVENTBUS = (
-    "<!-- AUTO-GENERATED: gen_eventbus_reference.py class-function-reference -->"
-)
-GUARD_START_MEMORY = (
-    "<!-- AUTO-GENERATED: gen_memory_reference.py class-function-reference -->"
-)
+GUARD_START_AGENT = "<!-- AUTO-GENERATED: generate_reference_table.py agent-class-function-reference -->"
+GUARD_START_EVENTBUS = "<!-- AUTO-GENERATED: generate_reference_table.py eventbus-class-function-reference -->"
+GUARD_START_MEMORY = "<!-- AUTO-GENERATED: generate_reference_table.py memory-class-function-reference -->"
 
 REFERENCE_DOC_MCP = REPO_ROOT / "docs" / "22_mcp" / "mcp_01_tool_ownership_matrix.md"
 REFERENCE_DOC_DEPLOYMENT = (
@@ -176,18 +167,16 @@ def generate_deployment_reference_table() -> str:
     configured = _agent_toml_db_paths()
 
     lines = [
-        "| DB | Default path | Config key | Set in `agent.toml`? |",
-        "|---|---|---|---|",
+        "| DB | Config key | Set in `agent.toml`? |",
+        "|---|---|---|",
     ]
     for key in sorted(defaults):
         db_name = f"{key.removesuffix('_db_path')}.sqlite"
         if key in configured:
-            path = configured[key]
             in_toml = "Yes"
         else:
-            path = defaults[key] or "(no default)"
             in_toml = "No (Python-level default in `scripts/db/config.py`)"
-        lines.append(f"| `{db_name}` | `{path}` | `{key}` | {in_toml} |")
+        lines.append(f"| `{db_name}` | `{key}` | {in_toml} |")
     return "\n".join(lines)
 
 

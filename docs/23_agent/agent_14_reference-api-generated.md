@@ -25,7 +25,7 @@ agent, api-reference, generated
 
 ## Module Class/Function Reference (auto-generated)
 
-<!-- AUTO-GENERATED: gen_agent_reference.py class-function-reference -->
+<!-- AUTO-GENERATED: generate_reference_table.py agent-class-function-reference -->
 Generated from `scripts/agent/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type agent` to refresh.
 
 | File | Class/Function | Signature | Summary |
