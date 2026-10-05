@@ -81,7 +81,7 @@ Japanese BM25 search requires normalization by morphological analysis, but the c
 - **Target components**: `ChunkJapaneseMixin`, `AugmentStage`, `RagRepository`, `RagMaintenanceService`
 - **Target processes**: the Agent process and the ingester process
 - **Target data**: the `chunks` table, the `chunks_fts` virtual table
-- **Target Environment Profile**: all environments (local/dev/production)
+- **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `AugmentStage.run()`, `_format_chunks()` (`scripts/rag/stages/augment.py`), `RagMaintenanceService.rebuild_fts()`
 
 ### Out of Scope
@@ -211,10 +211,7 @@ If not applicable, write "Not applicable".
 ### Security Consequences
 
 - Trust boundary: privileges are granted only within SQLite
-- Authentication and authorization: permission decisions based on configuration files
 - Secret handling: follow the principle of minimal exposure
-- Fail-Closed: abort startup when a configuration file is missing
-- Audit Log: record configuration loading events
 
 If not applicable, write "Not applicable".
 
@@ -250,14 +247,11 @@ None
 
 ### Fail-Open or Degraded Conditions
 
-- In the local development environment, minor consistency mismatches are recorded as warnings
+- None: ADR-004 defines a single common failure-handling policy, and no environment-specific downgrade to warnings exists
 
 ### Retry Policy
 
-- Retry target: ingestion failures
-- Retry count: bounded by `retry_policy.max_attempts`
-- Backoff: fixed interval
-- Errors not retried: consistency-check mismatches
+Not applicable (this ADR defines no retry policy of its own)
 
 If not applicable, write "Not applicable".
 
@@ -414,6 +408,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-005: Relationship Between RAG Canonical Data and Derived Indexes
+- ADR-004: Failure Handling Policy Across Environments
 
 ### Specifications
 
@@ -441,7 +436,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `chunks` table — `content`, `normalized_content`, `chunk_index`, `chunk_type`, `doc_id` FK
 - `chunks_fts` virtual table — FTS5 trigger synchronization
 - `chunks_vec` virtual table — sqlite-vec KNN index
-- Triggers — `chunks_ai`, `chunks_au`, `chunks_ad`
+- Triggers — `chunks_ai`, `chunks_au`, `chunks_ad`, `chunks_vec_ad`
 - Tests — `tests/agent/services/test_rag_index_integrity.py` (TEST-DESIGN3-01 to 05)
 - Tests — `tests/rag/test_fts_fallback.py`
 
@@ -466,6 +461,6 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
 - [ ] Discrepancies with the current implementation are registered as Known Issues
-- [ ] The Owner and required Reviewers are defined
-- [ ] Review Triggers are recorded
+- [x] The Owner and required Reviewers are defined
+- [x] Review Triggers are recorded
 - [ ] The ADR is registered in the ADR index and the Document Guides of related areas

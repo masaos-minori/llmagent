@@ -274,7 +274,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-`docs/00_governance/governance_03_issue-and-uncertainty-management.md`'s CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, resolved 2026-09-15) is resolved. Residual gaps from EVENTBUS-008 (token with no configured consumer_id allowlist entry has consumer-identity validation skipped — fail-open) are tracked separately in `issues/done/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`.
+`docs/00_governance/governance_03_issue-and-uncertainty-management.md`'s CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, resolved 2026-09-15) is resolved and intentionally no longer tracked there. The residual gap EVENTBUS-008 (token with no configured consumer_id allowlist entry has consumer-identity validation skipped — fail-open) is open and registered in that document.
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -300,6 +300,11 @@ Do not unconditionally align the ADR text with the current implementation; manag
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
 ## Related Documents
+
+### Related ADRs
+
+- ADR-002: Per-Process Configuration Ownership and Config Isolation
+- ADR-006: EventBus SQLite Persistence and SSE Delivery
 
 ### Specifications
 

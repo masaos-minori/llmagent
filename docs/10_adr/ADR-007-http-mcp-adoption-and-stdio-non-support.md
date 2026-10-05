@@ -83,7 +83,7 @@ MCP (Model Context Protocol) normally uses the stdio Transport, but this project
 - **Target components**: `HttpTransport`, `MCPServer`, `ToolTransportInvoker`, `McpServerHealthRegistry`
 - **Target processes**: the Agent process and each MCP server process
 - **Target data**: MCP configuration files, authentication tokens
-- **Target Environment Profile**: all environments (local/dev/production)
+- **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `POST /v1/call_tool`, `GET /v1/tools`, `GET /health`
 
 ### Out of Scope
@@ -221,10 +221,7 @@ If not applicable, write "Not applicable".
 ### Security Consequences
 
 - Trust boundary: privileges are granted only within each process
-- Authentication and authorization: permission decisions based on configuration files
 - Secret handling: follow the principle of minimal exposure
-- Fail-Closed: abort startup when a configuration file is missing
-- Audit Log: record configuration loading events
 
 If not applicable, write "Not applicable".
 
@@ -250,13 +247,13 @@ None
 
 ### Fail-Fast Conditions
 
-- When an MCP server Health Check fails
+- When a required (mandatory) MCP server Health Check fails at startup
 - When authentication token validation fails
 - When TLS certificate validation fails
 
 ### Fail-Open or Degraded Conditions
 
-- In the local development environment, minor consistency mismatches are recorded as warnings
+- A non-mandatory MCP server that is unavailable is disabled and startup continues in a partial-availability state (ADR-004 Decision 18)
 
 ### Retry Policy
 
@@ -319,28 +316,22 @@ If not applicable, write "Not applicable".
 
 ### Startup Validation
 
-- DB connectivity is confirmed at startup
-- Whether configuration files are valid (parseable TOML, required fields)
+- MCP server Discovery and Health Check results are evaluated at startup
 
 ### Deployment Validation
 
-- Check the DB Schema before and after deployment
-- The post-deployment consistency check passes
+- MCP server Health Check passes after deployment
 
 ### Runtime Monitoring
 
-- Health Check: DB connection state, DLQ task state, Broker queue backlog, Slow Consumer detection
-- Metrics: Event publish count, ACK count, NACK count, DLQ promotion count
-- Logs: Event publish events, ACK events, NACK events, DLQ events
-- Alert conditions: `db_unavailable`, `dlq_task_stopped`, `broker_queue_backlog_high`, `slow_consumers_detected`
-- Degraded condition: failure of a dependency
+- Health Check: MCP server liveness state managed by `McpServerHealthRegistry` (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN)
+- Degraded condition: a non-mandatory MCP server is unavailable (ADR-004 Decision 18)
 
 If not applicable, write "Not applicable".
 
 ### Manual Review
 
-- Investigation of DLQ promotions
-- DB Schema verification before deployment
+- Review of MCP server Health Check failures
 
 Register any Invariant without Verification as an unverified item in an Issue.
 
@@ -402,6 +393,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 ### Related ADRs
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
+- ADR-004: Failure Handling Policy Across Environments
 
 ### Specifications
 
@@ -451,6 +443,6 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
 - [ ] Discrepancies with the current implementation are registered as Known Issues
-- [ ] The Owner and required Reviewers are defined
-- [ ] Review Triggers are recorded
+- [x] The Owner and required Reviewers are defined
+- [x] Review Triggers are recorded
 - [ ] The ADR is registered in the ADR index and the Document Guides of related areas

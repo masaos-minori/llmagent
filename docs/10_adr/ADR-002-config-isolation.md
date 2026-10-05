@@ -79,7 +79,7 @@ When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, 
 - **Target components**: `ConfigLoader`, `MCPServer`, `Orchestrator`
 - **Target processes**: the Agent process, each MCP server process, the crawler process, the ingester process, the chunk_splitter process, the eventbus process
 - **Target data**: configuration files, environment variables, Secrets
-- **Target Environment Profile**: all environments (local/dev/production)
+- **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `ConfigLoader.restrict_to()`, `ConfigLoader.load()`, `MCPServer.run_http()`
 
 ### Out of Scope
@@ -176,14 +176,11 @@ The `AGENT_RESTRICT_CONFIG` environment variable has been removed (legacy). Ever
 
 ### Fail-Open or Degraded Conditions
 
-- In the local development environment, minor configuration-file validation errors are recorded as warnings
+- None: ADR-004 defines a single common failure-handling policy, and no environment-specific downgrade to warnings exists
 
 ### Retry Policy
 
-- Retry target: configuration file loading failures
-- Retry count: bounded by `retry_policy.max_attempts`
-- Backoff: fixed interval
-- Errors not retried: configuration file syntax errors
+Not applicable (this ADR defines no retry policy of its own)
 
 ### Fallback Policy
 
@@ -230,7 +227,7 @@ Record any discrepancy between this ADR and the current implementation, configur
 - **Recommended Action**: Resolved via a local invariant instead of `restrict_to()`: load_config()'s docstring states callers must pass get_config_path()'s return value, and a regression test in tests/eventbus/test_eventbus_config.py locks both call sites in app.py to that invariant. Agent-side, ConfigLoader.restrict_to("agent.toml") was added to AgentContext.__init__ (scripts/agent/context.py).
 - **Owner**: Team
 - **Status**: resolved
-- **Resolution Target**: Before ADR-002 moves from Proposed to Accepted status
+- **Resolution Target**: Resolved (ADR-002 is Accepted)
 
 ## Review Triggers
 
@@ -277,6 +274,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 ### Related ADRs
 
 - ADR-001: Mandatory Workflow Engine
+- ADR-004: Failure Handling Policy Across Environments
 
 ### Specifications
 
@@ -339,6 +337,6 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
 - [ ] Discrepancies with the current implementation are registered as Known Issues
-- [ ] The Owner and required Reviewers are defined
-- [ ] Review Triggers are recorded
+- [x] The Owner and required Reviewers are defined
+- [x] Review Triggers are recorded
 - [ ] The ADR is registered in the ADR index and the Document Guides of related areas

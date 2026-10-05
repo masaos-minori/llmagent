@@ -274,7 +274,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Known Issues
 
-- [Issue Mgmt](../00_governance/governance_03_issue-and-uncertainty-management.md) — ADR-004-related Known Issue (CI-016)
+- [Issue Mgmt](../00_governance/governance_03_issue-and-uncertainty-management.md) — ADR-004-related Known Issue CI-016 is resolved and intentionally not tracked there
 
 ### Implementation References
 

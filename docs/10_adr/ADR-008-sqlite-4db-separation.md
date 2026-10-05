@@ -70,7 +70,7 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 - **initialization**: Creating a fresh, empty database or required schema when no valid database exists (`scripts/db/create_schema.py`; section 11 "DB Recreation Procedure").
 - **schema-repair**: Correcting a missing or incompatible schema through an approved migration or initialization path (`apply_workflow_migrations()` / `_migrate()` in `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` sections 8a/8b); distinct from recreate-only paths.
 - **logical-repair**: Correcting application-level inconsistencies while the SQLite file remains physically valid (`RagMaintenanceService.consistency()` in `scripts/agent/services/rag_maintenance_service.py`).
-- **derived-data-rebuild**: Recreating indexes or other data that can be derived from an authoritative source (`RagMaintenanceService.rebuild_fts()` / `rebuild_vec()` in `scripts/agent/services/rag_maintenance_service.py`; `rag.sqlite`-only per Decision Detail #11/#20).
+- **derived-data-rebuild**: Recreating indexes or other data that can be derived from an authoritative source (`RagMaintenanceService.rebuild_fts()` / `rebuild_vec()` in `scripts/agent/services/rag_maintenance_service.py`; `rag.sqlite`-only per Decision Detail #20).
 - **physical-recovery**: Restoring usability after SQLite file corruption (`DbCondition.CORRUPTION` path in `scripts/db/recovery.py`; DbCondition StrEnum members: HEALTHY/CORRUPTION/LOCK_CONTENTION/PERMISSION_FAILURE/INVALID_FORMAT/UNKNOWN).
 - **operator-restore**: Restoring a validated backup through an explicit operator-controlled procedure (Decision Detail #14/#17; Invariant INV-18).
 
@@ -83,17 +83,17 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 | System of record | documents, chunks, FTS5, Vector Index | sessions, messages, memories, memories_vec | tasks, attempts, artifacts, approvals, processed events | events, offsets, deliveries, DLQ state |
 | Derived or rebuildable data | FTS5, Vector Index (from chunks) | memories_vec (from memories) | none | none |
 | Owning component | RAG team | Agent team | Workflow team | EventBus team |
-| Required service stop scope | RAG process | Agent process | Workflow process | EventBus process |
+| Required service stop scope | RAG process | Agent process | Agent process (Workflow Engine runs in-process) | EventBus process |
 | Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | `_run_integrity_check()` | `_run_integrity_check()` |
-| Supported recovery source | verified backup from operator | verified backup from operator | none (auto-restore prohibited per Decision Detail #20) | none (auto-restore prohibited per Decision Detail #20) |
-| Automatic restore allowed or prohibited | allowed (per Decision Detail #11) | allowed (per Decision Detail #11) | prohibited (INV-18) | prohibited (INV-18) |
+| Supported recovery source | verified backup from operator for `documents`/`chunks`; FTS5 and Vector Index rebuilt from `chunks` (Decision Detail #20) | verified backup from operator | none (auto-restore prohibited per Decision Detail #20) | none (auto-restore prohibited per Decision Detail #20) |
+| Automatic restore allowed or prohibited | allowed (per Decision Detail #20) | allowed (per Decision Detail #20) | prohibited (INV-18) | prohibited (INV-18) |
 | Manual restore allowed or prohibited | allowed | allowed | operator intervention only | operator intervention only |
 | Operator approval requirement | required for manual restore | required for manual restore | required (manual operation only) | required (manual operation only) |
 | Backup retention requirement | regular file copy via `rotate_all_dbs()` | regular file copy via `rotate_all_dbs()` | archived via `rotate_all_dbs()` but no automated restoration | archived via `rotate_eventbus_db()` alongside other three databases |
 | WAL checkpoint and backup consistency requirement | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup |
 | Physical integrity verification | independent validation before restore (INV-14) | independent validation before restore (INV-14) | independent validation before restore (INV-14) | independent validation before restore (INV-14) |
 | Database-specific logical verification | `check_rag_consistency()` post-restore | connection test + message count check post-restore | `_recover_pending_approvals()` post-restore | offset/delivery reconciliation post-restore |
-| Service restart condition | RAG process restart after restore | Agent process restart after restore | Workflow process restart after restore | EventBus process restart after restore |
+| Service restart condition | RAG process restart after restore | Agent process restart after restore | Agent process restart after restore | EventBus process restart after restore |
 | Rollback condition | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails |
 | Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) |
 | Data-loss disclosure requirement | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported |
@@ -121,14 +121,14 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 17. An Unknown or unclassifiable failure preserves the target DB and requires operator intervention instead of an automatic restore.
 18. Dry Run must not move, replace, Truncate, delete, or rewrite the target DB for any classification result.
 19. Corrupted DB is set aside as diagnostic copy before replacement. Retention/deletion left to operator manual judgment; no automatic deletion.
-20. Recovery policy defined per persistence domain: `rag.sqlite` rebuilt from canonical data (`chunks` table); `session.sqlite` restored from backup; `workflow.sqlite` and `eventbus.sqlite` prohibit automatic restore—manual operator handling only (no silent re-initialization).
+20. Recovery policy defined per persistence domain: `rag.sqlite` derived indexes (FTS5, Vector Index) rebuilt from canonical data (`chunks` table), with canonical tables restored from a verified backup; `session.sqlite` restored from backup; `workflow.sqlite` and `eventbus.sqlite` prohibit automatic restore—manual operator handling only (no silent re-initialization).
 
 ### Scope
 
 - **Target components**: `DbConfig`, `SQLiteHelper`, `create_schema()`, `db/recovery.py`, `db/maintenance.py`
 - **Target processes**: the Agent process, the ingester process, the EventBus process
 - **Target data**: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`
-- **Target Environment Profile**: all environments (local/dev/production)
+- **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `DbConfig.rag_db_path`, `DbConfig.session_db_path`, `DbConfig.workflow_db_path`, `DbConfig.eventbus_db_path`, `recover_corruption()`
 
 ### Out of Scope
@@ -202,7 +202,7 @@ This section is maintained in the companion document: [Verification](adr_08_sqli
 
 ## Known Deviations
 
-- **Known Issue**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed: `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gaps are tracked under ADR-013 Known Deviations.
+- **Known Issue**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed: `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gap (EVENTBUS-008, open in governance_03): a CONSUMER token without a consumer_authorization/topic_authorization entry skips the consumer_id check. Other residual gaps are tracked under ADR-013 Known Deviations.
   - **Type**: Security Gap
   - **Summary**: The EventBus authentication model is implemented per ADR-013 (a public bind itself has been removed)
   - **Impact**: Access within the same host or via an SSH tunnel is authenticated (direct external exposure cannot be configured)
@@ -262,6 +262,8 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-005: Relationship Between RAG Canonical Data and Derived Indexes
 - ADR-006: EventBus SQLite Persistence and SSE Delivery
+- ADR-004: Failure Handling Policy Across Environments
+- ADR-013: EventBus Authentication and Authorization
 
 ### Specifications
 
@@ -313,6 +315,6 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
 - [x] Discrepancies with the current implementation are registered as Known Issues
-- [ ] The Owner and required Reviewers are defined
+- [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
 - [x] The ADR is registered in the ADR index and the Document Guides of related areas

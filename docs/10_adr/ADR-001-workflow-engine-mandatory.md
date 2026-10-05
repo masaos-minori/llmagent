@@ -356,6 +356,11 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Related Documents
 
+### Related ADRs
+
+- ADR-004: Failure Handling Policy Across Environments
+- ADR-014: Responsibility Boundaries of the Agent Control Plane
+
 ### Specifications
 
 - [Deployment Guide](../90_deployment/deployment_01_deployment.md) — workflow validation during deployment

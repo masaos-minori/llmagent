@@ -143,7 +143,6 @@ Rejected to prioritize Security and prevent configuration leakage across process
 - Metrics: configuration file loading events
 - Logs: configuration loading events, error events
 - Alert conditions: configuration file loading failure, configuration file syntax error
-- Degraded condition: minor configuration-file validation errors (local development environment)
 
 ### Manual Review
 

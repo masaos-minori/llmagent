@@ -20,7 +20,7 @@ definitions, ID format rules, and section header conventions are defined once in
 
 ## Known Deviations
 
-No confirmed deviations.
+This index records no deviations of its own. Open deviations are recorded in the `## Known Deviations` section of the individual ADR that owns them (for example ADR-006).
 
 ## ADR List
 
@@ -45,31 +45,41 @@ ADR-011 (Database Corruption Recovery Safety Boundary) was merged into ADR-008 a
 
 ## ADR Dependency Graph
 
+`A → B` means that ADR-A lists ADR-B under its Related ADRs and refers to it in its body.
+ADR-012 and ADR-015 reference no other ADR.
+
 ```text
-ADR-001 → ADR-004 → ADR-008
-ADR-002 → ADR-001, ADR-003, ADR-005, ADR-006, ADR-007, ADR-008, ADR-009, ADR-010
-ADR-003 → ADR-004, ADR-007
-ADR-005 → ADR-008, ADR-009, ADR-010
-ADR-006 → ADR-008
-ADR-007 → ADR-004
-ADR-009 → ADR-005
-ADR-010 → ADR-004
+ADR-001 → ADR-004, ADR-014
+ADR-002 → ADR-001, ADR-004
+ADR-003 → ADR-001, ADR-002, ADR-004
+ADR-004 → ADR-001, ADR-002, ADR-003, ADR-010
+ADR-005 → ADR-002, ADR-004
+ADR-006 → ADR-002, ADR-004, ADR-013
+ADR-007 → ADR-002, ADR-004
+ADR-008 → ADR-002, ADR-004, ADR-005, ADR-006, ADR-013
+ADR-009 → ADR-002, ADR-004, ADR-005
+ADR-010 → ADR-002, ADR-004, ADR-005
 ADR-013 → ADR-002, ADR-006
 ADR-014 → ADR-001
 ```
 
-### Circular Dependencies Detected
+### Intentional Circular References
 
-CDR-1: ADR-005 ↔ ADR-009 (bidirectional)
-CDR-2: ADR-003 ↔ ADR-007 (bidirectional)
+The following bidirectional references are intentional, not defects:
 
-These violate the governance framework's prohibition on circular dependencies.
-Resolve by restructuring related ADRs or documenting as known exceptions.
+- ADR-003 ↔ ADR-004: ADR-004 defines the failure-classification contract; ADR-003 remains the authority for RuntimeToolRegistry, Tool ownership, and Routing.
+- ADR-004 ↔ ADR-010: ADR-004 defines the failure-classification contract; ADR-010 is the sole Fallback it permits.
+- ADR-006 ↔ ADR-013: ADR-013 owns EventBus authentication and authorization; ADR-006 owns persistence and SSE delivery.
+
+Each pair splits ownership by topic, so neither ADR's decision depends on the other's
+being changed first. The prohibition on circular dependencies in
+`governance_05_change-impact-and-dependency-graphs.md` applies to the area nodes of that
+graph (Agent, MCP, RAG, EventBus, Shared/DB), not to this ADR reference graph.
 
 ## ADR Invariant Verification Matrix
 
 Documents how each ADR invariant is verified, where it runs, and what happens if it
-fails. Critical invariants (INV-001–015) require automated verification; non-critical
+fails. Critical invariants (the matrix rows numbered INV-001–015; INV-002 and INV-004 are not registered) require automated verification; non-critical
 invariants (INV-016–020) may rely on Manual Review or Operational Procedure.
 
 | INV | ADR | Invariant | Type | Timing | Gate | Verification Status |
@@ -77,15 +87,15 @@ invariants (INV-016–020) may rely on Manual Review or Operational Procedure.
 | INV-001 | ADR-001 | Workflow definition mandatory; missing workflow raises RuntimeError | Unit Test | CI | Blocking | Confirmed (`tests/agent/test_startup_workflow_preflight.py::test_aborts_on_missing_workflow_definition`, passing) |
 | INV-003 | ADR-002 | Config isolation enforced between environments | Unit Test | CI | Blocking | Confirmed (automated test added); see tests/shared/test_config_loader.py::TestRestrictToIsolation |
 | INV-005 | ADR-003 | RuntimeToolRegistry is the sole routing authority | Unit Test | CI | Blocking | Confirmed (automated test added); see tests/shared/test_route_resolver.py::TestRoutingSourceIsolation |
-| INV-006 | ADR-007 | No stdio transport usage | Unit Test | CI | Blocking | Confirmed (no stdio transport code exists); no test yet |
-| INV-007 | ADR-005 | `chunks_vec` deleted before `documents` | Unit Test | CI | Blocking | Confirmed in code; no test yet |
+| INV-006 | ADR-007 | No stdio transport usage | Unit Test | CI | Blocking | Confirmed (no stdio transport code exists; `tests/shared/test_mcp_config.py::TestMcpServerConfigValidation::test_stdio_transport_rejected`, passing) |
+| INV-007 | ADR-005 | `chunks_vec` deleted before `documents` | Unit Test | CI | Blocking | Confirmed (`tests/rag/ingestion/test_delete_chain.py::TestDeleteDocumentChain::test_delete_chunks_vec_before_documents`, passing) |
 | INV-008 | ADR-009 | `normalized_content` must not appear in LLM output | Unit Test | CI | Blocking | Confirmed (INV-008 covered by tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_real_normalized_content_attribute_excluded, passing) |
 | INV-009 | ADR-009 | FTS5 rebuild rules followed | Integration Test | CI | Blocking | Not verified |
 | INV-010 | ADR-004 | The system uses a single common failure-handling policy across all environments; environment names do not weaken safety, validation, authentication, authorization, approval, routing, or data-integrity controls | Manual Review | Startup | Deployment Blocking | Confirmed (2026-09-04) — both previously-tracked deviations resolved: (a) `ADR-004-D1-profile-config-model-still-present` classification gap closed by `SecurityProfile.LOCAL` removal (`plans/done/20260903-091417_plan.md`); (b) `ProductionConfigValidator.is_production`-gated severity downgrade removed from `_format_error_or_warning()` (same Plan, REQ-004) — confirmed absent by repository search. No environment-conditional safety-control branching remains; still no dedicated cross-cutting test |
 | INV-011 | ADR-004 | Safety or integrity failures (auth, allowlist, safety-tier, secrets, Config Isolation, approval-control establishment, RuntimeToolRegistry init, duplicate tool ownership) are Fail-Fast at startup (Decision #14) or Fail-Closed at execution (Decision #15), and are never converted into partial availability | Startup Validation | Startup | Deployment Blocking | Confirmed in code structure (`scripts/agent/startup.py` routes these checks through unconditional FATAL paths); no cross-cutting test |
-| INV-012 | ADR-006 | EventBus offsets strictly monotonic | Unit Test | CI | Blocking | Confirmed (`offsets.py` `write_offset()`, `seq > current`); no test yet |
+| INV-012 | ADR-006 | EventBus offsets strictly monotonic | Unit Test | CI | Blocking | Confirmed (`offsets.py` `write_offset()`, `seq > current`; `tests/eventbus/test_eventbus_offsets.py::TestSqliteOffsetMonotonicity::test_older_seq_cannot_move_offset_backward`, passing) |
 | INV-013 | ADR-006 | No success response before event persistence | Integration Test | CI | Blocking | Not verified |
-| INV-014 | ADR-010 | No local fallback on normal empty RAG result | Integration Test | CI | Blocking | Confirmed (`remote_empty` → `HttpResultKind.EMPTY`); no test yet |
+| INV-014 | ADR-010 | No local fallback on normal empty RAG result | Integration Test | CI | Blocking | Confirmed (`remote_empty` → `HttpResultKind.EMPTY`; `tests/rag/test_rag_http_mode.py::test_remote_empty_does_not_trigger_in_process`, passing) |
 | INV-015 | ADR-010 | No local fallback on RAG 401/403 | Integration Test | CI | Blocking | Confirmed — 401/403 errors now bypass fallback; see `implementations/done/20260923-163041_01_scripts_rag_pipeline_service.py.md` and `tests/rag/test_rag_pipeline_service.py` for the fix details |
 | INV-016 | ADR-008 | SQLite 4DB separation maintained | Operational Procedure | Pre-deploy | Deployment Blocking | Confirmed (`DbTarget` enum); needs operational procedure |
 | INV-018 | ADR-012 | Git MCP write operations enforced server-side | Unit/Integration Test | CI | Blocking | Confirmed (`tests/mcp_servers/git/`, passing, covering INV-01 through INV-04); the empty `branch` protected-branch bypass is resolved (see ADR-012 Known Deviations) |
@@ -108,7 +118,7 @@ currently exists.
 
 | Pipeline Stage | Invariants Covered |
 |----------------|-------------------|
-| CI (pull request) | INV-001 through INV-015, INV-018, INV-022, INV-026 |
+| CI (pull request) | INV-001, INV-003, INV-005 through INV-015, INV-018, INV-022, INV-026 |
 | Startup validation | INV-010, INV-011, INV-019, INV-020, INV-021 |
 | Pre-deployment validation | INV-016 |
 | Operations (runtime monitoring) | INV-018 |

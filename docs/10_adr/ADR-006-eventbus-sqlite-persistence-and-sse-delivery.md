@@ -52,7 +52,6 @@ The EventBus has multiple data stores (SQLite, JSONL archive, offset files) with
 - JSONL archive: secondary audit log, not Primary Store
 - Consumer IDs: client-specified, not server-generated
 - Offsets advance by ACK; no automatic advancement
-- sqlite-vec extension restricts some standard FK constraints
 
 ### Assumptions
 
@@ -92,7 +91,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive, offset files) with
 - **Target components**: `EventBroker`, `EventPublisher`, `EventSubscriber`, `OffsetManager`, `DlqService`
 - **Target processes**: the EventBus process
 - **Target data**: the `events` table, offset files, DLQ state
-- **Target Environment Profile**: all environments (local/dev/production)
+- **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `POST /publish`, `GET /subscribe`, `POST /events/{event_id}/ack`, `POST /nack`, `POST /dlq/{event_id}/requeue`
 
 ### Out of Scope
@@ -217,17 +216,12 @@ Security requires preventing unintended Event reception.
 
 ### Operational Consequences
 
-- A consistency check runs at startup
-- Repairing a mismatch requires a manual command
-- Rebuild with `/session rag-rebuild-fts` or `ingester.py --force`
+Not applicable (EventBus persistence has no RAG-style consistency check or rebuild command)
 
 ### Security Consequences
 
 - Trust boundary: privileges are granted only within SQLite
-- Authentication and authorization: permission decisions based on configuration files
 - Secret handling: follow the principle of minimal exposure
-- Fail-Closed: abort startup when a configuration file is missing
-- Audit Log: record configuration loading events
 
 ## Invariants
 
@@ -263,15 +257,12 @@ None
 
 ### Fail-Open or Degraded Conditions
 
-- In the local development environment, minor consistency mismatches are recorded as warnings
+- None: ADR-004 defines a single common failure-handling policy, and no environment-specific downgrade to warnings exists
 - A JSONL archive write failure produces only a WARNING log (SQLite is healthy)
 
 ### Retry Policy
 
-- Retry target: ingestion failures
-- Retry count: bounded by `retry_policy.max_attempts`
-- Backoff: fixed interval
-- Errors not retried: consistency-check mismatches
+Not applicable (this ADR defines no retry policy of its own)
 
 ### Fallback Policy
 
@@ -342,12 +333,10 @@ None
 ### Startup Validation
 
 - DB connectivity is confirmed at startup
-- Whether configuration files are valid (parseable TOML, required fields)
 
 ### Deployment Validation
 
 - Check the DB Schema before and after deployment
-- The post-deployment consistency check passes
 
 ### Runtime Monitoring
 
@@ -368,19 +357,19 @@ Register any Invariant without Verification as an unverified item in an Issue.
 
 - Transaction guarantee: see INV-16 (a single transaction inside `ack_event_for_consumer()`)
 - Monotonicity Enforcement: see INV-05, INV-09
-- Legacy migration: for details of `migrate_legacy_offsets()`, see Known Deviations EVENTBUS-007
+- Legacy migration: for details of `migrate_legacy_offsets()`, see the Resolved item in Known Deviations
 
 ## Known Deviations
 
 Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-- **Known Issue**: EVENTBUS-007 — Per-consumer delivery-state and SQLite-backed offset store were added to eliminate the two-commit gap between ACK state and offset advancement. The `consumer_delivery` table tracks per-consumer delivery progress; the `consumer_offsets` table stores monotonic offsets. `ack_event_for_consumer()` performs both operations atomically. Legacy file-based offsets remain during migration but are no longer the primary path. At startup, `migrate_legacy_offsets()` reads each legacy offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; when no `.map` companion exists, it falls back to the sanitized filename as the `consumer_id`.
+- **Resolved**: Per-consumer delivery-state and SQLite-backed offset store were added to eliminate the two-commit gap between ACK state and offset advancement. The `consumer_delivery` table tracks per-consumer delivery progress; the `consumer_offsets` table stores monotonic offsets. `ack_event_for_consumer()` performs both operations atomically. Legacy file-based offsets remain during migration but are no longer the primary path. At startup, `migrate_legacy_offsets()` reads each legacy offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; when no `.map` companion exists, it falls back to the sanitized filename as the `consumer_id`.
 - **Type**: Resolved Gap
 - **Summary**: Closing the two-commit gap between ACK state and Offset tracking
 - **Impact**: Compatibility with existing file-based offsets
 - **Resolution Target**: Remove the legacy path after the migration period ends
 
-- **Known Issue**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed: `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gaps are tracked under ADR-013 Known Deviations.
+- **Known Issue**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed: `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gap (EVENTBUS-008, open in governance_03): a CONSUMER token without a consumer_authorization/topic_authorization entry skips the consumer_id check. Other residual gaps are tracked under ADR-013 Known Deviations.
 - **Type**: Security Gap
 - **Summary**: The authentication model is implemented per ADR-013 (a public bind itself has been removed)
 - **Impact**: Access within the same host or via an SSH tunnel is authenticated (direct external exposure cannot be configured)
@@ -394,7 +383,7 @@ The following invariants are now enforced by content comparison logic in `insert
 - **INV-12 (ACK failure handling)**: Not affected by this change.
 - **INV-13 (DLQ promotion priority)**: Not affected by this change.
 
-- **Known Issue**: EVENTBUS-011 — `nack_event()` now returns `(-2,-2)` for invalid transitions (already ACKed or DLQ'd), and `ack_route.py` converts this to HTTP 409. However, the caller (`_nack_and_promote()`) checks `failure_count == -2` but does not verify whether the event is actually in the database before raising 409 — if the event was deleted between the NACK call and the status check, a spurious 409 could be returned.
+- **Known Issue**: EVENTBUS-011 — `nack_event()` now returns `(-2,-2)` for invalid transitions (already ACKed or DLQ'd), and `ack_route.py` converts this to HTTP 409. However, the caller (`_nack_and_promote()`) checks `failure_count == -2` but does not verify whether the event is actually in the database before raising 409 — if the event was deleted between the NACK call and the status check, a spurious 409 could be returned (the intended response is 404). Separately, a NACK after a same-consumer ACK is currently accepted rather than rejected with 409, because the per-consumer ACK path does not set `events.acked_at`; see `issues/20261005-102244_eb002_eventbus-nack-accepted-after-per-consumer-ack.md`.
 - **Type**: Race Condition
 - **Summary**: A 409 response after NACK may be returned incorrectly when the Event has been deleted
 - **Impact**: Low (Events are deleted only in rare cases)
@@ -443,6 +432,8 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 ### Related ADRs
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
+- ADR-004: Failure Handling Policy Across Environments
+- ADR-013: EventBus Authentication and Authorization
 
 ### Specifications
 
@@ -496,6 +487,6 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
 - [ ] Discrepancies with the current implementation are registered as Known Issues
-- [ ] The Owner and required Reviewers are defined
-- [ ] Review Triggers are recorded
+- [x] The Owner and required Reviewers are defined
+- [x] Review Triggers are recorded
 - [ ] The ADR is registered in the ADR index and the Document Guides of related areas

@@ -184,7 +184,7 @@ Confuses call-time Policy decisions with per-Tool availability flags.
 ### Startup Validation
 
 - Routing is determined at startup based on Discovery results
-- Startup is aborted when Discovery fails
+- Startup is aborted when Discovery fails for a required MCP server; when a non-mandatory MCP server is unavailable, its Tools are disabled and startup continues (ADR-004 Decision 18)
 
 ### Deployment Validation
 

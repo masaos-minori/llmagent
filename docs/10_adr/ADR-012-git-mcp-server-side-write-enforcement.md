@@ -59,7 +59,7 @@ Approval and technical safety are different concerns: Agent-side approval confir
 6. Postcondition verification MUST confirm the resulting branch/HEAD and detect unresolved conflicts before reporting success; a `git` command that exits non-zero already fails today, but a low-level "did we actually end up where we intended" check is not the same guarantee.
 7. Audit records for Git MCP write operations include the correct repository identity; the key-name mismatch (`"repo"` vs. `repo_path`) was fixed as part of closing this gap.
 8. `RepositoryState` frozen dataclass MUST capture full repository state from a single `git.Repo` query and provide immutable access to all fields.
-9. Write-protection pipeline MUST enforce stage ordering: Stage 4 (state snapshot) → Stage 5 (preconditions) → Stage 6 (execution) → Stage 7 (postcondition verification).
+9. Write-protection pipeline MUST enforce stage ordering: Stage 4 (state snapshot) → Stage 5 (preconditions) → Stage 5b (HEAD-identity re-check immediately before the mutating Git call) → Stage 6 (execution) → Stage 7 (postcondition verification).
 10. Audit records for Git MCP write operations MUST include both pre-condition and post-condition snapshots captured by `RepositoryState`.
 
 ### Scope
@@ -193,7 +193,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 - **Test**: Postcondition verification runs on the live path and cannot be bypassed (`TestPostConditionBypassPrevention`: `test_checkout_postcondition_cannot_be_bypassed`, `test_pull_postcondition_cannot_be_bypassed`, `test_push_postcondition_cannot_be_bypassed`) — **Verifies**: Decision Details #6 — **Type**: Integration — **Blocking**: Yes
 - **Test**: `RepositoryState` is a frozen dataclass and snapshots capture the required fields (`test_snapshot_frozen_dataclass`, plus the `TestRepositoryStateSnapshot` suite) — **Verifies**: Decision Details #8 — **Type**: Unit — **Blocking**: Yes
 - **Test**: audit records include the correct repository identity and pre/post-condition state (`test_audit_record_includes_repo_identity`, `test_audit_record_has_pre_condition`, `test_audit_record_has_post_condition`) — **Verifies**: Decision Details #7, #10 — **Type**: Unit — **Blocking**: Yes
-- **Test**: all pipeline stages execute in the documented order for `git_checkout`/`git_pull`/`git_push` (`TestCompletePipelineCoverage`: `test_all_stages_execute_in_order_for_checkout`, `test_all_stages_execute_in_order_for_pull`, `test_all_stages_execute_in_order_for_push`) — **Verifies**: Decision Details #9 — **Type**: Integration — **Blocking**: Yes
+- **Test**: the pipeline stages execute in the documented order for `git_checkout`/`git_pull`/`git_push` (`TestCompletePipelineCoverage`: `test_all_stages_execute_in_order_for_checkout`, `test_all_stages_execute_in_order_for_pull`, `test_all_stages_execute_in_order_for_push`) — **Verifies**: Decision Details #9 — **Type**: Integration — **Blocking**: Yes
 
 ### Resolved Items
 
@@ -210,7 +210,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-`docs/00_governance/governance_03_issue-and-uncertainty-management.md`'s MCP-001 (`verify_postcondition()` unconditional-success placeholder) and MCP-002 (`PipelineResult` missing `post_state`) are both registered and marked `resolved` (confirmed this cycle). Whether any further deviation remains open after Phase 1's dead-method removal lands is tracked in row 4 of that document.
+`docs/00_governance/governance_03_issue-and-uncertainty-management.md`'s MCP-001 (`verify_postcondition()` unconditional-success placeholder) and MCP-002 (`PipelineResult` missing `post_state`) are both resolved; resolved entries are intentionally not tracked in that document, and no open deviation is recorded for this ADR.
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 

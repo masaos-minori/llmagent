@@ -199,10 +199,7 @@ Not applicable. physical-recovery is designed as a Fail-Closed domain. When in d
 
 ### Retry Policy
 
-- Retry target: ingestion failures
-- Retry count: bounded by `retry_policy.max_attempts`
-- Backoff: fixed interval
-- Errors not retried: consistency-check mismatches
+- No automatic retry of recovery
 - operator-restore is a single, operator-initiated attempt; no automatic retry loop
 
 ### Fallback Policy

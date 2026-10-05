@@ -100,7 +100,7 @@ Being Discoverable or Owned alone does not mean the Tool is always Executable. I
 - **Target components**: `RuntimeToolRegistry`, `ToolRegistry`, `ToolRouteResolver`, `McpToolDiscoveryService`, `McpServerHealthRegistry`, `ToolExecutor`
 - **Target processes**: the Agent process and each MCP server process
 - **Target data**: Tool definitions, Discovery results, configuration files
-- **Target Environment Profile**: all environments (local/dev/production)
+- **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `RuntimeToolRegistry.resolve()`, `RuntimeToolRegistry.llm_tool_definitions()`, `RuntimeToolRegistry.apply_policy()`, `ToolRouteResolver.resolve()`, `McpToolDiscoveryService.discover_all()`
 
 ### Out of Scope
@@ -149,7 +149,7 @@ This section is maintained in the companion document: [Alternatives Considered](
 
 ### Negative Consequences
 
-- Tools are not executed when Discovery fails
+- Tools of an MCP server whose Discovery fails are not executed (Fail-Closed)
 - Adding a new Tool requires updating the Discovery results
 - Cost of building RuntimeToolRegistry
 - Modifying existing code that depends on static definitions
@@ -159,7 +159,7 @@ This section is maintained in the companion document: [Alternatives Considered](
 - Routing is determined at startup based on Discovery results
 - Adding or removing Tools at runtime is prohibited
 - A configuration change that affects Discovery-derived state requires a full restart of the Agent process and is not reflected by Reload
-- Impact on Health Checks: startup is aborted when Discovery fails
+- Impact on Health Checks: startup is aborted when Discovery fails for a required MCP server; when a non-mandatory MCP server is unavailable, its Tools are disabled and startup continues (ADR-004 Decision 18)
 - Incident response: a restart is required when Discovery fails
 
 ### Security Consequences
@@ -269,6 +269,7 @@ No confirmed deviations.
 
 - ADR-001: Mandatory Workflow Engine
 - ADR-002: Config Isolation
+- ADR-004: Failure Handling Policy Across Environments
 
 ### Specifications
 

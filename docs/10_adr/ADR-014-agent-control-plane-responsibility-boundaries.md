@@ -236,6 +236,10 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Related Documents
 
+### Related ADRs
+
+- ADR-001: Mandatory Workflow Engine
+
 ### Specifications
 
 - [ADR-001: Mandatory Workflow Engine](ADR-001-workflow-engine-mandatory.md) — the prerequisite ADR defining the mandatoriness and uniqueness of the Workflow Engine
