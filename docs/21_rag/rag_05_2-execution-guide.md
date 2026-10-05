@@ -18,9 +18,9 @@ source:
 
 ```bash
 # Ensure embed-llm is running
-curl -s http://127.0.0.1:8081/health
+curl -s http://127.0.0.1:<PORT>/health
 
-# Verify configuration files exist (defines rag_src_dir; default is /opt/llm/rag-src)
+# Verify configuration files exist (defines rag_src_dir)
 ls -la config/crawler.toml config/chunk_splitter.toml config/ingester.toml
 ```
 

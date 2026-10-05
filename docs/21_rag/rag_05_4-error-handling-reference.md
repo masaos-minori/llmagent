@@ -41,15 +41,15 @@ either reader.
 | File read failure (`OSError`) | `ChunkFormatError` |
 | JSON parse failure | `ChunkFormatError` |
 | Parsed JSON is not an object | `ChunkFormatError` |
-| Missing one or more required keys (exact-key-set check; 8 keys for crawl, 13 for chunk) | `ChunkFormatError` |
-| Unknown key present beyond the required 13 (chunk artifacts only; `schema_version`/`artifact_type`/`created_by` are exempted) | `ChunkFormatError` |
+| Missing one or more required keys (exact-key-set check; separate key sets for crawl and chunk artifacts) | `ChunkFormatError` |
+| Unknown key present beyond the required key set (chunk artifacts only; `schema_version`/`artifact_type`/`created_by` are exempted) | `ChunkFormatError` |
 | Required-classified field is missing, `null`, or the wrong type (`_validate_str`) | `ChunkFormatError` |
 | Conditional-classified field has the wrong type (`_validate_str_or_empty`) | `ChunkFormatError` |
 | Nullable-classified field is present but neither `str` nor `null` (`_validate_nullable_str`) | `ChunkFormatError` |
 | `chunk_index` is `bool`, non-`int`, or negative (`_validate_int_non_negative`; `bool` explicitly rejected before the `int` check) | `ChunkFormatError` |
 | Crawl artifact only: `content` is empty and `code_blocks` is also empty (cross-field rule) | `ChunkFormatError` |
 
-**Catch guidance**: Callers should catch `ChunkFormatError` specifically, not the broader `RagLayerError` base class. This matches every actual catch site in the codebase — `chunk_grouping.py`, `chunk_splitter.py` (as part of `(FileNotFoundError, ChunkFormatError)`), `file_routing.py`, and `ingester.py`. No catch site was found using the wrong exception type as of this cycle's search.
+**Catch guidance**: Callers should catch `ChunkFormatError` specifically, not the broader `RagLayerError` base class. This matches every actual catch site in the codebase — `chunk_grouping.py`, `chunk_splitter.py` (as part of `(FileNotFoundError, ChunkFormatError)`), `file_routing.py`, and `ingester.py`.
 
 For the full per-field Required/Nullable/Conditional classification referenced above,
 see the canonical table in

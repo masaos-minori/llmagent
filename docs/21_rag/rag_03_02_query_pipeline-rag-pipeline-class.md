@@ -32,7 +32,7 @@ related:
 from rag.pipeline import RagPipeline, RagPipelineError
 ```
 
-> **Documentation vs. Implementation Mismatch**: `fetch_full_document` is not provided by `rag/pipeline.py`. Its actual implementation is defined in `rag/repository.py` (`from rag.repository import fetch_full_document`). Similarly, `sanitize_document` is a function from `rag/utils.py` and does not exist in `rag.pipeline`. Actual imports in test and implementation code are only `from rag.pipeline import RagPipeline, RagPipelineError`.
+> **Note**: `fetch_full_document` is not provided by `rag/pipeline.py`. Its actual implementation is defined in `rag/repository.py` (`from rag.repository import fetch_full_document`). Similarly, `sanitize_document` is a function from `rag/utils.py` and does not exist in `rag.pipeline`. Actual imports in test and implementation code are only `from rag.pipeline import RagPipeline, RagPipelineError`.
 > (Evidence classification: Explicit in code — `scripts/rag/pipeline.py` import statements, `fetch_full_document()` function in `scripts/rag/repository.py`)
 
 The constructor of this class configures it bypassing `module_cfg`. Please refer to the source code for details.
@@ -57,8 +57,8 @@ If `rag_service_url` is not empty, `augment()` delegates to an external RAG serv
 | Behavior | Details |
 |---|---|
 | Authentication | If `rag_auth_token != ""` the `X-RAG-Token: {rag_auth_token}` header is added (default: no header) |
-| Timeout | 10.0 seconds per HTTP attempt (connection + read) |
-| Retries | Max 2 retries for 5xx or transport errors with exponential backoff (1s, 2s); no retries for 4xx or JSON parsing errors |
+| Timeout | Fixed per-HTTP-attempt timeout (connection + read), hardcoded in `call_rag_service()` |
+| Retries | Bounded retries for 5xx or transport errors with exponential backoff; no retries for 4xx or JSON parsing errors |
 | Fallback | If `None` is returned → In-process pipeline; if "" (empty context) → accepted as valid result |
 | Prevention of infinite delegation | The MCP adapter hardcodes `rag_service_url=""`, so the in-process `augment()` will not re-delegate |
 | Return value | `call_rag_service()` returns `(context: str ∣ None, status_code: int ∣ None, elapsed_ms: float)` — `status_code` and `elapsed_ms` can be used for diagnostics |

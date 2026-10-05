@@ -57,22 +57,24 @@ This module provides the following public methods. See source code for details.
 
 ### 3.1.1 Markdown Heading Chunking Configuration
 
-| Parameter | Default | Description |
-|---|---|---|
-| `md_index_enable` | False | Enables heuristic Markdown detection for non-.md files |
-| `md_snippet_max_chars` | 600 | Maximum characters per single Markdown heading section before falling back to sentence-based chunking |
+Current values are owned by `config/chunk_splitter.toml`.
+
+| Parameter | Description |
+|---|---|
+| `md_index_enable` | Enables heuristic Markdown detection for non-.md files |
+| `md_snippet_max_chars` | Maximum characters per single Markdown heading section before falling back to sentence-based chunking |
 
 ### 3.1.2 Chunking Parameters (Shared with crawler)
 
-| Parameter | Default | Description |
-|---|---|---|
-| `min_chunk` | 40 | Minimum number of characters per chunk. Chunks smaller than this are discarded as noise. |
-| `max_chunk` | 500 | Maximum number of characters per chunk. Text exceeding this limit will be split. |
-| `chunk_overlap` | 50 | Sliding window chunk overlap (in characters). Adds this many characters from the end of the previous chunk to the beginning of the next; 0 disables it. |
-| `en_stopwords` | — | English stopwords to exclude from chunking (defined in `config/chunk_splitter.toml`. Corrected from old docs referencing a now-deleted single-file config). |
-| `ja_stop_pos` | — | Sudachi part-of-speech categories treated as stopwords in Japanese. Default value: a list of Japanese Sudachi part-of-speech names (not English labels) defined in `config/chunk_splitter.toml`. |
+| Parameter | Description |
+|---|---|
+| `min_chunk` | Minimum number of characters per chunk. Chunks smaller than this are discarded as noise. |
+| `max_chunk` | Maximum number of characters per chunk. Text exceeding this limit will be split. |
+| `chunk_overlap` | Sliding window chunk overlap (in characters). Adds this many characters from the end of the previous chunk to the beginning of the next; zero disables it. |
+| `en_stopwords` | English stopwords to exclude from chunking (defined in `config/chunk_splitter.toml`). |
+| `ja_stop_pos` | Sudachi part-of-speech categories treated as stopwords in Japanese. A list of Japanese Sudachi part-of-speech names (not English labels) defined in `config/chunk_splitter.toml`. |
 
-> Evidence: Explicit in code — `scripts/rag/ingestion/chunk_splitter.py::__init__` uses `ConfigLoader().load("chunk_splitter.toml")`, and `en_stopwords`/`ja_stop_pos` are defined in `config/chunk_splitter.toml`. The former single-file config does not exist in this repository.
+> Evidence: Explicit in code — `scripts/rag/ingestion/chunk_splitter.py::__init__` uses `ConfigLoader().load("chunk_splitter.toml")`, and `en_stopwords`/`ja_stop_pos` are defined in `config/chunk_splitter.toml`.
 
 ## Keywords
 
@@ -102,7 +104,7 @@ Note: No historical rationale for this extension-based rule is recorded in code 
 
 Text is split by Markdown headings (# through ######). Sections exceeding `md_snippet_max_chars` characters are further split using sentence-based chunking.
 
-**Fallback trigger condition:** When a heading-delimited section exceeds `md_snippet_max_chars` characters (default 600), the section is split using sentence-boundary splitting via `_chunk_english()`. The exact trigger is `len(section) > md_snippet_max_chars`.
+**Fallback trigger condition:** When a heading-delimited section exceeds `md_snippet_max_chars` characters, the section is split using sentence-boundary splitting via `_chunk_english()`. The exact trigger is `len(section) > md_snippet_max_chars`.
 
 **Sequential per-section combination model:** The two strategies combine sequentially, per-section: the text is first split into heading-delimited sections, then *each section independently* either passes through as one chunk or is further split by `_chunk_english()`. The two strategies are not applied in parallel or merged; each section takes exactly one path.
 
@@ -243,7 +245,7 @@ aborting the **entire file**, not one chunk.
 
 ### 3.6 Logging
 
-- **File:** `/opt/llm/logs/chunk.log` + stderr
+- **File:** chunk log file (path set by the logging setup) + stderr
 - **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 
 | Level | Timing |

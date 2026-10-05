@@ -16,7 +16,7 @@ source:
 
 | Constraint | Value |
 |---|---|
-| Language detection threshold | CJK ratio $\ge$ 0.10 $\rightarrow$ `ja`; If page < 100 chars $\rightarrow$ use hint language |
+| Language detection threshold | CJK ratio above a threshold $\rightarrow$ `ja`; very short pages $\rightarrow$ use hint language |
 | Chunk size range | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](rag_05_1-configuration-reference.md). No historical rationale for the specific bounds is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. |
 | Chunk overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](rag_05_1-configuration-reference.md). No historical rationale for the specific bound is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. |
 | Embedding dimensions | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB |
@@ -31,7 +31,7 @@ source:
 
 **Evidence:**
 - CJK threshold, character count threshold, chunk size/overlap, embedding dims/endianness: Explicit in code (`scripts/rag/ingestion/crawler_utils.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/utils.py:floats_to_blob`, `config/agent.toml`, `config/ingester.toml`).
-- Crawl depth and max pages: Explicit in code, but operational values in `config/crawler.toml` differ from code defaults. Earlier versions of this document stated "max 6 hops" and "max 500 pages"; the actual `config/crawler.toml` values are `max_depth=3` and `max_pages=200`.
+- Crawl depth and max pages: Explicit in code, but operational values in `config/crawler.toml` differ from code defaults.
 - `chunk_index`/`url`/`content` validation, `lang`/`chunking_strategy` non-enforcement: Explicit in code
   (`scripts/rag/ingestion/pipeline_utils.py` validator definitions, ``
   `read_crawl_json()`/`read_chunk_json()` call sites); `LanguageCode`'s `en`/`ja`

@@ -44,7 +44,7 @@ RerankStage(cfg: RagConfig, llm: RagLLM)
 
 No constructor (inherits from `PipelineStage`).
 
-**Correction (Explicit in code):** Redundancy in chunk formatting functions has been resolved. The `_format_chunks` function is the sole implementation, and `scripts/rag/pipeline.py` imports it as `_augment_format_chunks` (`from rag.stages.augment import _format_chunks as _augment_format_chunks`). Both AugmentStage (in `augment.py`) and the raw chunk fallback in `RagPipeline.augment()` call this same function.
+**Note (Explicit in code):** The `_format_chunks` function is the sole implementation, and `scripts/rag/pipeline.py` imports it as `_augment_format_chunks` (`from rag.stages.augment import _format_chunks as _augment_format_chunks`). Both AugmentStage (in `augment.py`) and the raw chunk fallback in `RagPipeline.augment()` call this same function.
 
 - Formats `ctx.reranked` as a block in the format `[Source: {title if title else url} | {url}]\n{sanitize_document(content)}`; uses the URL as a fallback if the title is empty
 - Concatenates with `\n\n---\n\n` and wraps with `[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]`
@@ -162,7 +162,7 @@ If summarization fails with `use_refiner=true`, `augment()` falls back to raw ch
 
 **No-retry Policy**: Refiner failures are treated as non-critical quality degradations — allowing raw chunks as output. Retrying failed LLM calls offers low expected benefit while increasing latency (transient errors are rare, and content policy rejections will not succeed upon retry). If degraded output cannot be tolerated, completely disable the refiner by setting `use_refiner=false`.
 
-Note: This rationale was recorded as design reasoning at the time the policy was introduced (`27fa06ae`: "feat: add refiner fallback diagnostics and debug visibility"), not derived from measured retry-latency data or content-policy-rejection-pattern analysis. No ADR documents this policy. If this policy is revisited, the "transient errors are rare" and "retries increase latency" claims should be verified against actual production data first, since neither is currently substantiated.
+Note: This rationale is design reasoning, not derived from measured retry-latency data or content-policy-rejection-pattern analysis. No ADR documents this policy. If this policy is revisited, the "transient errors are rare" and "retries increase latency" claims should be verified against actual production data first, since neither is currently substantiated.
 
 Both reasons can be verified as follows:
 - Displayed at INFO level in application logs (augment: refiner fallback (reason=...))

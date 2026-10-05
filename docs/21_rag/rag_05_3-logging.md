@@ -16,9 +16,9 @@ source:
 
 | Script | Log file | Log levels |
 |---|---|---|
-| `crawler.py` | `/opt/llm/logs/crawl.log` + stderr | INFO: Start/Save/Skip; WARNING: HTTP Error/Retry |
-| `chunk_splitter.py` | `/opt/llm/logs/chunk.log` + stderr | INFO: File Count/Chunk Count; ERROR: File Failure including Sudachi tokenization errors (with traceback) |
-| `ingester.py` | `/opt/llm/logs/ingest.log` + stderr | INFO: Chunk Count/Insert Count/Move Count; WARNING: Embedding Error/Retry/Skip; ERROR: Read/Move/Grouping Failure (with traceback) |
+| `crawler.py` | crawl log file (configured via logging setup) + stderr | INFO: Start/Save/Skip; WARNING: HTTP Error/Retry |
+| `chunk_splitter.py` | chunk log file (configured via logging setup) + stderr | INFO: File Count/Chunk Count; ERROR: File Failure including Sudachi tokenization errors (with traceback) |
+| `ingester.py` | ingest log file (configured via logging setup) + stderr | INFO: Chunk Count/Insert Count/Move Count; WARNING: Embedding Error/Retry/Skip; ERROR: Read/Move/Grouping Failure (with traceback) |
 
 **Common Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 

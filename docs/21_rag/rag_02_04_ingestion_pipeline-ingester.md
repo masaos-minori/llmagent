@@ -108,7 +108,7 @@ this layer), and file-move failure logging.
 
 ### 4.7 Logging
 
-- **File:** `/opt/llm/logs/ingest.log` + stderr
+- **File:** ingest log file (path set by the logging setup) + stderr
 - **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 - Detailed log message formats $\rightarrow$ `scripts/rag/ingestion/ingester.py`
 

@@ -28,7 +28,7 @@ related:
 ### Prerequisites
 
 ```bash
-curl -s http://127.0.0.1:8081/health
+curl -s http://127.0.0.1:<PORT>/health
 ```
 
 ### Step 1: Crawling
@@ -80,13 +80,13 @@ uv run python scripts/rag/ingestion/ingester.py --force
 > python -c "import orjson; print(orjson.loads(open('{rag_src_dir}/{timestamp}-{slug}.json', 'rb').read()))"
 > ```
 >
-> Use the artifact path format from the table above (e.g., `{rag_src_dir}/20260913183000-example.json`). The `'rb'` (binary read) mode is required because `orjson.loads()` accepts `bytes` input directly, matching how `read_crawl_json()`/`read_chunk_json()` read files via `path.read_bytes()` before passing to `orjson.loads()`. `orjson` is used instead of the standard `json` module for its performance characteristics (Rust-backed, significantly faster). Expected output: a Python `dict` printed to stdout, or a `json.JSONDecodeError` if the file is not valid JSON.
+> Use the artifact path format from the table above (e.g., `{rag_src_dir}/<timestamp>-example.json`). The `'rb'` (binary read) mode is required because `orjson.loads()` accepts `bytes` input directly, matching how `read_crawl_json()`/`read_chunk_json()` read files via `path.read_bytes()` before passing to `orjson.loads()`. `orjson` is used instead of the standard `json` module for its performance characteristics (Rust-backed, significantly faster). Expected output: a Python `dict` printed to stdout, or a `json.JSONDecodeError` if the file is not valid JSON.
 >
 > **Crawl artifact keys:** `url`, `content`, `title`, `lang`, `code_blocks`, `etag`, `last_modified`, `fetched_at`
 >
 > **Chunk artifact keys:** additionally includes `normalized_content`, `chunk_index`, `source_file`, `chunk_type`, `chunking_strategy`
 
-Production setting: `rag_src_dir = "/opt/llm/rag-src"`. The default value `rag-src` is used only if no configuration is provided.
+`rag_src_dir` is set in the ingestion config files (see [Configuration Reference](rag_05_1-configuration-reference.md)).
 
 ---
 

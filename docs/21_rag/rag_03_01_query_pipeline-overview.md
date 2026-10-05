@@ -37,7 +37,7 @@ RagPipeline.augment(query)
   → run(query, db, history_context)
       [1] MqeStage         — Expands query into N variants
       [2] SearchStage      — Executes KNN + BM25 per variant
-      [3] FusionStage      — Merges via RRF (Σ 1/(rrf_k+rank); rrf_k is configurable, default: 60)
+      [3] FusionStage      — Merges via RRF (Σ 1/(rrf_k+rank); rrf_k is configurable)
       [4] RerankStage      — Scoring via Cross-Encoder; filtered by rag_min_score; limits chunks per document URL (`deduplicate_chunks`) after reranking
       [5] AugmentStage     — Formats as [RAG_CONTEXT_START]...[RAG_CONTEXT_END]
   → use_refiner=True? → refine_context() (compresses chunks; falls back to raw chunks on error)

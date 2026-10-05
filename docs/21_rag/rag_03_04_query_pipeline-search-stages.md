@@ -50,10 +50,10 @@ SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: st
 - Each query adds 0–2 `list[RawHit]` items to `ctx.search_results` (KNN + BM25); returns empty if embedding or DB error occurs.
 - KNN: Uses `vector_search(embedding, top_k)` via `sqlite-vec`.
 - BM25: Uses `fts_search(query, top_k)` via FTS5.
-- Logs to `/opt/llm/logs/search.log`: warnings for embedding failures and search degradation (count of `embed_failed` and FTS errors).
+- Logs to the search log file: warnings for embedding failures and search degradation (count of `embed_failed` and FTS errors).
 - If `db=None`, it processes with an empty result and a warning.
 
-> **Documentation vs. Implementation Mismatch**: `sqlite3.OperationalError` / `RuntimeError` raised by `vector_search`/`fts_search` are caught within `SearchStage` and merely increment the `fts_errors` counter per query; they are NOT propagated as exceptions to the caller. A failure in one query does not stop processing of remaining queries.
+> **Error handling**: `sqlite3.OperationalError` / `RuntimeError` raised by `vector_search`/`fts_search` are caught within `SearchStage` and merely increment the `fts_errors` counter per query; they are NOT propagated as exceptions to the caller. A failure in one query does not stop processing of remaining queries.
 > (Evidence classification: Explicit in code — `_search_all_queries()` method).
 >
 > **Note:** Search and reranking logic is executed in `SearchStage.run()` and `RerankStage.run()`, not in `RagPipeline` methods.
@@ -69,7 +69,7 @@ FusionStage(rrf_k: int = 60, use_rrf: bool = True)
 ```
 
 - Merges `ctx.search_results` using Reciprocal Rank Fusion: $score = \sum 1/(rrf\_k + rank)$.
-- Default `rrf_k`: 60; can be changed via `cfg.rrf_k` (the `RagConfig` Protocol includes an `rrf_k` field).
+- `rrf_k` can be changed via `cfg.rrf_k` (the `RagConfig` Protocol includes an `rrf_k` field).
 - Assigns an `rrf_score` to each `MergedHit` and stores it in `ctx.merged`.
 
 Using `use_rrf=False` triggers a fallback to deduplication only (all scores set to `0.0`).
@@ -82,7 +82,7 @@ Using `use_rrf=False` triggers a fallback to deduplication only (all scores set 
 
 | Mode | Mechanism | Impact on Quality |
 |---|---|---|
-| `use_rrf=True` (Default) | RRF: Scores hits across the entire result list using $\sum 1/(rrf\_k + rank)$ | Prioritizes chunks seen across multiple queries; provides robust cross-list ranking |
+| `use_rrf=True` | RRF: Scores hits across the entire result list using $\sum 1/(rrf\_k + rank)$ | Prioritizes chunks seen across multiple queries; provides robust cross-list ranking |
 | `use_rrf=False` | Deduplication only: Deduplicates by `chunk_id` and prioritizes the first occurrence; all hits get `rrf_score=0.0` | No ranking signal; MQE results provide no additional ranking benefit |
 
 **When `use_rrf=False` is used:**

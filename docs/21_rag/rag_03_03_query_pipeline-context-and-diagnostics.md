@@ -49,7 +49,7 @@ stage-populated field is written by a specific pipeline stage:
 from rag.models_result import SearchDiagnostics, ResultSource, HttpResultKind
 ```
 
-For detailed field lists, types, and default values, see <a href="rag_04_02_dto-models_result.md">rag_04_02_dto-models_result.md</a>. This section describes boundary conditions and ownership specifically in HTTP mode.
+For detailed field lists, and types, see <a href="rag_04_02_dto-models_result.md">rag_04_02_dto-models_result.md</a>. This section describes boundary conditions and ownership specifically in HTTP mode.
 
 #### Boundary Conditions (Boundary and ownership)
 

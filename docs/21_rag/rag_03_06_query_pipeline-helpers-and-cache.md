@@ -92,10 +92,8 @@ Implementation is located below:
 
 ```python
 from rag.llm_client import RagLLM
-llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8080/v1/chat/completions")
+llm = RagLLM(client=http_client, llm_url="<LLM_URL>")
 ```
-
-**Correction (Explicit in code):** Duplicate `logger = logging.getLogger(__name__)` has been resolved. It now exists only once in `scripts/rag/llm_client.py`.
 
 `RagLLM` provides MQE query expansion (`expand_queries`), Cross-Encoder reranking (`cross_encoder_rerank`), tool output summarization (`summarize_tool_result`), and context refining (`refine_context`). See `scripts/rag/llm_client.py` for detailed signatures.
 

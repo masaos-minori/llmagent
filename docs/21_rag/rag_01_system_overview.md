@@ -95,7 +95,7 @@ Chunk files are moved to `rag-src/registered/` after ingestion. No automated ret
 
 ## Ingestion Pipeline
 
-**3 Scripts / 4 Processing Phases**
+**Scripts and Processing Phases**
 
 | Script | Phase | Input | Output |
 |---|---|---|---|
@@ -104,8 +104,8 @@ Chunk files are moved to `rag-src/registered/` after ingestion. No automated ret
 | `ingester.py` | Embedding | `rag-src/chunk/*.json` | Embedding API call |
 | `ingester.py` | Storage | Embedding vector | SQLite table + `rag-src/registered/` |
 
-> **Terminology Note:** "3 Scripts" refers to the three executable files (`crawler.py`, `chunk_splitter.py`, `ingester.py`).
-> "4 Processing Phases" refers to the four logical steps (Crawling, Chunking, Embedding, Storage), two of which are executed internally within `ingester.py`.
+> **Terminology Note:** "Scripts" refers to the executable files (`crawler.py`, `chunk_splitter.py`, `ingester.py`).
+> "Processing Phases" refers to the logical steps (Crawling, Chunking, Embedding, Storage), two of which are executed internally within `ingester.py`.
 > The term "Stage" is reserved for query pipeline stages (MQE, Search, Fusion, Rerank, Augment) and is not used for ingestion.
 
 ### Ingestion Data Flow (Overview)
@@ -153,7 +153,7 @@ The RAG pipeline has no semantic cache. The configuration keys `use_semantic_cac
 | Requirement | Verification Command |
 |---|---|
 | Embedding server available | `curl -s http://127.0.0.1:<PORT>/health` |
-| `sqlite-vec` extension loadable | `/opt/llm/sqlite-vec/vec0.so` exists |
+| `sqlite-vec` extension loadable | the file at `sqlite_vec_so` (see `config/ingester.toml`) exists |
 | Configuration files exist | `config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml` |
 | Target URLs or files specified | `--url` in CLI, or `target_urls` in config |
 
@@ -206,7 +206,7 @@ Troubleshooting:
 
 | Constraint | Value | Source |
 |---|---|---|
-| Language Detection | CJK ratio ≥ 0.10 → `ja`; otherwise `en`; fallback to hint if < 100 chars | `crawler.py` |
+| Language Detection | CJK ratio above a threshold → `ja`; otherwise `en`; falls back to the language hint for very short text | `crawler.py` |
 | Chunk Size | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](rag_05_1-configuration-reference.md). No historical rationale for the specific bounds is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
 | Chunk Overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](rag_05_1-configuration-reference.md). No historical rationale for the specific bound is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
 | Embedding Dimension | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB | `scripts/db/store_protocols.py` |
@@ -214,7 +214,7 @@ Troubleshooting:
 | Max Pages Per Site | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value in [Configuration Reference §1.1](rag_05_1-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. | `config/crawler.toml` |
 | Database | SQLite single node only | Architecture |
 
-Note: No empirical basis or trade-off analysis for these six constraint values is recorded in this repository's code, configuration files, or ADRs (as of this cycle's search). If these values are tuned, verify the change against actual retrieval quality/performance for your intended use case rather than assuming a known-good adjustment — this documentation set does not currently provide quality-impact guidance for any of them.
+Note: No empirical basis or trade-off analysis for these constraint values is recorded in this repository's code, configuration files, or ADRs. If these values are tuned, verify the change against actual retrieval quality/performance for your intended use case rather than assuming a known-good adjustment — this documentation set does not currently provide quality-impact guidance for any of them.
 
 ### Constraint Violation Behavior and Enforcement
 
