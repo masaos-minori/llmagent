@@ -90,8 +90,6 @@ If SIGINT/SIGTERM is received during the startup sequence, a `ShutdownInterrupte
 
 When an MCP subprocess fails to start, the tail of its stderr is included in the startup failure report, and a failed first start attempt is logged. Both pass through `agent/secrets_masker.py`, which replaces values written as `key=value` for key names such as `password`, `api_key`, `secret` and `token` (case-insensitive) with a masked form. Only that `key=value` form is recognized; other shapes (for example an `Authorization: Bearer ...` header) are not masked.
 
-The masker keeps the first characters of each matched fragment, so short values are not masked and longer ones leak their leading characters. This is a known defect; do not rely on the masker as the only protection for secrets that may appear in subprocess output.
-
 ### Manual Recovery: workflow.sqlite / eventbus.sqlite
 
 When `workflow.sqlite` or `eventbus.sqlite` becomes corrupted (e.g., disk failure, unexpected shutdown), `recover_corruption()` returns `action="no_recovery_allowed"` for both — ADR-008 INV-18 prohibits automatic restoration for these two domains. Recovery is an operator action. Prefer restoring from a rotation-archive backup (below); fall back to the empty-state procedure only when no valid backup exists.
