@@ -2,6 +2,21 @@
 
 Preserve the original exception traceback when `AgentContext.__init__()` fails to load configuration, enabling proper root cause diagnosis.
 
+## Implementation outcome
+
+Deviation from procedure: no code change was performed. Origin/master already ships
+this fix in commit `10308ed7` — the wrapper `raise RuntimeError(...)` at
+`AgentContext.__init__()` (lines 320-324) has NO `from None` clause, so the
+original exception chain is preserved (REQ-001). The procedure's stated target
+(line 313, `raise RuntimeError(f"Failed to load agent config from {config_dir}")
+from None`) does not match the current source: the message format is
+`f"Failed to load agent config ({config_dir}): {e.__class__.__name__}: {e}"`
+and the raise sits at lines 322-324. Removing `from None` was already done upstream.
+Existing regression tests (`tests/agent/test_context.py`,
+`TestExceptionChainPreservation`) assert `__cause__ is original_exc` and pass
+(11 passed, 1 intentionally skipped). Accepting the upstream implementation and
+closing the workflow.
+
 ## Scope
 
 - Modify `scripts/agent/context.py`: remove `from None` clause to preserve exception chain
