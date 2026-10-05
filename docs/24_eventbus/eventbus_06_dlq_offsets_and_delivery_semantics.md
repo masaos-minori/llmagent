@@ -106,7 +106,7 @@ No idempotency guard exists in `nack_event`; `delivery_failure_count` increases 
 
 ### ACK followed by NACK
 
-No `acked_at` check in `nack_event`. Even if already ACKed, NACK succeeds and `delivery_failure_count` increases — **Implementation fix required**.
+`nack_event` checks only `events.acked_at` and `events.dlq_at`, and the per-consumer ACK sets neither, so a NACK from a consumer that has already ACKed the event succeeds and `delivery_failure_count` increases — **Implementation fix required**, tracked in `issues/20261005-102244_eb002_eventbus-nack-accepted-after-per-consumer-ack.md`.
 
 ## Offset Semantics
 
@@ -268,7 +268,7 @@ DLQ ──REQUEUE──> original stays in DLQ; a new Normal row is inserted (cy
 ### Prohibited Transitions
 
 ```
-ACKed ✗ NACK → HTTP 409 "event already acknowledged"
+ACKed ✗ NACK → HTTP 409 "event already acknowledged" (applies when `events.acked_at` is set; a NACK after the same consumer's own ACK is not yet rejected, see `issues/20261005-102244_eb002_eventbus-nack-accepted-after-per-consumer-ack.md`)
 DLQ ✗ NACK → HTTP 409 "event already in dead letter queue"
 DLQ ✗ REQUEUE → HTTP 409 "event is not in DLQ"
 ```

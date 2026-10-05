@@ -188,7 +188,7 @@ Returned when the event does not exist.
 
 **HTTP 409 Conflict**
 
-Returned when the event is already acknowledged or already in the DLQ.
+Returned when the event has `events.acked_at` set or is already in the DLQ. A NACK from a consumer after its own ACK is not currently rejected because the per-consumer ACK does not set `events.acked_at`; this is tracked in `issues/20261005-102244_eb002_eventbus-nack-accepted-after-per-consumer-ack.md`.
 
 #### Response Schemas
 
