@@ -2,6 +2,19 @@
 
 Add regression tests verifying that only tracked background tasks are cancelled during shutdown and critical operations are protected.
 
+## Implementation outcome
+
+Deviation from procedure: the inline draft was NOT applied. It constructs
+`ResourceShutdownCoordinator()` with no arguments and patches `_ctx` via
+`patch.object`; the real constructor requires three positional args
+`(ctx, view, wal)`, so the draft raises TypeError immediately. It also imports
+from `scripts.agent.*` whereas the module lives at `agent.resource_shutdown_coordinator`.
+Origin/master already ships a correct test file in commit `10308ed7`
+(`tests/agent/test_resource_shutdown_coordinator.py`,
+`TestSelectiveTaskCancellation`) using the real API; it passes (5 passed total).
+No new file was created and no code was changed. Accepting the upstream
+implementation and closing the workflow.
+
 ## Scope
 
 - Create `tests/agent/test_resource_shutdown_coordinator.py` with tests for shutdown scenarios
