@@ -17,7 +17,7 @@ related:
 
 All functions accept a `SQLiteHelper` instance and delegate low-level operations to it. 
 
-`checkpoint_wal(db, mode=None) \rightarrow WalCheckpointCounts`: Flushes the Write-Ahead Log (WAL). The default mode is taken from `agent.toml::sqlite_wal_checkpoint_mode` (default `TRUNCATE`). Invalid strings raise a `ValueError` via the `SQLiteHelper.checkpoint()` `_CHECKPOINT_MODES` check. 
+`checkpoint_wal(db, mode=None) \rightarrow WalCheckpointCounts`: Flushes the Write-Ahead Log (WAL). The default mode is taken from `agent.toml::sqlite_wal_checkpoint_mode` (a code-level default applies when the key is absent). Invalid strings raise a `ValueError` via the `SQLiteHelper.checkpoint()` `_CHECKPOINT_MODES` check. 
 
 `vacuum_db(db, mode=STRICT) \rightarrow MaintenanceResult`: Delegates to `db.vacuum()`. Must be called outside of an active transaction. 
 
@@ -46,7 +46,7 @@ if not result.success:
     logger.error('vacuum failed: %s', result.detail)
 ```
 
-`RetentionConfig` (frozen dataclass): Defines `max_sessions` (int=100, maximum sessions to retain) and `max_age_days` (int=90, purge sessions older than N days; 0 disables this). `RetentionConfig.from_config()` reads `agent.toml::sqlite_retention_max_sessions` and `agent.toml::sqlite_retention_max_age_days`.
+`RetentionConfig` (frozen dataclass): Defines `max_sessions` (maximum sessions to retain) and `max_age_days` (purge sessions older than N days; 0 disables this). Defaults are defined in `RetentionConfig`. `RetentionConfig.from_config()` reads `agent.toml::sqlite_retention_max_sessions` and `agent.toml::sqlite_retention_max_age_days`.
 
 ---
 
@@ -59,7 +59,7 @@ From `db.rotation import rotate_session_db, rotate_workflow_db, rotate_eventbus_
 - `rotate_all_dbs(archive_dir=None) \rightarrow tuple[Path, Path, Path, Path]`: Archives all four databases (ADR-008), returning `(rag_dest, session_dest, workflow_dest, eventbus_dest)`.
 - `rotate_db(archive_dir=None) \rightarrow tuple[Path, Path]`: Archives both rag and session databases, returning `(rag_dest, session_dest)`.
 
-The archive directory defaults to `/opt/llm/db/archive` (from `agent.toml::sqlite_archive_dir`). The rotation format is `{stem}_{YYYYMMDD_HHMMSS}{suffix}` in the `archive_dir`. It uses the SQLite online backup API to ensure WAL integrity is preserved during rotation.
+The archive directory is read from `agent.toml::sqlite_archive_dir`, with a code-level default when the key is absent. The rotation format is `{stem}_{YYYYMMDD_HHMMSS}{suffix}` in the `archive_dir`. It uses the SQLite online backup API to ensure WAL integrity is preserved during rotation.
 
 **Corrupt-archive retention (`CorruptArchiveRetentionConfig`, `db/maintenance.py`):** timestamped `*_corrupt_*` archives that `db.recovery` creates before restoring a database are pruned by two optional `agent.toml` keys. `sqlite_corrupt_archive_max_files` keeps the most recent N archives per source database, and `sqlite_corrupt_archive_max_age_days` deletes archives older than N days (`0` disables the age limit). Both keys fall back to in-code defaults when absent, and `ProductionConfigValidator` accepts them as known `agent.toml` keys.
 

@@ -120,8 +120,8 @@ The following indicators suggest a need for re-evaluation.
 
 ### Corpus Size
 
-- **When `chunks` table exceeds ~500,000 rows:** KNN scan time in `chunks_vec` increases linearly with corpus size. Start monitoring `/rag search` latency at this scale. *(Note: Actual thresholds depend on hardware and embedding dimensions.)*
-- **When DB file size exceeds ~10GB:** Latency for `VACUUM`, backups, and WAL checkpoints will increase, and `/db vacuum` may take minutes instead of seconds. *(Note: To be verified.)*
+- **When the `chunks` table grows large:** KNN scan time in `chunks_vec` increases linearly with corpus size. Monitor `/rag search` latency as the corpus grows. *(Note: Actual thresholds depend on hardware and embedding dimensions.)*
+- **When the DB file grows large:** Latency for `VACUUM`, backups, and WAL checkpoints will increase, and `/db vacuum` will take longer. *(Note: To be verified.)*
 
 ### Write Concurrency
 
@@ -130,7 +130,7 @@ The following indicators suggest a need for re-evaluation.
 
 ### FTS5 Search Latency
 
-- **Indicator:** `/rag search` consistently takes over 500ms. Since FTS5 BM25 scales with document count, search speed may decrease with very large corpora. *(Note: To be verified.)*
+- **Indicator:** `/rag search` latency is consistently higher than the deployment's accepted latency. Since FTS5 BM25 scales with document count, search speed may decrease with very large corpora. *(Note: To be verified.)*
 
 ### Operational Complexity Indicators
 
@@ -142,21 +142,21 @@ The following indicators suggest a need for re-evaluation.
 
 Consider architectural review if two or more apply:
 
-- [ ] p95 KNN search latency exceeds 1 second
-- [ ] DB file size exceeds 20GB
-- [ ] WAL checkpoints consistently exceed 30 seconds
-- [ ] Ingestion queue depth consistently exceeds 10,000 unprocessed chunk files
+- [ ] p95 KNN search latency exceeds the deployment's accepted latency
+- [ ] DB file size makes backup, `VACUUM`, or recovery windows unacceptable
+- [ ] WAL checkpoints consistently take longer than the deployment's accepted duration
+- [ ] Ingestion queue depth keeps growing faster than it drains
 - [ ] Multiple teams or processes require simultaneous write access
 
 Monitor these indicators during normal operation using `/db health` and `/session rag-consistency`.
 
 ### Considerations when limits are approached
 
-- **Vector Search:** Dedicated vector databases (Approximate Nearest Neighbor search, distributed indexing) outperform `sqlite-vec` at scales exceeding 1 million vectors.
+- **Vector Search:** Dedicated vector databases (Approximate Nearest Neighbor search, distributed indexing) outperform `sqlite-vec` at very large vector counts.
 - **Full-Text Search:** Full-text search services offer lower latency for large corpora.
 - **Hybrid Store:** Relational DB + Vector extensions (e.g., `pgvector` compatible) allow scaling write concurrency while maintaining SQL semantics.
 
-> **Note:** The numerical thresholds above are estimates and not guaranteed by benchmarking. Actual limits depend on hardware, embedding dimensions, query patterns, and corpus characteristics. Always verify in individual deployment environments before treating any threshold as definitive.
+> **Note:** The indicators above are qualitative and not backed by benchmarking. Actual limits depend on hardware, embedding dimensions, query patterns, and corpus characteristics. Always verify in individual deployment environments before treating any threshold as definitive.
 
 ## 13. Schema Change Checklist
 

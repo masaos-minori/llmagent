@@ -113,7 +113,7 @@ Failure to recover required workflow or event-delivery state MUST NOT be silentl
 
 ## 10. Error Handling
 
-`sqlite3.OperationalError` (busy/locked): automatic wait via `PRAGMA busy_timeout` (default 30 seconds); `sqlite3.IntegrityError`: propagates to caller; does not occur in upsert paths; `sqlite-vec` load error: `sqlite3.OperationalError` → connection failure; schema DDL failure: exception re-thrown from `executescript()`; `prune_old_memories` failure: `STRICT` — exception propagates; `BEST_EFFORT` — returns `MaintenanceResult(success=False)`; `commit()` error: WARNING logged + `sqlite3.OperationalError` re-thrown; `close()` error: WARNING logged only; no exception thrown.
+`sqlite3.OperationalError` (busy/locked): automatic wait via `PRAGMA busy_timeout` (value from `agent.toml::sqlite_busy_timeout_ms`); `sqlite3.IntegrityError`: propagates to caller; does not occur in upsert paths; `sqlite-vec` load error: `sqlite3.OperationalError` → connection failure; schema DDL failure: exception re-thrown from `executescript()`; `prune_old_memories` failure: `STRICT` — exception propagates; `BEST_EFFORT` — returns `MaintenanceResult(success=False)`; `commit()` error: WARNING logged + `sqlite3.OperationalError` re-thrown; `close()` error: WARNING logged only; no exception thrown.
 
 **Integrity check failure:** `_run_integrity_check()` catches all exceptions and dispatches them to `_classify_error()`, which classifies `sqlite3.DatabaseError` (physical corruption) as `DbCondition.CORRUPTION` rather than letting it propagate uncaught; `recover_corruption()` acts on the resulting classification rather than on the raw exception. See [section 9.4 Exception policy](#94-exception-policy).
 
@@ -121,7 +121,7 @@ Failure to recover required workflow or event-delivery state MUST NOT be silentl
 
 ## 11. DB Recreation Procedure
 
-Schema changes require DB recreation — a migration feature does not exist. **Step 1: Archive** — execute `rotate_all_dbs()` to archive every production DB (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`). **Step 2: Delete** — manually delete DB files; paths are resolved from `agent.toml` `rag_db_path`/`session_db_path`/`workflow_db_path`/`eventbus_db_path` keys (`db/config.py::DbConfig`); `create_schema()` also recreates `eventbus.sqlite`, so include `/opt/llm/db/eventbus.sqlite` if deleting (Explicit in code — `db/create_schema.py`). **Step 3: Recreate** — execute `create_schema()` to initialize empty DBs. 
+Schema changes require DB recreation — a migration feature does not exist. **Step 1: Archive** — execute `rotate_all_dbs()` to archive every production DB (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`). **Step 2: Delete** — manually delete DB files; paths are resolved from `agent.toml` `rag_db_path`/`session_db_path`/`workflow_db_path`/`eventbus_db_path` keys (`db/config.py::DbConfig`); `create_schema()` also recreates `eventbus.sqlite`, so include the `eventbus_db_path` file if deleting (Explicit in code — `db/create_schema.py`). **Step 3: Recreate** — execute `create_schema()` to initialize empty DBs. 
 
 **Important notes:** 
 - Recreated DBs are empty — existing records are not automatically migrated.
@@ -132,7 +132,7 @@ Schema changes require DB recreation — a migration feature does not exist. **S
 
 ## 12. Verification Plan
 
-Schema initialization: `pytest tests/test_create_schema.py`; DB maintenance: `pytest tests/test_db_maintenance.py`; Type check: `mypy scripts/db/`; Full integration: create DB $\rightarrow$ check all tables exist — `python -c 'from db.create_schema import create_schema; create_schema()'; sqlite3 /opt/llm/db/rag.sqlite ".tables"; sqlite3 /opt/llm/db/session.sqlite ".tables"'`.
+Schema initialization: `pytest tests/db/test_create_schema.py`; DB maintenance: `pytest tests/db/test_db_maintenance.py`; Type check: `mypy scripts/db/`; Full integration: create DB $\rightarrow$ check all tables exist — `python -c 'from db.create_schema import create_schema; create_schema()'; sqlite3 <rag_db_path> ".tables"; sqlite3 <session_db_path> ".tables"'`, where the paths come from `agent.toml`.
 
 ---
 
