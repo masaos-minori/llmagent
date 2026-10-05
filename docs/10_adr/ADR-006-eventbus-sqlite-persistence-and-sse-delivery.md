@@ -383,7 +383,7 @@ The following invariants are now enforced by content comparison logic in `insert
 - **INV-12 (ACK failure handling)**: Not affected by this change.
 - **INV-13 (DLQ promotion priority)**: Not affected by this change.
 
-- **Known Issue**: EVENTBUS-011 — `nack_event()` now returns `(-2,-2)` for invalid transitions (already ACKed or DLQ'd), and `ack_route.py` converts this to HTTP 409. However, the caller (`_nack_and_promote()`) checks `failure_count == -2` but does not verify whether the event is actually in the database before raising 409 — if the event was deleted between the NACK call and the status check, a spurious 409 could be returned (the intended response is 404). Separately, a NACK after a same-consumer ACK is currently accepted rather than rejected with 409, because the per-consumer ACK path does not set `events.acked_at`; see `issues/20261005-102244_eb002_eventbus-nack-accepted-after-per-consumer-ack.md`.
+- **Known Issue**: EVENTBUS-011 — `nack_event()` now returns `(-2,-2)` for invalid transitions (already ACKed or DLQ'd), and `ack_route.py` converts this to HTTP 409. However, the caller (`_nack_and_promote()`) checks `failure_count == -2` but does not verify whether the event is actually in the database before raising 409 — if the event was deleted between the NACK call and the status check, a spurious 409 could be returned (the intended response is 404).
 - **Type**: Race Condition
 - **Summary**: A 409 response after NACK may be returned incorrectly when the Event has been deleted
 - **Impact**: Low (Events are deleted only in rare cases)

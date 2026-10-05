@@ -96,6 +96,16 @@ def nack_event(
         if consumer_id is not None:
             # Also increment consumer-specific failure count
             update_clause += f", {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} = {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} + 1"
+            # Per-consumer ACK guard: reject NACK if this consumer already ACKed
+            where_clause += (
+                " AND NOT EXISTS ("
+                "  SELECT 1 FROM consumer_delivery "
+                "  WHERE consumer_delivery.consumer_id = ? "
+                "  AND consumer_delivery.event_id = ? "
+                "  AND consumer_delivery.acked_at IS NOT NULL"
+                ")"
+            )
+            params.extend([consumer_id, event_id])
 
         sql = f"UPDATE events SET {update_clause} WHERE {where_clause}"
         cur = conn.execute(sql, params)

@@ -7,9 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from fastapi.testclient import TestClient
-
 from eventbus.db import NackResult
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -417,6 +416,174 @@ class TestNackEvent:
 
         result = nack_event(db, "nonexistent-event")
         assert result == NackResult(delivery_failure_count=-1, cycle_failure_count=-1)
+
+    def test_nack_per_consumer_acked_then_nack_returns_invalid_transition(
+        self, db: sqlite3.Connection
+    ) -> None:
+        """NACK from consumer C for event E, when C has already ACKed E, returns NackResult(-2, -2)."""
+        from eventbus.db import ack_event_for_consumer, nack_event
+
+        ev = _event()
+        db.execute(
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
+        )
+        db.commit()
+
+        # Consumer A ACKs the event
+        found, newly_acked, _ = ack_event_for_consumer(
+            db, ev["event_id"], "consumer-A", "2026-06-22T13:00:00Z"
+        )
+        assert found is True
+        assert newly_acked is True
+
+        # Consumer A sends NACK — should be rejected
+        result = nack_event(db, ev["event_id"], consumer_id="consumer-A")
+        assert result == NackResult(delivery_failure_count=-2, cycle_failure_count=-2)
+
+        # Counters should NOT have been incremented
+        row = db.execute(
+            "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
+            (ev["event_id"],),
+        ).fetchone()
+        assert row["delivery_failure_count"] == 0
+        assert row["cycle_failure_count"] == 0
+
+    def test_nack_different_consumer_after_same_consumer_acks(
+        self, db: sqlite3.Connection
+    ) -> None:
+        """Consumer D (different consumer) can still NACK event E after consumer A ACKed it."""
+        from eventbus.db import ack_event_for_consumer, nack_event
+
+        ev = _event()
+        db.execute(
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
+        )
+        db.commit()
+
+        # Consumer A ACKs the event
+        found, newly_acked, _ = ack_event_for_consumer(
+            db, ev["event_id"], "consumer-A", "2026-06-22T13:00:00Z"
+        )
+        assert found is True
+        assert newly_acked is True
+
+        # Consumer B sends NACK — should succeed
+        result = nack_event(db, ev["event_id"], consumer_id="consumer-B")
+        assert result == NackResult(delivery_failure_count=1, cycle_failure_count=1)
+
+        row = db.execute(
+            "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
+            (ev["event_id"],),
+        ).fetchone()
+        assert row["delivery_failure_count"] == 1
+        assert row["cycle_failure_count"] == 1
+
+    def test_nack_no_consumer_id_unaffected_by_consumer_acks(
+        self, db: sqlite3.Connection
+    ) -> None:
+        """NACK without consumer_id is unaffected by per-consumer ACK state."""
+        from eventbus.db import ack_event_for_consumer, nack_event
+
+        ev = _event()
+        db.execute(
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
+        )
+        db.commit()
+
+        # Consumer A ACKs the event
+        found, newly_acked, _ = ack_event_for_consumer(
+            db, ev["event_id"], "consumer-A", "2026-06-22T13:00:00Z"
+        )
+        assert found is True
+        assert newly_acked is True
+
+        # NACK without consumer_id — should succeed (events-level only)
+        result = nack_event(db, ev["event_id"])
+        assert result == NackResult(delivery_failure_count=1, cycle_failure_count=1)
+
+        row = db.execute(
+            "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
+            (ev["event_id"],),
+        ).fetchone()
+        assert row["delivery_failure_count"] == 1
+        assert row["cycle_failure_count"] == 1
+
+    def test_nack_http_409_on_per_consumer_acked(
+        self, principal_client: TestClient
+    ) -> None:
+        """HTTP NACK returns 409 when same consumer ACKed then NACKs."""
+        body = _event()
+        resp = self._publish_with_publisher(principal_client, body)
+        assert resp == 200
+
+        # Simulate delivery to consumer-A
+        _simulate_delivery_http(principal_client, body["event_id"], "consumer-A")
+
+        # Consumer-A ACKs
+        resp = principal_client.post(
+            f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
+        )
+        assert resp.status_code == 200
+
+        # Consumer-A NACKs — should get 409
+        resp = principal_client.post(
+            "/nack",
+            params={
+                "event_id": body["event_id"],
+                "consumer_id": "consumer-A",
+            },
+        )
+        assert resp.status_code == 409
+        data = resp.json()
+        assert data["detail"] == "event already acknowledged"
+
+    def test_nack_http_200_on_different_consumer_after_acked(
+        self, client: TestClient
+    ) -> None:
+        """HTTP NACK returns 200 when different consumer NACKs after same consumer ACKed."""
+        body = _event()
+        resp = client.post("/publish", json=body)
+        assert resp.status_code == 200
+
+        # Simulate delivery to consumer-A
+        _simulate_delivery_http(client, body["event_id"], "consumer-A")
+
+        # Consumer-A ACKs
+        resp = client.post(
+            f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
+        )
+        assert resp.status_code == 200
+
+        # Consumer-B NACKs — should succeed
+        resp = client.post(
+            "/nack",
+            params={
+                "event_id": body["event_id"],
+                "consumer_id": "consumer-B",
+            },
+        )
+        assert resp.status_code == 200
 
     def test_nack_event_principal_ownership_validation(
         self, principal_client: TestClient

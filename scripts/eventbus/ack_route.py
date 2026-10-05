@@ -174,6 +174,17 @@ async def nack(
     if failure_count == -2:
         # Invalid transition: event is already ACKed or DLQ'd
         # Determine which state by checking the event directly
+        # First check per-consumer ACK (REQ-001, REQ-003)
+        consumer_row = await run_with_db_lock(
+            lambda: db.execute(
+                "SELECT acked_at FROM consumer_delivery "
+                "WHERE consumer_id = ? AND event_id = ?",
+                (consumer_id, event_id),
+            ).fetchone()
+        )
+        if consumer_row and consumer_row["acked_at"] is not None:
+            raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
+        # Then check events-level state
         row = await run_with_db_lock(
             lambda: db.execute(
                 "SELECT acked_at, dlq_at FROM events WHERE event_id = ?", (event_id,)

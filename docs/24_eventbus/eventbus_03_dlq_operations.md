@@ -129,7 +129,7 @@ Acknowledges an event for a consumer. The per-consumer delivery record and the c
 Sends a NACK (Negative Acknowledgement) for an event. Increases `delivery_failure_count`, and moves the event to the DLQ once `delivery_failure_count >= max_retry`.
 
 **Query Parameters:** `event_id` (required), `consumer_id` (required)
-**Response:** On success, returns `{event_id, delivery_failure_count}`, plus `dlq_promoted: true` when the NACK promoted the event to the DLQ. A 404 error indicates the event was not found. A 409 error indicates the event is already in the DLQ, or has `events.acked_at` set. A consumer's own ACK does not set `events.acked_at`, so a NACK sent by a consumer after its own ACK is currently accepted; this is tracked in `issues/20261005-102244_eb002_eventbus-nack-accepted-after-per-consumer-ack.md`.
+**Response:** On success, returns `{event_id, delivery_failure_count}`, plus `dlq_promoted: true` when the NACK promoted the event to the DLQ. A 404 error indicates the event was not found. A 409 error indicates the event is already in the DLQ, or has `events.acked_at` set. A consumer's own ACK does not set `events.acked_at`; a NACK sent by a consumer after its own ACK is rejected with HTTP 409 `event already acknowledged`.
 
 For NACK's state-transition behavior (initial/duplicate NACK, NACK after ACK, unknown event ID), see the ACK/NACK State Transition Table below — it covers both ACK and NACK together rather than repeating NACK rows separately.
 
@@ -146,7 +146,7 @@ The following table summarizes the current code behavior for ACK and NACK operat
 | Initial NACK | `nack_event` increases `delivery_failure_count` from 0 → 1 | 200 | `{event_id, delivery_failure_count}` | `delivery_failure_count` increases; promoted to DLQ if `>= max_retry` | — |
 | Duplicate NACK | No idempotency guard in `nack_event`; `delivery_failure_count` increases with every call | 200 | `{event_id, delivery_failure_count}` | Counter keeps increasing, potentially triggering DLQ promotion on subsequent calls | **Known Issue: Implementation fix required** |
 | NACK followed by ACK | The consumer's `consumer_delivery.acked_at` is still unset (NACK does not set it) | 200 | `{event_id, acked: true, seq: <int>}` | ACK succeeds, `delivery_failure_count` remains at the value from NACK | No readjustment |
-| ACK followed by NACK (same consumer) | `nack_event` checks only `events.acked_at` and `events.dlq_at`; the per-consumer ACK sets neither | 200 | `{event_id, delivery_failure_count}` | NACK succeeds and `delivery_failure_count` increases; tracked in `issues/20261005-102244_eb002_eventbus-nack-accepted-after-per-consumer-ack.md` | **Known Issue: Implementation fix required** |
+| ACK followed by NACK (same consumer) | `nack_event` checks `consumer_delivery.acked_at` for the requesting consumer; the per-consumer ACK sets it | 409 | `event already acknowledged` | NACK rejected; counters unchanged | **Resolved** |
 | Unknown Event ID (ACK) | `ack_event_for_consumer` returns `found = False` | 404 | `ERR_EVENT_NOT_FOUND` | None | — |
 | Unknown Event ID (NACK) | `nack_event` returns `-1` | 404 | `ERR_EVENT_NOT_FOUND` | None | — |
 | Simultaneous ACK/NACK | Both go through `run_with_db_lock` and are serialized at the DB layer | 200/200 | Depends on lock order | No true contention — Lock enforces total ordering, and the second call observes the first call's committed state | — |
