@@ -2,6 +2,14 @@
 
 Only remove tracking entries after confirmed process termination, preventing orphaned processes when shutdown fails.
 
+## Implementation outcome
+
+Deviation from procedure: no code change was performed. Origin/master already ships
+this change in commit `10308ed7` (`manager.cleanup_server_key()` moved into the try
+block after successful termination, tracking entry retained on failure). Validated
+against current source: `tests/agent/test_http_lifecycle_shutdown_coordinator.py`
+passes (2 passed). Accepting the upstream implementation and closing the workflow.
+
 ## Scope
 
 - Modify `scripts/agent/http_lifecycle_shutdown_coordinator.py`: move `cleanup_server_key()` inside the try block so it only executes after successful termination
