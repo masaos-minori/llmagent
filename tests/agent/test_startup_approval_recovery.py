@@ -405,6 +405,7 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         ctx.workflow.approval_pending = False
         ctx.turn = MagicMock()
         ctx.turn.pending_approval_id = None
+        ctx.turn.pending_approval_task_id = None
         view = MagicMock()
 
         startup = StartupOrchestrator(ctx, view)
@@ -438,6 +439,7 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         ctx.workflow.approval_pending = False
         ctx.turn = MagicMock()
         ctx.turn.pending_approval_id = None
+        ctx.turn.pending_approval_task_id = None
         view = MagicMock()
 
         startup = StartupOrchestrator(ctx, view)
@@ -480,6 +482,7 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         ctx.workflow.approval_pending = False
         ctx.turn = MagicMock()
         ctx.turn.pending_approval_id = None
+        ctx.turn.pending_approval_task_id = None
         view = MagicMock()
 
         startup = StartupOrchestrator(ctx, view)
@@ -535,6 +538,7 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         ctx.workflow.approval_pending = False
         ctx.turn = MagicMock()
         ctx.turn.pending_approval_id = None
+        ctx.turn.pending_approval_task_id = None
         view = MagicMock()
 
         startup = StartupOrchestrator(ctx, view)
@@ -614,10 +618,11 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         )
 
     @pytest.mark.asyncio
-    async def test_startup_recovery_warns_on_pending_approval_task_id_overwrite(
+    async def test_startup_recovery_keeps_existing_pending_approval_task_id(
         self,
     ) -> None:
-        """Recovery logs a warning when it overwrites an already-set pending_approval_task_id."""
+        """REQ-002: Recovery keeps an active pending_approval_task_id instead of
+        overwriting it when the recovered value differs."""
         ctx = MagicMock()
         ctx.workflow = MagicMock()
         ctx.workflow.approval_pending = False
@@ -644,15 +649,15 @@ class TestStartupOrchestratorRecoverPendingApprovals:
             with patch("shared.logger.Logger") as mock_logger:
                 await startup._recover_pending_approvals()
 
-        assert ctx.turn.pending_approval_task_id == "task-456"
-        overwrite_calls = [
+        assert ctx.turn.pending_approval_task_id == "task-old"
+        keep_calls = [
             call_args
             for call_args in mock_logger.return_value.warning.call_args_list
-            if "Overwriting pending_approval_task_id" in call_args[0][0]
+            if "Keeping existing pending_approval_task_id" in call_args[0][0]
         ]
-        assert len(overwrite_calls) == 1
-        assert overwrite_calls[0][0][1] == "task-old"
-        assert overwrite_calls[0][0][2] == "task-456"
+        assert len(keep_calls) == 1
+        assert keep_calls[0][0][1] == "task-old"
+        assert keep_calls[0][0][2] == "task-456"
 
     @pytest.mark.asyncio
     async def test_startup_recovery_no_warning_when_task_id_not_already_set(
@@ -779,3 +784,45 @@ class TestStartupOrchestratorRecoverPendingApprovals:
                     await startup._recover_pending_approvals()
 
         mock_store.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_startup_recovery_overwrites_when_current_equals_recovered(
+        self,
+    ) -> None:
+        """REQ-003: Recovery overwrites when the current value equals the recovered
+        value (idempotent set); logs the Overwriting warning."""
+        ctx = MagicMock()
+        ctx.workflow = MagicMock()
+        ctx.workflow.approval_pending = False
+        ctx.turn = MagicMock()
+        ctx.turn.pending_approval_id = None
+        ctx.turn.pending_approval_task_id = "task-456"
+        view = MagicMock()
+
+        startup = StartupOrchestrator(ctx, view)
+
+        approval = MagicMock()
+        approval.approval_id = "approval-123"
+        approval.reason = "waiting for deploy"
+
+        mock_store = MagicMock()
+
+        with (
+            patch(
+                "agent.workflow.approval_ops.find_all_pending_approvals",
+                return_value=[("task-456", approval)],
+            ),
+            patch("agent.workflow.state_store.StateStore", return_value=mock_store),
+        ):
+            with patch("shared.logger.Logger") as mock_logger:
+                await startup._recover_pending_approvals()
+
+        assert ctx.turn.pending_approval_task_id == "task-456"
+        overwrite_calls = [
+            call_args
+            for call_args in mock_logger.return_value.warning.call_args_list
+            if "Overwriting pending_approval_task_id" in call_args[0][0]
+        ]
+        assert len(overwrite_calls) == 1
+        assert overwrite_calls[0][0][1] == "task-456"
+        assert overwrite_calls[0][0][2] == "task-456"

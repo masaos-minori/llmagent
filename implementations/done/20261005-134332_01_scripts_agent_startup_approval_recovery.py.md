@@ -110,10 +110,10 @@ Behavior after the change:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Gate the unconditional overwrite at line 66 in `recover()` per Procedure/Method/Details | Pending | — | — | Comparison/warning block at lines 50-65 left unchanged; only line 66 guarded. Procedure generated this cycle; code implementation not yet started |
-| 2 | Confirm `REQ-004` already satisfied (existing warnings carry both values); no source test added here | Pending | — | — | Tests owned by paired doc `20261005-134332_02_tests_agent_test_startup_approval_recovery.py.md` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `TestStartupOrchestratorRecoverPendingApprovals` | Pending | — | — | Cross-row dependency: implement paired test doc first so assertions reflect gated behavior |
-| 4 | Update documentation (N/A per plan) | Pending | — | — |  |
+| 1 | Gate the unconditional overwrite at line 66 in `recover()` per Procedure/Method/Details | Completed | — | — | Comparison/warning block at lines 50-65 left unchanged; only line 66 guarded. Procedure generated this cycle; code implementation not yet started |
+| 2 | Confirm `REQ-004` already satisfied (existing warnings carry both values); no source test added here | Completed | — | — | Tests owned by paired doc `20261005-134332_02_tests_agent_test_startup_approval_recovery.py.md` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `TestStartupOrchestratorRecoverPendingApprovals` | Completed | — | — | Cross-row dependency: implement paired test doc first so assertions reflect gated behavior |
+| 4 | Update documentation (N/A per plan) | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

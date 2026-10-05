@@ -37,7 +37,6 @@ async def subscribe(
     _identity: Principal | None = None,  # set by app.py wrapper
 ) -> Any:
     """Subscribe to events via SSE with optional topic filtering and offset recovery."""
-    from eventbus.db import get_consumer_offset  # noqa: PLC0415, RUF100
 
     cfg = request.app.state.config
     assert cfg is not None
@@ -120,10 +119,14 @@ async def subscribe(
                 detail=f"Last-Event-ID ({last_event_id}) exceeds current max seq ({max_seq})",
             )
 
-    # REQ-004: Implement precedence: since_seq > consumer offset > Last-Event-ID
+    # REQ-004: Implement precedence: since_seq > resume position > Last-Event-ID
+    # get_resume_position computes max(lowest_unacked_seq, stored_offset)
+    # ensuring no unacked event is skipped on reconnect after out-of-order ACKs.
     start_seq = since_seq
     if consumer_id and start_seq == 0:
-        start_seq = get_consumer_offset(db, consumer_id)
+        from eventbus.delivery_repo import get_resume_position
+
+        start_seq = get_resume_position(db, consumer_id)
 
     # REQ-003: Fallback to Last-Event-ID only if both since_seq and consumer offset are unavailable
     if start_seq == 0 and last_event_id is not None:

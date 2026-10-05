@@ -71,8 +71,25 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 | ID | Title | Status | Severity | Area | Type | Source | Owner | First Found | Summary | Related |
 |----|-------|--------|----------|------|------|--------|-------|-------------|---------|---------|
+| EVENTBUS-001 | EventBus out-of-order ACK skips lower-seq events on reconnect | Resolved | Medium | EventBus | design-gap | `scripts/eventbus/delivery_repo.py` | Unassigned | ADR Known Deviations review | An unacknowledged lower `seq` is skipped on reconnect when a higher `seq` is ACKed first (high-water mark advances past it) | `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
 | EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap | `scripts/eventbus/auth.py` | Unassigned | ADR Known Deviations review | A CONSUMER-role token with no `consumer_authorization`/`topic_authorization` configured is not restricted to any consumer_id (fail-open) | `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` |
 | EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug | `scripts/eventbus/ack_route.py` | Unassigned | ADR Known Deviations review | `_nack_and_promote()` and the follow-up state lookup run under separate DB-lock acquisitions, so an event deleted in between yields 409 instead of 404 | `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
+
+#### EVENTBUS-001
+
+- **ID**: EVENTBUS-001
+- **Title**: EventBus out-of-order ACK skips lower-seq events on reconnect
+- **Status**: resolved
+- **Severity**: Medium
+- **Area**: EventBus
+- **Type**: design-gap
+- **Source**: `scripts/eventbus/delivery_repo.py`
+- **Owner**: Unassigned
+- **First Found**: ADR Known Deviations review
+- **Target**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
+- **Related**: None
+- **Summary**: An unacknowledged lower `seq` is skipped on reconnect when a higher `seq` is ACKed first (high-water mark advances past it)
+- **Resolution**: Option B — resume position accounts for lowest unacked event. The fix computes `max(lowest_unacked_seq, stored_offset)` instead of using `stored_offset` alone, ensuring no unacked event is skipped on reconnect while still allowing fast-forward past already-acked events.
 
 #### EVENTBUS-008
 

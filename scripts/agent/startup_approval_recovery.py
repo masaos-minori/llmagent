@@ -63,7 +63,11 @@ class ApprovalRecovery:
                     existing_task_id,
                     task_id,
                 )
-        ctx.turn.pending_approval_task_id = task_id
+        if (
+            ctx.turn.pending_approval_task_id is None
+            or ctx.turn.pending_approval_task_id == task_id
+        ):
+            ctx.turn.pending_approval_task_id = task_id
         # List all pending approvals for resolution
         lines = []
         for i, (tid, appr) in enumerate(results, start=1):

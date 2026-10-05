@@ -185,10 +185,10 @@ Note: the idempotent case logs "Overwriting pending_approval_task_id task-456 wi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite failing overwrite-warning test to REQ-001-compliant keep behavior (`REQ-002`) | Pending | — | — | Rename + flip assertions (see Details) |
-| 2 | Add REQ-003 idempotent-overwrite regression test | Pending | — | — | Covers equal-value branch not otherwise asserted |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. full recover class | Pending | — | — | Requires paired source doc applied first |
-| 4 | Update documentation (N/A per plan) | Pending | — | — | |
+| 1 | Rewrite failing overwrite-warning test to REQ-001-compliant keep behavior (`REQ-002`) | Completed | — | — | Rename + flip assertions (see Details) |
+| 2 | Add REQ-003 idempotent-overwrite regression test | Completed | — | — | Covers equal-value branch not otherwise asserted |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. full recover class | Completed | — | — | Requires paired source doc applied first |
+| 4 | Update documentation (N/A per plan) | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

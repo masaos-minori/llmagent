@@ -114,11 +114,11 @@ No idempotency guard exists in `nack_event`; `delivery_failure_count` increases 
 
 Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/ack?consumer_id={consumer_id}`. They do not advance automatically during streaming. Idempotent duplicate ACKs do not update the offset.
 
-**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. A Consumer that resumes with a persistent `consumer_id` must therefore ACK in `seq` order: an unacknowledged lower `seq` is not re-acquired on resume once a higher `seq` has been acknowledged. The no-loss guarantee on resume applies only to Consumers that ACK in `seq` order (see ADR-006).
+**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. On reconnect, the resume position is computed as `max(lowest_unacked_seq, stored_offset)`, where `lowest_unacked_seq` is the minimum sequence among events where `consumer_delivery.acked_at IS NULL` AND `seq <= stored_offset`. This ensures no unacked event is skipped on reconnect while still allowing fast-forward past already-acked events. For consumers that ACK in order, `lowest_unacked_seq = stored_offset + 1` when all events up to the offset are acked, so the resume position equals `stored_offset + 1` (fast-forward). For consumers with out-of-order ACKs, the low-water-mark fallback ensures previously skipped events are re-delivered.
 
 ### Resume Behavior
 
-Reconnecting with a `consumer_id` resumes from the last acknowledged offset. If no offsets have been acknowledged, it starts from `seq=0`. It is also possible to start from a specific position using `since_seq=N`.
+Reconnecting with a `consumer_id` resumes from the computed resume position: `max(lowest_unacked_seq, stored_offset)`. If no offsets have been acknowledged, it starts from `seq=0`. It is also possible to start from a specific position using `since_seq=N`.
 
 ## Replay Semantics
 

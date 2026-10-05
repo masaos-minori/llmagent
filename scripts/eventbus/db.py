@@ -7,6 +7,7 @@ from eventbus.delivery_repo import (
     ack_event,
     ack_event_for_consumer,
     get_consumer_offset,
+    get_resume_position,
     nack_event,
 )
 from eventbus.dlq_repo import redeliver_event, requeue_event
@@ -35,6 +36,7 @@ __all__ = [
     "nack_event",
     "ack_event_for_consumer",
     "get_consumer_offset",
+    "get_resume_position",
     "NackResult",
     # DLQ repository
     "requeue_event",

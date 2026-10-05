@@ -446,6 +446,22 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Known Issues
 
+#### EVENTBUS-001: Out-of-order ACK skips lower-seq events on reconnect
+
+**Status**: Resolved (by design decision)
+
+**Resolution**: Option B — resume position accounts for lowest unacked event.
+
+**Rationale**: Preserves at-least-once guarantee without requiring ordered ACKs.
+Consumers cannot reliably ACK in strict seq order under network partition or
+broker reordering. The existing high-water-mark offset remains useful for
+fast-forwarding already-acked events; the new logic adds a low-water-mark
+fallback below it.
+
+**Behavior change**: Resume position now uses `max(lowest_unacked_seq, stored_offset)`
+instead of `stored_offset` alone. This ensures no unacked event is skipped on
+reconnect while still allowing fast-forward past already-acked events.
+
 - [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus known issues
 
 ### Implementation References

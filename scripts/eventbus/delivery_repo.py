@@ -224,3 +224,50 @@ def get_consumer_offset(conn: sqlite3.Connection, consumer_id: str) -> int:
         (consumer_id,),
     ).fetchone()
     return int(row["offset"]) if row else 0
+
+
+def get_resume_position(conn: sqlite3.Connection, consumer_id: str) -> int:
+    """Compute the resume position for a reconnecting consumer.
+
+    Returns the maximum of:
+      - The stored offset (high-water mark of acknowledged seq values)
+      - The lowest unacked seq among events with seq <= stored offset
+
+    This ensures no unacked event is skipped on reconnect while still
+    allowing fast-forward past already-acked events.
+
+    Args:
+        conn: SQLite connection.
+        consumer_id: Consumer identifier.
+
+    Returns:
+        Resume position (int). Returns 0 if no offset exists yet.
+    """
+    # Get stored offset
+    row = conn.execute(
+        "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+        (consumer_id,),
+    ).fetchone()
+    if row is None:
+        return 0  # No offset yet — start from beginning
+
+    stored_offset = int(row["offset"])
+
+    # Find lowest unacked seq <= stored_offset
+    # LEFT JOIN required: events with NO consumer_delivery record must be
+    # treated as unacked (never attempted for delivery to this consumer).
+    row = conn.execute(
+        "SELECT MIN(e.seq) FROM events e "
+        "LEFT JOIN consumer_delivery cd ON e.event_id = cd.event_id "
+        "AND cd.consumer_id = ? "
+        "WHERE (cd.acked_at IS NULL OR cd.event_id IS NULL) "
+        "AND e.seq <= ?",
+        (consumer_id, stored_offset),
+    ).fetchone()
+
+    if row and row[0]:
+        # Unacked event found — deliver starting from the lowest unacked seq
+        return int(row[0])
+    else:
+        # All events up to stored_offset are acked — fast-forward past them
+        return stored_offset + 1

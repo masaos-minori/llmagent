@@ -30,6 +30,10 @@ CREATE TABLE IF NOT EXISTS consumer_delivery (
     PRIMARY KEY (consumer_id, event_id)
 );
 
+-- Index for efficient low-water-mark query in get_resume_position()
+CREATE INDEX IF NOT EXISTS idx_consumer_delivery_consumer_ack
+    ON consumer_delivery(consumer_id, acked_at);
+
 -- Per-consumer offset: tracks last-committed sequence offset per consumer
 CREATE TABLE IF NOT EXISTS consumer_offsets (
     consumer_id          TEXT    PRIMARY KEY,

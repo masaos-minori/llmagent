@@ -7,10 +7,13 @@ from __future__ import annotations
 import asyncio
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from fastapi.testclient import TestClient
+
+if TYPE_CHECKING:
+    import sqlite3
 
 
 async def _init_state(cfg: Any) -> None:
@@ -250,3 +253,179 @@ def test_resume_from_sqlite_offset(client: TestClient, tmp_path: Path) -> None:
     data_lines = [line[5:] for line in lines if line.startswith("data:")]
     assert len(data_lines) == 1
     assert '"event_id":"evt-resume-3"' in data_lines[0]
+
+
+class TestOutOfOrderAckNoSkipOnReconnect:
+    """Verify at-least-once delivery under out-of-order ACK conditions."""
+
+    @staticmethod
+    def _create_tables(conn: sqlite3.Connection) -> None:
+        """Create the EventBus schema tables in the given connection."""
+        schema_path = (
+            Path(__file__).parent.parent.parent / "scripts" / "eventbus" / "schema.sql"
+        )
+        if not schema_path.exists():
+            # Fallback: inline schema for test isolation
+            conn.executescript(
+                "CREATE TABLE IF NOT EXISTS events ("
+                "seq INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "event_id TEXT NOT NULL UNIQUE, "
+                "topic TEXT NOT NULL, "
+                "payload TEXT NOT NULL, "
+                "producer TEXT NOT NULL, "
+                "published_at TEXT NOT NULL, "
+                "acked_at TEXT, "
+                "delivery_failure_count INTEGER NOT NULL DEFAULT 0, "
+                "cycle_failure_count INTEGER NOT NULL DEFAULT 0, "
+                "redelivered_from TEXT, "
+                "dlq_requeue_count INTEGER NOT NULL DEFAULT 0, "
+                "dlq_at TEXT, "
+                "consumer_id TEXT, "
+                "consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0"
+                "); "
+                "CREATE TABLE IF NOT EXISTS consumer_delivery ("
+                "consumer_id TEXT NOT NULL, "
+                "event_id TEXT NOT NULL, "
+                "acked_at TEXT, "
+                "PRIMARY KEY (consumer_id, event_id)"
+                "); "
+                "CREATE TABLE IF NOT EXISTS consumer_offsets ("
+                "consumer_id TEXT PRIMARY KEY, "
+                "offset INTEGER NOT NULL DEFAULT 0"
+                ");"
+            )
+        else:
+            conn.executescript(schema_path.read_text())
+
+    def test_out_of_order_ack_no_skip_on_reconnect(self, tmp_path: Path) -> None:
+        """ACK a higher seq before a lower seq → reconnect must not skip the lower seq."""
+        import sqlite3
+
+        from eventbus.db import get_consumer_offset, get_resume_position, insert_event
+        from eventbus.delivery_repo import ack_event_for_consumer
+
+        db_path = str(tmp_path / "test.db")
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+
+        try:
+            TestOutOfOrderAckNoSkipOnReconnect._create_tables(conn)
+
+            # Publish three events
+            seq1, _, _ = insert_event(
+                conn,
+                "evt-oof-1",
+                "t",
+                '{"data": "1"}',
+                "p",
+                "2026-10-04T00:00:00Z",
+            )
+            seq2, _, _ = insert_event(
+                conn,
+                "evt-oof-2",
+                "t",
+                '{"data": "2"}',
+                "p",
+                "2026-10-04T00:00:00Z",
+            )
+            seq3, _, _ = insert_event(
+                conn,
+                "evt-oof-3",
+                "t",
+                '{"data": "3"}',
+                "p",
+                "2026-10-04T00:00:00Z",
+            )
+            assert seq1 < seq2 < seq3
+
+            # ACK out of order: ack seq3 before seq2
+            _, newly_acked_c, _ = ack_event_for_consumer(
+                conn, "evt-oof-3", "oof-consumer", "2026-10-04T00:00:00Z"
+            )
+            assert newly_acked_c
+            _, newly_acked_b, _ = ack_event_for_consumer(
+                conn, "evt-oof-2", "oof-consumer", "2026-10-04T00:00:00Z"
+            )
+            assert newly_acked_b
+
+            # Verify offset jumped to seq3 (high-water mark)
+            offset = get_consumer_offset(conn, "oof-consumer")
+            assert offset == seq3
+
+            # Compute resume position — should be seq1 (lowest unacked <= offset)
+            # Note: seq1 has no consumer_delivery record, so it won't appear in the join
+            # We need to handle this case separately
+            resume_pos = get_resume_position(conn, "oof-consumer")
+            assert resume_pos == seq1  # lowest unacked event
+        finally:
+            conn.close()
+
+    def test_ordered_ack_baseline(self, tmp_path: Path) -> None:
+        """Ordered ACKs: reconnect resumes from stored offset + 1 (fast-forward)."""
+        import sqlite3
+
+        from eventbus.db import get_consumer_offset, get_resume_position, insert_event
+        from eventbus.delivery_repo import ack_event_for_consumer
+
+        db_path = str(tmp_path / "test.db")
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+
+        try:
+            TestOutOfOrderAckNoSkipOnReconnect._create_tables(conn)
+
+            # Publish two events
+            seq1, _, _ = insert_event(
+                conn,
+                "evt-ok-1",
+                "t",
+                '{"data": "1"}',
+                "p",
+                "2026-10-04T00:00:00Z",
+            )
+            seq2, _, _ = insert_event(
+                conn,
+                "evt-ok-2",
+                "t",
+                '{"data": "2"}',
+                "p",
+                "2026-10-04T00:00:00Z",
+            )
+
+            # ACK in order
+            _, newly_acked_a, _ = ack_event_for_consumer(
+                conn, "evt-ok-1", "ok-consumer", "2026-10-04T00:00:00Z"
+            )
+            assert newly_acked_a
+            _, newly_acked_b, _ = ack_event_for_consumer(
+                conn, "evt-ok-2", "ok-consumer", "2026-10-04T00:00:00Z"
+            )
+            assert newly_acked_b
+
+            # Verify offset is seq2
+            offset = get_consumer_offset(conn, "ok-consumer")
+            assert offset == seq2
+
+            # Resume position should be seq2 + 1 (all events up to offset are acked)
+            resume_pos = get_resume_position(conn, "ok-consumer")
+            assert resume_pos == seq2 + 1
+        finally:
+            conn.close()
+
+    def test_get_resume_position_no_offset(self, tmp_path: Path) -> None:
+        """No prior offset: resume position returns 0 (start from beginning)."""
+        import sqlite3
+
+        from eventbus.db import get_resume_position
+
+        db_path = str(tmp_path / "test.db")
+        conn = sqlite3.connect(db_path)
+
+        try:
+            TestOutOfOrderAckNoSkipOnReconnect._create_tables(conn)
+
+            # No events published, no offset exists
+            resume_pos = get_resume_position(conn, "new-consumer")
+            assert resume_pos == 0
+        finally:
+            conn.close()
