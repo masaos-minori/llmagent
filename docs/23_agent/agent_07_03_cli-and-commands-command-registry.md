@@ -56,7 +56,7 @@ Add a `CommandDef(...)` entry to `command_defs_list.py` and implement the corres
 
 ## Known Limitations
 
-- `AgentREPL.SLASH_COMMANDS` (for tab completion) and `command_defs_list._COMMANDS` (for dispatching) are maintained separately and currently have discrepancies. Since `SLASH_COMMANDS` does not include `/memory`, `/audit`, `/plan`, `/skill`, or `/mdq`, these commands can be dispatched but are not available for tab completion.
+- `AgentREPL.SLASH_COMMANDS` (for tab completion) is derived from `command_defs_list._COMMANDS` plus REPL-reserved commands via `completion_command_names()`, so it does not drift from the dispatch table.
 
 ## Keywords
 

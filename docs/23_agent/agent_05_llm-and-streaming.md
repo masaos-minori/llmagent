@@ -66,7 +66,7 @@ The full set of `LLMTransportError.kind` categories is defined by `LLMErrorKind`
 | Heartbeat timeout | `cfg.llm.sse_heartbeat_timeout` | `/reload` |
 | Reconnect max | `cfg.llm.sse_reconnect_max` | `/reload` |
 
-Compression uses fixed constants: `COMPRESS_TEMPERATURE=0.3`, `COMPRESS_MAX_TOKENS=300` (defined in `factory.py`; not hot-reloadable). Most other parameters are hot-reloadable via `/set` or `/reload`.
+Compression uses the config fields `llm_compress_temperature` and `llm_compress_max_tokens` of `LLMConfig` (passed in at `factory.py`; not hot-reloadable). Most other parameters are hot-reloadable via `/set` or `/reload`.
 
 ## Responsibility Boundary
 

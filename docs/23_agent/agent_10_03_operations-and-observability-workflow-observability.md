@@ -40,11 +40,11 @@ These three layers support three use cases: real-time execution monitoring, post
 
 - **Scope**: Generation and output of observational data during workflow execution.
 - **Out of Scope**: Execution logic of the workflow engine itself, decision logic for post-execution approvals.
-- **Owners**: `agent/workflow.py` (`WorkflowEngine`), `agent/tool_audit.py` (Audit Writer).
+- **Owners**: `agent/workflow/workflow_engine.py` (`WorkflowEngine`), `agent/tool_audit.py` (Audit Writer).
 
 ## Key Constraints
 
-- Additional observability events occur only when in workflow mode. In normal mode, only `turn_start`/`turn_end` are generated.
+- Workflow execution is mandatory; the workflow engine issues additional observability events beyond `turn_start`/`turn_end`.
 - Calling writing functions for `tool_approval` / `tool_exec` outside of a workflow context results in an assertion error.
 - Session diagnostics are stored in the `session_diagnostics` table and are separate from the messages table.
 
@@ -72,7 +72,7 @@ Expected span names:
 
 ## Known Limitations / Unresolved Issues
 
-- Since additional observability events occur only in workflow mode, differentiation from normal mode is required.
+- Workflow-specific events are additional to `turn_start`/`turn_end` and should be distinguished from them when analyzing logs.
 - Workflow information might be redundantly recorded in both audit logs and session diagnostics.
 
 ## Keywords

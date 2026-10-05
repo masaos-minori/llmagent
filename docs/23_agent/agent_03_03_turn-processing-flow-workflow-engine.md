@@ -102,10 +102,10 @@ Partial completion occurs when an LLM response stream is interrupted before all 
 
 ### Workflow Status
 
-`Orchestrator.workflow_status()` returns a dict with two keys:
+`Orchestrator.workflow_status()` returns a dict with a single key `tracking`:
 
-- `mode`: "required" — workflow is always mandatory
-- `tracking`: "enabled" — workflow definitions are always loaded at startup
+- `"enabled"` when the workflow is active (workflow definitions are loaded at startup)
+- `"not_loaded"` otherwise
 
 ### Workflow Stages
 

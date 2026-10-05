@@ -125,8 +125,6 @@ Full details: [mcp_03_01_dispatch-and-routing.md Reliable source of routing info
 
 ## HistoryManager (`agent/history.py`)
 
-## HistoryManager (`agent/history.py`)
-
 - **Role:** Conversation history size management and LLM-based compression.
 - **Primary API:** `await mgr.compress(history)`, `await mgr.force_compress(history)`, `mgr.count_chars(history)`, `mgr.count_tokens(history, last_input_tokens=None)`, `await mgr.count_tokens_async(...)`, `apply_config(...)`
 - **Caller:** Orchestrator's history compression process, `/compact` command (`force_compress`)
@@ -136,20 +134,20 @@ Full details: [mcp_03_01_dispatch-and-routing.md Reliable source of routing info
 
 > **Evidence Classification: Explicit in code (Correction).** Previous versions stated that callees were `LLMClient`, but summary LLM calls actually perform direct `self._http.post()` requests against the `httpx.AsyncClient` provided at construction, bypassing the `shared/llm_client.py::LLMClient` instance. Additionally, the description "no compression on failure" was incomplete; if character limits are exceeded, fallback truncation occurs (`stat_fallback_truncate_count` is incremented). If only token limits are exceeded, the history is returned unchanged.
 
-Full details: [agent_04_01_state-and-persistence-state-model.md HistoryManager](agent_04_01_state-and-persistence-state-model.md)
+Full details: [agent_04_02_state-and-persistence-history-compression.md](agent_04_02_state-and-persistence-history-compression.md)
 
 ---
 
 ## CommandRegistry (`agent/commands/registry.py`)
 
-- **Role:** Dispatcher for all slash commands. 15 mixin-based command groups.
+- **Role:** Dispatcher for all slash commands. 12 mixin-based command groups.
 - **Primary API:** `await cmds.dispatch(line) -> bool`
 - **Caller:** REPL loop driver
-- **Callee:** 15 mixin handlers + plugin registry
+- **Callee:** 12 mixin handlers
 - **Configuration:** Different `cfg.*` fields per command
 - **On Failure:** Command errors are displayed to the user. REPL continues.
 
-Full details: [agent_07_01_cli-and-commands-cli-reference.md](agent_07_01_cli-and-commands-cli-reference.md)
+Full details: [agent_07_03_cli-and-commands-command-registry.md](agent_07_03_cli-and-commands-command-registry.md)
 
 ---
 
@@ -162,7 +160,7 @@ Full details: [agent_07_01_cli-and-commands-cli-reference.md](agent_07_01_cli-an
 - **Configuration:** No direct configuration. Callbacks are wired during construction.
 - **On Failure:** I/O errors propagate to the caller.
 
-Full details: [agent_07_01_cli-and-commands-cli-reference.md CLIView](agent_07_01_cli-and-commands-cli-reference.md)
+Full details: [agent_07_02_cli-and-commands-cliview.md](agent_07_02_cli-and-commands-cliview.md)
 
 ---
 
@@ -172,7 +170,7 @@ Full details: [agent_07_01_cli-and-commands-cli-reference.md CLIView](agent_07_0
 - **Primary API:** `start()`, `save(role, content)`, `save_diagnostic(content)`, `fetch_messages(session_id)`
 - **Skip Counters:** `skipped_no_session_count`, `skipped_invalid_role_count` (read-only properties per session)
 - **Strict Mode:** `AgentSession(strict_mode=True)` raises a `RuntimeError` on the first skipped save instead of warning.
-- **Caller:** `Orchestrator`, `CommandRegistry` (`/session` command; `/db` command is delegated to rag-pipeline-mcp)
+- **Caller:** `Orchestrator`, `CommandRegistry` (`/session` command)
 - **Callee:** `SQLiteHelper`
 - **Configuration:** DB path is retrieved from `config/agent.toml`
 - **On Failure:** Fatal failures result in `sqlite3.Error`. If `session_id=None`, a warning is logged and the counter is incremented.
@@ -199,7 +197,7 @@ Full details: [agent_08_01_configuration-loading-agent-config.md](agent_08_01_co
 - **Role:** Optional persistent semantic memory subsystem.
 - **Primary API:** `memory.on_session_start()`, `memory.on_user_prompt(query, session_id)`, `memory.on_session_stop()`
 - **Caller:** `Orchestrator`, `AgentREPL` (at startup/shutdown)
-- **Callee:** `MemoryStore`, `MemoryRetriever`, `EmbeddingClient`
+- **Callee:** `MemoryStore`, `HybridRetriever`, `EmbeddingClient`
 - **Configuration:** `cfg.memory.*`
 - **On Failure:** Errors are logged. REPL continues without memory (graceful degradation).
 

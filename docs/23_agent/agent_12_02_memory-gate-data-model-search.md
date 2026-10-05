@@ -100,7 +100,7 @@ Each line in the JSONL store is a single JSON object serializing all `MemoryEntr
 - Append-only: Entries within the file are not modified or deleted (`agent/memory/jsonl_store.py` docstring: "JSONL does NOT record mutations (delete, pin, unpin); SQLite is the authoritative source of truth")
 - One entry per line. UTF-8 encoded. Each line is valid JSON.
 - File path is controlled by `memory_jsonl_dir` config (Filename: `memories.jsonl`)
-- Authoritative data: SQLite indexes can be rebuilt from JSONL if necessary.
+- Non-authoritative: JSONL is an append-only archive; SQLite is the authoritative source of truth.
 
 > **Implementation Note (Explicit in code):** The `jsonl_store.py` docstring explicitly states that SQLite (via `MemoryStore`) is the authoritative source of truth, and JSONL is an append-only archive. `read_all()` is limited to auditing, exporting, and initial import; do NOT use it to rebuild authoritative state. Use `MemoryStore` directly or restore from a SQLite backup. Rebuilding using `import_ops.import_from_jsonl()` is a destructive operation that deletes all rows in `memories` / `memories_fts` / `memories_vec` before re-inserting from JSONL; deletions and pin/unpin changes are not replayed (as they don't exist in the JSONL history). For fixing inconsistencies between FTS/vec and SQLite, use `rebuild_ops.rebuild_fts()` / `rebuild_vec()`.
 
@@ -118,7 +118,7 @@ Each line in the JSONL store is a single JSON object serializing all `MemoryEntr
 
 ### KNN (K-Nearest Neighbors)
 
-- **Engine:** sqlite-vec extension using cosine similarity
+- **Engine:** sqlite-vec extension using L2 distance
 - **Index:** Dense embedding vectors in `memories_vec`
 - **Requirements:** `EmbeddingClient.enabled=True` along with a valid embedding API endpoint
 - **Strengths:** Semantic similarity matching, language agnostic

@@ -44,7 +44,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ## Operational Notes
 
-- Recommended reading order for humans: Overview → Runtime Architecture → Turn Processing Flow → State/Persistence → LLM/Streaming → Tool Execution/Approval → CLI/Commands → Configuration → Data Layer → Operations/Observability → Extension Points → Memory → Reference API.
+- Recommended reading order for humans: Overview → Runtime Architecture → Turn Processing Flow → State/Persistence → LLM/Streaming → Tool Execution/Approval → CLI/Commands → Configuration → Data Layer → Operations/Observability → Memory → Reference API.
 - The canonical query routing table maps questions to chapters; use it to find the right chapter before searching code.
 
 ## Navigation Guide
@@ -77,7 +77,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ### Consistency Checklist
 
-When schema/command references change, verify that `agent_01_system-overview.md` Slash Commands and `agent_07_cli-and-commands-*.md` match `scripts/agent/commands/registry.py` (CommandDef per documented item, no deleted command references), `agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py`/`init_db.sh`, and diagnostic docs reference only `session_diagnostics` (no references to deleted `diagnostics.jsonl`).
+When schema/command references change, verify that `agent_07_cli-and-commands-*.md` matches `scripts/agent/commands/command_defs_list.py` (`_COMMANDS`; no deleted command references), `agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py`/`init_db.sh`, and diagnostic docs reference only `session_diagnostics` (no references to deleted `diagnostics.jsonl`).
 
 ### Document Set Chapters
 
@@ -96,7 +96,6 @@ When schema/command references change, verify that `agent_01_system-overview.md`
 | 10 | Operations — startup/health, audit/OTel, workflow observability, validation/troubleshooting, monitoring, RAG diagnostics/memory |
 | 12 | Memory — overview/modes, gate/data-model/search, module refs (core/store, retrieval/injection, extraction/facade, ops/scoring) |
 | 13 | Reference API — per-module API: role, callers, callees, config, failure |
-| 90 | Inconsistencies and known issues — known bugs, spec conflicts, open questions |
 
 ### Additional References
 

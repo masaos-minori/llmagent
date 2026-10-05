@@ -42,7 +42,7 @@ Documents the design intent and operational decisions for the REPL input/output 
 - The prompt is a property that returns a fixed value `"> "` without session ID; no dynamic string generation is performed. The notation `agent[:#N]>` which embeds the session_id does not exist in the current code.
 - `CLIView.read_multiline()`'s multi-line continuation displays a `... ` prompt, but this is a continuation-specific prompt string inside `read_multiline` and does not change the REPL prompt itself. Once back to normal input, the fixed value `"> "` is used again.
 - A `KeyboardInterrupt` while waiting for input is caught within the input process, outputs `write_turn_end()`, and returns `None`. Since the calling loop breaks upon receiving `None`, **Ctrl-C while waiting for input terminates the REPL similarly to EOF** (it does not just interrupt the current line and return to the prompt).
-- Upon receiving SIGTERM, `shutdown_requested` and `_shutdown_event` are set, and the running turn is waited for up to 10 seconds (`_GRACEFUL_TIMEOUT`) before forced termination (graceful shutdown).
+- Upon receiving SIGTERM, `shutdown_requested` and `_shutdown_event` are set, and the running turn is waited for up to 10 seconds (`_GRACEFUL_TIMEOUT_S`) before forced termination (graceful shutdown).
 - `/exit` is determined by `_should_exit()`, which also determines loop termination if `shutdown_requested` is set.
 
 ## Responsibility Boundary

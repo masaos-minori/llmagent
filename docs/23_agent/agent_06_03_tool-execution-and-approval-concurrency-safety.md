@@ -46,6 +46,7 @@ Controls the internal tool loop within `LlmTurnExecutor`:
 | Cycle Detection | `tool_cycle_detect_window` (default 2) | If the same tool call fingerprint is repeated within the last N rounds → terminate loop |
 | Retry Limit | `tool_error_retry_max` (default 1) | If an erroring (name, args) is called again → terminate loop |
 | Consecutive Errors | `tool_error_max_consecutive` (default 3) | If all tools in a round error N times → terminate loop |
+| Empty Result Repeat | `tool_empty_result_max_repeats` (disabled when 0) | If a tool returns empty results N or more times within a turn → terminate loop |
 
 **Distinction from WorkflowEngine retry**: `tool_error_retry_max` is ToolLoopGuard's own in-memory per-turn block — it suppresses retries of the same `(tool, args)` pair within a single turn. It is NOT the same as `WorkflowEngine.retry_policy.max_attempts`, which governs stage-level retries across turns. These are two independent mechanisms at different granularities: ToolLoopGuard operates within a single LLM turn's tool loop, while WorkflowEngine operates across turns at the workflow stage level.
 
@@ -61,7 +62,7 @@ Controls the internal tool loop within `LlmTurnExecutor`:
 
 ### Fail-Closed Execution Policy
 
-The Orchestrator never falls back directly to unapproved execution if it cannot create a workflow. If workflow creation fails, a `WorkflowCreationError` is raised, and the task is rejected with a clear error message.
+The Orchestrator never falls back directly to unapproved execution if it cannot create a workflow. If workflow definitions fail to load, `WorkflowLoader().load()` raises a `RuntimeError` during `Orchestrator.__init__()`, and construction of the Orchestrator fails at startup.
 
 **Design judgment**: This is a fail-closed policy — safety is prioritized over availability.
 

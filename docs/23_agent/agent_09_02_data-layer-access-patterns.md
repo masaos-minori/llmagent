@@ -28,7 +28,7 @@ The Agent layer does not own `rag.sqlite`. These tables are owned by the RAG lay
 - The agent accesses document-level data through `rag-pipeline-mcp`.
 - For statistics, use `DbMaintenanceService.stats()` or `RagMaintenanceService.stats_rag()`.
 
-**Design judgment:** `/db rag urls` and `/db rag clean` call `rag_list_documents` and `rag_delete_document` via `rag-pipeline-mcp`. `DbMaintenanceService` does not own RAG document access for listing or deletion.
+**Design judgment:** Listing and deletion of RAG documents go through the `rag_list_documents` and `rag_delete_document` tools of `rag-pipeline-mcp`. `DbMaintenanceService` does not own RAG document access for listing or deletion.
 
 ### Internal RAG MCP Paths
 
@@ -52,7 +52,7 @@ To prevent orphaned records, `delete_document()` enforces a strict deletion orde
 | Path | Mechanism | Use Case |
 |---|---|---|
 | MCP Tools (Primary) | `ToolRouteResolver` → MCP server (`rag-pipeline-mcp` or `mdq-mcp`) | Standard operation |
-| `/db` Command (Admin) | `/db rag urls` + `/db rag clean` → `rag-pipeline-mcp`; `/db rag stats` + maintenance → `DbMaintenanceService`/`RagMaintenanceService` | Administrative tasks only |
+| `/session` maintenance subcommands (Admin) | `/session stats` and maintenance → `DbMaintenanceService`; `/session rag-*` → `RagMaintenanceService` | Administrative tasks only |
 | Direct DB Access | Not recommended | Do NOT use in application code |
 
 **Design judgment:** MCP tools are the recommended and supported route. Direct imports of `sqlite3` for `rag.sqlite` or `mdq.sqlite` are prohibited in standard application code.

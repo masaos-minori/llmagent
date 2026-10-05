@@ -71,14 +71,14 @@ Managed by `agent/workflow/state_store.py`:
 
 ## Responsibility Boundary
 
-- **Canonical Source**: `shared/sqlite_helper.py` (`SQLiteHelper`), `agent/workflow/state_store.py` (`StateStore`)
+- **Canonical Source**: `db/helper.py` (`SQLiteHelper`), `agent/workflow/state_store.py` (`StateStore`)
 - **Schema**: `schema_sql.py` (authority)
 
 ## Key Constraints
 
 - Valid roles for the `messages` table: `user` / `assistant` / `tool` / `system` — `diagnostic` is **NOT** valid.
 - Using `messages` for purposes other than the conversation flow visible to the LLM is prohibited.
-- `workflow.sqlite` is mandatory for workflows — startup fails if the configuration file is missing.
+- Workflows are mandatory — startup fails if the workflow definition file is missing.
 
 ## Keywords
 

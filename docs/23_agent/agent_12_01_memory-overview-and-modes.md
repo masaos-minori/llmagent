@@ -36,7 +36,7 @@ It separates semantic memory (long-term rules/decisions) from episodic memory (s
 ## Key Constraints
 
 - If `memory_local_only = true` is set, it forces the embedding endpoint to be a loopback address. Startup fails if `embed_url` is not local.
-- Semantic memory injection at session start requires `importance >= 0.5`. Low-importance entries are not automatically injected.
+- Semantic memory injection at session start requires `importance >= memory_min_importance`. Low-importance entries are not automatically injected.
 - Pinned entries are always injected at every session start (regardless of the importance threshold).
 
 ## Operational Notes
@@ -61,21 +61,21 @@ The memory layer operates in four different modes, which can be checked via `/me
 | Mode | Description | Retrieval Behavior |
 |---|---|---|
 | `Hybrid mode (semantic + FTS)` | Fully operational — Embedding endpoint is available and returning valid embeddings | Hybrid search using RRF merge of vector similarity and FTS results |
-| `Memory enabled, embedding disabled (FTS-only)` | Embedding endpoint is unavailable but the circuit is closed | FTS-only search. No vector similarity component |
+| `Memory enabled, embedding disabled (FTS-only)` | Embedding is disabled by configuration (`memory_embed_enabled = false`) | FTS-only search. No vector similarity component |
 | `Degraded mode (circuit open, FTS fallback)` | Circuit breaker for embeddings has tripped due to repeated failures | FTS-only search. Same as above, but indicates ongoing issues with the embedding service |
 | `Memory layer disabled` | The memory subsystem is completely disabled (`use_memory_layer = false`) | No memory search performed |
 
 **Conditions for each mode:**
 
 - **Hybrid mode**: Default when memory is enabled, the embedding endpoint is reachable, and returns valid embeddings.
-- **FTS-only**: When the embedding endpoint fails (network error, timeout, invalid response), the system falls back to FTS only. This happens automatically without manual intervention.
+- **FTS-only**: When `memory_embed_enabled = false`, only FTS is used. Separately, an individual retrieval whose embedding call fails (network error, timeout, invalid response) falls back to FTS only for that retrieval; this happens automatically without manual intervention.
 - **Degraded mode**: When the embedding circuit breaker trips due to continuous failures. The circuit breaker threshold can be configured in `embedding_client.py`. Degraded mode uses the same FTS fallback as above but indicates an ongoing issue with the embedding service.
 - **Disabled**: When `use_memory_layer = false` is set in `config/agent.toml`. No memory search is performed regardless of embedding availability.
 
 **Transitions between modes:**
 
-- Hybrid $\rightarrow$ FTS-only: Automatic transition on embedding failure.
-- FTS-only $\rightarrow$ Hybrid: Automatic transition when embeddings recover.
+- Hybrid $\rightarrow$ FTS-only: Requires configuration change (`memory_embed_enabled`). Individual retrievals fall back to FTS automatically on embedding failure.
+- FTS-only $\rightarrow$ Hybrid: Requires configuration change (`memory_embed_enabled`).
 - Degraded $\rightarrow$ Hybrid: Automatic transition when the circuit breaker closes after a recovery period.
 - Any $\rightarrow$ Disabled: Requires configuration change and agent restart.
 

@@ -29,7 +29,7 @@ Documents design decisions for approval flows, risk classification, and plan mod
 ### Pre-checks (Immediate Rejection)
 
 1. **`allowed_tools` Whitelist**: If the list is not empty and the tool is not in the list → Reject
-2. **`allowed_root` Jail**: If path arguments are outside `cfg.allowed_root` → Reject
+2. **`allowed_root` Jail**: If path arguments are outside `cfg.approval.allowed_root` → Reject
 3. **GitHub Repository Allowlist**: If the target repository for a write operation is not in `approval_github_allowed_repos` → Reject (**Fail-closed**)
 
 ### Operation Type Classification

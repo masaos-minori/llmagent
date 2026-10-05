@@ -34,7 +34,7 @@ A group of commands for session management and history operations. `/clear new` 
 
 #### Session DB operation subcommands
 
-Session subcommands are invoked as `/session <subcmd>`. For the other maintenance subcommands, see [Context/DB Category](agent_07_09_cli-and-commands-slash-commands-context-db.md).
+Session subcommands are invoked as `/session <subcmd>`. This includes the maintenance subcommands (`stats`, `health`, `checkpoint`, `vacuum`, `purge`, `recover`, `rag-consistency`, `rag-rebuild-fts`, `rag-rebuild-vec`); see agent_04_03 for the services they call.
 
 ### MCP Category
 

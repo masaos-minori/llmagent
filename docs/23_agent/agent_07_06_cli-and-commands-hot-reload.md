@@ -44,6 +44,7 @@ The reload subcommand reads the base configuration files and applies changes as 
 | Requires restart | `[RESTART]` | A full restart of the agent is required |
 | Startup-only | `[STARTUP-ONLY]` | Loaded only once at startup. Ignored by reload subcommand even if changed |
 | Skipped | `[SKIP]` | Changes intentionally ignored |
+| Always live | `[LIVE]` | Always effective without reload |
 
 ### Output Messages
 

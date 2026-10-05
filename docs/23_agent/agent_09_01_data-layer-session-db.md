@@ -78,7 +78,7 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 ## Responsibility Boundary
 
-- **Canonical Source**: `shared/tool_executor.py`, `agent/diagnostic_store.py`, `db/maintenance.py`
+- **Canonical Source**: `agent/diagnostic_store.py`, `db/maintenance.py`
 - **Schema**: `schema_sql.py` (authority for detailed schema definitions)
 
 ## Key Constraints
@@ -90,7 +90,7 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 ## Operational Notes
 
-- SQLiteSessionStore has zero production callers; sole caller is tests/test_db_store_impl.py.
+- SQLiteSessionStore has zero production callers; sole caller is tests/db/test_db_store_impl.py.
 
 ## Known Limitations
 

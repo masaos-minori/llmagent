@@ -35,7 +35,7 @@ Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-
 - Common constraints (`use_memory_layer = false` bypass; `VectorRetriever.knn_search()` on a missing `memories_vec` table): see Key Constraints in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md).
 - Embedding, deduplication and archive-write constraints: see Key Constraints in [agent_12_05_memory-module-ref-extraction-and-facade.md](agent_12_05_memory-module-ref-extraction-and-facade.md).
 - `HybridRetriever.search()` performs FTS only if embeddings are unavailable; otherwise, it performs RRF merging.
-- Default `InjectionPolicy`: `max_semantic=5`, `max_episodic=3`, `min_importance=0.5`, `max_snippet_length=500`.
+- Default `InjectionPolicy`: `max_semantic=5`, `max_episodic=3`, `min_importance=0.3`, `max_snippet_length=500`.
 - `knn_search` uses L2/Euclidean distance metric (explicit `distance_metric=L2` in vec0 DDL).
 
 ## Operational Notes

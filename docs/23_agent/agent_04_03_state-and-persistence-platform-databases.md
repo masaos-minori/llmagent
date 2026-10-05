@@ -33,9 +33,9 @@ The Agent layer operates across four SQLite databases (`DbTarget` enum in `db/he
 
 | Database | Purpose | Schema reference |
 |---|---|---|
-| `session.sqlite` | Agent sessions, messages, memory | `shared_04` section 2 |
-| `rag.sqlite` | RAG documents, chunks, embeddings | `shared_04` sections 3-6 |
-| `workflow.sqlite` | Task tracking, event processing | `shared_04` section 7 |
+| `session.sqlite` | Agent sessions, messages, memory | [db_02](../41_db/db_02_architecture_and_schema-schema-reference.md) section 6 |
+| `rag.sqlite` | RAG documents, chunks, embeddings | [db_02](../41_db/db_02_architecture_and_schema-schema-reference.md) section 5 |
+| `workflow.sqlite` | Task tracking, event processing | [db_02](../41_db/db_02_architecture_and_schema-schema-reference.md) section 7 |
 | `eventbus.sqlite` | Event Bus (out of scope for this document) | — |
 
 DB paths are configured in `agent.toml` via `rag_db_path`, `session_db_path`, `workflow_db_path`, and `eventbus_db_path` (`db/config.py`). `rag_db_path`/`session_db_path` have no default values (raises `ValueError` if not set), while `workflow_db_path`/`eventbus_db_path` have default paths under `/opt/llm/db/`.
@@ -62,7 +62,7 @@ DB paths are configured in `agent.toml` via `rag_db_path`, `session_db_path`, `w
 | `DbMaintenanceService` | `agent/services/db_maintenance_service.py` | session.sqlite | `stats` (sessions/messages), `health`, `checkpoint`, `vacuum`, `purge`, `recover_session` |
 | `RagMaintenanceService` | `agent/services/rag_maintenance_service.py` | rag.sqlite | `stats_rag` (docs/chunks), `rebuild_fts`, `consistency`, `recover`, `rebuild_vec`, `reconcile_url` |
 
-Both service classes are wrappers that call low-level functions in `db/maintenance.py` (`checkpoint_wal`, `vacuum_db`, `purge_old_sessions`, etc.), but these classes themselves are not defined in `db/maintenance.py`. While CLI subcommand names like `/db session recover` and implementation method names like `recover_session` are asymmetrical, they correspond correctly.
+Both service classes are wrappers that call low-level functions in `db/maintenance.py` (`checkpoint_wal`, `vacuum_db`, `purge_old_sessions`, etc.), but these classes themselves are not defined in `db/maintenance.py`. While CLI subcommand names like `/session recover` and implementation method names like `recover_session` are asymmetrical, they correspond correctly.
 
 `AgentSession` accesses only `session.sqlite` via `SQLiteHelper("session")`.
 
@@ -70,7 +70,7 @@ Verified Boundaries:
 
 - `agent/session.py` imports: `agent.diagnostic_store` (`DiagnosticStore`), `agent.session_message_repo` (`SessionMessageRepository`), `db.helper` (`SQLiteHelper`), and `shared.types`. Diagnostic logs (`session_diagnostics`) are handled by `DiagnosticStore`.
 - `db/maintenance.py` contains maintenance functions (`vacuum_db`, `checkpoint_wal`, `prune_old_memories`, etc.) but has no imports from `rag/`; DB rotation is located in `db/rotation.py`.
-- The `/db` command routes subcommands based on scope: `/db rag <subcmd>` targets `RagMaintenanceService`, while `/db session <subcmd>` targets `DbMaintenanceService`.
+- The `/session` command routes maintenance subcommands: `/session stats|health|checkpoint|vacuum|purge|recover` target `DbMaintenanceService`, while `/session rag-consistency|rag-rebuild-fts|rag-rebuild-vec` target `RagMaintenanceService`.
 - `db/maintenance.py`'s `prune_old_memories()` is not under the jurisdiction of either `DbMaintenanceService` or `RagMaintenanceService`; it is called directly from `agent/commands/memory_data_ops.py` via `/memory` type commands.
 - `agent/repository_gateway.py` is unrelated to DB persistence; it acts as an execution gate for policy review, execution, and auditing of tool calls (it does not issue approval prompts; the batch-level gate in `tool_runner.execute_all_tool_calls()` is enforced once before invocation). It is not involved in DB responsibility boundaries.
 
@@ -112,7 +112,7 @@ The Memory layer uses `session.sqlite` and is independent of `rag.sqlite`.
 
 ## Operational Notes
 
-- The `/db session` scope handles `session.sqlite` maintenance. The `/db` command does not expose `workflow.sqlite` directly for maintenance — workflow states are managed exclusively via `StateStore` through the `WorkflowEngine`.
+- The `/session` maintenance subcommands handle `session.sqlite` maintenance. No slash command exposes `workflow.sqlite` directly for maintenance — workflow states are managed exclusively via `StateStore` through the `WorkflowEngine`.
 - The `request_approval` `workflow_id` argument is stored in the `approvals` table and returned in query results, but currently, it is not used for filtering or routing in the codebase.
 - `finish_attempt`'s `error_kind`/`error_detail` are additional columns in the `attempts` table, providing error classification separate from `error_msg`.
 - `begin_stage_if_new` checks the `event_id` atomically and starts an attempt if new. `begin_immediate` wraps check and insertion in a single transaction without calling `commit()` explicitly.

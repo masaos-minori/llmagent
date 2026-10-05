@@ -91,8 +91,8 @@ Documents the structure and constraints of LLM and RAG configurations.
 
 ## Key Constraints
 
-- `rag.use_semantic_cache=True` → `rag.embed_url` must not be empty (see Part 2).
-- `memory.memory_embed_enabled=True` → `rag.embed_url` must not be empty (see Part 2).
+- `rag.use_semantic_cache=True` → `rag.embed_url` must not be empty.
+- `memory.memory_embed_enabled=True` → `rag.embed_url` must not be empty.
 
 ## Keywords
 

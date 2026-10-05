@@ -53,9 +53,11 @@ Documents the `AgentConfig` structure, configuration file ownership, and classif
 ### Operational Impact of Changes
 
 Check the following categories in the `ConfigReloadOutcome` output:
-- `[APPLIED]` — Hot-reload applied successfully.
+- `[OK]` — Hot-reload applied successfully.
 - `[RESTART]` — Subsystem restart required.
 - `[STARTUP-ONLY]` — Fields that cannot be changed via `/reload`.
+- `[SKIP]` — Changes intentionally ignored.
+- `[LIVE]` — Settings that are always effective without reload.
 
 ### Security-Related Settings
 

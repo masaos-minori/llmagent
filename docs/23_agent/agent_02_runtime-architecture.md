@@ -68,20 +68,19 @@ Because an untested execution path may bypass the gate, every path requires a te
 |---|---|
 | `repository_gateway.py:execute()` (`if op == OperationType.READ` branch) | READ operations are intentionally preflight-exempt per design (direct passthrough for read-only tools). No separate `read_execute()` method exists. |
 | `tool_approval.py:check_approval()` via `ApprovalDecisionType.DRY_RUN` | dry_run execution is preflight-exempt (read-only operation). No separate `build_preview()` method exists; handled via `DryRun` decision type. |
-| `tool_runner.py:run_tool_call()` (`else` branch) | Gateway not yet configured; requires separate resolution. This path bypasses both the gateway and the preflight gate. |
+| `tool_runner.py:run_tool_call()` (`else` branch) | Gateway not configured (not expected in production, where `RepositoryGateway` is created unconditionally). This path bypasses the gateway but runs `check_preflight()` for non-READ operations before `tools.execute()`. |
 
 ### Gateway-Bypass Gap Analysis
 
-Three distinct patterns exist where `tools.execute()` is called directly without going through the gateway:
+Two distinct patterns exist where `tools.execute()` is called directly without going through the gateway:
 
 **Pattern 1: Preflight gate present, gateway bypass** (cmd_mdq.py, cmd_context.py)
 - These paths have `check_preflight()` gates but bypass the gateway.
 - They are partially covered but inconsistent with the gateway-centric enforcement model.
 
-**Pattern 2: No preflight gate, no gateway** (tool_runner.py)
-- Critical gap: neither preflight nor gateway protection.
-- Priority 1: Resolve by adding preflight check in the `else` branch.
-- Priority 2: Standardize all write/delete/API-write operations through the gateway.
+**Pattern 2: Preflight gate present, no gateway** (tool_runner.py)
+- The `else` branch (gateway is `None`) calls `check_preflight()` for non-READ operations before `tools.execute()`.
+- Standardizing all write/delete/API-write operations through the gateway remains the target model.
 
 ### Ongoing Maintenance
 
@@ -193,7 +192,7 @@ Valid transitions: `STOPPED → STARTING/FAILED`, `STARTING → RUNNING/FAILED/S
 #### AgentSession (`agent/session.py`)
 
 - CRUD for `sessions` and `messages` tables.
-- Deletion/listing of RAG documents (delegated from `/db` command).
+- Deletion/listing of RAG documents is not handled here; it goes through `rag-pipeline-mcp`.
 - Returns message lists for session restoration.
 
 #### Memory Services (`agent/memory/`)
