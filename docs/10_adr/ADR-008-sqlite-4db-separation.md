@@ -63,7 +63,7 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 ### Recovery Category Glossary
 
 - **initialization**: Creating a fresh, empty database or required schema when no valid database exists (`scripts/db/create_schema.py`; section 11 "DB Recreation Procedure").
-- **schema-repair**: Correcting a missing or incompatible schema through an approved migration or initialization path (`apply_workflow_migrations()` / `_migrate()` in `docs/41_db/db_03_db_architecture_and_schema-migration-and-scaling.md` sections 8a/8b); distinct from recreate-only paths.
+- **schema-repair**: Correcting a missing or incompatible schema through an approved migration or initialization path (`apply_workflow_migrations()` / `_migrate()` in `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` sections 8a/8b); distinct from recreate-only paths.
 - **logical-repair**: Correcting application-level inconsistencies while the SQLite file remains physically valid (`RagMaintenanceService.consistency()` in `scripts/agent/services/rag_maintenance_service.py`).
 - **derived-data-rebuild**: Recreating indexes or other data that can be derived from an authoritative source (`RagMaintenanceService.rebuild_fts()` / `rebuild_vec()` in `scripts/agent/services/rag_maintenance_service.py`; `rag.sqlite`-only per Decision Detail #11/#20).
 - **physical-recovery**: Restoring usability after SQLite file corruption (`DbCondition.CORRUPTION` path in `scripts/db/recovery.py`; DbCondition StrEnum members: HEALTHY/CORRUPTION/LOCK_CONTENTION/PERMISSION_FAILURE/INVALID_FORMAT/UNKNOWN).
