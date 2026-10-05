@@ -48,7 +48,12 @@ class HttpTransport:
         self._http = http
         self._base_url = base_url
         self._server_key = server_key
-        self._auth_token: str = cfg.auth_token if cfg is not None else ""
+        if cfg is None:
+            raise ValueError(
+                "HttpTransport requires a non-None 'cfg' argument; "
+                "a transport without credentials silently disables auth"
+            )
+        self._auth_token: str = cfg.auth_token
         if self._auth_token:
             register_secret(self._auth_token)
         self._timeout = timeout_sec

@@ -47,6 +47,7 @@ class TestHttpTransportRetry:
             _FakeClient(),  # type: ignore[arg-type]
             base_url="http://localhost:8080",
             server_key="test",
+            cfg=MagicMock(auth_token=""),
         )
         with patch("asyncio.sleep", return_value=None):
             result = await transport.call("write_file", {"path": "a"})
@@ -70,6 +71,7 @@ class TestHttpTransportRetry:
             _FakeClient(),  # type: ignore[arg-type]
             base_url="http://localhost:8080",
             server_key="test",
+            cfg=MagicMock(auth_token=""),
         )
         with patch("asyncio.sleep", return_value=None):
             with pytest.raises(TransportError) as exc_info:
@@ -98,6 +100,7 @@ class TestHttpTransportRetry:
             _FakeClient(),  # type: ignore[arg-type]
             base_url="http://localhost:8080",
             server_key="test",
+            cfg=MagicMock(auth_token=""),
         )
         with patch("asyncio.sleep", return_value=None):
             result = await transport.call("write_file", {"path": "a"})
@@ -125,6 +128,7 @@ class TestHttpTransportRetry:
             _FakeClient(),  # type: ignore[arg-type]
             base_url="http://localhost:8080",
             server_key="test",
+            cfg=MagicMock(auth_token=""),
         )
         with patch("asyncio.sleep", return_value=None):
             result = await transport.call("write_file", {"path": "a"})
@@ -152,6 +156,7 @@ class TestHttpTransportRetry:
             _FakeClient(),  # type: ignore[arg-type]
             base_url="http://localhost:8080",
             server_key="test",
+            cfg=MagicMock(auth_token=""),
         )
         with patch("asyncio.sleep", return_value=None):
             result = await transport.call("write_file", {"path": "a"})
@@ -172,6 +177,7 @@ class TestHttpTransportRetry:
             _FakeClient(),  # type: ignore[arg-type]
             base_url="http://localhost:8080",
             server_key="test",
+            cfg=MagicMock(auth_token=""),
         )
         with pytest.raises(TransportError) as exc_info:
             await transport.call("write_file", {"path": "a"})
@@ -195,6 +201,7 @@ class TestHttpTransportRetry:
             _FakeClient(),  # type: ignore[arg-type]
             base_url="http://localhost:8080",
             server_key="test",
+            cfg=MagicMock(auth_token=""),
         )
         with pytest.raises(TransportError):
             await transport.call("write_file", {"path": "a"})
@@ -217,6 +224,7 @@ class TestHttpTransportRetry:
             _FakeClient(),  # type: ignore[arg-type]
             base_url="http://localhost:8080",
             server_key="test",
+            cfg=MagicMock(auth_token=""),
         )
         with pytest.raises(TransportError):
             await transport.call("write_file", {"path": "a"})
@@ -240,6 +248,7 @@ class TestHttpTransportRetry:
             _FakeClient(),  # type: ignore[arg-type]
             base_url="http://localhost:8080",
             server_key="test",
+            cfg=MagicMock(auth_token=""),
         )
 
         async def capture_sleep(*args: Any, **kwargs: Any) -> None:
@@ -278,6 +287,7 @@ class TestRedaction:
             _FakeClient(),  # type: ignore[arg-type]
             base_url="http://localhost:8080",
             server_key="test",
+            cfg=MagicMock(auth_token=""),
         )
 
         with pytest.raises(TransportError) as exc_info:
@@ -305,6 +315,7 @@ class TestRedaction:
             _FakeClient(),  # type: ignore[arg-type]
             base_url="http://localhost:8080",
             server_key="test",
+            cfg=MagicMock(auth_token=""),
         )
 
         with pytest.raises(TransportError):
@@ -432,6 +443,7 @@ class TestToolExecutorErrorClassification:
             _FakeClient503(),  # type: ignore[arg-type]  -- duck-typed fake for test
             base_url="http://127.0.0.1:8000",
             server_key="file_read",
+            cfg=MagicMock(auth_token=""),
         )
         ex._transports["file_read"] = transport
 
@@ -456,6 +468,7 @@ class TestToolExecutorErrorClassification:
             _FakeClientTimeout(),  # type: ignore[arg-type]  -- duck-typed fake for test
             base_url="http://127.0.0.1:8000",
             server_key="file_read",
+            cfg=MagicMock(auth_token=""),
         )
         ex._transports["file_read"] = transport
 
@@ -488,6 +501,7 @@ class TestToolExecutorErrorClassification:
             _FakeClientMalformed(),  # type: ignore[arg-type]  -- duck-typed fake for test
             base_url="http://127.0.0.1:8000",
             server_key="file_read",
+            cfg=MagicMock(auth_token=""),
         )
         ex._transports["file_read"] = transport
 
@@ -518,6 +532,7 @@ class TestToolExecutorErrorClassification:
             client,  # type: ignore[arg-type]  -- duck-typed fake for test
             base_url="http://127.0.0.1:8000",
             server_key="file_read",
+            cfg=MagicMock(auth_token=""),
         )
         ex._transports["file_read"] = transport
 

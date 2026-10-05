@@ -251,20 +251,12 @@ class TestHttpTransportAuthHeader:
         assert call_kwargs["headers"] == {}
 
     @pytest.mark.asyncio
-    async def test_no_cfg_sends_empty_headers(self) -> None:
-        """Backward-compat: HttpTransport without cfg arg sends no auth header."""
+    async def test_no_cfg_raises_fail_loud(self) -> None:
+        """Fail-loud: HttpTransport without cfg arg raises ValueError."""
         mock_http = AsyncMock(spec=httpx.AsyncClient)
-        mock_resp = MagicMock()
-        mock_resp.content = b'{"result":"ok","is_error":false}'
-        mock_resp.raise_for_status = MagicMock()
-        mock_resp.headers = {}
-        mock_http.post = AsyncMock(return_value=mock_resp)
 
-        transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
-        await transport.call("my_tool", {})
-
-        call_kwargs = mock_http.post.call_args.kwargs
-        assert call_kwargs["headers"] == {}
+        with pytest.raises(ValueError, match="HttpTransport requires a non-None"):
+            HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
 
     @pytest.mark.asyncio
     async def test_x_request_id_captured_from_response_header(self) -> None:
@@ -275,7 +267,9 @@ class TestHttpTransportAuthHeader:
         mock_resp.headers = {"x-request-id": "abc-123"}
         mock_http.post = AsyncMock(return_value=mock_resp)
 
-        transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
+        transport = HttpTransport(
+            mock_http, "http://127.0.0.1:8000", "svc", cfg=MagicMock(auth_token="")
+        )
         res = await transport.call("my_tool", {})
         x_req_id = res.request_id
 
@@ -290,7 +284,9 @@ class TestHttpTransportAuthHeader:
         mock_resp.headers = {}
         mock_http.post = AsyncMock(return_value=mock_resp)
 
-        transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
+        transport = HttpTransport(
+            mock_http, "http://127.0.0.1:8000", "svc", cfg=MagicMock(auth_token="")
+        )
         res = await transport.call("my_tool", {})
         x_req_id = res.request_id
 
@@ -308,7 +304,9 @@ class TestHttpTransportErrors:
                 "server error", request=req, response=resp_obj
             )
         )
-        transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
+        transport = HttpTransport(
+            mock_http, "http://127.0.0.1:8000", "svc", cfg=MagicMock(auth_token="")
+        )
         with pytest.raises(TransportError) as exc_info:
             await transport.call("my_tool", {})
         assert "[HTTPStatusError]" in str(exc_info.value)
@@ -321,7 +319,9 @@ class TestHttpTransportErrors:
         mock_http.post = AsyncMock(
             side_effect=httpx.ConnectError("refused", request=req)
         )
-        transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
+        transport = HttpTransport(
+            mock_http, "http://127.0.0.1:8000", "svc", cfg=MagicMock(auth_token="")
+        )
         with pytest.raises(TransportError):
             await transport.call("my_tool", {})
 
@@ -331,7 +331,9 @@ class TestHttpTransportErrors:
         req = httpx.Request("POST", "http://127.0.0.1:8000/v1/call_tool")
         resp_obj = httpx.Response(200, request=req, content=b"not-json")
         mock_http.post = AsyncMock(return_value=resp_obj)
-        transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
+        transport = HttpTransport(
+            mock_http, "http://127.0.0.1:8000", "svc", cfg=MagicMock(auth_token="")
+        )
         with pytest.raises(TransportError):
             await transport.call("my_tool", {})
 
