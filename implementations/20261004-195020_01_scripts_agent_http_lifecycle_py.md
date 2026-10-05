@@ -100,15 +100,36 @@ Revert to the original placement of `cleanup_server_key()` in the finally block 
 - Changes to subprocess creation parameters
 - Creating new test file (handled in separate document)
 
-## execution Status
+## Implementation outcome
+
+Implemented against the real source. The procedure draft's API did not match
+source: draft assumed `self._terminator`, `terminate_with_timeout(proc,
+timeout=5)`, and `manager.cleanup_server_key(...)`; the real API is
+`self._process_terminator.terminate_with_timeout(proc, server_key, timeout=...)`
+and inline `self._http_procs`/`self._http_pgids` pops. Control flow was
+restructured accordingly:
+
+- Tracking removal (`_http_procs.pop`, `_http_pgids.pop`) moved out of `finally`
+  into the post-success path (removed only after confirmed process exit).
+- New `except Exception as term_err:` logs the PID and retains tracking on
+  termination failure, then re-raises.
+- Resource cleanup (stderr close, stderr-files pop, log-manager forget) kept in
+  `finally` so handles are always released.
+- Original `raise e` preserved.
+
+Verified: 50 tests pass across `tests/agent/test_http_lifecycle.py` (+2 new) and
+`tests/agent/test_http_lifecycle_integration.py`; `ruff format --check`,
+`ruff check`, and `bandit -l -ii` all clean.
+
+## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-10-05 | 2026-10-05 | Implemented against real API (see Implementation outcome). |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-05 | 2026-10-05 | `tests/agent/test_http_lifecycle.py` created (REQ-001, REQ-002). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-05 | 2026-10-05 | ruff/bandit clean; 50 tests pass. mypy environmental noise only. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Out of scope per procedure. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
