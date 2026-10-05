@@ -1,6 +1,7 @@
 """Regression tests for tools/check_chunks_fts_invariant.py."""
 
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -18,7 +19,7 @@ def test_violation_detected(tmp_path: Path) -> None:
     )
 
     result = subprocess.run(
-        ["uv", "run", "python", str(LINT_SCRIPT), "--path", str(tmp_path)],
+        [sys.executable, str(LINT_SCRIPT), "--path", str(tmp_path)],
         capture_output=True,
         text=True,
     )
@@ -37,7 +38,7 @@ def test_zero_findings_on_sanctioned_path() -> None:
     scripts/db/schema_sql.py).
     """
     result = subprocess.run(
-        ["uv", "run", "python", str(LINT_SCRIPT)],
+        [sys.executable, str(LINT_SCRIPT)],
         capture_output=True,
         text=True,
         cwd=str(REPO_ROOT),
@@ -59,7 +60,7 @@ def test_zero_findings_on_mdq_files() -> None:
         pytest.skip(f"MDQ directory not found: {mdq_dir}")
 
     result = subprocess.run(
-        ["uv", "run", "python", str(LINT_SCRIPT), "--path", str(mdq_dir)],
+        [sys.executable, str(LINT_SCRIPT), "--path", str(mdq_dir)],
         capture_output=True,
         text=True,
         cwd=str(REPO_ROOT),

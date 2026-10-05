@@ -1,81 +1,104 @@
 """tests/agent/test_startup_validation.py
 
-Regression tests for REQ-002, REQ-003: Verify RAG consistency check timeout
-is enforced and thread pool starvation is prevented under concurrent startup.
+Regression tests for REQ-002, REQ-003: Verify the RAG consistency check inside
+StartupValidationPipeline.check_services() enforces its timeout and reports a
+normal pass, by driving the real check_services() body.
 """
 
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import MagicMock, patch
+from contextlib import ExitStack
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from agent.services.rag_maintenance_service import RagMaintenanceService
-from agent.shared.health_models import StartupValidationResult
+from agent.shared.health_models import (
+    HealthCheckResult,
+    StartupCheckStatus,
+    StartupValidationResult,
+)
+from agent.startup_validation import StartupValidationPipeline
+from shared.mcp_config import SecurityProfile
+
+
+def _make_ctx() -> MagicMock:
+    ctx = MagicMock()
+    ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
+    ctx.cfg.memory.memory_embed_dim = 768
+    ctx.cfg.tool.tool_definitions_strict = False
+    return ctx
+
+
+async def _run_check_services(
+    rag_service: MagicMock,
+    *,
+    wait_for_side_effect: BaseException | None = None,
+) -> StartupValidationResult:
+    """Run the real check_services() with every other check mocked to a clean pass."""
+    ctx = _make_ctx()
+    discovery = MagicMock(
+        return_value=MagicMock(
+            discover_all=AsyncMock(
+                return_value=MagicMock(registry=None, findings=[], unreachable=[])
+            )
+        )
+    )
+    mocks: dict[str, object] = {
+        "audit_security_defaults": MagicMock(return_value=[]),
+        "check_readiness": AsyncMock(return_value=HealthCheckResult()),
+        "McpToolDiscoveryService": discovery,
+        "check_routing_drift": MagicMock(return_value=[]),
+        "check_routing_safety_tiers": MagicMock(return_value=[]),
+        "RagMaintenanceService": MagicMock(return_value=rag_service),
+    }
+    with ExitStack() as stack:
+        for name, mock_obj in mocks.items():
+            stack.enter_context(patch(f"agent.startup_validation.{name}", mock_obj))
+        stack.enter_context(
+            patch(
+                "db.config.build_db_config",
+                return_value=MagicMock(embedding_dims=768),
+            )
+        )
+        # check_services() builds its own Logger; keep it from touching log files.
+        stack.enter_context(patch("shared.logger.Logger", MagicMock()))
+        if wait_for_side_effect is not None:
+            stack.enter_context(
+                patch(
+                    "agent.startup_validation.asyncio.wait_for",
+                    side_effect=wait_for_side_effect,
+                )
+            )
+        return await StartupValidationPipeline(ctx, MagicMock()).check_services()
+
+
+def _rag_outcomes(result: StartupValidationResult) -> list[StartupCheckStatus]:
+    return [o.status for o in result.outcomes if o.source == "rag_consistency"]
 
 
 class TestRagConsistencyTimeout:
-    """Tests for REQ-002, REQ-003: Verify RAG check timeout enforcement."""
+    """Tests for REQ-002, REQ-003: RAG check timeout enforcement."""
 
     @pytest.mark.asyncio
     async def test_rag_check_timeout_enforced(self) -> None:
-        """REQ-002: TimeoutError raised when RAG consistency check exceeds 30s."""
+        """REQ-002: a timed-out RAG consistency check is skipped, not fatal."""
+        rag_service = MagicMock()
+        result = await _run_check_services(
+            rag_service,
+            wait_for_side_effect=TimeoutError("timed out"),
+        )
 
-        async def fake_wait_for(coro, timeout):
-            raise TimeoutError(f"timed out after {timeout}s")
-
-        with patch(
-            "agent.startup_validation.asyncio.wait_for", side_effect=fake_wait_for
-        ):
-            with patch.object(RagMaintenanceService, "consistency"):
-                with patch("agent.startup_validation.logger"):
-                    _ = StartupValidationResult()
-                    # Simulate the RAG check inline block from check_services()
-                    try:
-                        await asyncio.wait_for(
-                            asyncio.get_running_loop().run_in_executor(
-                                None,
-                                lambda: RagMaintenanceService().consistency(),
-                            ),
-                            timeout=30.0,
-                        )
-                    except TimeoutError:
-                        pass  # Expected
-                    # Now verify our actual timeout handling path
-                    with patch(
-                        "agent.startup_validation.asyncio.wait_for",
-                        side_effect=fake_wait_for,
-                    ):
-                        with patch.object(RagMaintenanceService, "consistency"):
-                            with patch("agent.startup_validation.logger"):
-                                pipeline2 = StartupValidationResult()
-                                try:
-                                    await asyncio.wait_for(
-                                        asyncio.get_running_loop().run_in_executor(
-                                            None,
-                                            lambda: (
-                                                RagMaintenanceService().consistency()
-                                            ),
-                                        ),
-                                        timeout=30.0,
-                                    )
-                                except TimeoutError:
-                                    pass  # Expected
-                                assert pipeline2.has_skipped("rag_consistency")
+        assert _rag_outcomes(result) == [StartupCheckStatus.SKIPPED]
+        skipped = [o for o in result.outcomes if o.source == "rag_consistency"]
+        assert "timeout" in skipped[0].message
+        assert not result.has_fatal
 
     @pytest.mark.asyncio
     async def test_rag_check_succeeds_within_timeout(self) -> None:
-        """REQ-003: Normal RAG check completes within timeout."""
-        mock_result = MagicMock(is_consistent=True, issues=[])
-        with patch.object(
-            RagMaintenanceService, "consistency", return_value=mock_result
-        ):
-            with patch("agent.startup_validation.logger"):
-                pipeline = StartupValidationResult()
-                rag_check = await asyncio.get_running_loop().run_in_executor(
-                    None,
-                    lambda: RagMaintenanceService().consistency(),
-                )
-                if rag_check.is_consistent:
-                    pipeline.add_ok("rag_consistency")
-                assert pipeline.has_ok("rag_consistency")
+        """REQ-003: a normal RAG check reports OK."""
+        rag_service = MagicMock()
+        rag_service.consistency.return_value = MagicMock(is_consistent=True, issues=[])
+
+        result = await _run_check_services(rag_service)
+
+        assert _rag_outcomes(result) == [StartupCheckStatus.OK]
+        rag_service.consistency.assert_called_once()

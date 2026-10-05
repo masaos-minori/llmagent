@@ -12,6 +12,7 @@ import asyncio
 import json
 import os
 import sqlite3
+import threading
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -623,7 +624,15 @@ class TestReadInputShutdownRace:
         repl = _make_repl_for_shutdown()
         repl._shutdown_event.set()
         loop = asyncio.get_event_loop()
-        result = await repl._input_loop._read_input(loop)
+        release = threading.Event()
+        try:
+            # Keep the executor thread from reading the real (captured) stdin.
+            with patch(
+                "builtins.input", side_effect=lambda p: (release.wait(5), "never")[1]
+            ):
+                result = await repl._input_loop._read_input(loop)
+        finally:
+            release.set()
         assert result is None
 
     @pytest.mark.asyncio
@@ -878,7 +887,9 @@ class TestCloseResourcesWALCheckpoint:
                 raise
 
         loop = asyncio.get_running_loop()
-        loop.create_task(_pending_task())
+        pending_task = loop.create_task(_pending_task())
+        # close_resources() cancels only the tasks tracked in the turn context.
+        repl._ctx.turn.background_tasks = {pending_task}
 
         checkpoint_completed = asyncio.Event()
 

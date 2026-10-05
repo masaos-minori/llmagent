@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
@@ -35,7 +36,7 @@ class TestViolationDetection:
             """db.execute("INSERT INTO chunks_fts(rowid, content) VALUES(?, ?)")""",
         )
         result = subprocess.run(
-            ["uv", "run", "python", str(SCRIPT), "--path", str(tmpdir)],
+            [sys.executable, str(SCRIPT), "--path", str(tmpdir)],
             capture_output=True,
             text=True,
         )
@@ -49,7 +50,7 @@ class TestViolationDetection:
             """db.execute("UPDATE chunks_fts SET content=? WHERE rowid=?")""",
         )
         result = subprocess.run(
-            ["uv", "run", "python", str(SCRIPT), "--path", str(tmpdir)],
+            [sys.executable, str(SCRIPT), "--path", str(tmpdir)],
             capture_output=True,
             text=True,
         )
@@ -62,7 +63,7 @@ class TestViolationDetection:
         dst = tmpdir / "schema_sql.py"
         dst.write_bytes(src.read_bytes())
         result = subprocess.run(
-            ["uv", "run", "python", str(SCRIPT), "--path", str(tmpdir)],
+            [sys.executable, str(SCRIPT), "--path", str(tmpdir)],
             capture_output=True,
             text=True,
         )
@@ -77,7 +78,7 @@ class TestViolationDetection:
         dst = tmpdir / "rag_maintenance_service.py"
         dst.write_bytes(src.read_bytes())
         result = subprocess.run(
-            ["uv", "run", "python", str(SCRIPT), "--path", str(tmpdir)],
+            [sys.executable, str(SCRIPT), "--path", str(tmpdir)],
             capture_output=True,
             text=True,
         )
@@ -94,7 +95,7 @@ class TestViolationDetection:
             """INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)""",
         )
         result = subprocess.run(
-            ["uv", "run", "python", str(SCRIPT), "--path", str(tmpdir)],
+            [sys.executable, str(SCRIPT), "--path", str(tmpdir)],
             capture_output=True,
             text=True,
         )
@@ -110,7 +111,7 @@ class TestViolationDetection:
             """INSERT INTO chunks_fts(rowid, content) VALUES(?, ?)""",
         )
         result = subprocess.run(
-            ["uv", "run", "python", str(SCRIPT), "--path", str(tmpdir)],
+            [sys.executable, str(SCRIPT), "--path", str(tmpdir)],
             capture_output=True,
             text=True,
         )
@@ -120,7 +121,7 @@ class TestViolationDetection:
     def test_returns_zero_when_no_matches(self, tmpdir: Path) -> None:
         _write_file(tmpdir, "clean.py", 'print("hello world")')
         result = subprocess.run(
-            ["uv", "run", "python", str(SCRIPT), "--path", str(tmpdir)],
+            [sys.executable, str(SCRIPT), "--path", str(tmpdir)],
             capture_output=True,
             text=True,
         )

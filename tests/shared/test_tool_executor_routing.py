@@ -512,7 +512,7 @@ class TestToolExecutorStartupModeGate:
             res = await ex._raw_execute("trigger_workflow", {})
 
         assert res.is_error
-        assert "no transport configured" in res.output.lower()
+        assert "startup_mode=none" in res.output
         assert "cicd" in res.output
 
     @pytest.mark.asyncio
