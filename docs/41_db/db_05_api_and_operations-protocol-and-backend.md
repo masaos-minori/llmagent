@@ -21,7 +21,7 @@ All protocols are `@runtime_checkable`, so `isinstance()` checks work. Embedding
 
 `DocumentStore(Protocol)`: `doc_upsert(url,title,lang,etag,last_modified) \rightarrow int` (performs `SELECT` then `UPDATE`/`INSERT`, returns `doc_id`), `doc_get(url) \rightarrow dict|None` (returns `{doc_id,url,title,lang,fetched_at,etag,last_modified}` or `None`), `doc_list(lang,limit) \rightarrow list[dict]` (returns `{doc_id,url,title,lang,fetched_at}` sorted by `fetched_at DESC`), `doc_delete(url) \rightarrow bool` (deletes document and cascades to chunks, `True` if found), `chunk_insert(doc_id,index,content,normalized=None,chunk_type='',source_file='') \rightarrow int` (uses `chunks` table columns `chunk_index`/`chunk_type`/`source_file`; field configuration intentionally matches `scripts/rag/ingestion/ingester.py`'s `RagIngester._insert_chunk()` `INSERT` as documented in `db/store_protocols.py` — callers must verify consistency with the ingester when adding/modifying fields), `chunk_count() \rightarrow int`. `doc_upsert`/`chunk_insert` (`SQLiteDocumentStore`) and `session_create` (`SQLiteSessionStore`) raise `RuntimeError` if `RETURNING doc_id` / `INSERT lastrowid` cannot be obtained (a defensive check that is normally unreachable). 
 
-`SessionStore(Protocol)`: `session_create() \rightarrow int`, `session_list(limit) \rightarrow list[dict]` (returns `{session_id,created_at,title}` sorted by `created_at DESC`), `session_rename(session_id,title) \rightarrow None`, `session_delete(session_id) \rightarrow None` (cascades to messages via `ON DELETE CASCADE`), `message_save(session_id,role,content,tool_calls,tool_call_id=None) \rightarrow None`, `message_list(session_id) \rightarrow l...` (truncated)
+`SessionStore(Protocol)`: `session_create() \rightarrow int`, `session_list(limit) \rightarrow list[dict]` (returns `{session_id,created_at,title}` sorted by `created_at DESC`), `session_rename(session_id,title) \rightarrow None`, `session_delete(session_id) \rightarrow None` (cascades to messages via `ON DELETE CASCADE`), `message_save(session_id,role,content,tool_calls,tool_call_id=None) \rightarrow None`, `message_list(session_id) \rightarrow list[MessageRow]` (all messages of the session in insertion order)
 
 ---
 
@@ -35,7 +35,7 @@ All protocols are `@runtime_checkable`, so `isinstance()` checks work. Embedding
 
 ---
 
-## 6. Memory-Related Tables and Operations (`MemoryStore`)
+## 5. Memory-Related Tables and Operations (`MemoryStore`)
 
 `MemoryStore` is defined in `agent/memory/store.py` (NOT in `db/`). It uses `SQLiteHelper('session')`. Main methods: `add(entry, embedding=None)` inserts into `memories` + `memories_fts`; optionally also into `memories_vec` as needed. `upsert(entry, embedding=None)` performs `INSERT OR REPLACE` + syncs `FTS`/`vec`. `delete(memory_id)` deletes a single entry; returns `True` if found. `search_by_type(type, limit)` filters by `memory_type`; orders by `importance DESC`, `pinned DESC`. `pin(memory_id)`/`unpin(memory_id)` toggles the `pinned` flag. `clear_by_session(session_id)` deletes all entries linked to a session. `count_vec()` returns the row count of `memories_vec`; returns `0` if `vec0` is not loaded. `maintenance.py prune_old_memories(db, older_than_days)` delegates cross-table deletion to `SQLiteMemoryDeleteStore`.
 

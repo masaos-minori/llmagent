@@ -30,8 +30,6 @@ Describes the `db/` layer structure, DB file configuration, `DbConfig`, `SQLiteH
 
 Four DB files exist: `rag.sqlite` (agent.toml::rag_db_path, documents/chunks/chunks_fts/chunks_vec tables), `session.sqlite` (agent.toml::session_db_path, sessions/messages/memories/memories_fts/memories_vec/memory_links/session_diagnostics tables), `workflow.sqlite` (agent.toml::workflow_db_path, tasks/attempts/processed_events/artifacts/approvals tables), `eventbus.sqlite` (agent.toml::eventbus_db_path, events/consumer_delivery/consumer_offsets tables). DB files separated because RAG indexing and conversation state have different access patterns; `rag.sqlite` writes heavily during ingestion and reads during query; `session.sqlite` appends heavily during conversations; separation avoids WAL contention.
 
-**Why separate DB files?** RAG indexing and conversation state have different access patterns. `rag.sqlite` has high write volume during ingestion and high read volume during queries. `session.sqlite` is append-heavy during conversations. Separation avoids WAL contention.
-
 **Import Boundaries:** For complete import rules, see [db_04 section 1a](db_04_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries). Callers should always import from `db.store` and must not import directly from internal modules.
 
 ---

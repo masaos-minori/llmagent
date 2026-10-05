@@ -13,7 +13,7 @@ related:
 
 - Schema $\rightarrow$ [db_01_architecture_and_schema-overview-and-config.md](db_01_architecture_and_schema-overview-and-config.md)
 
-## 3. Maintenance Functions (`db/maintenance.py`)
+## 6. Maintenance Functions (`db/maintenance.py`)
 
 All functions accept a `SQLiteHelper` instance and delegate low-level operations to it. 
 
@@ -50,7 +50,7 @@ if not result.success:
 
 ---
 
-## 4. DB Rotation (`db/rotation.py`)
+## 7. DB Rotation (`db/rotation.py`)
 
 From `db.rotation import rotate_session_db, rotate_workflow_db, rotate_eventbus_db, rotate_all_dbs, rotate_db`:
 - `rotate_session_db(archive_dir=None) \rightarrow Path`: Archives the session database with a timestamp suffix using the SQLite online backup API.
@@ -65,7 +65,7 @@ The archive directory defaults to `/opt/llm/db/archive` (from `agent.toml::sqlit
 
 ---
 
-## 6. RAG Consistency Checks (`db/rag_consistency.py`)
+## 8. RAG Consistency Checks (`db/rag_consistency.py`)
 
 From `db.rag_consistency import RagConsistencyReport, check_rag_consistency, is_consistent, summarize_issues`:
 ```python
