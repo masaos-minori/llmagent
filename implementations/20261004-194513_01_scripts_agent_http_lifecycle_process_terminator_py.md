@@ -2,6 +2,22 @@
 
 Catch broader OSError during SIGKILL escalation instead of only ProcessLookupError, preventing unhandled exceptions that leave processes running.
 
+## Implementation outcome
+
+Deviation from procedure: no code change was performed. Origin/master already ships
+this fix in commit `10308ed7` — `terminate_with_timeout()` already has an
+`except OSError as e:` clause after the SIGKILL escalation that logs an error and
+returns False, matching the Details "After" block. Existing regression tests
+(`tests/agent/test_http_lifecycle_process_terminator.py`,
+`TestProcessTerminatorSigKillFailureScenarios`) use the real API and pass (2 passed).
+
+Not implemented: Method step 4 / REQ-003's post-SIGKILL `wait_exited()` verification
+is absent from both the Details block and origin's implementation; treated as
+over-specified and left unimplemented. Procedure 02's inline draft was not applied
+(it calls the nonexistent `_escalate_to_sigkill` and patches `os.getpgid`, which the
+real code does not use); origin shipped a correct version instead. Accepting the
+upstream implementation and closing the workflow.
+
 ## Scope
 
 - Modify `scripts/agent/http_lifecycle_process_terminator.py`: add `except OSError` handler alongside existing `except ProcessLookupError` in SIGKILL escalation path
