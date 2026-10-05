@@ -2,6 +2,18 @@
 
 Add regression test verifying that the original exception chain is preserved when `AgentContext.__init__()` fails to load configuration.
 
+## Implementation outcome
+
+Deviation from procedure: the inline draft was NOT applied. It imports
+`from scripts.agent.context import AgentContext` and patches
+`scripts.agent.context.build_agent_config`; the module is imported elsewhere as
+`agent.context`, and the real constructor path differs from the draft's
+`AgentContext(config_dir="/nonexistent")`. Origin/master already ships a correct
+test file in commit `10308ed7` (`tests/agent/test_context.py`,
+`TestExceptionChainPreservation`) asserting `__cause__ is original_exc`; it passes
+(11 passed, 1 intentionally skipped). No new file was created and no code was
+changed. Accepting the upstream implementation and closing the workflow.
+
 ## Scope
 
 - Create `tests/agent/test_context.py` with test for traceback preservation
