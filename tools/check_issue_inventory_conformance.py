@@ -97,6 +97,12 @@ def parse_entries(doc: DocFile) -> list[Entry]:
         elif line.startswith("## Part 2"):
             current_part = "Part 2"
 
+        # A section heading (## or ###) ends the current entry, so field-style
+        # bullets in later sections are not attributed to the last entry.
+        if re.match(r"^#{2,3} ", line) and current_entry is not None:
+            entries.append(current_entry)
+            current_entry = None
+
         # Check for new entry heading
         heading_match = HEADING_RE.match(line.strip())
         if heading_match:

@@ -71,8 +71,50 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 | ID | Title | Status | Severity | Area | Type | Source | Owner | First Found | Summary | Related |
 |----|-------|--------|----------|------|------|--------|-------|-------------|---------|---------|
+| EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap | `scripts/eventbus/auth.py` | Unassigned | ADR Known Deviations review | A CONSUMER-role token with no `consumer_authorization`/`topic_authorization` configured is not restricted to any consumer_id (fail-open) | `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` |
+| EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug | `scripts/eventbus/ack_route.py` | Unassigned | ADR Known Deviations review | `_nack_and_promote()` and the follow-up state lookup run under separate DB-lock acquisitions, so an event deleted in between yields 409 instead of 404 | `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
 
-No active Known Issue items remain.
+#### EVENTBUS-008
+
+- **ID**: EVENTBUS-008
+- **Title**: Consumer-role token without a consumer_id allowlist skips consumer-identity validation
+- **Status**: open
+- **Severity**: Medium
+- **Area**: EventBus
+- **Type**: design-gap
+- **Source**: `scripts/eventbus/auth.py`
+- **Owner**: Unassigned
+- **First Found**: ADR Known Deviations review
+- **Target**: `docs/10_adr/ADR-013-eventbus-authentication-authorization.md`
+- **Related**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`, `docs/10_adr/ADR-008-sqlite-4db-separation.md`
+- **Summary**: Bearer-token authentication and role-based authorization are implemented, but consumer-identity validation is fail-open for a token that has no consumer_id allowlist.
+- **Current Description**: The ADR set states that the EventBus authentication model is implemented (public bind is rejected by `EventBusConfig.__post_init__()`; Bearer-token authentication and role checks are attached in `scripts/eventbus/app.py`). The residual gap recorded under ADR-013 is the consumer_id allowlist: when no allowlist applies to the calling token, the consumer_id supplied by the caller is accepted as-is.
+- **Observed Implementation**: In `scripts/eventbus/auth.py`, `_populate_token_maps()` sets `allowed_consumer_ids` only on the CONSUMER-role token, and only when `consumer_authorization` or `topic_authorization` is configured; otherwise it is `None`. `require_consumer_identity()` raises 403 only when `allowed_consumer_ids is not None` and the consumer_id is absent from it, so `None` skips validation. The shared `auth_token` and `admin_token` are unrestricted by design.
+- **Impact**: A holder of an unrestricted CONSUMER token can act under any consumer_id (ACK, NACK, offset operations), which weakens per-consumer isolation within the same-host trust boundary.
+- **Recommended Action**: Decide whether a CONSUMER-role token with no allowlist should be rejected (fail-closed) or whether the unrestricted behavior is the accepted contract; then align `scripts/eventbus/auth.py` or ADR-013 accordingly.
+- **Resolution Target**: Implementation and ADR-013 agree on the behavior for a CONSUMER-role token without an allowlist.
+
+#### EVENTBUS-011
+
+- **ID**: EVENTBUS-011
+- **Title**: NACK on a concurrently deleted event can return a misleading 409
+- **Status**: open
+- **Severity**: Low
+- **Area**: EventBus
+- **Type**: implementation-bug
+- **Source**: `scripts/eventbus/ack_route.py`
+- **Owner**: Unassigned
+- **First Found**: ADR Known Deviations review
+- **Target**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
+- **Related**: None
+- **Summary**: When an event is deleted between the NACK call and the follow-up state lookup, the route raises 409 "invalid NACK transition" instead of 404.
+- **Current Description**: ADR-006 records that `nack_event()` returns `(-2, -2)` for events already ACKed or DLQ'd and that the route converts this to HTTP 409, with a residual race when the event is deleted between the NACK call and the status check.
+- **Observed Implementation**: `nack_event()` in `scripts/eventbus/delivery_repo.py` returns `(-2, -2)` only when the row still exists. In `scripts/eventbus/ack_route.py`, the `failure_count == -2` branch re-reads `acked_at`/`dlq_at` in a separate `run_with_db_lock()` call; if the row is gone, the final `else` raises 409 "invalid NACK transition" rather than 404.
+- **Impact**: Low. Events are deleted only in rare cases; the effect is an incorrect status code for one request.
+- **Recommended Action**: Treat a missing row in the follow-up lookup as 404 (event not found), or perform the NACK and the state lookup under one lock acquisition.
+- **Resolution Target**: A NACK on an event deleted concurrently returns 404, covered by a test.
+
+Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
 
 
 **Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
