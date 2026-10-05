@@ -16,6 +16,8 @@ This document defines the automated and manual checks that validate the quality,
 
 ## Automated Checks
 
+The full, current list of documentation checkers and when to run each one is the Tools table in `routing.md` ("When to run which tool"); that table is the single source of truth for invocation. The sections below describe what each governance-relevant check verifies and where it is enforced (pre-commit or CI).
+
 ### 1. Document Quality Check (`check_docs_quality.py`)
 
 Checks all documents under `docs/*.md` for quality issues.
@@ -188,12 +190,38 @@ python tools/check_adr_structure.py
 python tools/check_adr_structure.py --format json
 ```
 
+### 17. Known Deviation Sync Check (`check_known_deviation_sync.py`)
+
+Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section (and its `### Known Issues` subsection) exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1, and that an ADR bullet's resolved-or-open signal agrees with the entry's Status. A cited ID with no entry is reported as a dangling reference (Warning).
+
+**Enforcement:** local run only — not wired into pre-commit or `.github/workflows/`.
+
+**Usage:**
+```bash
+uv run python tools/check_known_deviation_sync.py
+```
+
+### 18. ADR Invariant Matrix Checks (`check_adr_invariant_matrix.py`, `check_adr_reference.py`)
+
+Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr-index.md`: every pytest node id or test path cited in a `Verification Status` cell exists, and every `scripts/` source file cited there carries an `ADR-XXX` comment.
+
+**Enforcement:** pre-commit.
+
+### 19. Canonical Source Registry Checks (`check_canonical_source_registry.py`, `check_canonical_source_conflicts.py`)
+
+Validate `config/documentation_canonical_sources.toml`: schema conformance, path existence, a single normative source per claim type, ADR-status conformance, and semantic conflicts between registered sources (`GV-022`, `GV-023`, `GV-024`).
+
+**Enforcement:** `.github/workflows/governance-docs-consistency.yml`.
+
+### 20. Issue Inventory Conformance Check (`check_issue_inventory_conformance.py`)
+
+Verifies `governance_03_issue-and-uncertainty-management.md` against its own template: vocabulary values, per-entry field counts, and referential integrity (`GV-008`).
+
+**Enforcement:** `.github/workflows/governance-docs-consistency.yml`.
+
 ## Manual Checks
 
-Numbering continues from `## Automated Checks` above (items 1-8); items 15-16 were
-added to that section after items 9-14 below had already been assigned, so the full
-1-16 sequence appears across both sections in creation order, not strict document
-order.
+Numbering continues from `## Automated Checks` above (items 1-8 and 15-20); items 9-14 below were assigned before items 15-20 were added, so the full sequence appears across both sections in creation order, not strict document order.
 
 ### 9. Canonical Source Verification
 
@@ -317,17 +345,17 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
 1. **GV-011, GV-012**: Automate cross-document canonical source conflict detection (currently manual)
 2. **GV-013**: Extend `stale_patterns` custom rule config to cover canonical document references
 3. **GV-014**: Optional scope — run each cited test in CI, not just verify that the cited path
-    exists.
-5. **GV-016**: Automate auto-check implementation audit (currently manual)
-6. **GV-018**: Automate glossary term classification validation (currently manual)
-7. **GV-019**: Automate metadata field usage policy enforcement (currently manual)
-8. **GV-020**: Implement the `read_json_file`-style context-aware detection case (a name
+     exists.
+4. **GV-016**: Automate auto-check implementation audit (currently manual)
+5. **GV-018**: Automate glossary term classification validation (currently manual)
+6. **GV-019**: Automate metadata field usage policy enforcement (currently manual)
+7. **GV-020**: Implement the `read_json_file`-style context-aware detection case (a name
      retained in source but no longer the current production path); promote
      `--check-removed-names` from opt-in to default-on once the corpus is compliant, per
      `check_compat_shims.py`'s own "report-only until compliant" convention. The retired
      identifier patterns and historical-context markers are defined in
      `tools/check_compat_shims.py` (`_REMOVED_NAME_PATTERNS`, `_HISTORICAL_CONTEXT_MARKERS`).
-9. **GV-021**: `check_docs_content_policy.py` is not wired into any CI workflow
+8. **GV-021**: `check_docs_content_policy.py` is not wired into any CI workflow
      (`.github/workflows/`) — its Warning findings are report-only, produced by a
      local/manual run rather than enforced on every PR. Promote it to default-on
      (PR-gated) once wired into CI; until then, the Matrix Status is `Partial`, not

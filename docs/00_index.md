@@ -67,7 +67,7 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 | Agent known issues / inconsistencies | `00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: Agent) |
 | MCP server spec (overview, design, known issues) | `22_mcp/mcp_00_document-guide.md` + `22_mcp/mcp_01_system_overview.md` |
 | RAG pipeline spec (overview, design, known issues) | `21_rag/rag_00_document-guide.md` + `21_rag/rag_01_system_overview.md` |
-| MDQ vs RAG boundary | `22_mcp/mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
+| MDQ vs RAG boundary | `22_mcp/mcp_05_04_mdq-rag-boundary.md` |
 | DB layer spec (schema, ops, known issues) | `41_db/db_01_architecture_and_schema-overview-and-config.md` + `41_db/db_04_api_and_operations-module-boundaries-and-helper.md` |
 | Shared infra spec (config, logging, types, constants) | `40_shared/shared_00_document-guide.md` + `40_shared/shared_01_overview.md` |
 
@@ -89,16 +89,16 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 |---|---|
 | Memory layer (types / store / retriever / extract / jsonl_store / services.py) | `23_agent/agent_04_01_state-and-persistence-state-model.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` + `23_agent/agent_12_03_memory-module-ref-core-and-store.md` + `23_agent/agent_12_04_memory-module-ref-retrieval-and-injection.md` |
 | OTel observability (otel_tracer.py) | `23_agent/agent_10_01_operations-and-observability-startup-and-health.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` |
-| Agent REPL slash commands (`CommandRegistry`) | `23_agent/agent_07_01_cli-and-commands-cli-reference.md` |
+| Agent REPL slash commands (`CommandRegistry`) | `23_agent/agent_07_03_cli-and-commands-command-registry.md` |
 | Agent startup / verification / troubleshooting | `23_agent/agent_10_01_operations-and-observability-startup-and-health.md` |
-| Agent features / slash commands / tool calling | `23_agent/agent_01_system-overview.md` + `23_agent/agent_07_01_cli-and-commands-cli-reference.md` |
+| Agent features / slash commands / tool calling | `23_agent/agent_01_system-overview.md` + `23_agent/agent_07_03_cli-and-commands-command-registry.md` |
 | AgentREPL class structure | `23_agent/agent_02_runtime-architecture.md` + `23_agent/agent_13_reference-api.md` |
 | Agent REPL flow / tool execution | `23_agent/agent_03_01_turn-processing-flow-overview.md` + `23_agent/agent_06_01_tool-execution-and-approval-execution.md` |
 | AgentContext / DI hub | `23_agent/agent_02_runtime-architecture.md` + `23_agent/agent_04_01_state-and-persistence-state-model.md` |
 | AgentConfig / config constants | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | Session / DB persistence | `23_agent/agent_09_01_data-layer-session-db.md` + `41_db/db_04_api_and_operations-module-boundaries-and-helper.md` |
 | LLM client (streaming/retry) | `23_agent/agent_05_llm-and-streaming.md` |
-| CLI view / readline | `23_agent/agent_07_01_cli-and-commands-cli-reference.md` |
+| CLI view / readline | `23_agent/agent_07_02_cli-and-commands-cliview.md` + `23_agent/agent_07_05_cli-and-commands-repl-io.md` |
 
 #### MCP
 
@@ -107,7 +107,7 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 | MCP server implementation | `22_mcp/mcp_02_01_endpoints-and-transport.md` + `22_mcp/mcp_03_01_dispatch-and-routing.md` |
 | MCP transport / startup_mode / lifecycle | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | ToolRouteResolver / route_resolver.py | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` |
-| ServerLifecycleManager / lifecycle.py | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/agent_02_runtime-architecture.md` |
+| HttpServerLifecycleManager / http_lifecycle.py | `22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md` + `23_agent/agent_02_runtime-architecture.md` |
 | ToolSpec / tool_spec.py (execution metadata DAG) | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | tool_cache.py (CacheEntry LRU cache) | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | TransportType / StartupMode enums (mcp_config.py) | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `22_mcp/mcp_06_02_configuration-file-inventory.md` |

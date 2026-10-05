@@ -78,7 +78,7 @@ The formal interface contract between the system and its callers — request/res
 
 ### runtime-behavior
 
-Current execution-time behavior of the running system as exercised by source code under `scripts/`, `implementations/`. Boundary against `verification-contract`: runtime-behavior describes what the system actually does; verification-contract describes what the system ought to do according to test expectations.
+Current execution-time behavior of the running system as exercised by source code under `scripts/`. Boundary against `verification-contract`: runtime-behavior describes what the system actually does; verification-contract describes what the system ought to do according to test expectations.
 
 ### verification-contract
 
@@ -120,7 +120,7 @@ A claim whose truth has not yet been verified through evidence.
 | functional-requirement | Normative requirement in an Accepted ADR or Registry-registered source | `docs/10_adr/ADR-{NNN}-*.md` or the Canonical Source Registry entry | Acceptance Test | Known Issues | No per-area `*_specification.md` is maintained |
 | external-behavior | Observable system behavior for external consumers | Registry-registered source + Integration Test | Runtime Log, Test | Known Issues | |
 | api-contract | Formal interface contract | Official API Schema or Contract | Integration Test | Known Issues | |
-| runtime-behavior | Current execution-time behavior | Source under `scripts/`, `implementations/` | Runtime Log, Test | Known Issues | Code authority does not extend to adopted design (AC4) |
+| runtime-behavior | Current execution-time behavior | Source under `scripts/` | Runtime Log, Test | Known Issues | Code authority does not extend to adopted design (AC4) |
 | verification-contract | Executable assertions about expected behavior | `tests/` + the requirement source | ADR | Known Issues | Tests cannot silently redefine requirements (AC5) |
 | production-effective-value | Effective parameter value in deployment | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift | |
 | configuration-schema | Valid configuration structure and constraints | Configuration Schema | Configuration Validation | Configuration Drift | |
@@ -150,7 +150,7 @@ treated as the top canonical source for every kind of decision.
 | Adopted Architecture Decision | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues |
 | Requirements | Accepted ADR or Canonical Source Registry entry | Acceptance Test | Known Issues |
 | External Behavior | Canonical Source Registry entry | Acceptance Test | Known Issues |
-| Current Runtime Behavior | Source under `scripts/`, `implementations/` | Runtime Log, Test | Known Issues |
+| Current Runtime Behavior | Source under `scripts/` | Runtime Log, Test | Known Issues |
 | Expected Behavior | `tests/` + the requirement source | ADR | Known Issues |
 | Effective Value in Production | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift |
 | DB Schema | Schema Generator or official DDL | Schema Test | Known Issues |

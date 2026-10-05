@@ -19,7 +19,7 @@ This document consolidates metadata conventions for AI agents to select relevant
 The following four metadata fields are required in every document's front matter:
 
 - **title** — Document title
-- **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/10_adr/`) and security documents (`docs/91_security/security_*.md`) use `area: governance`, since both are cross-cutting governance/policy content rather than a distinct runtime area.
+- **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/10_adr/`) and security documents (`docs/91_security/security_*.md`) use `area: governance`, since both are cross-cutting governance/policy content rather than a distinct runtime area. `schemas/doc_front_matter.json` additionally permits `adr` and `security` as area values; the active documentation set does not use them.
 - **tags** — Keywords describing the document content
 - **related** — Filenames of related documents (basenames). Front matter `related:` is the single
   authoritative store of cross-references: general documents carry no body Related section.
@@ -133,9 +133,9 @@ When referencing other documents:
 
 - Use relative paths from the current document's directory
 - Include anchor links where applicable (e.g., `#section-name`)
-- For cross-area references, use full filenames with path
-- For same-area references, use just the filename without extension
-- For ADR references, use the ADR number format (ADR-001) rather than the filename
+- For cross-area references, use the relative path including the file's `.md` extension
+- For same-area references, use just the filename including its `.md` extension (no directory path)
+- For ADR references in prose, use the ADR number format (ADR-001); a link to an ADR uses its file path
 
 ### Link Format Examples
 
@@ -165,8 +165,7 @@ Internal anchor: `[Section](<governance_01_documentation-policy.md>#review-rule)
 
 ### Document Boundaries
 
-- Separate sections using `##`
-- Do not nest sections within sections
+- Separate sections using `##`; use `###` and deeper levels for subsections without skipping a level
 - Clearly separate sections with blank lines
 
 ## Guidelines for Recording Information Verifiable via Implementation Reference
