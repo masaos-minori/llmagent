@@ -132,10 +132,10 @@ Delete the test file if the http_lifecycle change is reverted.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261006-075819 | 20261006-075819 | Tests written to tests/agent/test_http_lifecycle_health_check.py against current _health_poll_until_ready(server_key,cfg,proc,deadline,shutdown_event) API; ruff/mypy/bandit/pytest green. |
+| 2 | Add or update tests per Validation plan | Completed | 20261006-075819 | 20261006-075819 | Tests written to tests/agent/test_http_lifecycle_health_check.py against current _health_poll_until_ready(server_key,cfg,proc,deadline,shutdown_event) API; ruff/mypy/bandit/pytest green. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-075819 | 20261006-075819 | Tests written to tests/agent/test_http_lifecycle_health_check.py against current _health_poll_until_ready(server_key,cfg,proc,deadline,shutdown_event) API; ruff/mypy/bandit/pytest green. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-075819 | 20261006-075819 | Tests written to tests/agent/test_http_lifecycle_health_check.py against current _health_poll_until_ready(server_key,cfg,proc,deadline,shutdown_event) API; ruff/mypy/bandit/pytest green. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
