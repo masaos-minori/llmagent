@@ -5,6 +5,7 @@ Unit tests for CommandValidator and related error classes.
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 from pathlib import Path
@@ -242,3 +243,46 @@ class TestCommandValidatorValidate:
         result = validator.validate(_TEST_SERVER_KEY, "python3")
         # The result should be the resolved realpath
         assert result == os.path.realpath(result)
+
+
+class TestCommandValidatorFilterEnv:
+    """Tests for CommandValidator.filter_env()."""
+
+    def test_inherited_denylist_keys_stripped_when_cfg_env_empty(self):
+        with patch.dict(
+            os.environ,
+            {
+                "BENIGN_INHERITED": "kept",
+                "LD_PRELOAD": "/x",
+                "LD_LIBRARY_PATH": "/y",
+                "PYTHONPATH": "/z",
+            },
+            clear=False,
+        ):
+            result = CommandValidator().filter_env({})
+        assert result is not None
+        assert result.get("BENIGN_INHERITED") == "kept"
+        assert "LD_PRELOAD" not in result
+        assert "LD_LIBRARY_PATH" not in result
+        assert "PYTHONPATH" not in result
+
+    def test_benign_inherited_vars_preserved(self):
+        with patch.dict(
+            os.environ,
+            {"BENIGN_A": "a", "BENIGN_B": "b"},
+            clear=False,
+        ):
+            result = CommandValidator().filter_env({})
+        assert result.get("BENIGN_A") == "a"
+        assert result.get("BENIGN_B") == "b"
+
+    def test_config_non_protected_var_merges_and_protected_override_logged(
+        self, caplog
+    ):
+        with patch.dict(os.environ, {"BENIGN_INHERITED": "kept"}, clear=False):
+            with caplog.at_level(logging.WARNING):
+                result = CommandValidator().filter_env(
+                    {"MY_NEW_VAR": "value", "HOME": "hacked"}
+                )
+        assert result.get("MY_NEW_VAR") == "value"
+        assert "Blocked protected env var override: HOME=hacked" in caplog.text

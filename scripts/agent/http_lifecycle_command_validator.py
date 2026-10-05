@@ -9,10 +9,13 @@ security-critical validation logic.
 
 from __future__ import annotations
 
+import fnmatch
 import logging
 import os
 import re
 import shutil
+
+from shared.mcp_config import _ENV_KEY_DENYLIST
 
 from .http_lifecycle_errors import HttpStartupError, StartupFailure
 
@@ -108,6 +111,9 @@ class CommandValidator:
             return None
 
         result = dict(os.environ)
+        for key in list(result):
+            if any(fnmatch.fnmatch(key, p) for p in _ENV_KEY_DENYLIST):
+                del result[key]
         for key, value in env.items():
             if key in self._protected_env_vars:
                 logger.warning("Blocked protected env var override: %s=%s", key, value)
