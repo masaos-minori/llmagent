@@ -46,24 +46,22 @@ Running `uv sync` installs all dependency packages for both runtime and developm
 
 ### 1.3 Building llama.cpp
 
+Illustrative commands (`<install-root>` is the production install root used by `deploy/deploy.sh`):
+
 ```bash
-git clone https://github.com/ggerganov/llama.cpp.git /opt/llm/llama.cpp
-cd /opt/llm/llama.cpp
+git clone https://github.com/ggerganov/llama.cpp.git <install-root>/llama.cpp
+cd <install-root>/llama.cpp
 cmake -B build -DGGML_NATIVE=ON -DLLAMA_SERVER=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release -j$(nproc)
 ```
 
 ### 1.4 Obtaining LLM Models
 
-Place model files in `/opt/llm/models/`. File names must match the names used in each service configuration (e.g., `model-path`).
+Place model files under the models directory of the production install root (the same root `deploy/deploy.sh` populates). File names must match the names used in each service configuration (e.g., `model-path`).
 
-> **Canonical source** — This table is the canonical source for model filenames. `docs/01_overview/overview-files-01-build.md` and `docs/21_rag/rag_05_1-configuration-reference.md` refer to this.
+> **Canonical source** — This section is the canonical source for model provisioning. `docs/01_overview/overview-files-01-build.md` and `docs/21_rag/rag_05_1-configuration-reference.md` refer to this.
 
-| Model | Filename |
-|---|---|
-| multilingual-e5-small (Embedding) | multilingual-e5-small-Q8_0.gguf |
-| gemma-4-e4b-it (LLM) | gemma-4-e4b-it-Q4_K_M.gguf |
-| Qwopus3.6-35B-A3B-v1 (LLM) | Qwopus3.6-35B-A3B-v1-MTP-Q4_K_M.gguf |
+Two model roles are required: an embedding model (served as `embed-llm`) and a chat LLM (served as `agent-llm`). The embedding model must match the embedding dimension used by the RAG schema (see `scripts/db/store_protocols.py::get_embedding_dims()`). The concrete model files and quantizations are operator choices recorded in each LLM service's start configuration, not in this document.
 
 ---
 
@@ -77,7 +75,7 @@ SQLite vector approximate nearest neighbor (KNN: K-Nearest Neighbor) extension. 
 bash deploy/build_sqlite_vec.sh
 ```
 
-Install path: `/opt/llm/sqlite-vec/vec0.so` (must match `sqlite_vec_so` in `agent.toml`)
+The build output path must match `sqlite_vec_so` in `config/agent.toml`.
 
 ### 2.2 Deploying scripts
 
@@ -87,26 +85,26 @@ Install path: `/opt/llm/sqlite-vec/vec0.so` (must match `sqlite_vec_so` in `agen
 bash deploy/deploy.sh
 ```
 
-deploy.sh copies the runtime artifacts required for production operation (dependency definitions, scripts, configuration, and schemas) into `/opt/llm/` and creates the necessary directory structure. For exact details, refer to the comments in `deploy/deploy.sh`.
+deploy.sh copies the runtime artifacts required for production operation (dependency definitions, scripts, configuration, and schemas) into the production install root and creates the necessary directory structure. For exact details, refer to the comments in `deploy/deploy.sh`.
 
 **Workflow artifact responsibilities (deploy.sh):**
 - Checks that `config/workflows/default.json` exists — aborts before any copy if missing
 - Validates the workflow definition (parseable JSON, required fields/stages/retry-policy) via `python -m agent.workflow.validate`
-- Copies `config/workflows/` to `/opt/llm/config/workflows/`
+- Copies `config/workflows/` into the production install root
 - Prints workflow name, version, stage list, and SHA256 checksums (source and deployed); aborts if the checksums differ
 
 The workflow definition is a **required workflow deployment artifact**:
-source `config/workflows/default.json` → deployed to `/opt/llm/config/workflows/default.json`.
+source `config/workflows/default.json` → deployed to the same relative path under the production install root.
 There is no disable, fallback, or workflow-optional mode.
 
 ### 2.3 Registering and Starting LLM Services
 
 `deploy/setup_services.sh` runs the workflow pre-flight checks and starts the Event Bus. It does not start LLM services (only echoes their names) or MCP servers.
 
-MCP servers (ports 8004-8014) auto-start as agent-managed subprocesses on agent startup.
+MCP servers (ports defined per server in `config/agent.toml`) auto-start as agent-managed subprocesses on agent startup.
 
 **Workflow pre-flight responsibilities (setup_services.sh):**
-- Re-checks that the deployed workflow definition (`/opt/llm/config/workflows/default.json`) exists and re-validates it
+- Re-checks that the deployed workflow definition (`config/workflows/default.json` under the production install root) exists and re-validates it
 - Re-checks that `workflow.sqlite` exists with all required tables and a matching schema version
 - The Event Bus is started **only if** all workflow checks pass — a failure here aborts before any service is spawned
 
@@ -117,15 +115,16 @@ bash deploy/setup_services.sh
 After starting services, verify connectivity to the health-check endpoints for both `embed-llm` and `agent-llm`:
 
 ```bash
-curl -s http://127.0.0.1:8081/health   # embed-llm
-curl -s http://127.0.0.1:8080/health   # agent-llm
+# Illustrative: use the hosts/ports from llm.llm_url and rag.embed_url in config/agent.toml
+curl -s http://<host>:<port>/health   # embed-llm
+curl -s http://<host>:<port>/health   # agent-llm
 
 bash deploy/start_agent.sh
 ```
 
 ### Implementation Supplement (Startup Method)
 
-`deploy/start_agent.sh` automatically detects whether to use production (`/opt/llm`) or development (repository root) based on the presence of `/opt/llm/pyproject.toml`, and executes `python -m agent` (`scripts/agent/__main__.py`) in the corresponding root. (Explicit in code)
+`deploy/start_agent.sh` automatically detects whether to use the production install root or development (repository root) based on the presence of `pyproject.toml` in the production install root, and executes `python -m agent` (`scripts/agent/__main__.py`) in the corresponding root. (Explicit in code)
 
 > API Key Configuration:
 > - Web Search: DuckDuckGo — No API key required
@@ -141,24 +140,20 @@ MCP servers automatically start as uvicorn subprocesses according to the `startu
 
 ### Current State
 
-As of 2026-09-03, repository-wide inspection found **zero** Local/development-only
-configuration or deployment artifacts: no `config/*.local.toml`/`*.dev.toml`/
-`*_local.toml`/`*_dev.toml` files, no `config/local/`/`config/dev/` directories, no
-`.env.local`/`.env.development`, no `docker-compose.local.yml`/`docker-compose.dev.yml`.
-`systemd/`, `docker-compose*.yml`, and `Dockerfile*` do not exist at all in this
-repository. `deploy/`'s scripts contain no Local/development-mode branching. This is a
-point-in-time finding, not a permanent guarantee — re-run the same inspection
-immediately before executing the migration procedure below, in case a Local-only
-overlay file has been introduced since.
+The repository contains no Local/development-only configuration or deployment artifacts
+(for example `config/*.local.toml`/`*.dev.toml`, `config/local/`/`config/dev/`, `.env.local`,
+or `docker-compose.local.yml`), and `deploy/`'s scripts contain no Local/development-mode
+branching. This is not a permanent guarantee — re-run the same inspection immediately
+before executing the migration procedure below, in case a Local-only overlay file has
+been introduced.
 
 ### Migration Procedure
 
-Once `localremoval`, `loopbackonly`, and `mcpauth` (see Prerequisite below) are
-implemented and verified, migrate a deployment to Production-only in this order:
+Migrate a deployment to Production-only in this order:
 
 1. **Backup** the current configuration (`config/`, especially `config/agent.toml`).
-2. **Migrate bind addresses** (per `loopbackonly`) and **MCP authentication tokens**
-   (per `mcpauth`) together, in the same maintenance window. Every
+2. **Migrate bind addresses** (loopback-only binding) and **MCP authentication tokens**
+   (MCP authentication) together, in the same maintenance window. Every
    `config/agent.toml` `[mcp_servers.*]` entry, plus `git_mcp_server.toml`'s
    `auth_token`, `cicd_mcp_server.toml`'s `auth_token`, and
    `web_search_mcp_server.toml`'s `browser_auth_token`, hold a
@@ -172,7 +167,7 @@ implemented and verified, migrate a deployment to Production-only in this order:
    (shared secret between client and server); `web_search_mcp_server.toml`'s
    `browser_auth_token` is a distinct credential.
 3. **Verify strict validation**: confirm `ProductionConfigValidator`'s
-   now-unconditional strict validation (per `localremoval`) passes against the
+   now-unconditional strict validation  passes against the
    migrated configuration before restarting.
 4. **Full restart**: restart the agent process fully — do not use `/reload`, since
    authentication, MCP server definition, and bind-address changes are
@@ -183,8 +178,7 @@ implemented and verified, migrate a deployment to Production-only in this order:
 6. **Verify external unreachability**: confirm MCP-internal services remain
    unreachable from outside the loopback interface.
 7. **Conditional deletion**: only after the above verification succeeds, and only
-   if a Local-only overlay file exists (see Current State above — none does as of
-   this writing), confirm its purpose and remaining references before deleting it.
+   if a Local-only overlay file exists (see Current State above), confirm its purpose and remaining references before deleting it.
 
 ### Rollback Guidance
 
@@ -194,16 +188,8 @@ Local mode" path once a deployment has migrated to Production-only.
 
 ### Prerequisite
 
-This procedure applies only once `localremoval` (`plans/done/20260903-091417_plan.md`),
-`loopbackonly` (`plans/done/20260903-091921_plan.md`), and `mcpauth`
-(`plans/done/20260903-092407_plan.md`) are all implemented and verified — do not execute
-this procedure against a real deployment before then. Immediately before executing,
-re-run the Current State inspection above rather than relying solely on this
-document's recorded finding.
-
-**Note (2026-09-04)**: as of this writing, the three dependency Plans above (plus
-`localcleanup`, `plans/done/20260903-092746_plan.md`) have all landed, making this
-the current, canonical migration procedure. For authentication-specific
+Immediately before executing, re-run the Current State inspection above rather than
+relying solely on this document's recorded finding. For authentication-specific
 troubleshooting after following the steps above, see
 [`mcp_06_17_mcp-authentication-setup.md`](../22_mcp/mcp_06_17_mcp-authentication-setup.md)'s
 Troubleshooting section.
@@ -214,16 +200,16 @@ Troubleshooting section.
 
 ### 3.0 Platform DB Overview
 
-The agent uses four SQLite databases. Three have explicit path keys in
-`agent.toml`; the fourth falls back to `DbConfig`'s Python-level default
-(`scripts/db/config.py`).
+The agent uses the SQLite databases listed below. Each has a path key in
+`agent.toml` or falls back to `DbConfig`'s Python-level default
+(`scripts/db/config.py`); see the auto-generated DB Path Reference below for which.
 
 | DB | Default path | Config key | Purpose |
 |---|---|---|---|
-| `rag.sqlite` | `/opt/llm/db/rag.sqlite` | `rag_db_path` | RAG documents, chunks, embeddings |
-| `session.sqlite` | `/opt/llm/db/session.sqlite` | `session_db_path` | Agent sessions, messages |
-| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | Task tracking, event processing |
-| `eventbus.sqlite` | `/opt/llm/db/eventbus.sqlite` | `eventbus_db_path` | Event Bus records |
+| `rag.sqlite` | `db` dir of install root | `rag_db_path` | RAG documents, chunks, embeddings |
+| `session.sqlite` | `db` dir of install root | `session_db_path` | Agent sessions, messages |
+| `workflow.sqlite` | `db` dir of install root | `workflow_db_path` | Task tracking, event processing |
+| `eventbus.sqlite` | `db` dir of install root | `eventbus_db_path` | Event Bus records |
 
 Schema details: `db_01_architecture_and_schema-overview-and-config.md`
 
@@ -235,16 +221,16 @@ bash deploy/init_db.sh
 
 **Responsibilities of init_db.sh:**
 - Runs `db/create_schema.py` to initialize the rag, session, workflow, and eventbus databases
-- Creates `workflow.sqlite` and 5 mandatory tables (tasks, attempts, processed_events, artifacts, approvals)
+- Creates `workflow.sqlite` and its mandatory tables (tasks, attempts, processed_events, artifacts, approvals)
 - Applies incremental schema migrations (idempotent)
-- Verifies all 5 tables exist; aborts if any are missing
+- Verifies all mandatory tables exist; aborts if any are missing
 - Records the schema version
 
 ### 3.2 Deployment Checklist
 
 - [ ] `config/workflows/default.json` exists
 - [ ] `deploy.sh` finished successfully (no [FATAL] errors)
-- [ ] `init_db.sh` reported all 5 tables and correct schema version
+- [ ] `init_db.sh` reported all mandatory tables and correct schema version
 - [ ] `setup_services.sh` passed pre-flight checks
 
 ### 3.3 Failure Modes

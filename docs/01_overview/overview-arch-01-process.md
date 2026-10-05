@@ -32,7 +32,7 @@ Building a multi-agent orchestration system with Agent + MCP servers
 
 ### 2.1 Process Topology
 
-The system consists of three categories of processes: the Agent CLI REPL, LLM services, and MCP servers. Each category runs as an independent process with its own lifecycle and configuration.
+The system consists of the following categories of processes: the Agent CLI REPL, LLM services, and MCP servers. Each category runs as an independent process with its own lifecycle and configuration.
 
 **Component responsibilities:**
 
@@ -87,7 +87,7 @@ Each process (Agent, each MCP server, crawler, ingester, chunk_splitter) operate
 
 Details → [ADR-002](../10_adr/ADR-002-config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
-The following table contains representative examples; the exact number and ports of MCP servers are defined in `[mcp_servers.*]` of `config/agent.toml`.
+The following table contains representative examples; the exact set and ports of MCP servers are defined in `[mcp_servers.*]` of `config/agent.toml`.
 
 | Service | Role |
 |---|---|
@@ -107,9 +107,7 @@ The following table contains representative examples; the exact number and ports
 
 #### Implementation Notes (LLM Service URL/Port)
 
-The actual connection destinations for `agent-llm`/`embed-llm` are set as individual hosts/ports via `llm.llm_url` / `rag.embed_url` in `config/agent.toml`; the values shown above are representative. Depending on the runtime environment, they may point to different hosts/ports (such as the default `8080` series for llama.cpp). The MCP server group matches the `[mcp_servers.*].url` in `agent.toml`. (Explicit in code)
-
-Port `8011` was deprecated (formerly `sqlite-mcp`) and is intentionally absent from the current table and `config/agent.toml`.
+The actual connection destinations for `agent-llm`/`embed-llm` are set as individual hosts/ports via `llm.llm_url` / `rag.embed_url` in `config/agent.toml`; the values shown above are representative. Depending on the runtime environment, they may point to different hosts/ports. The MCP server group matches the `[mcp_servers.*].url` in `agent.toml`. (Explicit in code)
 
 ### 2.2 Design Boundaries Requiring Joint Review
 

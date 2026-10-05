@@ -109,7 +109,7 @@ Audit log redaction follows these rules:
 
 Audit retention policy:
 
-- **Retention period**: Configured via `retention_days` in `config/agent.toml` `[diagnostics]` section (default 30 days)
+- **Retention period**: Configured via `retention_days` in `config/agent.toml` `[diagnostics]` section; the default is defined in `config/agent.toml`
 - **Purge mechanism**: Lazy purge on each `DiagnosticStore.save()` — deletes rows older than `retention_days` from `session_diagnostics` table
 - **Disabled purge**: `retention_days <= 0` disables automatic purge
 - **Audit log files**: JSON-lines files at `audit_log_file` path rotated by external logrotate; no application-level rotation
@@ -118,26 +118,19 @@ Audit retention policy:
 
 ## Local-vs-production behavior
 
-**Note**: `security_profile=local` no longer exists (removed 2026-09-04 —
-`SecurityProfile` has a single `PRODUCTION` member). The "Local" column
-below is retained only as a historical record of the pre-removal behavior;
-every environment now runs the "Production" column's behavior
-unconditionally. `allow_public_bind` has also been removed entirely — Event
-Bus and every MCP server now bind to loopback (`127.0.0.1`/`::1`) only, with
-no override possible.
+`SecurityProfile` has a single `PRODUCTION` member, so every environment runs the
+production behavior unconditionally. Event Bus and every MCP server bind to loopback
+(`127.0.0.1`/`::1`) only, with no override possible.
 
-Behavior differences between local development and production (historical,
-pre-2026-09-04):
-
-| Aspect | Local (retired) | Production (now unconditional) |
-|---|---|---|
-| `allow_public_bind` | Default `false`; could be overridden | Removed entirely — loopback-only, no override |
-| Bearer token | Optional (defaults to empty) | Required for every HTTP MCP server; enforced at startup |
-| Tool safety tiers | Warning on unknown keys | Fatal on unknown keys |
-| `approval_github_allowed_repos` | Empty = allow all (dev) | Empty = deny all (fail-closed) |
-| `gitops_push_blocked` | `false` (dev) | `true` recommended (prod) |
-| Audit log redaction | Enabled | Enforced |
-| Approval dry-run | Enabled for configured tools | Enforced per `approval_dry_run_tools` |
+| Aspect | Behavior |
+|---|---|
+| Bind address | Loopback-only, no override |
+| Bearer token | Required for every HTTP MCP server; enforced at startup |
+| Tool safety tiers | Fatal on unknown keys |
+| `approval_github_allowed_repos` | Empty = deny all (fail-closed) |
+| `gitops_push_blocked` | `true` recommended |
+| Audit log redaction | Enforced |
+| Approval dry-run | Enforced per `approval_dry_run_tools` |
 
 *Source: `mcp_06_16_pre-production-fail-open-checklist.md`, `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Audit during startup*
 
@@ -151,7 +144,7 @@ Fail-open vs fail-closed behavior by component:
 | `approval_github_allowed_repos` empty | Allow all | Deny all | Fail-closed in production |
 | `allowed_dirs` empty | Allow none (fail-closed) | Allow none | Consistent |
 | `allowed_repos` empty | Allow none | Allow none | Consistent |
-| `allow_public_bind` | N/A | N/A | Removed 2026-09-04 — loopback-only binding is unconditional, no override key exists |
+| MCP server bind address | N/A | N/A | Loopback-only binding is unconditional, no override key exists |
 | MCP tool approval | `medium` default | Per `approval_risk_rules` | Configurable per tool |
 | Shell command allowlist | Empty = none allowed | Configured explicitly | Fail-closed by default |
 

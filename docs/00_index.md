@@ -57,7 +57,7 @@ All areas' known inconsistencies and unresolved items are tracked in one place:
 
 ## Document References by Task
 
-Migrated from `/routing.md`. Load only the necessary documents according to the task type. DO NOT load all `docs/*.md`.
+Load only the necessary documents according to the task type. DO NOT load all `docs/*.md`.
 
 ### Domain specs
 

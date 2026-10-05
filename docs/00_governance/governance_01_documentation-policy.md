@@ -198,8 +198,7 @@ restate it here by hand.
 canonical-source ownership and the sole authoritative per-area mapping. Area guides (each area's own
 "Canonical Source Rule(s)" section) must not maintain an independent,
 hand-edited canonical-source mapping going forward — new or changed canonical
-mappings are recorded in the registry, not restated by hand per area. Migrating
-each area guide to link to or display the registry is M-01-06's scope.
+mappings are recorded in the registry, not restated by hand per area.
 
 ## Conflict Resolution Rule
 

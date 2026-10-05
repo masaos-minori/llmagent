@@ -148,10 +148,8 @@ All high-risk tool executions emit audit log entries with the following fields:
 
 ## Production restrictions
 
-**Note (2026-09-04)**: `security_profile=local` no longer exists — `SecurityProfile`
-has a single `PRODUCTION` member (`plans/done/20260903-091417_plan.md`). The
-restrictions below apply unconditionally in every environment, not only when a
-"production" profile was previously selected.
+`SecurityProfile` has a single `PRODUCTION` member. The restrictions below apply
+unconditionally in every environment.
 
 | Restriction | Enforcement |
 |---|---|
@@ -159,8 +157,8 @@ restrictions below apply unconditionally in every environment, not only when a
 | `approval_github_allowed_repos` empty | Deny all GitHub write operations |
 | `tool_safety_tiers` missing keys | Fatal error |
 | `security_lockdown_enabled` | Enforces stricter defaults |
-| MCP server bind address | Loopback (`127.0.0.1`/`::1`) only, unconditionally — `allow_public_bind` was removed entirely (`plans/done/20260903-091921_plan.md`); any other host raises `ValueError` at startup |
-| Bearer token (`auth_token`) | Required and non-empty for every HTTP MCP server — an empty token raises `ValueError` at startup (`plans/done/20260903-092407_plan.md`) |
+| MCP server bind address | Loopback (`127.0.0.1`/`::1`) only, unconditionally — any other host raises `ValueError` at startup |
+| Bearer token (`auth_token`) | Required and non-empty for every HTTP MCP server — an empty token raises `ValueError` at startup |
 
 *Source: `mcp_06_16_pre-production-fail-open-checklist.md`*
 

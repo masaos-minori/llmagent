@@ -36,7 +36,7 @@ To determine which documents are affected by a change:
    - Governance-policy changes → Governance Applicability Matrix
    - Configuration or API changes → continue to use the existing Canonical Source
      Precedence matrix ([Decision Target Canonical Source Matrix](governance_01_documentation-policy.md#decision-target-canonical-source-matrix)) until a dedicated
-     map exists; owner decision (2026-09-27): a Configuration Ownership Map or API
+     map exists; owner decision: a Configuration Ownership Map or API
      Consumer Map is needed for per-key ownership traceability, but building it is
      separate, unstarted follow-up work — not part of this change
 
@@ -95,7 +95,7 @@ Confirmed edges (direct source evidence —
 - EventBus → Shared/DB
 - Agent → EventBus
 
-Planned (design intent, not yet implemented; confirmed 2026-09-14 — these are
+Planned (design intent, not yet implemented; these are
 intended future integrations rather than a documentation error; no corresponding
 import or HTTP-publish call exists in current source, and none is expected until
 each integration is implemented):

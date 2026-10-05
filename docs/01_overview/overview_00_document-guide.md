@@ -34,9 +34,8 @@ related:
 
 ## Implementation Intent
 
-- Split into 3 files by H2 boundaries: process, pipelines, features → `[overview-arch-01-process.md](overview-arch-01-process.md)`, `[overview-arch-02-pipelines.md](overview-arch-02-pipelines.md)`, `[overview-arch-03-features.md](overview-arch-03-features.md)`
-- Split into 6 files by logical directory boundaries: build, rag, scripts, shared, config, misc → `[overview-files-01-build.md](overview-files-01-build.md)`, `[overview-files-02-rag.md](overview-files-02-rag.md)`, `[overview-files-03-scripts.md](overview-files-03-scripts.md)`, `[overview-files-04-shared.md](overview-files-04-shared.md)`, `[overview-files-05-config.md](overview-files-05-config.md)`, `[overview-files-06-misc.md](overview-files-06-misc.md)`
-- Added YAML Front Matter including title/category/tags/related documents/keywords to each file
+- Architecture is split by H2 boundaries: process, pipelines, features → `[overview-arch-01-process.md](overview-arch-01-process.md)`, `[overview-arch-02-pipelines.md](overview-arch-02-pipelines.md)`, `[overview-arch-03-features.md](overview-arch-03-features.md)`
+- File structure is split by logical directory boundaries: build, rag, scripts, shared, config, misc → `[overview-files-01-build.md](overview-files-01-build.md)`, `[overview-files-02-rag.md](overview-files-02-rag.md)`, `[overview-files-03-scripts.md](overview-files-03-scripts.md)`, `[overview-files-04-shared.md](overview-files-04-shared.md)`, `[overview-files-05-config.md](overview-files-05-config.md)`, `[overview-files-06-misc.md](overview-files-06-misc.md)`
 - This file is the system-wide overview index. Refer to the following catalogs for each detailed document set
 
 ## Canonical Sources

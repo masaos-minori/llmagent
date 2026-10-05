@@ -65,41 +65,6 @@ longer applicable to the current system.
 
 Part 1 entries are reviewed quarterly, consistent with the cadence documented for Part 2 Needs Confirmation items and "Proposed" ADRs in `docs/00_governance/governance_01_documentation-policy.md` under `## Maintenance Rules`.
 
-### Consolidation Note
-
-The area-specific `~~rag_90_inconsistencies_and_known_issues~~ (deleted).md`,
-`~~mcp_90_inconsistencies_and_known_issues~~ (deleted).md`,
-`~~agent_90_inconsistencies_and_known_issues~~ (deleted).md`,
-`~~eventbus_90_inconsistencies_and_known_issues~~ (deleted).md`, and
-`~~shared_90_inconsistencies_and_known_issues~~ (deleted).md` files were consolidated into this
-section on 2026-09-03 and deleted; this document is now the single system of record
-for Known Issues across all areas. Existing IDs were preserved as-is (`RAG-*`,
-`EVENTBUS-*`, `SHARED-*`, `CI-*`, `DESIGN-*`); one previously untitled RAG entry was
-assigned a new ID (`RAG-005`) since the 17-field template requires one. EventBus
-entries used a distinct 18-field format with no direct equivalent for `Component`,
-`Workaround`, or the `*-Justification` fields — these were folded into `Source`,
-`Recommended Action`, and `Current Description`/`Resolution Notes` respectively, per
-this template. `CI-*` entries (originally filed under Shared/DB regardless of actual
-subject) were re-assigned to the Area their cited ADR/Decision actually concerns,
-since several concern RAG, MCP, or Agent behavior rather than Shared/DB.
-
-Two non-Known-Issue notes from the deleted files, with no active items depending on
-them, are preserved here rather than lost:
-
-- **Agent 5-Tier Scheme (historical, superseded by this consolidation):** `agent_90`'s design intent
-  had, for Agent-area entries only, used a 5-tier classification (Design Decision /
-  Implementation Bug / Documentation Gap / Needs Confirmation / Operational
-  Observation) as a documented exception to this document's common template,
-  reasoning that the common Status/Type fields conflate "accepted design choice"
-  with "acknowledged bug awaiting fix." At the time of this consolidation the
-  Agent-area file had zero open entries. This consolidation ends that exception —
-  all areas, including Agent, now use only this document's common template — since
-  a per-area exception has no purpose once there is only one canonical inventory.
-- **EventBus schema/implementation note (informational, no issue):** `06_eventbus_90` recorded that
-  `acked_at`, `delivery_failure_count`, `dlq_requeue_count`, and `dlq_at` are all
-  documented in the schema and all in active use, with no discrepancy — retained
-  here only because the source file no longer exists to hold it.
-
 ### Active Items
 
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
@@ -112,8 +77,6 @@ No active Known Issue items remain.
 
 **Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
 
-
-Note on CI-014 batching: These "ADR invariant verified by code inspection, no automated test" entries formed one cross-cutting initiative of originally nine members. All nine have since been removed once test coverage was added (CI-008, CI-009, CI-010, CI-011, CI-012, CI-013, CI-014, CI-015, and CI-016); no active members remain. Their Area fields spanned Agent, Shared/DB, MCP, RAG, and EventBus, so no single existing RACI role was accountable for the cross-area ADR-invariant-test-suite initiative. This finding is recorded here; the cross-cutting-role vs. per-area-ownership decision stays open for any future similar initiative.
 
 ## Part 2: Needs Confirmation Inventory
 

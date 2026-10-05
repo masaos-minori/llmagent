@@ -37,7 +37,7 @@ Details → [`rag_03_01_query_pipeline-overview.md`](../21_rag/rag_03_01_query_p
 ``` text
 User Input
   → MQE + embed → KNN+BM25 → RRF → Rerank → Refiner → Context Augmentation
-  → LLM (:8080) → tool_calls → MCP Servers (:8004〜:8014)
+  → LLM → tool_calls → MCP Servers
   → Final Answer (SSE streaming)
 ```
 
@@ -71,7 +71,7 @@ For the per-category production policy on when `require_approval: true` is requi
 
 **MCP Server `startup_mode`**
 
-There are three modes in `McpServerConfig.startup_mode`:
+`McpServerConfig.startup_mode` takes one of the following modes:
 
 - `none` (Default schema value, used when the key is unspecified in TOML): Does not start a subprocess or perform health checks. The server is treated as unavailable.
 - `persistent`: Connects to a server that is already running externally.
@@ -79,7 +79,7 @@ There are three modes in `McpServerConfig.startup_mode`:
 
 (Source: `StartupMode` enum in `shared/mcp_config.py`)
 
-Currently, `config/agent.toml` explicitly specifies `startup_mode = "subprocess"` for all MCP servers. (Note: While `persistent` exists in the schema, it is unused. Source: Explicit in code, `config/agent.toml`)
+The `startup_mode` of each MCP server is set per `[mcp_servers.*]` entry in `config/agent.toml`.
 
 ### Implementation Note: Behavior on Server Startup Failure
 

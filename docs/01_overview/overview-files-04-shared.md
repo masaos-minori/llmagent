@@ -23,7 +23,7 @@ Python virtual environment managed by uv; `uv.lock` tracks the dependency list. 
 
 ### Database Domains (db/)
 
-Four isolated SQLite databases: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`. Each operates in WAL mode; persistence separated into four domains to isolate different write patterns, limit failure impact, and clarify ownership. See ADR-008 for the rationale behind four-domain separation. Shared DB path builder via `DbConfig` dataclass in `config.py`.
+Isolated SQLite databases: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`. Each operates in WAL mode; persistence separated by domain to isolate different write patterns, limit failure impact, and clarify ownership. See ADR-008 for the rationale behind the per-domain separation. Shared DB path builder via `DbConfig` dataclass in `config.py`.
 
 ### DB Layer Package (scripts/db/)
 

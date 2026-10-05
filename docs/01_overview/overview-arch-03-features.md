@@ -50,7 +50,7 @@ Refer to the `overview-files-03-scripts.md` for detailed file structure.
 
 **Memory Layer Operating Modes**
 
-`MemoryServices.get_activation_mode()` returns one of four modes based on the startup state: `disabled` (disabled in config), `fts-only` (embedding server unavailable), `degraded` (embedding circuit breaker open), or `hybrid` (normal operation). If semantic search is unavailable, it falls back to FTS only without treating it as an error. (Source: `agent/memory/services.py`)
+`MemoryServices.get_activation_mode()` returns one of the following modes based on the startup state: `disabled` (disabled in config), `fts-only` (embedding server unavailable), `degraded` (embedding circuit breaker open), or `hybrid` (normal operation). If semantic search is unavailable, it falls back to FTS only without treating it as an error. (Source: `agent/memory/services.py`)
 
 **Tool Routing**
 
