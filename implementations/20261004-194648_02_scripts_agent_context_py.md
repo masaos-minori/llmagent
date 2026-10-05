@@ -2,6 +2,14 @@
 
 Verify that `TurnState.background_tasks` definition is correct and accessible from ResourceShutdownCoordinator.
 
+## Implementation outcome
+
+Verification complete (read-only, no change). `TurnState.background_tasks` exists
+at `scripts/agent/context.py:184`:
+`background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)`. It is
+accessible from ResourceShutdownCoordinator via `self._ctx.turn.background_tasks`
+(used by the upstream `close_resources()` at lines 114-127). Proceeding.
+
 ## Scope
 
 - Read `scripts/agent/context.py` line 184: confirm `background_tasks` field definition exists and is accessible
