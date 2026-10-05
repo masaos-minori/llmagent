@@ -26,7 +26,15 @@ Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `
 | Documentation / docs — also matches whenever a file under `docs/` or `skills/` will be created or edited, even with no documentation keyword in the request | document, doc, write docs, readme, changelog, editing `docs/*` or `skills/*` | `skills/python-documentation/SKILL.md` + `skills/python-documentation/workflow.md` |
 | Issue creation / GitHub issue | issue, github issue, create issue, convert findings to issue | `skills/issue-creator/SKILL.md` + `skills/issue-creator/workflow.md` |
 | Git commit / sync | commit, stage, push, pull, fetch, rebase, git sync, conflict, git workflow | `skills/git-commit-and-sync/SKILL.md` + `skills/git-commit-and-sync/workflow.md` |
-| Tool addition / modification under `tools/` | new tool, add script, tools/, one-off script | See "Tools" → "Adding a new tool" below — lighter validation than a `scripts/` change, not `python-implementation` |
+| Tool addition / modification (structure, format, checks) | new tool, add script, tools/, one-off script | See "Tools" → "Adding a new tool" below — lighter validation than a `scripts/` change, not `python-implementation` |
+| Tool logic / behavior change | change tool behavior, tool refactor logic | `skills/python-implementation/SKILL.md` + `skills/python-implementation/workflow.md` — only when the tool's runtime behavior changes materially; otherwise stay on the lighter validation above |
+| Debug a failing tool | tool error, tool crash, tool slow, wrong tool output | `skills/python-debug-root-cause/SKILL.md` + `skills/python-debug-root-cause/workflow.md` |
+| Fix lint / type / bandit findings in a tool | ruff, mypy, bandit, noqa, tool lint | `skills/python-lint-typecheck/SKILL.md` + `skills/python-lint-typecheck/workflow.md` |
+| Refactor a tool (no behavior change) | refactor tool, rename tool, restructure tool | `skills/python-refactoring/SKILL.md` + `skills/python-refactoring/workflow.md` |
+| Add / fix tests for a tool | tool test, tool pytest, flaky tool | `skills/python-test-and-fix/SKILL.md` + `skills/python-test-and-fix/workflow.md` |
+| Review a tool | tool PR review, review tool | `skills/python-code-review/SKILL.md` + `skills/python-code-review/workflow.md` |
+| Document a tool (incl. `tools/TOOL_DESCRIPTIONS.md`) | document tool, TOOL_DESCRIPTIONS | `skills/python-documentation/SKILL.md` + `skills/python-documentation/workflow.md` |
+| Commit / sync a tool | commit tool, push tool, git sync tool | `skills/git-commit-and-sync/SKILL.md` + `skills/git-commit-and-sync/workflow.md` |
 
 **Documentation row exception**: a `skills/*.md` edit that revises the *procedure
 itself* (per that skill's own `## Improvement feedback` section — e.g. correcting a
