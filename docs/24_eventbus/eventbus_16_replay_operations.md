@@ -26,7 +26,7 @@ Replay events from a given sequence number, supporting both Server-Sent Events (
 |---|---|---|---|---|---|
 | since_seq | integer | No | 0 | since_seq ≥ 0 | Start replaying from this sequence number (exclusive). Use 0 to replay all events. |
 | format | string | No | sse | Values: `sse`, `json` | Response format. `sse` returns an SSE stream; `json` returns a single JSON response. |
-| limit | integer | No | 100 | 1 ≤ limit ≤ 1000 | Maximum number of events to return per request. |
+| limit | integer | No | route default | bounded (see route definition) | Maximum number of events to return per request. |
 | offset | integer | No | 0 | offset ≥ 0 | Number of events to skip for pagination. |
 
 ### Response (HTTP 200) — SSE format (`format=sse`)
@@ -75,11 +75,11 @@ For SSE format, the connection closes immediately without sending any events.
 
 - Missing `since_seq`: Uses default value 0 (replay all events).
 - Missing `format`: Uses default value `sse`.
-- Missing `limit`: Uses default value 100.
+- Missing `limit`: Uses the route's default value.
 - Missing `offset`: Uses default value 0.
 - `since_seq` below 0: Returns HTTP 422 (FastAPI validation) with detail about minimum bound.
 - `limit` below 1: Returns HTTP 422 (FastAPI validation) with detail about minimum bound.
-- `limit` above 1000: Returns HTTP 422 (FastAPI validation) with detail about maximum bound.
+- `limit` above the maximum bound: Returns HTTP 422 (FastAPI validation) with detail about maximum bound.
 - `offset` below 0: Returns HTTP 422 (FastAPI validation) with detail about minimum bound.
 - Unknown `format` value: Returns HTTP 422 (FastAPI validation) with detail about allowed values.
 

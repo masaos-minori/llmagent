@@ -31,7 +31,7 @@ Requires `Bearer ${OPERATOR_TOKEN}` in the Authorization header.
 |-----------|----------|---------|-------------|-------------|
 | `since_seq` | No | `0` | `>= 0` | Sequence number to start replaying from |
 | `format` | No | `sse` | `sse`, `json` | Response format: SSE stream or JSON |
-| `limit` | No | `100` | `1 <= limit <= 1000` | Maximum number of events to return |
+| `limit` | No | route default | bounded (see route definition) | Maximum number of events to return |
 | `offset` | No | `0` | `>= 0` | Offset into the event set for pagination |
 
 ## Success Response
@@ -96,14 +96,14 @@ data:{"event_id":"evt-def","topic":"users","payload":{"user_id":"456"},"seq":43}
 
 ```bash
 curl -N -H "Authorization: Bearer ${OPERATOR_TOKEN}" \
-  "http://localhost:8080/replay?since_seq=42&format=sse"
+  "http://<eventbus-host>:<port>/replay?since_seq=42&format=sse"
 ```
 
 ### JSON Replay
 
 ```bash
 curl -H "Authorization: Bearer ${OPERATOR_TOKEN}" \
-  "http://localhost:8080/replay?since_seq=42&format=json&limit=50&offset=0"
+  "http://<eventbus-host>:<port>/replay?since_seq=42&format=json&limit=50&offset=0"
 ```
 
 Response:

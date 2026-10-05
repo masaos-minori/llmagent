@@ -43,7 +43,7 @@ related:
 
 ## Configuration
 
-Loaded from a TOML file (default: `/opt/llm/config/eventbus.toml`).
+Loaded from a TOML file (default path defined in `scripts/eventbus/config.py`).
 
 ### Environment Variables
 
@@ -61,22 +61,22 @@ that dataclass's `__post_init__()` for the exact validation rules enforced at st
 and `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` for the authorization
 model the token fields below implement.
 
-- `retained_event_count` — Number of events retained in SQLite for replay (default: 10000)
-- `publish_rate` — Maximum publish rate in events/sec before backpressure applies (default: 100.0)
-- `host` — Listening address (default: `127.0.0.1`; must be `127.0.0.1` or `::1` — see Bind Address below)
+- `retained_event_count` — Number of events retained in SQLite for replay
+- `publish_rate` — Maximum publish rate in events/sec before backpressure applies
+- `host` — Listening address (must be a loopback address — see Bind Address below)
 - `auth_token` — Required for all requests (startup fails if empty)
 - `publisher_token` — Grants publish-role access when set (per-role alternative to the shared `auth_token`)
 - `consumer_token` — Grants consume-role access when set
 - `operator_token` — Grants operator-role access when set
 - `monitoring_token` — Grants monitoring-role (health check) access when set
 - `admin_token` — Grants admin-role access (`/admin/*`) when set
-- `sse_heartbeat_interval` — SSE heartbeat interval in seconds (default: 30.0)
+- `sse_heartbeat_interval` — SSE heartbeat interval in seconds
 - `sse_idle_timeout` — Idle timeout in seconds after which a `/subscribe` connection that received no events is closed
 - `consumer_authorization` — Optional `consumer_id` -> topics allowlist applied to the consumer-role token
 - `topic_authorization` — Optional topic -> `consumer_id` allowlist applied to the consumer-role token
-- `slow_consumer_threshold` — Queue depth at which a subscriber is considered slow (default: 100)
-- `subscriber_queue_maxsize` — Per-subscriber queue capacity (default: 1000)
-- `backlog_health_threshold` — Max queue depth before health endpoint reports `broker_queue_backlog_high` (default: 500)
+- `slow_consumer_threshold` — Queue depth at which a subscriber is considered slow
+- `subscriber_queue_maxsize` — Per-subscriber queue capacity
+- `backlog_health_threshold` — Max queue depth before health endpoint reports `broker_queue_backlog_high`
 
 Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Startup fails unless `auth_token` is configured; the per-role tokens above are optional additions — see `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` for the authorization model these tokens implement.
 
@@ -94,8 +94,8 @@ Event Bus enforces loopback-only binding unconditionally — there is no
 override. Binding to anything other than loopback is not permitted.
 
 **Address Classification** (`_is_public_host()`, `scripts/eventbus/config.py`):
-- Loopback (`127.0.0.1`, `::1`) — Allowed
-- Everything else (private-LAN, wildcard `0.0.0.0`/`::`, other public
+- Loopback (IPv4 and IPv6) — Allowed
+- Everything else (private-LAN, wildcard, other public
   addresses, hostnames) — Raises `ValueError` at config-construction time
 
 `EventBusConfig` also verifies the actual bound socket address matches
@@ -106,10 +106,10 @@ above.
 ### Start Command
 
 ```bash
-EVENTBUS_CONFIG_PATH=/opt/llm/config/eventbus.toml python -m eventbus.app
+EVENTBUS_CONFIG_PATH=<path-to-eventbus.toml> python -m eventbus.app
 ```
 
-Or `uvicorn eventbus.app:app --host 127.0.0.1`.
+Or `uvicorn eventbus.app:app --host <loopback-host>`.
 
 ---
 
@@ -131,8 +131,8 @@ Initial replay is performed in bounded, configurable batches rather than a singl
 
 The following configuration fields control replay behavior (see also `retained_event_count` above):
 
-- `replay_batch_size` — Number of rows fetched per batch (default: 1000)
-- `subscriber_count` — Maximum number of concurrent subscribers before capacity limits apply (default: 10)
+- `replay_batch_size` — Number of rows fetched per batch
+- `subscriber_count` — Maximum number of concurrent subscribers before capacity limits apply
 
 ### Capacity Limits
 
@@ -144,7 +144,7 @@ The following Prometheus metrics monitor database-lock contention:
 
 - `eventbus_db_lock_wait_time_seconds` — Histogram of lock wait times
 - `eventbus_db_query_duration_seconds` — Histogram of query durations
-- `eventbus_db_lock_contention_total` — Counter of lock contention events (>1ms threshold)
+- `eventbus_db_lock_contention_total` — Counter of lock contention events
 
 The health endpoint (`/health`) reports lock wait and query duration averages and the contention total under its `metrics` sub-object. The service does not serve a separate Prometheus scrape endpoint.
 
@@ -174,7 +174,7 @@ Verify live push using `GET /subscribe?consumer_id=test`. Events should be recei
 
 ### Monitoring Slow Consumers
 
-A subscriber queue holding more than `slow_consumer_threshold` events is considered slow. This value is configurable via the `slow_consumer_threshold` field in the Event Bus TOML configuration (default: `100`). This can be verified via the health endpoint:
+A subscriber queue holding more than `slow_consumer_threshold` events is considered slow. This value is configurable via the `slow_consumer_threshold` field in the Event Bus TOML configuration. This can be verified via the health endpoint:
 
 - `slow_consumers > 0` → `degraded`
 - `max_queue_depth >= backlog_health_threshold` → `broker_queue_backlog_high`
@@ -201,7 +201,7 @@ When the count is 0, the broker is idle. Events remain in SQLite and are availab
 
 ### DLQ File Creation
 
-Files are created at `{deadletter_dir}/{event_id}.json` during inline processing (on `/nack`) or by the background loop (every 60 seconds). The background loop serves as a safety net.
+Files are created at `{deadletter_dir}/{event_id}.json` during inline processing (on `/nack`) or by the background loop (periodic). The background loop serves as a safety net.
 
 ### Requeue
 

@@ -60,7 +60,7 @@ class Logger:
     def clear_context(self) -> None
 ```
 
-- The second argument to the constructor is named `log_file` (implementation name; the previous `filepath` was incorrect).
+- The second argument to the constructor is named `log_file` (implementation name).
 - Both `name` and `log_file` must be non-empty strings; otherwise, a `ValueError` is raised (via string validation function).
 - Automatically configures `FileHandler` + `StreamHandler` (prevents duplication by setting `propagate=False`).
 - If a handler is already set for a logger with the same `name`, the initialization returns immediately without doing anything (prevents duplicate registration; safe even if multiple `Logger` instances with the same name are created).

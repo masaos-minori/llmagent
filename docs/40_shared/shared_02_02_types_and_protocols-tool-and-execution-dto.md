@@ -57,8 +57,6 @@ Represents normalized tool execution metadata in a single type (routing, LLM sch
 
 `build_runtime_tool()` applies safe defaults to unspecified annotation fields. `allow_extra_fields` is a per-tool flag read during the preparation phase by `agent/tool_preparation.py` (`prepare_tool_calls()`/`_prepare_one()`, executed before approval) and passed to `agent/tool_arg_validator.py`'s `validate_tool_arguments()`. (Explicit in code)
 
-**Since the `web_search-mcp` `browser_fetch` tool adopted `config_dependent: True`, `RuntimeTool` / `build_runtime_tool()` is being used with real data for the first time.**
-
 Import: `from shared.runtime_tool import RuntimeTool, build_runtime_tool, AgentSafetyTier`
 
 ---

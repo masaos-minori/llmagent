@@ -26,7 +26,7 @@ The following quality gates are executed in the CI pipeline:
 - Type checks
 - Test regressions
 
-Since defects related to the DLQ loop have occurred in the past, regression coverage for health and DLQ-related tests is particularly critical.
+Regression coverage for health and DLQ-related tests is particularly critical.
 
 ## Keywords
 

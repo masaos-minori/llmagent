@@ -49,7 +49,7 @@ When the JSONL append fails after a successful database commit:
 - **Recovery**: None automated. SQLite remains complete; the JSONL archive is missing the affected line.
 
 Affected file paths:
-- `config/eventbus.toml` → `storage_dir` key defines the JSONL file location (e.g., `/opt/llm/storage/events.jsonl`).
+- `config/eventbus.toml` → `storage_dir` key defines the JSONL file location.
 
 ### Broker Notification Failure
 

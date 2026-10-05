@@ -73,8 +73,8 @@ Same as success response, but with `status: "degraded"` and non-empty `degraded_
 | `broker_queue_backlog_high` | Queue backlog exceeds `backlog_health_threshold` |
 | `slow_consumers_detected` | One or more slow consumers detected |
 | `subscribers_at_capacity` | Active subscribers at configured capacity limit |
-| `lock_wait_high` | Average DB lock wait time exceeds threshold (>0.01s) |
-| `query_duration_high` | Average query duration exceeds threshold (>0.05s) |
+| `lock_wait_high` | Average DB lock wait time exceeds its threshold |
+| `query_duration_high` | Average query duration exceeds its threshold |
 
 ## Example Requests
 
@@ -82,7 +82,7 @@ Same as success response, but with `status: "degraded"` and non-empty `degraded_
 
 ```bash
 curl -H "Authorization: Bearer ${MONITORING_TOKEN}" \
-  http://localhost:8080/health
+  http://<eventbus-host>:<port>/health
 ```
 
 Returns `status: "ok"` with an empty `degraded_reasons` array when all subsystems are
@@ -92,7 +92,7 @@ healthy — see `scripts/eventbus/health_route.py` for the full response schema.
 
 ```bash
 curl -H "Authorization: Bearer ${MONITORING_TOKEN}" \
-  http://localhost:8080/health
+  http://<eventbus-host>:<port>/health
 ```
 
 Returns `status: "degraded"` with a non-empty `degraded_reasons` array listing which

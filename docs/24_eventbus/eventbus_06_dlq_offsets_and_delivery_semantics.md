@@ -138,7 +138,7 @@ When a `Last-Event-ID` header is provided, the replay operation uses it as a fal
 
 ### Queue Overflow Behavior
 
-A subscriber queue holding more than `slow_consumer_threshold` events is considered slow. This value is configurable via the `slow_consumer_threshold` field in the Event Bus TOML configuration (default: `100`).
+A subscriber queue holding more than `slow_consumer_threshold` events is considered slow. This value is configurable via the `slow_consumer_threshold` field in the Event Bus TOML configuration.
 
 If a subscriber queue becomes full (`subscriber_queue_maxsize`), the broker disconnects that subscriber. The consumer must reconnect and replay from SQLite.
 
@@ -160,11 +160,11 @@ Invalid combinations fail startup with actionable error messages naming both con
 
 ### Inline Promotion Path
 
-When a NACK occurs and `delivery_failure_count` reaches `>= max_retry`, the event is immediately promoted to the DLQ. The background DLQ loop (every 60 seconds) serves as a safety net to catch any events missed during inline processing.
+When a NACK occurs and `delivery_failure_count` reaches `>= max_retry`, the event is immediately promoted to the DLQ. The background DLQ loop (periodic) serves as a safety net to catch any events missed during inline processing.
 
 ### Background Loop Promotion
 
-The background DLQ loop runs every 60 seconds and promotes events that were missed during inline processing. It checks each event's `delivery_failure_count` against `max_retry` and promotes events that meet the criteria.
+The background DLQ loop runs periodically and promotes events that were missed during inline processing. It checks each event's `delivery_failure_count` against `max_retry` and promotes events that meet the criteria.
 
 ### Requeue Semantics
 
@@ -285,7 +285,7 @@ DLQ ✗ REQUEUE → HTTP 409 "event is not in DLQ"
 
 - Total loss of all events if the DB file is lost.
 - Divergence between SQLite and JSONL if appending to JSONL fails.
-- Events destined for DLQ may remain visible until the next DLQ loop interval (60 seconds).
+- Events destined for DLQ may remain visible until the next DLQ loop interval.
 
 ## Keywords
 

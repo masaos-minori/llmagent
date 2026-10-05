@@ -69,7 +69,7 @@ GET /dlq?limit=50&offset=0
 
 | Parameter | Default | Constraints |
 |-----------|---------|-------------|
-| `limit` | 100 | 1 <= limit <= 1000 |
+| `limit` | route default | bounded (see route definition) |
 | `offset` | 0 | >= 0 |
 
 ### Response Schema

@@ -59,7 +59,7 @@ class LifecycleProtocol(Protocol):
 
 ## 5. `token_counter` (`shared/token_counter.py`)
 
-Calls `POST {tokenize_url}/tokenize` for exact counts (`is_exact=True`); otherwise, it falls back to category-based character-to-token estimation (text: 4.0, tool_calls: 2.5, system: 3.5), returning an estimated count (`is_exact=False`). Connection errors fail silently to the fallback.
+Calls `POST {tokenize_url}/tokenize` for exact counts (`is_exact=True`); otherwise, it falls back to category-based character-to-token estimation (per-category ratios defined in the token counter implementation), returning an estimated count (`is_exact=False`). Connection errors fail silently to the fallback.
 
 Category-based estimation improves accuracy for multilingual text and structured tool payloads. Token estimation returns `(total_tokens, breakdown: dict[str, int])` including category-specific counts.
 

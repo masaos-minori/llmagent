@@ -20,14 +20,14 @@ related:
 class DbConfig:
     rag_db_path: str
     session_db_path: str
-    workflow_db_path: str = "/opt/llm/db/workflow.sqlite"
-    eventbus_db_path: str = "/opt/llm/db/eventbus.sqlite"
+    workflow_db_path: str = ...   # defaults: see db/config.py
+    eventbus_db_path: str = ...
     sqlite_vec_so: str = ""       # empty = vec extension not required
-    sqlite_timeout: int = 30
-    sqlite_busy_timeout_ms: int = 30000
+    sqlite_timeout: int = ...
+    sqlite_busy_timeout_ms: int = ...
 ```
 
-- Validated in `__post_init__`: the four DB paths must be non-empty, each parent directory must exist, and `sqlite_timeout` must be $\ge$ 1.
+- Validated in `__post_init__`: the DB paths must be non-empty, each parent directory must exist, and `sqlite_timeout` must be $\ge$ 1.
 - Constructed by `build_db_config()`, which reads `agent.toml` via `ConfigLoader().load("agent.toml")`.
 - Used by `SQLiteHelper`, `maintenance.py`, and session factories.
 

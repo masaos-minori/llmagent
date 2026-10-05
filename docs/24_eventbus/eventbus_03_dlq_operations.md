@@ -52,7 +52,7 @@ Publishes an event. Idempotent: duplicate `event_id`s are silently ignored.
 
 Replays past events. Returns events where `seq > since_seq`. Supports pagination when `format=json`.
 
-**Query Parameters:** `since_seq` (>=0), `limit` (1-1000, default 100), `offset` (>=0), `format` (sse/json, default sse).
+**Query Parameters:** `since_seq` (>=0), `limit` (bounded; see the route definition for the default and maximum), `offset` (>=0), `format` (sse/json, default sse).
 
 **Response (`format=json`):** A pagination object containing `{total, limit, offset, items}`. `total` is the total count regardless of `limit`/`offset`.
 
@@ -66,7 +66,7 @@ Replays past events. Returns events where `seq > since_seq`. Supports pagination
 
 A hybrid model combining replay and push, streaming events to the caller.
 
-**SSE Heartbeat:** During the live delivery phase, the server emits `: heartbeat\n\n` comments at `cfg.sse_heartbeat_interval` intervals (default 30 seconds) to keep idle connections alive through proxies and load balancers. Heartbeat frames do not alter offsets or delivery state.
+**SSE Heartbeat:** During the live delivery phase, the server emits `: heartbeat\n\n` comments at `cfg.sse_heartbeat_interval` intervals to keep idle connections alive through proxies and load balancers. Heartbeat frames do not alter offsets or delivery state.
 
 **SSE Event IDs:** Each event frame includes `id:<seq>` where `seq` is the monotonic sequence number. This enables `EventSource`-based clients to auto-reconnect by sending the `Last-Event-ID` header.
 
@@ -107,7 +107,7 @@ Rule: An explicit `since_seq=0` and an omitted `since_seq` (defaults to 0 via `Q
 
 `consumer_id` is validated against the caller's token before `/subscribe`, `/events/{event_id}/ack`, and `/nack` accept it: a token that has an explicit `consumer_id` allowlist configured is rejected (HTTP 403) if it presents a `consumer_id` outside that allowlist.
 
-**Known Issue**: a token with no configured `consumer_id` allowlist entry (the common case for a shared per-role token) has this check skipped entirely — an empty allowlist means "no restriction," not "deny all." This means `consumer_id` collisions between callers sharing such a token remain possible unless a per-caller allowlist is explicitly configured. Tracked in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`.
+**Known Issue**: a token with no configured `consumer_id` allowlist entry (the common case for a shared per-role token) has this check skipped entirely — an empty allowlist means "no restriction," not "deny all." This means `consumer_id` collisions between callers sharing such a token remain possible unless a per-caller allowlist is explicitly configured.
 
 ---
 
@@ -167,7 +167,7 @@ The `status` is `"ok"` only when all components are healthy. `degraded_reasons` 
 
 Retrieves a list of DLQ events (events where `dlq_at IS NOT NULL`).
 
-**Query Parameters:** `limit` (1-1000, default 100), `offset` (>=0, default 0)
+**Query Parameters:** `limit` (bounded; see the route definition for the default and maximum), `offset` (>=0, default 0)
 **Response:** A pagination object containing `{total, limit, offset, items}`. `items` includes `{seq, event_id, topic, producer, published_at, delivery_failure_count, dlq_requeue_count, dlq_at}`.
 
 ---
@@ -186,9 +186,9 @@ Requeues a DLQ event using the lineage model: the original row stays in the DLQ 
 DLQ promotion occurs via two independent paths that share one underlying promotion procedure:
 
 1. **Inline promotion**: triggered synchronously when a `POST /nack` call raises `delivery_failure_count` to `max_retry` or beyond.
-2. **Background sweep**: a startup `asyncio` task polling every 60 seconds, acting as a safety net for events whose inline promotion was missed (e.g. a crash between the retry-count update and the promotion write).
+2. **Background sweep**: a startup `asyncio` task polling periodically, acting as a safety net for events whose inline promotion was missed (e.g. a crash between the retry-count update and the promotion write).
 
-Both paths call the same shared promotion routine (atomic write to JSON file + setting `dlq_at` in SQLite), so a promoted event's on-disk/DB representation does not differ by path. This is a documentation-only clarification of existing, already-unified code — no behavior changed.
+Both paths call the same shared promotion routine (atomic write to JSON file + setting `dlq_at` in SQLite), so a promoted event's on-disk/DB representation does not differ by path.
 
 ## DLQ Background Sweep
 

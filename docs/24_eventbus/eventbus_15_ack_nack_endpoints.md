@@ -121,7 +121,7 @@ Returned when `consumer_id` is present but empty. A completely missing `consumer
 
 ```bash
 curl -X POST -H "Authorization: Bearer ${CONSUMER_TOKEN}" \
-  "http://localhost:8080/events/evt-abc/ack?consumer_id=worker-1"
+  "http://<eventbus-host>:<port>/events/evt-abc/ack?consumer_id=worker-1"
 ```
 
 ## Negatively Acknowledge Event
@@ -230,7 +230,7 @@ Returned when `event_id` or `consumer_id` is present but empty. A completely mis
 
 ```bash
 curl -X POST -H "Authorization: Bearer ${CONSUMER_TOKEN}" \
-  "http://localhost:8080/nack?event_id=evt-abc&consumer_id=worker-1"
+  "http://<eventbus-host>:<port>/nack?event_id=evt-abc&consumer_id=worker-1"
 ```
 
 ## Keywords

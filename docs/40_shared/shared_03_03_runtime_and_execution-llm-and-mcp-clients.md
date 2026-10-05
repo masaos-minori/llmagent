@@ -35,7 +35,7 @@ related:
 
 **Responsibility:** An HTTP client for LLM API communication featuring retry logic, SSE streaming, and error handling.
 
-**Primary APIs:** `LLMClient` wraps `AsyncClient` with retry logic, SSE streaming, and error handling. Constructor accepts http client, `max_retries`, `retry_base_delay`, `temperature`, `max_tokens`, optional callbacks (`on_token`/`on_usage`), and SSE parameters (`sse_heartbeat_timeout=30`, `sse_malformed_retry=2`, `sse_reconnect_max=1`, `llm_stream_retry_on_heartbeat_timeout=True`, `llm_stream_retry_on_malformed_chunk=False`). `call()`/`stream()` accept `url`/`history`/`tool_defs`; `build_payload` constructs the request dict.
+**Primary APIs:** `LLMClient` wraps `AsyncClient` with retry logic, SSE streaming, and error handling. Constructor accepts http client, `max_retries`, `retry_base_delay`, `temperature`, `max_tokens`, optional callbacks (`on_token`/`on_usage`), and SSE parameters (`sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `llm_stream_retry_on_heartbeat_timeout`, `llm_stream_retry_on_malformed_chunk`). `call()`/`stream()` accept `url`/`history`/`tool_defs`; `build_payload` constructs the request dict.
 
 **Error Behavior:** HTTP errors $\rightarrow$ `LLMTransportError` classified by kind: `HTTP_STATUS_RETRYABLE` (429/503), `HTTP_STATUS_FATAL` (others), `CONNECT_ERROR`, `READ_TIMEOUT`, `HEARTBEAT_TIMEOUT`, `MALFORMED_SSE_FRAME`, `UTF8_PARTIAL_DECODE_ERROR`, `PREMATURE_EOF`, `UNKNOWN_STREAM_ERROR`. SSE heartbeat timeouts trigger retries if enabled; malformed chunks are retried up to `sse_malformed_retry` times before raising `MALFORMED_SSE_FRAME`. Retry exhaustion raises `LLMTransportError` with `partial_text` containing accumulated output.
 
@@ -55,7 +55,7 @@ Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp
 
 **Overview:** Per-server transport config (transport, url, cmd, startup_mode, tool_names, auth_token, env) validated by `__post_init__` (URL scheme, timeout range, `tool_names` uniqueness, env type). Key field set from TOML section name, excluded from `==` comparison. `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE` / `HALF_OPEN` / `UNKNOWN`. `McpServerHealthRegistry` tracks consecutive failures; `UNAVAILABLE` blocks dispatch; `record_degraded(key, reason)` / `get_degraded_reason(key)` track "reachable but degraded" servers without incrementing the failure count.
 
-> **Note:** `McpServerConfig.transport` uses the `TransportType` enum instead of a plain string. Related enums include `StartupMode` (none/persistent/subprocess) and `SecurityProfile` (local/production controls MCP auth enforcement). The `HealthcheckMode` enum was deleted on 2026-07-17 — HTTP was the only transport.
+> **Note:** `McpServerConfig.transport` uses the `TransportType` enum instead of a plain string. Related enums include `StartupMode` (none/persistent/subprocess) and `SecurityProfile` (local/production controls MCP auth enforcement).
 
 `shared/route_resolver.py`'s `ToolRouteResolver.resolve(tool_name)` maps a tool name to its server key using `RuntimeToolRegistry` as the sole routing source, and raises `ValueError` for an unresolved tool.
 

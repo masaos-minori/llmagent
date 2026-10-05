@@ -122,7 +122,7 @@ Critical constraint: `orjson.dumps()` returns `bytes` (`not str`). If a `str` is
 | `workflow.sqlite` | Workflow engine task tracking |
 | `eventbus.sqlite` | Event Bus event/offset/delivery/DLQ state |
 
-All four databases use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only for `rag.sqlite` (target=`"rag"`). See [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) for the rationale behind the separation.
+All of these databases use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only for `rag.sqlite` (target=`"rag"`). See [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) for the rationale behind the separation.
 
 ---
 
@@ -130,7 +130,7 @@ All four databases use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only 
 
 Constraints not already covered above (import direction, JSON library, HTTP client — see Import Direction Constraints above):
 
-- **Configuration Format:** TOML / JSON under `/opt/llm/config/` — see [Process Separation Policy](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy) for the ownership table
+- **Configuration Format:** TOML / JSON under the deployed config directory — see [Process Separation Policy](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy) for the ownership table
 - **Log Messages:** English only (do not use Japanese in code comments or logs)
 - **SQLite WAL:** Use `PRAGMA journal_mode=WAL` for all connections
 - **Security Profile:** `SecurityProfile` enum in `mcp_config.py` (`local`/`production`). `ProductionConfigValidator` in `production_config_validator.py` validates strict keys, `tool_safety_tiers`, and `allowed_tools` when in production mode
@@ -143,7 +143,7 @@ Constraints not already covered above (import direction, JSON library, HTTP clie
 
 `db/` provides typed, WAL-enabled SQLite access with FTS5 and sqlite-vec integration. It is the canonical source for schema definitions. `db/` depends only on `shared/`.
 
-All persistent data resides in four SQLite files: `rag.sqlite` (RAG index), `session.sqlite` (conversation + memory), `workflow.sqlite` (task tracking), and `eventbus.sqlite` (event delivery state).
+All persistent data resides in SQLite files: `rag.sqlite` (RAG index), `session.sqlite` (conversation + memory), `workflow.sqlite` (task tracking), and `eventbus.sqlite` (event delivery state).
 
 ---
 

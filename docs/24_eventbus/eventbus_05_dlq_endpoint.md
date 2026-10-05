@@ -73,7 +73,7 @@ GET /dlq
 
 ```bash
 curl -H "Authorization: Bearer ${OPERATOR_TOKEN}" \
-  "http://localhost:8080/dlq?limit=20&offset=0"
+  "http://<eventbus-host>:<port>/dlq?limit=20&offset=0"
 ```
 
 ## Requeue DLQ Entry
@@ -124,7 +124,7 @@ None — `event_id` is provided as a path parameter only.
 
 ```bash
 curl -X POST -H "Authorization: Bearer ${OPERATOR_TOKEN}" \
-  http://localhost:8080/dlq/evt-failed/requeue
+  http://<eventbus-host>:<port>/dlq/evt-failed/requeue
 ```
 
 ### Conflict Response

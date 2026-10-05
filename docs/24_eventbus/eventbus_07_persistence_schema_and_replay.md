@@ -133,12 +133,12 @@ If inconsistencies are detected, follow this controlled restart procedure:
 
 4. Start the EventBus process again:
    ```bash
-   uvicorn eventbus.app:app --host 127.0.0.1 --port <port> &
+   uvicorn eventbus.app:app --host <loopback-host> --port <port> &
    ```
 
 5. Verify the process started successfully:
    ```bash
-   curl http://127.0.0.1:8080/health
+   curl http://<eventbus-host>:<port>/health
    ```
 
 6. Re-run Steps 1–4 to confirm consistency.

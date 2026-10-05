@@ -22,7 +22,7 @@ List dead-letter queue entries with pagination support.
 
 | Parameter | Type | Required | Default | Bounds | Description |
 |---|---|---|---|---|---|
-| limit | integer | No | 100 | 1 ≤ limit ≤ 1000 | Maximum number of items to return |
+| limit | integer | No | route default | bounded (see `scripts/eventbus/dlq_route.py`) | Maximum number of items to return |
 | offset | integer | No | 0 | offset ≥ 0 | Number of items to skip for pagination |
 
 ### Response (HTTP 200)
@@ -52,9 +52,9 @@ If no events are in the DLQ, the response body is:
 
 ### Invalid-parameter behavior
 
-- Missing `limit` or `offset`: Uses default values (100, 0 respectively).
+- Missing `limit` or `offset`: Uses the route's default values.
 - `limit` below 1: Returns HTTP 422 (FastAPI validation) with detail about minimum bound.
-- `limit` above 1000: Returns HTTP 422 (FastAPI validation) with detail about maximum bound.
+- `limit` above the maximum bound: Returns HTTP 422 (FastAPI validation) with detail about maximum bound.
 - `offset` below 0: Returns HTTP 422 (FastAPI validation) with detail about minimum bound.
 
 ### Ordering
