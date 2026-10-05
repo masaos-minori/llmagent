@@ -336,13 +336,26 @@ class HttpServerLifecycleManager:
                         proc.pid,
                         poll_result,
                     )
+                # Process terminated successfully — remove tracking entries only
+                # after confirmed exit so a failed termination keeps them available
+                # for a subsequent manual-cleanup attempt.
+                self._http_procs.pop(server_key, None)
+                self._http_pgids.pop(server_key, None)
+            except Exception as term_err:
+                # Termination failed — keep tracking entries for manual intervention.
+                logger.error(
+                    "Lifecycle: getpgid() failed AND termination failed for %r (pid=%d): %s. "
+                    "Tracking entry retained for manual cleanup.",
+                    server_key,
+                    proc.pid,
+                    term_err,
+                )
+                raise
             finally:
-                # Always cleanup resources if getpgid fails, even if termination fails
+                # Resource cleanup always happens regardless of termination outcome.
                 stderr_fh.close()
                 self._stderr_files.pop(server_key, None)
                 self._stderr_log_manager.forget(server_key)
-                self._http_procs.pop(server_key, None)
-                self._http_pgids.pop(server_key, None)
             raise e
         self._http_procs[server_key] = proc
         return proc, stderr_fh
