@@ -141,7 +141,7 @@ class TestStartupOrchestratorStartServers:
             OSError("no such file")
         )
 
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(OSError) as exc_info:
             await startup._start_servers()
 
         assert "web" in str(exc_info.value)

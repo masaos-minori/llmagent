@@ -25,7 +25,8 @@ async def retry_once_with_delay[T](
 ) -> T:
     """Execute *fn* once; if it raises, wait *delay* seconds and retry once.
 
-    On second failure, raises RuntimeError with *fatal_prefix*.
+    On second failure, re-raises an instance of the original exception type
+    (preserving its type) carrying the fatal-prefixed, secret-masked message.
 
     Always races against *shutdown_event*; raises StartupInterrupted if shutdown
     fires during the retry delay.
@@ -56,7 +57,7 @@ async def retry_once_with_delay[T](
         msg = f"{fatal_prefix} {_mask_secrets(str(retry_err))}"
         masked_msg = _mask_secrets(msg)
         logger.error(masked_msg)
-        raise retry_err
+        raise type(retry_err)(masked_msg) from retry_err
 
 
 async def _interruptible_sleep(

@@ -141,6 +141,7 @@ class TestStartupRollback:
                 first_proc,
                 RuntimeError("port busy"),
                 RuntimeError("port busy"),
+                RuntimeError("port busy"),
             ]
         )
         view = MagicMock()

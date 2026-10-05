@@ -87,6 +87,7 @@ class McpServerStarter:
                         last_startup_time = started_at
                 except (
                     OSError,
+                    RuntimeError,
                     TimeoutError,
                     ConnectionRefusedError,
                     ConnectionResetError,
