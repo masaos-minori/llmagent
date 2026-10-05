@@ -93,15 +93,31 @@ Revert to the original executor call without timeout if callers depend on indefi
 - Changes to the validation pipeline order
 - Creating new test file (handled in separate document)
 
-## execution Status
+## Implementation outcome
+
+Deviation from procedure: no code change was performed. Origin/master already ships
+this fix in commit `10308ed7` — `StartupValidationPipeline.check_services()` wraps
+the executor call in `await asyncio.wait_for(loop.run_in_executor(None, lambda:
+RagMaintenanceService().consistency()), timeout=30.0)` at lines 129-136, with an
+`except TimeoutError:` handler that logs and marks the check skipped (lines 144-148)
+rather than blocking the default executor thread pool. The procedure's stated target
+(lines 128-145, bare `loop.run_in_executor(...)` under `except Exception` only) does
+not match current source, and the Details-block shape differs: origin uses the builtin
+`TimeoutError` (not `asyncio.TimeoutError`), logs at WARNING (consistent with the
+surrounding checks), and records the skip via `pipeline.add_skipped(...)` where the
+draft only logged. REQ-001/REQ-002 behavior is satisfied. Existing regression tests
+(`tests/agent/test_startup_validation.py`, `TestRagConsistencyTimeout`) pass (2 passed).
+Accepting the upstream implementation and closing the workflow.
+
+## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Already in origin `10308ed7` (see outcome). |
+| 2 | Add or update tests per Validation plan | Done | — | — | `tests/agent/test_startup_validation.py` present, 2 passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | 2 passed; ruff/bandit clean (no code change). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Out of scope per procedure. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
