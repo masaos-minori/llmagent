@@ -129,15 +129,34 @@ Delete the test file if the http_lifecycle change is reverted.
 
 - Modifying `http_lifecycle.py` (handled in separate document)
 
-## execution Status
+## Implementation outcome
+
+Created `tests/agent/test_http_lifecycle.py` against the real source. The draft
+import (`scripts.agent.http_lifecycle`) and API assumptions (`HttpServerLifecycleManager()`
+with a `_managers` dict, `start_server(...)`, patching `_create_and_validate_proc`)
+did not match reality; corrected to:
+
+- Import `from agent.http_lifecycle import HttpServerLifecycleManager` (module is
+  imported under the `agent.` namespace, not `scripts.agent.`).
+- Drive behavior through the real `mgr.start(server_key, cfg)` ->
+  `_create_and_validate_proc` path with patched `subprocess.Popen`, `os.getpgid`,
+  `mgr._stderr_log_manager.open_log`, and `mgr._process_terminator.terminate_with_timeout`.
+- Patch module-level `logger` via `patch.object(hl_module, "logger")` (the class
+  lives in `agent.http_lifecycle`, so a `scripts.agent.*` patch target misses).
+
+Two regression tests: `test_tracking_removed_after_confirmed_exit` (REQ-001) and
+`test_pid_logged_on_termination_failure` (REQ-002). Verified: 50 tests pass
+across `test_http_lifecycle.py` + `test_http_lifecycle_integration.py`; ruff/bandit clean.
+
+## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | N/A (test-only document). |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-05 | 2026-10-05 | File created against real API (see Implementation outcome). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-05 | 2026-10-05 | ruff/bandit clean; 50 tests pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Out of scope per procedure. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
