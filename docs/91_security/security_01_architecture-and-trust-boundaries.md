@@ -72,15 +72,15 @@ The threat model covers the following threat vectors:
 
 | MCP Server | Transport | AuthN | AuthZ | Notes |
 |---|---|---|---|---|
-| file-read | HTTP | Bearer token (optional) | `allowed_dirs` allowlist | Read-only; path allowlist enforced |
-| file-write | HTTP | Bearer token (optional) | `allowed_dirs` allowlist + approval | Write requires approval for `WRITE_DANGEROUS` tools |
-| file-delete | HTTP | Bearer token (optional) | `allowed_dirs` allowlist + approval | Delete requires approval |
-| shell | HTTP | Bearer token (optional) | Command allowlist + approval | `command_allowlist` restricts executable commands |
-| git | HTTP | Bearer token (optional) | `allowed_repo_paths` + approval | Git write tools require approval; protected branches enforced |
+| file-read | HTTP | Bearer token (required) | `allowed_dirs` allowlist | Read-only; path allowlist enforced |
+| file-write | HTTP | Bearer token (required) | `allowed_dirs` allowlist + approval | Write requires approval for `WRITE_DANGEROUS` tools |
+| file-delete | HTTP | Bearer token (required) | `allowed_dirs` allowlist + approval | Delete requires approval |
+| shell | HTTP | Bearer token (required) | Command allowlist + approval | `command_allowlist` restricts executable commands |
+| git | HTTP | Bearer token (required) | `allowed_repo_paths` + approval | Git write tools require approval; protected branches enforced |
 | github | HTTP | Bearer token (required) | `allowed_repos` + `protected_branches` | `protected_branches` escalate to high risk |
-| cicd | HTTP | Bearer token (optional) | Workflow allowlist | Workflow execution restricted to allowlisted workflows |
-| mdq | HTTP | Bearer token (optional) | `allowed_dirs` equivalent | Path traversal prevention via `Path.resolve()` |
-| rag-pipeline | HTTP | Bearer token (optional) | Query/ingest separation | Ingestion requires separate config; query is read-only |
+| cicd | HTTP | Bearer token (required) | Workflow allowlist | Workflow execution restricted to allowlisted workflows |
+| mdq | HTTP | Bearer token (required) | `allowed_dirs` equivalent | Path traversal prevention via `Path.resolve()` |
+| rag-pipeline | HTTP | Bearer token (required) | Query/ingest separation | Ingestion requires separate config; query is read-only |
 
 *Source: `mcp_05_01_access-control-and-allowlists.md`, `mcp_05_02_auth-profiles-and-sandboxing.md`*
 
@@ -132,7 +132,7 @@ pre-2026-09-04):
 | Aspect | Local (retired) | Production (now unconditional) |
 |---|---|---|
 | `allow_public_bind` | Default `false`; could be overridden | Removed entirely — loopback-only, no override |
-| Bearer token | Optional (defaults to empty) | Required for public bind; enforced at startup |
+| Bearer token | Optional (defaults to empty) | Required for every HTTP MCP server; enforced at startup |
 | Tool safety tiers | Warning on unknown keys | Fatal on unknown keys |
 | `approval_github_allowed_repos` | Empty = allow all (dev) | Empty = deny all (fail-closed) |
 | `gitops_push_blocked` | `false` (dev) | `true` recommended (prod) |
@@ -195,7 +195,7 @@ Prompt injection responsibility is distributed across layers:
 | `persistent` | `/health` endpoint | 503 on degraded, retry loop | Operator restarts external server |
 | `subprocess` | Watchdog polling | Auto-restart (max attempts) | Manual if restart limit reached |
 
-Fail-fast vs fail-open at MCP startup failure: `production` raises `RuntimeError` (aborts startup, no REPL started); `local` logs a warning and continues (REPL starts normally).
+Fail-fast vs fail-open at MCP startup failure: `production` raises `RuntimeError` (aborts startup, no REPL started).
 
 *Source: `shared/mcp_health.py`*
 
@@ -216,7 +216,7 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 
 When embedding is unavailable: existing documents remain searchable via FTS, new documents cannot be indexed, `memory_embed_enabled` remains `true` but embeddings are not generated, and the system logs a WARNING on each failed embedding attempt.
 
-*Source: [rag_05_2-execution-guide.md](../21_rag/rag_05_2-execution-guide.md#26-rag-integrity-check)*
+*Source: [rag_05_2-execution-guide.md](../21_rag/rag_05_2-execution-guide.md#26-rag-consistency-check-dbrag_consistencypy)*
 
 ### Memory layer failure behavior
 
@@ -241,7 +241,7 @@ Degraded conditions: `circuit_open=True` after more than `failure_threshold` con
 | Capability | Required Services | Degraded/Unavailable When |
 |---|---|---|
 | Repository Operations | git-mcp (+ optional github-mcp) | git-mcp degraded / unavailable |
-| File Operations | file-mcp | file-mcp degraded / unavailable |
+| File Operations | file-read, file-write, file-delete | file-read / file-write / file-delete degraded / unavailable |
 | Code Search | mdq-mcp | mdq-mcp degraded / unavailable |
 | Web Search | web-search-mcp | web-search-mcp degraded / unavailable |
 | CI/CD | cicd-mcp | cicd-mcp degraded / unavailable |
@@ -276,7 +276,7 @@ for the authentication mechanism decision and configuration details.
 
 ### Authorization
 
-Four roles control access to EventBus routes:
+Roles control access to EventBus routes:
 
 | Role | Access |
 |------|--------|
@@ -284,6 +284,7 @@ Four roles control access to EventBus routes:
 | Consumer | GET `/subscribe`, POST `/events/{event_id}/ack`, POST `/nack` |
 | Operator | GET `/dlq`, POST `/dlq/{event_id}/requeue`, GET `/replay` |
 | Monitoring | GET `/health` |
+| Admin | `/admin/*` routes |
 
 A consumer's authenticated identity is bound to allowed `consumer_id`s and topics —
 a caller cannot act as another consumer or access unauthorized topics.

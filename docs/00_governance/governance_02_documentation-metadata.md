@@ -19,7 +19,7 @@ This document consolidates metadata conventions for AI agents to select relevant
 The following four metadata fields are required in every document's front matter:
 
 - **title** — Document title
-- **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/10_adr/`) and security documents (`docs/00_security_*.md`) use `area: governance`, since both are cross-cutting governance/policy content rather than a distinct runtime area.
+- **area** — Document area: one of `overview`, `deployment`, `rag`, `mcp`, `agent`, `eventbus`, `shared`, `governance`. ADR documents (`docs/10_adr/`) and security documents (`docs/91_security/security_*.md`) use `area: governance`, since both are cross-cutting governance/policy content rather than a distinct runtime area.
 - **tags** — Keywords describing the document content
 - **related** — Filenames of related documents (basenames). Front matter `related:` is the single
   authoritative store of cross-references: general documents carry no body Related section.
@@ -120,7 +120,7 @@ Topics explicitly excluded from this document:
 | Term | Definition | Example |
 |------|------------|---------|
 | Backward Compatibility | Preserving an old public interface or API surface so existing callers continue to work unchanged after the underlying implementation changes. | `scripts/agent/__init__.py`'s module docstring: "Exports all component classes and the AgentREPL facade for backward compatibility" — old import paths through the package's `__init__.py` keep working. |
-| Operational Fallback | A runtime behavior that automatically switches to an alternate code path when a primary path fails or is unavailable, without requiring manual intervention. Distinct from Backward Compatibility (a static interface-preservation property): a fallback is a live, per-call runtime decision. | RAG's `call_rag_service()` falls back to in-process execution when the remote RAG service call fails (`docs/rag_03_01_query_pipeline-overview_00_document-guide.md`). |
+| Operational Fallback | A runtime behavior that automatically switches to an alternate code path when a primary path fails or is unavailable, without requiring manual intervention. Distinct from Backward Compatibility (a static interface-preservation property): a fallback is a live, per-call runtime decision. | RAG's `call_rag_service()` falls back to in-process execution when the remote RAG service call fails (`docs/21_rag/rag_03_01_query_pipeline-overview.md`). |
 | Default | A value substituted when a configuration key is absent or `None`, applied at load time. Distinct from Lenient Parsing: a present-but-wrong-typed value still raises rather than silently falling back to the default. | `get_typed(d, "field_name", int, "an integer", default=DEFAULT_VALUE)` (`rules/coding.md` Type-coercion policy) returns `default` only when the key is missing or `None`. |
 | Lenient Parsing | Tolerating an unexpected or partially-invalid input by skipping or degrading gracefully rather than raising, when that input is not itself the primary contract being validated. | `scripts/shared/production_config_validator.py`'s best-effort tool-registry lookup is skipped (not failed) on an unexpected exception during production config validation (`# noqa: BLE001` — justified inline as best-effort). |
 | Migration | A structural or schema change applied incrementally to an existing system's persisted state, without discarding existing data. | `workflow.sqlite`'s `db/schema_sql.py::apply_workflow_migrations()` applies a sequential list of (ID, SQL) pairs as incremental column additions to existing databases; a no-op for new databases (`docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`). |
@@ -139,10 +139,10 @@ When referencing other documents:
 
 ### Link Format Examples
 
-Same area: `[Agent Guide](<agent_01_system-overview_00_document-guide.md>)`
-Cross area: `[RAG Specification](<rag_01_system_overview_00_document-guide.md>)`
+Same area: `[Documentation Policy](<governance_01_documentation-policy.md>)`
+Cross area: `[RAG Guide](<../21_rag/rag_00_document-guide.md>)`
 ADR: `[ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md)`
-Internal anchor: `[Section](<agent_01_system-overview_00_document-guide.md>#workflow-engine)`
+Internal anchor: `[Section](<governance_01_documentation-policy.md>#review-rule)`
 
 ## Markdown Syntax Rules
 

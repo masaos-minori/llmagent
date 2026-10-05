@@ -30,19 +30,15 @@ See `config/` for the current file layout.
 
 **`config/agent.toml`** — Global agent settings including DB paths, embedding URLs, and MCP server configurations. Owned by the agent process; provides shared configuration for the AgentREPL runtime.
 
-**`config/mcp_<name>.toml`** — Per-MCP-server configuration files (one per server); each contains the server's transport URL, timeout, and retry settings. These port numbers are illustrative examples of the current deployment configuration, not claims about deployed configuration.
-
-**Embedding service config** — Embedding service configuration including model path and endpoint URLs. Owned by the embedding service; consumed by the embed-LLM process.
-
-**Tool registry** — Tool registry mapping tool names to their implementations. Owned by the tool routing layer; consumed by all MCP servers requiring tool discovery.
+**`config/<key>_mcp_server.toml`** — Per-MCP-server configuration files (one per server, for example `shell_mcp_server.toml`); each contains the server's service-specific settings such as allowlists and the auth token reference.
 
 ### Per-Process Config Isolation Policy
 
-Each process reads only its own config file — no cross-process config sharing. This prevents configuration drift between processes and ensures that changes to one process's config do not affect others. The MCP servers read their respective `mcp_<name>.toml` files; the agent reads `agent.toml`; the embedding service reads its own config.
+Each process reads only its own config file — no cross-process config sharing. This prevents configuration drift between processes and ensures that changes to one process's config do not affect others. The MCP servers read their respective `<key>_mcp_server.toml` files; the agent reads `agent.toml`.
 
 ### MCP Server Configuration Responsibilities
 
-MCP server configs define: transport type (SSE/HTTP), target URL, timeout duration, retry count, and health-check interval. Each MCP server has its own config file because each server operates independently and may have different requirements.
+MCP server configs define service-specific settings (allowlists, limits, auth token reference). Transport, URL, and startup settings for each server are defined in `config/agent.toml` (`McpServerConfig`). Each MCP server has its own config file because each server operates independently and may have different requirements.
 
 ## Keywords
 

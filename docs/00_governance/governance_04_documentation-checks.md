@@ -161,7 +161,7 @@ Validates structural conventions for `docs/*.md`:
 **Usage:**
 ```bash
 uv run python tools/check_docs_structure.py [glob ...]
-uv run python tools/check_docs_structure.py docs/agent_*.md --category agent
+uv run python tools/check_docs_structure.py 'docs/23_agent/*.md' --area agent
 ```
 
 ### 15. Docs Content Policy Check (`check_docs_content_policy.py`)
@@ -275,10 +275,10 @@ left neither fixed nor excepted is treated as incomplete review, not a passing P
 Verify that cross-document references follow the Link Rules in [governance_02_documentation-metadata.md](governance_02_documentation-metadata.md#link-rules).
 
 **Link format examples:**
-- Same area: `[Agent Guide](agent_00_document-guide.md)`
+- Same area: `[Documentation Policy](governance_01_documentation-policy.md)`
 - Cross area: `[RAG Guide](../21_rag/rag_00_document-guide.md)`
 - ADR: `[ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md)`
-- Internal anchor: `[Section](agent_01_system-overview.md#workflow-engine-execution)`
+- Internal anchor: `[Section](governance_01_documentation-policy.md#review-rule)`
 
 ## Governance Verification Matrix
 

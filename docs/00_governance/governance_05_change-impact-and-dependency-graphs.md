@@ -68,7 +68,7 @@ Governance: `@governance-lead`, accountable to `@executive`, consulted `@all-are
 
 ## Software Runtime Dependency Graph
 
-Node set: Agent, MCP, RAG, EventBus, Shared/DB, Security. Governance, Overview, and
+Node set: Agent, MCP, RAG, EventBus, Shared/DB. Governance, Overview, and
 Deployment are not runtime components and are intentionally excluded — see the
 Governance Applicability Matrix and Deployment Management Graph below for their own
 relation types.
@@ -76,24 +76,24 @@ relation types.
 `A → B` means: A calls B at runtime, or requires B's data or functionality to
 function.
 
-**Cycles prohibited**: no circular dependencies are allowed among these 6 nodes.
+**Cycles prohibited**: no circular dependencies are allowed among these 5 nodes.
 Enforced automatically by `tools/check_dependency_graph_cycles.py` (see
 `docs/00_governance/governance_04_documentation-checks.md` "12. Area Dependency Graph
 Validation").
 
-Security node: `scripts/shared/security/` (`HighRiskToolPolicy`, `SecurityMode`,
-`AuditLogger`) is the current runtime package for this node. It has zero current
-importers anywhere in `scripts/`/`tests/` as of 2026-09-27, so no confirmed or
-planned edge is listed for it yet — added to the node set now so that whichever
-caller wires it in later only needs to add its edge here, not re-litigate whether
-Security belongs in this graph at all.
+Security is not a node in this graph: `scripts/shared/security/` (`HighRiskToolPolicy`,
+`SecurityMode`, `AuditLogger`) has no importers in `scripts/`/`tests/`, so no edge
+exists for it. If it is wired in later, add it to the node set in
+`tools/check_dependency_graph_cycles.py` together with its edge here.
 
 Confirmed edges (direct source evidence —
 `scripts/agent/services/mcp_tool_discovery.py` fetches every MCP server's
-`/v1/tools` over HTTP):
+`/v1/tools` over HTTP; `scripts/agent/eventbus_client.py` publishes to the Event Bus
+`/publish` endpoint over HTTP):
 - Agent → MCP
 - Agent → Shared/DB
 - EventBus → Shared/DB
+- Agent → EventBus
 
 Planned (design intent, not yet implemented; confirmed 2026-09-14 — these are
 intended future integrations rather than a documentation error; no corresponding
@@ -101,7 +101,6 @@ import or HTTP-publish call exists in current source, and none is expected until
 each integration is implemented):
 - RAG → EventBus
 - MCP → EventBus
-- Agent → EventBus
 
 Not represented as an edge: no direct RAG ↔ Agent call path exists in current
 source (`scripts/agent/` contains no import of `scripts/rag/`) — RAG-related

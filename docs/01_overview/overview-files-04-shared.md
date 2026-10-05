@@ -49,11 +49,11 @@ Schema initialization, connection management (WAL mode, busy_timeout), and maint
 
 #### Health Check-Based Dispatch Control
 
-Health checks using `mcp_health.py` enable dispatch control based on server status (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN).
+Health checks using `mcp_health.py` enable dispatch control based on server status (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN/UNKNOWN).
 
 #### Drift Validation Behavior
 
-Config Drift defaults to warnings, raises RuntimeError if `routing_drift_strict` enabled. Live Drift defaults to warnings, becomes FATAL if `tool_definitions_strict` enabled or `security_profile == PRODUCTION`. Ownership Duplication always results in FATAL regardless of mode.
+Config Drift defaults to warnings, raises RuntimeError if `routing_drift_strict` enabled. Live Drift defaults to warnings, becomes FATAL if `tool_definitions_strict` enabled. Ownership Duplication always results in FATAL regardless of mode.
 
 ## Keywords
 

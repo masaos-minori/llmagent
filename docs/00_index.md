@@ -7,7 +7,8 @@ tags:
   - index
 related:
   - overview_00_document-guide.md
-  - deployment_01_deployment.md
+  - deployment_00_document-guide.md
+  - security_00_document-guide.md
   - rag_00_document-guide.md
   - mcp_00_document-guide.md
   - agent_00_document-guide.md
@@ -21,7 +22,8 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 ## Categories
 
 - [Overview](01_overview/overview_00_document-guide.md) — System-wide architecture and file structure
-- [Deployment](90_deployment/deployment_01_deployment.md) — Environment setup and deployment procedures
+- [Deployment](90_deployment/deployment_00_document-guide.md) — Environment setup and deployment procedures
+- [Security](91_security/security_00_document-guide.md) — Trust boundaries and high-risk tool policy
 - [RAG](21_rag/rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
 - [MCP](22_mcp/mcp_00_document-guide.md) — Model Context Protocol servers
 - [Agent](23_agent/agent_00_document-guide.md) — Agent REPL system and operation
@@ -38,7 +40,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 ## Recommended Reading Order
 
 1. [System Overview](01_overview/overview_00_document-guide.md) — Start here to understand the overall system picture
-2. [Deployment Guide](90_deployment/deployment_01_deployment.md) — Set up your environment
+2. [Deployment Guide](90_deployment/deployment_00_document-guide.md) — Set up your environment
 3. Select an area of interest:
    - [RAG Pipeline](21_rag/rag_00_document-guide.md)
    - [MCP Servers](22_mcp/mcp_00_document-guide.md)
@@ -107,10 +109,9 @@ Migrated from `/routing.md`. Load only the necessary documents according to the 
 | ToolRouteResolver / route_resolver.py | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | ServerLifecycleManager / lifecycle.py | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/agent_02_runtime-architecture.md` |
 | ToolSpec / tool_spec.py (execution metadata DAG) | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
-| tool_cache.py (_CacheEntry LRU cache) | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
-| TransportType / StartupMode / HealthcheckMode enums (mcp_config.py) | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `22_mcp/mcp_06_02_configuration-file-inventory.md` |
+| tool_cache.py (CacheEntry LRU cache) | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
+| TransportType / StartupMode enums (mcp_config.py) | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `22_mcp/mcp_06_02_configuration-file-inventory.md` |
 | MCP security model (allowlist / denylist / fail-closed) | `22_mcp/mcp_05_01_access-control-and-allowlists.md` |
-|---|---|
 | System security architecture / trust boundaries / threat model | `91_security/security_01_architecture-and-trust-boundaries.md` |
 | High-risk MCP tool policy (path/repo allowlists, traversal prevention, approval-to-risk-tier mapping) | `91_security/security_02_high-risk-tool-common-policy.md` |
 | Any MCP server (catalog only) | `22_mcp/mcp_04_01_web-search-file-read-github.md` |

@@ -101,14 +101,14 @@ There is no disable, fallback, or workflow-optional mode.
 
 ### 2.3 Registering and Starting LLM Services
 
-`deploy/setup_services.sh` initializes the LLM services.
+`deploy/setup_services.sh` runs the workflow pre-flight checks and starts the Event Bus. It does not start LLM services (only echoes their names) or MCP servers.
 
 MCP servers (ports 8004-8014) auto-start as agent-managed subprocesses on agent startup.
 
 **Workflow pre-flight responsibilities (setup_services.sh):**
 - Re-checks that the deployed workflow definition (`/opt/llm/config/workflows/default.json`) exists and re-validates it
 - Re-checks that `workflow.sqlite` exists with all required tables and a matching schema version
-- Services (Event Bus, LLM, MCP) are started **only if** all workflow checks pass — a failure here aborts before any service is spawned
+- The Event Bus is started **only if** all workflow checks pass — a failure here aborts before any service is spawned
 
 ```bash
 bash deploy/setup_services.sh
@@ -201,13 +201,12 @@ this procedure against a real deployment before then. Immediately before executi
 re-run the Current State inspection above rather than relying solely on this
 document's recorded finding.
 
-**Note (2026-09-04)**: as of this writing, the four dependency Plans above (plus
+**Note (2026-09-04)**: as of this writing, the three dependency Plans above (plus
 `localcleanup`, `plans/done/20260903-092746_plan.md`) have all landed, making this
 the current, canonical migration procedure. For authentication-specific
 troubleshooting after following the steps above, see
 [`mcp_06_17_mcp-authentication-setup.md`](../22_mcp/mcp_06_17_mcp-authentication-setup.md)'s
-Troubleshooting section — that document's own Migration Steps are historical and
-superseded by this procedure.
+Troubleshooting section.
 
 ---
 
@@ -235,6 +234,7 @@ bash deploy/init_db.sh
 ```
 
 **Responsibilities of init_db.sh:**
+- Runs `db/create_schema.py` to initialize the rag, session, workflow, and eventbus databases
 - Creates `workflow.sqlite` and 5 mandatory tables (tasks, attempts, processed_events, artifacts, approvals)
 - Applies incremental schema migrations (idempotent)
 - Verifies all 5 tables exist; aborts if any are missing
@@ -259,7 +259,7 @@ bash deploy/init_db.sh
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
-For the production `require_approval` category policy (which categories require a post-execution approval gate, and the local-dev exception), see [Approval Gate](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gate).
+For the production `require_approval` category policy (which categories require a post-execution approval gate, and the local-dev exception), see [Approval Gates](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gates).
 
 Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of approval state), see [ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md).
 

@@ -30,13 +30,12 @@ source:
 
 This document defines a common security policy for high-risk MCP tools that perform write operations, execute commands, or modify external resources. The policy governs the following tool categories:
 
-- **File-write** (`file-write-mcp`): Create, write, edit, move, copy, delete files/directories
+- **File-write** (`file-write-mcp`): Create, write, edit, move files/directories
 - **File-delete** (`file-delete-mcp`): Delete files and directories
 - **Shell** (`shell-mcp`): Execute shell commands
 - **Git** (`git-mcp`): Git operations (checkout, commit, push, pull, branch)
 - **GitHub** (`github-mcp`): GitHub API operations (repos, issues, PRs, files)
 - **CI/CD** (`cicd-mcp`): CI/CD pipeline operations
-- **DB maintenance** (`db-mcp`): Database maintenance operations
 
 The **mdq** server is included as the reference implementation of traversal prevention patterns, which this policy generalizes to all filesystem-touching high-risk tools.
 
@@ -122,8 +121,8 @@ The following table reproduces the authoritative approval-to-risk-tier mapping f
 |---|---|---|---|
 | `READ_ONLY` | Read-only operations; no side effects | None (auto-approved) | `read_text_file`, `list_directory`, `github_list_issues` |
 | `WRITE_SAFE` | Write operations with limited blast radius | User approval (configurable) | `write_file`, `create_directory`, `github_create_issue` |
-| `WRITE_DANGEROUS` | Destructive or high-impact writes | User approval (mandatory) | `delete_file`, `delete_directory`, `shell_run`, `github_push_files`, `github_merge_pull_request` |
-| `ADMIN` | Administrative/privileged operations | Admin approval + audit | `delete_repo`, `cicd_deploy`, `db_maintenance` |
+| `WRITE_DANGEROUS` | Destructive or high-impact writes | User approval (mandatory) | `delete_file`, `delete_directory`, `github_push_files`, `github_merge_pull_request` |
+| `ADMIN` | Administrative/privileged operations | Admin approval + audit | `shell_run` |
 
 **Cross-linked with approval-execution flow**: `agent_06_01_tool-execution-and-approval-execution.md` and `agent_06_02_tool-execution-and-approval-approval.md` define how approval is requested, granted, and audited.
 
@@ -141,7 +140,7 @@ All high-risk tool executions emit audit log entries with the following fields:
 | `mcp_request_id` | MCP request ID (if applicable) |
 | `is_error` | Boolean |
 | `error_type` | Error category (`transport`, `tool`, `validation`, etc.) |
-| `ts` | Timestamp (ISO 8601) |
+| `ts` | Timestamp (Unix epoch seconds, float) |
 | `session_id` | Agent session ID |
 | `tool_args` | Redacted tool arguments (per redaction rules) |
 

@@ -54,13 +54,11 @@ Documents in the design documentation set are classified into seven classes:
 
 ## Canonical Source Precedence
 
-When conflicts arise between documentation and code/config, the following precedence applies:
-
-The ranking table above is no longer normative. It has been superseded by the Claim Type Taxonomy and Decision Target Canonical Source Matrix below, which resolve canonical authority at the level of individual claims rather than whole-document-level rankings.
+Canonical authority is resolved by the Claim Type Taxonomy and the Decision Target Canonical Source Matrix below, at the level of individual claims rather than whole-document-level rankings.
 
 ## Claim Type Taxonomy
 
-The Claim Type Taxonomy resolves canonical authority at the level of individual claims rather than whole-document-level rankings. It supersedes the "Canonical Source Precedence" ranking above only once M-01-02 completes the replacement.
+The Claim Type Taxonomy resolves canonical authority at the level of individual claims rather than whole-document-level rankings.
 
 ### architecture-decision
 
@@ -209,7 +207,7 @@ When two documents contradict each other:
 
 1. Identify the area(s) each document belongs to
 2. Determine if both documents are in the same area — if so, consult the area's document-guide for the canonical source
-3. If documents span different areas, identify the decision target the conflict concerns and apply the Decision Target Canonical Source Matrix (see `## Canonical Source Precedence` > `### Decision Target Canonical Source Matrix`) to determine the authoritative source for that decision target
+3. If documents span different areas, identify the decision target the conflict concerns and apply the Decision Target Canonical Source Matrix (see `## Claim Type Taxonomy` > `### Decision Target Canonical Source Matrix`) to determine the authoritative source for that decision target
 4. If neither rule resolves the conflict, register a Known Issue and defer resolution until the next review cycle
 
 ## Code vs Document Conflict Rule
