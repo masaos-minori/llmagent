@@ -124,10 +124,10 @@ Delete the test file if the retry helper change is reverted.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Deviation: origin/master already ships tests/agent/test_retry_helper.py; did not create a new file. Fixed test_startup_rollback mock-exhaustion regression and updated test_startup_approval_recovery OSError assertion to reflect preserved-type contract. |
+| 2 | Add or update tests per Validation plan | Completed | — | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
