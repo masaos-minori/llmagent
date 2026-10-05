@@ -88,7 +88,7 @@ Japanese BM25 search requires normalization by morphological analysis, but the c
 - **Target processes**: the Agent process and the ingester process
 - **Target data**: the `chunks` table, the `chunks_fts` virtual table
 - **Target Environment Profile**: all environments (local/dev/production)
-- **Target APIs or processing paths**: `AugmentStage.run()`, `_format_chunks()`, `RagRepository.rebuild_fts()`
+- **Target APIs or processing paths**: `AugmentStage.run()`, `_format_chunks()` (`scripts/rag/stages/augment.py`), `RagMaintenanceService.rebuild_fts()`
 
 ### Out of Scope
 
@@ -257,7 +257,6 @@ None
 ### Fail-Open or Degraded Conditions
 
 - In the local development environment, minor consistency mismatches are recorded as warnings
-- In the local profile, a Health Check failure is recorded as a warning and the specific server is disabled
 
 ### Retry Policy
 
@@ -446,15 +445,15 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 - `scripts/rag/ingestion/document_manager.py` — `DocumentManager.delete_existing_document()`, `delete_document_chain()`
 - `scripts/agent/services/rag_maintenance_service.py` — `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`
-- `scripts/db/maintenance.py` — `check_rag_consistency()`
+- `scripts/db/rag_consistency.py` — `check_rag_consistency()`
 - `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`
 - `documents` table — `url` UNIQUE, `title`, `lang`, `fetched_at`, `etag`, `last_modified`, `chunking_strategy`
 - `chunks` table — `content`, `normalized_content`, `chunk_index`, `chunk_type`, `doc_id` FK
 - `chunks_fts` virtual table — FTS5 trigger synchronization
 - `chunks_vec` virtual table — sqlite-vec KNN index
 - Triggers — `chunks_ai`, `chunks_au`, `chunks_ad`
-- Tests — `tests/test_rag_index_integrity.py` (TEST-DESIGN3-01 to 05)
-- Tests — `tests/test_fts_fallback.py`
+- Tests — `tests/agent/services/test_rag_index_integrity.py` (TEST-DESIGN3-01 to 05)
+- Tests — `tests/rag/test_fts_fallback.py`
 
 ## Completion Checklist
 

@@ -373,11 +373,11 @@ Record any discrepancy between this ADR and the current implementation, configur
 - **Impact**: Compatibility with existing file-based offsets
 - **Resolution Target**: Remove the legacy path after the migration period ends
 
-- **Known Issue (updated 2026-09-04)**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed (`plans/done/20260903-091921_plan.md`): `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. However, the authentication middleware itself is still not implemented, and same-host access via loopback or an SSH tunnel still has no authentication layer. Static bearer token validation is planned but not implemented.
+- **Known Issue (updated 2026-09-04)**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed (`plans/done/20260903-091921_plan.md`): `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gaps are tracked under ADR-013 Known Deviations.
 - **Type**: Security Gap
-- **Summary**: The authentication model is not implemented (a public bind itself has been removed)
-- **Impact**: Access within the same host or via an SSH tunnel has no authentication layer (direct external exposure cannot be configured)
-- **Resolution Target**: Authentication must be implemented
+- **Summary**: The authentication model is implemented per ADR-013 (a public bind itself has been removed)
+- **Impact**: Access within the same host or via an SSH tunnel is authenticated (direct external exposure cannot be configured)
+- **Resolution Target**: Residual gaps are tracked in ADR-013 Known Deviations
 
 ### Enforced Invariants (post-implementation)
 
@@ -459,7 +459,10 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/eventbus/broker.py` — `EventBroker.publish()`
 - `scripts/eventbus/publish_route.py` — `publish()`
 - `scripts/eventbus/subscribe_route.py` — `subscribe()`
-- `scripts/eventbus/db.py` — `ack_event()`, `ack_event_for_consumer()`, `nack_event()`, `insert_event()`, `get_consumer_offset()`, `migrate_legacy_offsets()`
+- `scripts/eventbus/delivery_repo.py` — `ack_event()`, `ack_event_for_consumer()`, `nack_event()`, `get_consumer_offset()`
+- `scripts/eventbus/event_repo.py` — `insert_event()`
+- `scripts/eventbus/offset_migrator.py` — `migrate_legacy_offsets()`
+- `scripts/eventbus/db.py` — facade that re-exports the functions above
 - `scripts/eventbus/dlq.py` — `promote_single()`
 - `scripts/eventbus/offsets.py` — `write_offset()`, `read_offset()`
 - `events` table — `seq`, `event_id`, `topic`, `payload`, `acked_at`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`
@@ -467,7 +470,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `consumer_offsets` table — `consumer_id` PRIMARY KEY, `offset INTEGER NOT NULL DEFAULT 0`
 - Offset files — `{offsets_dir}/{sanitized_consumer_id}` (legacy, being migrated)
 - DLQ promotion paths — inline promotion (on `POST /nack`) and the background loop (every 60 seconds)
-- Tests — `tests/test_eventbus_*.py`, `tests/db/test_create_schema.py`
+- Tests — `tests/eventbus/`, `tests/db/test_create_schema.py`
 
 ## Completion Checklist
 

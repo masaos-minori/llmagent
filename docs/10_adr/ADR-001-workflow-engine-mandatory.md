@@ -10,6 +10,7 @@ decision_scope:
 related:
   - ADR-014-agent-control-plane-responsibility-boundaries.md
   - deployment_01_deployment.md
+  - agent_03_03_turn-processing-flow-workflow-engine.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
 ---
 
@@ -354,7 +355,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 ### Specifications
 
 - [Deployment Guide](../90_deployment/deployment_01_deployment.md) — workflow validation during deployment
-<!-- TODO: Document 'agent_03_03_turn-processing-flow-workflow-engine.md' was deleted -->
+- [Turn Processing Flow](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md) — details of workflow execution
 
 ### Operations
 

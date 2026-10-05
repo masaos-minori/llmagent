@@ -35,7 +35,7 @@ To change the current decision after acceptance, update this ADR body directly. 
 
 ## Summary
 
-EventBus API establishes a fail-closed security boundary by adding Bearer-token authentication middleware, a four-role authorization model (publisher/consumer/operator/monitoring) bound to caller identity, structured audit logging of authorization failures and privileged actions, and fail-closed configuration-key validation — while leaving the already-strict loopback-only bind enforcement untouched.
+EventBus API establishes a fail-closed security boundary by adding Bearer-token authentication middleware, a five-role authorization model (publisher/consumer/operator/monitoring/admin) bound to caller identity, structured audit logging of authorization failures and privileged actions, and fail-closed configuration-key validation — while leaving the already-strict loopback-only bind enforcement untouched.
 
 ## Context
 
@@ -49,9 +49,9 @@ Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in
 
 ### Constraints
 
-- The `.importlinter` `eventbus-is-isolated` contract forbids importing `shared`/`mcp_servers` from `eventbus` — confirmed via `PYTHONPATH=scripts uv run lint-imports`, contract `KEPT`.
+- The `.importlinter` `eventbus-is-isolated` contract forbids importing `agent`/`mcp_servers`/`rag`/`db` from `eventbus` — confirmed via `PYTHONPATH=scripts uv run lint-imports`, contract `KEPT`.
 - The existing `scripts/mcp_servers/server.py::attach_auth_middleware()` and `scripts/mcp_servers/audit.py::AuditRecord` patterns must be mirrored conceptually but reimplemented locally, not imported.
-- Migrating EventBus configuration loading to `scripts/shared/config_loader.py`'s `ConfigLoader` is architecturally prohibited (ADR-002 already documented and accepted this local-invariant exception).
+- EventBus configuration loading uses `scripts/shared/config_loader.py`'s `ConfigLoader` without `restrict_to()` (ADR-002 already documented and accepted this local-invariant exception); validating keys through a `ConfigLoader`-based schema is not adopted here.
 - Loopback-only binding (`EventBusConfig.__post_init__`, `_LoopbackVerifyingServer`) is already implemented; this ADR does not re-implement or weaken it.
 
 ### Assumptions
@@ -65,12 +65,13 @@ Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in
 
 ### Decision Details
 
-1. **Authentication mechanism**: Bearer token, mirroring `scripts/mcp_servers/server.py::attach_auth_middleware()` pattern — a FastAPI `@app.middleware("http")` function checking `request.headers.get("Authorization", "")` against a configured token. Two kinds of token are accepted: the single shared `auth_token` (grants every role, for backward compatibility with the original single-token deployment model) and an optional per-role token (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role; `admin_token` grants every role, same as `auth_token`). A caller's actual role(s) are resolved from *which* configured token they presented (`scripts/eventbus/auth.py`'s `_TOKEN_ROLE_MAP`), not merely from having presented *a* valid token — `require_role(...)`'s `_check_role` rejects (403) a token whose resolved role(s) do not include the endpoint's required role, even when that token is otherwise valid.
-2. **Authorization model**: Four roles — publisher, consumer, operator, monitoring — each granted a fixed subset of routes:
+1. **Authentication mechanism**: Bearer token, mirroring `scripts/mcp_servers/server.py::attach_auth_middleware()` pattern — a FastAPI `@app.middleware("http")` function checking `request.headers.get("Authorization", "")` against a configured token. Two kinds of token are accepted: the single shared `auth_token` (grants every role, for backward compatibility with the original single-token deployment model) and an optional per-role token (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role; `admin_token` grants every role, same as `auth_token`). A caller's actual role(s) are resolved from *which* configured token they presented (`scripts/eventbus/auth.py`'s `_TOKEN_PRINCIPAL_MAP`), not merely from having presented *a* valid token — `require_role(...)`'s `_check_role` rejects (403) a token whose resolved role(s) do not include the endpoint's required role, even when that token is otherwise valid.
+2. **Authorization model**: Five roles — publisher, consumer, operator, monitoring, admin — each granted a fixed subset of routes:
    - Publisher: POST `/publish`
    - Consumer: GET `/subscribe`, POST `/events/{event_id}/ack`, POST `/nack`
    - Operator: GET `/dlq`, POST `/dlq/{event_id}/requeue`, GET `/replay`
    - Monitoring: GET `/health`
+   - Admin: POST `/admin/topics/authorization`
 3. A consumer's authenticated identity is bound to allowed `consumer_id`s and topics — a caller cannot act as another consumer or access unauthorized topics.
 4. DLQ administration (`/dlq`, `/dlq/{event_id}/requeue`) and privileged replay (`/replay`) require operator permission.
 5. Audit logging of authorization failures and privileged actions, with no secret/token values recorded.
@@ -88,7 +89,7 @@ Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in
 
 - Re-implementing or weakening loopback-only binding (`EventBusConfig.__post_init__`, `_LoopbackVerifyingServer`) — already implemented; this Plan only adds a regression test confirming it.
 - Transactional ACK/offset redesign, backpressure handling, and DLQ requeue redesign — each tracked by a separate Issue/Plan in this batch (`eb_h01`, `eb_h02`, `eb_h03`).
-- Migrating EventBus configuration loading to `scripts/shared/config_loader.py`'s `ConfigLoader` — architecturally prohibited (ADR-002 already resolved this via a documented local-invariant exception).
+- Migrating EventBus configuration loading to `scripts/shared/config_loader.py`'s `ConfigLoader` for key validation — not adopted (ADR-002 already resolved this via a documented local-invariant exception).
 - Correcting the stale `CI-001` status/Recommended-Action text in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (pre-existing documentation inconsistency unrelated to this Issue's stated Target Files).
 - Choosing between static bearer token / rotatable service token / mutual TLS / reverse-proxy authentication as an open research question — this Plan resolves it to static bearer token.
 
@@ -148,21 +149,21 @@ Consistent configuration validation across the project; centralized schema manag
 
 #### Disadvantages
 
-Architecturally prohibited by `.importlinter` `eventbus-is-isolated` contract; ADR-002 already documented and accepted the local-invariant exception.
+ADR-002 already documented and accepted the local-invariant exception (EventBus loads its configuration through `ConfigLoader` without `restrict_to()`).
 
 #### Reason for Rejection
 
-ADR-002 explicitly documents this exception — EventBus cannot import ConfigLoader. Implement equivalent local validation instead.
+ADR-002 explicitly documents this exception. Implement equivalent local validation instead.
 
 ## Consequences
 
 ### Positive Consequences
 
 - EventBus API has a fail-closed security boundary with authentication and authorization.
-- Clear separation of concerns between roles (publisher/consumer/operator/monitoring).
+- Clear separation of concerns between roles (publisher/consumer/operator/monitoring/admin).
 - Audit trail for security events without recording secrets.
 - Configuration typos and unknown keys are rejected rather than silently accepted.
-- Per-role tokens make the four-role model actually enforceable: a caller holding
+- Per-role tokens make the five-role model actually enforceable: a caller holding
   only a `consumer_token` cannot reach a `Role.PUBLISHER`/`Role.OPERATOR`-gated
   route, closing a gap where any caller holding the single shared token could
   previously reach every endpoint regardless of role.
@@ -201,23 +202,23 @@ ADR-002 explicitly documents this exception — EventBus cannot import ConfigLoa
 
 ### Implementation Procedures
 
-- `implementations/20260910-171554_01_docs_adr_ADR-013-eventbus-authentication-authorization.md`: Create ADR document
-- `implementations/20260910-171554_02_scripts_eventbus_auth_py.md`: Create auth module
-- `implementations/20260910-171554_03_scripts_eventbus_app_py.md`: Modify app.py
-- `implementations/20260910-171554_04_scripts_eventbus_subscribe_route_py.md`: Modify subscribe_route.py
-- `implementations/20260910-171554_05_scripts_eventbus_ack_route_py.md`: Modify ack_route.py
-- `implementations/20260910-171554_06_scripts_eventbus_dlq_route_py.md`: Modify dlq_route.py
-- `implementations/20260910-171554_07_scripts_eventbus_replay_route_py.md`: Modify replay_route.py
-- `implementations/20260910-171554_08_scripts_eventbus_config_py.md`: Modify config.py
-- `implementations/20260910-171554_09_scripts_eventbus_audit_py.md`: Create audit module
-- `implementations/20260910-171554_10_docs_00_security_01_architecture-and-trust-boundaries_md.md`: Modify security doc
-- `implementations/20260910-171554_11_tests_eventbus_test_eventbus_config_py.md`: Modify config tests
-- `implementations/20260910-171554_12_tests_eventbus_test_eventbus_auth_py.md`: Create auth tests
+- `implementations/done/20260910-171554_01_docs_adr_ADR-013-eventbus-authentication-authorization.md`: Create ADR document
+- `implementations/done/20260910-171554_02_scripts_eventbus_auth_py.md`: Create auth module
+- `implementations/done/20260910-171554_03_scripts_eventbus_app_py.md`: Modify app.py
+- `implementations/done/20260910-171554_04_scripts_eventbus_subscribe_route_py.md`: Modify subscribe_route.py
+- `implementations/done/20260910-171554_05_scripts_eventbus_ack_route_py.md`: Modify ack_route.py
+- `implementations/done/20260910-171554_06_scripts_eventbus_dlq_route_py.md`: Modify dlq_route.py
+- `implementations/done/20260910-171554_07_scripts_eventbus_replay_route_py.md`: Modify replay_route.py
+- `implementations/done/20260910-171554_08_scripts_eventbus_config_py.md`: Modify config.py
+- `implementations/done/20260910-171554_09_scripts_eventbus_audit_py.md`: Create audit module
+- `implementations/done/20260910-171554_10_docs_00_security_01_architecture-and-trust-boundaries_md.md`: Modify security doc
+- `implementations/done/20260910-171554_11_tests_eventbus_test_eventbus_config_py.md`: Modify config tests
+- `implementations/done/20260910-171554_12_tests_eventbus_test_eventbus_auth_py.md`: Create auth tests
 
 ### Source Documents
 
-- Source issue: issues/20260907-125042_eb_h04_eventbus_authentication_authorization.md
-- Source plan: plans/20260909-101237_plan.md
+- Source issue: issues/done/20260907-125042_eb_h04_eventbus_authentication_authorization.md
+- Source plan: plans/done/20260909-101237_plan.md
 
 ## Invariants
 
@@ -283,7 +284,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-`docs/00_governance/governance_03_issue-and-uncertainty-management.md`'s CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, resolved 2026-09-15) is resolved. Residual gaps from EVENTBUS-008 (token with no configured consumer_id allowlist entry has consumer-identity validation skipped — fail-open) are tracked separately in `issues/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`.
+`docs/00_governance/governance_03_issue-and-uncertainty-management.md`'s CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, resolved 2026-09-15) is resolved. Residual gaps from EVENTBUS-008 (token with no configured consumer_id allowlist entry has consumer-identity validation skipped — fail-open) are tracked separately in `issues/done/20260914-102317_eventbus03_consumer-topic-authorization-ack-nack.md`.
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -291,7 +292,7 @@ Do not unconditionally align the ADR text with the current implementation; manag
 
 - EventBus is exposed to callers other than the single trusted Agent process.
 - A legitimate operational need for token rotation is identified (triggers designing the separate administrative capability referenced in Decision Details #1).
-- The `.importlinter` `eventbus-is-isolated` contract is relaxed to allow importing from `shared`/`mcp_servers`.
+- The `.importlinter` `eventbus-is-isolated` contract is relaxed to allow importing from `mcp_servers`.
 
 ## Approval
 
@@ -323,7 +324,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Implementation References
 
-- `scripts/eventbus/auth.py` — `verify_bearer_token()`, `require_role()`, `require_consumer_identity()`
+- `scripts/eventbus/auth.py` — `attach_auth_middleware()`, `require_role()`, `require_consumer_identity()`
 - `scripts/eventbus/audit.py` — `AuditRecord`, `log_auth_failure()`, `log_privileged_action()`
 - `scripts/mcp_servers/server.py` — `attach_auth_middleware()` (precedent pattern)
 - `scripts/mcp_servers/audit.py` — `AuditRecord` (precedent pattern)
@@ -338,7 +339,7 @@ authentication
 authorization
 bearer-token
 security-boundary
-four-role-model
+five-role-model
 
 ## Completion Checklist
 

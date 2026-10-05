@@ -98,7 +98,7 @@ Leave Reference-class documents hand-maintained and accept ongoing drift risk, t
 
 ### Negative Consequences
 
-- Requires building new `tools/generate_reference_table.py` generator functions (Agent/EventBus/Memory, and any other domain with a Reference document) before migration can happen for those domains — tracked separately, not implemented by this ADR.
+- Requires a `tools/generate_reference_table.py` generator function for any other domain with a Reference document before migration can happen for that domain — tracked separately, not implemented by this ADR. Generators for Agent/EventBus/Memory already exist.
 - `GV-021`'s guard-comment exemption must actually recognize the real `<!-- AUTO-GENERATED: <generator>.py <purpose> -->` format (a pre-existing bug where it only matches a literal bare string) before newly generated guarded blocks are exempt from mechanical-content warnings — tracked separately, not implemented by this ADR.
 
 ## Invariants
@@ -118,7 +118,7 @@ This chapter is not a basis for design decisions. List detailed APIs, Classes, a
 
 ## Known Deviations
 
-Not applicable — no existing Reference-class document has yet been migrated to generated status under this decision.
+Not applicable — Agent and EventBus Reference-class documents are already migrated to generated status under this decision (see Implementation Notes).
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -143,7 +143,7 @@ This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance E
 ## Related Documents
 
 - [Documentation Policy](../00_governance/governance_01_documentation-policy.md) — Document Classification, ADR Section Header Standardization, ADR Acceptance Evidence Standard
-- `tools/generate_reference_table.py` — existing Option B precedent (rag/mcp/deployment generators)
+- `tools/generate_reference_table.py` — existing Option B precedent (rag/mcp/deployment/agent/eventbus/memory generators)
 - `tools/check_docs_content_policy.py` — `GV-021`'s guard-comment exemption, currently mismatched against the real guard format (tracked separately)
 
 ## Completion Checklist

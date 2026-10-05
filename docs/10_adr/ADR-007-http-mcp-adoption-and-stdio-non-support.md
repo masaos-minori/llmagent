@@ -263,13 +263,12 @@ None
 ### Fail-Open or Degraded Conditions
 
 - In the local development environment, minor consistency mismatches are recorded as warnings
-- In the local profile, a Health Check failure is recorded as a warning and the specific server is disabled
 
 ### Retry Policy
 
 - Retry target: HTTP 429/502/503/504
 - Retry count: up to 3
-- Backoff: decreasing delay (4s, 2s, 1s); note that this is not exponential backoff
+- Backoff: increasing delay between attempts (`scripts/shared/http_transport.py`)
 - Errors not retried: timeouts, other HTTP status codes
 
 If not applicable, write "Not applicable".
@@ -439,7 +438,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/shared/mcp_health.py` — `McpServerHealthRegistry.record_failure()`
 - `config/*_mcp_server.toml` — MCP server configuration files, authentication tokens (environment variables or secret files)
 - HTTP endpoints — `POST /v1/call_tool`, `GET /v1/tools`, `GET /health`
-- Tests — `tests/test_mcp_*.py`
+- Tests — `tests/mcp_servers/`, `tests/shared/test_mcp_config.py`, `tests/shared/test_mcp_health.py`
 
 ## Completion Checklist
 

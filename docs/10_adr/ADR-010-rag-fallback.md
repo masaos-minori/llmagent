@@ -71,7 +71,7 @@ The RAG pipeline depends heavily on the external RAG service, so a network failu
 3. The HTTP call is made by `call_rag_service()`, and each attempt is controlled by `timeout=10.0`.
 4. HTTP errors (401, 403, 4xx, 5xx) are distinguished from empty results (`""`).
 5. An empty result is treated as a valid result and does not trigger fallback.
-6. Only technical failures (timeouts, connection errors, HTTP errors) are fallback conditions.
+6. Only technical failures (timeouts, connection errors, HTTP errors other than authentication errors 401/403, which do not fall back) are fallback conditions.
 7. On fallback, the whole pipeline MQE → KNN/BM25 → RRF → Rerank → Augment is re-executed.
 8. The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
 9. Parse errors are logged and treated as empty results.
@@ -227,7 +227,7 @@ If not applicable, write "Not applicable".
 - INV-01: The execution mode is switched by whether `rag_service_url` is set.
 - INV-02: Each HTTP call attempt is controlled by `timeout=10.0`.
 - INV-03: An empty result is treated as a valid result and does not trigger fallback.
-- INV-04: Only technical failures (timeouts, connection errors, HTTP errors) are fallback conditions.
+- INV-04: Only technical failures (timeouts, connection errors, HTTP errors other than authentication errors 401/403, which do not fall back) are fallback conditions.
 - INV-05: On fallback, the whole pipeline MQE → KNN/BM25 → RRF → Rerank → Augment is re-executed.
 - INV-06: The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
 - INV-07: Parse errors are logged and treated as empty results.
@@ -250,7 +250,6 @@ None
 ### Fail-Open or Degraded Conditions
 
 - In the local development environment, minor consistency mismatches are recorded as warnings
-- In the local profile, a Health Check failure is recorded as a warning and the specific server is disabled
 
 ### Retry Policy
 
@@ -410,13 +409,13 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Implementation References
 
-- `scripts/rag/pipeline.py` — `RagPipeline.augment()`, `RagPipeline._format_chunks()`
+- `scripts/rag/pipeline.py` — `RagPipeline.augment()`, `_format_chunks()` in `scripts/rag/stages/augment.py`
 - `scripts/rag/pipeline_service.py` — `call_rag_service()`
 - `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`
 - `scripts/rag/stages/augment.py` — `AugmentStage.run()`
 - `rag.sqlite` — `documents`, `chunks`, `chunks_fts`, `chunks_vec`
 - Triggers — `chunks_ai`, `chunks_au`, `chunks_ad`
-- Tests — `tests/test_rag_pipeline.py`, `tests/test_rag_pipeline_stage.py`
+- Tests — `tests/rag/test_rag_pipeline.py`, `tests/rag/test_rag_pipeline_stage.py`
 
 ## Completion Checklist
 

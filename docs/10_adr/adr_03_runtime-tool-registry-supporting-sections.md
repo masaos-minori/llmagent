@@ -164,7 +164,7 @@ Confuses call-time Policy decisions with per-Tool availability flags.
   - **Verifies**: INV-04 (Decision Detail #15)
   - **Type**: Integration
   - **Blocking**: No (warning only; in strict mode startup is aborted, but the Routing decision itself is not affected)
-  - **Test files**: `tests/agent/test_startup_routing_drift.py`, `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py`, `tests/shared/test_tool_registry.py`, `tests/shared/test_tool_safety_tiers.py`
+  - **Test files**: `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py`, `tests/shared/test_tool_registry.py`, `tests/shared/test_tool_safety_tiers.py`
 
 - **Test**: Routing, approval, and auditing reference the same Safety Tier
   - **Verifies**: INV-03

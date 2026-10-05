@@ -79,7 +79,7 @@ When routing from a Tool name to an MCP server happens through multiple paths, o
 12. Dynamic Health state must not automatically change LLM visibility (such as `enabled_for_llm`).
 13. An Approval requirement is not a kind of disabled Tool state. Approval is owned by `agent/tool_policy.py`/`tool_approval.py` and is a per-call policy decision applied after Routing is resolved (risk can vary with arguments); it must not be represented as, or confused with, a disabled Tool.
 14. Reflecting Discovery-derived Tool definitions (`raw_definition`, the static `status`, and so on) requires a full restart of the Agent process. Unless the currently approved specification explicitly defines Rediscovery, a Reload operation updates only Policy-derived fields such as Safety Tier and allowlist-derived LLM visibility, and does not re-obtain Discovery-derived Tool definitions. Reload behavior is described only to the extent currently supported.
-15. The static `ToolRegistry` may be used only as input data for startup Drift validation (comparison of the configured `tool_names` and the runtime `/v1/tools` responses by `shared/tool_routing_validation.py`, invoked via `agent/services/routing_drift.py`). This use is not a Routing decision itself; it is a diagnostic verification that warns after the fact about the validity of the already determined `RuntimeToolRegistry`-based Routing result, and it does not change the principle that `ToolRouteResolver.resolve()` references only `RuntimeToolRegistry` (Decision Detail #3, INV-02). (Added 2026-09-02; see `issues/20260831-181721_adr003_01_tool_routing_validation_status_decision.md`.)
+15. The static `ToolRegistry` may be used only as input data for startup Drift validation (comparison of the configured `tool_names` and the runtime `/v1/tools` responses by `shared/tool_routing_validation.py`, invoked via `agent/services/routing_drift.py`). This use is not a Routing decision itself; it is a diagnostic verification that warns after the fact about the validity of the already determined `RuntimeToolRegistry`-based Routing result, and it does not change the principle that `ToolRouteResolver.resolve()` references only `RuntimeToolRegistry` (Decision Detail #3, INV-02). (Added 2026-09-02; see `issues/done/20260831-181721_adr003_01_tool_routing_validation_status_decision.md`.)
 
 ### Responsibility Boundaries
 
@@ -290,7 +290,7 @@ No confirmed deviations.
 - `scripts/shared/tool_executor.py::ToolExecutor`
 - `[mcp_servers.*]` in `config/agent.toml`
 - The frozensets in `tool_constants.py` (for tests and documentation generation)
-- Tests — `tests/unit/test_runtime_tool_registry.py`, `tests/unit/test_route_resolver.py`
+- Tests — `tests/shared/test_runtime_tool_registry.py`, `tests/shared/test_route_resolver.py`
 
 ## Completion Checklist
 

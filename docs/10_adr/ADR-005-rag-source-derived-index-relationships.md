@@ -93,7 +93,7 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
 - **Target processes**: the Agent process and the ingester process
 - **Target data**: the `documents` table, the `chunks` table, the `chunks_fts` virtual table, the `chunks_vec` virtual table
 - **Target Environment Profile**: all environments (local/dev/production)
-- **Target APIs or processing paths**: `DocumentManager.delete_existing_document()`, `DocumentManager.delete_document(url)`, `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`
+- **Target APIs or processing paths**: `DocumentManager.delete_existing_document()`, `delete_document_chain()`, `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`
 
 ### Out of Scope
 
@@ -290,31 +290,31 @@ If not applicable, write "Not applicable".
   - **Verifies**: INV-02
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/test_rag_index_integrity.py::test_deletion_order_invariant` (TEST-DESIGN3-04)
+  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_canonical_deletion_leaves_no_orphans_and_cascades_chunks` (TEST-DESIGN3-04)
 
 - **Test**: Deleting `documents` cascades the deletion to `chunks`
   - **Verifies**: INV-02
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/test_rag_index_integrity.py::test_force_reingest_no_orphan_vectors` (TEST-DESIGN3-03)
+  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_delete_document_chain_no_orphan_vec` (TEST-DESIGN3-03)
 
 - **Test**: The output of the FTS Trigger and of a manual rebuild match
   - **Verifies**: INV-03
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/test_rag_index_integrity.py::test_fts_rebuild_uses_cascade` (TEST-DESIGN3-01)
+  - **Implementation**: `tests/rag/test_fts_sync.py::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`
 
 - **Test**: The consistency check detects Gaps and Orphans
   - **Verifies**: INV-04
   - **Type**: Regression
   - **Blocking**: Yes
-  - **Implementation**: `tests/test_rag_index_integrity.py::test_consistency_check_detects_fts_gap` (TEST-DESIGN3-05)
+  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_consistency_check_detects_fts_gap` (TEST-DESIGN3-05)
 
 - **Test**: `chunks_fts` is derived from `chunks` (no direct INSERTs)
   - **Verifies**: INV-01
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/test_rag_index_integrity.py::test_chunks_fts_is_derived_index` (TEST-DESIGN3-02)
+  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_chunks_fts_is_trigger_synced` (TEST-DESIGN3-02)
 
 ### Startup Validation
 
@@ -430,15 +430,15 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 - `scripts/rag/ingestion/document_manager.py` — `DocumentManager.delete_existing_document()`, `delete_document_chain()`
 - `scripts/agent/services/rag_maintenance_service.py` — `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`
-- `scripts/db/maintenance.py` — `check_rag_consistency()`
+- `scripts/db/rag_consistency.py` — `check_rag_consistency()`
 - `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`
 - `documents` table — `url` UNIQUE, `title`, `lang`, `fetched_at`, `etag`, `last_modified`, `chunking_strategy`
 - `chunks` table — `content`, `normalized_content`, `chunk_index`, `chunk_type`, `doc_id` FK
 - `chunks_fts` virtual table — FTS5 trigger synchronization
 - `chunks_vec` virtual table — sqlite-vec KNN index
 - Triggers — `chunks_ai`, `chunks_au`, `chunks_ad`
-- Tests — `tests/test_rag_index_integrity.py` (TEST-DESIGN3-01 to 05)
-- Tests — `tests/test_fts_fallback.py`
+- Tests — `tests/agent/services/test_rag_index_integrity.py` (TEST-DESIGN3-01 to 05)
+- Tests — `tests/rag/test_fts_fallback.py`
 
 ## Completion Checklist
 

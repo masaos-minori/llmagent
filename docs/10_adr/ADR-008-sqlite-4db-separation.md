@@ -197,17 +197,17 @@ This section is maintained in the companion document: [Verification](adr_08_sqli
 
 ## Known Deviations
 
-- **Known Issue (updated 2026-09-04)**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed (`plans/done/20260903-091921_plan.md`): `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. However, the authentication middleware itself is still not implemented, and same-host access via loopback or an SSH tunnel still has no authentication layer.
+- **Known Issue (updated 2026-09-04)**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed (`plans/done/20260903-091921_plan.md`): `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gaps are tracked under ADR-013 Known Deviations.
   - **Type**: Security Gap
-  - **Summary**: The EventBus authentication model is not implemented (a public bind itself has been removed)
-  - **Impact**: Access within the same host or via an SSH tunnel has no authentication layer (direct external exposure cannot be configured)
-  - **Resolution Target**: Authentication must be implemented
+  - **Summary**: The EventBus authentication model is implemented per ADR-013 (a public bind itself has been removed)
+  - **Impact**: Access within the same host or via an SSH tunnel is authenticated (direct external exposure cannot be configured)
+  - **Resolution Target**: Residual gaps are tracked in ADR-013 Known Deviations
 
-- **Resolved Issue**: `recover_corruption()` (`scripts/db/recovery.py`) treats the Unknown classification (`DbCondition.UNKNOWN`) the same as the Corruption classification and, for `rag`/`session`, automatically attempts to restore from a backup. At present this does not satisfy INV-17 (an Unknown or unclassifiable failure preserves the target DB and requires operator intervention).
+- **Resolved Issue**: `recover_corruption()` (`scripts/db/recovery.py`) formerly treated the Unknown classification (`DbCondition.UNKNOWN`) the same as the Corruption classification and, for `rag`/`session`, automatically attempted to restore from a backup, which did not satisfy INV-17 (an Unknown or unclassifiable failure preserves the target DB and requires operator intervention).
   - **Type**: Resolved
   - **Summary**: The Unknown classification behaved identically to Corruption; preserving the DB and requiring operator intervention was implemented through the `preserved_operator_intervention_required` action
   - **Impact**: Even an unclassifiable integrity-check failure could trigger an automatic restore for `rag`/`session`
-  - **Resolution**: Implemented in `implementations/20260902-064946_01_scripts_db_recovery_py.md`; verified by unit tests and integration tests
+  - **Resolution**: Implemented in `implementations/done/20260902-064946_01_scripts_db_recovery_py.md`; verified by unit tests and integration tests
   - **Resolved (details)**: Through REQ-001 to REQ-003, a dedicated branch for `DbCondition.UNKNOWN` was added to `recover_corruption()`, which now returns `action="preserved_operator_intervention_required"` to preserve the target DB and require operator intervention (`_restore_from_backup()` is not called). This satisfies INV-17. **Impact**: INV-17 → resolved.
 
 ## Review Triggers
@@ -280,13 +280,13 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/db/config.py` (`DbConfig`)
 - `scripts/db/helper.py` (`SQLiteHelper.__init__()`, `load_vec()`)
 - `scripts/db/create_schema.py` (`create_schema()`)
-- `scripts/db/maintenance.py` (`check_rag_consistency()`)
+- `scripts/db/rag_consistency.py` (`check_rag_consistency()`)
 - `scripts/db/recovery.py` (`recover_corruption()`, `_classify_error()`, `_run_integrity_check()`, `_restore_from_backup()`)
 - `rag.sqlite` (`documents`, `chunks`, `chunks_fts`, `chunks_vec`)
 - `session.sqlite` (`sessions`, `messages`, `memories`, `memories_vec`)
 - `workflow.sqlite` (`tasks`, `attempts`, `artifacts`, `approvals`)
 - `eventbus.sqlite` (`events`)
-- Tests — `tests/test_db_*.py`, `tests/db/test_db_maintenance.py`, `tests/integration/test_session_recovery.py`
+- Tests — `tests/db/test_db_maintenance.py`, `tests/integration/test_session_recovery.py`
 
 ## Completion Checklist
 

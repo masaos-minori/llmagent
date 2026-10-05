@@ -145,7 +145,7 @@ Rejected because this ADR aims to clarify responsibility boundaries, and a redes
 ### Positive Consequences
 
 - Each component's scope of responsibility is made explicit, making it easier to avoid duplicating or taking over judgments across layers in new implementations
-- The unused `LLMTurnRunner` duplication in `Orchestrator` found while drafting this ADR is filed as an issue to be fixed (see Known Deviations)
+- The unused `LLMTurnRunner` duplication in `Orchestrator` found while drafting this ADR was fixed through an issue (see Known Deviations)
 - The mandatoriness and uniqueness of the Workflow Engine defined by ADR-001 are complemented consistently for the other layers
 
 ### Negative Consequences
@@ -201,8 +201,8 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-- ~~`Orchestrator.__init__` (`scripts/agent/orchestrator.py`) creates an unused `LLMTurnRunner` instance as `self._llm_runner`, while the actual LLM/Tool Call round-trip loop is processed by a separate instance that `LlmTurnExecutor` (`scripts/agent/llm_turn_executor.py`) creates internally on its own. This is a current deviation from INV-024 (centralized `LlmTurnExecutor` creation) and is tracked by a fix issue (`issues/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md`).~~ → **RESOLVED**: `Orchestrator.__init__` has been refactored so that it no longer constructs `_llm_runner`. Currently `self._llm_executor = LlmTurnExecutor(...)` is actively used (passed to `WorkflowEngineAdapter`, `await self._llm_executor.handle_llm_turn(...)`), and no duplicate instance exists.
-- The definition in this ADR that "the Workflow Engine is responsible for retries" does not itself contradict INV-023, but separate "retry" concepts also exist in `ToolLoopGuard.check_retry()` (`scripts/agent/tool_loop_guard.py`) and in the LLM transport layer (such as `llm_max_retries` in `config/agent.toml`), and their relationship to the WorkflowEngine's `retry_policy` is undocumented. Because their granularity differs, this is not immediately judged an INV-023 violation, but the lack of organization is tracked by a documentation issue (`issues/20260914-123659_arch03_retry_ownership_documentation_and_layering.md`). → **RESOLVED**: An explanation of the three layers of retry scope has been added to `docs/23_agent/agent_03_02_turn-processing-flow-llm-tool-loop.md` (REQ-002).
+- ~~`Orchestrator.__init__` (`scripts/agent/orchestrator.py`) creates an unused `LLMTurnRunner` instance as `self._llm_runner`, while the actual LLM/Tool Call round-trip loop is processed by a separate instance that `LlmTurnExecutor` (`scripts/agent/llm_turn_executor.py`) creates internally on its own. This is a current deviation from INV-024 (centralized `LlmTurnExecutor` creation) and is tracked by a fix issue (`issues/done/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md`).~~ → **RESOLVED**: `Orchestrator.__init__` has been refactored so that it no longer constructs `_llm_runner`. Currently `self._llm_executor = LlmTurnExecutor(...)` is actively used (passed to `WorkflowEngineAdapter`, `await self._llm_executor.handle_llm_turn(...)`), and no duplicate instance exists.
+- The definition in this ADR that "the Workflow Engine is responsible for retries" does not itself contradict INV-023, but separate "retry" concepts also exist in `ToolLoopGuard.check_retry()` (`scripts/agent/tool_loop_guard.py`) and in the LLM transport layer (such as `llm_max_retries` in `config/agent.toml`), and their relationship to the WorkflowEngine's `retry_policy` is undocumented. Because their granularity differs, this is not immediately judged an INV-023 violation, but the lack of organization is tracked by a documentation issue (`issues/done/20260914-123659_arch03_retry_ownership_documentation_and_layering.md`). → **RESOLVED**: An explanation of the three layers of retry scope has been added to `docs/23_agent/agent_03_02_turn-processing-flow-llm-tool-loop.md` (REQ-002).
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -243,7 +243,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Known Issues
 
-- `issues/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md` — issue fixing the violation of invariant INV-024.
+- `issues/done/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md` — issue fixing the violation of invariant INV-024.
 
 ### Implementation References
 

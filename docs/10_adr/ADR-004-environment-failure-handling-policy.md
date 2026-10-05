@@ -275,11 +275,12 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Implementation References
 
-- `startup.py` — `StartupOrchestrator.run()`
-- `mcp_config.py` — `McpServerConfig`
-- `production_config_validator.py` — `ProductionConfigValidator.validate()`
-- `mcp_tool_discovery.py` — `McpToolDiscoveryService.discover_all()`
-- `mcp_health.py` — `McpServerHealthRegistry`, `check_service_health()`
+- `scripts/agent/startup.py` — `StartupOrchestrator.run()`
+- `scripts/shared/mcp_config.py` — `McpServerConfig`
+- `scripts/shared/production_config_validator.py` — `ProductionConfigValidator.validate()`
+- `scripts/agent/services/mcp_tool_discovery.py` — `McpToolDiscoveryService.discover_all()`
+- `scripts/shared/mcp_health.py` — `McpServerHealthRegistry`
+- `scripts/agent/services/mcp_health.py` — `check_service_health()`
 - `config/agent.toml` — configuration file
 - Tests — `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_startup.py`
 

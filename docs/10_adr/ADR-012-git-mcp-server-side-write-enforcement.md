@@ -142,19 +142,19 @@ A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the r
 ## Traceability
 
 ### Implementation Procedures
-- `implementations/20260829-134950_01_scripts_mcp_servers_git_repository_state.py.md`: Create RepositoryState module
-- `implementations/20260829-134950_02_scripts_mcp_servers_git_git_service.py.md`: Modify git_service.py
-- `implementations/20260829-134950_03_scripts_mcp_servers_git_git_security.py.md`: Modify git_security.py
-- `implementations/20260829-134950_04_scripts_mcp_servers_git_format_output.py.md`: Modify format_output.py
-- `implementations/20260829-134950_05_scripts_mcp_servers_git_git_models.py.md`: Modify git_models.py
-- `implementations/20260829-134950_06_scripts_mcp_servers_git_git_server.py.md`: Modify git_server.py
-- `implementations/20260829-134950_07_scripts_mcp_servers_dispatch.py.md`: Skipped — procedure did not match actual architecture (generic async dispatcher vs git-specific sync dispatcher); git_server.py already handles RepositoryState via call_tool endpoint
-- `implementations/20260829-134950_08_scripts_mcp_servers_audit.py.md`: Modify audit.py
-- `implementations/20260829-134950_09_tests_mcp_servers_git_test_repository_state.py.md`: Create tests
+- `implementations/done/20260829-134950_01_scripts_mcp_servers_git_repository_state.py.md`: Create RepositoryState module
+- `implementations/done/20260829-134950_02_scripts_mcp_servers_git_git_service.py.md`: Modify git_service.py
+- `implementations/done/20260829-134950_03_scripts_mcp_servers_git_git_security.py.md`: Modify git_security.py
+- `implementations/done/20260829-134950_04_scripts_mcp_servers_git_format_output.py.md`: Modify format_output.py
+- `implementations/done/20260829-134950_05_scripts_mcp_servers_git_git_models.py.md`: Modify git_models.py
+- `implementations/done/20260829-134950_06_scripts_mcp_servers_git_git_server.py.md`: Modify git_server.py
+- `implementations/done/20260829-134950_07_scripts_mcp_servers_dispatch.py.md`: Skipped — procedure did not match actual architecture (generic async dispatcher vs git-specific sync dispatcher); git_server.py already handles RepositoryState via call_tool endpoint
+- `implementations/done/20260829-134950_08_scripts_mcp_servers_audit.py.md`: Modify audit.py
+- `implementations/done/20260829-134950_09_tests_mcp_servers_git_test_repository_state.py.md`: Create tests
 
 ### Source Documents
-- Source issue: issues/20260828-162303_mcp003_git_write_protection_pipeline.md
-- Source plan: plans/20260829-134950_plan.md
+- Source issue: issues/done/20260828-162303_mcp003_git_write_protection_pipeline.md
+- Source plan: plans/done/20260829-134950_plan.md
 
 ## Invariants
 
@@ -201,7 +201,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 ### Resolved Items
 
 - **Resolved**: Protected-branch empty-branch short-circuit — resolved by commit `800aea33e` (fix `_validate_protected()` to reject empty `branch` argument).
-- **Resolved**: Audit `target` field key-name mismatch fixed (see Resolution Notes).
+- **Resolved**: Audit `target` field key-name mismatch fixed.
 
 ## Implementation Notes
 
