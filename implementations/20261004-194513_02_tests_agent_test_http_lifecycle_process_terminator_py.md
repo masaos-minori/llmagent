@@ -2,6 +2,18 @@
 
 Add regression tests verifying that SIGKILL failures are handled gracefully and process verification works correctly.
 
+## Implementation outcome
+
+Deviation from procedure: the inline draft was NOT applied. It calls
+`terminator._escalate_to_sigkill(proc)` (no such method exists — SIGKILL escalation
+is inline in `terminate_with_timeout()`) and patches `os.getpgid` (the real code uses
+`proc.pid` directly as the pgid). It also mixes awaited and non-awaited calls.
+Origin/master already ships a correct test file in commit `10308ed7`
+(`tests/agent/test_http_lifecycle_process_terminator.py`,
+`TestProcessTerminatorSigKillFailureScenarios`) using the real API; it passes (2 passed).
+No new file was created and no code was changed. Accepting the upstream implementation
+and closing the workflow.
+
 ## Scope
 
 - Create `tests/agent/test_http_lifecycle_process_terminator.py` with tests for SIGKILL failure scenarios
