@@ -53,9 +53,9 @@ All MCP server `/health` endpoints follow consistent semantics for response fiel
 **Dependency Values**: Any non-empty dependency value (`"not configured"`, `"not_set"`, `"check failed"`, etc.) constitutes a degraded state — a server is not healthy until all dependencies are satisfied. These values are not just informational; they always indicate an actual missing or failed dependency.
 
 **Interpretation in `/mcp status`**: `McpStatusService.probe_all()` (`agent/services/mcp_status.py`) reads the HTTP status code and the `restart_recommended`/`operator_action_required` fields from the body and reflects them in the `health_reason` column of `/mcp status`. This is a display-only operation and does not trigger automatic restarts or change server states (Explicit in code).
-- Reflected in `health_reason` if `reachable=False` (no HTTP response) or `restart_recommended=true`.
-- Reflected in `health_reason` as `operator_action_required` if `operator_action_required=true`.
-- `HealthRegistry.record_degraded(server_key, reason=...)` in the tool execution layer is called via a different path (`dispatch` result in `shared/tool_executor.py`) (currently a no-op for `UNAVAILABLE`/`HALF_OPEN` cases)
+- Reflected in `health_reason` as the body `reason` (fallback `message`) string when present, or as `restart_recommended` when `restart_recommended=true` and no body reason exists.
+- Reflected in `health_reason` as `operator_action_required` if `operator_action_required=true` and no body reason exists.
+- `McpServerHealthRegistry` (`shared/mcp_health.py`) is updated by the tool execution layer through a different path (`record_failure()`/`record_success()` from `ToolTransportInvoker`); it does not store a degraded reason.
 
 There is no automatic restart of MCP servers. For manual recovery procedures, see [mcp_06_09_mcp-failure-diagnosis.md](mcp_06_09_mcp-failure-diagnosis.md).
 

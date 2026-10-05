@@ -28,7 +28,7 @@ Specifications for 10 MCP servers per server: purpose, port, tools, I/O, configu
 ## web-search-mcp 
 
 **Purpose:** Web search via DuckDuckGo (no API key required).
-**Startup Mode:** persistent (HTTP)
+**Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/web_search_mcp_server.toml`
 
 **Tools:**
@@ -79,30 +79,21 @@ Specifications for 10 MCP servers per server: purpose, port, tools, I/O, configu
 
 ### Availability metadata
 
-The web-search server provides limited availability metadata through `/v1/tools`:
+The web-search server computes `enabled`/`disabled_reason` per tool in `/v1/tools` via `_web_search_tool_availability()`:
 
 - `config_dependent`: `true` for `browser_fetch` — indicates the tool depends on configuration
-- `enabled`: Not currently implemented for web-search tools
-- `disabled_reason`: Not currently implemented for web-search tools
-
-#### Current limitations
-
-The web-search server does NOT implement runtime `enabled/disabled_reason` fields despite having `config_dependent=true`. This means:
-
-- Tools appear available to the LLM even when they may fail due to missing configuration
-- Domain allowlist enforcement happens at call time (via `BrowserAuthorizationError`) rather than via availability metadata
-- Operators cannot determine from `/v1/tools` alone whether `browser_fetch` will work
+- `enabled` / `disabled_reason`: `browser_fetch` is disabled with reason `"browser_allowed_domains is empty"` when no allowed domains are configured; `search_web` is always enabled
 
 #### Enforcement mechanism
 
-When `browser_fetch` is called with a domain not in the allowlist, the server raises `BrowserAuthorizationError`. This error is returned via the `/v1/call_tool` response rather than being prevented by availability metadata.
+`/v1/call_tool` rejects a disabled tool with `Tool disabled: <reason>` (`is_error=True`) before dispatch. When `browser_fetch` is called with a domain not in the allowlist, the server raises `BrowserAuthorizationError`, returned via the `/v1/call_tool` response.
 
 ---
 
 ## file-read-mcp 
 
 **Purpose:** Read-only access to the local filesystem within `allowed_dirs`.
-**Startup Mode:** persistent (HTTP)
+**Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/file_read_mcp_server.toml`
 
 **Tools:** `read_text_file`, `list_directory`, `list_directory_with_sizes`, `directory_tree`, `read_media_file`, `read_multiple_files`, `search_files`, `grep_files`, `get_file_info`
@@ -142,10 +133,10 @@ Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty
 
 ## github-mcp 
 
-See also: [00_security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing github-mcp as a high-risk tool.
+See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing github-mcp as a high-risk tool.
 
 **Purpose:** GitHub API via PyGithub. Performs reads and writes to GitHub repositories.
-**Startup Mode:** persistent (HTTP)
+**Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/github_mcp_server.toml`
 **Authentication:** `GITHUB_TOKEN` environment variable (PAT); if unset, anonymous access with 60 req/hour.
 
@@ -153,7 +144,7 @@ See also: [00_security_02_high-risk-tool-common-policy.md](../91_security/securi
 
 All tools require configuration (`config_dependent: true`).
 
-The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server is subject to implementation requirements 15/16. Refer [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for current contract.
+The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server is computed by `_github_tool_availability()` (disabled with reason `"GITHUB_TOKEN is not set"` when the token is missing). Refer [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for current contract.
 
 **Write Operations (9 items) are subject to repository allowlist:**
 `github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`, `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request`

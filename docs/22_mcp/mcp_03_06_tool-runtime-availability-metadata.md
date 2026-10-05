@@ -37,17 +37,21 @@ Added to each tool dict in the live `/v1/tools` response body, computed per-requ
 
 | `disabled_reason` value | Applies to | Status |
 |---|---|---|
-| `"allowed_dirs is empty"` | file read/write/delete servers | active |
+| `"allowed_dirs is empty"` | file read/write/delete servers, mdq | active |
 | `"allowed_repo_paths is empty"` | git (takes precedence over `read_only`) | active |
 | `"read_only=true"` | git write tools only, when allowlist is non-empty | active |
 | `"command_allowlist is empty"` | shell | active |
-| `"workflow_allowlist is empty"` | cicd | active |
+| `"repo_allowlist is empty"` | cicd (all tools) | active |
+| `"workflow_allowlist is empty"` | cicd (`trigger_workflow` only) | active |
+| `"browser_allowed_domains is empty"` | web_search (`browser_fetch` only) | active |
+| `"GITHUB_TOKEN is not set"` | github | active |
+| `"embed_url is not configured"` | rag_pipeline (`rag_run_pipeline`, `rag_debug_pipeline`) | active |
 
-**Implemented:** `git`, `file_read`/`file_write`/`file_delete`, `github`, `web_search`, `rag_pipeline`, `cicd`, `mdq`, and `shell` each compute `enabled`/`disabled_reason` per tool in their own `/v1/tools` handler. See [git-mcp availability metadata](./mcp_04_05_git.md#availability-metadata) for git's specific precedence rules. `rag_pipeline`/`cicd`/`mdq`/`shell` compute availability via `_rag_pipeline_tool_availability()`/`_cicd_tool_availability()`/`_mdq_tool_availability()`/`_shell_tool_availability()` respectively.
+**Implemented:** `git`, `file_read`/`file_write`/`file_delete`, `github`, `web_search`, `rag_pipeline`, `cicd`, `mdq`, and `shell` each compute `enabled`/`disabled_reason` per tool in their own `/v1/tools` handler. See [git-mcp availability metadata](./mcp_04_05_git.md#availability-metadata) for git's specific precedence rules. `web_search`/`github`/`rag_pipeline`/`cicd`/`mdq`/`shell` compute availability via `_web_search_tool_availability()`/`_github_tool_availability()`/`_rag_pipeline_tool_availability()`/`_cicd_tool_availability()`/`_mdq_tool_availability()`/`_shell_tool_availability()` respectively.
 
 ## 4. `/v1/tools` behavioral rules
 
-Always returns every implemented tool; disabled tools are never omitted from the response. Each tool entry carries `config_dependent`, `enabled`, and `disabled_reason` alongside its other fields — see each server's own `/v1/tools` handler (named in section 3 above) for the exact response shape.
+By default (`include_disabled=false`) disabled tools (`enabled=False`) are omitted from the response; pass `include_disabled=true` to receive them. Each returned tool entry carries `config_dependent`, `enabled`, and `disabled_reason` alongside its other fields — see each server's own `/v1/tools` handler (named in section 3 above) for the exact response shape.
 
 ## /v1/tools as RuntimeToolRegistry Source
 
@@ -75,7 +79,7 @@ The following table shows how /v1/tools response fields map to RuntimeTool field
 
 ## 5. Dispatch rule
 
-Disabled tools must be rejected by `/v1/call_tool` before reaching the dispatch table (server-side gate). Reference requirement 16's plan (`plans/20260717-174848_plan.md`) for the exact response shape: `CallToolResponse(result="Tool disabled: <reason>", is_error=True)`.
+Disabled tools must be rejected by `/v1/call_tool` before reaching the dispatch table (server-side gate). The response shape is `CallToolResponse(result="Tool disabled: <reason>", is_error=True)`.
 
 ## 6. RuntimeToolRegistry (agent-side)
 
@@ -97,21 +101,11 @@ For end-to-end tracing of how `disabled_reason` flows into `/mcp status`, see al
 
 ## `include_disabled` and `disabled_code`
 
-**Note:** Top-level `capabilities` (on the response body, not per-tool) is also deferred unless verified otherwise. If any MCP server returns top-level `capabilities` in its `/v1/tools` response, this should be updated to reflect current implementation status.
+**Note:** Top-level `capabilities` (on the response body, not per-tool) is not returned by `build_tools_response()`, which returns only `schema_version` and `tools`.
 
-All MCP servers' `list_tools()` handlers accept `include_disabled` and `disabled_code` and pass them through to `mcp_servers/server.py::build_tools_response()`. `GET /v1/tools?include_disabled=false` omits disabled tools from the `tools` array; the default (no query param, or `include_disabled=true`) preserves the original behavior of returning every tool, including disabled ones.
+All MCP servers' `list_tools()` handlers accept `include_disabled` and `disabled_code` and pass them through to `mcp_servers/server.py::build_tools_response()`. `include_disabled` defaults to `false`: `GET /v1/tools` omits tools with `enabled=False` unless `include_disabled=true` is passed.
 
-`disabled_code` is a machine-readable enum companion to the free-text `disabled_reason`, mapped to each `config_dependent`-gated server:
-
-| `disabled_code`             | Server(s)                              |
-|------------------------------|-----------------------------------------|
-| `EMPTY_ALLOWED_DIRS`         | file read / write / delete              |
-| `EMPTY_ALLOWED_REPO_PATHS`   | git (precedence over `READ_ONLY`)       |
-| `READ_ONLY`                  | git write tools                         |
-| `EMPTY_COMMAND_ALLOWLIST`    | shell                                    |
-| `EMPTY_WORKFLOW_ALLOWLIST`   | cicd                                     |
-
-`disabled_reason` remains for humans/logs; `disabled_code` is for programmatic dispatch. A `disabled_code` MUST be stable enough for machine handling; `disabled_reason` MAY change for clarity and MUST NOT be used as the programmatic contract.
+`disabled_code`, when provided, is compared against each tool's `disabled_reason` string (the values in section 3); no separate machine-readable enum exists. Because disabled tools are already omitted by default, `disabled_code` is only meaningful together with `include_disabled=true`. `disabled_reason` strings are therefore effectively part of the programmatic contract for this filter.
 
 First-class `RuntimeTool.disabled_reason` field — see "Field Mapping: /v1/tools ↔ RuntimeTool" above (still deferred future work, unrelated to `include_disabled`/`disabled_code`).
 

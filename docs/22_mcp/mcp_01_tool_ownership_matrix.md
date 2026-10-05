@@ -39,7 +39,7 @@ related:
 > three independent processes (`file-read-mcp`, `file-write-mcp`,
 > `file-delete-mcp`) for least-privilege isolation. Tool membership above is
 > kept in sync with the auto-generated reference table below — see
-> `tools/gen_mcp_reference.py`.
+> `tools/generate_reference_table.py`.
 
 ## Design Intent
 

@@ -19,7 +19,7 @@ related:
 ## rag-pipeline-mcp 
 
 **Purpose:** RAG search pipeline (MQE → Search → RRF → Rerank → Deduplication → Expansion).
-**Startup Mode:** persistent (HTTP)
+**Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/rag_pipeline_mcp_server.toml`
 
 **Tools:**
@@ -67,10 +67,10 @@ related:
 
 ## cicd-mcp 
 
-See also: [00_security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing cicd-mcp as a high-risk tool.
+See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing cicd-mcp as a high-risk tool.
 
 **Purpose:** GitHub Actions workflow management.
-**Startup Mode:** persistent (HTTP)
+**Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/cicd_mcp_server.toml`
 **Authentication:** `GITHUB_TOKEN` (via `conf.d/cicd-mcp`)
 
@@ -83,7 +83,7 @@ See also: [00_security_02_high-risk-tool-common-policy.md](../91_security/securi
 | `get_workflow_status` | READ_ONLY | `{repo, run_id}` | yes |
 | `get_workflow_logs` | READ_ONLY | `{repo, run_id}` | yes |
 
-The git-mcp server's `enabled`/`disabled_reason` calculation logic ("workflow_allowlist is empty", etc.) is reserved for future use only. As planned in requirement 15, cicd/shell implementations are excluded. See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
+The cicd server computes `enabled`/`disabled_reason` via `_cicd_tool_availability()` (`"repo_allowlist is empty"` for all tools; `"workflow_allowlist is empty"` for `trigger_workflow`), and the rag_pipeline server via `_rag_pipeline_tool_availability()` (`"embed_url is not configured"` for `rag_run_pipeline`/`rag_debug_pipeline`). Both gate `/v1/call_tool` with `Tool disabled: <reason>`. See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
 **Security:**
 - `repo_allowlist`: fail-closed (empty = reject all; logs a warning at startup)

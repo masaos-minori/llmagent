@@ -63,7 +63,7 @@ Application settings specific to each MCP server:
 - allowed_repos / allowed_repos_mode (GitHub specific)
 - command_allowlist (Shell specific)
 - allowed_dirs (File server specific)
-- auth_token_env / auth_token_file (Secret references)
+- auth_token (Secret reference, e.g. `${ENV:...}`)
 
 ---
 
@@ -127,10 +127,10 @@ Servers run as subprocesses on loopback.
 | `ToolExecutor` | `shared/tool_executor.py` | Routing, concurrent execution, health registry |
 | `ToolRouteResolver` | `shared/route_resolver.py` | Resolves tool_name $\rightarrow$ server_key (references only `RuntimeToolRegistry.resolve()`) |
 | `RuntimeToolRegistry` | `shared/runtime_tool_registry.py` | **Sole routing authority**. Constructed via live `/v1/tools` discovery using McpToolDiscoveryService |
-The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `docs/mcp_06_03_*` for details. |
+The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md` for details. |
 | `ToolRegistry` | `shared/tool_registry.py` | Seed data for drift detection regarding tool definitions and ownership (constructed at import from frozenset in `tool_constants.py`; not used for routing) |
 | `McpServerConfig` | `shared/mcp_config.py` | Transport settings per server |
-| `McpServerHealthRegistry` | `shared/mcp_health.py` | Server status: HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN/UNKNOWN (only re-exports `shared/mcp_config.py`) |
+| `McpServerHealthRegistry` | `shared/mcp_health.py` | Server status: HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN/UNKNOWN (re-exported by `shared/mcp_config.py`) |
 | `HttpTransport` | `shared/http_transport.py` | HTTP POST to MCP servers |
 
 ---
@@ -157,7 +157,7 @@ MCP server processes (mcp_servers/<name>/server.py)
 
 | Constraint | Value | Source |
 |---|---|---|
-| Max response size | 512 KB (`MCP_MAX_RESPONSE_SIZE = 524288`) | `scripts/mcp_servers/server.py` |
+| Max response size | 512 KB (`MCP_MAX_RESPONSE_BYTES`) | `scripts/mcp_servers/server.py` |
 | Auth header | `Authorization: Bearer <token>` (when `auth_token` is configured) | `scripts/mcp_servers/server.py` |
 | Health threshold | Default: 3 consecutive failures $\rightarrow$ UNAVAILABLE | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
 | Circuit breaker recovery | `UNAVAILABLE` auto-transitions to `HALF_OPEN` (a trial state allowing one request) after `half_open_cooldown_sec` (default 30s) on `is_unavailable()`. | `shared/mcp_health.py` (`McpServerHealthRegistry`) |

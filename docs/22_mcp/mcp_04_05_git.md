@@ -21,7 +21,7 @@ related:
 ## git-mcp 
 
 **Purpose:** Local git repository operations with two-stage safety guards.
-**Startup Mode:** persistent (HTTP)
+**Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/git_mcp_server.toml`
 **Authentication:** No GITHUB_TOKEN required; uses local git credentials
 **Remote authorization:** `allowed_remote_urls` in `config/git_mcp_server.toml` lists the normalized remote URLs that `git_pull` and `git_push` may use. The list is fail-closed: an empty list denies every remote. It does not affect which tools are enabled, so `git_pull` and `git_push` stay listed but reject every call until a remote URL is added.
@@ -130,9 +130,9 @@ A command-specific guard exists for protected-branch enforcement via `GitSecurit
 
 `GitConfig.protected_branches` (a `list[str]`, configured via `git_mcp_server.toml`) is the policy source. `GitSecurityGuards._check_protected_branch()`, called from `GitService._validate_protected()`, enforces it before dispatch for `git_checkout`, `git_pull`, and `git_push` alike, rejecting a match with `[DENIED] {branch!r} is a protected branch`. Matching is exact-string only (`branch in protected_branches`) — unlike GitHub MCP's `protected_branches` (a distinct, unrelated setting on `GitHubConfig`), which supports fnmatch patterns; the two settings MUST NOT be assumed equivalent. One gap remains: an empty `branch` argument skips this check entirely (`_validate_protected()` short-circuits on falsy input). The current `config/git_mcp_server.toml` sets `protected_branches = ["main", "master", "release"]`, so these three branches are now protected.
 
-### Approval level (current gap)
+### Approval level
 
-`git_checkout`/`git_pull`/`git_push` are tiered `WRITE_DANGEROUS`, which the risk-tier table describes as requiring full-word `yes` confirmation. In the current `agent.toml::approval_risk_rules`, only tools with an explicit `"high"` override actually get that prompt; `git_checkout`/`git_pull`/`git_push` have no such override and fall back to `RiskLevel.MEDIUM` (`y/N` single-character approval) — see `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`. This is a documentation/behavior mismatch in the approval layer, separate from the MCP-side guard gaps above.
+`git_checkout`/`git_pull`/`git_push` are tiered `WRITE_DANGEROUS` and have an explicit `"high"` override in `agent.toml::approval_risk_rules`, so they require full-word `yes` confirmation — see `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`.
 
 ### Structured rejection codes (current)
 

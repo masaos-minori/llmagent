@@ -30,14 +30,14 @@ result = await transport.call("tool_name", {"arg": "val"})
 - All transport-level failures (timeouts, non-2xx HTTP, malformed responses, exhaustion of retries) raise a `TransportError`; it never directly returns `is_error=True`.
 - Transport error handlers catch `TransportError` and convert it to `ToolCallResult(error_type="transport")`.
 - `set_session_id(session_id)` injects an `X-Session-Id` header into every request (via `ToolTransportInvoker`).
-- **Retries:** Retries are performed on HTTP 429/502/503/504. A maximum of 3 attempts are made, with decreasing delays: 4 seconds for attempt 0, 2 seconds for attempt 1, and 1 second for attempt 2 before a final exhaustion error occurs. Formula: $2^{(RETRY\_MAX - attempt - 1)}$. This is not exponential backoff (delays decrease per attempt). Only the final result (success or `TransportError` after all retries exhausted) is recorded in the HealthRegistry. The `TransportError` message (`"[Retry exhausted] ..."`) includes the last caught exception details (type, status code, etc.) at the end.
+- **Retries:** Retries are performed on HTTP 429/502/503/504 and on non-timeout `httpx.RequestError` (e.g. connection errors). The number of attempts is bounded by `HttpTransport._RETRY_MAX`. The delay between attempts for retryable HTTP statuses increases exponentially (`2**attempt` seconds); no sleep follows the last attempt. Only the final result (success or `TransportError` after all retries exhausted) is recorded in the HealthRegistry. The `TransportError` message (`"[Retry exhausted] ..."`) includes the tool name, the last retryable HTTP status (if any), and the attempt count; raw response bodies are not included.
 - **Non-retryable errors:** HTTP timeouts (`httpx.TimeoutException`) and `HTTPStatusError` for status codes other than 429/502/503/504 are propagated immediately without retries.
 - **Tool-level vs. Transport-level errors:** Tool-level errors (`error_type == "tool"`) are treated as successful transport calls, triggering `record_success()` and incrementing the `stat_tool_errors` counter. Transport-level errors trigger `record_failure()` and increment the `stat_transport_errors` counter. Both counters are tracked independently.
 - **Response Parsing:** `HttpTransport._parse_http_response()` uses `parse_http_json(resp)` (defined in `shared/json_utils.py`) to decode JSON data from an `httpx.Response`. Previously, `orjson.loads(resp.content)` was used directly.
 
 ---
 
-42. ## McpServerHealthRegistry (`shared/mcp_health.py`)
+## McpServerHealthRegistry (`shared/mcp_health.py`)
 
 **Note:** The class implementation is defined in `shared/mcp_health.py`. `shared/mcp_config.py` only re-exports it using `# noqa: F401` (Explicit in code). Since they can both be imported with the same name, there is no practical issue, but the canonical module is `shared/mcp_health.py`.
 
@@ -76,86 +76,68 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 
 ---
 
-84. ## Related Documents
+## Keywords
 
-86. - `mcp_00_document-guide.md`
-87. - `mcp_03_01_dispatch-and-routing.md`
-88. - `mcp_03_02_tool-registry.md`
-89. - `mcp_03_03_transport-and-health.md`
-90. - `mcp_03_04_tool-call-tracing-and-lifecycle.md`
-91. - `mcp_03_05_lifecycle-and-new-server.md`
+- mcp
+- HttpTransport
+- McpServerHealthRegistry
+- health state
+- retry
+- correlation keys
 
-93. ## Keywords
+## Tracing Correlation Keys (Part 2)
 
-95. mcp
-96. HttpTransport
-97. McpServerHealthRegistry
-98. health state
-99. retry
-100. correlation keys
+## End-to-End Tool Call Tracing
 
-102. # HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys (Part 2)
+### End-to-end tool call tracing
 
-190. ## End-to-End Tool Call Tracing
+### Correlation Keys
 
-192. ### End-to-end tool call tracing
+| Key | Source | Occurrence |
+|---|---|---|
+| `X-Session-Id` | Agent (`ctx.session.session_id`) | HTTP Request Header; MCP Server access logs; Agent audit logs |
+| `X-Request-Id` | MCP Server (UUID per request) | HTTP Response Header; MCP Server access logs; Agent audit logs (`x_request_id`) |
+| `server_key` | `McpServerConfig.key` | Agent routing logs; `ToolCallResult.server_key`; health registry; transport error counters |
+| `tool_name` | LLM tool call | Agent audit logs; MCP server request logs; tool error counters |
 
-194. ### Correlation Keys
+To trace a single tool call, combine `X-Request-Id` (unique per call) and `X-Session-Id` (spans entire session).
 
-196. | Key | Source | Occurrence |
-197. |---|---|---|
-198. | `X-Session-Id` | Agent (`ctx.session.session_id`) | HTTP Request Header; MCP Server access logs; Agent audit logs |
-199. | `X-Request-Id` | MCP Server (UUID per request) | HTTP Response Header; MCP Server access logs; Agent audit logs (`x_request_id`) |
-200. | `server_key` | `McpServerConfig.key` | Agent routing logs; `ToolCallResult.server_key`; health registry; transport error counters |
-201. | `tool_name` | LLM tool call | Agent audit logs; MCP server request logs; tool error counters |
+---
 
-203. To trace a single tool call, combine `X-Request-Id` (unique per call) and `X-Session-Id` (spans entire session).
+### Example Success Path
 
-205. ---
+``` text
+1. Agent: LLM emits tool_use for "read_text_file"
+   → tool_runner.execute_one_tool_call(ctx, name="read_text_file", ...)
+   → ToolRouteResolver.resolve("read_text_file") → server_key="file_read"
 
-207. ### Example Success Path
+2. Agent → Server (HTTP):
+   POST /v1/call_tool
+   X-Session-Id: 42
+   body: {"name": "read_text_file", "args": {...}}
 
-209. ``` text
-210. 1. Agent: LLM emits tool_use for "read_text_file"
-211.    → tool_runner.execute_one_tool_call(ctx, name="read_text_file", ...)
-212.    → ToolRouteResolver.resolve("read_text_file") → server_key="file_read"
-213. 
-214. 2. Agent → Server (HTTP):
-215.    POST /v1/call_tool
-216.    X-Session-Id: 42
-217.    body: {"name": "read_text_file", "args": {...}}
-218. 
-219. 3. MCP server (file-read-mcp):
-220.    Server log: INFO [42] read_text_file args=... → OK
-221.    Response: X-Request-Id: abc-123, is_error=false, result="..."
-222. 
-223. 4. Agent receives:
-224.    ToolCallResult(output="...", is_error=False, request_id="abc-123", server_key="file_read")
-225. 
-226. 5. Agent audit_tool_exec():
-227.     audit log entry (JSON-lines): {"event":"tool_exec","task_id":"...","tool":"read_text_file","mcp_request_id":"abc-123","is_error":false,"error_type":"","ts":...}
-228. 
-229. 6. Health registry:
-230.    HealthRegistry.record_success("file_read") → state remains HEALTHY
-231. ```
+3. MCP server (file-read-mcp):
+   Server log: INFO [42] read_text_file args=... → OK
+   Response: X-Request-Id: abc-123, is_error=false, result="..."
 
-233. ---
+4. Agent receives:
+   ToolCallResult(output="...", is_error=False, request_id="abc-123", server_key="file_read")
 
-235. ## Related Documents
+5. Agent audit_tool_exec():
+    audit log entry (JSON-lines): {"event":"tool_exec","task_id":"...","tool":"read_text_file","mcp_request_id":"abc-123","is_error":false,"error_type":"","ts":...}
 
-237. - `mcp_00_document-guide.md`
-238. - `mcp_03_01_dispatch-and-routing.md`
-239. - `mcp_03_02_tool-registry.md`
-240. - `mcp_03_03_transport-and-health.md`
-241. - `mcp_03_04_tool-call-tracing-and-lifecycle.md`
-242. - `mcp_03_05_lifecycle-and-new-server.md`
+6. Health registry:
+   McpServerHealthRegistry.record_success("file_read") → state remains HEALTHY
+```
 
-244. ## Keywords
+---
 
-246. mcp
-247. correlation keys
-248. tool call tracing
-249. end-to-end tracing
+## Keywords
+
+- mcp
+- correlation keys
+- tool call tracing
+- end-to-end tracing
 
 ## Keywords
 

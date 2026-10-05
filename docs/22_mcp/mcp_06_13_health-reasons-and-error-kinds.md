@@ -20,17 +20,17 @@ When probing an HTTP MCP server via `/health`, structured fields are returned th
 # From McpProbeResult model
 restart_recommended: bool       # True if health endpoint says so OR lifecycle_state == FAILED
 operator_action_required: bool  # True only if health endpoint sets this flag
-health_reason: str              # Derived priority: operator_action > restart_recommended
+health_reason: str              # Derived priority: body reason > operator_action > restart_recommended
 ```
 
 Priority for deriving `health_reason`:
 
-| Condition | Result |
-|-----------|--------|
-| `operator_action_required=true` AND reachable+HTTP_OK | `"operator_action_required"` |
-| `restart_recommended=true` AND reachable+HTTP_OK | `"restart_recommended"` |
-| Server unreachable/failed | String from body (`details.reason`, fallback to `message`) |
-| All other cases | Empty string |
+| Priority | Condition | Result |
+|-----------|-----------|--------|
+| 1 | The `/health` body has a `reason` (fallback `message`) string | That string |
+| 2 | No body reason and the health endpoint set `operator_action_required` | `"operator_action_required"` |
+| 3 | No body reason and `restart_recommended` is true | `"restart_recommended"` |
+| - | All other cases | Empty string |
 
 The `restart_recommended` field has two different sources with distinct semantics:
 
@@ -50,7 +50,7 @@ probe_result.body["reason"] or probe_result.body["message"]
 # Step 2: Resolved to endpoint string  
 _resolve_endpoint() returns tuple including body_reason
 
-# Step 3: HealthRegistry receives it via record_failure(server_key)
+# Step 3: McpServerHealthRegistry receives it via record_failure(server_key)
 # Note: record_failure() does not take a 'reason' argument.
 registry.record_failure(server_key)
 
@@ -122,8 +122,8 @@ serialization is forced within a round under certain conditions:
 | Condition | Trigger | Log Reason |
 |-----------|---------|------------|
 | Tool has `requires_serial=True` | Any tool with this flag | `requires_serial` |
-| Overlapping `resource_scopes` (at least one write) | Two or more tool calls with matching or hierarchical filesystem scopes | `resource_scope_conflict` |
-| Empty `resource_scopes` for a write tool | Any write tool without scope metadata | `is_write_overlap` |
+| Overlapping `resource_scopes` (at least one write) | Two or more tool calls with matching or hierarchical filesystem scopes | `resource_read_write_conflict` or `resource_write_write_conflict` |
+| Empty `resource_scopes` for a write tool | Any write tool without scope metadata | `global_write_scope` |
 | Side-effect tool in a round (standard path) | Any side-effecting tool | "Side-effect tool detected" |
 
 Serialization is an intentional safety measure — to prevent corruption of shared resources due to concurrent writes. This is not an indication of a configuration error.
@@ -140,7 +140,7 @@ INFO ROUND_SERIALIZATION: triggered by <tool_name> (<reason>)
 Example:
 
 ``` text
-INFO ROUND_SERIALIZATION: triggered by write_file (is_write_overlap)
+INFO ROUND_SERIALIZATION: triggered by write_file (global_write_scope)
      — 2 tools serialized in this round
 ```
 

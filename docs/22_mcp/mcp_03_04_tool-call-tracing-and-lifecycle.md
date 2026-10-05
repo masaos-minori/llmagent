@@ -57,7 +57,7 @@ related:
 
 A tool error means the server processed the request but returned an error. A transport error means the agent never received a response from the server.
 
-For operational tracing procedures, see [04_mcp_06 End-to-End Tool Call Tracing](mcp_06_08_end-to-end-tool-call-tracing.md#end-to-end-tool-call-tracing).
+For operational tracing procedures, see [mcp_06 End-to-End Tool Call Tracing](mcp_06_08_end-to-end-tool-call-tracing.md#end-to-end-tool-call-tracing).
 
 ---
 

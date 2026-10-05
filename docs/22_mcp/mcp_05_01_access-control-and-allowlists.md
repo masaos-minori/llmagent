@@ -219,7 +219,7 @@ workflow_allowlist = [
 
 These warnings occur in two independent layers: the Agent layer and the cicd-mcp server layer.
 
-- **Agent Layer (Agent REPL process)**: In `scripts/agent/repl_health.py::audit_security_defaults()`, if `cicd_cfg` exists and `workflow_allowlist` is empty and not locked down, a warning is issued to the REPL startup warning list (`warnings: list[str]`).
+- **Agent Layer (Agent REPL process)**: In `scripts/agent/services/security_audit.py::audit_security_defaults()`, if `cicd_cfg` exists and `workflow_allowlist` is empty and not locked down, a warning is issued to the REPL startup warning list (`warnings: list[str]`).
   Message: `DENY-ALL detected: cicd.workflow_allowlist is empty. cicd-mcp will reject ALL workflow trigger requests.`
 - **cicd-mcp Server Layer (cicd-mcp server process)**: In `scripts/mcp_servers/cicd/cicd_service_guards.py::CiCdGuards.__init__`, if `workflow_allowlist` is empty, a warning is recorded to the server log stream via the `mcp_servers.cicd.cicd_service_guards` logger.
   Message: `cicd-mcp: workflow_allowlist is empty — all workflow triggers will be denied`

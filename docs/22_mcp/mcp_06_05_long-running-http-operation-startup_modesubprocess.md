@@ -12,7 +12,7 @@ related:
 
 At startup, the Agent starts uvicorn and polls `/health` every 0.5 seconds until `startup_timeout_sec` is reached. If the health check never succeeds, a `RuntimeError` is raised.
 
-The handling of this `RuntimeError` differs depending on the `security_profile` (`SecurityProfile` in `scripts/shared/mcp_config.py`). If `security_profile=production`, after one retry (with a delay defined by `HEALTH_CHECK_RETRY_DELAY_SEC`), if it still fails, the `RuntimeError` is propagated without being caught, causing the entire Agent process to terminate. If `security_profile=local`, the same failure is only logged and displayed as a warning; the specific server is disabled, but the Agent process and other MCP servers continue to operate. The health check itself originates from the `/health` polling in `scripts/agent/http_lifecycle.py` (`HttpStartupError`), and `scripts/agent/startup.py` applies the aforementioned `security_profile`-dependent branching.
+On failure, `McpServerStarter` (`scripts/agent/startup_mcp_starter.py`) retries once after a fixed delay (`RETRY_DELAY_SEC`, via `agent/shared/retry_helper.py::retry_once_with_delay()`). If the second attempt also fails, a `RuntimeError` with the `[fatal]` prefix is raised and startup is aborted; this behavior does not depend on `security_profile` (`SecurityProfile` has only a `PRODUCTION` member). The health check itself originates from the `/health` polling in `scripts/agent/http_lifecycle.py` (`HttpStartupError`).
 
 ---
 

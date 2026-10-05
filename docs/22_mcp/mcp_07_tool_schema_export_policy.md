@@ -36,7 +36,7 @@ All MCP servers have completed migration to `TOOL_LIST`. The migration was perfo
 8. **file_write** — `scripts/mcp_servers/file/write_tools.py`, `scripts/mcp_servers/file/write_server.py`
 9. **file_delete** — `scripts/mcp_servers/file/delete_tools.py`, `scripts/mcp_servers/file/delete_server.py`
 
-Note: In some servers, there was a period where both bare names (`tools.py`/`server.py`) and renamed files (`<server>_tools.py`/`<server>_server.py`) coexisted. This is being tracked in issues/20260719-193357_risks.md.
+Note: In some servers, there was a period where both bare names (`tools.py`/`server.py`) and renamed files (`<server>_tools.py`/`<server>_server.py`) coexisted.
 
 ### Verification
 

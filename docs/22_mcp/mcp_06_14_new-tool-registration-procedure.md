@@ -44,11 +44,9 @@ missing any of them, or failing validation, is rejected and excluded from the bu
 - `config_dependent`: Whether the tool depends on configuration
 - `disabled_reason`: Reason why the tool is disabled (if applicable)
 
-#### Deferred fields
+#### Query parameters
 
-The following fields are deferred and may not be supported yet:
-
-- `disabled_code`: Structured error code for disabled tools (deferred)
+`/v1/tools` accepts `include_disabled` (default `false`) and `disabled_code`; `disabled_code` is matched against `disabled_reason`. See `mcp_03_06_tool-runtime-availability-metadata.md`.
 
 When adding a new tool to an **existing** MCP server:
 
@@ -72,7 +70,7 @@ After registration is complete:
 uv run pytest tests/test_tool_constants.py tests/test_route_resolver.py -v
 ```
 
-**Expected results:** All routing tests pass. If `tool_definitions_strict = true`, restart the agent and verify that `"Routing: N/N tools mapped"` is displayed in the startup logs without unmapped warnings.
+**Expected results:** All routing tests pass. If `tool_definitions_strict = true`, restart the agent and verify that no `Routing drift` warnings are displayed in the startup logs.
 
 ---
 

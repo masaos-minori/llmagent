@@ -23,15 +23,15 @@ The responsibility of `ToolRegistry` is to manage the ownership relationship fro
 
 ### Drift validation
 
-Three comparison functions detect configuration drift.
+Three comparison functions (defined in `shared/tool_routing_validation.py`) detect configuration drift.
 
 | Function | Comparison Target | When Called |
 |---|---|---|
-| `validate_routing_against_config()` | config's `tool_names` vs. Registry | At startup (`McpToolDiscoveryService` drift verification) |
+| `validate_routing_against_config()` | config's `tool_names` vs. Registry | At startup (`agent/services/routing_drift.py::check_routing_drift()`, called from `startup_validation`) |
 | `validate_routing_against_live()` | live `/v1/tools` vs. Registry | At startup (`McpToolDiscoveryService` drift verification) |
-| `validate_all_routing()` | Combination of both above | Not yet implemented (future support) |
+| `validate_all_routing()` | Combination of both above | Implemented, but has no production caller |
 
-> **Startup Verification Semantics** — The aforementioned `validate_routing_against_live()` and `validate_all_routing()` functions compare the live `/v1/tools` against the internal routing registry. This is distinct from the tool definition check performed by `McpToolDiscoveryService`, which compares configured `tool_definitions` (from `agent.toml`) against live `/v1/tools`. For behavior upon startup failure due to `tool_definitions_strict`, see [04_mcp_06 Startup Validation Behavior](mcp_06_11_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict).
+> **Startup Verification Semantics** — The aforementioned `validate_routing_against_live()` and `validate_all_routing()` functions compare the live `/v1/tools` against the internal routing registry. This is distinct from the tool definition check performed by `McpToolDiscoveryService`, which compares configured `tool_definitions` (from `agent.toml`) against live `/v1/tools`. For behavior upon startup failure due to `tool_definitions_strict`, see [mcp_06 Startup Validation Behavior](mcp_06_11_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict).
 
 Drift warnings are displayed during agent startup.
 
@@ -51,12 +51,13 @@ After registration is complete:
 uv run pytest tests/test_tool_constants.py tests/test_route_resolver.py -v
 ```
 
-Expected result: All routing tests pass. If `tool_definitions_strict = true`, restart the agent and verify that `"Routing: N/N tools mapped"` appears in the startup logs with no unmapped warnings.
+Expected result: All routing tests pass. If `tool_definitions_strict = true`, restart the agent and verify that no `Routing drift` warnings appear in the startup logs.
 
 ### Main APIs
 
 ```python
-from shared.tool_registry import get_registry, validate_all_routing
+from shared.tool_registry import get_registry
+from shared.tool_routing_validation import validate_all_routing
 
 registry = get_registry()
 server_key = registry.get_server_for_tool("read_text_file")  # → "file_read"

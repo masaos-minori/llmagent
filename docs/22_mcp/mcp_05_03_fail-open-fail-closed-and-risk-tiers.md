@@ -34,7 +34,7 @@ related:
 
 ### Startup Audit
 
-`agent/repl_health.py::audit_security_defaults()` runs at agent startup and logs a summary of the security posture. It reads each server's config file and checks the following:
+`agent/services/security_audit.py::audit_security_defaults()` runs at agent startup and logs a summary of the security posture. It reads each server's config file and checks the following:
 
 | Setting | Server Config File | Check Details |
 |---|---|---|
@@ -105,7 +105,7 @@ Both checks are performed via `ProductionConfigValidator.validate()`, which inte
 
 4. **`workflow_allowlist` is fail-closed** (similar to `repo_allowlist`). An empty list denies all workflow triggers. Explicitly enumerate allowed workflows in `cicd_mcp_server.toml`.
 
-5. **mdq-mcp is production-ready.** FTS5 indexing and searching is implemented. For production RAG workloads, use `rag-pipeline-mcp`. See [04_mcp_05 MDQ vs RAG Boundary](./mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) for guidelines.
+5. **mdq-mcp is production-ready.** FTS5 indexing and searching is implemented. For production RAG workloads, use `rag-pipeline-mcp`. See [mcp_05 MDQ vs RAG Boundary](./mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) for guidelines.
 
 6. **Preview with `dry_run=True` before destructive operations.** The agent's approval flow automatically injects `dry_run=True` for registered tools before displaying a user prompt.
 

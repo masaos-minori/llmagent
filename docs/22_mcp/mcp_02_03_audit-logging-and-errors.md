@@ -34,7 +34,7 @@ Each `POST /v1/call_tool` invocation outputs one JSON-lines audit record.
 | `server_key` | Server identifier (e.g., `"file_read"`, `"cicd"`, `"mdq"`, `"shell"`, `"github"`) | Yes | `""` |
 | `error_type` | Error classification for transport failures | Yes | `""` |
 
-**Note:** github-mcp and shell-mcp write to both shared and dedicated audit logs. Only file-delete-mcp uses a dedicated audit log. File read/write MCP servers do not write audit logs. Dedicated audit logs for github-mcp and shell-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
+**Note:** github-mcp and shell-mcp write to both shared and dedicated audit logs. file-delete-mcp writes only a dedicated audit log. File read/write MCP servers do not write audit logs. Dedicated audit logs for github-mcp and shell-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
 
 Audit log functions are implemented within each server's dispatch handler.
 
@@ -52,7 +52,7 @@ Audit log functions are implemented within each server's dispatch handler.
 
 HTTP transport errors (4xx/5xx) are caught by `HttpTransport.call()`, which raises a `TransportError` exception. The transport error handler converts this into `ToolCallResult(output=str(e), is_error=True, error_type="transport")`.
 
-> **Note:** `HttpTransport.call()` does not directly return `is_error=True` for transport failures. Instead, it raises a `TransportError`. The transport error handler catches this and returns `ToolCallResult(error_type="transport")`. See [04_mcp_03 HttpTransport](./mcp_03_03_transport-and-health.md#httptransport).
+> **Note:** `HttpTransport.call()` does not directly return `is_error=True` for transport failures. Instead, it raises a `TransportError`. The transport error handler catches this and returns `ToolCallResult(error_type="transport")`. See [mcp_03 HttpTransport](./mcp_03_03_transport-and-health.md#httptransport).
 
 ### HealthRegistry Updates
 

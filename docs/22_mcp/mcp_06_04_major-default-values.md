@@ -16,7 +16,7 @@ related:
 | `call_timeout_sec` | 60.0s | — | `McpServerConfig.call_timeout_sec` (`shared/mcp_config.py`) |
 | Health registry threshold | 3 failures | — | Hardcoded in `shared/mcp_health.py` (`McpServerHealthRegistry.__init__`'s `failure_threshold` argument); `shared/mcp_config.py` only re-exports said class (Explicit in code) |
 | `startup_timeout_sec` | 30s | — | `McpServerConfig.startup_timeout_sec` (`shared/mcp_config.py`) |
-| GitHub `default_per_page` | 10 (module constant `DEFAULT_PER_PAGE`, `github_models_config.py`) | — | Hardcoded; not a configuration key (Details: [04_mcp_04_01](mcp_04_01_web-search-file-read-github.md)) |
+| GitHub `default_per_page` | 10 (module constant `DEFAULT_PER_PAGE`, `github_models_config.py`) | — | Hardcoded; not a configuration key (Details: [mcp_04_01](mcp_04_01_web-search-file-read-github.md)) |
 | GitHub `max_per_page` | 100 | — | `config/github_mcp_server.toml` (this is an active setting used for clamping `per_page`) |
 | Shell `max_timeout_sec` | 300s | — | `config/shell_mcp_server.toml` |
 | Shell `sandbox_backend` | `"none"` | **`"firejail"`** (`none` = sandbox disabled) | `config/shell_mcp_server.toml` |

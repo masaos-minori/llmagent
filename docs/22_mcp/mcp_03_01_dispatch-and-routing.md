@@ -51,13 +51,13 @@ LLM returns tool_call
 
 ---
 
-## Tool resolution and LLM visibility (corrected)
+## Tool resolution and LLM visibility
 
 A single stage does the real filtering: `RuntimeToolRegistry.llm_tool_definitions()` returns only tools with `enabled_for_llm=True`, and that is the set of function definitions actually sent to the LLM. Disabled tools (per the owning server's `enabled`/`disabled_reason`) are excluded here, before the LLM ever sees them — not at a later "runtime routability" stage.
 
 `LlmTurnExecutor` has no second filtering stage. `LlmTurnExecutor._stream_llm()` calls `registry.llm_tool_definitions()` directly (falling back to `ctx.cfg.tool.tool_definitions` only when no registry is available), so Stage 1 above is the sole filtering stage — see `mcp_03_06_tool-runtime-availability-metadata.md` sections 6a/6b for the concepts this area actually needs (static vs. dynamic availability, approval).
 
-Once a tool call reaches `ToolRouteResolver.resolve()`/`RuntimeToolRegistry`, routing succeeds as long as the tool is *owned* by a server — `enabled_for_llm`/`disabled_reason` are not re-checked at this layer. A disabled tool that somehow reaches this point (e.g., a stale LLM response referencing a tool disabled after the definitions were generated) is not rejected by the agent-side router; enforcement of "disabled tools must not execute" then depends on the owning MCP server's own `/v1/call_tool` gate, which only 4 of 8 server categories implement (`git`, `file_read`/`file_write`/`file_delete`, `github`, `web_search` — see `mcp_03_06_tool-runtime-availability-metadata.md`).
+Once a tool call reaches `ToolRouteResolver.resolve()`/`RuntimeToolRegistry`, routing succeeds as long as the tool is *owned* by a server — `enabled_for_llm`/`disabled_reason` are not re-checked at this layer. A disabled tool that somehow reaches this point (e.g., a stale LLM response referencing a tool disabled after the definitions were generated) is not rejected by the agent-side router; enforcement of "disabled tools must not execute" then depends on the owning MCP server's own `/v1/call_tool` gate, which every server except `mdq` implements (`git`, `file_read`/`file_write`/`file_delete`, `github`, `web_search`, `shell`, `cicd`, `rag_pipeline` — see `mcp_03_06_tool-runtime-availability-metadata.md`).
 
 **Critical failure mode:** If `RuntimeToolRegistry` is missing entirely, the LLM sees no tools at all, resulting in "Unknown tool" errors even when tools exist in the system.
 

@@ -11,7 +11,7 @@ related:
 # Startup Validation Behavior (`tool_definitions_strict`)
 
 > **Canonical specification.** This section describes the tool definitions check in `agent/services/tool_validation.py`.
-> For routing drift detection (`validate_routing_against_live` in `route_resolver.py`), see [04_mcp_03 Drift validation](./mcp_03_02_tool-registry.md#drift-validation).
+> For routing drift detection (`validate_routing_against_live` in `shared/tool_routing_validation.py`), see [mcp_03 Drift validation](./mcp_03_02_tool-registry.md#drift-validation).
 > These are different features.
 
 The tool definitions check is executed at agent startup, comparing the `tool_definitions` in `config/agent.toml` against actual `/v1/tools` responses. Behavior varies depending on server reachability and the `tool_definitions_strict` setting:
@@ -41,17 +41,16 @@ Example: MCP discovery skipped due to missing configuration.
 
 ### Environment-specific behavior differences
 
-MCP discovery behavior differs based on validation strictness, not environment:
+MCP discovery behavior differs based on validation strictness (`tool_definitions_strict`), not environment:
 
 **Duplicate tools:**
-- Production: FATAL outcome, startup blocked
-- Local: WARNING outcome, startup continues
+- Always FATAL, startup blocked (exception to the `is_fatal = strict` scheme)
 
-**Unreachable servers:**
-- Production: FATAL outcome, startup blocked
-- Local: SKIPPED outcome, startup continues but all tool calls will fail for that session
+**Unreachable servers and other non-duplicate findings:**
+- `strict = true`: FATAL outcome, startup blocked
+- `strict = false`: WARNING outcome, startup continues; tools of unreachable servers are missing from the `RuntimeToolRegistry`
 
-This difference exists because development tooling is designed to be more forgiving during iteration, while production enforcement prevents partial functionality.
+This difference exists because non-strict mode is designed to be more forgiving during iteration, while strict enforcement prevents partial functionality.
 
 **Key Points:**
 - Tool name mismatches in `strict` mode trigger a `RuntimeError`.

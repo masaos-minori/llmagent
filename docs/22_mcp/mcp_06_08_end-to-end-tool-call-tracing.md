@@ -85,8 +85,9 @@ When a round contains tools with side effects (write operations), the scheduler 
 | Trigger | Condition | Effect |
 |---|---|---|
 | `requires_serial` | `requires_serial=true` is set in tool metadata | The tool is executed alone as a single-element group |
-| `resource_scope_conflict` | Multiple tool calls have overlapping `resource_scopes` (exact match, or filesystem scope ancestor/descendant relationship) | All tool calls with overlapping scopes are executed serially |
-| `is_write_overlap` | Multiple writes without a specific scope | All write-type tools are grouped together (write-first) |
+| `forced_serial` | `serial_tool_calls=true` forces serial execution | Every call runs in its own serial phase |
+| `resource_read_write_conflict` / `resource_write_write_conflict` | Multiple tool calls have overlapping `resource_scopes` (exact match, or filesystem scope ancestor/descendant relationship) and at least one is a write | All tool calls in the conflicting component are executed serially |
+| `global_write_scope` | Multiple writes without a specific scope (each is treated as occupying the synthetic `global:write` scope) | The scope-less writes are executed serially |
 
 **Log Format:**
 ``` yaml

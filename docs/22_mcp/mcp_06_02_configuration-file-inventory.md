@@ -25,7 +25,7 @@ Only the agent process reads `config/agent.toml` via `ConfigLoader().load_all()`
 | Key | Scope |
 |---|---|
 | `config/agent.toml` → `[mcp_servers.*]` | Transport settings for all servers (McpServerConfig) — used by the agent to manage connections to MCP servers |
-| `config/agent.toml` → `[mcp_servers.*].auth_token` | Bearer token sent by the agent to that server; must be a non-empty `"${ENV:MCP_<SERVER_KEY>_AUTH_TOKEN}"` reference (resolved by `shared.config_utils.resolve_env_ref()`) — `McpServerConfig` rejects an empty value at construction time, and `agent.startup_validation` re-checks it before tool discovery |
+| `config/agent.toml` → `[mcp_servers.*].auth_token` | Bearer token sent by the agent to that server; must be a non-empty `"${ENV:MCP_<SERVER_KEY>_AUTH_TOKEN}"` reference (resolved by `shared.config_utils.resolve_env_ref()`) — `McpServerConfig` rejects an empty value at construction time unless the server is disabled; the receiving server verifies it, except mdq-mcp, which does not authenticate at the HTTP layer; and `agent.startup_validation` re-checks it before tool discovery |
 | `config/agent.toml` → `tool_definitions` | Tool names exposed to the LLM |
 | `config/agent.toml` → `tool_safety_tiers` | Risk tier per tool (READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN) |
 | `config/agent.toml` → `security_profile` | Global agent security profile — `production` only |

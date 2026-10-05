@@ -13,7 +13,7 @@ related:
 ## file-write-mcp 
 
 **Purpose:** Write operations to the local filesystem. All tools support `dry_run=True`.
-**Startup Mode:** persistent (HTTP)
+**Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/file_write_mcp_server.toml`
 
 **Tools:** `write_file`, `edit_file`, `create_directory`, `move_file`
@@ -47,7 +47,7 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 ## file-delete-mcp 
 
 **Purpose:** Deletion from the local filesystem. All tools support `dry_run=True`.
-**Startup Mode:** persistent (HTTP)
+**Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/file_delete_mcp_server.toml`
 
 **Tools:** `delete_file`, `delete_directory`
@@ -56,7 +56,7 @@ All tools do not require configuration (`config_dependent: false`).
 
 The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
-**Configuration Fields:** `allowed_dirs`, `audit_log_path`
+**Configuration Fields:** `allowed_dirs`
 
 | Tool | Input | `dry_run` Behavior |
 |---|---|---|
@@ -81,7 +81,7 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 ## shell-mcp 
 
 **Purpose:** Execution of sandboxed shell commands within the `command_allowlist`.
-**Startup Mode:** persistent (HTTP)
+**Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/shell_mcp_server.toml`
 
 **Tools:** `shell_run`
@@ -112,8 +112,8 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 | `"none"` | No process isolation; only `RLIMIT_*` limits apply | Local development only |
 | `"firejail"` | Process isolation via firejail (`--private --net=none --noroot`) | Recommended for production |
 
-> **Security Note — Sandboxing is disabled by default:** The default value for `sandbox_backend` is `"none"`. Shell commands are executed with the OS user and privileges of the agent process — there is no container or namespace isolation. To enable sandboxing, install firejail and set `sandbox_backend = "firejail"` in `config/shell_mcp_server.toml`. You can verify the active backend via the `details.sandbox_backend` field (`"none"` or `"firejail"`) in the `/health` response.
-> **Enforcement:** `sandbox_backend = "none"` raises `RuntimeError` regardless of environment. If this configuration is detected, the agent will fail at startup. Either set `sandbox_backend = "firejail"` or disable `shell-mcp`.
+> **Security Note — Sandboxing is disabled by default:** The default value for `shell_sandbox_backend` is `"none"`. Shell commands are executed with the OS user and privileges of the agent process — there is no container or namespace isolation. To enable sandboxing, install firejail and set `shell_sandbox_backend = "firejail"` in `config/shell_mcp_server.toml`. You can verify the active backend via the `details.sandbox_backend` field (`"none"` or `"firejail"`) in the `/health` response.
+> **Enforcement:** `shell_sandbox_backend = "none"` raises `RuntimeError` regardless of environment. If this configuration is detected, the agent will fail at startup. Either set `shell_sandbox_backend = "firejail"` or disable `shell-mcp`.
 >
 > > **Note**: `shell-mcp` itself does not perform enforcement checks. Enforcement is handled by the Agent's startup sequence (via `scripts/agent/services/security_audit.py::audit_security_defaults()` called from `scripts/agent/startup.py`). If `shell-mcp` is started independently of the Agent startup path, this enforcement may be bypassed.
 

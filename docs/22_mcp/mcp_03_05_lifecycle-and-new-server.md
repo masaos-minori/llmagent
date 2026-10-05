@@ -31,7 +31,7 @@ These methods only perform `proc.poll()` or read cached states; they do not term
 
 #### How to safely add a new tool
 
-When adding a new tool, follow the standard 7-step procedure outlined in the [Adding a new tool](#adding-a-new-tool) section above.
+When adding a new tool, follow the standard procedure in [mcp_06_14_new-tool-registration-procedure.md](mcp_06_14_new-tool-registration-procedure.md).
 
 Key points:
 1. **Add the tool name to the frozenset in `shared/tool_constants.py` [REQUIRED]** — The internal registry functions read these frozensets upon import to automatically build the routing registry. Manual editing of the registry is unnecessary.
@@ -60,7 +60,7 @@ See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for 
 | `config/agent.toml` — Add `tool_safety_tiers` entry | **Required** | All tools must declare a safety tier |
 | `config/<key>_mcp_server.toml` — Server config file | **Required** (for new servers) | Server application settings (server-specific values only). The `[mcp_servers.<key>]` transport section belongs in `config/agent.toml`. |
 | `deploy/deploy.sh` — Add installation/copy step | **Required** (for new servers) | The deployment must include the new server |
-| Update `/routing.md` | **Required** | Documentation guide must reference the new server |
+| Update `routing.md` (repository root) | **Required** | Documentation guide must reference the new server |
 
 ### Manual Procedure
 

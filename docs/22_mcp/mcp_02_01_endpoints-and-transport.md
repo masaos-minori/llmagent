@@ -57,7 +57,7 @@ X-Session-Id: <session_id>      (injected by ToolExecutor)
 | `server_key` | Log field | Agent router (`ToolRouteResolver`) | Agent dispatch logs, `ToolCallResult` |
 | `tool_name` | Log field | Agent router | Agent logs, server audit log |
 
-> For information on how to trace a single tool call across agent dispatch, transport, and MCP server logs, see [04_mcp_03 End-to-End Tool Call Tracing](./mcp_03_03_transport-and-health.md#end-to-end-tool-call-tracing).
+> For information on how to trace a single tool call across agent dispatch, transport, and MCP server logs, see [mcp_03 End-to-End Tool Call Tracing](./mcp_03_03_transport-and-health.md#end-to-end-tool-call-tracing).
 
 ### Response
 
@@ -110,13 +110,13 @@ These fields are currently supported by the discovery service:
 - `capabilities` — optional capability flags (per-tool)
 - `config_dependent` — whether the tool depends on configuration state
 
-### Deferred fields
+### Query parameters and deferred fields
 
-These fields are planned but NOT yet implemented:
+`GET /v1/tools` accepts `include_disabled` (default `false`; disabled tools are omitted unless `true`) and `disabled_code` (compared against `disabled_reason`).
 
-- `include_disabled` — query parameter to include disabled tools
-- `disabled_code` — structured code for disabled reasons
-- Top-level `capabilities` — if not already implemented (verify during implementation)
+Not implemented:
+
+- Top-level `capabilities` — not returned by `build_tools_response()`
 
 Called at startup to verify that configured tool names match live server tools.
 In case of mismatch $\rightarrow$ warning log; if `tool_definitions_strict=True` $\rightarrow$ `RuntimeError`.
@@ -153,7 +153,7 @@ All MCP servers inherit from `MCPServer`.
 | `list_tools_with_server_key() -> list[dict[str, object]]` | Tool metadata including `server_key`; used by `/v1/tools` endpoint |
 | `health() -> tuple[dict[str, object], int]` | Returns `(health_dict, http_status_code)`. HTTP Status: 200 if `ready=True`, 503 if `ready=False`. Health dict: `{"status": "ok"/"degraded", "ready": bool, "liveness": bool, "restart_recommended": bool, "operator_action_required": bool, "dependencies": dict, "details": dict}`. Overridden by each server (e.g., github adds `github_token` to `dependencies`, mdq adds `service` to `details`). |
 
-The base class `health()` implementation has fixed `deps={}` and always returns `status="ok"`, `ready=True`, `restart_recommended=False`, `operator_action_required=False` unless overridden (Explicit in code). In practice, all 10 MCP servers implement `/health` individually, using either the `mcp_servers/health_response.py` `make_health_response(deps, details)` helper (for file/git/github/shell/rag_pipeline/cicd/web_search series) or custom implementations (for mdq, file-read/write/delete series) (Explicit in code). See [04_mcp_02_02](./mcp_02_02_startup-modes-and-health.md) for details.
+The base class `health()` implementation has fixed `deps={}` and always returns `status="ok"`, `ready=True`, `restart_recommended=False`, `operator_action_required=False` unless overridden (Explicit in code). In practice, all 10 MCP servers implement `/health` individually, using either the `mcp_servers/health_response.py` `make_health_response(deps, details)` helper (for file/git/github/shell/rag_pipeline/cicd/web_search series) or custom implementations (for mdq, file-read/write/delete series) (Explicit in code). See [mcp_02_02](./mcp_02_02_startup-modes-and-health.md) for details.
 
 | `run_http() -> None` | Starts uvicorn HTTP server. Raises `ValueError` before binding if `http_host` is not `"127.0.0.1"` or `"::1"` — every internal MCP server binds to loopback only, with no override. Also verifies the actual bound socket address is loopback immediately after startup (defense-in-depth, independent of the pre-bind check). |
 | `attach_auth_middleware(app, token) -> None` | Wires a Starlette middleware that rejects requests without a matching `Authorization: Bearer <token>` header with HTTP 401. An empty `token` disables enforcement (accept-all) at this middleware level, but this is not a supported production configuration: `McpServerConfig`'s own construction-time validation and `agent.startup_validation`'s "MCP authentication check" both reject an empty `auth_token` before the agent ever calls a server with one. |
