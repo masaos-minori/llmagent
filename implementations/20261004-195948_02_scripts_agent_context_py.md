@@ -58,6 +58,23 @@ class AgentContext:
 
 If the property exists and is accessible, proceed to the next step. Otherwise, report as Blocked.
 
+### Source-verified outcome
+
+Adversarial verification (workflow Step 3a) confirms the property exists and the
+invariant holds, but the mechanism differs from the "Expected structure" above:
+
+- `AgentContext.services_required` (context.py:336) returns the `AppServices`
+  instance and raises `RuntimeError` (not `AssertionError`) when unset —
+  defense-in-depth at access time.
+- Per-service non-None invariant is enforced at construction in
+  `AppServices.__init__` (context.py:270-280, commit `10308ed7`), raising
+  `RuntimeError` on any missing required service.
+- The property is accessible from ReadinessReporter: `scripts/agent/startup_reporter.py`
+  reads `self._ctx.services_required.runtime_tools` / `.health_registry`.
+
+Conclusion: read-only verification passed. Completion criterion met. No
+modification made (this is a read-only step).
+
 ## Compatibility considerations
 
 N/A: This is a read-only verification step.
@@ -85,15 +102,15 @@ N/A: No changes made.
 - Modifying the services_required property or its methods
 - Creating new test file (handled in separate document)
 
-## execution Status
+## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261005-225213 | 20261005-225213 | Read-only verification performed; services_required property (context.py:336) and AppServices construction-time invariant (context.py:270-280, 10308ed7) confirmed. See Source-verified outcome. |
+| 2 | Add or update tests per Validation plan | Completed | 20261005-225213 | 20261005-225213 | N/A: read-only step; no test authored (test_startup_reporter.py created by sibling ..._03_...). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261005-225213 | 20261005-225213 | Property accessible from ReadinessReporter; existing test_context.py passes (verified in #1 cycle). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261005-225213 | 20261005-225213 | N/A: read-only step, no code change -> no docs/00_index.md task-scope mapping. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
