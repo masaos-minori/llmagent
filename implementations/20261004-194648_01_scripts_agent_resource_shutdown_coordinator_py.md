@@ -2,6 +2,18 @@
 
 Only cancel tracked background tasks during shutdown instead of all pending tasks, preventing data loss from mid-flight critical operations.
 
+## Implementation outcome
+
+Deviation from procedure: no code change was performed. Origin/master already ships
+this fix in commit `10308ed7` — `close_resources()` already cancels only
+`turn.background_tasks` in LIFO order, snapshotting the set before clearing it to
+prevent double-cancellation (lines 108-127). This matches the intent of the
+Details "After" block and is ordered correctly (snapshot before clear). Existing
+regression tests (`tests/agent/test_resource_shutdown_coordinator.py`,
+`TestSelectiveTaskCancellation`) use the real API and pass (5 passed total).
+
+Accepting the upstream implementation and closing the workflow.
+
 ## Scope
 
 - Modify `scripts/agent/resource_shutdown_coordinator.py`: replace `asyncio.all_tasks()` with `turn.background_tasks` for task cancellation
