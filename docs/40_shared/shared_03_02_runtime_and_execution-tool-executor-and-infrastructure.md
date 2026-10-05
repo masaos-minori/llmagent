@@ -73,7 +73,7 @@ Category-based estimation improves accuracy for multilingual text and structured
 
 ## 7. `git_helper` (`shared/git_helper.py`)
 
-`get_repo_info` returns `RepoInfoResult(success, data dict with branch/commit(8-char)/message/author, failure_reason)`. Returns `None` on any error. `ImportError` is caught separately; `GitPython`/`GitError`/`OSError`/`AttributeError` are caught individually and raised as `ValueError`.
+`get_repo_info` returns `RepoInfoResult(success, data dict with branch/commit(8-char)/message/author, failure_reason)`. It never returns `None` and does not raise for repository errors: on failure it returns `RepoInfoResult(success=False, failure_reason=...)`. A missing GitPython (`ImportError`), `InvalidGitRepositoryError`, `PermissionError`, `GitError`, and `OSError`/`AttributeError`/`ValueError` are each mapped to a distinct `failure_reason`.
 
 ---
 

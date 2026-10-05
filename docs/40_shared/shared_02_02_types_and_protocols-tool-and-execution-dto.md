@@ -53,7 +53,7 @@ Import: `from shared.tool_spec import ToolSpec`
 
 ## 7c. `RuntimeTool` (`shared/runtime_tool.py`)
 
-Represents normalized tool execution metadata in a single type (15 fields: routing, LLM schema, scheduler metadata, side-effect detection, safety tier, approval requirement, argument validation relaxation flags). `AgentSafetyTier` uses four values (`READ_ONLY`/`WRITE_SAFE`/`WRITE_DANGEROUS`/`ADMIN`) which are defined locally as `Literal` types within this module to avoid circular imports due to `shared-is-leaf` constraints (not imported from `agent.tool_enums`). (Explicit in code)
+Represents normalized tool execution metadata in a single type (routing, LLM schema, scheduler metadata, side-effect detection, safety tier, approval requirement, argument validation relaxation flags). `AgentSafetyTier` uses four values (`READ_ONLY`/`WRITE_SAFE`/`WRITE_DANGEROUS`/`ADMIN`) which are defined locally as `Literal` types within this module to avoid circular imports due to `shared-is-leaf` constraints (not imported from `agent.tool_enums`). (Explicit in code)
 
 `build_runtime_tool()` applies safe defaults to unspecified annotation fields. `allow_extra_fields` is a per-tool flag read during the preparation phase by `agent/tool_preparation.py` (`prepare_tool_calls()`/`_prepare_one()`, executed before approval) and passed to `agent/tool_arg_validator.py`'s `validate_tool_arguments()`. (Explicit in code)
 

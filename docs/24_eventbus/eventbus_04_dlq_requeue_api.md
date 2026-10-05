@@ -28,7 +28,7 @@ List dead-letter queue entries with pagination support.
 ### Response (HTTP 200)
 
 Returns a pagination envelope (`total`/`limit`/`offset`) plus an `items` array of DLQ
-event objects (each carrying the event's metadata plus `dlq_at`) — see
+event objects (`seq`, `event_id`, `topic`, `producer`, `published_at`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`) — see
 `scripts/eventbus/dlq_route.py` for the exact response schema.
 
 **Field descriptions**:
@@ -59,7 +59,7 @@ If no events are in the DLQ, the response body is:
 
 ### Ordering
 
-Items are ordered by `seq` ascending (oldest first), which corresponds to insertion order into the DLQ.
+Items are ordered by event `seq` ascending (oldest event first), not by the time of DLQ promotion.
 
 ## Keywords
 

@@ -37,10 +37,10 @@ The Event Bus uses an in-memory pub/sub broker (`EventBroker`) for live event de
 
 ## Security Model
 
-There is **no authentication or ACL** for the Event Bus API.
+The Event Bus API uses Bearer-token authentication with role-based access (publisher, consumer, operator, monitoring, admin) and optional per-token `consumer_id` and topic allowlists. See `eventbus_02_api-reference-index.md` for the role model.
 
 - **Design Assumption**: Intended for single-node operation on internal networks/trusted hosts.
-- **Access Control**: Should be enforced at the network boundary (firewall, Docker network).
+- **Access Control**: In addition to token authentication, access should be restricted at the network boundary (firewall, Docker network).
 - **Exposure Warning**: The Event Bus must NOT be directly accessible from the internet.
 - **Startup Guard**: Binding to any non-loopback address (anything other than `127.0.0.1`/`::1`, including `0.0.0.0`/`::`) is rejected unconditionally at config-load time (`EventBusConfig.__post_init__()`, `scripts/eventbus/config.py`) — `ValueError` is raised, and startup does not proceed. `allow_public_bind` (the former override) was removed entirely (2026-09-04, `plans/done/20260903-091921_plan.md`); no configuration value can permit a public bind.
 

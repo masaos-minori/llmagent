@@ -47,10 +47,13 @@ GET /dlq
   "offset": 0,
   "items": [
     {
+      "seq": 42,
       "event_id": "evt-failed",
-      "consumer_id": "worker-1",
-      "failure_count": 3,
-      "last_failure_reason": "timeout",
+      "topic": "orders",
+      "producer": "svc-a",
+      "published_at": "2026-09-14T09:00:00Z",
+      "delivery_failure_count": 3,
+      "dlq_requeue_count": 0,
       "dlq_at": "2026-09-14T10:00:00Z"
     }
   ]
@@ -115,7 +118,7 @@ None — `event_id` is provided as a path parameter only.
 | `event_id` | string | Original event ID that was requeued |
 | `requeued` | boolean | Always `true` on success |
 | `new_event_id` | string | UUID v4 hex string of the newly inserted event row |
-| `new_seq` | integer | Integer sequence number of the newly inserted event row (computed atomically at insert time via `lastrowid`) |
+| `new_seq` | integer | Integer sequence number of the newly inserted event row (looked up from the newly inserted row) |
 
 ### Example Request
 
@@ -128,13 +131,13 @@ curl -X POST -H "Authorization: Bearer ${OPERATOR_TOKEN}" \
 
 **HTTP 409 Conflict**
 
-Returned when the event exists but is not currently in the DLQ (i.e., `dlq_at IS NULL` means the event was already redelivered or acknowledged).
+Returned when the event exists but is not currently in the DLQ (for example, `dlq_at IS NULL`), or when it was already requeued.
 
 #### Response Schema
 
 ```json
 {
-    "error": "Event not in DLQ"
+    "detail": "event is not in DLQ"
 }
 ```
 
@@ -148,7 +151,7 @@ Returned when the event does not exist in the database.
 
 ```json
 {
-    "error": "Event not found"
+    "detail": "event not found"
 }
 ```
 

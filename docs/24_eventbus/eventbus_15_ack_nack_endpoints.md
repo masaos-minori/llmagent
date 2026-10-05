@@ -19,7 +19,7 @@ Consumer-scoped endpoints for acknowledging successful processing (`POST /events
 
 Requires `Bearer ${CONSUMER_TOKEN}` in the Authorization header.
 
-Additionally, the caller must be authorized for the specific `consumer_id` being used — the `Principal.allowed_consumer_ids` field enforces this at the application layer.
+Additionally, the caller must be authorized for the specific `consumer_id` being used — the `Principal.allowed_consumer_ids` field enforces this at the application layer when the principal has a non-empty `consumer_id` allowlist; a principal with an empty allowlist is not restricted.
 
 ## Acknowledge Event
 
@@ -85,21 +85,7 @@ Returned when the event does not exist.
 
 ```json
 {
-  "detail": "Event not found"
-}
-```
-
-### Conflict Response
-
-**HTTP 409 Conflict**
-
-Returned when the event was not delivered to this consumer.
-
-#### Response Schema
-
-```json
-{
-  "detail": "Event not delivered to this consumer"
+  "detail": "event not found"
 }
 ```
 
@@ -121,7 +107,7 @@ Returned when the caller's principal does not include the requested `consumer_id
 
 **HTTP 400 Bad Request**
 
-Returned when `event_id` or `consumer_id` is missing.
+Returned when `consumer_id` is present but empty. A completely missing `consumer_id` query parameter is rejected by request validation with HTTP 422.
 
 #### Response Schema
 
@@ -194,7 +180,7 @@ Returned when the event does not exist.
 
 ```json
 {
-  "detail": "Event not found"
+  "detail": "event not found"
 }
 ```
 
@@ -207,8 +193,8 @@ Returned when the event is already acknowledged or already in the DLQ.
 #### Response Schemas
 
 ```json
-{"detail": "Event is already acknowledged"}
-{"detail": "Event is in the dead letter queue"}
+{"detail": "event already acknowledged"}
+{"detail": "event already in dead letter queue"}
 {"detail": "invalid NACK transition"}
 ```
 
@@ -230,7 +216,7 @@ Returned when the caller's principal does not include the requested `consumer_id
 
 **HTTP 400 Bad Request**
 
-Returned when `event_id` or `consumer_id` is missing.
+Returned when `event_id` or `consumer_id` is present but empty. A completely missing `consumer_id` query parameter is rejected by request validation with HTTP 422.
 
 #### Response Schema
 

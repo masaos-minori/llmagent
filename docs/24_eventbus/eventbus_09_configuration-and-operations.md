@@ -68,18 +68,21 @@ model the token fields below implement.
 - `publisher_token` — Grants publish-role access when set (per-role alternative to the shared `auth_token`)
 - `consumer_token` — Grants consume-role access when set
 - `operator_token` — Grants operator-role access when set
-- `monitoring_token` — Grants monitoring-role (read-only health/metrics) access when set
-- `admin_token` — Grants all-roles access when set (superuser-equivalent per-role token)
+- `monitoring_token` — Grants monitoring-role (health check) access when set
+- `admin_token` — Grants admin-role access (`/admin/*`) when set
 - `sse_heartbeat_interval` — SSE heartbeat interval in seconds (default: 30.0)
+- `sse_idle_timeout` — Idle timeout in seconds after which a `/subscribe` connection that received no events is closed
+- `consumer_authorization` — Optional `consumer_id` -> topics allowlist applied to the consumer-role token
+- `topic_authorization` — Optional topic -> `consumer_id` allowlist applied to the consumer-role token
 - `slow_consumer_threshold` — Queue depth at which a subscriber is considered slow (default: 100)
 - `subscriber_queue_maxsize` — Per-subscriber queue capacity (default: 1000)
 - `backlog_health_threshold` — Max queue depth before health endpoint reports `broker_queue_backlog_high` (default: 500)
 
-Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Startup fails unless `auth_token` or at least one of the 5 per-role tokens above is configured — see `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` for the four-role authorization model these tokens implement.
+Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Startup fails unless `auth_token` is configured; the per-role tokens above are optional additions — see `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` for the authorization model these tokens implement.
 
 ### Unsupported Keys
 
-Startup fails if `poll_interval_ms` or `offset_checkpoint_interval` is present in the configuration file.
+Startup fails if the configuration file contains any key not defined in `EventBusConfig` (for example `poll_interval_ms` or `offset_checkpoint_interval`).
 
 ---
 
@@ -116,7 +119,7 @@ HTTP 200 = `ok`, otherwise = HTTP 503 + `status: "degraded"` + component details
 
 **A 503 status indicates a degraded state, not a process shutdown.**
 
-**Monitoring should be based on HTTP status codes.** When degraded, check the `reasons` field (e.g., DB connection failure, DLQ task stopped, queue backlog, slow consumers, etc.). See Delivery Operations below for the specific field thresholds that drive a `degraded` slow-consumer state.
+**Monitoring should be based on HTTP status codes.** When degraded, check the `degraded_reasons` field (e.g., DB connection failure, DLQ task stopped, queue backlog, slow consumers, etc.). See Delivery Operations below for the specific field thresholds that drive a `degraded` slow-consumer state.
 
 ---
 
@@ -143,14 +146,13 @@ The following Prometheus metrics monitor database-lock contention:
 - `eventbus_db_query_duration_seconds` — Histogram of query durations
 - `eventbus_db_lock_contention_total` — Counter of lock contention events (>1ms threshold)
 
-These metrics are exposed via the health endpoint (`/health`) under the `metrics` sub-object and via the standard Prometheus scrape target.
+The health endpoint (`/health`) reports lock wait and query duration averages and the contention total under its `metrics` sub-object. The service does not serve a separate Prometheus scrape endpoint.
 
 ### Slow Consumer Metrics
 
 The following Prometheus metrics track slow consumer detection:
 
 - `eventbus_slow_consumer_total` — Counter of slow consumer events
-- `eventbus_slow_consumer_duration_seconds` — Histogram of slow consumer durations
 
 Slow consumer events are detected when a subscriber's queue depth exceeds `slow_consumer_threshold`. The health endpoint reports `slow_consumers_detected` when this condition occurs.
 
@@ -172,12 +174,12 @@ Verify live push using `GET /subscribe?consumer_id=test`. Events should be recei
 
 ### Monitoring Slow Consumers
 
-A process queue exceeding `slow_consumer_threshold` events is considered slow. This value is configurable via the `slow_consumer_threshold` field in the Event Bus TOML configuration (default: `100`). This can be verified via the health endpoint:
+A subscriber queue holding more than `slow_consumer_threshold` events is considered slow. This value is configurable via the `slow_consumer_threshold` field in the Event Bus TOML configuration (default: `100`). This can be verified via the health endpoint:
 
 - `slow_consumers > 0` → `degraded`
 - `max_queue_depth >= backlog_health_threshold` → `broker_queue_backlog_high`
 
-If a consumer is slow, events are discarded from the queue. The consumer must reconnect and replay from SQLite.
+If a subscriber queue becomes full (`subscriber_queue_maxsize`), the broker disconnects that subscriber. The consumer must reconnect and replay from SQLite.
 
 **Threshold validation rules:**
 - `slow_consumer_threshold` must be strictly less than `subscriber_queue_maxsize`
@@ -203,7 +205,7 @@ Files are created at `{deadletter_dir}/{event_id}.json` during inline processing
 
 ### Requeue
 
-`POST /dlq/{event_id}/requeue` clears `dlq_at` and increments `dlq_requeue_count`. It does not reset `delivery_failure_count`. If `delivery_failure_count >= max_retry`, the event will be re-promoted during the next loop.
+`POST /dlq/{event_id}/requeue` uses the lineage model: it inserts a new event row (`redelivered_from` set to the original, `delivery_failure_count` copied, `cycle_failure_count` reset) and increments `dlq_requeue_count` on the original, whose `dlq_at` is preserved. See `eventbus_06_dlq_offsets_and_delivery_semantics.md` (Requeue (Redelivery)).
 
 ### Monitoring
 

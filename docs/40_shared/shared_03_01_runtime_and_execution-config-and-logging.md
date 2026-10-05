@@ -36,7 +36,7 @@ Documents the runtime infrastructure and utilities within `shared/`: configurati
 
 **Each process reads only its own configuration file.**
 
-The agent, each MCP server, crawler, ingester, and chunk_splitter operate as independent processes. Each process reads exactly one corresponding configuration file via `ConfigLoader().load("xxx.toml")` at startup. Configuration files for other processes are not read. Values required by multiple processes (e.g., DB paths, external service URLs) should not be placed in a shared file but instead specified individually in each process's respective configuration file. Calling `ConfigLoader.restrict_to(own_config_file)` immediately after process startup enforces this rule at runtime. MCP servers call `restrict_to()` via `MCPServer.run_http()`. Crawler/ingester/chunk_splitter call it within `if __name__ == "__main__":`. The eventbus uses its own loader.
+The agent, each MCP server, crawler, ingester, and chunk_splitter operate as independent processes. Each process reads exactly one corresponding configuration file via `ConfigLoader().load("xxx.toml")` at startup. Configuration files for other processes are not read. Values required by multiple processes (e.g., DB paths, external service URLs) should not be placed in a shared file but instead specified individually in each process's respective configuration file. Calling `ConfigLoader.restrict_to(own_config_file)` immediately after process startup enforces this rule at runtime. MCP servers call `restrict_to()` via `MCPServer.run_http()`. Crawler/ingester/chunk_splitter call it within `if __name__ == "__main__":`. The eventbus loads its configuration through `ConfigLoader` with an explicit config path (`scripts/eventbus/config.py`).
 
 ---
 

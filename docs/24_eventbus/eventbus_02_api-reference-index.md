@@ -43,6 +43,7 @@ The available roles are:
 | CONSUMER | `${CONSUMER_TOKEN}` | Subscribe, ACK, NACK |
 | OPERATOR | `${OPERATOR_TOKEN}` | Replay, DLQ management |
 | MONITORING | `${MONITORING_TOKEN}` | Health checks |
+| ADMIN | `${ADMIN_TOKEN}` | Admin endpoints (`/admin/*`, e.g. `POST /admin/topics/authorization`) |
 
 When per-role tokens are configured, each token grants only its own role. When the shared `auth_token` is set, it grants all roles for backward compatibility.
 

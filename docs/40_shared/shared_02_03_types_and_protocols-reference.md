@@ -16,17 +16,18 @@ related:
 ## 9a. `DbConfig` (`db/config.py`)
 
 ```python
-@dataclass
+@dataclass(frozen=True)
 class DbConfig:
     rag_db_path: str
     session_db_path: str
     workflow_db_path: str = "/opt/llm/db/workflow.sqlite"
+    eventbus_db_path: str = "/opt/llm/db/eventbus.sqlite"
     sqlite_vec_so: str = ""       # empty = vec extension not required
     sqlite_timeout: int = 30
     sqlite_busy_timeout_ms: int = 30000
 ```
 
-- Validated in `__post_init__`: parent directory must exist, `timeout` must be $\ge$ 1.
+- Validated in `__post_init__`: the four DB paths must be non-empty, each parent directory must exist, and `sqlite_timeout` must be $\ge$ 1.
 - Constructed by `build_db_config()`, which reads `agent.toml` via `ConfigLoader().load("agent.toml")`.
 - Used by `SQLiteHelper`, `maintenance.py`, and session factories.
 
@@ -40,7 +41,7 @@ All constants are `frozenset[str]`. They serve as seed data for `ToolRegistry` a
 
 ## 11. `CallToolRequest` / `CallToolResponse` Reference
 
-Defined in `mcp_servers/models.py` (NOT in `shared/`; the `mcp_servers` package was renamed from `mcp` to avoid collision with the PyPI Model Context Protocol SDK `mcp`). These are Pydantic models used only within MCP servers; code in the `shared/` layer should NOT import from `mcp_servers/`. Do not confuse them with the `ToolCallResult` dataclass in `shared/tool_executor.py`. (Explicit in code: `scripts/mcp_servers/models.py`)
+Defined in `mcp_servers/models.py` (NOT in `shared/`; the `mcp_servers` package was renamed from `mcp` to avoid collision with the PyPI Model Context Protocol SDK `mcp`). These are Pydantic models used only within MCP servers; code in the `shared/` layer should NOT import from `mcp_servers/`. Do not confuse them with the `ToolCallResult` dataclass in `shared/transport_dto.py`. (Explicit in code: `scripts/mcp_servers/models.py`)
 
 ---
 
@@ -50,8 +51,8 @@ Defined in `mcp_servers/models.py` (NOT in `shared/`; the `mcp_servers` package 
 |---|---|---|---|---|
 | `TypedDict` | `LLMMessage`, `ArtifactEvent` | Mutable dict | No (unless `@runtime_checkable`) | Data transport; duck-typed |
 | `Protocol` | `RagConfig` | Depends on impl | Yes (if `@runtime_checkable`) | Structural contract; any object satisfying fields works |
-| frozen `dataclass` | `LLMUsage`, `LLMResponse`, `ActionResult` | Immutable | Yes | Value objects; hashable |
-| `dataclass` | `ShellPolicy`, `DbConfig` | Mutable | Yes | Configuration objects |
+| frozen `dataclass` | `LLMUsage`, `LLMResponse`, `ActionResult`, `DbConfig` | Immutable | Yes | Value objects; hashable |
+| `dataclass` | `ShellPolicy` | Mutable | Yes | Configuration objects |
 | Pydantic model | `CallToolRequest`, `CallToolResponse` | Mutable | Yes | MCP HTTP request/response validation |
 
 **AI Guidance:** If a function accepts `RagConfig`, it should accept any object that satisfies the protocol (including `SimpleNamespace`), provided it has the required fields. Do not assume it must be an `AgentConfig`.

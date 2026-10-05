@@ -25,7 +25,7 @@ related:
 
 **Concurrency Behavior:** `concurrency_limits` maps `server_key` $\rightarrow$ max concurrent calls; semaphore-based throttling in `ToolTransportInvoker`; tool-call-batch parallel/serial scheduling is unified under a single path — `agent/tool_runner.py::_execute_with_dag()`, which delegates to `agent/tool_scheduler.py::build_execution_groups()`. `ctx.cfg.tool.serial_tool_calls=True` feeds `force_serial=True` into the scheduler instead of selecting a different execution engine.
 
-**Side-Effect Detection:** `build_execution_groups()` reads each call's `is_write` from `PreparedToolCall.spec` (resolved once during `agent/tool_preparation.py::prepare_tool_calls()`, sourced from `RuntimeToolRegistry.tool_spec_for_call()`) — an unregistered tool is rejected fail-closed during preparation and never reaches scheduling. `_SIDE_EFFECT_TOOLS`/`is_side_effect()` (`tool_executor_helpers.py`) is not referenced by the execution path. See [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md) for the scheduler's grouping rules.
+**Side-Effect Detection:** `build_execution_groups()` reads each call's `is_write` from `PreparedToolCall.spec` (resolved once during `agent/tool_preparation.py::prepare_tool_calls()`, sourced from `RuntimeToolRegistry.tool_spec_for_call()`) — an unregistered tool is rejected fail-closed during preparation and never reaches scheduling. `_SIDE_EFFECT_TOOLS`/`is_side_effect()` (`tool_executor_helpers.py`) is not referenced by the execution path. See [agent_08_03_configuration-tools-memory.md](../23_agent/agent_08_03_configuration-tools-memory.md) for the scheduler's grouping rules.
 
 **Routing (Explicit in code):** `shared/runtime_tool_registry.py`'s `RuntimeToolRegistry` is the sole routing authority. `ToolRouteResolver.resolve()` (`shared/route_resolver.py`) refers only to `RuntimeToolRegistry.resolve()`, and unknown tools result in an immediate `ValueError`. `shared/tool_registry.py`'s `ToolRegistry` is not used for routing decisions; it serves as seed data for startup drift validation (`shared/tool_routing_validation.py`). Configuration file `tool_names` is metadata for drift validation only and is not used for runtime routing decisions. For detailed routing info, see [mcp_03_01_dispatch-and-routing.md](../22_mcp/mcp_03_01_dispatch-and-routing.md).
 
@@ -45,19 +45,19 @@ related:
 
 **Configuration:** `LlmHotConfigHandler` applies hot reloads for: `temperature`, `max_tokens`, `max_retries`, `retry_base_delay`, `sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `stream_retry_on_heartbeat_timeout`, and `stream_retry_on_malformed_chunk`. `None` values leave existing settings unchanged.
 
-**Details:** For details on the streaming protocol and the internal implementation of the SSE parser, see [agent_05_llm-and-streaming.md](agent_05_llm-and-streaming.md).
+**Details:** For details on the streaming protocol and the internal implementation of the SSE parser, see [agent_05_llm-and-streaming.md](../23_agent/agent_05_llm-and-streaming.md).
 
 ---
 
 ## 11. `McpServerConfig` / `McpServerHealthRegistry`
 
-Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp_06_02_configuration-file-inventory.md](../22_mcp/mcp_06_02_configuration-file-inventory.md) and [agent_08_01_configuration-loading-agent-config.md](agent_08_01_configuration-loading-agent-config.md).
+Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp_06_02_configuration-file-inventory.md](../22_mcp/mcp_06_02_configuration-file-inventory.md) and [agent_08_01_configuration-loading-agent-config.md](../23_agent/agent_08_01_configuration-loading-agent-config.md).
 
-**Overview:** Per-server transport config (transport, url, cmd, startup_mode, tool_names, auth_token, env) validated by `__post_init__` (URL scheme, timeout range, `tool_names` uniqueness, env type). Key field set from TOML section name, excluded from `==` comparison. `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE`. `McpServerHealthRegistry` tracks consecutive failures; `UNAVAILABLE` blocks dispatch; `record_degraded(key, reason)` / `get_degraded_reason(key)` track "reachable but degraded" servers without incrementing the failure count.
+**Overview:** Per-server transport config (transport, url, cmd, startup_mode, tool_names, auth_token, env) validated by `__post_init__` (URL scheme, timeout range, `tool_names` uniqueness, env type). Key field set from TOML section name, excluded from `==` comparison. `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE` / `HALF_OPEN` / `UNKNOWN`. `McpServerHealthRegistry` tracks consecutive failures; `UNAVAILABLE` blocks dispatch; `record_degraded(key, reason)` / `get_degraded_reason(key)` track "reachable but degraded" servers without incrementing the failure count.
 
 > **Note:** `McpServerConfig.transport` uses the `TransportType` enum instead of a plain string. Related enums include `StartupMode` (none/persistent/subprocess) and `SecurityProfile` (local/production controls MCP auth enforcement). The `HealthcheckMode` enum was deleted on 2026-07-17 — HTTP was the only transport.
 
-`shared/route_resolver.py`'s `build_discovery_map(server_tool_lists)` currently returns a `tuple[dict[str, str], dict[str, list[str]]]`: `(route_map, duplicates)`, where `duplicates` maps tool names requested from multiple servers to their respective source server keys.
+`shared/route_resolver.py`'s `ToolRouteResolver.resolve(tool_name)` maps a tool name to its server key using `RuntimeToolRegistry` as the sole routing source, and raises `ValueError` for an unresolved tool.
 
 ---
 
@@ -72,8 +72,8 @@ Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp
 ## 13. Import Boundaries and Design Notes
 
 - `shared/` must NOT import from `agent/`, `mcp_servers/`, `rag/`, or `db/`.
-- For details on `LLMClient`, see the `LLMClient` section of this document and [agent_05_llm-and-streaming.md](agent_05_llm-and-streaming.md).
-- For details on `ToolExecutor`, see the `ToolExecutor` section of this document, [mcp_03_01_dispatch-and-routing.md](../22_mcp/mcp_03_01_dispatch-and-routing.md), and [agent_06_01_tool-execution-and-approval-execution.md](agent_06_01_tool-execution-and-approval-execution.md).
+- For details on `LLMClient`, see the `LLMClient` section of this document and [agent_05_llm-and-streaming.md](../23_agent/agent_05_llm-and-streaming.md).
+- For details on `ToolExecutor`, see the `ToolExecutor` section of this document, [mcp_03_01_dispatch-and-routing.md](../22_mcp/mcp_03_01_dispatch-and-routing.md), and [agent_06_01_tool-execution-and-approval-execution.md](../23_agent/agent_06_01_tool-execution-and-approval-execution.md).
 
 ## Keywords
 

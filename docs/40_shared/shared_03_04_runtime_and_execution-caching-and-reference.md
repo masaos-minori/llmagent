@@ -39,7 +39,7 @@ Per-server health tracking for `ToolExecutor` dispatch gating. Constructor accep
 
 **State Transitions:** `HEALTHY` $\rightarrow$ `DEGRADED` on first failure; `DEGRADED` $\rightarrow$ `UNAVAILABLE` on `failure_threshold` consecutive failures (default 3); `UNAVAILABLE` $\rightarrow$ `HALF_OPEN` after `half_open_cooldown_sec` (default 30s, experimental probe); `HALF_OPEN` $\rightarrow$ `UNAVAILABLE` on probe failure (cooldown resets); `HALF_OPEN` $\rightarrow$ `HEALTHY` on probe success; any state $\rightarrow$ `HEALTHY` on successful response.
 
-**Implementation Notes:** `get_state()` returns `HEALTHY` default for unregistered keys (`UNKNOWN` is never observed). `record_degraded()` does not override `UNVAILABLE`/`HALF_OPEN` states (intentional guard against breaking circuit breaker/trial windows). `record_restart_exhausted()` does not change state (assumes `record_failure()` already set `UNAVAILABLE`) but tags the degraded reason. `record_success()` resets `_failure_counts`, `_unavailable_since`, and `_degraded_reasons` (prevents immediate re-`UNAVAILABLE` due to stale counts).
+**Implementation Notes:** `get_state()` returns `HEALTHY` default for unregistered keys (`UNKNOWN` is never observed). `record_degraded()` does not override `UNAVAILABLE`/`HALF_OPEN` states (intentional guard against breaking circuit breaker/trial windows). `record_restart_exhausted()` does not change state (assumes `record_failure()` already set `UNAVAILABLE`) but tags the degraded reason. `record_success()` resets `_failure_counts`, `_unavailable_since`, and `_degraded_reasons` (prevents immediate re-`UNAVAILABLE` due to stale counts).
 
 ---
 

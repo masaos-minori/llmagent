@@ -17,11 +17,11 @@ related:
 
 ## Canonical Store
 
-**SQLite is the canonical event store.** JSONL is derived data that can be rebuilt from SQLite using the reconcile mechanism described below.
+**SQLite is the canonical event store.** JSONL is derived data; no automated reconcile or rebuild tool exists (see Recovery Procedure).
 
 Rationale:
 1. The database commit is the publish success criterion — if the DB commit succeeds, the event is considered published.
-2. JSONL is appended after the DB commit and can be rebuilt from SQLite.
+2. JSONL is appended after the DB commit and is never read as primary data.
 3. Broker notification is real-time delivery — it's a side effect of publishing, not part of the durable record.
 
 ## Publish Success Criterion
@@ -46,7 +46,7 @@ When the JSONL append fails after a successful database commit:
 - **Event status**: Published (DB commit succeeded).
 - **Observable signal**: `eventbus_jsonl_append_failure_total` Prometheus Counter increments.
 - **Log output**: Structured warning: `"eventbus: JSONL append failed (event still committed): {exc}"`.
-- **Recovery**: Run `python scripts/eventbus/reconcile.py <db_path> <jsonl_path>` to rebuild JSONL from SQLite.
+- **Recovery**: None automated. SQLite remains complete; the JSONL archive is missing the affected line.
 
 Affected file paths:
 - `config/eventbus.toml` → `storage_dir` key defines the JSONL file location (e.g., `/opt/llm/storage/events.jsonl`).
@@ -57,7 +57,7 @@ When the broker notification fails after a successful database commit:
 - **Event status**: Published (DB commit succeeded).
 - **Observable signal**: `eventbus_broker_notify_failure_total` Prometheus Counter increments.
 - **Log output**: Structured exception log: `"publish broker notify error seq={seq}"`.
-- **Subscriber recovery**: Subscribers can recover missed notifications through SQLite-backed replay via the `/replay` endpoint.
+- **Subscriber recovery**: Subscribers can recover missed notifications by reconnecting to `/subscribe` with `since_seq` (SQLite-backed replay). `/replay` is restricted to the operator role.
 
 ### Both Failures Simultaneously
 
@@ -72,23 +72,11 @@ Both failures can occur simultaneously. Each is independently observable via its
 
 ### Permission Failure Scenario
 
-Same as disk-full — DB commit succeeds, JSONL append fails. No retry attempt (idempotent by nature — JSONL append is append-only). Reconciliation mechanism can restore JSONL when permissions are restored.
+Same as disk-full — DB commit succeeds, JSONL append fails. No retry attempt (idempotent by nature — JSONL append is append-only). JSONL lines that failed to append are not restored automatically when permissions are restored.
 
 ## Recovery Procedure
 
-To rebuild JSONL from SQLite:
-
-```bash
-python scripts/eventbus/reconcile.py /opt/llm/db/eventbus.sqlite /opt/llm/storage/events.jsonl
-```
-
-The reconcile script:
-1. Reads all events from SQLite ordered by sequence number.
-2. Compares each line against existing JSONL content.
-3. Writes missing lines to JSONL.
-4. Returns statistics: `{reconciled: int, skipped: int, errors: int}`.
-
-Partial lines in JSONL (from interrupted writes) are naturally excluded by line-based comparison.
+No reconcile or rebuild script exists in the repository. A failed JSONL append is not retried and is not backfilled, so the JSONL archive can diverge from SQLite. Because SQLite is the canonical store, recovery of event data means reading from SQLite (via `/subscribe` with `since_seq`, or `/replay` with the operator role), not from JSONL. Any rebuild of the JSONL archive from SQLite must be done manually.
 
 ## Metrics Reference
 

@@ -84,7 +84,7 @@ Cross-cutting documentation rules and policies:
 1. `load_all()` only includes `agent.toml` (`_BASE_CONFIG_FILES = ("agent.toml",)`, see the Process Separation Policy in [shared_03_01](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)). A `rag_pipeline.toml` configuration file does not exist — each MCP server (including rag-pipeline-mcp) loads its own `config/<key>_mcp_server.toml` due to process isolation policy, so there is no need for explicit loading on the agent side.
 2. `orjson.dumps()` returns `bytes` (requires `.decode()`).
 3. `ArtifactEvent` is data-only and has no event bus.
-4. `LLMMessage` has 7 fields (including `importance`/`pinned`).
+4. `LLMMessage` is a `TypedDict` whose only required field is `role`; the other fields (including `importance`/`pinned`) are optional.
 5. Do NOT perform manual INSERTs because DB triggers automatically synchronize `chunks_fts`.
 6. `SQLiteHelper("workflow")` is enabled (see `db_01`).
 7. For details on `LLMClient`, see `agent_05_llm-and-streaming.md` (not covered by this document set).

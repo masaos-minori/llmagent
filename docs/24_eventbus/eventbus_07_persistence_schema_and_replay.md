@@ -26,13 +26,13 @@ Primary store for all events. WAL mode is enabled to allow concurrent reads. DB 
 
 ## Schema
 
-Key columns: `seq` (PK), `event_id` (UNIQUE), `topic`, `payload` (JSON string), `producer`, `published_at`, `acked_at` (for idempotency), `delivery_failure_count`, `dlq_requeue_count`, `dlq_at` (when promoted to DLQ).
+Key columns: `seq` (PK), `event_id` (UNIQUE), `topic`, `payload` (JSON string), `producer`, `published_at`, `acked_at` (event-level column; not written by the ACK routes, which record acknowledgements per consumer in `consumer_delivery`), `delivery_failure_count`, `dlq_requeue_count`, `dlq_at` (when promoted to DLQ).
 
 Schema migrations for existing databases are idempotent.
 
 ### Per-consumer delivery state
 
-`consumer_delivery(consumer_id, event_id, acked_at)` — composite PK on `(consumer_id, event_id)`. Tracks which consumer has acknowledged each event. Idempotent via INSERT OR IGNORE semantics.
+`consumer_delivery(consumer_id, event_id, acked_at)` — composite PK on `(consumer_id, event_id)`. Tracks which consumer has acknowledged each event. Idempotent via `INSERT ... ON CONFLICT DO UPDATE SET acked_at`.
 
 ### Per-consumer offset
 
@@ -55,7 +55,7 @@ Schema migrations for existing databases are idempotent.
   - `status="inserted"`: new event, seq returned
   - `status="duplicate"`: identical content retry, original seq returned
   - `status="conflict"`: conflicting content, rejected with HTTP 409
-- **Canonical equality**: Two events are considered identical when their canonical fields match: `topic`, `payload` (canonical JSON via `orjson.dumps()` with `OPT_SORT_KEYS`), and `producer`. `published_at` is excluded because it is server-generated and may differ between retries.
+- **Canonical equality**: Two events are considered identical when their canonical fields match: `topic`, `payload` (canonical JSON via `orjson.dumps()` with `OPT_SORT_KEYS`), and `producer`. `published_at` is excluded because it is supplied by the client and may differ between retries.
 - **JSONL append guard**: JSONL append occurs inside `if inserted:` block only, so the file contains exactly one line per unique event.
 
 ## Consumer ID Stability

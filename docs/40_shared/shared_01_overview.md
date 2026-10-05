@@ -53,7 +53,7 @@ This document provides an overview of the `shared/` and `db/` layers. It covers 
 - LLM and embedding servers (external processes)
 - Distributed or replicated SQLite configurations
 - External vector databases (only in-process `sqlite-vec` is supported)
-- Detailed LLM communication protocols (handled in [agent_05_llm-and-streaming.md](agent_05_llm-and-streaming.md))
+- Detailed LLM communication protocols (handled in [agent_05_llm-and-streaming.md](../23_agent/agent_05_llm-and-streaming.md))
 
 ---
 

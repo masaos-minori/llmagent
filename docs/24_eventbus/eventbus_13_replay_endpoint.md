@@ -88,7 +88,7 @@ data:{"event_id":"evt-def","topic":"users","payload":{"user_id":"456"},"seq":43}
 | `total` | integer | Total number of events available since `since_seq` |
 | `limit` | integer | Requested page size |
 | `offset` | integer | Requested offset |
-| `items` | array[object] | Array of event objects |
+| `items` | array[object] | Array of event objects with `seq`, `event_id`, `topic`, `payload`, `producer`, and `published_at` (examples below omit `producer` and `published_at` for brevity) |
 
 ## Example Requests
 

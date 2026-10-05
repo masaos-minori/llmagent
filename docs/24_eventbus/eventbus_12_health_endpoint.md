@@ -44,7 +44,7 @@ The response body's fields are described in Field Descriptions below; see
 | `db` | string | Database status: `"ok"` or `"unavailable"` |
 | `dlq_task` | string | DLQ sweep task status: `"running"` or `"stopped"` |
 | `active_subscribers` | integer | Current number of active SSE subscribers |
-| `max_queue_depth` | integer | Maximum queue depth observed across all topics |
+| `max_queue_depth` | integer | Maximum queue depth across all active subscribers |
 | `slow_consumers` | integer | Number of slow consumers detected |
 | `overflow_disconnects` | integer | Count of overflow disconnects |
 | `duplicate_connection_rejections` | integer | Count of duplicate connection rejections |
@@ -69,6 +69,7 @@ Same as success response, but with `status: "degraded"` and non-empty `degraded_
 |--------|-------------|
 | `db_unavailable` | Database connectivity check failed |
 | `dlq_task_stopped` | DLQ sweep background task has stopped |
+| `broker_unavailable` | The event broker is not initialized |
 | `broker_queue_backlog_high` | Queue backlog exceeds `backlog_health_threshold` |
 | `slow_consumers_detected` | One or more slow consumers detected |
 | `subscribers_at_capacity` | Active subscribers at configured capacity limit |

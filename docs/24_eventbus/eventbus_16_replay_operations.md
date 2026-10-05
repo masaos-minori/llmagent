@@ -18,7 +18,7 @@ related:
 
 Replay events from a given sequence number, supporting both Server-Sent Events (SSE) and JSON response formats.
 
-**Authentication**: Required — Bearer token in `Authorization` header.
+**Authentication**: Required — Bearer token with the operator role in `Authorization` header.
 
 ### Request Parameters
 
@@ -43,19 +43,18 @@ data:<JSON payload>
 - `id`: The sequence number of the event.
 - `data`: A JSON-encoded object containing the event fields (same as `_row_to_dict` output).
 
-**Connection lifecycle**: The SSE connection closes when all available events have been streamed. If no new events arrive within the configured timeout, the connection may be closed by the server.
+**Connection lifecycle**: The SSE connection closes when all available events have been streamed.  The stream covers only the fetched page (`limit`/`offset`); it does not wait for new events.
 
 ### Response (HTTP 200) — JSON format (`format=json`)
 
 Returns a pagination envelope (`total`/`limit`/`offset`) plus an `items` array of event
-objects (each carrying the event's metadata, plus `dlq_at` if the event was promoted
-to the DLQ) — see `scripts/eventbus/replay_route.py` for the exact response schema.
+objects (`seq`, `event_id`, `topic`, `payload`, `producer`, `published_at`) — see `scripts/eventbus/replay_route.py` for the exact response schema.
 
 **Field descriptions**:
 - `total`: Total number of events with `seq > since_seq` (ignoring pagination). This allows clients to determine remaining events.
 - `limit`: The requested limit value.
 - `offset`: The requested offset value.
-- `items`: Array of event objects. Each object contains the event metadata plus `dlq_at` if the event was promoted to the DLQ.
+- `items`: Array of event objects. Each object contains `seq`, `event_id`, `topic`, `payload`, `producer`, and `published_at`.
 
 ### Empty-result behavior
 
@@ -90,7 +89,7 @@ Events are ordered by `seq` ascending (oldest first), which corresponds to inser
 
 ### Concurrency guarantee
 
-The replay endpoint acquires a shared SQLite lock during the fetch operation, ensuring that the returned events represent a consistent snapshot at the time of the query. Concurrent writes do not affect the result set.
+The replay endpoint fetches the page and the total count under the global DB lock (`run_with_db_lock`) in a single acquisition, ensuring that the returned events represent a consistent snapshot at the time of the query. Concurrent writes do not affect the result set.
 
 ## Keywords
 

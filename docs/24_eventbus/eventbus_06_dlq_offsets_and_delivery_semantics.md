@@ -36,7 +36,7 @@ The ACK endpoint is not bound to a connection, so it does not detect a collision
 - That offset only moves forward: the highest acknowledged `seq` wins, regardless of the order of the ACKs.
 - Consumers that share an ID through ACK can therefore overwrite each other's progress, so one of them may skip events on resume.
 
-To avoid collisions, use unique consumer IDs per instance (e.g., PID + topic combination).
+To avoid collisions, use unique, stable consumer IDs per instance. Do not use volatile IDs such as PIDs.
 
 ### Monotonicity Guarantee
 
@@ -67,18 +67,18 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 ### ACK Preconditions
 
 - The event must exist in the `events` table.
-- The event must not have been previously ACKed (`acked_at IS NULL`).
+- A non-empty `consumer_id` is required.
 
 ### ACK Postconditions
 
-- `acked_at` is set to the current timestamp.
-- If a `consumer_id` is provided, the offset is updated using the SQL statement above.
-- The response body includes `{event_id, acked: true, seq: <int>}`.
+- The consumer's `consumer_delivery.acked_at` is set to the current timestamp.
+- The consumer offset is updated using the SQL statement above, in the same transaction.
+- The response body includes `{event_id, acked: true, seq: <int>}`; a duplicate ACK additionally includes `already_acked: true`.
 
 ### ACK Error Responses
 
 - HTTP 404 if the event is not found.
-- HTTP 409 if the event was already ACKed (idempotent duplicate ACK).
+- A duplicate ACK is idempotent and returns HTTP 200 with `already_acked: true`.
 
 ### NACK Preconditions
 
@@ -94,6 +94,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 ### NACK Error Responses
 
 - HTTP 404 if the event is not found.
+- HTTP 409 if the event is already in the DLQ.
 
 ### Duplicate NACK Behavior
 
@@ -137,9 +138,9 @@ When a `Last-Event-ID` header is provided, the replay operation uses it as a fal
 
 ### Queue Overflow Behavior
 
-A process queue exceeding `slow_consumer_threshold` events is considered slow. This value is configurable via the `slow_consumer_threshold` field in the Event Bus TOML configuration (default: `100`).
+A subscriber queue holding more than `slow_consumer_threshold` events is considered slow. This value is configurable via the `slow_consumer_threshold` field in the Event Bus TOML configuration (default: `100`).
 
-If a consumer is slow, events are discarded from the queue. The consumer must reconnect and replay from SQLite.
+If a subscriber queue becomes full (`subscriber_queue_maxsize`), the broker disconnects that subscriber. The consumer must reconnect and replay from SQLite.
 
 ### Slow Consumer Detection
 
@@ -219,10 +220,8 @@ DLQ promotion thresholds use `delivery_failure_count` (the lifetime counter), no
    - `cycle_failure_count = 0` (fresh retry budget)
    - `delivery_failure_count` copied from the original row (lifetime continuity)
 2. Increments `dlq_requeue_count` on the original row as audit trail.
-3. Archives the original `{event_id}.json` DLQ file to `requeued/{event_id}_{timestamp}.json` subdirectory.
-4. Publishes the new event via `EventBroker.publish()` so active subscribers receive it immediately.
 
-Active subscribers receive the redelivered event via `EventBroker.publish()`. Reconnecting subscribers reach it via the existing `seq > since_seq` replay path in the subscribe endpoint.
+The original row keeps its `dlq_at`, so only one requeue succeeds per original event; a second requeue returns HTTP 409. The requeue handler does not archive the DLQ JSON file and does not publish to `EventBroker`. Subscribers receive the new row through the existing `seq > since_seq` replay path in the subscribe endpoint.
 
 ## Consumer Offset
 
@@ -263,7 +262,7 @@ Normal ──ACK──> ACKed
 Normal ──NACK──> Failed (if delivery_failure_count >= max_retry)
 Failed ──NACK──> Failed (increment delivery_failure_count)
 Failed ──ACK──> ACKed
-DLQ ──REQUEUE──> Normal (cycle_failure_count reset, delivery_failure_count preserved)
+DLQ ──REQUEUE──> original stays in DLQ; a new Normal row is inserted (cycle_failure_count reset, delivery_failure_count preserved)
 ```
 
 ### Prohibited Transitions
@@ -271,7 +270,6 @@ DLQ ──REQUEUE──> Normal (cycle_failure_count reset, delivery_failure_cou
 ```
 ACKed ✗ NACK → HTTP 409 "event already acknowledged"
 DLQ ✗ NACK → HTTP 409 "event already in dead letter queue"
-ACKed ✗ ACK → HTTP 409 (idempotent duplicate ACK)
 DLQ ✗ REQUEUE → HTTP 409 "event is not in DLQ"
 ```
 

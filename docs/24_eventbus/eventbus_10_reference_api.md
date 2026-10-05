@@ -45,7 +45,7 @@ Application state and CLI entry point. See code for details.
 
 **SSE heartbeat field:** `sse_heartbeat_interval` (float) — interval in seconds between SSE comment heartbeats during live delivery phase. Optional TOML key; absent from TOML uses default. Validated as float type when present.
 
-**Operational thresholds:** `slow_consumer_threshold`, `queue_backlog_threshold`, `dlq_requeue_threshold`. All optional TOML keys; defaults used when absent. Relationship validation enforced: `slow_consumer_threshold < queue_backlog_threshold`.
+**Operational thresholds:** `slow_consumer_threshold`, `subscriber_queue_maxsize`, `backlog_health_threshold`. All optional TOML keys; defaults used when absent. Relationship validation enforced: `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`.
 
 ### scripts/eventbus/db.py
 
@@ -69,11 +69,11 @@ Common route helpers. See code for details.
 
 ### scripts/eventbus/ack_route.py
 
-`ack_event(request, event_id, consumer_id)`: `POST /events/{event_id}/ack`. `nack(request, event_id)`: `POST /nack`. Increments failure count; promotes to DLQ if `>= max_retry`.
+`ack_event(request, event_id, consumer_id)`: `POST /events/{event_id}/ack`. `nack(request, event_id, consumer_id)`: `POST /nack`. Both require `consumer_id`. NACK increments the failure count and promotes to DLQ if `>= max_retry`; it returns HTTP 409 for an event already in the DLQ.
 
 ### scripts/eventbus/dlq_route.py
 
-`dlq_list(request, limit=100, offset=0)`: `GET /dlq`. `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. If `failure_count >= max_retry`, it may be re-moved to the DLQ. See `eventbus_06_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
+`dlq_list(request, limit=100, offset=0)`: `GET /dlq`. `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. The requeue inserts a new event row (lineage model); a requeued event whose inherited `delivery_failure_count` is `>= max_retry` is promoted again on its next NACK. See `eventbus_06_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
 
 ### scripts/eventbus/replay_route.py
 
@@ -105,7 +105,7 @@ For detailed delivery semantics (ordering guarantees, ACK/NACK rules, offset sem
 
 ### HTTP Endpoints Summary
 
-`/publish`(POST), `/replay`(GET), `/subscribe`(GET), `/health`(GET), `/dlq`(GET), `/dlq/{id}/requeue`(POST), `/events/{id}/ack`(POST), `/nack`(POST).
+`/publish`(POST), `/replay`(GET), `/subscribe`(GET), `/health`(GET), `/dlq`(GET), `/dlq/{id}/requeue`(POST), `/events/{id}/ack`(POST), `/nack`(POST), `/admin/topics/authorization`(POST).
 
 ---
 
@@ -119,7 +119,7 @@ Methods: `subscribe(topics→_Subscriber, consumer_id=str)`, `unsubscribe(sub→
 
 ### scripts/eventbus/offsets.py
 
-`read_offset(offsets_dir, consumer_id)→int`: Reads saved offset (returns 0 if not found). `write_offset(offsets_dir, consumer_id, seq)→None`: Only writes to file if `seq` is greater than the current committed offset. Skips and logs a warning if `seq <= current` (ensures monotonicity).
+Legacy file-based offset store, used only by the one-time startup migration (`offset_migrator.py`); live ACK and subscribe paths use the `consumer_offsets` SQLite table via `db.py` (`ack_event_for_consumer`, `get_consumer_offset`). `read_offset(offsets_dir, consumer_id)→int`: Reads saved offset (returns 0 if not found). `write_offset(offsets_dir, consumer_id, seq)→None`: Only writes to file if `seq` is greater than the current committed offset. Skips and logs a warning if `seq <= current` (ensures monotonicity).
 
 ## Module Class/Function Reference (auto-generated)
 
