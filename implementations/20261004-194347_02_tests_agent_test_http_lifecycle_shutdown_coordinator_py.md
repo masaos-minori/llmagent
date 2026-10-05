@@ -2,6 +2,16 @@
 
 Add regression tests verifying that tracking entries are preserved on shutdown failure and removed only after confirmed termination.
 
+## Implementation outcome
+
+Deviation from procedure: the inline draft was NOT applied. It calls
+`coordinator.shutdown_all([server_key], timeout=5)` and sets a nonexistent
+`coordinator._managers[...]`, neither of which matches the real API
+(`shutdown_all(self, manager, terminator=None, fields=None)`). Origin/master already
+ships a correct test file in commit `10308ed7` using the real API; it passes (2 passed).
+No new file was created and no code was changed. Accepting the upstream implementation
+and closing the workflow.
+
 ## Scope
 
 - Create `tests/agent/test_http_lifecycle_shutdown_coordinator.py` with tests for shutdown failure scenarios
