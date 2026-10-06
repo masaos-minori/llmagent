@@ -97,10 +97,10 @@ A single-line edit to one governance file; revert the one edit to restore the ol
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-001 / AC-1 |
-| 2 | Add or update tests per Validation plan | N/A: documentation-only change | Pending | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | docs-quality checker |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: this file IS the documentation | Pending | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261006-204118 | 20261006-204118 | REQ-001 / AC-1 |
+| 2 | Add or update tests per Validation plan | Completed | 20261006-204118 | 20261006-204118 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-204118 | 20261006-204118 | docs-quality checker |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-204118 | 20261006-204118 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
