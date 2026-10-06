@@ -161,10 +161,10 @@ class TestValidateRelatedFormat:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add test cases for any-level detection | Pending | — | — | REQ-006 |
-| 2 | Add test cases for related format validation | Pending | — | — | REQ-006 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add test cases for any-level detection | Completed | 20261006-232956 | 20261006-232956 | REQ-006 |
+| 2 | Add test cases for related format validation | Completed | 20261006-232956 | 20261006-232956 | REQ-006 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-232956 | 20261006-232956 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-232956 | 20261006-232956 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
