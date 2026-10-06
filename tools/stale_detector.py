@@ -191,6 +191,38 @@ def _load_scoped_source(
     return content
 
 
+def _symbol_present_somewhere(
+    source_dir: Path,
+    sym: str,
+    cache: dict[str, bool],
+) -> bool:
+    """Return True if `sym` appears as a whole word in any ``.py`` file under
+    `source_dir` outside noise directories. Memoized by symbol.
+
+    Narrow guard against false-positive ``symbol_missing`` findings: an
+    unscoped symbol absent from the target/scoped file may still live in a
+    different file and only be discussed as a cross-reference, not verified
+    against the target. A symbol genuinely absent from every ``.py`` file is
+    still reported missing.
+    """
+    if sym in cache:
+        return cache[sym]
+    pattern = re.compile(rf"\b{re.escape(sym)}\b")
+    found = False
+    for py_file in source_dir.rglob("*.py"):
+        ancestors = set(py_file.relative_to(source_dir).parts[:-1])
+        if ancestors & _NOISE_DIR_NAMES:
+            continue
+        try:
+            if pattern.search(py_file.read_text(encoding="utf-8")):
+                found = True
+                break
+        except (OSError, UnicodeDecodeError):
+            continue
+    cache[sym] = found
+    return found
+
+
 @dataclass
 class StaleResult:
     """Structured result of a stale detection check."""
@@ -429,7 +461,16 @@ def _check_symbol_refs(
     is resolved via _find_scoped_path(), validate the symbol against that
     file's content instead of the target file's. Each occurrence is checked
     independently (no de-duplication).
+
+    An unscoped symbol absent from the target/scoped file is reported missing
+    only when it is absent from every .py file under source_dir. Existence is
+    checked repo-wide rather than by location, so a symbol that merely lives in
+    a different file (discussed here as a cross-reference) is not flagged —
+    even when the citation names that other file. This trades the ability to
+    catch a symbol that moved files for eliminating cross-reference false
+    positives.
     """
+    symbol_presence_cache: dict[str, bool] = {}
     for match in _SYMBOL_RE.finditer(proc_text):
         sym = match.group(1)
         if sym in _NON_SYMBOL_ALLOWLIST:
@@ -461,10 +502,18 @@ def _check_symbol_refs(
 
         pattern = rf"\b{re.escape(sym)}\b"
         if not re.search(pattern, content_to_check):
-            result.add_mismatch(
-                "symbol_missing",
-                f"Symbol '{sym}' not found in source",
-            )
+            # Narrow false-positive guard (Option A): a symbol absent from the
+            # target/scoped file may still exist elsewhere in the repo — cited
+            # here as a cross-reference rather than a construct verified against
+            # the target. Flag it missing only when it is absent from every
+            # .py file under source_dir. Existence is checked repo-wide, not by
+            # location, so a symbol that merely lives in another file (even one
+            # named by the citation) is not reported stale.
+            if not _symbol_present_somewhere(source_dir, sym, symbol_presence_cache):
+                result.add_mismatch(
+                    "symbol_missing",
+                    f"Symbol '{sym}' not found in source",
+                )
 
     return None
 

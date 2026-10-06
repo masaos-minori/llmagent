@@ -171,12 +171,12 @@ class TestCheckSymbolRefs:
         )
         assert result.is_stale is False
 
-    def test_missing_symbol_returns_stale(self) -> None:
+    def test_missing_symbol_returns_stale(self, tmp_path: Path) -> None:
         result = StaleResult.clean()
         proc_text = "Use `_missing_symbol` here"
         source_content = "# no such symbol exists"
         _check_symbol_refs(
-            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+            result, proc_text, source_content, tmp_path, "dummy_target.py", {}
         )
         assert result.is_stale is True
         assert any(m["type"] == "symbol_missing" for m in result.mismatches)
@@ -315,35 +315,35 @@ class TestCheckSymbolRefsMinimumShapeHeuristic:
         )
         assert result.is_stale is False
 
-    def test_snake_case_symbol_is_flagged_if_missing(self) -> None:
+    def test_snake_case_symbol_is_flagged_if_missing(self, tmp_path: Path) -> None:
         """snake_case symbols with underscores should still be checked."""
         result = StaleResult.clean()
         proc_text = "Use `_missing_field` here"
         source_content = "# no such symbol exists"
         _check_symbol_refs(
-            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+            result, proc_text, source_content, tmp_path, "dummy_target.py", {}
         )
         assert result.is_stale is True
         assert any(m["type"] == "symbol_missing" for m in result.mismatches)
 
-    def test_camelcase_symbol_is_flagged_if_missing(self) -> None:
+    def test_camelcase_symbol_is_flagged_if_missing(self, tmp_path: Path) -> None:
         """CamelCase symbols should still be checked."""
         result = StaleResult.clean()
         proc_text = "Use `MissingClass` here"
         source_content = "# no such symbol exists"
         _check_symbol_refs(
-            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+            result, proc_text, source_content, tmp_path, "dummy_target.py", {}
         )
         assert result.is_stale is True
         assert any(m["type"] == "symbol_missing" for m in result.mismatches)
 
-    def test_prefixed_symbol_is_flagged_if_missing(self) -> None:
+    def test_prefixed_symbol_is_flagged_if_missing(self, tmp_path: Path) -> None:
         """_-prefixed symbols should still be checked."""
         result = StaleResult.clean()
         proc_text = "Use `_private_var` here"
         source_content = "# no such symbol exists"
         _check_symbol_refs(
-            result, proc_text, source_content, Path("."), "dummy_target.py", {}
+            result, proc_text, source_content, tmp_path, "dummy_target.py", {}
         )
         assert result.is_stale is True
         assert any(m["type"] == "symbol_missing" for m in result.mismatches)
@@ -588,3 +588,66 @@ class TestScopedCitationWithMethodSuffix:
             result, proc_text, source_content, tmp_path, "dummy_target.md", {}
         )
         assert result.is_stale is False
+
+
+class TestCheckSymbolRefsRepoWideFallback:
+    """Regression coverage for the narrow false-positive guard: an unscoped
+    symbol that lives in a different file than the target must not be flagged,
+    while a symbol genuinely absent everywhere is still flagged. Each case runs
+    against an isolated ``tmp_path`` so the repo-wide search cannot see the rest
+    of the repository."""
+
+    def test_unscoped_symbol_present_elsewhere_not_flagged(
+        self, tmp_path: Path
+    ) -> None:
+        other = tmp_path / "scripts" / "other_module.py"
+        other.parent.mkdir(parents=True)
+        other.write_text("UNIQUE_MARKER_SYMBOL = 1\n")
+        result = StaleResult.clean()
+        proc_text = "See `UNIQUE_MARKER_SYMBOL` semantics."
+        _check_symbol_refs(
+            result, proc_text, "# target has no marker", tmp_path, "target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_unscoped_symbol_absent_everywhere_flagged(self, tmp_path: Path) -> None:
+        (tmp_path / "scripts").mkdir(parents=True)
+        ((tmp_path / "scripts") / "a.py").write_text("x = 1\n")
+        result = StaleResult.clean()
+        proc_text = "See `TOTALLY_ABSENT_ZEBRA_SYMBOL`."
+        _check_symbol_refs(
+            result, proc_text, "# nothing here", tmp_path, "target.py", {}
+        )
+        assert result.is_stale is True
+        assert any(m["type"] == "symbol_missing" for m in result.mismatches)
+
+    def test_scoped_symbol_present_elsewhere_not_flagged(self, tmp_path: Path) -> None:
+        # Even when a citation is scoped to a file, a symbol that exists
+        # elsewhere in the repo is not flagged (Option A: repo-wide existence,
+        # not location-specific). This is the accepted trade-off — a symbol
+        # that moved files is not treated as stale.
+        (tmp_path / "scripts").mkdir(parents=True)
+        scoped = tmp_path / "scripts" / "scoped_file.py"
+        scoped.write_text("# old home\n")
+        moved = tmp_path / "scripts" / "moved_file.py"
+        moved.write_text("MOVED_SCOPED_SYMBOL = 1\n")
+        result = StaleResult.clean()
+        proc_text = "`scripts/scoped_file.py` defines `MOVED_SCOPED_SYMBOL`."
+        _check_symbol_refs(
+            result, proc_text, "# target has no symbol", tmp_path, "target.py", {}
+        )
+        assert result.is_stale is False
+
+    def test_presence_search_skips_noise_directories(self, tmp_path: Path) -> None:
+        # A symbol present only inside a noise directory (e.g. a vendored venv
+        # copy) must not count as "present somewhere".
+        (tmp_path / "scripts").mkdir(parents=True)
+        ((tmp_path / "scripts") / "a.py").write_text("x = 1\n")
+        noise = tmp_path / ".venv" / "site-packages"
+        noise.mkdir(parents=True)
+        (noise / "vendored.py").write_text("NOISE_ONLY_SYMBOL = 1\n")
+        result = StaleResult.clean()
+        proc_text = "See `NOISE_ONLY_SYMBOL`."
+        _check_symbol_refs(result, proc_text, "# nothing", tmp_path, "target.py", {})
+        assert result.is_stale is True
+        assert any(m["type"] == "symbol_missing" for m in result.mismatches)
