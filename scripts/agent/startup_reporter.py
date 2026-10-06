@@ -94,21 +94,13 @@ class ReadinessReporter:
         # Compute unavailable_servers early; used for both the unreachable count
         # and the detailed excluded-tools list below.
         unavailable_servers: frozenset[str] = frozenset()
-        runtime_tools = (
-            self._ctx.services_required.runtime_tools
-            if self._ctx.services_required
-            else None
-        )
+        runtime_tools = self._ctx.services_required.runtime_tools
         if runtime_tools is not None:
             unavailable_servers = runtime_tools.unavailable_servers
         if unavailable_servers:
             lines.append(f"  Unreachable servers: {len(unavailable_servers)}")
         degraded_keys = []
-        registry = (
-            self._ctx.services_required.health_registry
-            if self._ctx.services_required
-            else None
-        )
+        registry = self._ctx.services_required.health_registry
         if registry is not None:
             degraded_keys = [
                 key
