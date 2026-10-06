@@ -98,11 +98,11 @@ The updated workflow:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Make CI structure check blocking over `docs/**/*.md` | Pending | — | — | REQ-007 |
-| 2 | Keep schema variant non-blocking | Pending | — | — | REQ-007 |
-| 3 | Add separate blocking structural step | Pending | — | — | REQ-007 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Make CI structure check blocking over `docs/**/*.md` | Completed | 20261006-233029 | 20261006-233029 | REQ-007 |
+| 2 | Keep schema variant non-blocking | Completed | 20261006-233029 | 20261006-233029 | REQ-007 |
+| 3 | Add separate blocking structural step | Completed | 20261006-233029 | 20261006-233029 | REQ-007 |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-233029 | 20261006-233029 |  |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-233029 | 20261006-233029 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
