@@ -198,7 +198,7 @@ Content to avoid:
 
 Format:
 - Preserve or add YAML front matter.
-- Maintain front matter `related:` with the related documents' filenames; do not add a body Related Documents section.
+- Maintain front matter `related:` with the related documents' filenames; do not add a body Related Documents/Docs/Chapters section at any heading level.
 - Add Keywords.
 - Structure content for LLM/RAG/coding-agent consumption.
 - Preserve existing navigation and cross-references.
