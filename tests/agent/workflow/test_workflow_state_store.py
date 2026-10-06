@@ -645,26 +645,28 @@ class TestStaleRecoveryConcurrency:
 
         def worker():
             try:
-                with patch(
-                    "db.helper.build_db_config",
-                    return_value=DbConfig(
-                        rag_db_path="/tmp/rag.sqlite",
-                        session_db_path="/tmp/session.sqlite",
-                        workflow_db_path=str(workflow_db),
-                    ),
-                ):
-                    s = StateStore()
-                    count = s.recover_stale_attempts(s.get_connection())
-                    results.append(count)
-                    s.close()
+                s = StateStore()
+                count = s.recover_stale_attempts(s.get_connection())
+                results.append(count)
+                s.close()
             except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(e)
 
-        threads = [threading.Thread(target=worker) for _ in range(2)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        # Patch once in the main thread: mock.patch is not thread-safe, so entering
+        # it from each worker can leak the mock into db.helper after the test.
+        with patch(
+            "db.helper.build_db_config",
+            return_value=DbConfig(
+                rag_db_path="/tmp/rag.sqlite",
+                session_db_path="/tmp/session.sqlite",
+                workflow_db_path=str(workflow_db),
+            ),
+        ):
+            threads = [threading.Thread(target=worker) for _ in range(2)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
 
         assert len(errors) == 0, f"Errors occurred during concurrent recovery: {errors}"
         assert sum(results) == 1, (
