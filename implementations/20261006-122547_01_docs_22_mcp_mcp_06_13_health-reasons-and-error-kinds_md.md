@@ -112,10 +112,10 @@ scheduling
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove body `### Related Documents` and stray `### Keywords` blocks | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A (documentation review) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove body `### Related Documents` and stray `### Keywords` blocks | Completed | 20261006-215803 | 20261006-215803 | REQ-001, REQ-002 |
+| 2 | Add or update tests per Validation plan | Completed | 20261006-215803 | 20261006-215803 | N/A (documentation review) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-215803 | 20261006-215803 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-215803 | 20261006-215803 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
