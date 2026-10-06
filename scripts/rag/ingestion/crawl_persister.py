@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Import here to avoid circular imports
 from rag.ingestion.crawler_utils import (
+    detect_lang,  # noqa: E402 — local import for circular dependency avoidance
     url_to_slug,  # noqa: E402 — local import for circular dependency avoidance
 )
 
@@ -52,8 +53,11 @@ class CrawlPersister:
         except OSError as e:
             logger.error("Failed to read local file %s: %s", path, e)
             return 0
-        # Resolve "auto" lang by CJK-ratio detection on the file content
-        resolved_lang: str = lang if lang != "auto" else lang
+        # Resolve "auto" hint by CJK-ratio detection on the file content
+        if lang == "auto":
+            resolved_lang = detect_lang(content) or "en"
+        else:
+            resolved_lang = lang
         if resolved_lang not in frozenset({"en", "ja"}):
             logger.warning(
                 "lang=%r not supported, skipping local file: %s", resolved_lang, path

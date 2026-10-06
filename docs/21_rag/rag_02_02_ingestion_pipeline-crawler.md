@@ -58,7 +58,7 @@ the BFS queue.
 
 `crawl_file(path, lang)` reads a local file and writes the crawl JSON to `rag-src/`. Unlike web URLs, no HTTP round-trips occur. Python files (.py) are stored as code blocks and subject to code-specific chunking. Other file types store their content directly in the `content` field.
 
-`crawl_file` currently accepts only `en` and `ja`; `lang == "auto"` is rejected (a warning is logged and nothing is written), which is tracked in `issues/20261005-102245_rag001_crawl_file-does-not-resolve-lang-auto.md`. CJK-ratio auto-detection is performed for crawled web pages by the language resolver (see Language Detection below).
+`crawl_file` accepts `en`, `ja`, and `auto`. For `lang == "auto"`, the language is resolved by CJK-ratio detection on the file content (`ja` when the CJK ratio is at or above the detection threshold, otherwise `en`), matching the resolution used for crawled web pages (see Language Detection below). An unsupported value other than `en`, `ja`, and `auto` is rejected (a warning is logged and nothing is written).
 
 ### 2.2 Detailed Behavior
 
