@@ -26,8 +26,8 @@ def _make_cfg(**overrides: object) -> McpServerConfig:
         cmd=["node", "/fake/server.js"],
         auth_token="test-token",
     )
-    defaults.update(overrides)  # type: ignore[arg-type]
-    return McpServerConfig(**defaults)  # type: ignore[arg-type]
+    defaults.update(overrides)  # type: ignore[arg-type] — test helper merges arbitrary override kwargs into a typed dict; mypy cannot narrow the value types
+    return McpServerConfig(**defaults)  # type: ignore[arg-type] — test helper merges arbitrary override kwargs into a typed dict; mypy cannot narrow the value types
 
 
 @pytest.fixture
