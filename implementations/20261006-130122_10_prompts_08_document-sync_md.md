@@ -87,10 +87,10 @@ Revert `prompts/08_document-sync.md` to the pre-this-change commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-001 / AC-1 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: prompt text only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | manual review |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261006-211931 | 20261006-211931 | REQ-001 / AC-1 |
+| 2 | Add or update tests per Validation plan | Completed | 20261006-211931 | 20261006-211931 | N/A: prompt text only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-211931 | 20261006-211931 | manual review |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-211931 | 20261006-211931 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
