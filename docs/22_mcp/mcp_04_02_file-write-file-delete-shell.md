@@ -111,11 +111,11 @@ Current default values are defined in `config/shell_mcp_server.toml`.
 
 | sandbox_backend | Meaning | Use Case |
 |---|---|---|
-| `"none"` | No process isolation; only `RLIMIT_*` limits apply | Local development only |
+| `"none"` | No process isolation; only `RLIMIT_*` limits apply | Never permitted |
 | `"firejail"` | Process isolation via firejail (`--private --net=none --noroot`) | Recommended for production |
 
 > **Security Note — Sandboxing is disabled by default:** The default value for `shell_sandbox_backend` is the no-sandbox mode. Shell commands are executed with the OS user and privileges of the agent process — there is no container or namespace isolation. To enable sandboxing, install firejail and set `shell_sandbox_backend = "firejail"` in `config/shell_mcp_server.toml`. You can verify the active backend via the `details.sandbox_backend` field (`"none"` or `"firejail"`) in the `/health` response.
-> **Enforcement:** `shell_sandbox_backend = "none"` raises `RuntimeError` regardless of environment. If this configuration is detected, the agent will fail at startup. Either set `shell_sandbox_backend = "firejail"` or disable `shell-mcp`. The mismatch between this enforcement and the `none` value in the checked-in `config/shell_mcp_server.toml` is tracked in `issues/20261005-102246_mcp001_shell-sandbox-none-config-contradicts-startup-audit.md`.
+> **Enforcement:** `shell_sandbox_backend = "none"` raises `RuntimeError` regardless of environment. If this configuration is detected, the agent will fail at startup. Set `shell_sandbox_backend = "firejail"` or disable `shell-mcp`.
 >
 > > **Note**: `shell-mcp` itself does not perform enforcement checks. Enforcement is handled by the Agent's startup sequence (via `scripts/agent/services/security_audit.py::audit_security_defaults()` called from `scripts/agent/startup.py`). If `shell-mcp` is started independently of the Agent startup path, this enforcement may be bypassed.
 

@@ -90,7 +90,7 @@ shell_sandbox_backend = "firejail"  # RuntimeError at startup if binary missing
 **Startup Enforcement**:
 - If `backend == "firejail"` and `shutil.which("firejail")` returns `None` $\rightarrow$ `RuntimeError` at startup.
 - If `backend != "firejail"` and `backend != "none"` $\rightarrow$ WARNING at startup.
-- If `backend == "none"` $\rightarrow$ `RuntimeError`, regardless of environment. The mismatch with the `none` value in the checked-in `config/shell_mcp_server.toml` is tracked in `issues/20261005-102246_mcp001_shell-sandbox-none-config-contradicts-startup-audit.md`.
+- If `backend == "none"` $\rightarrow$ `RuntimeError`, regardless of environment.
 
 Installing firejail: `sudo apt-get install firejail` (Debian/Ubuntu) or `apk add firejail` (Alpine).
 Verify: `firejail --version`
