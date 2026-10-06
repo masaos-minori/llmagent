@@ -144,9 +144,7 @@ def _is_template_section_pair(
 # Navigation sections only point at other documents (link lists, "see also"
 # tables, keyword lists). Two of them naturally look alike — sibling documents
 # link to the same neighbours — and that is not duplicated content to merge.
-_NAVIGATION_HEADINGS: frozenset[str] = frozenset(
-    {"Related Documents", "Related Docs", "Related ADRs", "Keywords"}
-)
+_NAVIGATION_HEADINGS: frozenset[str] = frozenset({"Related ADRs", "Keywords"})
 _DOC_LINK_RE = re.compile(r"\[[^\]]*\]\([^)]*\)|`[^`]*\.md`")
 
 

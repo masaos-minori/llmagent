@@ -114,10 +114,10 @@ _NAVIGATION_HEADINGS_ADR: frozenset[str] = frozenset(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update `_NAVIGATION_HEADINGS` frozenset | Pending | — | — | REQ-004 |
-| 2 | Make check ADR-aware if feasible | Pending | — | — | REQ-004 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Update `_NAVIGATION_HEADINGS` frozenset | Completed | 20261006-223154 | 20261006-223154 | REQ-004 |
+| 2 | Make check ADR-aware if feasible | Completed | 20261006-223154 | 20261006-223154 | REQ-004 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-223154 | 20261006-223154 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-223154 | 20261006-223154 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
