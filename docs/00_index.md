@@ -122,8 +122,8 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 
 | Task scope | Reference docs |
 |---|---|
-| RAG pipeline modification | `21_rag/rag_03_01_query_pipeline-overview.md` + `21_rag/rag_04_05_dto-types.md` + `40_shared/shared_02_01_types_and_protocols-core-types.md` |
-| RAG types / repository / LLM utils | `21_rag/rag_04_05_dto-types.md` + `40_shared/shared_02_01_types_and_protocols-core-types.md` |
+| RAG pipeline modification | `21_rag/rag_03_01_query_pipeline-overview.md` + `21_rag/rag_04_dto-models-types.md` + `40_shared/shared_02_01_types_and_protocols-core-types.md` |
+| RAG types / repository / LLM utils | `21_rag/rag_04_dto-models-types.md` + `40_shared/shared_02_01_types_and_protocols-core-types.md` |
 | Ingestion pipeline run (execute commands, file lifecycle) | `21_rag/rag_02_01_ingestion_pipeline-overview.md` + `21_rag/rag_05_1-configuration-reference.md` |
 | crawler.py changes / API reference | `21_rag/rag_02_02_ingestion_pipeline-crawler.md` |
 | chunk_splitter.py changes / API reference | `21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` |

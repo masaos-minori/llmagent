@@ -8,7 +8,7 @@ related:
   - rag_00_document-guide.md
   - rag_01_system_overview.md
   - rag_03_01_query_pipeline-overview.md
-  - rag_04_05_dto-types.md
+  - rag_04_dto-models-types.md
   - rag_05_1-configuration-reference.md
 source:
   - rag_03_01_query_pipeline-overview.md
@@ -19,7 +19,7 @@ source:
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
 - Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- Type Definitions → [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
+- Type Definitions → [rag_04_dto-models-types.md](rag_04_dto-models-types.md)
 
 ---
 
@@ -49,7 +49,7 @@ stage-populated field is written by a specific pipeline stage:
 from rag.models_result import SearchDiagnostics, ResultSource, HttpResultKind
 ```
 
-For detailed field lists, and types, see <a href="rag_04_02_dto-models_result.md">rag_04_02_dto-models_result.md</a>. This section describes boundary conditions and ownership specifically in HTTP mode.
+For detailed field lists, and types, see <a href="rag_04_dto-models-types.md">rag_04_dto-models-types.md</a>. This section describes boundary conditions and ownership specifically in HTTP mode.
 
 #### Boundary Conditions (Boundary and ownership)
 

@@ -114,7 +114,7 @@ requires exactly this key set (`url`, `content`, `title`, `lang`, `code_blocks`,
 For the full Required/Nullable/Conditional classification of these fields, see the
 canonical crawl/chunk artifact-field contract table in
 [rag_02_03_ingestion_pipeline-chunksplitter.md](rag_02_03_ingestion_pipeline-chunksplitter.md).
-See also [rag_04_01_dto-models_data.md](rag_04_01_dto-models_data.md) for
+See also [rag_04_dto-models-types.md](rag_04_dto-models-types.md) for
 the `ChunkDocument` DTO this reader returns.
 
 ### 2.5 Error Handling

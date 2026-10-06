@@ -12,7 +12,7 @@ related:
   - rag_03_03_query_pipeline-context-and-diagnostics.md
   - rag_03_04_query_pipeline-search-stages.md
   - rag_03_05_query_pipeline-augment-stages.md
-  - rag_04_05_dto-types.md
+  - rag_04_dto-models-types.md
   - rag_05_1-configuration-reference.md
 ---
 
@@ -20,7 +20,7 @@ related:
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
 - Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- Type Definitions → [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
+- Type Definitions → [rag_04_dto-models-types.md](rag_04_dto-models-types.md)
 
 ---
 
@@ -45,7 +45,7 @@ rag
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
 - Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
-- Type Definitions → [rag_04_05_dto-types.md](rag_04_05_dto-types.md)
+- Type Definitions → [rag_04_dto-models-types.md](rag_04_dto-models-types.md)
 
 ---
 

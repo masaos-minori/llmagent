@@ -21,7 +21,7 @@ related:
   - mcp_06_07_reading-audit-logs.md
   - agent_10_02_operations-and-observability-audit-and-otel.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
-  - rag_04_02_dto-models_result.md
+  - rag_04_dto-models-types.md
   - rag_05_2-execution-guide.md
 ---
 
@@ -161,9 +161,9 @@ Prompt injection responsibility is distributed across layers:
 | LLM output → Tool args | Agent | `validate_tool_arguments()` in `agent_06_01`; schema validation |
 | Tool args → MCP server | MCP | Path allowlist, command allowlist, schema validation |
 | RAG ingestion → Vector store | RAG ingestion | `sanitize_document()` in `rag_03_05` removes scripts, iframes, suspicious patterns |
-| RAG query → LLM | Agent | Retrieved chunks passed as context; `was_sanitized` flag in `rag_04_02` |
+| RAG query → LLM | Agent | Retrieved chunks passed as context; `was_sanitized` flag in `rag_04_dto-models-types.md` |
 
-*Source: `rag_03_05_query_pipeline-augment-stages.md` (`sanitize_document()`), `rag_04_02_dto-models_result.md` (`was_sanitized`, `patterns_detected`)*
+*Source: `rag_03_05_query_pipeline-augment-stages.md` (`sanitize_document()`), `rag_04_dto-models-types.md` (`was_sanitized`, `patterns_detected`)*
 
 ## Failure modes and operational readiness
 

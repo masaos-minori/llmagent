@@ -9,7 +9,7 @@ decision_scope:
   - rag
 related:
   - ADR-002-config-isolation.md
-  - rag_04_01_dto-models_data.md
+  - rag_04_dto-models-types.md
   - rag_05_7-rag-index-consistency-checks.md
   - rag_05_8-rag-mcp-internal-operations-direct-db-access.md
   - db_02_architecture_and_schema-schema-reference.md
@@ -398,7 +398,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Specifications
 
-- [RAG Data Model](../21_rag/rag_04_01_dto-models_data.md) — data model definitions
+- [RAG Data Model](../21_rag/rag_04_dto-models-types.md) — data model definitions
 - [RAG Consistency Checks](../21_rag/rag_05_7-rag-index-consistency-checks.md) — consistency-check procedure
 - [RAG MCP Internal Operations](../21_rag/rag_05_8-rag-mcp-internal-operations-direct-db-access.md) — MCP internal operations
 - [DB Schema Reference](../41_db/db_02_architecture_and_schema-schema-reference.md) — DB schema reference

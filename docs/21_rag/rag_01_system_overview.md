@@ -11,7 +11,7 @@ related:
   - rag_00_document-guide.md
   - rag_02_01_ingestion_pipeline-overview.md
   - rag_03_01_query_pipeline-overview.md
-  - rag_04_01_dto-models_data.md
+  - rag_04_dto-models-types.md
   - rag_05_1-configuration-reference.md
   - governance_03_issue-and-uncertainty-management.md
 ---
@@ -256,7 +256,7 @@ For details on responsibilities of these components, please refer to `docs/21_ra
 |---|---|
 | Ingestion Scripts (API, CLI, Config) | [rag_02_01_ingestion_pipeline-overview.md](rag_02_01_ingestion_pipeline-overview.md) |
 | Query Pipeline (API, Stage Details) | [rag_03_01_query_pipeline-overview.md](rag_03_01_query_pipeline-overview.md) |
-| Type Definitions | [rag_04_01_dto-models_data.md](rag_04_01_dto-models_data.md) |
+| Type Definitions | [rag_04_dto-models-types.md](rag_04_dto-models-types.md) |
 | DB Schema | [db_08_active_databases.md](../41_db/db_08_active_databases.md) |
 | Config, Execution Commands, Logs | [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md) |
 | Known Bugs and Inconsistencies | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG) |
