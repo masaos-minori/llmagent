@@ -22,7 +22,7 @@ from .http_lifecycle_errors import HttpStartupError, StartupFailure
 logger = logging.getLogger(__name__)
 
 _DEFAULT_ALLOWED_COMMANDS: frozenset[str] = frozenset(
-    {"node", "npm", "npx", "uvx", "python", "pipx", "uvicorn"}
+    {"node", "npm", "npx", "uvx", "python", "pipx", "uvicorn", "uv"}
 )
 _DEFAULT_PROTECTED_ENV_VARS: frozenset[str] = frozenset(
     {"PATH", "PYTHONPATH", "LD_LIBRARY_PATH", "HOME", "USER"}

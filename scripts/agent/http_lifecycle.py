@@ -65,7 +65,7 @@ class HttpServerLifecycleManager:
     """
 
     _ALLOWED_COMMANDS: frozenset[str] = frozenset(
-        {"node", "npm", "npx", "uvx", "python", "pipx", "uvicorn"}
+        {"node", "npm", "npx", "uvx", "python", "pipx", "uvicorn", "uv"}
     )
 
     def __init__(
