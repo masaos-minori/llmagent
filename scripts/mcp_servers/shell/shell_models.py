@@ -56,7 +56,7 @@ class ShellConfig:
     execution_user: str = ""
     shell_path: str = "/usr/bin:/bin"
     audit_log_path: str = ""
-    shell_sandbox_backend: str = "none"
+    shell_sandbox_backend: str = "firejail"
     env_allowlist: list[str] = dataclasses.field(default_factory=list)
     env_denylist: list[str] = dataclasses.field(default_factory=list)
 
@@ -81,7 +81,9 @@ class ShellConfig:
             execution_user=_or_default(d.get("execution_user"), ""),
             shell_path=_or_default(d.get("shell_path"), "/usr/bin:/bin"),
             audit_log_path=_or_default(d.get("audit_log_path"), ""),
-            shell_sandbox_backend=_or_default(d.get("shell_sandbox_backend"), "none"),
+            shell_sandbox_backend=_or_default(
+                d.get("shell_sandbox_backend"), "firejail"
+            ),
             env_allowlist=list(_or_default(d.get("env_allowlist"), [])),
             env_denylist=list(_or_default(d.get("env_denylist"), [])),
         )
