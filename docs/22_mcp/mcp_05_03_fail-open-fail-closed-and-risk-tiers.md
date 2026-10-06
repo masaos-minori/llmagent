@@ -38,7 +38,7 @@ related:
 
 | Setting | Server Config File | Check Details |
 |---|---|---|
-| `shell_sandbox_backend` | `shell_mcp_server.toml` | RuntimeError if `"firejail"` + binary missing; WARNING if not `"firejail"` or `"none"`; RuntimeError in production if `"none"` |
+| `shell_sandbox_backend` | `shell_mcp_server.toml` | RuntimeError if `"firejail"` + binary missing; WARNING if not `"firejail"` or `"none"`; RuntimeError regardless of environment if `"none"` |
 | `command_allowlist` | `shell_mcp_server.toml` | DENY-ALL warning if empty (fail-closed) |
 | `allowed_repo_paths` | `git_mcp_server.toml` | DENY-ALL warning if empty (fail-closed) |
 | `workflow_allowlist` | `cicd_mcp_server.toml` | DENY-ALL warning at both agent and server layers if empty (see [mcp_05_01_access-control-and-allowlists.md](./mcp_05_01_access-control-and-allowlists.md)) |
