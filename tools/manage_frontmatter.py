@@ -8,9 +8,13 @@ Consolidated from:
 Subcommands:
   add-missing           Add missing YAML Front Matter to docs/*.md files
   dedupe-lists          Remove duplicate entries from list fields (tags/related/source)
-  merge-related         Union body `## Related Documents` (and `## Related Docs` /
+  merge-related         ONE-TIME migration aid: union second-level (``## ``) body
+                        `## Related Documents` (and `## Related Docs` /
                         `## Related Chapters`) entries into front matter `related:`
-                        (dry-run by default; recursive over docs/**/*.md)
+                        (dry-run by default; recursive over docs/**/*.md). Deep
+                        `### ` blocks are not migrated here — move those entries to
+                        `related:` by hand. Any-level body blocks are flagged by
+                        `check_docs_structure.py`.
   rename-category-to-area
                         Rename a `category:` key to `area:` in files that already
                         have valid, `---`-fenced Front Matter (value unchanged)
