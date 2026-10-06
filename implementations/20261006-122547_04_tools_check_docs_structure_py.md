@@ -126,12 +126,12 @@ def _validate_related_format(related_entries: list[str]) -> list[str]:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Strengthen `_RELATED_HEADING_RE` to any-level detection | Pending | — | — | REQ-004 |
-| 2 | Add `related` format validation | Pending | — | — | REQ-004 |
-| 3 | Update error messages and module docstring | Pending | — | — | REQ-004 |
-| 4 | Add or update tests per Validation plan | Pending | — | — | REQ-006 |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 6 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Strengthen `_RELATED_HEADING_RE` to any-level detection | Completed | 20261006-222159 | 20261006-222159 | REQ-004 |
+| 2 | Add `related` format validation | Completed | 20261006-222159 | 20261006-222159 | REQ-004 |
+| 3 | Update error messages and module docstring | Completed | 20261006-222159 | 20261006-222159 | REQ-004 |
+| 4 | Add or update tests per Validation plan | Completed | 20261006-222159 | 20261006-222159 | REQ-006 |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-222159 | 20261006-222159 |  |
+| 6 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-222159 | 20261006-222159 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
