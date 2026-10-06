@@ -91,10 +91,10 @@ Note: `uvx` is already admitted but the `uv` runner itself was not; only `uv` is
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-001, REQ-004 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261006-223323 | 20261006-223323 | REQ-001, REQ-004 |
 | 2 | Add or update tests per Validation plan | N/A | — | — | doc-only change, no test edit required |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff + pytest |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-223323 | 20261006-223323 | ruff + pytest |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
