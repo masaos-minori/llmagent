@@ -65,18 +65,6 @@ registry.record_failure(server_key)
 
 ---
 
-### Related Documents
-
-- `mcp_00_document-guide.md`
-- `mcp_06_02_configuration-file-inventory.md`
-
-### Keywords
-
-health-reasons
-scheduling
-
----
-
 ## Difference Between Tool Errors and Transport Errors
 
 In an MCP server, errors are divided into two categories:
