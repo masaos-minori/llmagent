@@ -26,7 +26,7 @@ class ToolCallResult:
             request_id=request_id,
             server_key="",
             source="mcp",
-            error_type="transport" if is_error else "",
+            error_type="tool" if is_error else "",
         )
 
 
