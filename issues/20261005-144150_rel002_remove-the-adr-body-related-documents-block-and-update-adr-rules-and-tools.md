@@ -17,6 +17,18 @@ The source is `memo2.md` (repository root), which makes the ADR change condition
 - The ADR standard header order is defined in `docs/00_governance/governance_01_documentation-policy.md` (ADR Section Header Standardization, which lists `Related Documents` before `Completion Checklist`) and repeated in `governance_04_documentation-checks.md` (ADR Section Header Compliance item list) and `skills/python-refactoring/path-c.md`. `adr-index.md` and `adr_00_document-guide.md` also carry the block.
 - The ADR rules already state: update the current Accepted ADR directly when the architecture changes (governance_01 "ADR Change Protocol"), so restructuring ADR sections does not require new ADRs.
 
+## Adversarial Verification
+Verified against the current repository state (2026-10-05). Findings:
+- CONFIRMED: all 20 files under `docs/10_adr/` carry a `## Related Documents` section, including `adr-index.md` and `adr_00_document-guide.md`.
+- CONFIRMED: subsection counts match exactly — `### Specifications` 13, `### Known Issues` 13, `### Implementation References` 13, `### Related ADRs` 12, `### Operations` 6, `### Companion Document` 4.
+- CONFIRMED: `tools/check_adr_structure.py` reads `### Implementation References` and emits the `## Implementation Notes` vs `### Implementation References` drift warning.
+- CONFIRMED: `tools/check_known_deviation_sync.py` parses Known Issue IDs from both `## Known Deviations` and the `### Known Issues` subsection.
+- CONFIRMED: `tools/check_docs_structure.py._is_adr()` returns `"10_adr" in path.parts`, so any `10_adr` path is treated as an ADR.
+- CONFIRMED: governance_01 (ADR Section Header Standardization), governance_04 (ADR Section Header Compliance item 13), and `skills/python-refactoring/path-c.md` all list `Related Documents` immediately before `Completion Checklist`.
+- CONFIRMED: ADR-014's `### Known Issues` cites an issue-file path (`issues/done/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md`), matching the issue's note.
+- CONFIRMED: `rel001` exists at `issues/20261005-143453_rel001_...md`.
+- **DISCREPANCY**: `memo2.md` does not exist. It is absent from the working tree, from `git ls-files`, and from `git log --all` (no commit ever referenced it). Only `memo-test.md` (a test-suite review report) and `memo-etc.md` (Japanese work instructions) exist at the repo root; neither contains the ADR/single-store policy this issue attributes to `memo2.md`. The quoted conditional clause ("if the same policy is applied to ADRs, update the ADR standard structure") appears nowhere except this issue. The source of the ADR decision is therefore unverified; the owner should confirm which document (or instruction) is the real source, or remove the `memo2.md` reference.
+
 ## Problem
 ADR documents are the only documents that maintain related-document information in two places, and the block mixes three different kinds of information: related documents, ADR-to-ADR navigation and implementation (code and test) references. The structure check enforces the duplication. Removing the block naively would orphan `Implementation References` and break the ADR structure check and the standard header list.
 
