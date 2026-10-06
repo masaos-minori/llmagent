@@ -69,7 +69,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 
 If post-execution approvals from a previous session remain unresolved upon agent startup, they are restored from `workflow.sqlite` via `StateStore.find_latest_pending_approval()`. Only one such approval is tracked at a time, applying the latest record across all sessions.
 
-If a restoration value is set while a `pending_approval_task_id` is already configured, a `WARNING` level log is emitted, but the value is overwritten (the process does not abort).
+If a restoration value is set while a `pending_approval_task_id` is already configured, a `WARNING` level log is emitted and the process does not abort. When the existing value differs from the recovered id, the existing value is preserved (the log reads "Keeping existing pending_approval_task_id X instead of overwriting with Y"). When the values are equal, the assignment is idempotent (the log reads "Overwriting pending_approval_task_id X with Y" but the value is unchanged). When the existing value is `None`, the recovered value is simply assigned (no overwrite log).
 
 ### Resource Cleanup on Shutdown
 
