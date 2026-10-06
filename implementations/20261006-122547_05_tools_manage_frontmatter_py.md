@@ -99,10 +99,10 @@ The updated description states:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document `merge-related` as one-time migration aid | Pending | — | — | REQ-005 |
-| 2 | Update tests for the `merge-related` decision | Pending | — | — | REQ-006 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Document `merge-related` as one-time migration aid | Completed | 20261006-223050 | 20261006-223050 | REQ-005 |
+| 2 | Update tests for the `merge-related` decision | Completed | 20261006-223050 | 20261006-223050 | REQ-006 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-223050 | 20261006-223050 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-223050 | 20261006-223050 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
