@@ -113,11 +113,11 @@ Restore `error_type="tool" if is_error else ""` in `ToolCallResult.from_transpor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Restore `error_type="tool"` in `transport_dto.py:29` | Pending | — | — | REQ-001 |
-| 2 | Update `from_transport()` docstring | Pending | — | — | REQ-002 |
-| 3 | Add or update tests per Validation plan | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Restore `error_type="tool"` in `transport_dto.py:29` | Completed | 20261006-214848 | 20261006-214848 | REQ-001 |
+| 2 | Update `from_transport()` docstring | Completed | 20261006-214848 | 20261006-214848 | REQ-002 |
+| 3 | Add or update tests per Validation plan | Completed | 20261006-214848 | 20261006-214848 |  |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-214848 | 20261006-214848 |  |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-215021 | 20261006-215021 | N/A: no docs/00_index.md task-scope row for scripts/shared/transport_dto.py; docstring update covered under Step 2 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
