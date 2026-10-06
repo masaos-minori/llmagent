@@ -6,10 +6,12 @@ deploy 時に本エージェント本体および各 MCP サーバーを Nuitka 
 `/opt/llm/` への配布方式を現行の `rsync` + `uv run` から単一バイナリ配布に切り替えたい。
 本書は実装前の方針検討結果をまとめたものであり、コード変更は未着手。
 
-> **最終検証（2026-09-30）**: 記載事実を現行コードで敵対的に検証し、ドリフトを文中に反映済み。
+> **最終検証（2026-10-05）**: 記載事実を現行コードで敵対的に検証し、ドリフトを文中に反映済み。
 > 主要項目（エントリポイント・MCPサーバー構成10・plugin廃止・sqlite-vec/sudachi・現行deploy）は
 > 現状と一致。`cmd` の `--no-sync` フラグとサーバー実ファイル名 `<server>_server.py` は検証後に
 > 更新（元々は記載欠落／`server.py` 仮説）。
+> ドリフト: `scripts/agent/repl.py` の `if __name__` は162→156行目、
+> `pyproject.toml` の coverage omit は140→144行目に移動。
 
 ## 状態: 提案（未着手）
 
@@ -42,10 +44,10 @@ plugin 機構（`scripts/shared/plugin_registry.py` による `plugins/` 配下�
 
 - `scripts/agent.py` は既に削除済み（過去のレガシーエントリポイント）。
 - 本番導線は `deploy/start_agent.sh:76` の `uv run python -m agent.repl` であり、
-  `scripts/agent/repl.py:162` の `if __name__ == "__main__":` が起点
+  `scripts/agent/repl.py:156` の `if __name__ == "__main__":` が起点
   （`main()` → `AgentREPL().run()`）。
 - `scripts/agent/__main__.py`（`python -m agent`）は存在するが本番導線では未使用。
-- `pyproject.toml:140`（coverage omit）に存在しない `scripts/agent.py` の記述が
+- `pyproject.toml:144`（coverage omit）に存在しない `scripts/agent.py` の記述が
   残存しており、ドキュメントドリフトがある（本件とは別問題として要整理）。
 
 ### MCP サーバー構成
