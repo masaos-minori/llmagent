@@ -81,10 +81,10 @@ Remove the issue pointer from `mcp_05_02` — the policy wording already states 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove pointer from `mcp_05_02` | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove pointer from `mcp_05_02` | Completed | 20261006-203959 | 20261006-203959 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261006-203959 | 20261006-203959 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-203959 | 20261006-203959 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-203959 | 20261006-203959 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
