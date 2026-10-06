@@ -99,10 +99,10 @@ Align `mcp_04_02` to the single "never permitted" policy for `none`: fix the san
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Align `mcp_04_02` (table + note + remove pointer) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Align `mcp_04_02` (table + note + remove pointer) | Completed | 20261006-203959 | 20261006-203959 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261006-203959 | 20261006-203959 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-203959 | 20261006-203959 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-203959 | 20261006-203959 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
