@@ -115,9 +115,9 @@ class TestMergeRelatedOneTimeAid:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add test cases for merge-related one-time-aid behavior | Pending | — | — | REQ-006 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add test cases for merge-related one-time-aid behavior | Completed | 20261006-233019 | 20261006-233019 | REQ-006 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-233019 | 20261006-233019 |  |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-233019 | 20261006-233019 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
