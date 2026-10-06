@@ -40,22 +40,23 @@ Add a test asserting the audit result for the checked-in shell config, and retai
 
 ### Details
 
-**New test to add (after existing line 518):**
+**New test to add (after the existing firejail tests, ~line 563):**
 ```python
 def test_checked_in_shell_config_audit_result(self):
-    """Audit result for the checked-in shell config per Option A."""
-    # Load the checked-in config
-    shell_cfg = ShellAuditConfig.load()
-    # Assert the backend is firejail (not none)
+    """Checked-in shell config resolves to firejail (Option A: none never permitted)."""
+    # Load the repository's checked-in shell config via the audit loader
+    from agent.security_audit_config import load_shell_audit_config
+
+    shell_cfg = load_shell_audit_config()
+    assert shell_cfg is not None
+    # Option A: the checked-in backend is firejail, never none
     assert shell_cfg.sandbox_backend == "firejail"
-    # The audit should NOT raise RuntimeError for firejail (when firejail binary is present)
-    # If firejail is not installed, it raises — this is expected fail-fast
 ```
 
-**Existing tests to retain (lines 486-518):**
-- `test_sandbox_backend_none_raises_runtime_error` (line 486)
-- `test_sandbox_backend_none_raises_runtime_error_with_env` (line 502)
-- `test_sandbox_backend_invalid_warns_about_firejail` (line 518)
+**Existing tests to retain (do not modify — they assert the audit's unchanged behavior):**
+- `test_shell_sandbox_none_warns` (line 485)
+- `test_shell_sandbox_none_raises_in_production` (line 501)
+- `test_shell_sandbox_non_firejail_warns` (line 517)
 
 ## Compatibility considerations
 
@@ -95,10 +96,10 @@ def test_checked_in_shell_config_audit_result(self):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add checked-in-config audit test | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add checked-in-config audit test | Completed | 20261006-191358 | 20261006-191358 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261006-191358 | 20261006-191358 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-191358 | 20261006-191358 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-191358 | 20261006-191358 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
