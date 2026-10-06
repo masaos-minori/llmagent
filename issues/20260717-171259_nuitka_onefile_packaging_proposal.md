@@ -13,6 +13,107 @@ deploy 時に本エージェント本体および各 MCP サーバーを Nuitka 
 > ドリフト: `scripts/agent/repl.py` の `if __name__` は162→156行目、
 > `pyproject.toml` の coverage omit は140→144行目に移動。
 
+## Priority
+Medium
+
+## Summary
+deploy 時にエージェント本体と MCP サーバー10種を Nuitka `--onefile` で個別バイナリ化し、
+`/opt/llm/` への配布を `rsync` + `uv run` から単一バイナリ配布へ切り替える。
+`config/`、Sudachi 辞書、`sqlite-vec` は外部データとして配置する。
+Phase 0 の PoC で実現可能と判断済み（下記「Phase 0 検証結果」）。
+
+## Background
+現行デプロイは `deploy/deploy.sh` による rsync 同期と、実行時の `uv run` 依存解決。
+詳細は「背景・目的」「現状調査結果（事実）」を参照。
+
+## Problem
+- `uv run` による起動オーバーヘッドと、配布物（ソース + venv 解決）の複雑さ。
+- onefile 化すると `__file__` 基準のパス解決（config, workflows）と、
+  Sudachi 組み込み辞書指定（`dict="core"`）が外部配置と両立しない。
+
+## Reason for Change
+起動高速化・配布物の単純化・依存解決の実行時オーバーヘッド削減。
+Phase 0 でバイナリ化と外部データ参照の技術的成立を確認できたため、設計変更に着手できる状態。
+
+## Implementation Intent
+「設計方針（config ディレクトリ / Sudachi 辞書）」のとおり、パス解決を `scripts/shared/`
+の1箇所に集約し、辞書パスを設定・環境変数で絶対パス指定できるようにする。
+その後、PoC、ビルドスクリプト、デプロイ手順の順に段階導入する（「提案する作業計画」）。
+
+## Target Files or Areas
+- `scripts/shared/config_loader.py`, `scripts/agent/workflow/workflow_loader.py`,
+  `scripts/agent/config_builders.py`, `scripts/agent/context.py`,
+  `scripts/agent/commands/cmd_skill.py`（パス解決の集約）
+- `scripts/rag/repository.py`, `scripts/rag/ingestion/chunk_splitter.py`（Sudachi 辞書パス）
+- `scripts/agent/http_lifecycle_command_validator.py`, `scripts/agent/http_lifecycle.py`（コマンド許可リスト）
+- `pyproject.toml`（`PyYAML` 本番依存の追加）
+- `config/agent.toml`（MCP サーバー `cmd`、辞書パス設定）
+- `deploy/deploy.sh`, `deploy/init_db.sh`, `deploy/setup_services.sh`, 新規 `deploy/build_binaries.sh`
+- `skills/deploy/SKILL.md`, `.github/workflows/`
+
+## Required Changes
+- パス解決関数を `scripts/shared/` に新設し、config / workflows の解決箇所を置換する
+  （優先順位: `LLMAGENT_CONFIG_DIR` > 実行ファイル隣接 > `__file__` 基準）。
+- Sudachi 辞書パスを設定キーと `LLMAGENT_SUDACHI_DICT` で指定可能にする（既定 `/opt/llm/dict/system.dic`、
+  未設定時のみ `dict="core"`、存在しないパスは起動時エラー）。
+- `config/agent.toml` の10個の `cmd` をバイナリパス形式へ変更する。
+- `CommandValidator` の許可リストをバイナリ起動に対応させる（許可ディレクトリ配下の絶対パスのみ許可する等、検査を弱めない方式）。
+- `PyYAML` を `pyproject.toml` の本番依存へ追加する（`mdq` が使用）。
+- `uv run python -m ...` で起動している周辺経路（workflow.validate、create_schema、eventbus.app、rag.ingestion.*）の扱いを決める。
+- `deploy/build_binaries.sh` を新設し、計11バイナリをビルドする。
+- `deploy/deploy.sh` ほかをバイナリ配布 + 外部データ配置方式へ更新する。
+- Nuitka ビルドには `--include-package-data=sudachipy` が必須。
+
+## Constraints
+- 外部データ（`config/`, `sqlite-vec/vec0.so`, 辞書）はバイナリに埋め込まない。
+- `sudachidict-core` の版は `sudachipy` の版と対応させる。
+- 開発時の `uv run` 実行は引き続き動作させる（フォールバック維持）。
+- ビルドホストに `python3-dev`（または uv 管理 Python）と `patchelf` が必要。
+- 低メモリ環境では `--onefile-no-compression` を要する。`/tmp`（tmpfs）の容量に注意。
+
+## Acceptance Criteria
+- 全11バイナリがビルドでき、`/opt/llm/bin/` から起動できる。
+- REPL 起動、全 MCP サーバーの HTTP 疎通、RAG 検索（外部辞書読込・sqlite-vec ロード含む）が通る。
+- `LLMAGENT_CONFIG_DIR` と実行ファイル隣接の双方で config を解決できる。
+- 辞書パスが不正な場合、起動時に明示エラーとなる。
+- `uv run` 方式への切り戻し手順が保持されている。
+- 起動時間・配布サイズが計測され、記録されている。
+
+## Testing Expectations
+- パス解決関数・辞書パス解決の単体テスト（優先順位、不正パス、フォールバック）。
+- 既存テストスイートの回帰確認（`rules/toolchain.md` の検証シーケンス）。
+- 実バイナリでのスモークテスト（REPL、MCP HTTP 疎通、RAG 検索）。
+
+## Documentation Impact
+- `skills/deploy/SKILL.md` と `docs/` のデプロイ・設定関連記述の更新が必要
+  （配布物構成、外部データ配置、環境変数、切り戻し手順）。
+- `LLMAGENT_CONFIG_DIR` / `LLMAGENT_SUDACHI_DICT` の仕様と失敗時挙動を記載する。
+
+## Out of Scope
+- plugin 機構（既に廃止済み）。
+- `pyproject.toml` の coverage omit に残る存在しない `scripts/agent.py` 記述の整理（別件）。
+- `scripts/agent/config_builders.py` の `_CONFIG_DIR` の誤指定（`scripts/config`）の単独修正（別件。ただしパス集約時に結果的に解消してよい）。
+- `scripts/mcp_launcher.py` の変更（本番導線で未使用）。
+
+## Dependencies
+N/A: none（Phase 3 のビルド時間対策として `ccache` 等のビルドホスト整備が必要だが、他 issue への依存ではない）。
+
+## Unresolved Questions
+- 実際のエージェント本体と MCP サーバー（`fastapi`, `uvicorn`, `trafilatura`, `duckduckgo-search`, `httpx` 等）の Nuitka ビルド可否。
+- 動的 import（`mcp_servers.*`、遅延 import）に対する `--include-package` の要否。
+- `eventbus` 等のパッケージ内データファイルの同梱要否。
+- 11バイナリ合計の配布サイズとビルド時間（`ccache` / standalone 共有方式の要否）。
+- `skills/` ディレクトリの配布要否（`cmd_skill.py` の `_skills_dir` が `__file__` 基準）。
+- 現行 HEAD の `CommandValidator` が `cmd[0]="uv"` を拒否する件が、本番（旧版コード）でどう動いているか。
+- `uv run python -m ...` 系の周辺経路と `eventbus.app` をバイナリ化の対象に含めるか。
+- `rag.pipeline` 等の遅延 import に必要な Nuitka 明示 include の範囲。
+
+## AI Implementation Instruction
+- パス解決は `scripts/shared/` の1箇所に集約し、重複実装を作らない。
+- 辞書パス不正時に黙って `dict="core"` へフォールバックしない。
+- `AGENTS.md` Global Rule 5 に従い、無関係なリファクタリングは行わない。
+- 実装は `skills/python-implementation` に従い、`rules/toolchain.md` の検証を通す。
+
 ## 状態: 提案（Phase 0 実施済み・実現可能と判断。コード変更は未着手）
 
 ## 背景・目的
@@ -56,22 +157,23 @@ plugin 機構（`scripts/shared/plugin_registry.py` による `plugins/` 配下�
 
 | サーバー | セクション | 主な依存 |
 |---|---|---|
-| shell | `[mcp_servers.shell]` | 標準ライブラリ中心（`subprocess_runner.py`） |
-| git | `[mcp_servers.git]` | `gitpython` |
-| web_search | `[mcp_servers.web_search]` | `duckduckgo-search` |
-| file_delete | `[mcp_servers.file_delete]` | 標準ライブラリ |
-| file_write | `[mcp_servers.file_write]` | 標準ライブラリ |
-| file_read | `[mcp_servers.file_read]` | 標準ライブラリ |
-| github | `[mcp_servers.github]` | `PyGithub` |
-| cicd | `[mcp_servers.cicd]` | `PyGithub`（GitHub Actions API 経由） |
-| rag_pipeline | `[mcp_servers.rag_pipeline]` | `sqlite-vec`, `sudachipy` |
-| mdq | `[mcp_servers.mdq]` | 標準ライブラリ + SQLite |
+| shell | `[mcp_servers.shell]` | `fastapi`, `pydantic`（`subprocess_runner.py` は標準ライブラリ） |
+| git | `[mcp_servers.git]` | `gitpython`, `fastapi`, `pydantic` |
+| web_search | `[mcp_servers.web_search]` | `duckduckgo-search`, `beautifulsoup4`, `httpx`, `fastapi` |
+| file_delete | `[mcp_servers.file_delete]` | `fastapi`, `pydantic` |
+| file_write | `[mcp_servers.file_write]` | `fastapi`, `pydantic` |
+| file_read | `[mcp_servers.file_read]` | `fastapi`, `pydantic` |
+| github | `[mcp_servers.github]` | `PyGithub`, `fastapi` |
+| cicd | `[mcp_servers.cicd]` | `httpx`, `orjson`, `fastapi`（`PyGithub` は import しておらず、GitHub Actions API を `httpx` で直接呼ぶ） |
+| rag_pipeline | `[mcp_servers.rag_pipeline]` | `httpx`, `orjson`, `fastapi`。`sudachipy`/`sqlite-vec` は `rag.pipeline` の遅延 import（`rag_pipeline_service.py`）経由で、静的解析で検出されにくい |
+| mdq | `[mcp_servers.mdq]` | `fastapi`, `pydantic`, `PyYAML`（`mdq/parser.py`）+ SQLite。PyYAML は `pyproject.toml` の本番依存に未記載（後述） |
 
 全て `transport = "http"`, `startup_mode = "subprocess"`,
 `cmd = ["uv", "run", "--no-sync", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/<server>/<server>_server.py"]`
 という構成（`--no-sync` は実行時の uv sync オーバーヘッド抑制のため全定義に付与）。
-サーバー実ファイルは `<server>_server.py`（例: `shell/shell_server.py`, `mdq/mdq_server.py`）
-だが、`file_delete` セクションの実ファイルは `delete_server.py`（セクション名と異なる）。
+サーバー実ファイルは `<server>/<server>_server.py`（例: `shell/shell_server.py`, `mdq/mdq_server.py`）
+だが、`file_*` の3つはディレクトリ名・ファイル名ともに異なる（`file_delete` -> `file/delete_server.py`、
+`file_write` -> `file/write_server.py`、`file_read` -> `file/read_server.py`）。
 `scripts/agent/http_lifecycle.py` の `HttpServerLifecycleManager` が `subprocess` で
 個別プロセスとして起動する。HTTP 越しの独立プロセスであるため、`cmd` をバイナリパスに
 差し替えるだけで移行できる。
@@ -88,10 +190,11 @@ plugin 機構（`scripts/shared/plugin_registry.py` による `plugins/` 配下�
   `sqlite3.load_extension()` 経由でロード。パスは `config/agent.toml:9` に
   `sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"` と絶対パスで設定済み。
   Python の import 機構とは無関係のため **変更不要**、現状のまま外部データとして扱える。
-- **sudachidict-core**: `sudachipy` 経由で `rag/repository.py:37` の
-  `_SudachiTokenizer` と `scripts/rag/ingestion/chunk_splitter.py:33-34,81,83`
-  （import が33-34行目、`sudachi_dict.Dictionary(dict="core")` 呼び出しが81行目・
-  83行目）が使用。パッケージ内 `resources/system.dic`（約217MB）を外部配置に
+- **sudachidict-core**: `sudachipy` 経由で `rag/repository.py` の
+  `_SudachiTokenizer`（クラスは37行目、`Dictionary(dict="core")` 呼び出しは55行目）と
+  `scripts/rag/ingestion/chunk_splitter.py`（import が33-34行目、
+  `Dictionary(dict="core")` 呼び出しは81行目のみ。83行目は `SplitMode.C` 取得）が使用。
+  `chunk_japanese.py` は注入されたトークナイザを使うだけで、辞書生成は行わない。呼び出し箇所は計2つ。パッケージ内 `resources/system.dic`（約217MB）を外部配置に
   変更する必要があり、現在も組み込み辞書指定方式（`dict="core"`）のままである。
   `sudachipy.Dictionary()` に外部辞書パスを渡す API 仕様の確認が実装時に必要
   （未検証）。
@@ -243,6 +346,61 @@ PoC は scratchpad 内の最小スクリプトで実施し、リポジトリの�
 - ただし 11 バイナリのビルド時間とビルドホストの前提整備（`python3-dev`/`patchelf`/`ccache`）が
   Phase 3 の主要課題になる。
 
+## 敵対的検証結果（2026-10-06）
+
+本書の記載事実を現行コード（master）で再検証した。上記本文は訂正済み。以下は検証で判明した
+訂正と、本書が見落としていた論点。
+
+### 訂正した記載（ドリフト）
+
+- 行番号: `repl.py` の `__main__` は156行目（旧162）、`pyproject.toml` の coverage omit は144行目（旧140）。
+- Sudachi: `Dictionary(dict="core")` の呼び出しは `repository.py` 55行目と `chunk_splitter.py` 81行目の2箇所のみ
+  （旧記載の「81・83行目」の83は `SplitMode.C`）。
+- MCP サーバー実ファイル: `file_write`/`file_read` も `file/write_server.py`/`file/read_server.py`
+  （`file_delete` だけでない）。
+- 依存: shell・file_*・mdq は「標準ライブラリ中心」ではなく全サーバーが `fastapi`/`pydantic` に依存。
+  `cicd` は `PyGithub` を使っていない（`httpx` + `orjson`）。Phase 0 の対象依存リストにも `fastapi`,
+  `uvicorn`, `httpx`, `trafilatura`, `beautifulsoup4`, `PyYAML` を加える必要がある。
+
+### 新規に判明した阻害要因（事実）
+
+1. **`CommandValidator` の許可リストがバイナリ移行を阻害する。**
+   `scripts/agent/http_lifecycle_command_validator.py` は `cmd[0]` を `shutil.which` で解決し、
+   実体 basename が許可リスト（`node/npm/npx/uvx/python/pipx/uvicorn` と `python3(.N)`）にあるかを検査する。
+   `/opt/llm/bin/mcp_shell` のような名前は拒否され、`bin/` が PATH 上に無い場合は「not found in PATH」でも
+   失敗する（dev 環境で直接実行して確認）。バイナリ名の許可方式（例: 許可ディレクトリ配下の絶対パスのみ許可）を
+   設計し、セキュリティ検査の弱体化にならないようにする必要がある。
+2. **現行 HEAD の検証でも `cmd[0]="uv"` は許可リスト外で拒否される**（dev 環境で直接実行して確認）。
+   本番 `/opt/llm/scripts/` は旧版コードで検証経路が異なり、本番での挙動は不明。
+   現行構成そのものが検証を通るかは別途確認が必要（本件の前提に影響するため要確認）。
+3. **`PyYAML` が本番依存に未宣言。** `mdq/parser.py` が `import yaml` するが、`pyproject.toml` の
+   `dependencies` に無く、`uv.lock` 上は `bandit`/`libcst`/`pre-commit` 等の開発依存の推移依存としてのみ存在する。
+   本番 `uv sync`（`--no-dev`）や、メイン依存のみで作る Nuitka ビルド環境では欠落してビルド・起動が失敗し得る。
+4. **「11バイナリ」に含まれない起動経路が存在する。** 現行デプロイは `uv run python -m ...` を次にも使う:
+   `agent.workflow.validate`（`deploy.sh`, `start_agent.sh`, `setup_services.sh`）、
+   `db/create_schema.py`（`init_db.sh`）、`python -c`（スキーマ版確認、`setup_services.sh`）、
+   `eventbus.app`（`setup_services.sh`、port 8015 の独立サービス）、
+   `rag.ingestion.crawler`/`chunk_splitter`/`ingester`（手動実行）。バイナリ化するか、
+   `uv run` を残すか、サブコマンド化して本体に統合するかの方針が必要。
+5. **`rag_pipeline` の依存は遅延 import。** `sudachipy`/`sqlite-vec` 経路は `rag_pipeline_service.py` 内の
+   関数内 import（`rag.pipeline`）で、Nuitka の静的解析で拾われない可能性がある。`--include-package=rag` 等の
+   明示が必要になり得る（Phase 2 で検証）。
+
+### 確認できた記載（事実と一致）
+
+- 本番導線 `deploy/start_agent.sh:76` の `uv run python -m agent.repl`、`scripts/agent.py` 削除済み、
+  `scripts/agent/__main__.py` の存在。
+- MCP サーバー10個、全て `transport="http"`・`startup_mode="subprocess"`・`--no-sync` 付き `cmd`。
+- `sqlite_vec_so` が絶対パス設定で、`db/helper.py` の `load_extension` 経由のため変更不要。
+- `config_loader.py:74` / `config_builders.py:59` が `__file__` 基準。
+- `deploy.sh` が `pyproject.toml`/`uv.lock`/`scripts/`/`config/*.toml`/`schemas/`/`config/workflows/` を配置する構成
+  （`config/` は個別 `cp`。onefile 化後も外部配置対象のファイル列挙を維持する必要がある）。
+- `mcp_launcher.py` は `walk_packages` で動的発見する単体起動用で、本番導線では未使用。
+
+### Required Changes / Unresolved Questions への反映
+
+- 上記 1〜5 を `## Required Changes` と `## Unresolved Questions` に追記した。
+
 ## 想定される配布物構成
 
 ```
@@ -286,4 +444,4 @@ PoC は scratchpad 内の最小スクリプトで実施し、リポジトリの�
 - **Source plan**: N/A: not filed from a Plan
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20260717-171801 (inferred from git history — first commit adding this file; predates this template's timestamp-prefixed naming convention)
-- **Related target files**: N/A: this document predates templates/issue.md's Target Files or Areas structure
+- **Related target files**: see `## Target Files or Areas` above
