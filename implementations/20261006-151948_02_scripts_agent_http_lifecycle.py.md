@@ -91,10 +91,10 @@ The literal is injected at construction via `CommandValidator(allowed_commands=t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-002, REQ-004 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261006-223336 | 20261006-223336 | REQ-002, REQ-004 |
 | 2 | Add or update tests per Validation plan | N/A | — | — | doc-only change, no test edit required |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff + pytest |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-223336 | 20261006-223336 | ruff + pytest |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
