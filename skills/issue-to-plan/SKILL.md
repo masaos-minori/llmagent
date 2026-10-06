@@ -38,16 +38,16 @@ detection via Step 2.
 | Step | Name | Goal / AI Action |
 |---|---|---|
 | 0 | Load required instructions | Read routing, rules, templates, and this skill before starting. |
-| 1 | Identify target Issues | Confirm every specified `issues/{filename}.md` path exists before starting any processing. |
+| 1 | Identify target Issues | Confirm every specified `issues/{filename}.md` path exists before starting any processing. Then check for an existing Plan for the Issue (`workflow.md` Step 1b): a Plan that is not `Frozen` never allows the Issue to be moved. |
 | 2 | Assess the current Issue | Read the Issue in full, verify its claims against current source, and classify each extracted item's evidence basis. If already resolved or no longer applicable, stop and report — do not write a Plan. |
 | 3 | Inspect related files | Classify the Issue as Path A or Path B (see Routing below), then inspect related source, tests, config, and docs at the depth Path A/B calls for. |
 | 4 | Map Issue information to Plan information | Build an explicit mapping from every extracted Issue item to its Plan destination before writing anything. |
 | 5 | Create the Plan | Apply Path B's broader analysis if applicable, then generate `plans/{timestamp}_plan.md` with stable Requirement IDs. |
 | 6 | Analyze Unknowns and Risks | Resolve what evidence allows; file unresolved blocking items as issues. |
 | 7 | Add Traceability | Fill the canonical Traceability fields and the per-Requirement Requirement Traceability table. |
-| 8 | Validate information completeness | Confirm no Issue information was dropped, every Requirement ID is traceable, and the `Implementation Target Files` section passes validation and is marked `Frozen`. |
-| 9 | Final validation | Confirm all Step 8 checks pass; report the outcome. |
-| 10 | Move the Issue | `git mv` only, once Step 9 passes; no human approval required; no fallback. |
+| 8 | Validate information completeness | Confirm no Issue information was dropped, every Requirement ID is traceable, and the `Implementation Target Files` section passes validation and is marked `Frozen`. A `Fail`/`Partial` result or a not-`Frozen` section re-enters Step 8 (see `workflow.md` Step 8c); the Issue is not moved. |
+| 9 | Final validation | Confirm all Step 8 checks pass (including `Frozen`); report the outcome. On `Fail`/`Partial`/`Blocked`, stop here — do not proceed to Step 10. |
+| 10 | Move the Issue | `git mv` only, once Step 9 passes and the Plan is `Frozen` (never for a `Draft` Plan or a `Blocked` cycle); no human approval required; no fallback. |
 
 See `workflow.md` for the detailed per-step procedure and multi-file processing rules.
 See `workflow-path-b.md` for the Path B-only toolchain and analysis procedure (load it
@@ -57,7 +57,7 @@ only when Step 3 determines Path B).
 
 ## Routing (AI Task Size Assessment)
 
-Before proceeding to any analysis step, execute **Step 4's classification** (this
+Before proceeding to any analysis step, execute **Step 3's classification** (this
 skill's task-size assessment, carried forward unchanged from this skill's
 predecessor). Assess the current Issue against the following criteria to determine the
 execution path.
@@ -69,7 +69,7 @@ execution path.
 - [ ] No database schema changes
 
 **Execution Path:**
-Perform Step 4's direct-verification inspection only (no architecture/dependency/
+Perform Step 3's direct-verification inspection only (no architecture/dependency/
 historical/operational analysis) → establish the Step 7-equivalent validation quality
 baseline in Step 5 → Steps 7-11 run unconditionally.
 
@@ -114,7 +114,7 @@ validation quality analysis. Do not skip any analysis.
 - **No approval gate on the archival move**: this skill's move to `issues/done/`
   does not require human approval — it is gated on Step 9's validation passing
   instead, per `rules/workflow-lifecycle.md` Validation Reporting.
-- **Move is required**: see `workflow.md` Step 11. The move MUST NOT be skipped.
+- **Move is required**: see `workflow.md` Step 10. The move MUST NOT be skipped once its gate passes, and MUST NOT happen while the Plan is `Draft`/not `Frozen` or the cycle is `Blocked`.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 - Output language: see `skills/DESIGN.md` §Output language.
 

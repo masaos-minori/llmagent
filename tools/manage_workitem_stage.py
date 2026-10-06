@@ -19,6 +19,12 @@ there); a fetch failure (no network, no `origin`, detached HEAD) degrades to a n
 rather than blocking the move. `git status`/`git mv`/auto-commit invocations retry a
 bounded number of times on `.git/index.lock` contention from a concurrent git process.
 
+`close-issue` additionally refuses the move while a Plan in `plans/` (not `plans/done/`)
+names the issue in its `- **Source issue**:` line and that Plan's `Freeze status` is not
+`Frozen` (a `Draft` Plan, or a missing/malformed Freeze status line), unless both
+`--force` and `--reason` are supplied. An issue with no matching Plan (e.g. already
+resolved) moves as before.
+
 `close-implementation` additionally parses the target file's `### Execution Status`
 table (see `templates/execution-status.md`) and refuses the move while any row's
 `Status` column is `Pending`, unless both `--force` and `--reason` are supplied.
@@ -66,6 +72,7 @@ if TYPE_CHECKING:
     import git
 
 EXECUTION_STATUS_HEADING = "### Execution Status"
+_FREEZE_STATUS_PATTERN = re.compile(r"^\*\*Freeze status\*\*:\s*(\S+)", re.MULTILINE)
 
 # `.git/index.lock` contention markers seen in GitCommandError messages when a
 # concurrent git process (e.g. another session) holds the index lock.
@@ -580,10 +587,56 @@ def _report_move_result(
     return 0
 
 
+def _find_unfrozen_plans(issue: Path) -> list[tuple[Path, str]]:
+    """Return `(plan_path, freeze_status)` for each non-`Frozen` Plan of `issue`.
+
+    Only `plans/*.md` (not `plans/done/`) is searched, for a Plan whose
+    `- **Source issue**: {stage_dir}/{filename}` line names `issue`, matching the
+    content-based lookup in `skills/issue-to-plan/workflow.md` Step 1b. A Plan whose
+    Freeze status line is missing is reported as `"missing"`.
+    """
+    plans_dir = issue.resolve().parent.parent / "plans"
+    if not plans_dir.is_dir():
+        return []
+    marker = f"- **Source issue**: {issue.resolve().parent.name}/{issue.name}"
+    unfrozen: list[tuple[Path, str]] = []
+    for plan in sorted(plans_dir.glob("*.md")):
+        content = plan.read_text(encoding="utf-8")
+        if marker not in content.splitlines():
+            continue
+        match = _FREEZE_STATUS_PATTERN.search(content)
+        status = match.group(1) if match else "missing"
+        if status != "Frozen":
+            unfrozen.append((plan, status))
+    return unfrozen
+
+
 def cmd_close_issue(args: argparse.Namespace) -> int:
-    """Move an `issues/*.md` file to `issues/done/`."""
+    """Move an `issues/*.md` file to `issues/done/`.
+
+    Refuses when a Plan in `plans/` for this issue is not `Frozen`, unless both
+    `--force` and `--reason` are supplied.
+    """
+    if args.force and not args.reason:
+        print("ERROR: --force requires --reason", file=sys.stderr)
+        return 1
+
     source = Path(args.issue_path)
-    return _report_move_result(source, move_to_done(source, kind="issue"))
+    unfrozen = _find_unfrozen_plans(source) if source.is_file() else []
+    if unfrozen and not args.force:
+        described = "; ".join(f"{plan} (Freeze status: {st})" for plan, st in unfrozen)
+        print(
+            f"ERROR: blocked by non-Frozen Plan(s): {described}. "
+            "Re-run issue-to-plan Step 8 until the Plan is Frozen.",
+            file=sys.stderr,
+        )
+        return 1
+
+    result = move_to_done(source, kind="issue")
+    extra_note = (
+        f"forced past non-Frozen Plan; reason: {args.reason}" if unfrozen else None
+    )
+    return _report_move_result(source, result, extra_note)
 
 
 def cmd_close_plan(args: argparse.Namespace) -> int:
@@ -642,6 +695,14 @@ def build_parser() -> argparse.ArgumentParser:
         "close-issue", help="Move an issues/*.md file to issues/done/"
     )
     issue_parser.add_argument("issue_path", help="Path to the issue file")
+    issue_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Override a non-Frozen Plan block (requires --reason)",
+    )
+    issue_parser.add_argument(
+        "--reason", help="Justification for --force (required alongside --force)"
+    )
 
     plan_parser = subparsers.add_parser(
         "close-plan", help="Move a plans/*.md file to plans/done/"

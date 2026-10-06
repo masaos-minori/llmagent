@@ -180,6 +180,7 @@ verification dependency.
 Before running the move, verify all of the following:
 - information completeness is `Pass`
 - all other required validations from earlier steps are `Pass`
+- (`issue-to-plan` only) the generated Plan's `Implementation Target Files` `Freeze status` reads `Frozen` and the cycle's status is not `Blocked` / `Needs confirmation` — a `Draft` Plan never permits the move
 - source file exists
 - destination path does not exist
 - the archive directory exists

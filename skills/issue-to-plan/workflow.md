@@ -90,7 +90,7 @@ If a required file is missing, unreadable, or contradictory, apply
 
 ---
 
-## Step 2: Identify Target Issues
+## Step 1: Identify Target Issues
 
 Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) and `rules/ai-execution.md`
 Sequential Target Processing (Base). Workflow-specific: input path `issues/{filename}.md`;
@@ -98,7 +98,7 @@ archive directory `issues/done/`.
 
 ---
 
-## Step 2: Check for Existing Plans
+## Step 1b: Check for Existing Plans
 
 Before creating a new Plan, verify whether one already exists for this Issue. This prevents
 duplicate plans when multiple agents process the same Issue concurrently.
@@ -111,16 +111,22 @@ duplicate plans when multiple agents process the same Issue concurrently.
   (`{issue_path}`), search for an exact `- **Source issue**: {issue_path}` line inside the
   `## Traceability` section of any file in `plans/*.md` or `plans/done/*.md` (e.g.
   `grep -rl -- "- \*\*Source issue\*\*: {issue_path}" plans/*.md plans/done/*.md`).
-- **If a matching plan exists**: record the existing plan's path in the Traceability section,
-  note that this Issue has been addressed elsewhere, and proceed to Step 9/10 to move the
-  Issue to `issues/done/` without creating a duplicate Plan.
+- **If a matching plan exists**: record the existing plan's path in the Traceability section
+  and do not create a duplicate Plan. Then branch on that Plan's state:
+  - In `plans/done/`, or in `plans/` with `Freeze status` read back as `Frozen`: note that
+    this Issue has been addressed elsewhere and proceed to Step 10 to move the Issue to
+    `issues/done/`.
+  - In `plans/` with `Freeze status` `Draft` (or any state other than `Frozen`): do not
+    move the Issue. Resume at Step 8 against that Plan (8a and 8b); the Issue moves only
+    after Step 8 reports `Pass` and the section is `Frozen`. If Step 8 cannot reach
+    `Pass`, report `Blocked` and leave the Issue in `issues/`.
 - **If no matching plan exists**: proceed to Step 2 normally.
 - Only check `plans/` and `plans/done/` — do not check `issues/done/` for archived plans
   (those are already completed and irrelevant to duplicate detection).
 
 ---
 
-## Step 3: Assess the Current Issue
+## Step 2: Assess the Current Issue
 
 - Read the current Issue file in full.
 - Verify any factual claims against current source (affected files, whether the
@@ -163,14 +169,14 @@ duplicate plans when multiple agents process the same Issue concurrently.
   name — do not re-derive it there. This classification is also the source for the
   Requirement Traceability table's Status column in Step 7.
 - If the Issue is already resolved, cannot be reproduced, or no longer applies: report
-  the supporting evidence, do not create a Plan, and proceed to Step 9/10 to move it to
+  the supporting evidence, do not create a Plan, and proceed to Step 10 to move it to
   `issues/done/` (same `git mv`-only procedure, no separate path).
 - If the Issue is too vague to act on (no identifiable target files or problem
   statement), stop and ask the user for clarification before proceeding.
 
 ---
 
-## Step 4: Inspect Related Files — Task-Size Classification
+## Step 3: Inspect Related Files — Task-Size Classification
 
 Classify the Issue as Path A or Path B per `SKILL.md`'s Routing (AI Task Size
 Assessment) section, **before** inspecting.
@@ -215,7 +221,7 @@ cite them in prose.
 
 ---
 
-## Step 5: Map Issue Information to Plan Information
+## Step 4: Map Issue Information to Plan Information
 
 Create an explicit mapping before writing the Plan:
 
@@ -248,9 +254,9 @@ are for judgment calls made during analysis, not for unverified Issue claims.
 
 ---
 
-## Step 6: Create the Plan
+## Step 5: Create the Plan
 
-Using the Path A/B classification from Step 4:
+Using the Path A/B classification from Step 3:
 
 - **Path A**: skip architecture analysis, dependency graphing, historical analysis, and
   operational dependency inspection. Still establish the validation quality baseline
@@ -324,7 +330,7 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 
 ---
 
-## Step 7: Analyze Unknowns and Risks
+## Step 6: Analyze Unknowns and Risks
 
 - Write any generated `issues/{timestamp}_unknowns.md` / `issues/{timestamp}_risks.md`
   file in English (see `SKILL.md` Core Execution Rules), same as the Plan. Optionally
@@ -340,7 +346,7 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 - Include the items carried forward from Step 2's `Needs confirmation` classifications
   as Unknowns, in addition to any Unknowns identified during Steps 3-5.
 - Resolve Unknowns only when supported by repository evidence.
-- If a blocking ambiguity remains (`BLOCKING: True`), stop and request clarification.
+- If a blocking ambiguity remains (`BLOCKING: True`), stop and request clarification; the cycle ends `Blocked` and the Issue stays in `issues/` (no move).
 - Record non-blocking Unknowns in the Plan's Unknowns table
   (`ID | Unknown Description | Evidence Missing | Resolution Path | Blocking?`). Only
   create `issues/{timestamp}_unknowns.md` (GitHub Issue Markdown format, one issue per
@@ -374,7 +380,7 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 
 ---
 
-## Step 8: Add Traceability
+## Step 7: Add Traceability
 
 - Fill the Traceability section using `templates/traceability.md`'s structure:
   Workflow phase `issue-to-plan`; Source issue = the Issue path; Source requirement =
@@ -390,7 +396,7 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 
 ---
 
-## Step 9: Validate Information Completeness
+## Step 8: Validate Information Completeness
 
 This step has three sub-steps, applied in order: verify completeness and traceability
 (8a), validate and freeze the target-file inventory (8b), then report the outcome (8c).
@@ -440,7 +446,14 @@ sections:
 |---|---|
 | A Requirement field is unmapped | Step 4 (Issue→Plan field mapping) |
 | A Requirement is untraceable | Step 7 (Requirement Traceability) |
-| An `Implementation Target Files` row fails Plan Freeze validation | Correct that row per `rules/workflow-lifecycle.md`'s Revalidation procedure, then re-run only this Step's freeze check |
+| An `Implementation Target Files` row fails Plan Freeze validation, or the section's additional checks fail (path in both sections, non-file row) | Correct that row per `rules/workflow-lifecycle.md`'s Revalidation procedure, then re-run only this Step's freeze check |
+| The section is not `Frozen` for any other reason (e.g. a row remains `Needs confirmation`) | Resolve the cause per `rules/workflow-lifecycle.md` Initial validation (re-verify, correct, or route to `Unknowns`), then re-run Step 8b |
+
+A not-`Frozen` Plan is never a terminal state for the Issue: do not proceed to Step 10 or
+move the Issue to `issues/done/`. The Issue stays in `issues/`, and Step 8 is re-run
+(8a and 8b) after each correction until it reports `Pass`. If the 3-cycle bound above is
+reached, report `Blocked`; the Issue still stays in `issues/`, and a later run may
+re-enter at Step 8 against the existing Plan instead of regenerating it.
 
 Corrections are scoped to the affected section(s) by default.
 
@@ -457,7 +470,7 @@ has a full table; risks are stated with mitigations.
 
 ---
 
-## Step 10: Final Validation
+## Step 9: Final Validation
 
 Report: generated Plan path; generated Unknown/Risk files (or `None`); number of
 Requirements; number of `Implementation Target Files` rows; Path A/B classification
@@ -476,25 +489,33 @@ No human approval is required for the move to `issues/done/`, per
 `rules/workflow-lifecycle.md` Validation Reporting — proceed to Step 10 once Step 8 is
 `Pass` and all required validations are `Pass`.
 
-If Step 8 is `Fail` or `Partial`, do not proceed to Step 10 — resume from the Step named in
-Step 8's cause → re-entry-Step table above, then re-run Step 8 before reconsidering Step 10.
+If `Implementation Target Files` is not `Frozen`, or Step 8 is `Fail`, `Partial`, or
+`Blocked`, do not proceed to Step 10 and do not move the Issue. For `Fail`/`Partial`,
+resume from the Step named in Step 8's cause → re-entry-Step table above, then re-run
+Step 8 before reconsidering Step 10. For `Blocked`, stop and report; the Issue stays in
+`issues/`.
 
 ---
 
-## Step 11: Move the Issue
+## Step 10: Move the Issue
 
 This step MUST NOT be skipped. Apply `rules/workflow-lifecycle.md` Archival Move
 (issue-to-plan section) — same before/after verification checklist and `Blocked`-on-
 failure rule.
 
 - Move the Issue once Step 9 confirms information completeness is `Pass` and all
-  required validations are `Pass`.
+  required validations are `Pass`, and — read back from the Plan file, not assumed —
+  the Plan's `Implementation Target Files` `Freeze status` is `Frozen` and no
+  `BLOCKING: True` Unknown remains unresolved. If any of these does not hold (Plan is
+  `Draft`, or the cycle is `Blocked`), do not move the Issue.
 - Prefer `uv run python tools/manage_workitem_stage.py close-issue
   issues/{filename}.md` — it auto-commits the issue file first if it has
   uncommitted changes (e.g. a Step 2 correction earlier in this cycle), then
   performs the same `git mv issues/{filename}.md issues/done/{filename}.md` move;
-  it refuses (non-zero exit, no move) only if the source is missing or the
-  destination already exists. Fall back to the direct command below only if the
+  it refuses (non-zero exit, no move) if the source is missing, the destination
+  already exists, or a Plan in `plans/` for this Issue is not `Frozen` (do not
+  work around this with `--force`; resume at Step 8 instead). The fallback
+  command does not run this check, so the Frozen gate above applies to it too. Fall back to the direct command below only if the
   tool is unavailable.
 - Direct command (fallback): `git mv issues/{filename}.md
   issues/done/{filename}.md`. No `mv`, `cp` + `rm`, file-copy APIs, or other

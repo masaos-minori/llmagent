@@ -864,3 +864,89 @@ def test_set_step_status_keeps_rows_inside_table_with_trailing_section(
         ]
     )
     assert cmd_set_step_status(args2) == 0
+
+
+# ---------------------------------------------------------------------------
+# close-issue: non-Frozen Plan block
+# ---------------------------------------------------------------------------
+
+_ISSUE_NAME = "20260101_gate.md"
+
+
+def _plan_text(freeze: str | None, source: str = f"issues/{_ISSUE_NAME}") -> str:
+    freeze_line = f"**Freeze status**: {freeze}\n" if freeze else ""
+    return f"# Plan\n\n## Traceability\n- **Source issue**: {source}\n\n{freeze_line}"
+
+
+def _setup_issue_with_plan(
+    root: Path,
+    freeze: str | None,
+    *,
+    plan_dir: str = "plans",
+    source: str | None = None,
+) -> Path:
+    repo = git.Repo(root)
+    issue = root / "issues" / _ISSUE_NAME
+    _commit_file(repo, issue, "# Issue\n")
+    text = _plan_text(freeze) if source is None else _plan_text(freeze, source)
+    _commit_file(repo, root / plan_dir / "20260101_plan.md", text)
+    return issue
+
+
+@pytest.mark.parametrize("freeze", ["Draft", "Draft (was blocked)", None])
+def test_close_issue_blocked_by_non_frozen_plan(
+    temp_git_repo: Path, capsys: pytest.CaptureFixture[str], freeze: str | None
+) -> None:
+    issue = _setup_issue_with_plan(temp_git_repo, freeze)
+
+    args = build_parser().parse_args(["close-issue", str(issue)])
+    assert cmd_close_issue(args) == 1
+
+    assert issue.exists()
+    assert not (temp_git_repo / "issues" / "done" / _ISSUE_NAME).exists()
+    assert "non-Frozen" in capsys.readouterr().err
+
+
+def test_close_issue_allowed_when_plan_frozen(temp_git_repo: Path) -> None:
+    issue = _setup_issue_with_plan(temp_git_repo, "Frozen (verified)")
+
+    args = build_parser().parse_args(["close-issue", str(issue)])
+    assert cmd_close_issue(args) == 0
+    assert (temp_git_repo / "issues" / "done" / _ISSUE_NAME).exists()
+
+
+def test_close_issue_ignores_draft_plan_in_plans_done(temp_git_repo: Path) -> None:
+    issue = _setup_issue_with_plan(temp_git_repo, "Draft", plan_dir="plans/done")
+
+    args = build_parser().parse_args(["close-issue", str(issue)])
+    assert cmd_close_issue(args) == 0
+
+
+def test_close_issue_ignores_plan_for_other_issue(temp_git_repo: Path) -> None:
+    issue = _setup_issue_with_plan(
+        temp_git_repo, "Draft", source="issues/20260101_other.md"
+    )
+
+    args = build_parser().parse_args(["close-issue", str(issue)])
+    assert cmd_close_issue(args) == 0
+
+
+def test_close_issue_force_with_reason_overrides_block(
+    temp_git_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    issue = _setup_issue_with_plan(temp_git_repo, "Draft")
+
+    args = build_parser().parse_args(
+        ["close-issue", str(issue), "--force", "--reason", "plan abandoned"]
+    )
+    assert cmd_close_issue(args) == 0
+    assert (temp_git_repo / "issues" / "done" / _ISSUE_NAME).exists()
+    assert "plan abandoned" in capsys.readouterr().out
+
+
+def test_close_issue_force_without_reason_errors(temp_git_repo: Path) -> None:
+    issue = _setup_issue_with_plan(temp_git_repo, "Draft")
+
+    args = build_parser().parse_args(["close-issue", str(issue), "--force"])
+    assert cmd_close_issue(args) == 1
+    assert issue.exists()
