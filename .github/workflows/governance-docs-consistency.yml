@@ -61,9 +61,18 @@ jobs:
           set -euo pipefail
           python tools/check_canonical_source_conflicts.py
 
+      - name: Install Python dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml
+
+      - name: Run structural consistency check
+        run: |
+          set -euo pipefail
+          python tools/check_docs_structure.py "docs/**/*.md"
+
       - name: Run Front Matter schema compliance check
         continue-on-error: true
         run: |
           set -euo pipefail
-          python -m pip install --quiet pyyaml
-          python tools/check_docs_structure.py docs/*.md docs/10_adr/*.md --schema schemas/doc_front_matter.json --check-duplicates
+          python tools/check_docs_structure.py "docs/**/*.md" --schema schemas/doc_front_matter.json --check-duplicates

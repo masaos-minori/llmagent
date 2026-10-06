@@ -20,6 +20,7 @@ from tools.check_docs_structure import (
     MAX_SIZE,
     SIZE_EXCEPTIONS,
     _build_basename_index,
+    _validate_related_format,
     check_adr_related_coverage,
     check_links,
     check_related_links,
@@ -711,3 +712,65 @@ class TestAdrRelatedCoverage:
         index = _build_basename_index(tmp_path)
         issues = validate_file(adr, None, None, basename_index=index)
         assert any("lacks body-referenced document 'b.md'" in i for i in issues)
+
+
+# ---------------------------------------------------------------------------
+# Any-level body Related detection + related: format validation (rel001)
+# ---------------------------------------------------------------------------
+
+
+class TestCheckTailSectionsAnyLevel:
+    """Any-level body Related Documents detection in non-ADR docs."""
+
+    def test_body_related_at_h2_level_reported(self) -> None:
+        content = "## Related Documents\n\n- `foo.md`\n\n## Keywords\n\nx\n"
+        issues = check_tail_sections(Path("test.md"), content)
+        assert len(issues) == 1
+        assert (
+            "non-ADR document must not carry a body '## Related Documents' section"
+            in issues[0]
+        )
+
+    def test_body_related_at_h3_level_reported(self) -> None:
+        content = "### Related Documents\n\n- `foo.md`\n\n## Keywords\n\nx\n"
+        issues = check_tail_sections(Path("test.md"), content)
+        assert len(issues) == 1
+        assert (
+            "non-ADR document must not carry a body '### Related Documents' section"
+            in issues[0]
+        )
+
+    def test_heading_inside_fenced_code_ignored(self) -> None:
+        content = "```\n## Related Documents\n```\n\n## Keywords\n\nx\n"
+        issues = check_tail_sections(Path("test.md"), content)
+        assert len(issues) == 0
+
+    def test_adr_related_documents_required(self) -> None:
+        content = "# Some ADR\n\n## Keywords\n\nx\n"
+        issues = check_tail_sections(Path("docs/10_adr/ADR-001-test.md"), content)
+        assert len(issues) == 1
+        assert "missing '## Related Documents' section" in issues[0]
+
+
+class TestValidateRelatedFormat:
+    """related: entries must be plain .md basenames (no path/anchor)."""
+
+    def test_empty_list_accepted(self) -> None:
+        assert _validate_related_format([]) == []
+
+    def test_valid_basename_accepted(self) -> None:
+        assert _validate_related_format(["foo.md"]) == []
+
+    def test_invalid_extension_rejected(self) -> None:
+        issues = _validate_related_format(["foo.txt"])
+        assert len(issues) == 1
+        assert "must end in '.md'" in issues[0]
+
+    def test_path_in_entry_rejected(self) -> None:
+        issues = _validate_related_format(["subdir/foo.md"])
+        assert len(issues) == 1
+        assert "must be a plain basename" in issues[0]
+
+    def test_anchor_in_entry_rejected(self) -> None:
+        issues = _validate_related_format(["foo.md#section"])
+        assert any("must be a plain basename" in i for i in issues)

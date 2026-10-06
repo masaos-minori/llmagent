@@ -642,3 +642,34 @@ class TestMergeRelatedEntryPoints:
         subject = _subject(merge_docs, " []", body)
         assert main(["merge-related", "--fix"]) == 0
         assert "  - a.md" in subject.read_text(encoding="utf-8")
+
+
+class TestMergeRelatedOneTimeAid:
+    """merge-related migrates second-level (## ) body Related sections only;
+    deep ### blocks are left untouched (one-time migration aid)."""
+
+    def test_detects_and_migrates_h2_section(self, merge_docs: Path) -> None:
+        body = "Some text.\n\n## Related Documents\n\n- `b.md`\n" + _TAIL
+        subject = _subject(merge_docs, " []", body)
+        assert cmd_merge_related(["--fix"]) == 0
+        content = subject.read_text(encoding="utf-8")
+        assert "  - b.md" in content
+        assert "## Related Documents" not in content
+
+    def test_does_not_detect_h3_section(self, merge_docs: Path) -> None:
+        body = "Some text.\n\n### Related Documents\n\n- `b.md`\n" + _TAIL
+        subject = _subject(merge_docs, " []", body)
+        before = subject.read_bytes()
+        assert cmd_merge_related(["--fix"]) == 0
+        assert subject.read_bytes() == before
+        assert "### Related Documents" in subject.read_text(encoding="utf-8")
+
+    def test_dry_run_default_leaves_h2_section(
+        self, merge_docs: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        body = "## Related Documents\n\n- `b.md`\n" + _TAIL
+        subject = _subject(merge_docs, " []", body)
+        before = subject.read_bytes()
+        assert cmd_merge_related([]) == 0
+        assert subject.read_bytes() == before
+        assert "[DRY-RUN]" in capsys.readouterr().out
