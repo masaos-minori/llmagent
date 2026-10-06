@@ -19,7 +19,12 @@ class ToolCallResult:
     def from_transport(
         cls, output: str, is_error: bool, request_id: str = ""
     ) -> "ToolCallResult":
-        """Construct a ToolCallResult with default server_key and error_type."""
+        """Build a ToolCallResult from a successful transport response.
+
+        This method handles HTTP 200 responses carrying is_error: true
+        (i.e., tool-level errors). Transport failures are produced by the
+        invoker via _error_result(..., error_type="transport"), not here.
+        """
         return cls(
             output=output,
             is_error=is_error,
