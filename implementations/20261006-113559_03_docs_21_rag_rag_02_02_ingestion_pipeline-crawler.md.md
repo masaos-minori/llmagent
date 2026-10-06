@@ -94,10 +94,10 @@ CLI `--lang` help string, other doc sections, detection thresholds.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | edit section 2.1.2 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | doc consistency + structure checkers |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | `REQ-004` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261006-140007 | edit section 2.1.2 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261006-140007 | N/A: documentation change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261006-140007 | doc consistency + structure checkers |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261006-140007 | `REQ-004` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
