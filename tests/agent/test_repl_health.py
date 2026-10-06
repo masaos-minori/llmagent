@@ -562,6 +562,16 @@ class TestAuditSecurityDefaults:
                     warnings = audit_security_defaults(ctx)
         assert not any("firejail binary not found" in w for w in warnings)
 
+    def test_checked_in_shell_config_audit_result(self) -> None:
+        """Checked-in shell config resolves to firejail (Option A: none never permitted)."""
+        # Load the repository's checked-in shell config via the audit loader
+        from agent.security_audit_config import load_shell_audit_config
+
+        shell_cfg = load_shell_audit_config()
+        assert shell_cfg is not None
+        # Option A: the checked-in backend is firejail, never none
+        assert shell_cfg.sandbox_backend == "firejail"
+
     def test_security_posture_summary_included(self) -> None:
         """Summary line appended when any fail-closed or fail-open setting is empty."""
         ctx = self._make_ctx()
