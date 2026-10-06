@@ -109,10 +109,10 @@ Modifying existing test assertions; changing detection thresholds or supported l
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | create new test module |
-| 2 | Add or update tests per Validation plan | Pending | — | — | `REQ-001`, `REQ-003` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff/mypy/lint-imports/bandit/pytest |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: doc handled by separate row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261006-135709 | create new test module |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261006-135709 | `REQ-001`, `REQ-003` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261006-135709 | ruff/mypy/lint-imports/bandit/pytest |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261006-135709 | N/A: doc handled by separate row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
