@@ -96,10 +96,10 @@ If a restoration value is set while a `pending_approval_task_id` is already conf
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update doc preservation semantics in `agent_10_01_operations-and-observability-startup-and-health.md` | Pending | — | — | REQ-001 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Update doc preservation semantics in `agent_10_01_operations-and-observability-startup-and-health.md` | Completed | 20261006-220753 | 20261006-220753 | REQ-001 |
+| 2 | Add or update tests per Validation plan | Completed | 20261006-220753 | 20261006-220753 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-220753 | 20261006-220753 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-220753 | 20261006-220753 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
