@@ -128,10 +128,10 @@ class TestFromTransport:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/shared/test_transport_dto.py` | Pending | — | — | REQ-003 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Create `tests/shared/test_transport_dto.py` | Completed | 20261006-214911 | 20261006-214911 | REQ-003 |
+| 2 | Add or update tests per Validation plan | Completed | 20261006-214911 | 20261006-214911 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-214911 | 20261006-214911 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-214911 | 20261006-214911 | N/A: no docs/00_index.md task-scope mapping for test file (test-only change) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
