@@ -91,9 +91,9 @@ The updated prompt states:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove stale statement from `prompts/08_document-sync.md` | Pending | — | — | REQ-005 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove stale statement from `prompts/08_document-sync.md` | Completed | 20261006-235656 | 20261006-235656 | REQ-005 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261006-235656 | 20261006-235656 |  |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261006-235656 | 20261006-235656 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
