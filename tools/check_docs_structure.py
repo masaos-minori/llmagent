@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Validate docs/*.md structural conventions: size, H1 count, Front Matter,
 the Keywords section (and the Related Documents section of ADR documents),
-front matter `related:` coverage of ADR body references, and internal .md link
-reachability.
+body Related Documents/Docs/Chapters headings at ANY level in non-ADR docs,
+front matter `related:` format (basenames ending in .md) and coverage of ADR
+body references, and internal .md link reachability.
 
 Usage:
     uv run python tools/check_docs_structure.py [glob ...]
@@ -182,9 +183,29 @@ def check_status_value(path: Path, data: dict[str, Any]) -> list[str]:
 
 
 _RELATED_HEADING_RE = re.compile(
-    r"^## (?:Related Documents|Related Docs|Related Chapters)[ \t]*$", re.MULTILINE
+    r"^(?:#{1,6}\s+)(?:Related Documents|Related Docs|Related Chapters)[ \t]*$",
+    re.MULTILINE,
 )
 _BODY_REF_RE = re.compile(r"`([^`\n]+\.md)`|\]\(([^)#\s]+\.md)(?:#[^)]*)?\)")
+
+
+def _validate_related_format(related_entries: list[str]) -> list[str]:
+    """Validate that `related:` entries are plain .md basenames.
+
+    Each entry must be a basename ending in ``.md`` with no path (``/``) or
+    anchor (``#``); cross-references resolve as bare basenames through the shared
+    basename index. Returns one issue per malformed entry.
+    """
+    issues: list[str] = []
+    for entry in related_entries or []:
+        basename = Path(entry).name
+        if not basename.endswith(".md"):
+            issues.append(f"related entry {entry!r}: must end in '.md'")
+        if "/" in entry or "#" in entry:
+            issues.append(
+                f"related entry {entry!r}: must be a plain basename (no path or anchor)"
+            )
+    return issues
 
 
 def _is_adr(path: Path) -> bool:
@@ -319,6 +340,7 @@ def check_related_links(
                 issues.append(
                     f"{path.name}: duplicate related link -> '{resolved}' (appears {count} times)"
                 )
+    issues.extend(_validate_related_format(data.get("related") or []))
     return issues
 
 

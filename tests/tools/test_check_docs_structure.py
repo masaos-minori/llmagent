@@ -335,14 +335,14 @@ class TestBasenameIndexResolution:
         issues = check_related_links(doc, doc.read_text(), index)
         assert any("does-not-exist.md" in i for i in issues)
 
-    def test_directory_qualified_reference_still_resolves(self, tmp_path: Path) -> None:
-        _write(tmp_path / "sub" / "target.md", "# Target\n")
+    def test_directory_qualified_reference_rejected(self, tmp_path: Path) -> None:
         content = (
             '---\ntitle: "Example"\narea: agent\ntags:\n  - agent\n'
             "related:\n  - sub/target.md\n---\n\nBody.\n"
         )
         doc = _write(tmp_path / "example.md", content)
-        assert check_related_links(doc, doc.read_text(), {}) == []
+        issues = check_related_links(doc, doc.read_text(), {})
+        assert any("must be a plain basename" in i for i in issues)
 
     def test_body_link_cross_directory_resolves(self, tmp_path: Path) -> None:
         _write(tmp_path / "sub" / "target.md", "# Target\n")
