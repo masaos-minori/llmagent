@@ -150,7 +150,7 @@ ADR content produced by this Requirement follows the repository's existing conve
 (canonical header order: Context [Problem, Constraints], Assumptions, Decision,
 Rationale, Alternatives Considered, Consequences [Positive/Negative], Invariants,
 Verification, Migration, Implementation Notes, Known Deviations, Review Triggers,
-Approval, Related Documents, Change History, Completion Checklist), plus the `Status`
+Approval, Related ADRs, Implementation References, Change History, Completion Checklist), plus the `Status`
 field governed by that same document's "ADR Status Definitions"
 (`Proposed`/`Accepted`/`Rejected`/`Deprecated`/`Superseded`) — not a separate,
 purpose-built field list. This MUST NOT invent a new storage convention, location, or

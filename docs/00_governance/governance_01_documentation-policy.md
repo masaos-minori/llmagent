@@ -307,7 +307,7 @@ changed decision affects.
 
 ## ADR Section Header Standardization
 
-All ADRs must use these section headers in order: Context (Problem, Constraints), Assumptions, Decision, Rationale, Alternatives Considered, Consequences (Positive/Negative), Invariants, Verification, Implementation Notes, Known Deviations, Review Triggers, Approval, Related Documents, Completion Checklist.
+All ADRs must use these section headers in order: Context (Problem, Constraints), Assumptions, Decision, Rationale, Alternatives Considered, Consequences (Positive/Negative), Invariants, Verification, Implementation Notes, Known Deviations, Review Triggers, Approval, Related ADRs, Implementation References, Completion Checklist.
 
 Duplicate notes shared across all ADRs:
 - This chapter is not a basis for design decisions.

@@ -152,8 +152,8 @@ Validates structural conventions for `docs/*.md`:
 - File size limits (a per-file exception list covers documents the owner accepted above the limit)
 - H1 heading count (exactly one per document)
 - Front Matter presence and required fields
-- Keywords section; Related Documents section required for ADR documents only, and no body Related section in other documents
-- Front matter `related:` of each ADR covers the documents its body Related Documents block references
+- Keywords section; no body Related section in any document (general or ADR); ADRs keep `## Related ADRs` and `## Implementation References` as ordinary sections
+- Front matter `related:` of each ADR covers the documents its body `.md` references
 - Internal `.md` link reachability
 
 **Usage:**
@@ -192,7 +192,7 @@ python tools/check_adr_structure.py --format json
 
 ### 17. Known Deviation Sync Check (`check_known_deviation_sync.py`)
 
-Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section (and its `### Known Issues` subsection) exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1, and that an ADR bullet's resolved-or-open signal agrees with the entry's Status. A cited ID with no entry is reported as a dangling reference (Warning).
+Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1, and that an ADR bullet's resolved-or-open signal agrees with the entry's Status. A cited ID with no entry is reported as a dangling reference (Warning).
 
 **Enforcement:** local run only — not wired into pre-commit or `.github/workflows/`.
 
@@ -259,8 +259,9 @@ All ADRs must use the following section headers in this order:
 10. Known Deviations
 11. Review Triggers
 12. Approval
-13. Related Documents
-14. Completion Checklist
+13. Related ADRs
+14. Implementation References
+15. Completion Checklist
 
 See [Policy's ADR Section Header Standardization](governance_01_documentation-policy.md#adr-section-header-standardization) for duplicate notes shared across all ADRs.
 
@@ -319,7 +320,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-001 | Required Front Matter | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-002 | Valid Document Status | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
-| GV-005 | Related section placement (ADR block required; no body Related section elsewhere; ADR front matter covers body references) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
+| GV-005 | Related section placement (no body Related section anywhere; ADRs keep `## Related ADRs`/`## Implementation References`; front matter `related:` covers body `.md` references) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-006 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-008 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | Implement |

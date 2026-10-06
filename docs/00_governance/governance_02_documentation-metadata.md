@@ -23,9 +23,9 @@ The following four metadata fields are required in every document's front matter
 - **tags** — Keywords describing the document content
 - **related** — Filenames of related documents (basenames). Front matter `related:` is the single
   authoritative store of cross-references: general documents carry no body Related section.
-  ADR documents keep a classified `## Related Documents` block in the body (Specifications,
-  Operations, Known Issues, and similar), and their front matter `related:` must cover every
-  document that block references. Human-oriented navigation lives in the index and the per-area
+  ADR documents also carry no body Related section; `related:` is the sole cross-reference store
+  for ADRs, which keep `## Related ADRs` and `## Implementation References` as ordinary
+  top-level sections. Human-oriented navigation lives in the index and the per-area
   document guides.
 - **category** — Not a valid front-matter key. Do not use this field.
 
