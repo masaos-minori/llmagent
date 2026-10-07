@@ -83,7 +83,7 @@ DB 構成・接続管理の全体像: `docs/41_db/db_01_architecture_and_schema-
 
 ## Config files
 
-各 MCP サーバは自分専用の `*_mcp_server.toml` のみを読み込み、`agent.toml` は読まない（プロセス分離方針。`MCPServer.run_http()` が `ConfigLoader.restrict_to()` で強制）。MCP サーバ↔config ファイルの対応表、API キー env files (`conf.d/`): `docs/22_mcp/mcp_06_02_configuration-file-inventory.md`
+各 MCP サーバは自分専用の `*_mcp_server.toml` のみを読み込み、`agent.toml` は読まない（プロセス分離方針。`MCPServer.run_http()` が `ConfigLoader.restrict_to()` で強制）。MCP サーバ↔config ファイルの対応表、API キー env files (`conf.d/`): `docs/22_mcp/mcp_06_01_configuration-file-inventory.md`
 
 上記ドキュメントに含まれない config ファイル:
 
