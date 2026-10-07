@@ -62,7 +62,7 @@ allowed_dirs = ["/opt/llm", "/opt/llm/storage"]
 allowed_repo_paths = ["/opt/llm/myrepo"]
 ```
 
-- The caller-supplied `repo_path` is resolved with `Path.resolve()` per call and must be contained (component-aware) under a configured entry; configured entries are compared as written.
+- The caller-supplied `repo_path` is resolved with `Path.resolve()` per call and must be contained (component-aware) under a configured entry; a leading `~` in a configured entry is expanded to the server user's home directory when the configuration is loaded, and entries are otherwise compared as written.
 - Empty → Denies all repository access (fail-closed); all git tools are reported disabled with reason `allowed_repo_paths is empty`.
 - `read_only` (default true) disables the write tools; `protected_branches` rejects write tools on matching branches; see [mcp_04_05_git.md](./mcp_04_05_git.md).
 

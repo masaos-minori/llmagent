@@ -1,9 +1,10 @@
 # git-mcp server configuration
 
-# allowed_repo_paths: absolute paths of git repositories accessible via this server.
+# allowed_repo_paths: paths of git repositories accessible via this server
+# (absolute, or starting with ~/, which expands to the server user's home directory).
 # Empty list = deny all (fail-closed). Add repo paths explicitly.
-# Example: allowed_repo_paths = ["/home/masaos/llmagent", "/opt/llm"]
-allowed_repo_paths = ["/home/sugimoto/llmagent"]
+# Example: allowed_repo_paths = ["~/llmagent", "/opt/llm"]
+allowed_repo_paths = ["~/llmagent"]
 
 # allowed_remote_urls: normalized remote URLs authorized for git_pull/git_push.
 # Empty list = deny all (fail-closed). Add authorized remote URLs explicitly.

@@ -78,7 +78,7 @@ The "Tier" column does not exist within the `scripts/mcp_servers/git/` directory
 
 | Key | Notes |
 |---|---|
-| `allowed_repo_paths` | fail-closed; empty = reject all; the caller's `repo_path` is resolved via `Path.resolve()` and checked for component-aware containment under a configured entry (configured entries are used as written, so list canonical absolute paths) |
+| `allowed_repo_paths` | fail-closed; empty = reject all; the caller's `repo_path` is resolved via `Path.resolve()` and checked for component-aware containment under a configured entry (a leading `~` in an entry is expanded to the server user's home directory at load; other entries are used as written, so list canonical absolute paths) |
 | `read_only` | Unless explicitly set to false, write tools are disabled (`Tool disabled: read_only=true` at `/v1/call_tool`; `[DENIED] git-mcp is configured with read_only=true` if the service guard is reached directly) |
 | `max_log_entries` | Limit on `git_log` entries |
 | `auth_token` | Bearer token for MCP server call authentication |

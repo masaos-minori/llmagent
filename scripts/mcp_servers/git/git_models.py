@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import os
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -38,7 +39,11 @@ class GitConfig:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> GitConfig:
-        """Construct from a raw config dict (e.g. loaded from TOML)."""
+        """Construct from a raw config dict (e.g. loaded from TOML).
+
+        A leading ``~`` in an ``allowed_repo_paths`` entry is expanded to the
+        home directory of the user running the server.
+        """
         allowed = get_typed(d, "allowed_repo_paths", list, "a list", default=[])
         read_only = get_typed(d, "read_only", bool, "a boolean", default=True)
         max_log = get_typed(d, "max_log_entries", int, "an integer", default=50)
@@ -54,7 +59,7 @@ class GitConfig:
             d, "allowed_remote_urls", list, "a list", default=[]
         )
         return cls(
-            allowed_repo_paths=list(allowed),
+            allowed_repo_paths=[os.path.expanduser(str(p)) for p in allowed],
             read_only=read_only,
             auth_token=auth_token,
             max_log_entries=max_log,

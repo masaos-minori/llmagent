@@ -9,9 +9,38 @@ later refactor of this module can be verified not to change behavior.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.git_models import GitConfig
+
+
+class TestAllowedRepoPathsHomeExpansion:
+    def test_leading_tilde_is_expanded_to_the_home_directory(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("HOME", str(tmp_path))
+        cfg = GitConfig.from_dict({"allowed_repo_paths": ["~/llmagent", "/opt/llm"]})
+        assert cfg.allowed_repo_paths == [str(tmp_path / "llmagent"), "/opt/llm"]
+
+    def test_entries_without_tilde_are_unchanged(self) -> None:
+        cfg = GitConfig.from_dict({"allowed_repo_paths": ["/opt/repos", "rel/path"]})
+        assert cfg.allowed_repo_paths == ["/opt/repos", "rel/path"]
+
+    def test_checked_in_configuration_resolves_under_the_current_home(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        import tomllib
+
+        monkeypatch.setenv("HOME", str(tmp_path))
+        raw = tomllib.loads(
+            (
+                Path(__file__).resolve().parents[3] / "config" / "git_mcp_server.toml"
+            ).read_text(encoding="utf-8")
+        )
+        cfg = GitConfig.from_dict(raw)
+        assert cfg.allowed_repo_paths == [str(tmp_path / "llmagent")]
 
 
 class TestGitConfigFromDict:
